@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DuckDB Manager Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              monokai: {
+                bg: '#272822',
+                sidebar: '#1e1f1c',
+                accent: '#3e3d32',
+                fg: '#f8f8f2',
+                pink: '#f92672',
+                green: '#a6e22e',
+                yellow: '#e6db74',
+                orange: '#fd971f',
+                blue: '#66d9ef',
+                purple: '#ae81ff',
+                comment: '#75715e'
+              }
+            },
+            fontFamily: {
+              mono: ['JetBrains Mono', 'Menlo', 'Monaco', 'Courier New', 'monospace'],
+              sans: ['Space Grotesk', 'Inter', 'system-ui', 'sans-serif'],
+            }
+          }
+        }
+      }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- PrismJS Theme for Monokai -->
+    <style>
+      code[class*="language-"], pre[class*="language-"] {
+        color: #f8f8f2;
+        text-shadow: 0 1px rgba(0, 0, 0, 0.3);
+        font-family: 'JetBrains Mono', monospace;
+        direction: ltr;
+        text-align: left;
+        white-space: pre;
+        word-spacing: normal;
+        word-break: normal;
+        line-height: 1.5;
+        tab-size: 4;
+        hyphens: none;
+      }
+      .token.comment, .token.prolog, .token.doctype, .token.cdata { color: #75715e; }
+      .token.punctuation { color: #f8f8f2; }
+      .token.namespace { opacity: .7; }
+      .token.property, .token.tag, .token.constant, .token.symbol, .token.deleted { color: #f92672; }
+      .token.boolean, .token.number { color: #ae81ff; }
+      .token.selector, .token.attr-name, .token.string, .token.char, .token.builtin, .token.inserted { color: #a6e22e; }
+      .token.operator, .token.entity, .token.url, .language-css .token.string, .style .token.string { color: #f8f8f2; }
+      .token.atrule, .token.attr-value, .token.keyword { color: #f92672; }
+      .token.function, .token.class-name { color: #e6db74; }
+      .token.regex, .token.important, .token.variable { color: #fd971f; }
+
+      /* Custom Scrollbar for Monokai Theme */
+      ::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #1e1f1c; 
+        border-left: 1px solid #3e3d32;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #3e3d32; 
+        border-radius: 5px;
+        border: 2px solid #1e1f1c;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #75715e; 
+      }
+      ::-webkit-scrollbar-corner {
+        background: #1e1f1c;
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@18.3.1",
+    "react/": "https://esm.sh/react@18.3.1/",
+    "react-dom": "https://esm.sh/react-dom@18.3.1",
+    "react-dom/": "https://esm.sh/react-dom@18.3.1/",
+    "react-dom/client": "https://esm.sh/react-dom@18.3.1/client",
+    "@duckdb/duckdb-wasm": "https://esm.sh/@duckdb/duckdb-wasm@1.28.0",
+    "@google/genai": "https://esm.sh/@google/genai@^1.37.0",
+    "chart.js": "https://esm.sh/chart.js@4.4.2",
+    "react-chartjs-2": "https://esm.sh/react-chartjs-2@5.2.0?deps=chart.js@4.4.2&external=react,react-dom",
+    "chartjs-plugin-datalabels": "https://esm.sh/chartjs-plugin-datalabels@2.2.0?deps=chart.js@4.4.2",
+    "prismjs": "https://esm.sh/prismjs@1.29.0",
+    "react-simple-code-editor": "https://esm.sh/react-simple-code-editor@0.13.1?deps=react@18.3.1",
+    "prismjs/": "https://esm.sh/prismjs@^1.30.0/"
+  }
+}
+</script>
+</head>
+  <body class="bg-monokai-bg text-monokai-fg font-sans antialiased overflow-hidden">
+    <div id="root"></div>
+  </body>
+</html>

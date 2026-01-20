@@ -1,0 +1,5 @@
+{
+  "name": "DuckDB Manager Pro",
+  "description": "A comprehensive, Monokai-themed web interface for DuckDB with WASM integration, audit logging, and AI-assisted SQL generation.",
+  "requestFramePermissions": []
+}
