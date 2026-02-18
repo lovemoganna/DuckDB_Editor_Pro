@@ -1,0 +1,248 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@keyframes slideUp {
+    from {
+        transform: translateY(100%);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@layer utilities {
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-track {
+        @apply bg-monokai-sidebar border-l border-monokai-accent;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        @apply bg-monokai-accent rounded-sm border-2 border-monokai-sidebar;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        @apply bg-monokai-comment;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-corner {
+        @apply bg-monokai-sidebar;
+    }
+}
+
+/* Markdown 渲染样式 */
+.markdown-body {
+    color: #ccc;
+    line-height: 1.7;
+    font-size: 15px;
+}
+
+.markdown-body h1 {
+    font-size: 2em;
+    font-weight: bold;
+    color: #fff;
+    margin-top: 1.5em;
+    margin-bottom: 0.8em;
+    padding-bottom: 0.3em;
+    border-bottom: 1px solid #444;
+}
+
+.markdown-body h2 {
+    font-size: 1.5em;
+    font-weight: bold;
+    color: #fff;
+    margin-top: 1.5em;
+    margin-bottom: 0.6em;
+    padding-bottom: 0.2em;
+    border-bottom: 1px solid #333;
+}
+
+.markdown-body h3 {
+    font-size: 1.25em;
+    font-weight: bold;
+    color: #f8f8f2;
+    margin-top: 1.3em;
+    margin-bottom: 0.5em;
+}
+
+.markdown-body h4, .markdown-body h5, .markdown-body h6 {
+    font-weight: bold;
+    color: #f8f8f2;
+    margin-top: 1em;
+    margin-bottom: 0.5em;
+}
+
+.markdown-body p {
+    margin-bottom: 1em;
+}
+
+.markdown-body a {
+    color: #66d9ef;
+    text-decoration: none;
+}
+
+.markdown-body a:hover {
+    text-decoration: underline;
+}
+
+.markdown-body strong {
+    color: #fff;
+    font-weight: bold;
+}
+
+.markdown-body em {
+    color: #ae81ff;
+    font-style: italic;
+}
+
+.markdown-body code.inline-code {
+    background: #2b2b2b;
+    color: #f8f8f2;
+    padding: 0.2em 0.4em;
+    border-radius: 3px;
+    font-family: 'Fira Code', monospace;
+    font-size: 0.9em;
+}
+
+.markdown-body pre {
+    background: #1e1f1c;
+    border: 1px solid #444;
+    border-radius: 6px;
+    padding: 1em;
+    overflow-x: auto;
+    margin: 1em 0;
+}
+
+.markdown-body pre code {
+    color: #f8f8f2;
+    font-family: 'Fira Code', 'Consolas', monospace;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+/* 代码块样式 */
+.code-block-wrapper {
+    position: relative;
+    margin: 1.5em 0;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #444;
+    background: #1e1f1c;
+}
+
+.code-block-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 16px;
+    background: #2a2b24;
+    border-bottom: 1px solid #444;
+}
+
+.code-lang {
+    font-size: 12px;
+    color: #888;
+    font-family: monospace;
+    text-transform: uppercase;
+}
+
+.copy-btn, .run-code-btn {
+    font-size: 12px;
+    padding: 4px 12px;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.copy-btn {
+    background: #444;
+    color: #ccc;
+}
+
+.copy-btn:hover {
+    background: #555;
+    color: #fff;
+}
+
+.run-code-btn {
+    position: absolute;
+    right: 16px;
+    bottom: 16px;
+    background: #a6e22e;
+    color: #1e1f1c;
+    font-weight: bold;
+}
+
+.run-code-btn:hover {
+    background: #b8f040;
+    transform: translateY(-1px);
+}
+
+/* 表格样式 */
+.markdown-body table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1em 0;
+}
+
+.markdown-body th, .markdown-body td {
+    border: 1px solid #444;
+    padding: 8px 12px;
+    text-align: left;
+}
+
+.markdown-body th {
+    background: #2a2b24;
+    color: #fff;
+    font-weight: bold;
+}
+
+.markdown-body tr:nth-child(even) {
+    background: #22241e;
+}
+
+.markdown-body tr:hover {
+    background: #2a2b24;
+}
+
+/* 列表样式 */
+.markdown-body ul, .markdown-body ol {
+    margin: 1em 0;
+    padding-left: 2em;
+}
+
+.markdown-body li {
+    margin: 0.3em 0;
+}
+
+.markdown-body ul li::marker {
+    color: #66d9ef;
+}
+
+.markdown-body ol li::marker {
+    color: #a6e22e;
+}
+
+/* 区块引用 */
+.markdown-body blockquote {
+    border-left: 4px solid #66d9ef;
+    background: #2a2b24;
+    margin: 1em 0;
+    padding: 0.5em 1em;
+    color: #aaa;
+}
+
+/* 水平线 */
+.markdown-body hr {
+    border: none;
+    border-top: 1px solid #444;
+    margin: 2em 0;
+}

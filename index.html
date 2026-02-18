@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DuckDB Manager Pro</title>
+  <title>DuckDB Manager Pro</title>
+
+  <link
+    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;700&display=swap"
+    rel="stylesheet">
+  <!-- CodeMirror handled by @uiw/react-codemirror -->
+  <!-- Chart.js handled by npm -->
+  <!-- SQL Formatter handled by npm -->
+  <!-- PrismJS Theme for Monokai -->
+  <style>
+    code[class*="language-"],
+    pre[class*="language-"] {
+      color: #f8f8f2;
+      text-shadow: 0 1px rgba(0, 0, 0, 0.3);
+      font-family: 'JetBrains Mono', monospace;
+      direction: ltr;
+      text-align: left;
+      white-space: pre;
+      word-spacing: normal;
+      word-break: normal;
+      line-height: 1.5;
+      tab-size: 4;
+      hyphens: none;
+    }
+
+    .token.comment,
+    .token.prolog,
+    .token.doctype,
+    .token.cdata {
+      color: #75715e;
+    }
+
+    .token.punctuation {
+      color: #f8f8f2;
+    }
+
+    .token.namespace {
+      opacity: .7;
+    }
+
+    .token.property,
+    .token.tag,
+    .token.constant,
+    .token.symbol,
+    .token.deleted {
+      color: #f92672;
+    }
+
+    .token.boolean,
+    .token.number {
+      color: #ae81ff;
+    }
+
+    .token.selector,
+    .token.attr-name,
+    .token.string,
+    .token.char,
+    .token.builtin,
+    .token.inserted {
+      color: #a6e22e;
+    }
+
+    .token.operator,
+    .token.entity,
+    .token.url,
+    .language-css .token.string,
+    .style .token.string {
+      color: #f8f8f2;
+    }
+
+    .token.atrule,
+    .token.attr-value,
+    .token.keyword {
+      color: #f92672;
+    }
+
+    .token.function,
+    .token.class-name {
+      color: #e6db74;
+    }
+
+    .token.regex,
+    .token.important,
+    .token.variable {
+      color: #fd971f;
+    }
+
+    /* Custom Scrollbar for Monokai Theme */
+    ::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #1e1f1c;
+      border-left: 1px solid #3e3d32;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #3e3d32;
+      border-radius: 5px;
+      border: 2px solid #1e1f1c;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #75715e;
+    }
+
+    ::-webkit-scrollbar-corner {
+      background: #1e1f1c;
+    }
+
+    /* CodeMirror Customization for Enhanced SQL Editor */
+    .CodeMirror {
+      height: 100% !important;
+      font-size: 11px !important;
+      font-family: 'JetBrains Mono', monospace !important;
+      line-height: 1.6;
+      background: transparent !important;
+    }
+
+    .cm-s-material-darker.CodeMirror {
+      background-color: #0d0d0d !important;
+    }
+
+    .CodeMirror-gutters {
+      background: #0d0d0d !important;
+      border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
+    }
+
+    /* Progress animation for loading states */
+    @keyframes progress {
+      0% {
+        width: 0%;
+      }
+
+      50% {
+        width: 70%;
+      }
+
+      100% {
+        width: 100%;
+      }
+    }
+
+    .animate-progress {
+      animation: progress 1.5s ease-in-out infinite;
+    }
+  </style>
+
+  <link rel="stylesheet" href="/index.css">
+</head>
+
+<body class="bg-monokai-bg text-monokai-fg font-sans antialiased overflow-hidden">
+  <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+
+</html>
