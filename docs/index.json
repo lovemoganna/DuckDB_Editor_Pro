@@ -1,0 +1,70 @@
+{
+  "version": "1.0",
+  "generatedAt": "2026-02-18T13:50:27.026Z",
+  "count": 9,
+  "tutorials": [
+    {
+      "id": "duckdb",
+      "title": "DuckDB SQL 完整使用教程",
+      "category": "入门",
+      "difficulty": "Beginner",
+      "docPath": "/docs/001 内嵌DuckDB教程_简单.md"
+    },
+    {
+      "id": "duckdb",
+      "title": "Lesson 1 · DuckDB SQL 入门",
+      "category": "进阶",
+      "difficulty": "Intermediate",
+      "docPath": "/docs/002 内嵌DuckDB教程_简单.md"
+    },
+    {
+      "id": "duckdb",
+      "title": "用 DuckDB 建模 Palantir Ontology 元结构：完整教程",
+      "category": "进阶",
+      "difficulty": "Intermediate",
+      "docPath": "/docs/003 DuckDB教程_自定义上传.md"
+    },
+    {
+      "id": "duckdb",
+      "title": "用 DuckDB 建模 Palantir Ontology 元结构：一篇可运行的完整教程",
+      "category": "进阶",
+      "difficulty": "Intermediate",
+      "docPath": "/docs/004 DuckDB教程_自定义上传.md"
+    },
+    {
+      "id": "ai-",
+      "title": "DuckDB 系统化 SQL 教程 —— 以「Palantir 本体论（Ontology）」为例",
+      "category": "进阶",
+      "difficulty": "Intermediate",
+      "docPath": "/docs/AI 解析效果参照.md"
+    },
+    {
+      "id": "plan",
+      "title": "Enhancement Plan: DuckDB Editor Pro",
+      "category": "进阶",
+      "difficulty": "Intermediate",
+      "docPath": "/docs/PLAN.md"
+    },
+    {
+      "id": "task",
+      "title": "DuckDB Editor Enhancement Tasks",
+      "category": "进阶",
+      "difficulty": "Intermediate",
+      "docPath": "/docs/TASK.md"
+    },
+    {
+      "id": "taskcharts",
+      "title": "Chart Visualization Implementation Tasks",
+      "category": "进阶",
+      "difficulty": "Intermediate",
+      "docPath": "/docs/TASK_CHARTS.md"
+    },
+    {
+      "id": "terminology",
+      "title": "AI Schema Analysis 模块术语表",
+      "category": "进阶",
+      "difficulty": "Intermediate",
+      "docPath": "/docs/terminology.md"
+    }
+  ]
+}
