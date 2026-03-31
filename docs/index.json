@@ -1,7 +1,7 @@
 {
   "version": "1.0",
-  "generatedAt": "2026-02-18T13:50:27.026Z",
-  "count": 9,
+  "generatedAt": "2026-03-31T11:13:08.946Z",
+  "count": 13,
   "tutorials": [
     {
       "id": "duckdb",
@@ -39,32 +39,60 @@
       "docPath": "/docs/AI 解析效果参照.md"
     },
     {
-      "id": "plan",
-      "title": "Enhancement Plan: DuckDB Editor Pro",
+      "id": "libraryaiskillsoptimizeprompt",
+      "title": "Library 板块 AI Skills 优化提示词",
       "category": "进阶",
       "difficulty": "Intermediate",
-      "docPath": "/docs/PLAN.md"
+      "docPath": "/docs/Library_AI_Skills_Optimize_Prompt.md"
     },
     {
-      "id": "task",
-      "title": "DuckDB Editor Enhancement Tasks",
+      "id": "metricsai",
+      "title": "Metrics 板块 AI 辅助优化提示词",
       "category": "进阶",
       "difficulty": "Intermediate",
-      "docPath": "/docs/TASK.md"
+      "docPath": "/docs/Metrics板块AI辅助优化提示词.md"
     },
     {
-      "id": "taskcharts",
-      "title": "Chart Visualization Implementation Tasks",
+      "id": "ontologyaioptimizeprompt",
+      "title": "Ontology 模块 AI 优化提示词",
       "category": "进阶",
       "difficulty": "Intermediate",
-      "docPath": "/docs/TASK_CHARTS.md"
+      "docPath": "/docs/Ontology_AI_Optimize_Prompt.md"
     },
     {
-      "id": "terminology",
-      "title": "AI Schema Analysis 模块术语表",
+      "id": "ontologyaiskillsoptimizeprompt",
+      "title": "Ontology 模块 AI Skills 优化提示词（MECE 体系）",
       "category": "进阶",
       "difficulty": "Intermediate",
-      "docPath": "/docs/terminology.md"
+      "docPath": "/docs/Ontology_AI_Skills_Optimize_Prompt.md"
+    },
+    {
+      "id": "ontologymoduleoptimizationprompt",
+      "title": "Ontology 模块优化提示词 (MECE 体系)",
+      "category": "进阶",
+      "difficulty": "Intermediate",
+      "docPath": "/docs/Ontology_Module_Optimization_Prompt.md"
+    },
+    {
+      "id": "plan-graph-animation",
+      "title": "PLAN-graph-animation",
+      "category": "进阶",
+      "difficulty": "Intermediate",
+      "docPath": "/docs/PLAN-graph-animation.md"
+    },
+    {
+      "id": "plan-ontology-ai",
+      "title": "PLAN-ontology-ai",
+      "category": "进阶",
+      "difficulty": "Intermediate",
+      "docPath": "/docs/PLAN-ontology-ai.md"
+    },
+    {
+      "id": "quicktutorial",
+      "title": "SQL 学习路径：基于领导建议的系统化方案",
+      "category": "进阶",
+      "difficulty": "Intermediate",
+      "docPath": "/docs/Quick_Tutorial.md"
     }
   ]
 }
