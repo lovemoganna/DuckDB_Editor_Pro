@@ -368,7 +368,11 @@ export enum Tab {
   EXTENSIONS = 'extensions',
   TUTORIALS = 'tutorials',
   SCHEMA_GENERATOR = 'schema_generator',
-  METRICS = 'metrics'
+  METRICS = 'metrics',
+  AI_SKILLS = 'ai_skills',
+  LIBRARY = 'library',
+  ONTOLOGY = 'ontology',
+  ABSTRACTION = 'abstraction'
 }
 
 export type SemanticType = 'DIM' | 'MEA' | 'ID' | 'TIME' | 'ATTR' | 'RATIO' | 'CURR';
@@ -613,4 +617,533 @@ export interface Dashboard {
   items: DashboardItem[];
   createdAt: number;
   updatedAt: number;
+}
+
+// ============================================
+// AI Skills Module Types
+// ============================================
+
+/**
+ * 技能分类
+ */
+export type SkillCategory = 'sql' | 'analysis' | 'transformation' | 'optimization' | 'utility';
+
+/**
+ * 输入字段类型
+ */
+export type InputFieldType = 'text' | 'textarea' | 'select' | 'table' | 'column' | 'number' | 'boolean';
+
+/**
+ * 输出类型
+ */
+export type OutputType = 'sql' | 'json' | 'markdown' | 'table';
+
+/**
+ * 输入字段定义
+ */
+export interface SkillInputField {
+  name: string;
+  type: InputFieldType;
+  required: boolean;
+  label: string;
+  placeholder?: string;
+  description?: string;
+  options?: string[];
+  defaultValue?: any;
+  min?: number;
+  max?: number;
+  rows?: number;
+}
+
+/**
+ * 技能执行结果
+ */
+export interface SkillResult {
+  success: boolean;
+  sql?: string;
+  explanation?: string;
+  error?: string;
+  metadata?: Record<string, any>;
+  warnings?: string[];
+  executionTime?: number;
+}
+
+/**
+ * 技能执行上下文
+ */
+export interface SkillExecutionContext {
+  tableName?: string;
+  columns?: ColumnInfo[];
+  schema?: string;
+  sampleData?: any[];
+  currentSql?: string;
+  userIntent?: string;
+}
+
+/**
+ * AI 技能定义
+ */
+export interface AISkill {
+  id: string;
+  name: string;
+  description: string;
+  category: SkillCategory;
+  icon?: string;
+  inputSchema: SkillInputField[];
+  outputType: OutputType;
+  requiresTable?: boolean;
+  requiresColumns?: boolean;
+  examples?: SkillExample[];
+  // 意图关键词，用于自动匹配
+  intentKeywords?: string[];
+  // 意图匹配正则表达式
+  intentPatterns?: string[];
+  // 可组合的其他技能 ID（用于多技能编排）
+  compatibleWith?: string[];
+  // 技能操作的 SQL 类型
+  sqlOperationType?: SqlOperationType;
+  // 执行函数（动态加载）
+  execute?: (input: Record<string, any>, context: SkillExecutionContext) => Promise<SkillResult>;
+}
+
+/**
+ * SQL 操作类型
+ */
+export type SqlOperationType = 
+  | 'select'           // 查询
+  | 'insert'           // 插入
+  | 'update'           // 更新
+  | 'delete'           // 删除
+  | 'aggregation'      // 聚合统计
+  | 'join'             // 表关联
+  | 'window'           // 窗口函数
+  | 'transformation'   // 数据转换
+  | 'analysis'         // 分析建模
+  | 'optimization'     // 性能优化
+  | 'utility';         // 工具类
+
+/**
+ * 意图分析结果
+ */
+export interface IntentAnalysis {
+  intent: SqlOperationType;
+  confidence: number;  // 0-1 置信度
+  requiredSkills: string[];  // 需要的技能 ID 列表
+  skillChain?: SkillChain;  // 技能调用链（复杂需求）
+  missingInfo?: string[];  // 需要补充的信息
+  userRequest: string;  // 原始用户请求
+  reasoning?: string;  // 分析理由
+}
+
+/**
+ * 技能调用链（用于多技能编排）
+ */
+export interface SkillChain {
+  steps: SkillChainStep[];
+  finalSql?: string;
+}
+
+/**
+ * 技能链步骤
+ */
+export interface SkillChainStep {
+  stepId: string;
+  skillId: string;
+  inputs: Record<string, any>;
+  dependsOn: string[];  // 依赖的前置步骤 ID
+  expectedOutput?: string;
+}
+
+/**
+ * 技能路由选项
+ */
+export interface SkillRoutingOption {
+  mode: 'auto' | 'hybrid';
+  autoExecute: boolean;  // 是否自动执行
+  showConfidence: boolean;  // 是否显示置信度
+  maxSuggestions: number;  // 最大建议数量
+}
+
+/**
+ * 技能使用示例
+ */
+export interface SkillExample {
+  name: string;
+  input: Record<string, any>;
+  description: string;
+}
+
+/**
+ * 技能执行历史记录
+ */
+export interface SkillExecutionHistory {
+  id: string;
+  skillId: string;
+  skillName: string;
+  input: Record<string, any>;
+  result: SkillResult;
+  timestamp: number;
+  duration: number;
+}
+
+/**
+ * 技能调用请求
+ */
+export interface SkillInvokeRequest {
+  skillId: string;
+  inputs: Record<string, any>;
+  context: SkillExecutionContext;
+  simulateOnly?: boolean;
+}
+
+/**
+ * 技能面板状态
+ */
+export interface SkillPanelState {
+  isOpen: boolean;
+  selectedSkillId: string | null;
+  isExecuting: boolean;
+  history: SkillExecutionHistory[];
+}
+
+// ============================================
+// Library 模块类型定义
+// ============================================
+
+/**
+ * 速查卡片 - 高频语法速查
+ */
+export interface ReferenceCard {
+  id: string;
+  title: string;
+  syntax: string;
+  example: string;
+  scenario: string;
+  tags: string[];
+  isSystem?: boolean; // 系统预置 vs 用户自定义
+  createdAt: number;
+  updatedAt: number;
+}
+
+/**
+ * SQL 模板
+ */
+export interface SqlTemplate {
+  id: string;
+  name: string;
+  description: string;
+  sql: string;
+  params: TemplateParam[];
+  category: TemplateCategory;
+  tags: string[];
+  usageCount: number;
+  isSystem?: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface TemplateParam {
+  name: string;
+  type: 'string' | 'number' | 'column' | 'table';
+  required: boolean;
+  default?: any;
+  description?: string;
+}
+
+export type TemplateCategory = 
+  | 'user-segmentation'    // 用户分层
+  | 'multi-table-join'     // 多表关联
+  | 'time-series'          // 时间序列
+  | 'aggregation'          // 聚合分析
+  | 'data-cleaning'        // 数据清洗
+  | 'window-function'     // 窗口函数
+  | 'custom';              // 自定义
+
+/**
+ * 学习路径节点
+ */
+export interface LearningNode {
+  id: string;
+  title: string;
+  description: string;
+  content: string; // Markdown 内容
+  order: number;
+  duration: number; // 预计分钟数
+  isCompleted: boolean;
+  skills: string[]; // 关联的 AI Skills IDs
+}
+
+/**
+ * 学习路径阶段
+ */
+export interface LearningStage {
+  id: string;
+  title: string;
+  description: string;
+  nodes: LearningNode[];
+  order: number;
+  isUnlocked: boolean;
+}
+
+/**
+ * 个人代码片段
+ */
+export interface CodeSnippet {
+  id: string;
+  title: string;
+  sql: string;
+  description: string;
+  tags: string[];
+  favorite: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/**
+ * Library 面板状态
+ */
+export interface LibraryPanelState {
+  isOpen: boolean;
+  activeTab: LibraryTab;
+  searchQuery: string;
+  selectedCategory: string | 'all';
+}
+
+export type LibraryTab = 'meta' | 'ddl' | 'dml' | 'dql' | 'functions' | 'dcl' | 'optimization';
+
+/**
+ * AI 生成内容标记
+ */
+export interface AIGeneratedContent {
+  source: 'ai-generated';
+  verified: boolean;
+  generatedAt: number;
+  prompt?: string;
+}
+
+// ============================================
+// Ontology 本体论数据表 - 核心抽象层
+// ============================================
+
+/**
+ * 本体论条目 - 知识管理的核心抽象
+ * 
+ * 设计理念：
+ * - concept: 抽象概念（如"用户"、"订单"、"时间"）
+ * - property: 概念属性（如"用户.姓名"、"订单.金额"）
+ * - relation: 概念间关系（如"用户 HAS_MANY 订单"）
+ * - instance: 具体实例（如"用户表"、"订单表"）
+ * - abstractionLevel: 抽象层级（concept > property > relation > instance）
+ */
+export interface OntologyEntry {
+  id: string;
+  // 核心标识
+  name: string;                    // 名称：如 "用户"
+  fullName?: string;               // 全限定名：如 "system.user"
+  
+  // 抽象层级（本体论核心）
+  abstractionLevel: AbstractionLevel;
+  
+  // 语义分类
+  semanticType: OntologySemanticType;
+  
+  // 描述与示例
+  description: string;
+  example?: string;               // 示例 SQL
+  sqlTemplate?: string;            // SQL 模板（可参数化）
+  
+  // 层级关系（上下位）
+  parentId?: string;              // 父概念 ID（上位概念）
+  childIds?: string[];            // 子概念 IDs（下位概念）
+  
+  // 关联关系
+  relatedEntries?: OntologyRelation[];
+  
+  // 元数据
+  tags: string[];
+  domain: string;                  // 领域：如 "SQL"、"业务"、"分析"
+  
+  // AI 生成标记
+  aiGenerated?: AIGeneratedContent;
+  
+  // 系统标记
+  isSystem?: boolean;
+  
+  // 时间戳
+  createdAt: number;
+  updatedAt: number;
+}
+
+/**
+ * 抽象层级 - 本体论核心维度
+ * 
+ * 层次结构：
+ * - CONCEPT: 最抽象的概念层面（如"实体"、"度量"、"维度"）
+ * - PROPERTY: 概念属性层面（如"金额"、"日期"、"名称"）
+ * - RELATION: 概念关系层面（如"HAS_MANY"、"BELONGS_TO"）
+ * - INSTANCE: 最具体的实例层面（如具体表名、具体字段）
+ */
+export type AbstractionLevel = 'concept' | 'property' | 'relation' | 'instance';
+
+/**
+ * 本体论语义类型
+ * 
+ * 与数据库语义对应：
+ * - DIMENSION: 维度（如时间、地域、渠道）
+ * - MEASURE: 度量（如金额、数量、比率）
+ * - IDENTIFIER: 标识符（如ID、编号）
+ * - ATTRIBUTE: 属性（如名称、描述、状态）
+ * - TIME: 时间相关
+ * - RELATIONSHIP: 关系标记
+ * - COMPUTED: 计算派生
+ */
+export type OntologySemanticType = 
+  | 'DIMENSION'      // 维度
+  | 'MEASURE'        // 度量/指标
+  | 'IDENTIFIER'     // 标识符
+  | 'ATTRIBUTE'      // 属性
+  | 'TIME'           // 时间
+  | 'RELATIONSHIP'   // 关系
+  | 'COMPUTED';      // 计算派生
+
+/**
+ * 本体论关系定义
+ */
+export interface OntologyRelation {
+  targetId: string;               // 目标条目 ID
+  relationType: RelationType;      // 关系类型
+  description?: string;           // 关系描述
+}
+
+export type RelationType = 
+  | 'is_a'            // 继承关系（instance is_a concept）
+  | 'has_a'           // 包含关系（concept has_a property）
+  | 'has_many'        // 一对多关系
+  | 'belongs_to'      // 从属关系
+  | 'related_to'      // 关联关系
+  | 'depends_on';     // 依赖关系
+
+/**
+ * 本体论视图 - 用户自定义的本体论视角
+ */
+export interface OntologyView {
+  id: string;
+  name: string;
+  description?: string;
+  rootEntryIds: string[];         // 根节点 IDs
+  expandedIds?: string[];         // 展开的节点
+  
+  // 筛选条件
+  filters?: {
+    domains?: string[];
+    abstractionLevels?: AbstractionLevel[];
+    semanticTypes?: OntologySemanticType[];
+  };
+  
+  // 布局配置
+  layout?: {
+    type: 'tree' | 'graph' | 'list';
+    sortBy?: 'name' | 'abstraction' | 'domain';
+  };
+  
+  createdAt: number;
+  updatedAt: number;
+}
+
+/**
+ * 本体论导入/导出具
+ */
+export interface OntologyExport {
+  version: string;
+  exportedAt: number;
+  entries: OntologyEntry[];
+  views?: OntologyView[];
+}
+
+/**
+ * 数据抽象表 (AbstractionTable)
+ * 
+ * 基于 MECE 原则设计的数据抽象层核心表
+ * 用于快速调用指定能力并生成 SQL 模拟方案
+ * 
+ * 设计原则：
+ * - 层层展开：从概念到实例，路径清晰
+ * - 快速调用：选中条目即可生成对应 SQL
+ * - 灵活扩展：支持用户自定义和 AI 增强
+ */
+export interface AbstractionTable {
+  id: string;
+  name: string;                      // 表名：如 "用户行为分析"
+  description?: string;              // 描述
+  
+  // 抽象层级路径（MECE 原则：相互独立，完全穷尽）
+  abstractionPath: {
+    concept: string;                 // 概念层：如 "用户"、"订单"、"商品"
+    property?: string;               // 属性层：如 "金额"、"日期"、"状态"
+    relation?: string;               // 关系层：如 "HAS_MANY"、"BELONGS_TO"
+    instance?: string;               // 实例层：如 "orders"、"users"
+  };
+  
+  // SQL 生成参数
+  sqlConfig: {
+    operation: SqlOperation;         // 操作类型：SELECT/INSERT/UPDATE/DELETE/AGGREGATE
+    template: string;                // SQL 模板（可参数化）
+    parameters?: SqlParameter[];      // 参数定义
+    sampleOutput?: string;           // 示例输出
+  };
+  
+  // 关联的本体论条目
+  linkedOntologyIds?: string[];      // 关联的 OntologyEntry IDs
+  
+  // 元数据
+  tags: string[];
+  domain: string;                    // 领域：如 "电商"、"金融"、"分析"
+  isFavorite?: boolean;
+  isSystem?: boolean;
+  
+  createdAt: number;
+  updatedAt: number;
+}
+
+/**
+ * SQL 操作类型
+ */
+export type SqlOperation = 
+  | 'SELECT'        // 查询
+  | 'INSERT'        // 插入
+  | 'UPDATE'        // 更新
+  | 'DELETE'        // 删除
+  | 'AGGREGATE'     // 聚合分析
+  | 'JOIN'          // 关联查询
+  | 'WINDOW'        // 窗口函数
+  | 'CTE';          // 公共表表达式
+
+/**
+ * SQL 参数定义
+ */
+export interface SqlParameter {
+  name: string;                      // 参数名：如 "${table_name}"
+  type: 'string' | 'number' | 'date' | 'column' | 'table';
+  description?: string;              // 参数描述
+  defaultValue?: string;              // 默认值
+  required?: boolean;                 // 是否必填
+}
+
+/**
+ * SQL 生成请求
+ */
+export interface SqlGenerationRequest {
+  abstractionPath: AbstractionTable['abstractionPath'];
+  operation: SqlOperation;
+  customParameters?: Record<string, string>;
+  context?: string;                   // 额外上下文
+}
+
+/**
+ * SQL 生成结果
+ */
+export interface SqlGenerationResult {
+  sql: string;
+  explanation: string;                // SQL 解释
+  parameterValues?: Record<string, string>;  // 参数值建议
 }
