@@ -1,13 +1,256 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { MetricChart, MetricPackage, MetricDefinition } from '../types';
 import { metricAnalyzer } from '../services/metricAnalyzer';
+import { aiService } from '../services/aiService';
 import { MetricCard } from './MetricCard';
 import { MetricChartListModal } from './MetricChartListModal';
 import { 
   Database, Plus, RefreshCw, Trash2, ChevronRight, 
   ChevronDown, Check, Loader2, Package, ArrowLeft, Play,
-  BarChart2, Star, Search, Download, Upload
+  BarChart2, Star, Search, Download, Upload,
+  Sparkles, HelpCircle, X, ChevronUp, Zap, Undo2
 } from 'lucide-react';
+
+// ── MECE 背景说明数据 ──────────────────────────────────────────────────────────
+type MetricCategoryHelp = {
+  title: string;
+  description: string;
+  scenarios: string[];
+  commonErrors: string[];
+  aiHints: string[];
+  quickStart: string[];
+  bestPractices: string[];
+  formulaExamples: { name: string; formula: string; note: string }[];
+};
+
+const METRIC_CATEGORY_HELP: Record<string, MetricCategoryHelp> = {
+  metricModeling: {
+    title: '指标定义 / 建模',
+    description: '适用于将业务问题转化为可量化的指标，每个指标需包含名称、场景、特点、定义、公式、案例与数据依赖。',
+    scenarios: [
+      '有明确业务目标，需要定义一组核心指标体系',
+      '数据表结构已知，希望 AI 自动推断关键指标',
+      '需要快速搭建营收/流量/转化/留存的指标集合',
+      '对已有指标进行标准化命名与语义对齐',
+    ],
+    commonErrors: [
+      '公式中使用列名占位符（如 amount_col），未替换为实际字段名',
+      '混用 MySQL 聚合语法（如 GROUP_CONCAT），在 DuckDB 中报错',
+      '比率类指标未处理分母为零（应使用 NULLIF 防除零）',
+      '趋势类指标未指定时间粒度，导致聚合结果失去时序意义',
+      '依赖字段（dependencies）填写表名而非列名',
+    ],
+    aiHints: [
+      '提供「业务目标 + 表名 + 关键字段」，AI 可一次生成 5-10 个指标草稿',
+      '生成后检查每个公式是否有未填的占位符，可再次让 AI 补全',
+      '复合指标（如留存率）建议先拆解为原子指标，再组合',
+      '指定分类（营收类/流量类/转化类），AI 生成的指标体系更系统',
+    ],
+    quickStart: [
+      '1. 在左侧勾选目标数据表',
+      '2. 输入包名或点击「AI 填充」自动生成包名与描述',
+      '3. 在自然语言框描述业务需求，AI 实时生成指标草稿',
+      '4. 检查草稿并点击「生成指标」保存指标包',
+      '5. 生成后进入详情页逐一验证指标公式',
+    ],
+    bestPractices: [
+      '指标名称使用 snake_case（如 daily_active_users），保持一致性',
+      '每个指标必须填写单位（个/元/次/%），便于图表轴标签',
+      '公式中明确写出聚合粒度（如：按 user_id 去重）',
+      '复杂公式优先写成 CTE 形式，便于后续验证与维护',
+    ],
+    formulaExamples: [
+      { name: 'DAU（日活用户数）', formula: 'COUNT(DISTINCT user_id)', note: '配合 WHERE date_trunc 过滤日期' },
+      { name: '订单金额总计', formula: 'SUM(order_amount)', note: '注意过滤已取消订单' },
+      { name: '用户渗透率', formula: 'COUNT(DISTINCT user_id) * 1.0 / NULLIF(total_users, 0)', note: '用 NULLIF 防分母为零' },
+    ],
+  },
+  metricValidation: {
+    title: '指标验证 / 修复',
+    description: '适用于对指标 SQL 公式进行实际执行验证，定位语法或字段错误，并使用 AI 自动修复后重新验证。',
+    scenarios: [
+      '批量导入后的指标公式正确性核查',
+      '数据表结构变更后，检查依赖该表的指标是否仍然可用',
+      '新建指标后，确认公式在实际数据上可正确执行',
+      'AI 生成的公式含占位符或方言语法，需修复后验证',
+    ],
+    commonErrors: [
+      '验证时未选择数据源表，导致 SQL 执行缺失 FROM 目标',
+      '指标公式为纯聚合表达式（如 SUM(amount)），需补全 SELECT...FROM 结构',
+      '字段名大小写不匹配（DuckDB 默认不区分大小写，但双引号内区分）',
+      '公式引用的列已被重命名或删除，验证失败但错误信息不明确',
+      '批量验证时并发触发过多 AI 请求，导致限流失败',
+    ],
+    aiHints: [
+      '验证失败后，将错误信息粘贴给 AI，描述「这是指标 X 的公式，执行报错如下」',
+      '使用「修复」按钮（🔧）让 AI 自动改写公式，修复后会自动重新验证',
+      '批量验证前建议先单个验证典型指标，确认数据源连通性',
+      'AI 修复时可提示「保持业务含义不变，仅修复语法错误」',
+    ],
+    quickStart: [
+      '1. 进入指标包详情页',
+      '2. 点击指标卡片的「验证（▶）」按钮进行单个验证',
+      '3. 若出现红色「验证失败」标签，点击「修复（🔧）」',
+      '4. AI 修复完成后自动重新验证，直到出现绿色「已验证」标签',
+      '5. 全部验证通过后点击顶部「验证全部」进行批量确认',
+    ],
+    bestPractices: [
+      '公式中使用 LIMIT 1 或 COUNT(*) 等轻量操作验证，而非完整聚合扫描',
+      '验证前确认左侧数据源表已正确导入且有数据',
+      '修复后建议对比原公式与修复版本，确认业务含义未改变',
+      '验证通过的指标及时打上「收藏」标记，便于后续快速检索',
+    ],
+    formulaExamples: [
+      { name: '防除零写法', formula: 'SUM(revenue) / NULLIF(COUNT(*), 0)', note: '避免分母为 0 导致运行时错误' },
+      { name: '安全类型转换', formula: 'TRY_CAST(amount_str AS DOUBLE)', note: '字段类型不匹配时安全转换，失败返回 NULL' },
+      { name: '空值处理', formula: 'COALESCE(SUM(amount), 0)', note: '当表无数据时返回 0 而非 NULL' },
+    ],
+  },
+  metricAnalysis: {
+    title: '指标分类 / 检索',
+    description: '适用于对指标按业务域、计算类型、数据依赖进行分类管理，支持关键词搜索与收藏筛选，快速定位目标指标。',
+    scenarios: [
+      '指标包内指标数量超过 20 个，需要快速定位特定指标',
+      '按业务域（营收/流量/转化/留存）筛选相关指标',
+      '查找依赖特定字段（如 user_id）的所有指标',
+      '标记高频使用的核心指标以便快速访问',
+    ],
+    commonErrors: [
+      '搜索词使用中文业务名，但指标名称为英文，搜索无结果（可搜定义字段）',
+      '「仅显示收藏」过滤器开启后忘记关闭，导致看不到新增指标',
+      '指标分类（category）未填写，搜索时无法按类别过滤',
+      '多个指标包中存在同名指标，未注意当前处于哪个包的详情页',
+    ],
+    aiHints: [
+      '搜索支持指标名称、定义与分类的模糊匹配，可用英文关键词搜索',
+      '为指标填写 category（如「营收类」「流量类」），可在搜索框中精确过滤',
+      '收藏核心指标后，可快速切换「仅收藏」视图做日常查看',
+      '指标包支持导出为 JSON，可离线整理后再导入其他项目复用',
+    ],
+    quickStart: [
+      '1. 进入指标包详情页，顶部搜索框输入关键词',
+      '2. 点击⭐筛选按钮切换「收藏 / 全部」模式',
+      '3. 搜索结果为零时，检查「仅显示收藏」是否已开启',
+      '4. 为常用指标点击星标图标进行收藏',
+      '5. 使用「导出」将整个指标包保存为 JSON 备份',
+    ],
+    bestPractices: [
+      '统一指标命名规范（snake_case 英文），提高搜索命中率',
+      '每个指标填写 category 字段，便于分组查看',
+      '跨项目复用时优先用导入/导出，而非手动重建',
+      '收藏数量建议控制在 10 个以内，保持核心指标突出',
+    ],
+    formulaExamples: [
+      { name: '按分类搜索', formula: '搜索框输入 "营收类" 或 "revenue"', note: '匹配指标名、定义、分类三个字段' },
+      { name: '依赖字段检索', formula: '搜索框输入字段名如 "user_id"', note: '可在指标定义文本中匹配' },
+      { name: '批量导出复用', formula: '点击包列表「⬇」图标 → 保存 JSON → 导入新项目', note: '跨库复用指标体系' },
+    ],
+  },
+  chartGeneration: {
+    title: '图表生成 / 可视化',
+    description: '适用于从指标公式自动推断图表类型（折线/柱状/饼图等）并生成可在 SQL 编辑器中展示的图表配置，无需手动配置图表参数。',
+    scenarios: [
+      '趋势类指标（日/周/月聚合）自动生成折线图',
+      '构成类指标（各类别占比）自动生成饼图或柱状图',
+      '对比类指标（同环比）自动生成分组柱状图',
+      '批量为指标包内所有指标生成图表',
+    ],
+    commonErrors: [
+      '数据源表未连接或无数据，生成图表时 SQL 返回空结果',
+      '指标公式为纯标量（如 COUNT(*)），无时间维度，系统无法推断 X 轴',
+      '图表类型推断错误，需手动调整图表配置',
+      '批量生成时因 AI 调用频繁导致超时，部分指标图表生成失败',
+    ],
+    aiHints: [
+      '生成图表前确保指标已通过「验证」（绿色标签），避免图表 SQL 执行失败',
+      '趋势类指标在公式中注明时间字段（如 date_trunc），AI 图表推断更准确',
+      '批量生成时建议分批（每次 5-10 个），避免并发限流',
+      '生成的图表可在 SQL 编辑器的「图表」标签页中查看与调整',
+    ],
+    quickStart: [
+      '1. 进入指标包详情页，确认指标已验证通过',
+      '2. 点击指标卡片右上角「📊」按钮生成单个图表',
+      '3. 或点击顶部「生成全部图表」批量处理',
+      '4. 点击「查看图表」打开图表列表模态框',
+      '5. 点击图表卡片的「在 SQL 编辑器中打开」进行进一步分析',
+    ],
+    bestPractices: [
+      '趋势指标公式中建议包含 date_trunc 或 strftime，帮助 AI 推断时间 X 轴',
+      '构成指标公式中包含 GROUP BY 类别字段，有助于生成正确的分组图表',
+      '重新分析（刷新）指标包后需重新生成图表，旧图表不会自动更新',
+    ],
+    formulaExamples: [
+      { name: '折线图（趋势）', formula: "SELECT date_trunc('day', created_at) AS day, COUNT(*) AS cnt FROM t GROUP BY 1", note: '包含时间维度，AI 推断为折线图' },
+      { name: '柱状图（分组）', formula: 'SELECT category, SUM(amount) AS total FROM t GROUP BY category', note: '分类维度，AI 推断为柱状图' },
+      { name: '饼图（构成）', formula: 'SELECT status, COUNT(*) AS cnt FROM t GROUP BY status', note: '枚举类别，AI 推断为饼图' },
+    ],
+  },
+  metricManagement: {
+    title: '指标包管理 / 版本控制',
+    description: '适用于指标包的创建、导入/导出、版本历史查看与血缘追踪管理，支持跨项目指标体系迁移与复用。',
+    scenarios: [
+      '从零开始构建一套指标体系并保存为指标包',
+      '将团队共享的指标包 JSON 导入当前项目',
+      '数据表结构变更后，重新分析刷新指标包',
+      '查看某个指标的修改历史与版本差异',
+    ],
+    commonErrors: [
+      '导入 JSON 格式不合法（缺少 id/name/metrics 字段）导致导入失败',
+      '重新分析（刷新）时数据源表已被删除，导致分析报错',
+      '删除指标包时未导出备份，数据无法恢复',
+      '同一指标包被多次导入，产生重复包（系统自动生成新 ID，但内容相同）',
+    ],
+    aiHints: [
+      '重新分析前先导出当前指标包作为备份，防止分析结果覆盖手动调整内容',
+      '导入外部指标包后，逐一检查公式中的表名是否与当前项目一致',
+      '版本号大于 1 的指标可点击展开历史记录，查看各版本变更字段',
+      '血缘追踪（lineage）字段由 AI 分析时自动填充，可辅助理解指标依赖关系',
+    ],
+    quickStart: [
+      '1. 在指标包列表页点击「导入」上传 JSON 文件',
+      '2. 或勾选数据表后点击「新建指标包」从零创建',
+      '3. 进入指标包后点击「重新分析」可基于当前表重新生成指标',
+      '4. 点击指标列表页的「导出」图标保存指标包 JSON',
+      '5. 删除前务必先导出备份',
+    ],
+    bestPractices: [
+      '每次重要修改前先「导出」备份，避免误操作丢失数据',
+      '指标包命名包含业务域与日期（如：电商核心指标_2026Q1），便于版本识别',
+      '导入外部包后立即执行「验证全部」确认字段匹配性',
+    ],
+    formulaExamples: [
+      { name: '导出指标包', formula: '点击包列表「⬇」图标 → 保存 .json', note: '包含所有指标定义与元数据' },
+      { name: '导入指标包', formula: '包列表页右上角「导入」→ 选择 .json 文件', note: '系统自动生成新 ID 避免冲突' },
+      { name: '版本查看', formula: '指标卡片展开 → 查看 history 字段变更记录', note: '保留最近 N 版修改历史' },
+    ],
+  },
+};
+
+const HELP_CATEGORIES = [
+  { key: 'metricModeling', label: '指标建模' },
+  { key: 'metricValidation', label: '指标验证' },
+  { key: 'metricAnalysis', label: '指标分类' },
+  { key: 'chartGeneration', label: '图表生成' },
+  { key: 'metricManagement', label: '包管理' },
+] as const;
+
+// ── 背景说明子组件 ──────────────────────────────────────────────────────────────
+const HelpSection: React.FC<{
+  title: string;
+  color: string;
+  items: string[];
+  numbered?: boolean;
+}> = ({ title, color, items, numbered }) => (
+  <div>
+    <div className={`text-${color} uppercase font-medium mb-1.5 text-xs`}>{title}</div>
+    {items.map((item, i) => (
+      <div key={i} className="flex gap-1.5 mb-1">
+        <span className={`text-${color} shrink-0 mt-0.5`}>{numbered ? `${i + 1}.` : '·'}</span>
+        <span className="text-monokai-fg text-xs leading-relaxed">{numbered ? item.replace(/^\d+\.\s*/, '') : item}</span>
+      </div>
+    ))}
+  </div>
+);
 
 interface MetricManagerProps {
   tables: string[];
@@ -48,6 +291,26 @@ export const MetricManager: React.FC<MetricManagerProps> = ({ tables, onExecuteS
   const [dataSourcePath, setDataSourcePath] = useState('');
   const [dataSourceName, setDataSourceName] = useState('');
 
+  // AI 填充 & 自然语言输入
+  const [aiNaturalLanguageInput, setAiNaturalLanguageInput] = useState('');
+  const [isAiFilling, setIsAiFilling] = useState(false);
+  const [metricPreview, setMetricPreview] = useState<MetricDefinition[] | null>(null);
+  const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
+  const nlDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // 快速清除撤销
+  const [lastClearedForm, setLastClearedForm] = useState<{
+    packageName: string;
+    packageDescription: string;
+    aiInput: string;
+    selectedTables: Set<string>;
+  } | null>(null);
+  const [showClearToast, setShowClearToast] = useState(false);
+
+  // 背景说明面板
+  const [showHelpPanel, setShowHelpPanel] = useState(false);
+  const [activeHelpCategory, setActiveHelpCategory] = useState<keyof typeof METRIC_CATEGORY_HELP>('metricModeling');
+
   // Load packages on mount
   useEffect(() => {
     loadPackages();
@@ -72,6 +335,108 @@ export const MetricManager: React.FC<MetricManagerProps> = ({ tables, onExecuteS
   const loadPackages = () => {
     const loaded = metricAnalyzer.loadMetricPackages();
     setPackages(loaded);
+  };
+
+  // ── AI 一键填充 ──────────────────────────────────────────────
+  const handleMetricAIFill = async () => {
+    if (selectedTables.size === 0) {
+      alert('请先在左侧勾选至少一张数据表');
+      return;
+    }
+    setIsAiFilling(true);
+    try {
+      const tableList = Array.from(selectedTables).join('、');
+      const userHint = aiNaturalLanguageInput.trim()
+        ? `\n用户补充描述：${aiNaturalLanguageInput.trim()}`
+        : '';
+      const prompt = `根据以下数据表名称，推断其业务域并生成一个合适的指标包名称和简短描述（描述不超过30字）。
+数据表：${tableList}${userHint}
+
+仅返回 JSON，格式：{"name": "包名", "description": "描述"}`;
+      const result = await aiService.robustCall<{ name: string; description: string }>(
+        'metric' as any,
+        prompt,
+        '你是数据分析专家，负责为指标包命名。仅返回 JSON，不包含其他内容。',
+        true,
+        2
+      );
+      if (result?.name) setPackageName(result.name);
+      if (result?.description) setPackageDescription(result.description);
+    } catch (err) {
+      console.error('AI fill failed:', err);
+    } finally {
+      setIsAiFilling(false);
+    }
+  };
+
+  // ── 快速清除 ─────────────────────────────────────────────────
+  const handleMetricQuickClear = () => {
+    setLastClearedForm({
+      packageName,
+      packageDescription,
+      aiInput: aiNaturalLanguageInput,
+      selectedTables: new Set(selectedTables),
+    });
+    setPackageName('');
+    setPackageDescription('');
+    setAiNaturalLanguageInput('');
+    setSelectedTables(new Set());
+    setMetricPreview(null);
+    setShowClearToast(true);
+    setTimeout(() => setShowClearToast(false), 5000);
+  };
+
+  const handleUndoClear = () => {
+    if (!lastClearedForm) return;
+    setPackageName(lastClearedForm.packageName);
+    setPackageDescription(lastClearedForm.packageDescription);
+    setAiNaturalLanguageInput(lastClearedForm.aiInput);
+    setSelectedTables(lastClearedForm.selectedTables);
+    setLastClearedForm(null);
+    setShowClearToast(false);
+  };
+
+  // ── 自然语言实时预览（防抖 600ms） ────────────────────────────
+  const handleNLInputChange = (value: string) => {
+    setAiNaturalLanguageInput(value);
+    setMetricPreview(null);
+    if (nlDebounceRef.current) clearTimeout(nlDebounceRef.current);
+    if (!value.trim() || selectedTables.size === 0) return;
+    nlDebounceRef.current = setTimeout(async () => {
+      setIsGeneratingPreview(true);
+      try {
+        const tableList = Array.from(selectedTables).join('、');
+        const prompt = `根据以下需求生成指标定义（返回 JSON 数组，每个元素包含 name/scenario/characteristics/value/definition/formula/example/dependencies/unit/category 字段，最多 3 个指标）：
+数据表：${tableList}
+需求描述：${value.trim()}`;
+        const result = await aiService.robustCall<MetricDefinition[]>(
+          'metric' as any,
+          prompt,
+          '你是数据分析专家。仅返回 JSON 数组，不包含其他内容。',
+          true,
+          1
+        );
+        const arr = Array.isArray(result) ? result : [result];
+        setMetricPreview(arr.slice(0, 3).map((m: any, i: number) => ({
+          id: `preview_${i}`,
+          name: m.name ?? '',
+          scenario: m.scenario ?? '',
+          characteristics: m.characteristics ?? '',
+          value: m.value ?? '',
+          definition: m.definition ?? '',
+          formula: m.formula ?? '',
+          example: m.example ?? '',
+          dependencies: m.dependencies ?? [],
+          unit: m.unit,
+          category: m.category,
+          createdAt: Date.now(),
+        })));
+      } catch {
+        /* 预览失败静默处理 */
+      } finally {
+        setIsGeneratingPreview(false);
+      }
+    }, 600);
   };
 
   // 切换指标收藏状态
@@ -652,19 +1017,32 @@ export const MetricManager: React.FC<MetricManagerProps> = ({ tables, onExecuteS
   return (
     <div className="flex h-full">
       {/* Left Panel - Table Selection */}
-      <div className="w-80 bg-monokai-sidebar border-r border-monokai-accent flex flex-col">
-        <div className="p-4 border-b border-monokai-accent">
-          <h2 className="text-lg font-bold text-white flex items-center gap-2">
-            <Database size={18} className="text-monokai-blue" />
-            选择数据表
-          </h2>
+      <div className="w-80 bg-monokai-bg border-r border-monokai-accent flex flex-col">
+        <div className="p-4 border-b border-monokai-accent bg-monokai-bg">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold text-monokai-fg flex items-center gap-2">
+              <Database size={18} className="text-monokai-blue" />
+              选择数据表
+            </h2>
+            <button
+              onClick={() => setShowHelpPanel(v => !v)}
+              className={`p-1.5 rounded transition-colors ${
+                showHelpPanel
+                  ? 'bg-monokai-yellow/20 text-monokai-yellow'
+                  : 'text-monokai-comment hover:text-monokai-yellow hover:bg-monokai-yellow/10'
+              }`}
+              title="背景说明与使用指南"
+            >
+              <HelpCircle size={16} />
+            </button>
+          </div>
           <p className="text-xs text-monokai-comment mt-1">
             勾选要分析的表，AI将自动生成指标定义
           </p>
         </div>
 
         {/* Table List */}
-        <div className="flex-1 overflow-y-auto p-2">
+        <div className="flex-1 overflow-y-auto p-2 bg-monokai-bg">
           <div className="flex items-center justify-between px-2 py-1 mb-2">
             <span className="text-xs text-monokai-comment">
               已选择 {selectedTables.size} / {tables.length} 个表
@@ -688,13 +1066,13 @@ export const MetricManager: React.FC<MetricManagerProps> = ({ tables, onExecuteS
                   key={table}
                   className={`flex items-center gap-2 p-2 rounded cursor-pointer transition-colors ${
                     selectedTables.has(table) 
-                      ? 'bg-monokai-blue/20 text-white' 
-                      : 'hover:bg-monokai-accent/30 text-monokai-fg'
+                      ? 'bg-monokai-sidebar text-monokai-fg' 
+                      : 'hover:bg-monokai-sidebar text-monokai-fg'
                   }`}
                 >
                   <div className={`w-4 h-4 rounded border flex items-center justify-center ${
                     selectedTables.has(table) 
-                      ? 'bg-monokai-blue border-monokai-blue' 
+                      ? 'bg-monokai-green border-monokai-green' 
                       : 'border-monokai-comment'
                   }`}>
                     {selectedTables.has(table) && <Check size={10} className="text-monokai-bg" />}
@@ -712,78 +1090,222 @@ export const MetricManager: React.FC<MetricManagerProps> = ({ tables, onExecuteS
           )}
         </div>
 
+        {/* 背景说明面板 */}
+        {showHelpPanel && (
+          <div className="border-t border-monokai-accent bg-monokai-bg flex flex-col max-h-[55vh]">
+            {/* 标签页导航 */}
+            <div className="flex overflow-x-auto border-b border-monokai-accent/60 shrink-0">
+              {HELP_CATEGORIES.map(cat => (
+                <button
+                  key={cat.key}
+                  onClick={() => setActiveHelpCategory(cat.key)}
+                  className={`px-3 py-2 text-xs font-medium whitespace-nowrap transition-colors border-b-2 -mb-px ${
+                    activeHelpCategory === cat.key
+                      ? 'border-monokai-yellow text-monokai-yellow'
+                      : 'border-transparent text-monokai-comment hover:text-monokai-fg'
+                  }`}
+                >
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+
+            {/* 内容区 */}
+            <div className="overflow-y-auto p-3 space-y-3 text-xs">
+              {(() => {
+                const c = METRIC_CATEGORY_HELP[activeHelpCategory];
+                return (
+                  <>
+                    <div>
+                      <div className="text-monokai-yellow font-bold text-sm mb-1">{c.title}</div>
+                      <p className="text-monokai-fg leading-relaxed">{c.description}</p>
+                    </div>
+
+                    <HelpSection title="典型场景" color="monokai-blue" items={c.scenarios} />
+                    <HelpSection title="常见错误" color="monokai-pink" items={c.commonErrors} />
+                    <HelpSection title="AI 协作提示" color="monokai-green" items={c.aiHints} />
+                    <HelpSection title="快速上手" color="monokai-purple" items={c.quickStart} numbered />
+
+                    <div>
+                      <div className="text-monokai-comment uppercase font-medium mb-1.5">公式示例</div>
+                      {c.formulaExamples.map((ex, i) => (
+                        <div key={i} className="mb-2 bg-monokai-bg rounded p-2 border border-monokai-accent/40">
+                          <div className="text-monokai-fg font-medium">{ex.name}</div>
+                          <code className="text-monokai-green text-[10px] block mt-0.5 break-all">{ex.formula}</code>
+                          <div className="text-monokai-comment text-[10px] mt-0.5">{ex.note}</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div>
+                      <div className="text-monokai-comment uppercase font-medium mb-1.5">最佳实践</div>
+                      {c.bestPractices.map((p, i) => (
+                        <div key={i} className="flex gap-1.5 mb-1">
+                          <span className="text-monokai-green mt-0.5">✓</span>
+                          <span className="text-monokai-fg">{p}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          </div>
+        )}
+
         {/* New Package Form */}
         <div className="p-4 border-t border-monokai-accent bg-monokai-bg">
           {showNewForm ? (
             <div className="space-y-3">
-              <input
-                type="text"
-                placeholder="指标包名称 *"
-                value={packageName}
-                onChange={(e) => setPackageName(e.target.value)}
-                className="w-full bg-monokai-sidebar border border-monokai-accent p-2 rounded text-sm text-white focus:border-monokai-blue outline-none"
-              />
+              {/* 自然语言输入框 */}
+              <div className="relative">
+                <textarea
+                  rows={2}
+                  placeholder="（可选）描述你的业务需求，AI 将实时生成指标草稿..."
+                  value={aiNaturalLanguageInput}
+                  onChange={(e) => handleNLInputChange(e.target.value)}
+                  className="w-full bg-monokai-bg border border-monokai-accent p-2 pr-8 rounded text-xs text-monokai-fg placeholder-monokai-comment focus:border-monokai-purple outline-none resize-none"
+                />
+                {aiNaturalLanguageInput && (
+                  <button
+                    onClick={() => { setAiNaturalLanguageInput(''); setMetricPreview(null); }}
+                    className="absolute top-2 right-2 text-monokai-comment hover:text-monokai-fg"
+                  >
+                    <X size={12} />
+                  </button>
+                )}
+              </div>
+
+              {/* 实时预览草稿 */}
+              {(isGeneratingPreview || metricPreview) && (
+                <div className="bg-monokai-sidebar border border-monokai-purple/40 rounded p-2">
+                  <div className="text-xs text-monokai-purple font-medium mb-1 flex items-center gap-1">
+                    {isGeneratingPreview ? (
+                      <><Loader2 size={10} className="animate-spin" /> 正在生成指标草稿...</>
+                    ) : (
+                      <><Zap size={10} /> AI 指标预览（最多 3 个）</>
+                    )}
+                  </div>
+                  {metricPreview && metricPreview.map((m, i) => (
+                    <div key={i} className="text-xs text-monokai-fg border-t border-monokai-accent/40 pt-1 mt-1">
+                      <span className="text-monokai-pink font-medium">{m.name}</span>
+                      {m.category && <span className="ml-1 text-monokai-purple">· {m.category}</span>}
+                      <div className="text-monokai-comment mt-0.5">{m.formula}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* 包名输入框 */}
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="指标包名称 *"
+                  value={packageName}
+                  onChange={(e) => setPackageName(e.target.value)}
+                  className="flex-1 bg-monokai-bg border border-monokai-accent p-2 rounded text-sm text-monokai-fg placeholder-monokai-comment focus:border-monokai-blue outline-none"
+                />
+              </div>
+
               <input
                 type="text"
                 placeholder="描述（可选）"
                 value={packageDescription}
                 onChange={(e) => setPackageDescription(e.target.value)}
-                className="w-full bg-monokai-sidebar border border-monokai-accent p-2 rounded text-sm text-white focus:border-monokai-blue outline-none"
+                className="w-full bg-monokai-bg border border-monokai-accent p-2 rounded text-sm text-monokai-fg placeholder-monokai-comment focus:border-monokai-blue outline-none"
               />
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setShowNewForm(false)}
-                  className="flex-1 px-3 py-2 border border-monokai-accent text-monokai-comment rounded text-sm hover:bg-monokai-accent/30"
-                >
-                  取消
-                </button>
+
+              {/* 操作按钮行 - 使用 Grid 布局确保对齐 */}
+              <div className="grid grid-cols-2 gap-2">
+                {/* 主操作按钮 */}
                 <button
                   onClick={handleAnalyze}
                   disabled={isAnalyzing || selectedTables.size === 0}
-                  className="flex-1 px-3 py-2 bg-monokai-blue text-monokai-bg font-bold rounded text-sm hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="px-3 py-2 !bg-monokai-surface border border-monokai-green text-monokai-green font-semibold rounded text-xs hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   {isAnalyzing ? (
-                    <>
-                      <Loader2 size={14} className="animate-spin" />
-                      分析中
-                    </>
+                    <><Loader2 size={14} className="animate-spin" />分析中...</>
                   ) : (
-                    <>
-                      <Plus size={14} />
-                      生成指标
-                    </>
+                    <><Zap size={14} />生成指标</>
                   )}
                 </button>
+                <button
+                  onClick={handleMetricAIFill}
+                  disabled={isAiFilling || selectedTables.size === 0}
+                  className="px-3 py-2 !bg-monokai-surface border border-monokai-purple text-monokai-purple rounded text-xs font-medium hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5 justify-center"
+                  title="AI 自动填充包名和描述"
+                >
+                  {isAiFilling ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
+                  AI 填充
+                </button>
+                
+                {/* 次要操作按钮 */}
+                <button
+                  onClick={() => { setShowNewForm(false); setMetricPreview(null); }}
+                  className="px-3 py-2 !bg-monokai-surface border border-monokai-accent text-monokai-comment rounded text-xs hover:opacity-80 flex items-center justify-center gap-1.5"
+                >
+                  <X size={12} />
+                  取消
+                </button>
+                <button
+                  onClick={handleMetricQuickClear}
+                  className="px-3 py-2 !bg-monokai-surface border border-monokai-pink text-monokai-pink rounded text-xs hover:opacity-80 flex items-center justify-center gap-1.5"
+                  title="快速清除所有输入"
+                >
+                  <Trash2 size={12} />
+                  清除
+                </button>
               </div>
+
+              {/* 撤销 Toast */}
+              {showClearToast && (
+                <div className="flex items-center justify-between bg-monokai-sidebar border border-monokai-pink/30 rounded px-3 py-2 text-xs">
+                  <span className="text-monokai-comment">已清除全部输入</span>
+                  <button
+                    onClick={handleUndoClear}
+                    className="text-monokai-blue hover:underline ml-2 flex items-center gap-1"
+                  >
+                    <Undo2 size={11} />
+                    撤销
+                  </button>
+                </div>
+              )}
             </div>
-          ) : (
-            <button
-              onClick={() => setShowNewForm(true)}
-              disabled={selectedTables.size === 0}
-              className="w-full px-4 py-2 bg-monokai-green text-monokai-bg font-bold rounded text-sm hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-              <Plus size={16} />
-              新建指标包
-            </button>
-          )}
+          ) : null}
           
-          {/* 模板按钮 */}
-          <button
-            onClick={() => setShowTemplates(true)}
-            className="w-full px-4 py-2 bg-monokai-bg border border-monokai-purple text-monokai-purple font-bold rounded text-sm hover:bg-monokai-purple/20 flex items-center justify-center gap-2"
-          >
-            <Package size={16} />
-            使用模板
-          </button>
-          
-          {/* 连接数据源按钮 */}
-          <button
-            onClick={() => setShowDataSourceModal(true)}
-            className="w-full px-4 py-2 bg-monokai-bg border border-monokai-blue text-monokai-blue font-bold rounded text-sm hover:bg-monokai-blue/20 flex items-center justify-center gap-2"
-          >
-            <Database size={16} />
-            连接数据源
-          </button>
+          {/* 底部按钮组 - 三行对齐 */}
+          <div className="flex flex-col gap-2">
+            {/* 新建指标包 - 单独一行 */}
+            {!showNewForm && selectedTables.size > 0 && (
+              <div className="w-full">
+                <button
+                  onClick={() => setShowNewForm(true)}
+                  className="w-full px-3 py-2 !bg-monokai-surface border border-monokai-green text-monokai-green rounded text-xs font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+                >
+                  <Plus size={14} />
+                  新建指标包
+                </button>
+              </div>
+            )}
+            
+            {/* 模板和连接数据源按钮 - 水平排列 */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowTemplates(true)}
+                className="flex-1 px-3 py-2 !bg-monokai-surface border border-monokai-purple text-monokai-purple rounded text-xs hover:opacity-80 flex items-center justify-center gap-1.5"
+              >
+                <Package size={14} />
+                使用模板
+              </button>
+              <button
+                onClick={() => setShowDataSourceModal(true)}
+                className="flex-1 px-3 py-2 !bg-monokai-surface border border-monokai-blue text-monokai-blue rounded text-xs hover:opacity-80 flex items-center justify-center gap-1.5"
+              >
+                <Database size={14} />
+                连接数据源
+              </button>
+            </div>
+          </div>
           
           {isAnalyzing && (
             <div className="mt-3 text-xs text-monokai-comment flex items-center gap-2">
@@ -804,12 +1326,12 @@ export const MetricManager: React.FC<MetricManagerProps> = ({ tables, onExecuteS
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => setSelectedPackage(null)}
-                  className="p-1.5 hover:bg-monokai-accent rounded text-monokai-comment hover:text-white"
+                  className="p-1.5 hover:bg-monokai-accent rounded text-monokai-comment hover:text-monokai-fg"
                 >
                   <ArrowLeft size={18} />
                 </button>
                 <div>
-                  <h2 className="text-lg font-bold text-white">{selectedPackage.name}</h2>
+                  <h2 className="text-lg font-bold text-monokai-fg">{selectedPackage.name}</h2>
                   <p className="text-xs text-monokai-comment">
                     {selectedPackage.description || '无描述'} | {selectedPackage.metrics.length} 个指标
                   </p>
@@ -819,7 +1341,7 @@ export const MetricManager: React.FC<MetricManagerProps> = ({ tables, onExecuteS
                 <button
                   onClick={() => handleValidateAll()}
                   disabled={isAnalyzing || !selectedPackage.sourceTables.length}
-                  className="px-3 py-1.5 border border-monokai-green text-monokai-green rounded text-sm hover:bg-monokai-green/20 flex items-center gap-2 disabled:opacity-50"
+                  className="px-3 py-1.5 !bg-monokai-surface border border-monokai-green text-monokai-green rounded text-sm hover:opacity-80 flex items-center gap-2 disabled:opacity-50"
                   title="批量验证所有指标"
                 >
                   <Play size={14} />
@@ -828,7 +1350,7 @@ export const MetricManager: React.FC<MetricManagerProps> = ({ tables, onExecuteS
                 <button
                   onClick={() => handleGenerateAllCharts()}
                   disabled={isGeneratingChart || !selectedPackage.sourceTables.length}
-                  className="px-3 py-1.5 border border-monokai-purple text-monokai-purple rounded text-sm hover:bg-monokai-purple/20 flex items-center gap-2 disabled:opacity-50"
+                  className="px-3 py-1.5 !bg-monokai-surface border border-monokai-purple text-monokai-green rounded text-sm hover:opacity-80 flex items-center gap-2 disabled:opacity-50"
                   title="批量生成所有指标的图表"
                 >
                   <BarChart2 size={14} />
@@ -836,7 +1358,7 @@ export const MetricManager: React.FC<MetricManagerProps> = ({ tables, onExecuteS
                 </button>
                 <button
                   onClick={() => setShowChartList(true)}
-                  className="px-3 py-1.5 border border-monokai-purple text-monokai-purple rounded text-sm hover:bg-monokai-purple/20 flex items-center gap-2"
+                  className="px-3 py-1.5 !bg-monokai-surface border border-monokai-purple text-monokai-green rounded text-sm hover:opacity-80 flex items-center gap-2"
                   title="查看已生成的图表"
                 >
                   <BarChart2 size={14} />
@@ -845,14 +1367,14 @@ export const MetricManager: React.FC<MetricManagerProps> = ({ tables, onExecuteS
                 <button
                   onClick={() => handleRefresh(selectedPackage)}
                   disabled={isAnalyzing}
-                  className="px-3 py-1.5 border border-monokai-blue text-monokai-blue rounded text-sm hover:bg-monokai-blue/20 flex items-center gap-2 disabled:opacity-50"
+                  className="px-3 py-1.5 !bg-monokai-surface border border-monokai-blue text-monokai-green rounded text-sm hover:opacity-80 flex items-center gap-2 disabled:opacity-50"
                 >
                   {isAnalyzing ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
                   重新分析
                 </button>
                 <button
                   onClick={() => handleDeletePackage(selectedPackage.id)}
-                  className="px-3 py-1.5 border border-monokai-pink text-monokai-pink rounded text-sm hover:bg-monokai-pink/20 flex items-center gap-2"
+                  className="px-3 py-1.5 !bg-monokai-surface border border-monokai-pink text-monokai-pink rounded text-sm hover:opacity-80 flex items-center gap-2"
                 >
                   <Trash2 size={14} />
                   删除
@@ -878,20 +1400,20 @@ export const MetricManager: React.FC<MetricManagerProps> = ({ tables, onExecuteS
                     placeholder="搜索指标名称、定义、分类..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 bg-monokai-bg border border-monokai-border rounded text-sm text-white placeholder-monokai-comment focus:outline-none focus:border-monokai-accent"
+                    className="w-full pl-10 pr-4 py-2 bg-monokai-bg border border-monokai-border rounded text-sm text-monokai-fg placeholder-monokai-comment focus:outline-none focus:border-monokai-blue"
                   />
                 </div>
                 <button
                   onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
                   className={`flex items-center gap-2 px-3 py-2 rounded text-sm transition-colors ${
                     showFavoritesOnly 
-                      ? 'bg-monokai-accent text-white' 
-                      : 'bg-monokai-bg border border-monokai-border text-monokai-comment hover:text-white'
+                      ? 'bg-monokai-accent text-monokai-fg' 
+                      : 'bg-monokai-bg border border-monokai-border text-monokai-comment hover:text-monokai-fg'
                   }`}
                 >
                   <Star className={`w-4 h-4 ${showFavoritesOnly ? 'fill-current' : ''}`} />
                   {showFavoritesOnly ? '已收藏' : '收藏'}
-                  {favorites.size > 0 && <span className="ml-1 bg-monokai-purple text-white text-xs px-1.5 py-0.5 rounded">{favorites.size}</span>}
+                  {favorites.size > 0 && <span className="ml-1 bg-monokai-purple text-monokai-fg text-xs px-1.5 py-0.5 rounded">{favorites.size}</span>}
                 </button>
               </div>
               
@@ -934,7 +1456,7 @@ export const MetricManager: React.FC<MetricManagerProps> = ({ tables, onExecuteS
             <div className="p-4 border-b border-monokai-accent">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                  <h2 className="text-lg font-bold text-monokai-fg flex items-center gap-2">
                     <Package size={18} className="text-monokai-purple" />
                     指标包列表
                   </h2>
@@ -943,7 +1465,7 @@ export const MetricManager: React.FC<MetricManagerProps> = ({ tables, onExecuteS
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <label className="flex items-center gap-1 px-2 py-1.5 bg-monokai-bg border border-monokai-border rounded text-xs text-monokai-comment hover:text-white cursor-pointer transition-colors">
+                  <label className="flex items-center gap-1 px-2 py-1.5 bg-monokai-bg border border-monokai-border rounded text-xs text-monokai-comment hover:text-monokai-fg cursor-pointer transition-colors">
                     <Upload size={14} />
                     导入
                     <input type="file" accept=".json" onChange={importPackage} className="hidden" />
@@ -979,7 +1501,7 @@ export const MetricManager: React.FC<MetricManagerProps> = ({ tables, onExecuteS
                             <ChevronRight size={18} className="text-monokai-comment" />
                           )}
                           <div>
-                            <h3 className="font-bold text-white">{pkg.name}</h3>
+                            <h3 className="font-bold text-monokai-fg">{pkg.name}</h3>
                             <p className="text-xs text-monokai-comment">
                               {pkg.description || '无描述'} | {pkg.metrics.length} 个指标
                             </p>
@@ -994,7 +1516,7 @@ export const MetricManager: React.FC<MetricManagerProps> = ({ tables, onExecuteS
                               e.stopPropagation();
                               exportPackage(pkg);
                             }}
-                            className="p-1.5 hover:bg-monokai-accent rounded text-monokai-comment hover:text-white transition-colors"
+                            className="p-1.5 hover:bg-monokai-accent rounded text-monokai-comment hover:text-monokai-fg transition-colors"
                             title="导出指标包"
                           >
                             <Download size={14} />
@@ -1056,11 +1578,11 @@ export const MetricManager: React.FC<MetricManagerProps> = ({ tables, onExecuteS
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setShowTemplates(false)}>
           <div className="bg-monokai-bg border border-monokai-accent rounded-lg w-[600px] max-h-[80vh] overflow-hidden" onClick={e => e.stopPropagation()}>
             <div className="p-4 border-b border-monokai-accent flex items-center justify-between">
-              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+              <h3 className="text-lg font-bold text-monokai-fg flex items-center gap-2">
                 <Package size={18} className="text-monokai-purple" />
                 选择指标模板
               </h3>
-              <button onClick={() => setShowTemplates(false)} className="text-monokai-comment hover:text-white">
+              <button onClick={() => setShowTemplates(false)} className="text-monokai-comment hover:text-monokai-fg">
                 ✕
               </button>
             </div>
@@ -1074,7 +1596,7 @@ export const MetricManager: React.FC<MetricManagerProps> = ({ tables, onExecuteS
                   >
                     <div className="flex items-center justify-between">
                       <div>
-                        <h4 className="font-bold text-white">{template.name}</h4>
+                        <h4 className="font-bold text-monokai-fg">{template.name}</h4>
                         <p className="text-xs text-monokai-comment mt-1">{template.definition}</p>
                       </div>
                       <span className="text-xs px-2 py-1 bg-monokai-purple/20 text-monokai-purple rounded">
@@ -1101,7 +1623,7 @@ export const MetricManager: React.FC<MetricManagerProps> = ({ tables, onExecuteS
       {showDataSourceModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setShowDataSourceModal(false)}>
           <div className="bg-monokai-bg border border-monokai-accent rounded-lg w-[500px] p-6" onClick={e => e.stopPropagation()}>
-            <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+            <h2 className="text-xl font-bold text-monokai-fg mb-4 flex items-center gap-2">
               <Database className="text-monokai-blue" /> 连接外部数据源
             </h2>
             
@@ -1111,7 +1633,7 @@ export const MetricManager: React.FC<MetricManagerProps> = ({ tables, onExecuteS
                 <select
                   value={dataSourceType}
                   onChange={(e) => setDataSourceType(e.target.value as any)}
-                  className="w-full bg-monokai-sidebar border border-monokai-accent p-2 rounded text-white"
+                  className="w-full bg-monokai-bg border border-monokai-accent p-2 rounded text-monokai-fg placeholder-monokai-comment"
                 >
                   <option value="csv">CSV 文件</option>
                   <option value="parquet">Parquet 文件</option>
@@ -1127,7 +1649,7 @@ export const MetricManager: React.FC<MetricManagerProps> = ({ tables, onExecuteS
                   value={dataSourceName}
                   onChange={(e) => setDataSourceName(e.target.value)}
                   placeholder="例如: sales_data"
-                  className="w-full bg-monokai-sidebar border border-monokai-accent p-2 rounded text-white"
+                  className="w-full bg-monokai-bg border border-monokai-accent p-2 rounded text-monokai-fg placeholder-monokai-comment"
                 />
               </div>
 
@@ -1140,7 +1662,7 @@ export const MetricManager: React.FC<MetricManagerProps> = ({ tables, onExecuteS
                   value={dataSourcePath}
                   onChange={(e) => setDataSourcePath(e.target.value)}
                   placeholder={dataSourceType === 'sqlite' ? '/path/to/database.db' : '/path/to/file.csv 或 https://...'}
-                  className="w-full bg-monokai-sidebar border border-monokai-accent p-2 rounded text-white"
+                  className="w-full bg-monokai-bg border border-monokai-accent p-2 rounded text-monokai-fg placeholder-monokai-comment"
                 />
               </div>
 
@@ -1156,7 +1678,7 @@ export const MetricManager: React.FC<MetricManagerProps> = ({ tables, onExecuteS
             <div className="flex justify-end gap-2 mt-6">
               <button
                 onClick={() => setShowDataSourceModal(false)}
-                className="px-4 py-2 text-monokai-comment hover:text-white"
+                className="px-4 py-2 !bg-monokai-surface border border-monokai-accent text-monokai-comment rounded hover:opacity-80"
               >
                 取消
               </button>
@@ -1187,7 +1709,7 @@ export const MetricManager: React.FC<MetricManagerProps> = ({ tables, onExecuteS
                   alert(`连接SQL已生成并复制到剪贴板！\n\n请在SQL编辑器中执行。`);
                   setShowDataSourceModal(false);
                 }}
-                className="px-4 py-2 bg-monokai-blue text-white font-bold rounded hover:opacity-90"
+                className="px-4 py-2 bg-monokai-blue text-monokai-fg font-bold rounded hover:opacity-90"
               >
                 生成连接SQL
               </button>

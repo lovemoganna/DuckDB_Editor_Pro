@@ -78,10 +78,10 @@ export const AddWidgetModal: React.FC<AddWidgetModalProps> = ({ onClose, onAdd }
             <div className="bg-monokai-sidebar border border-monokai-accent rounded-lg shadow-2xl w-[700px] max-h-[85vh] flex flex-col animate-[scaleIn_0.2s]">
                 {/* Header */}
                 <div className="flex justify-between items-center p-4 border-b border-monokai-accent">
-                    <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                    <h2 className="text-xl font-bold text-monokai-fg flex items-center gap-2">
                         <span className="text-monokai-green">+</span> Add Widget
                     </h2>
-                    <button onClick={onClose} className="text-monokai-comment hover:text-white p-1 rounded hover:bg-monokai-bg">
+                    <button onClick={onClose} className="text-monokai-comment hover:text-monokai-fg p-1 rounded hover:bg-monokai-bg">
                         <X size={20} />
                     </button>
                 </div>
@@ -93,7 +93,7 @@ export const AddWidgetModal: React.FC<AddWidgetModalProps> = ({ onClose, onAdd }
                         className={`flex-1 py-3 px-4 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
                             activeTab === 'queries' 
                                 ? 'bg-monokai-bg text-monokai-blue border-b-2 border-monokai-blue' 
-                                : 'text-monokai-comment hover:text-white'
+                                : 'text-monokai-comment hover:text-monokai-fg'
                         }`}
                     >
                         <Table size={16} />
@@ -104,7 +104,7 @@ export const AddWidgetModal: React.FC<AddWidgetModalProps> = ({ onClose, onAdd }
                         className={`flex-1 py-3 px-4 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
                             activeTab === 'metrics' 
                                 ? 'bg-monokai-bg text-monokai-purple border-b-2 border-monokai-purple' 
-                                : 'text-monokai-comment hover:text-white'
+                                : 'text-monokai-comment hover:text-monokai-fg'
                         }`}
                     >
                         <Package size={16} />
@@ -123,7 +123,7 @@ export const AddWidgetModal: React.FC<AddWidgetModalProps> = ({ onClose, onAdd }
                                     <input
                                         autoFocus
                                         placeholder="Search saved charts..."
-                                        className="bg-transparent border-none outline-none text-white w-full placeholder-monokai-comment"
+                                        className="bg-transparent border-none outline-none text-monokai-fg w-full placeholder-monokai-comment"
                                         value={filter}
                                         onChange={(e) => setFilter(e.target.value)}
                                     />
@@ -148,14 +148,14 @@ export const AddWidgetModal: React.FC<AddWidgetModalProps> = ({ onClose, onAdd }
                                                             {hasCharts ? <BarChart2 size={18} /> : <Table size={18} />}
                                                         </div>
                                                         <div>
-                                                            <div className="font-bold text-monokai-fg group-hover:text-white">{q.name}</div>
+                                                            <div className="font-bold text-monokai-fg group-hover:text-monokai-fg">{q.name}</div>
                                                             <div className="text-xs text-monokai-comment flex gap-2">
                                                                 <span>{new Date(q.createdAt).toLocaleDateString()}</span>
                                                                 {hasCharts && <span className="text-monokai-green">- {q.charts!.length} Charts</span>}
                                                             </div>
                                                         </div>
                                                     </div>
-                                                    <div className="opacity-0 group-hover:opacity-100 px-3 py-1 bg-monokai-blue text-monokai-bg text-xs font-bold rounded">Add</div>
+                                                    <div className="opacity-0 group-hover:opacity-100 px-3 py-1 !bg-monokai-surface border border-monokai-blue text-monokai-blue text-xs font-bold rounded">Add</div>
                                                 </div>
                                             );
                                         })}
@@ -186,7 +186,7 @@ export const AddWidgetModal: React.FC<AddWidgetModalProps> = ({ onClose, onAdd }
                                                     onClick={() => setSelectedPackage(pkg)}
                                                     className={`px-3 py-1.5 rounded text-sm flex items-center gap-2 transition-colors ${
                                                         selectedPackage?.id === pkg.id
-                                                            ? 'bg-monokai-purple text-white'
+                                                            ? 'bg-monokai-purple text-monokai-fg'
                                                             : 'bg-monokai-accent/30 text-monokai-fg hover:bg-monokai-accent/50'
                                                     }`}
                                                 >
@@ -225,7 +225,7 @@ export const AddWidgetModal: React.FC<AddWidgetModalProps> = ({ onClose, onAdd }
                                                                 <BarChart2 size={18} />
                                                             </div>
                                                             <div>
-                                                                <div className="font-bold text-white">{metric.name}</div>
+                                                                <div className="font-bold text-monokai-fg">{metric.name}</div>
                                                                 <div className="text-xs text-monokai-comment flex gap-2">
                                                                     <span>{metric.category || '未分类'}</span>
                                                                     {metric.unit && <span>- {metric.unit}</span>}

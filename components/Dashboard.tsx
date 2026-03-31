@@ -189,7 +189,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ tables, onNavigate }) => {
                     </div>
                     <button
                         onClick={handleCreateDashboard}
-                        className="flex items-center gap-2 px-4 py-2 bg-monokai-green text-monokai-bg font-bold rounded shadow-lg hover:bg-monokai-blue transition-colors"
+                        className="flex items-center gap-2 px-4 py-2 bg-monokai-sidebar border border-monokai-accent text-monokai-fg font-bold rounded shadow-lg hover:bg-monokai-accent/30 transition-colors"
                     >
                         <Plus size={20} /> New Dashboard
                     </button>

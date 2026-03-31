@@ -1,7 +1,8 @@
 // Learn 模块组件导出
 export { LearnApp } from './LearnApp';
 export { TutorialHome } from './TutorialHome';
-export { MarkdownViewer } from './MarkdownViewer';
+export { MarkdownViewer, extractToc, buildTocTree } from './MarkdownViewer';
+export type { TocItem } from './MarkdownViewer';
 export { NavigationPanel } from './NavigationPanel';
 export { Breadcrumb, SectionNav } from './NavigationPanel';
 export { ProgressTracker } from './ProgressTracker';

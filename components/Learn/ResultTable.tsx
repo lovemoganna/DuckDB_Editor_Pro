@@ -9,6 +9,47 @@ interface ResultTableProps {
     executionTime?: number;
 }
 
+/**
+ * 将包含下划线的字段名称解析为高亮显示
+ * 例如："报警_币种_低流通性" -> 高亮显示每个部分
+ * 同时处理转义的下划线 \_
+ */
+const parseUnderscoreValue = (value: string): React.ReactNode => {
+    if (typeof value !== 'string') {
+        return value;
+    }
+
+    // 先将转义的下划线 \_ 还原为 _
+    const restored = value.replace(/\\_/g, '_');
+
+    if (!restored.includes('_')) {
+        return restored;
+    }
+
+    // 清理多余的下划线：
+    // 1. 如果字符串以 _ 开头或结尾，先去掉
+    // 2. 如果有连续的 __，替换为单个 _
+    let cleaned = restored
+        .replace(/^_+/, '')   // 去掉开头的多余下划线
+        .replace(/_+$/, '')   // 去掉结尾的多余下划线
+        .replace(/_+/g, '_'); // 替换连续的多个下划线为单个
+    
+    // 再次检查清理后是否还有下划线
+    if (!cleaned.includes('_')) {
+        return cleaned;
+    }
+
+    const parts = cleaned.split('_');
+    return parts.map((part, index) => (
+        <span
+            key={index}
+            className="bg-monokai-yellow/30 text-monokai-yellow px-0.5 rounded mx-0.5 font-medium"
+        >
+            {part}
+        </span>
+    ));
+};
+
 export const ResultTable: React.FC<ResultTableProps> = ({ data, columns, error, loading, executionTime }) => {
     if (loading) {
         return (
@@ -51,7 +92,7 @@ export const ResultTable: React.FC<ResultTableProps> = ({ data, columns, error, 
                         <tr>
                             {displayColumns.map(col => (
                                 <th key={col} className="p-2 border-b border-monokai-accent/30 text-monokai-blue font-semibold whitespace-nowrap">
-                                    {col}
+                                    {parseUnderscoreValue(col)}
                                 </th>
                             ))}
                         </tr>
@@ -62,9 +103,10 @@ export const ResultTable: React.FC<ResultTableProps> = ({ data, columns, error, 
                                 {displayColumns.map(col => {
                                     const val = row[col];
                                     const isNull = val === null || val === undefined;
+                                    const cellContent = isNull ? 'NULL' : (typeof val === 'object' ? JSON.stringify(val) : String(val));
                                     return (
                                         <td key={`${idx}-${col}`} className={`p-2 whitespace-nowrap text-monokai-fg ${isNull ? 'italic text-monokai-comment/60' : ''}`}>
-                                            {isNull ? 'NULL' : (typeof val === 'object' ? JSON.stringify(val) : String(val))}
+                                            {isNull ? cellContent : parseUnderscoreValue(cellContent)}
                                         </td>
                                     );
                                 })}

@@ -534,7 +534,7 @@ const SchemaGenerator: React.FC<SchemaGeneratorProps> = ({ onExecuteSql, onRefre
 
 
   return (
-    <div className="w-full h-full overflow-hidden bg-[#FAFAFA] flex flex-col">
+    <div className="w-full h-full overflow-hidden bg-monokai-bg flex flex-col">
       <div className="flex h-full w-full overflow-hidden">
         {activeProject && (
           <TableManager
@@ -543,10 +543,10 @@ const SchemaGenerator: React.FC<SchemaGeneratorProps> = ({ onExecuteSql, onRefre
           />
         )}
 
-        <div className="flex-1 overflow-y-auto custom-scrollbar relative bg-[#FAFAFA]">
+        <div className="flex-1 overflow-y-auto custom-scrollbar relative bg-monokai-bg">
           <div className="w-full px-8 py-8 min-h-full">
             {error && (
-              <div className="fixed top-20 left-1/2 -translate-x-1/2 bg-red-50 text-red-600 px-6 py-3 rounded-lg text-xs font-bold border border-red-100 shadow-xl z-50 flex gap-4">
+              <div className="fixed top-20 left-1/2 -translate-x-1/2 bg-monokai-pink/20 text-monokai-pink px-6 py-3 rounded-lg text-xs font-bold border border-monokai-pink/30 shadow-xl z-50 flex gap-4">
                 <span>⚠️ {error}</span>
                 <button onClick={() => setError(null)}>✕</button>
               </div>
@@ -554,34 +554,34 @@ const SchemaGenerator: React.FC<SchemaGeneratorProps> = ({ onExecuteSql, onRefre
 
             {/* Pipeline Progress Indicator */}
             {isProcessing && pipelineStage !== 'idle' && (
-              <div className="fixed bottom-6 right-6 bg-white border border-gray-200 rounded-xl shadow-2xl p-4 z-50 min-w-[320px]">
+              <div className="fixed bottom-6 right-6 bg-monokai-surface border border-monokai-accent rounded-xl shadow-2xl p-4 z-50 min-w-[320px]">
                 <div className="flex items-center gap-3 mb-3">
-                  <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center animate-pulse">
-                    <span className="text-white text-sm">⚡</span>
+                  <div className="w-8 h-8 bg-monokai-blue rounded-lg flex items-center justify-center animate-pulse">
+                    <span className="text-monokai-bg text-sm">⚡</span>
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-gray-800">AI Analysis Pipeline (v5.0)</p>
-                    <p className="text-[10px] text-blue-500 font-medium animate-pulse">{pipelineStatus || `Stage: ${pipelineStage}`}</p>
+                    <p className="text-xs font-bold text-monokai-fg">AI Analysis Pipeline (v5.0)</p>
+                    <p className="text-[10px] text-monokai-blue font-medium animate-pulse">{pipelineStatus || `Stage: ${pipelineStage}`}</p>
                   </div>
                   {/* Active Rules Badge */}
                   <div className="ml-auto flex gap-1">
-                    <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 text-[9px] rounded font-bold border border-purple-200">PII</span>
-                    <span className="px-1.5 py-0.5 bg-green-100 text-green-700 text-[9px] rounded font-bold border border-green-200">Contract</span>
+                    <span className="px-1.5 py-0.5 bg-monokai-purple/20 text-monokai-purple text-[9px] rounded font-bold border border-monokai-purple/30">PII</span>
+                    <span className="px-1.5 py-0.5 bg-monokai-green/20 text-monokai-green text-[9px] rounded font-bold border border-monokai-green/30">Contract</span>
                   </div>
                 </div>
                 <div className="flex gap-1 mb-1">
                   {['s0_probe', 's1_semantic', 's2_quality', 's3_sql', 's4_insights', 's5_report'].map((stage, i) => (
                     <div
                       key={stage}
-                      className={`flex-1 h-1.5 rounded-full transition-all ${pipelineStage === stage ? 'bg-blue-500 animate-pulse' :
-                        ['s0_probe', 's1_semantic', 's2_quality', 's3_sql', 's4_insights', 's5_report'].indexOf(pipelineStage) > i ? 'bg-green-500' :
-                          'bg-gray-200'
+                      className={`flex-1 h-1.5 rounded-full transition-all ${pipelineStage === stage ? 'bg-monokai-blue animate-pulse' :
+                        ['s0_probe', 's1_semantic', 's2_quality', 's3_sql', 's4_insights', 's5_report'].indexOf(pipelineStage) > i ? 'bg-monokai-green' :
+                          'bg-monokai-accent/30'
                         }`}
                       title={stage}
                     />
                   ))}
                 </div>
-                <div className="flex justify-between mt-1 text-[9px] text-gray-400 font-mono w-full px-0.5">
+                <div className="flex justify-between mt-1 text-[9px] text-monokai-comment font-mono w-full px-0.5">
                   <span>Probe</span><span>Sens</span><span>Qual</span><span>SQL</span><span>Ins</span><span>Rpt</span>
                 </div>
               </div>
@@ -589,19 +589,19 @@ const SchemaGenerator: React.FC<SchemaGeneratorProps> = ({ onExecuteSql, onRefre
 
             {/* Pipeline Error with Retry */}
             {pipelineError && (
-              <div className="fixed bottom-6 right-6 bg-amber-50 border border-amber-200 rounded-xl shadow-2xl p-4 z-50 min-w-[320px]">
+              <div className="fixed bottom-6 right-6 bg-monokai-orange/20 border border-monokai-orange/30 rounded-xl shadow-2xl p-4 z-50 min-w-[320px]">
                 {/* ... existing error UI ... */}
                 <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 bg-amber-500 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <span className="text-white text-sm">⚠️</span>
+                  <div className="w-8 h-8 bg-monokai-orange rounded-lg flex items-center justify-center flex-shrink-0">
+                    <span className="text-monokai-bg text-sm">⚠️</span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold text-amber-800">Pipeline Paused at {pipelineError.stage}</p>
-                    <p className="text-[10px] text-amber-600 mt-1 break-words">{pipelineError.message}</p>
+                    <p className="text-xs font-bold text-monokai-orange">Pipeline Paused at {pipelineError.stage}</p>
+                    <p className="text-[10px] text-monokai-fg mt-1 break-words">{pipelineError.message}</p>
                     <div className="flex gap-2 mt-3">
                       <button
                         onClick={() => retryFromStage(pipelineError.stage)}
-                        className="px-3 py-1.5 bg-amber-500 text-white text-[10px] font-bold rounded-lg hover:bg-amber-600 transition-all"
+                        className="px-3 py-1.5 bg-monokai-orange text-monokai-bg text-[10px] font-bold rounded-lg hover:opacity-90 transition-all"
                       >
                         🔄 Retry
                       </button>
@@ -616,13 +616,13 @@ const SchemaGenerator: React.FC<SchemaGeneratorProps> = ({ onExecuteSql, onRefre
               <div className="flex items-center gap-4">
                 <button
                   onClick={() => setIsHistoryOpen(true)}
-                  className="bg-white border border-gray-200 w-10 h-10 rounded-lg flex items-center justify-center hover:bg-black hover:text-white hover:border-black transition-all shadow-sm group"
+                  className="bg-monokai-surface border border-monokai-accent w-10 h-10 rounded-lg flex items-center justify-center hover:bg-monokai-accent hover:text-monokai-bg transition-all shadow-sm group"
                 >
                   <span className="text-lg group-hover:scale-110 transition-transform">📂</span>
                 </button>
                 <div>
-                  <h2 className="text-sm font-black uppercase tracking-[0.1em]">Pipeline Engine</h2>
-                  <p className="text-[10px] text-gray-400 font-mono">
+                  <h2 className="text-sm font-black uppercase tracking-[0.1em] text-monokai-fg">Pipeline Engine</h2>
+                  <p className="text-[10px] text-monokai-comment font-mono">
                     STATUS: {pipelineStage === 'complete' ? '✓ COMPLETE' :
                       pipelineStage === 'error' ? '⚠️ PAUSED' :
                         pipelineStage === 'idle' ? 'IDLE' :
@@ -632,23 +632,23 @@ const SchemaGenerator: React.FC<SchemaGeneratorProps> = ({ onExecuteSql, onRefre
               </div>
 
               {/* View Mode Toggle (Center) */}
-              <div className="bg-gray-100 p-1 rounded-lg flex items-center gap-1">
+              <div className="bg-monokai-surface p-1 rounded-lg flex items-center gap-1">
                 <button
                   onClick={() => setViewMode('analysis')}
-                  className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 ${viewMode === 'analysis' ? 'bg-white shadow text-black' : 'text-gray-400 hover:text-gray-600'}`}
+                  className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 ${viewMode === 'analysis' ? 'bg-monokai-blue text-monokai-bg shadow' : 'text-monokai-comment hover:text-monokai-fg'}`}
                 >
                   <Activity size={14} /> <span>Analysis</span>
                 </button>
                 <button
                   onClick={() => setViewMode('model')}
-                  className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 ${viewMode === 'model' ? 'bg-white shadow text-black' : 'text-gray-400 hover:text-gray-600'}`}
+                  className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 ${viewMode === 'model' ? 'bg-monokai-blue text-monokai-bg shadow' : 'text-monokai-comment hover:text-monokai-fg'}`}
                 >
                   <LayoutTemplate size={14} /> <span>Model</span>
                 </button>
                 <button
                   onClick={() => setViewMode('handbook')}
                   disabled={!pipelineContext}
-                  className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 ${viewMode === 'handbook' ? 'bg-white shadow text-black' : 'text-gray-400 hover:text-gray-600'} ${!pipelineContext ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 ${viewMode === 'handbook' ? 'bg-monokai-blue text-monokai-bg shadow' : 'text-monokai-comment hover:text-monokai-fg'} ${!pipelineContext ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   <BookOpen size={14} /> <span>Handbook</span>
                   {isGeneratingHandbook && <span className="ml-1 animate-spin">⏳</span>}
@@ -658,13 +658,13 @@ const SchemaGenerator: React.FC<SchemaGeneratorProps> = ({ onExecuteSql, onRefre
               <div className="flex items-center gap-4">
                 <button
                   onClick={() => setShowProjects(true)}
-                  className="bg-white border border-gray-200 px-3 py-2 rounded-lg text-xs font-bold hover:bg-blue-50 text-gray-700 flex items-center gap-2"
+                  className="bg-monokai-surface border border-monokai-accent px-3 py-2 rounded-lg text-xs font-bold hover:bg-monokai-blue hover:text-monokai-bg flex items-center gap-2"
                 >
                   <span>📁</span> {activeProject ? activeProject : 'Projects'}
                 </button>
                 <button
                   onClick={() => setIsSettingsOpen(true)}
-                  className="bg-white border border-gray-200 px-3 py-2 rounded-lg text-xs font-bold hover:bg-black hover:text-white transition-all flex items-center gap-2"
+                  className="bg-monokai-surface border border-monokai-accent px-3 py-2 rounded-lg text-xs font-bold hover:bg-monokai-accent hover:text-monokai-bg transition-all flex items-center gap-2"
                 >
                   <span>⚙️</span> 配置 API
                 </button>
@@ -694,10 +694,10 @@ const SchemaGenerator: React.FC<SchemaGeneratorProps> = ({ onExecuteSql, onRefre
               !result || !activeSummary ? (
                 <div className="flex flex-col items-center justify-center h-[60vh]">
                   {!activeProject ? (
-                    <div className="text-center text-gray-400">
-                      <p className="text-lg font-bold mb-2">No Project Selected</p>
+                    <div className="text-center text-monokai-comment">
+                      <p className="text-lg font-bold mb-2 text-monokai-fg">No Project Selected</p>
                       <p className="text-xs">Create or select a project to start.</p>
-                      <button onClick={() => setShowProjects(true)} className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700">Open Projects</button>
+                      <button onClick={() => setShowProjects(true)} className="mt-4 px-4 py-2 bg-monokai-blue text-monokai-bg rounded-lg text-xs font-bold hover:opacity-90">Open Projects</button>
                     </div>
                   ) : (
                     <Uploader onDataReady={handleDataReady} isProcessing={isProcessing} />
@@ -736,13 +736,13 @@ const SchemaGenerator: React.FC<SchemaGeneratorProps> = ({ onExecuteSql, onRefre
             {/* Settings Modal */}
             {isSettingsOpen && (
               <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center animate-[fadeIn_0.2s]">
-                <div className="bg-white rounded-xl shadow-2xl w-[450px] p-6 animate-[slideIn_0.2s]">
-                  <h3 className="text-lg font-bold mb-4">AI 服务配置</h3>
+                <div className="bg-monokai-surface border border-monokai-accent rounded-xl shadow-2xl w-[450px] p-6 animate-[slideIn_0.2s]">
+                  <h3 className="text-lg font-bold mb-4 text-monokai-fg">AI 服务配置</h3>
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-xs font-bold text-gray-500 mb-1">供应商 (Provider)</label>
+                      <label className="block text-xs font-bold text-monokai-comment mb-1">供应商 (Provider)</label>
                       <select
-                        className="w-full border border-gray-300 rounded p-2 text-sm text-black bg-white"
+                        className="w-full border border-monokai-accent rounded p-2 text-sm text-monokai-fg bg-monokai-bg focus:border-monokai-blue outline-none"
                         defaultValue={localStorage.getItem('duckdb_ai_provider') || 'google'}
                         onChange={(e) => {
                           const provider = e.target.value;
@@ -768,10 +768,10 @@ const SchemaGenerator: React.FC<SchemaGeneratorProps> = ({ onExecuteSql, onRefre
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-gray-500 mb-1">API Key</label>
+                      <label className="block text-xs font-bold text-monokai-comment mb-1">API Key</label>
                       <input
                         type="password"
-                        className="w-full border border-gray-300 rounded p-2 text-sm text-black"
+                        className="w-full border border-monokai-accent rounded p-2 text-sm text-monokai-fg bg-monokai-bg focus:border-monokai-blue outline-none"
                         placeholder="Key for selected provider"
                         defaultValue={localStorage.getItem('duckdb_ai_api_key') || ''}
                         onChange={(e) => localStorage.setItem('duckdb_ai_api_key', e.target.value)}
@@ -779,10 +779,10 @@ const SchemaGenerator: React.FC<SchemaGeneratorProps> = ({ onExecuteSql, onRefre
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-gray-500 mb-1">模型 (Model Name)</label>
+                      <label className="block text-xs font-bold text-monokai-comment mb-1">模型 (Model Name)</label>
                       <input
                         type="text"
-                        className="w-full border border-gray-300 rounded p-2 text-sm text-black"
+                        className="w-full border border-monokai-accent rounded p-2 text-sm text-monokai-fg bg-monokai-bg focus:border-monokai-blue outline-none"
                         placeholder="e.g. gemini-2.0-flash-exp, llama-3.3-70b-versatile"
                         defaultValue={localStorage.getItem('duckdb_ai_model') || ''}
                         onChange={(e) => localStorage.setItem('duckdb_ai_model', e.target.value)}
@@ -790,10 +790,10 @@ const SchemaGenerator: React.FC<SchemaGeneratorProps> = ({ onExecuteSql, onRefre
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-gray-500 mb-1">端点 (Base URL - 可选)</label>
+                      <label className="block text-xs font-bold text-monokai-comment mb-1">端点 (Base URL - 可选)</label>
                       <input
                         type="text"
-                        className="w-full border border-gray-300 rounded p-2 text-sm text-black"
+                        className="w-full border border-monokai-accent rounded p-2 text-sm text-monokai-fg bg-monokai-bg focus:border-monokai-blue outline-none"
                         placeholder="Custom endpoint URL"
                         defaultValue={localStorage.getItem('duckdb_ai_base_url') || ''}
                         onChange={(e) => {
@@ -805,7 +805,7 @@ const SchemaGenerator: React.FC<SchemaGeneratorProps> = ({ onExecuteSql, onRefre
                     <div className="mt-6 flex justify-end">
                       <button
                         onClick={() => { setIsSettingsOpen(false); }}
-                        className="bg-black text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-800"
+                        className="bg-monokai-blue text-monokai-bg px-4 py-2 rounded-lg text-sm font-bold hover:opacity-90"
                       >
                         确认并关闭
                       </button>

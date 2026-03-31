@@ -138,7 +138,7 @@ ORDER BY 1, 2`;
       <div className="bg-monokai-sidebar border border-monokai-accent rounded-lg shadow-2xl w-[700px] max-h-[80vh] flex flex-col animate-[scaleIn_0.2s]">
         {/* Header */}
         <div className="flex justify-between items-center p-4 border-b border-monokai-accent">
-          <h2 className="text-xl font-bold text-white flex items-center gap-2">
+          <h2 className="text-xl font-bold text-monokai-fg flex items-center gap-2">
             <span className="text-monokai-purple">📊</span> 指标图表列表
           </h2>
           <div className="flex items-center gap-2">
@@ -147,8 +147,8 @@ ORDER BY 1, 2`;
                 onClick={() => setCompareMode(!compareMode)}
                 className={`px-3 py-1.5 rounded text-xs font-bold flex items-center gap-1 ${
                   compareMode 
-                    ? 'bg-monokai-purple text-white' 
-                    : 'bg-monokai-bg text-monokai-comment hover:text-white border border-monokai-border'
+                    ? 'bg-monokai-purple text-monokai-fg' 
+                    : 'bg-monokai-bg text-monokai-comment hover:text-monokai-fg border border-monokai-border'
                 }`}
               >
                 <GitCompare size={14} />
@@ -157,7 +157,7 @@ ORDER BY 1, 2`;
             )}
             <button 
               onClick={onClose} 
-              className="text-monokai-comment hover:text-white p-1 rounded hover:bg-monokai-bg"
+              className="text-monokai-comment hover:text-monokai-fg p-1 rounded hover:bg-monokai-bg"
             >
               <X size={20} />
             </button>
@@ -203,7 +203,7 @@ ORDER BY 1, 2`;
                         {getChartTypeIcon(chart.chartConfig.type)}
                       </div>
                       <div>
-                        <h3 className="font-bold text-white">{chart.metricName}</h3>
+                        <h3 className="font-bold text-monokai-fg">{chart.metricName}</h3>
                         <div className="text-xs text-monokai-comment mt-1 flex gap-3">
                           <span>类型: {chart.chartConfig.type}</span>
                           <span>x轴: {chart.chartConfig.xKey || '-'}</span>
@@ -219,7 +219,7 @@ ORDER BY 1, 2`;
                     <div className="flex gap-2">
                       <button
                         onClick={() => handleGenerateTrend(chart)}
-                        className="px-3 py-1.5 bg-monokai-blue/20 text-monokai-blue rounded text-xs font-bold hover:bg-monokai-blue hover:text-monokai-bg flex items-center gap-1"
+                        className="px-3 py-1.5 !bg-monokai-surface border border-monokai-blue text-monokai-blue rounded text-xs font-bold hover:opacity-80 flex items-center gap-1"
                         title="生成趋势分析"
                       >
                         <TrendingUp size={12} />
@@ -228,7 +228,7 @@ ORDER BY 1, 2`;
                       {onOpenInSqlEditor && (
                         <button
                           onClick={() => onOpenInSqlEditor(chart)}
-                          className="px-3 py-1.5 bg-monokai-purple/20 text-monokai-purple rounded text-xs font-bold hover:bg-monokai-purple hover:text-white flex items-center gap-1"
+                          className="px-3 py-1.5 bg-monokai-purple/20 text-monokai-purple rounded text-xs font-bold hover:bg-monokai-purple hover:text-monokai-fg flex items-center gap-1"
                           title="在 SQL 编辑器中打开"
                         >
                           <Edit3 size={12} />
@@ -238,7 +238,7 @@ ORDER BY 1, 2`;
                       <button
                         onClick={() => handleAddToDashboard(chart)}
                         disabled={convertingId === chart.id}
-                        className="px-3 py-1.5 bg-monokai-green text-monokai-bg rounded text-xs font-bold hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
+                        className="px-3 py-1.5 !bg-monokai-surface border border-monokai-green text-monokai-green rounded text-xs font-bold hover:opacity-80 disabled:opacity-50 flex items-center gap-1"
                         title="添加到 Dashboard"
                       >
                         {convertingId === chart.id ? (
@@ -281,7 +281,7 @@ ORDER BY 1, 2`;
               <button
                 onClick={handleCompare}
                 disabled={selectedCharts.size < 2}
-                className="px-4 py-2 bg-monokai-purple text-white rounded font-bold hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
+                className="px-4 py-2 bg-monokai-purple text-monokai-fg rounded font-bold hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
               >
                 <GitCompare size={14} />
                 对比选中的图表
