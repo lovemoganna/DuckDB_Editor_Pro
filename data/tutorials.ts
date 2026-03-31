@@ -1,12 +1,6 @@
 // Tutorial Metadata Registry
 // 教程元数据注册中心 - 用于管理所有教程的元信息
 
-// 教程文件映射 - 用于解析文档路径
-export const tutorialFileMap: Record<string, string> = {
-  'duckdb-basics': '/docs/001 内嵌DuckDB教程_简单.md',
-  'philosophy-db': '/docs/002 内嵌DuckDB教程_简单.md',
-};
-
 export interface TutorialSection {
   id: string;
   title: string;
@@ -30,54 +24,136 @@ export interface TutorialMetadata {
   userContent?: string;     // 用户教程的 Markdown 内容
 }
 
-// 教程元数据注册表
-// 新增教程只需在此数组中添加配置，无需修改代码
-export const tutorials: TutorialMetadata[] = [
-  {
-    id: 'duckdb-basics',
-    title: 'DuckDB SQL 完整使用教程',
-    description: '从环境准备到高级特性，系统掌握 DuckDB。包含数据库操作、增删改查、JOIN、视图、事务等核心知识。本教程专为小白用户设计，是入门 DuckDB 的首选课程。',
-    category: '入门',
-    difficulty: 'Beginner',
-    tags: ['SQL', 'DuckDB', '数据库', 'CRUD', 'JOIN', '事务', '入门必学'],
-    order: 1,
-    docPath: tutorialFileMap['duckdb-basics'],
-    estimatedTime: '2-3小时',
-    sections: [
-      { id: 'env', title: '环境准备', anchor: '1-环境准备' },
-      { id: 'ddl', title: '数据库与表操作', anchor: '2-数据库与表操作' },
-      { id: 'crud', title: '增删改查 (CRUD)', anchor: '3-增删改查-crud' },
-      { id: 'join', title: '连接操作 (JOIN)', anchor: '4-连接操作-join' },
-      { id: 'view', title: '视图 (VIEW)', anchor: '5-视图-view' },
-      { id: 'transaction', title: '事务 (TRANSACTION)', anchor: '6-事务-transaction' },
-      { id: 'advanced', title: '高级特性', anchor: '7-高级特性' },
-    ],
-    prerequisites: [],
-    learningOutcomes: [
-      '掌握 DuckDB 环境安装与配置',
-      '熟练使用 SQL 进行数据库操作',
-      '理解关系型数据库设计原则',
-      '能够独立完成增删改查操作',
-    ]
-  },
-  {
-    id: 'philosophy-db',
-    title: '哲学数据库入门',
-    description: '通过哲学案例学习数据库设计，建立最小可运行宇宙，理解本体论概念。',
-    category: '进阶',
-    difficulty: 'Intermediate',
-    tags: ['数据库设计', '哲学', 'DDL', '递归查询'],
-    order: 2,
-    docPath: tutorialFileMap['philosophy-db'],
-    estimatedTime: '1-2小时',
-    prerequisites: ['duckdb-basics'],
-    learningOutcomes: [
-      '理解实体、属性、关系的设计方法',
-      '掌握多对多关系的建模技巧',
-      '学会使用视图简化复杂查询',
-    ]
+// 从 Markdown 内容中自动提取章节
+const extractSectionsFromContent = (content: string): TutorialSection[] => {
+  const sections: TutorialSection[] = [];
+  // 匹配 Markdown 标题 (# ## ### 等)
+  const headingRegex = /^(#{1,3})\s+(.+)$/gm;
+  let match;
+
+  while ((match = headingRegex.exec(content)) !== null) {
+    const level = match[1].length; // # = 1, ## = 2, ### = 3
+    const title = match[2].trim();
+    // 生成 anchor ID
+    const id = title.toLowerCase()
+      .replace(/[^\u4e00-\u9fa5a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '');
+
+    // 只提取二级和三级标题作为章节
+    if (level >= 2 && level <= 3) {
+      sections.push({ id, title, anchor: id });
+    }
   }
-];
+
+  return sections;
+};
+
+// ============================================
+// 1. 动态加载所有内嵌教程 (Vite Glob Import)
+// ============================================
+const mdFiles = import.meta.glob('../docs/*.md', { as: 'raw', eager: true });
+
+export const EMBEDDED_CONTENT: Record<string, string> = {};
+
+// YAML frontmatter 解析
+function parseFrontmatter(content: string) {
+  const match = content.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
+  if (!match) {
+    return { metadata: {} as Record<string, any>, content };
+  }
+
+  const yamlStr = match[1];
+  const body = match[2];
+
+  const metadata: Record<string, any> = {};
+  yamlStr.split('\n').forEach(line => {
+    const colonIdx = line.indexOf(':');
+    if (colonIdx > 0) {
+      const key = line.substring(0, colonIdx).trim();
+      let value = line.substring(colonIdx + 1).trim();
+      if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+        value = value.slice(1, -1);
+      }
+      metadata[key] = value;
+    }
+  });
+
+  return { metadata, content: body };
+}
+
+// 从文件内容提取标题
+function extractTitle(content: string, filename: string) {
+  const match = content.match(/^#\s+(.+)$/m);
+  if (match) return match[1];
+  return filename;
+}
+
+// 从文件内容提取描述
+function extractDescription(content: string) {
+  const lines = content.split('\n');
+  let started = false;
+  const descLines: string[] = [];
+
+  for (const line of lines) {
+    if (line.startsWith('# ')) continue;
+    if (line.startsWith('---')) {
+      if (started) break;
+      started = true;
+      continue;
+    }
+    if (line.startsWith('## ')) break;
+    if (line.trim() && !line.startsWith('\`\`\`')) {
+      descLines.push(line.trim());
+      if (descLines.length >= 2) break;
+    }
+  }
+
+  const desc = descLines.join(' ').trim();
+  return desc.length > 200 ? desc.substring(0, 200) + '...' : desc;
+}
+
+// 自动生成内置教程列表
+const builtinTutorials: TutorialMetadata[] = [];
+let fileIndex = 0;
+
+for (const [path, contentRaw] of Object.entries(mdFiles)) {
+  const filename = path.split('/').pop()?.replace('.md', '') || 'unknown';
+  const content = contentRaw as string;
+  const { metadata, content: body } = parseFrontmatter(content);
+
+  // 生成唯一 ID：优先使用 metadata.id，否则使用文件名（保留数字前缀以确保唯一性）
+  const id = metadata.id || filename.toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^\u4e00-\u9fa5a-z0-9-]/g, '')
+    .replace(/^-+|-+$/g, '');
+
+  // 提取章节
+  const sections = extractSectionsFromContent(body);
+
+  const tutorial: TutorialMetadata = {
+    id,
+    title: metadata.title || extractTitle(content, filename),
+    description: metadata.description || extractDescription(content),
+    category: metadata.category || (fileIndex === 0 ? '入门' : '进阶'),
+    difficulty: metadata.difficulty || (fileIndex === 0 ? 'Beginner' : 'Intermediate'),
+    tags: metadata.tags ? metadata.tags.split(',').map((t: string) => t.trim()) : ['DuckDB'],
+    order: parseInt(metadata.order) || (fileIndex + 1),
+    docPath: `/docs/${filename}.md`, // Keep as reference, but content is now in EMBEDDED_CONTENT
+    estimatedTime: metadata.estimatedTime || '1-2小时',
+    sections: sections.length > 0 ? sections : undefined,
+    prerequisites: metadata.prerequisites ? metadata.prerequisites.split(',').map((t: string) => t.trim()) : [],
+    learningOutcomes: metadata.learningOutcomes ? metadata.learningOutcomes.split('|').map((t: string) => t.trim()) : [],
+  };
+
+  builtinTutorials.push(tutorial);
+  EMBEDDED_CONTENT[id] = body;
+  fileIndex++;
+}
+
+// 按照 order 排序
+builtinTutorials.sort((a, b) => a.order - b.order);
+
+export const tutorials: TutorialMetadata[] = builtinTutorials;
 
 // 分类映射
 export const categoryMap: Record<string, TutorialMetadata[]> = tutorials.reduce((acc, t) => {
@@ -93,8 +169,6 @@ export const difficultyGroups = {
   Advanced: tutorials.filter(t => t.difficulty === 'Advanced'),
   Expert: tutorials.filter(t => t.difficulty === 'Expert'),
 };
-
-import { EMBEDDED_CONTENT } from './tutorialContent';
 
 export interface SearchResult extends TutorialMetadata {
   matchingExcerpt?: string;
@@ -248,21 +322,27 @@ let userTutorialsCache: TutorialMetadata[] = [];
 export const loadAllTutorials = async (): Promise<TutorialMetadata[]> => {
   try {
     const userTutorials = await getAllUserTutorials();
-    
+
     // 将用户教程转换为 TutorialMetadata 格式
-    userTutorialsCache = userTutorials.map(ut => ({
-      id: ut.id,
-      title: ut.title,
-      description: ut.content.slice(0, 100) + (ut.content.length > 100 ? '...' : ''),
-      category: ut.category,
-      difficulty: ut.difficulty,
-      tags: ut.tags,
-      order: 999, // 用户教程排在后面
-      docPath: '', // 用户教程不使用文件路径
-      isUserTutorial: true,
-      userContent: ut.content,
-    }));
-    
+    userTutorialsCache = userTutorials.map(ut => {
+      // 自动从内容中提取章节
+      const sections = extractSectionsFromContent(ut.content);
+
+      return {
+        id: ut.id,
+        title: ut.title,
+        description: ut.content.slice(0, 100) + (ut.content.length > 100 ? '...' : ''),
+        category: ut.category,
+        difficulty: ut.difficulty,
+        tags: ut.tags,
+        order: 999, // 用户教程排在后面
+        docPath: '', // 用户教程不使用文件路径
+        isUserTutorial: true,
+        userContent: ut.content,
+        sections: sections.length > 0 ? sections : undefined, // 只有在有章节时才添加
+      };
+    });
+
     return [...tutorials, ...userTutorialsCache];
   } catch (error) {
     console.error('Failed to load user tutorials:', error);

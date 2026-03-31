@@ -41,3 +41,8 @@ tmp/
 # Package lock (use pnpm-lock.yaml or yarn.lock instead)
 # package-lock.json
 # package-lock.json should be committed for applications to ensure deterministic builds
+
+# DuckDB database files
+*.db
+*.duckdb
+*.wal

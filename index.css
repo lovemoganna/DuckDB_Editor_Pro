@@ -1,6 +1,353 @@
+@import url('https://fonts.googleapis.com/css2?family=Victor+Mono:ital,wght@0,100..700;1,100..700&family=Noto+Sans+SC:wght@100..900&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* =====================
+   MARKDOWN RENDERING STYLES
+   ===================== */
+
+/* 有序列表 */
+.overflow-auto ol {
+  list-style-type: decimal;
+  padding-left: 1.5rem;
+  margin: 0.5rem 0;
+}
+
+.overflow-auto ol li {
+  margin: 0.25rem 0;
+}
+
+/* 无序列表 */
+.overflow-auto ul {
+  list-style-type: disc;
+  padding-left: 1.5rem;
+  margin: 0.5rem 0;
+}
+
+.overflow-auto ul li {
+  margin: 0.25rem 0;
+}
+
+/* 段落 */
+.overflow-auto p {
+  margin: 0.5rem 0;
+}
+
+/* 标题 */
+.overflow-auto h1 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 1rem 0 0.5rem;
+}
+
+.overflow-auto h2 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin: 0.75rem 0 0.5rem;
+}
+
+.overflow-auto h3 {
+  font-size: 1rem;
+  font-weight: 500;
+  margin: 0.5rem 0 0.25rem;
+}
+
+/* 粗体和斜体 */
+.overflow-auto strong {
+  color: #bd93f9;
+  font-weight: 600;
+}
+
+.overflow-auto em {
+  color: #8be9fd;
+}
+
+/* 行内代码 */
+.overflow-auto code {
+  background-color: #3e3d32;
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  font-family: 'Victor Mono', monospace;
+  font-size: 0.75rem;
+  color: #8be9fd;
+}
+
+/* 预格式化代码块 */
+.overflow-auto pre {
+  background-color: #3e3d32;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+  font-family: 'Victor Mono', monospace;
+  font-size: 0.75rem;
+  margin: 0.5rem 0;
+}
+
+/* 表格 */
+.overflow-auto table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.5rem 0;
+}
+
+.overflow-auto th,
+.overflow-auto td {
+  border: 1px solid #49483e;
+  padding: 0.5rem;
+  text-align: left;
+}
+
+.overflow-auto th {
+  background-color: #3e3d32;
+}
+
+/* 分割线 */
+.overflow-auto hr {
+  border-color: #49483e;
+  margin: 1rem 0;
+}
+
+/* 引用 */
+.overflow-auto blockquote {
+  border-left: 4px solid #bd93f9;
+  padding-left: 0.75rem;
+  font-style: italic;
+  color: #75715e;
+}
+
+/* =====================
+   MONOKAI THEME - Global Overrides
+   ===================== */
+
+/* 字体设置 - 默认使用 Victor Mono，中文使用 Noto Sans SC */
+* {
+    font-family: 'Victor Mono', 'Noto Sans SC', monospace;
+}
+
+body {
+    @apply bg-[#272822] text-[#f8f8f2];
+    background-color: #272822 !important;
+    color: #f8f8f2 !important;
+    font-family: 'Victor Mono', 'Noto Sans SC', monospace;
+}
+
+/* =====================
+   CodeMirror 编辑器字体设置
+   ===================== */
+.cm-editor {
+    font-family: 'Victor Mono', 'Noto Sans SC', monospace !important;
+}
+
+.cm-editor .cm-content {
+    font-family: 'Victor Mono', 'Noto Sans SC', monospace !important;
+}
+
+.cm-editor .cm-line {
+    font-family: 'Victor Mono', 'Noto Sans SC', monospace !important;
+}
+
+.cm-editor .cm-gutters {
+    font-family: 'Victor Mono', 'Noto Sans SC', monospace !important;
+}
+
+/* =====================
+   CodeMirror 自动补全提示字体设置
+   ===================== */
+.cm-tooltip-autocomplete {
+    font-family: 'Victor Mono', 'Noto Sans SC', monospace !important;
+    font-size: 10px !important;
+}
+
+.cm-tooltip-autocomplete > ul {
+    font-family: 'Victor Mono', 'Noto Sans SC', monospace !important;
+    font-size: 10px !important;
+}
+
+.cm-tooltip-autocomplete > ul > li {
+    font-family: 'Victor Mono', 'Noto Sans SC', monospace !important;
+    font-size: 10px !important;
+}
+
+.cm-completionLabel {
+    font-family: 'Victor Mono', 'Noto Sans SC', monospace !important;
+    font-size: 10px !important;
+}
+
+.cm-completionDetail {
+    font-family: 'Victor Mono', 'Noto Sans SC', monospace !important;
+    font-size: 10px !important;
+}
+
+.cm-tooltip.cm-completionInfo {
+    font-family: 'Victor Mono', 'Noto Sans SC', monospace !important;
+    font-size: 10px !important;
+}
+
+/* =====================
+   MONOKAI THEME - Global Overrides
+   ===================== */
+
+/* Override white backgrounds */
+.bg-white, [class*="bg-white"] {
+    background-color: #1e1f1c !important;
+}
+
+/* Override gray backgrounds */
+.bg-gray-50, .bg-gray-100, .bg-gray-200, .bg-gray-300, .bg-gray-400, .bg-gray-500, 
+.bg-gray-600, .bg-gray-700, .bg-gray-800, .bg-gray-900 {
+    background-color: #1e1f1c !important;
+}
+
+/* Override light backgrounds */
+.bg-slate-50, .bg-slate-100, .bg-slate-200, .bg-slate-300 {
+    background-color: #1e1f1c !important;
+}
+
+/* Override borders */
+.border-gray-100, .border-gray-200, .border-gray-300, .border-gray-400 {
+    border-color: #3e3d32 !important;
+}
+
+.border-slate-200, .border-slate-300 {
+    border-color: #3e3d32 !important;
+}
+
+/* Make subtle borders blend in - use very dark borders or transparent */
+.border, [class*="border-"] {
+    border-color: #3e3d32 !important;
+}
+
+/* Override Tailwind's opacity borders like border-monokai-accent/20 */
+.border-monokai-accent\/20 {
+    border-color: rgba(62, 61, 50, 0.3) !important;
+}
+
+.border-monokai-accent\/30 {
+    border-color: rgba(62, 61, 50, 0.4) !important;
+}
+
+.border-monokai-accent\/10, .border-monokai-accent\/5 {
+    border-color: rgba(62, 61, 50, 0.15) !important;
+}
+
+/* Override all monokai accent borders with darker variants */
+[class*="border-monokai"] {
+    border-color: #3e3d32 !important;
+}
+
+/* Override text colors */
+.text-gray-400, .text-gray-500, .text-gray-600, .text-gray-700, .text-gray-800, .text-gray-900 {
+    color: #f8f8f2 !important;
+}
+
+.text-gray-300 {
+    color: #75715e !important;
+}
+
+.text-slate-400, .text-slate-500, .text-slate-600, .text-slate-700 {
+    color: #f8f8f2 !important;
+}
+
+/* Override divider colors */
+.divide-gray-50, .divide-gray-100, .divide-gray-200, .divide-gray-300 {
+    border-color: #3e3d32 !important;
+}
+
+.divide-y > :not([hidden]) ~ :not([hidden]) {
+    border-color: #3e3d32 !important;
+}
+
+.divide-x > :not([hidden]) ~ :not([hidden]) {
+    border-color: #3e3d32 !important;
+}
+
+/* Override input backgrounds */
+input, textarea, select {
+    @apply bg-[#1e1f1c] text-[#f8f8f2] border-[#49483e];
+    background-color: #1e1f1c !important;
+    color: #f8f8f2 !important;
+    border-color: #49483e !important;
+}
+
+input::placeholder, textarea::placeholder {
+    color: #75715e !important;
+}
+
+/* Override buttons */
+button, .btn {
+    @apply bg-[#3e3d32] text-[#f8f8f2] border-[#49483e];
+    background-color: #3e3d32 !important;
+    color: #f8f8f2 !important;
+    border-color: #49483e !important;
+    text-align: left !important;
+}
+
+/* Import Data button specific style */
+.sidebar-import-btn {
+    text-align: left !important;
+}
+
+button:hover, .btn:hover {
+    background-color: #49483e !important;
+}
+
+/* Override scrollbar for webkit browsers */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: #1e1f1c;
+    border-left: 1px solid #49483e;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #3e3d32;
+    border-radius: 5px;
+    border: 2px solid #1e1f1c;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #75715e;
+}
+
+::-webkit-scrollbar-corner {
+    background: #1e1f1c;
+}
+
+/* Card and panel styles */
+.card, .panel, .rounded-xl, .rounded-lg, .rounded-md, .rounded-2xl {
+    background-color: #1e1f1c !important;
+    border-color: #49483e !important;
+}
+
+/* Override specific element styles */
+.hover\:bg-gray-50:hover, .hover\:bg-gray-100:hover {
+    background-color: #3e3d32 !important;
+}
+
+.hover\:bg-slate-50:hover, .hover\:bg-slate-100:hover {
+    background-color: #3e3d32 !important;
+}
+
+/* Focus ring overrides - make them subtle */
+*:focus, *:focus-visible {
+    outline-color: #3e3d32 !important;
+    --tw-ring-color: #3e3d32 !important;
+}
+
+/* Ring color overrides */
+.ring-1, .ring-2 {
+    --tw-ring-color: #3e3d32 !important;
+}
+
+/* Hide harsh shadows - replace with subtle ones */
+.shadow-sm, .shadow, .shadow-lg, .shadow-xl {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
+}
 
 @keyframes slideUp {
     from {
@@ -245,4 +592,112 @@
     border: none;
     border-top: 1px solid #444;
     margin: 2em 0;
+}
+
+/* TOC 导航高亮效果 */
+.toc-highlight {
+    outline: 2px solid #66d9ef !important;
+    outline-offset: 4px !important;
+    border-radius: 2px;
+    transition: outline 0.3s ease;
+}
+
+/* 修复 Markdown 中下划线被错误解析为 sub 标签的问题 */
+.markdown-body sub,
+.markdown-body sup,
+.markdown-body td sub,
+.markdown-body td sup {
+    font-style: italic !important;
+    color: #e6db74 !important;
+    font-size: inherit !important;
+    vertical-align: baseline !important;
+}
+
+/* =====================
+   SQL Syntax Highlighting - Global Monokai Theme
+   ===================== */
+.sql-highlight-container {
+    font-family: 'Victor Mono', 'JetBrains Mono', 'Consolas', monospace;
+    font-size: 12px;
+    line-height: 1.6;
+    background: #1e1f1c;
+    padding: 12px;
+    border-radius: 6px;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.sql-keyword {
+    color: #ae81ff;
+    font-weight: 600;
+}
+
+.sql-function {
+    color: #66d9ef;
+    font-weight: 500;
+}
+
+.sql-string {
+    color: #a6e22e;
+    font-style: italic;
+}
+
+.sql-number {
+    color: #fd971f;
+}
+
+.sql-comment {
+    color: #75715e;
+    font-style: italic;
+}
+
+.sql-identifier {
+    color: #f8f8f2;
+    font-style: italic;
+}
+
+/* ==================== Ontology Graph Edge Animations ==================== */
+
+.flow-edge-active path.react-flow__edge-path {
+  stroke-dasharray: 8 14;
+  animation: dash-flow 1.2s linear infinite;
+}
+
+.flow-edge-idle path.react-flow__edge-path {
+  animation: dash-flow-idle 3s linear infinite;
+  opacity: 0.4 !important;
+}
+
+@keyframes dash-flow {
+  from { stroke-dashoffset: 22; }
+  to   { stroke-dashoffset: 0; }
+}
+
+@keyframes dash-flow-idle {
+  from { stroke-dashoffset: 0; }
+  to   { stroke-dashoffset: -44; }
+  0%, 100% { opacity: 0.25; }
+  50%       { opacity: 0.55; }
+}
+
+/* ReactFlow edge text glow for highlighted paths */
+.flow-edge-active .react-flow__edge-text {
+  filter: drop-shadow(0 0 4px currentColor);
+}
+
+/* ClusterGroup hover effect */
+.react-flow__node-clusterGroup {
+  transition: opacity 0.2s !important;
+}
+
+/* View-mode transition overlay */
+.react-flow__viewport {
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes viewTransitionFlash {
+  0%   { opacity: 0; transform: scale(0.98); }
+  30%  { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.02); }
 }
