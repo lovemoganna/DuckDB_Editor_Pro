@@ -125,7 +125,7 @@ export const Uploader: React.FC<UploaderProps> = ({ onDataReady, isProcessing })
     <div className="w-full max-w-4xl mx-auto">
       {/* Mode Selector */}
       <div className="flex justify-center mb-8">
-        <div className="bg-white p-1 rounded-lg border border-gray-200 shadow-sm flex gap-1">
+        <div className="bg-monokai-surface p-1 rounded-lg border border-monokai-accent flex gap-1">
           {[
             { id: 'local', label: '本地文件', icon: '💾' },
             { id: 'url', label: '远程URL', icon: '🌐' },
@@ -135,8 +135,8 @@ export const Uploader: React.FC<UploaderProps> = ({ onDataReady, isProcessing })
               key={mode.id}
               onClick={() => setImportMode(mode.id as any)}
               className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${importMode === mode.id
-                ? 'bg-black text-white shadow-sm'
-                : 'text-gray-600 hover:bg-gray-50'
+                ? 'bg-monokai-blue text-monokai-bg shadow-sm'
+                : 'text-monokai-comment hover:text-monokai-fg hover:bg-monokai-accent/20'
                 }`}
             >
               <span className="mr-2">{mode.icon}</span>
@@ -147,7 +147,7 @@ export const Uploader: React.FC<UploaderProps> = ({ onDataReady, isProcessing })
       </div>
 
       {/* Upload Area */}
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden transition-all duration-200">
+      <div className="bg-monokai-surface rounded-2xl border border-monokai-accent overflow-hidden transition-all duration-200">
         {!previewData ? (
           <>
             {importMode === 'local' && (
@@ -156,9 +156,9 @@ export const Uploader: React.FC<UploaderProps> = ({ onDataReady, isProcessing })
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
                 onClick={() => fileInputRef.current?.click()}
-                className={`p-16 text-center cursor-pointer transition-all duration-300 border-2 border-dashed ${dragOver
-                    ? 'bg-blue-50 border-blue-400 scale-[1.02]'
-                    : 'bg-gray-50 border-gray-300 hover:bg-gray-100 hover:border-gray-400'
+                className={`p-12 text-center cursor-pointer transition-all duration-300 border-2 border-dashed ${dragOver
+                    ? 'bg-monokai-blue/20 border-monokai-blue scale-[1.02]'
+                    : 'bg-monokai-bg border-monokai-accent hover:bg-monokai-sidebar/50 hover:border-monokai-accent'
                   }`}
               >
                 <input
@@ -169,37 +169,37 @@ export const Uploader: React.FC<UploaderProps> = ({ onDataReady, isProcessing })
                   className="hidden"
                 />
 
-                <div className={`text-7xl mb-6 transition-transform duration-300 ${dragOver ? 'scale-110 -rotate-12' : ''}`}>
+                <div className={`text-5xl mb-4 transition-transform duration-300 ${dragOver ? 'scale-110 -rotate-12' : ''}`}>
                   {dragOver ? '📂' : '☁️'}
                 </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                <h3 className="text-lg font-bold text-monokai-fg mb-2">
                   {dragOver ? 'Drop it here!' : 'Click or Drag to Upload'}
                 </h3>
-                <p className="text-gray-500 mb-6 text-lg">
+                <p className="text-monokai-comment mb-4 text-sm">
                   Support CSV, Parquet, JSON (Max 50MB)
                 </p>
-                <button className="bg-black text-white px-8 py-3 rounded-full font-medium hover:bg-gray-800 transition-transform active:scale-95 shadow-lg shadow-gray-200/50">
+                <button className="bg-monokai-blue text-monokai-bg px-6 py-2.5 rounded-lg font-medium hover:opacity-90 transition-transform active:scale-95 shadow-md text-sm">
                   Select File
                 </button>
               </div>
             )}
 
             {importMode === 'url' && (
-              <div className="p-12 text-center bg-gray-50">
-                <div className="text-6xl mb-4">🌐</div>
-                <h3 className="text-xl font-bold text-gray-900 mb-4">Import from URL</h3>
+              <div className="p-8 text-center bg-monokai-bg">
+                <div className="text-4xl mb-3">🌐</div>
+                <h3 className="text-base font-bold text-monokai-fg mb-4">Import from URL</h3>
                 <div className="flex gap-3 max-w-md mx-auto">
                   <input
                     type="url"
                     value={url}
                     onChange={(e) => setUrl(e.target.value)}
                     placeholder="https://example.com/data.csv"
-                    className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black/20 text-gray-900 bg-white shadow-sm"
+                    className="flex-1 px-4 py-2.5 border border-monokai-accent rounded-lg focus:outline-none focus:ring-2 focus:ring-monokai-blue/20 text-monokai-fg bg-monokai-sidebar shadow-sm text-sm"
                   />
                   <button
                     onClick={handleUrlSubmit}
                     disabled={!url.trim() || isProcessing}
-                    className="bg-black text-white px-6 py-3 rounded-xl hover:bg-gray-800 disabled:opacity-50 transition-all font-medium"
+                    className="px-5 py-2.5 bg-monokai-blue text-monokai-bg font-bold rounded-lg hover:opacity-90 disabled:opacity-50 transition-all text-sm"
                   >
                     Load
                   </button>
@@ -208,19 +208,19 @@ export const Uploader: React.FC<UploaderProps> = ({ onDataReady, isProcessing })
             )}
 
             {importMode === 'paste' && (
-              <div className="p-8 bg-gray-50">
+              <div className="p-6 bg-monokai-bg">
                 <textarea
                   value={pasteData}
                   onChange={(e) => setPasteData(e.target.value)}
                   placeholder="Paste CSV data here..."
-                  rows={10}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-black/20 font-mono text-sm text-gray-900 bg-white shadow-inner"
+                  rows={8}
+                  className="w-full px-4 py-3 border border-monokai-accent rounded-lg focus:outline-none focus:ring-2 focus:ring-monokai-blue/20 font-mono text-sm text-monokai-fg bg-monokai-sidebar shadow-inner"
                 />
                 <div className="mt-4 flex justify-end">
                   <button
                     onClick={handlePasteSubmit}
                     disabled={!pasteData.trim() || isProcessing}
-                    className="bg-black text-white px-8 py-2 rounded-xl hover:bg-gray-800 disabled:opacity-50 transition-all font-medium"
+                    className="bg-monokai-blue text-monokai-bg px-6 py-2 rounded-lg hover:opacity-90 disabled:opacity-50 transition-all font-medium text-sm"
                   >
                     Preview Data
                   </button>
@@ -232,40 +232,40 @@ export const Uploader: React.FC<UploaderProps> = ({ onDataReady, isProcessing })
           <div className="p-8">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-4">
-                <div className="w-16 h-16 bg-blue-100 rounded-xl flex items-center justify-center text-3xl shadow-sm">
+                <div className="w-16 h-16 bg-monokai-blue/20 rounded-xl flex items-center justify-center text-3xl shadow-sm">
                   📊
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-gray-900">{fileName}</h3>
-                  <p className="text-gray-500 text-sm">
+                  <h3 className="text-xl font-bold text-monokai-fg">{fileName}</h3>
+                  <p className="text-monokai-comment text-sm">
                     {(fileSize / 1024).toFixed(1)} KB • {previewData.length} rows preview
                   </p>
                 </div>
               </div>
               <button
                 onClick={clearFile}
-                className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors"
+                className="text-monokai-comment hover:text-monokai-pink hover:bg-monokai-pink/20 p-2 rounded-lg transition-colors"
               >
                 ✕ Remove
               </button>
             </div>
 
             {/* Micro Table Preview */}
-            <div className="border rounded-xl overflow-hidden mb-8 shadow-sm">
+            <div className="border border-monokai-accent rounded-xl overflow-hidden mb-8 shadow-sm">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm text-left">
-                  <thead className="bg-gray-50 text-gray-600 font-medium">
+                  <thead className="bg-monokai-sidebar text-monokai-fg font-medium">
                     <tr>
                       {Object.keys(previewData[0] || {}).map(k => (
-                        <th key={k} className="px-4 py-3 border-b">{k}</th>
+                        <th key={k} className="px-4 py-3 border-b border-monokai-accent">{k}</th>
                       ))}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y divide-monokai-accent/30">
                     {previewData.slice(0, 5).map((row, i) => (
-                      <tr key={i} className="hover:bg-gray-50/50">
+                      <tr key={i} className="hover:bg-monokai-accent/10">
                         {Object.values(row).map((v: any, j) => (
-                          <td key={j} className="px-4 py-2 text-gray-700 max-w-[200px] truncate">
+                          <td key={j} className="px-4 py-2 text-monokai-fg max-w-[200px] truncate">
                             {String(v)}
                           </td>
                         ))}
@@ -275,7 +275,7 @@ export const Uploader: React.FC<UploaderProps> = ({ onDataReady, isProcessing })
                 </table>
               </div>
               {previewData.length > 5 && (
-                <div className="bg-gray-50 px-4 py-2 text-center text-xs text-gray-400 border-t">
+                <div className="bg-monokai-sidebar px-4 py-2 text-center text-xs text-monokai-comment border-t border-monokai-accent">
                   + {previewData.length - 5} more rows...
                 </div>
               )}
@@ -285,11 +285,11 @@ export const Uploader: React.FC<UploaderProps> = ({ onDataReady, isProcessing })
               <button
                 onClick={confirmUpload}
                 disabled={isProcessing}
-                className="bg-blue-600 text-white px-12 py-4 rounded-xl font-bold text-lg hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-3"
+                className="bg-monokai-green text-monokai-bg px-12 py-4 rounded-xl font-bold text-lg hover:opacity-90 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-3"
               >
                 {isProcessing ? (
                   <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-monokai-bg border-t-transparent"></div>
                     Analyzing...
                   </>
                 ) : (
@@ -306,8 +306,8 @@ export const Uploader: React.FC<UploaderProps> = ({ onDataReady, isProcessing })
       {/* Processing Indicator */}
       {isProcessing && (
         <div className="mt-8 text-center">
-          <div className="inline-flex items-center gap-3 bg-blue-50 text-blue-600 px-6 py-3 rounded-lg">
-            <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-600 border-t-transparent"></div>
+          <div className="inline-flex items-center gap-3 bg-monokai-blue/20 text-monokai-blue px-6 py-3 rounded-lg">
+            <div className="animate-spin rounded-full h-5 w-5 border-2 border-monokai-blue border-t-transparent"></div>
             <span className="font-medium">正在分析数据结构...</span>
           </div>
         </div>

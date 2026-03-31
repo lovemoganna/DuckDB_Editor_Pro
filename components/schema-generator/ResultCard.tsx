@@ -9,6 +9,7 @@ import { QualityBadge } from './QualityBadge';
 import { SchemaCard } from './SchemaCard';
 import { QualityPanel } from './QualityPanel';
 import { CustomAssertionPanel } from './CustomAssertionPanel';
+import { encodeCSV, downloadExcel } from '../../utils/exportUtils';
 // NEW: Enhanced UI Components
 import { 
   CoreHeroCard, 
@@ -54,6 +55,7 @@ import {
   Download,
   Play,
   FileText,
+  FileSpreadsheet,
   CheckCircle2,
   AlertTriangle,
   Database,
@@ -156,15 +158,39 @@ export const ResultCard: React.FC<ResultCardProps> = ({
     a.click();
   };
 
-  const handleExportData = async (format: 'csv' | 'parquet') => {
+  const handleExportData = async (format: 'csv' | 'parquet' | 'excel') => {
     try {
+      if (format === 'excel') {
+        const data = await duckDBService.query(`SELECT * FROM "${summary.tableName}"`);
+        const rows = Array.isArray(data) ? data : [data];
+        if (rows.length > 0) {
+          const headers = Object.keys(rows[0]);
+          downloadExcel([{
+            name: summary.tableName,
+            headers,
+            rows: rows.map(row => headers.map(h => row[h] ?? null as unknown as undefined)),
+          }], `${summary.tableName}.xlsx`);
+        }
+        return;
+      }
       const buffer = await duckDBService.exportTable(summary.tableName, format);
-      const blob = new Blob([buffer as any], { type: format === 'csv' ? 'text/csv' : 'application/octet-stream' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${summary.tableName}.${format}`;
-      a.click();
+      if (format === 'csv') {
+        const blob = encodeCSV(new TextDecoder().decode(buffer as Uint8Array));
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${summary.tableName}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+      } else {
+        const blob = new Blob([buffer as any], { type: 'application/octet-stream' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${summary.tableName}.${format}`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
     } catch (e) {
       console.error(e);
       alert("Export failed: " + e);
@@ -421,6 +447,36 @@ export const ResultCard: React.FC<ResultCardProps> = ({
         userIntent={result.userIntent}
       />
 
+      {/* Data Export Buttons */}
+      <div className="bg-monokai-surface rounded-xl border border-monokai-accent p-4">
+        <h4 className="text-xs font-bold text-monokai-comment uppercase tracking-wider mb-3 flex items-center gap-2">
+          <Download size={14} className="text-monokai-green" /> 数据导出
+        </h4>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => handleExportData('csv')}
+            className="flex items-center gap-2 px-4 py-2 bg-monokai-green/20 border border-monokai-green/50 rounded-lg text-monokai-green text-xs font-medium hover:bg-monokai-green/30 transition-colors"
+          >
+            <FileSpreadsheet size={14} />
+            导出 CSV
+          </button>
+          <button
+            onClick={() => handleExportData('excel')}
+            className="flex items-center gap-2 px-4 py-2 bg-monokai-blue/20 border border-monokai-blue/50 rounded-lg text-monokai-blue text-xs font-medium hover:bg-monokai-blue/30 transition-colors"
+          >
+            <FileSpreadsheet size={14} />
+            导出 Excel
+          </button>
+          <button
+            onClick={() => handleExportData('parquet')}
+            className="flex items-center gap-2 px-4 py-2 bg-monokai-purple/20 border border-monokai-purple/50 rounded-lg text-monokai-purple text-xs font-medium hover:bg-monokai-purple/30 transition-colors"
+          >
+            <Database size={14} />
+            导出 Parquet
+          </button>
+        </div>
+      </div>
+
       {/* Three-Column Layout Container */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Column: Quick Stats & Quality */}
@@ -430,16 +486,16 @@ export const ResultCard: React.FC<ResultCardProps> = ({
           
           {/* Key Metrics Quick View */}
           {(result.keyMetrics && result.keyMetrics.length > 0) && (
-            <div className="bg-white rounded-xl border border-gray-200 p-4">
-              <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
-                <BarChart3 size={14} className="text-blue-500" /> 关键指标
+            <div className="bg-monokai-surface rounded-xl border border-monokai-accent p-4">
+              <h4 className="text-xs font-bold text-monokai-comment uppercase tracking-wider mb-3 flex items-center gap-2">
+                <BarChart3 size={14} className="text-monokai-blue" /> 关键指标
               </h4>
               <div className="space-y-2">
                 {result.keyMetrics.slice(0, 3).map((metric: any, i: number) => (
-                  <div key={i} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                  <div key={i} className="flex items-center justify-between p-2 bg-monokai-bg rounded-lg">
                     <div>
-                      <div className="text-xs font-bold text-gray-800 truncate">{metric.name}</div>
-                      <div className="text-[10px] text-gray-500">{metric.unit || ''}</div>
+                      <div className="text-xs font-bold text-monokai-fg truncate">{metric.name}</div>
+                      <div className="text-[10px] text-monokai-comment">{metric.unit || ''}</div>
                     </div>
                     <ConfidenceBadge 
                       score={metric.confidenceScore} 
@@ -454,7 +510,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
 
           {/* Handbook CTA */}
           <div 
-            className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl p-4 text-white shadow-lg cursor-pointer hover:scale-[1.02] transition-transform"
+            className="bg-gradient-to-br from-indigo to-monokai-purple rounded-xl p-4 text-white shadow-lg cursor-pointer hover:scale-[1.02] transition-transform"
             onClick={onGenerateHandbook}
           >
             <div className="flex items-center gap-2 mb-2">
@@ -478,7 +534,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
           >
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50 text-gray-500 font-bold uppercase text-[10px] tracking-wider">
+                <thead className="bg-monokai-bg text-monokai-comment font-bold uppercase text-[10px] tracking-wider">
                   <tr>
                     <th className="px-3 py-2 text-left">列名</th>
                     <th className="px-3 py-2 text-left">语义类型</th>
@@ -486,10 +542,10 @@ export const ResultCard: React.FC<ResultCardProps> = ({
                     <th className="px-3 py-2 text-left">说明</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-monokai-accent">
                   {(result.semanticColumns || []).slice(0, 10).map((col: any, i: number) => (
-                    <tr key={i} className="hover:bg-blue-50/30 transition-colors group">
-                      <td className="px-3 py-2 font-mono font-bold text-gray-900 text-xs">{col.name}</td>
+                    <tr key={i} className="hover:bg-monokai-blue/20 transition-colors group">
+                      <td className="px-3 py-2 font-mono font-bold text-monokai-fg text-xs">{col.name}</td>
                       <td className="px-3 py-2">
                         <span 
                           className="px-2 py-0.5 rounded-lg text-[10px] font-black"
@@ -508,7 +564,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
                           height={4}
                         />
                       </td>
-                      <td className="px-3 py-2 text-gray-500 text-xs italic">
+                      <td className="px-3 py-2 text-monokai-comment text-xs italic">
                         {col.description || '--'}
                         {/* Show reasoning if available */}
                         {col.reasoning && (
@@ -523,7 +579,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
                 </tbody>
               </table>
               {result.semanticColumns && result.semanticColumns.length > 10 && (
-                <div className="text-center py-2 text-xs text-gray-400">
+                <div className="text-center py-2 text-xs text-monokai-comment">
                   还有 {result.semanticColumns.length - 10} 列....
                 </div>
               )}
@@ -544,21 +600,21 @@ export const ResultCard: React.FC<ResultCardProps> = ({
                   <div 
                     key={i} 
                     className={`p-3 rounded-lg border-l-3 ${
-                      issue.severity === 'error' ? 'bg-red-50 border-red-500' :
-                      issue.severity === 'warning' ? 'bg-amber-50 border-amber-500' :
-                      'bg-blue-50 border-blue-500'
+                      issue.severity === 'error' ? 'bg-monokai-pink/20 border-monokai-pink' :
+                      issue.severity === 'warning' ? 'bg-monokai-yellow/20 border-monokai-yellow' :
+                      'bg-monokai-blue/20 border-monokai-blue'
                     }`}
                   >
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="font-bold text-gray-900 text-xs">[{issue.column}] {issue.type}</span>
+                      <span className="font-bold text-monokai-fg text-xs">[{issue.column}] {issue.type}</span>
                       <span className={`text-[9px] px-1.5 rounded uppercase font-bold ${
-                        issue.severity === 'error' ? 'text-red-700 bg-red-200' :
-                        issue.severity === 'warning' ? 'text-amber-700 bg-amber-200' :
-                        'text-blue-700 bg-blue-200'
+                        issue.severity === 'error' ? 'text-text-monokai-pink bg-monokai-pink/20' :
+                        issue.severity === 'warning' ? 'text-monokai-yellow bg-monokai-yellow/20' :
+                        'text-monokai-blue bg-monokai-blue/20'
                       }`}>{issue.severity}</span>
                     </div>
-                    <p className="text-gray-600 text-xs">{issue.detail}</p>
-                    <p className="text-gray-800 text-xs font-medium mt-1">鈫?{issue.suggestion}</p>
+                    <p className="text-monokai-fg text-xs">{issue.detail}</p>
+                    <p className="text-monokai-fg text-xs font-medium mt-1">鈫?{issue.suggestion}</p>
                   </div>
                 ))}
               </div>
@@ -581,17 +637,17 @@ export const ResultCard: React.FC<ResultCardProps> = ({
           >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {result.keyMetrics?.map((metric: any, i: number) => (
-                <div key={i} className="bg-gray-50 rounded-lg p-4 border border-gray-100">
+                <div key={i} className="bg-monokai-bg rounded-lg p-4 border border-monokai-accent/20">
                   <div className="flex items-center justify-between mb-2">
-                    <h6 className="font-bold text-gray-800 text-sm">{metric.name}</h6>
+                    <h6 className="font-bold text-monokai-fg text-sm">{metric.name}</h6>
                     <ConfidenceBadge score={metric.confidenceScore} size="sm" />
                   </div>
                   {metric.formula && (
-                    <div className="bg-slate-900 rounded p-2 font-mono text-[10px] text-emerald-400 mb-2 overflow-x-auto">
+                    <div className="bg-monokai-bg rounded p-2 font-mono text-[10px] text-monokai-green mb-2 overflow-x-auto">
                       {metric.formula}
                     </div>
                   )}
-                  <p className="text-xs text-gray-600">{metric.explanation}</p>
+                  <p className="text-xs text-monokai-fg">{metric.explanation}</p>
                   {/* Show assumptions if available */}
                   <AssumptionBadge 
                     assumption={metric.assumption}
@@ -608,19 +664,19 @@ export const ResultCard: React.FC<ResultCardProps> = ({
         <div className="lg:col-span-3 space-y-6">
           {/* SQL Scripts Quick Access */}
           {filteredOps.length > 0 && (
-            <div className="bg-white rounded-xl border border-gray-200 p-4">
-              <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
-                <Terminal size={14} className="text-slate-500" /> SQL 脚本
+            <div className="bg-monokai-surface rounded-xl border border-monokai-accent p-4">
+              <h4 className="text-xs font-bold text-monokai-comment uppercase tracking-wider mb-3 flex items-center gap-2">
+                <Terminal size={14} className="text-monokai-comment" /> SQL 脚本
               </h4>
               <div className="space-y-2">
                 {filteredOps.slice(0, 5).map((op: any) => (
                   <button
                     key={op.id}
                     onClick={() => onExecuteSql(op.sql)}
-                    className="w-full flex items-center justify-between p-2 bg-gray-50 hover:bg-gray-100 rounded-lg text-left transition-colors"
+                    className="w-full flex items-center justify-between p-2 bg-monokai-bg hover:bg-monokai-accent/20 rounded-lg text-left transition-colors"
                   >
-                    <span className="text-xs font-medium text-gray-700 truncate flex-1">{op.title || op.name}</span>
-                    <Play size={10} className="text-blue-500" />
+                    <span className="text-xs font-medium text-monokai-fg truncate flex-1">{op.title || op.name}</span>
+                    <Play size={10} className="text-monokai-blue" />
                   </button>
                 ))}
               </div>
@@ -629,27 +685,27 @@ export const ResultCard: React.FC<ResultCardProps> = ({
 
           {/* Assertions Summary */}
           {(assertionsData.length > 0 || customAssertions.length > 0) && (
-            <div className="bg-white rounded-xl border border-gray-200 p-4">
-              <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
-                <TestTube2 size={14} className="text-rose-500" /> 断言验证
+            <div className="bg-monokai-surface rounded-xl border border-monokai-accent p-4">
+              <h4 className="text-xs font-bold text-monokai-comment uppercase tracking-wider mb-3 flex items-center gap-2">
+                <TestTube2 size={14} className="text-monokai-pink" /> 断言验证
               </h4>
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-gray-600">AI 生成</span>
-                  <span className="font-bold text-gray-900">{assertionsData.length}</span>
+                  <span className="text-monokai-fg">AI 生成</span>
+                  <span className="font-bold text-monokai-fg">{assertionsData.length}</span>
                 </div>
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-gray-600">自定义</span>
-                  <span className="font-bold text-gray-900">{customAssertions.length}</span>
+                  <span className="text-monokai-fg">自定义</span>
+                  <span className="font-bold text-monokai-fg">{customAssertions.length}</span>
                 </div>
                 {Object.keys(assertionResults).length > 0 && (
-                  <div className="pt-2 border-t border-gray-100">
+                  <div className="pt-2 border-t border-monokai-accent/20">
                     <div className="flex items-center gap-2 text-[10px]">
-                      <span className="text-green-600 font-bold">
+                      <span className="text-monokai-green font-bold">
                         {Object.values(assertionResults).filter(v => v === 'pass').length} 通过
                       </span>
-                      <span className="text-gray-300">/</span>
-                      <span className="text-red-600 font-bold">
+                      <span className="text-text-monokai-comment">/</span>
+                      <span className="text-monokai-pink font-bold">
                         {Object.values(assertionResults).filter(v => v === 'fail').length} 失败
                       </span>
                     </div>
@@ -664,17 +720,17 @@ export const ResultCard: React.FC<ResultCardProps> = ({
       {/* SQL Engineering Center - Full Width Below */}
       {
         (filteredOps.length > 0 || crudData || macrosData.length > 0 || assertionsData.length > 0) && (
-          <section className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-0.5 text-white shadow-2xl overflow-hidden mb-8 border border-slate-700/50">
+          <section className="relative bg-gradient-to-br from-monokai-sidebar via-monokai-bg to-monokai-sidebar rounded-2xl p-0.5 text-white shadow-2xl overflow-hidden mb-8 border border-monokai-accent/30">
             {/* ... (keeping the existing SQL Engineering Center code) */}
-            <div className="relative bg-slate-900/80 backdrop-blur-xl rounded-t-[calc(1rem-1px)] px-8 py-6 border-b border-slate-700/50">
+            <div className="relative bg-monokai-bg/80 backdrop-blur-xl rounded-t-[calc(1rem-1px)] px-8 py-6 border-b border-monokai-accent/30/50">
               <div className="flex justify-between items-center">
                 <div>
-                  <div className="inline-flex items-center gap-2 px-3 py-1 bg-amber-500/10 text-amber-400 rounded-full text-[10px] font-bold mb-2 border border-amber-500/20">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 bg-monokai-yellow/10 text-monokai-yellow rounded-full text-[10px] font-bold mb-2 border border-monokai-yellow/20">
                     <Terminal size={10} /> Stage 3/6 | SQL 工程 | {filteredOps.length} Scripts
                   </div>
                   <h4 className="text-xl font-bold text-white flex items-center gap-3">
-                    <div className="p-2 bg-blue-500/10 rounded-lg border border-blue-500/20">
-                      <Wrench size={20} className="text-blue-400" />
+                    <div className="p-2 bg-monokai-blue/10 rounded-lg border border-monokai-blue/20">
+                      <Wrench size={20} className="text-monokai-blue" />
                     </div>
                     SQL 工程中心 (Operations)
                   </h4>
@@ -686,12 +742,12 @@ export const ResultCard: React.FC<ResultCardProps> = ({
                     onClick={handleExecuteAll}
                     disabled={executing}
                     className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-bold text-xs transition-all ${executing
-                      ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
-                      : 'bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-400 hover:to-emerald-500 shadow-lg shadow-green-500/20 transform hover:-translate-y-0.5'
+                      ? 'bg-monokai-sidebar text-monokai-comment cursor-not-allowed'
+                      : 'bg-gradient-to-r from-monokai-green to-monokai-purple text-white hover:opacity-90 shadow-lg shadow-monokai-green/20 transform hover:-translate-y-0.5'
                       }`}
                   >
                     {executing ? (
-                      <><div className="w-3 h-3 border-2 border-slate-500 border-t-slate-300 rounded-full animate-spin" /> 执行中...</>
+                      <><div className="w-3 h-3 border-2 border-monokai-comment border-t-transparent rounded-full animate-spin" /> 执行中...</>
                     ) : (
                       <><Zap size={14} /> 全部执行 ({filteredOps.length})</>
                     )}
@@ -700,7 +756,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
               </div>
             </div>
 
-            <div className="relative bg-slate-900/60 backdrop-blur-xl rounded-b-[calc(1rem-1px)] p-6 space-y-6">
+            <div className="relative bg-monokai-bg/60 backdrop-blur-xl rounded-b-[calc(1rem-1px)] p-6 space-y-6">
               {/* ... (keeping existing CRUD and script sections) */}
               
               {/* V6.0: Custom Assertion Panel Integration */}

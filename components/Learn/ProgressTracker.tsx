@@ -151,14 +151,14 @@ SELECT * FROM schools;`;
   // 首页视图 - 简洁进度面板
   if (!selectedTutorial) {
     return (
-      <div className="w-48 border-l border-monokai-accent bg-monokai-sidebar/20 p-4 shrink-0">
+      <div className="p-4">
         <h3 className="text-xs font-bold text-monokai-comment uppercase tracking-wider mb-3">
           学习进度
         </h3>
 
         {/* 统计 */}
         <div className="bg-monokai-bg/40 rounded-lg p-3 mb-3">
-          <div className="flex justify-between text-xs mb-1">
+          <div className="flex justify-between text-[10px] mb-1">
             <span className="text-monokai-comment">已完成</span>
             <span className="text-monokai-green">{globalStats.totalCompleted}/{tutorials.length}</span>
           </div>
@@ -206,7 +206,7 @@ SELECT * FROM schools;`;
                   onClick={() => onNavigateToTutorial?.(tutorialId)}
                   className="w-full text-left p-2 rounded bg-monokai-bg/30 hover:bg-monokai-accent/20 transition-colors"
                 >
-                  <div className="text-xs text-monokai-fg truncate">{tutorialId}</div>
+                  <div className="text-[10px] text-monokai-fg truncate">{tutorialId}</div>
                   <div className="mt-1 h-1 bg-monokai-accent/20 rounded-full overflow-hidden">
                     <div
                       className="h-full bg-monokai-blue"
@@ -224,12 +224,12 @@ SELECT * FROM schools;`;
 
   // 教程详情视图
   return (
-    <div className="w-48 border-l border-monokai-accent bg-monokai-sidebar/20 p-4 shrink-0 flex flex-col">
+    <div className="p-4 flex flex-col">
       {/* 一键实践 */}
       {onTryCode && sampleSql && (
         <button
           onClick={() => onTryCode(sampleSql)}
-          className="w-full py-2 bg-monokai-green/15 hover:bg-monokai-green/25 border border-monokai-green/30 rounded-lg text-monokai-green text-xs font-medium transition-colors flex items-center justify-center gap-1.5 mb-4"
+          className="w-full py-2 bg-monokai-green/15 hover:bg-monokai-green/25 border border-monokai-green/30 rounded-lg text-monokai-green text-[10px] font-medium transition-colors flex items-center justify-center gap-1.5 mb-4"
         >
           <span>⚡</span>
           <span>一键实践</span>
@@ -238,7 +238,7 @@ SELECT * FROM schools;`;
 
       {/* 进度 */}
       <div className="mb-4">
-        <div className="flex justify-between text-xs mb-1.5">
+        <div className="flex justify-between text-[10px] mb-1.5">
           <span className="text-monokai-comment">学习进度</span>
           <span className="text-monokai-fg">{completionPercent}%</span>
         </div>
@@ -264,7 +264,7 @@ SELECT * FROM schools;`;
                     markSectionComplete(section.id);
                     onNavigateSection?.(section.anchor);
                   }}
-                  className={`w-full text-left py-1.5 px-2 rounded text-xs flex items-center gap-2 transition-colors ${isCompleted
+                  className={`w-full text-left py-1.5 px-2 rounded text-[10px] flex items-center gap-2 transition-colors ${isCompleted
                     ? 'bg-monokai-green/10 text-monokai-green'
                     : 'hover:bg-monokai-accent/20 text-monokai-fg/60'
                     }`}
@@ -286,7 +286,7 @@ SELECT * FROM schools;`;
             onClick={() => onNavigateToTutorial?.(nextTutorial.id)}
             className="w-full p-2.5 rounded-lg bg-monokai-blue/10 border border-monokai-blue/20 hover:bg-monokai-blue/20 transition-colors text-left"
           >
-            <div className="text-xs text-monokai-blue font-medium truncate">
+            <div className="text-[10px] text-monokai-blue font-medium truncate">
               {nextTutorial.title}
             </div>
             <div className="text-[10px] text-monokai-comment mt-0.5">

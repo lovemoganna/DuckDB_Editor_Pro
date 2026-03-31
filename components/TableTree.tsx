@@ -46,7 +46,7 @@ export const TableTree: React.FC<TableTreeProps> = ({ tables, onInsert }) => {
             {tables.map(table => (
                 <div key={table} className="border-b border-monokai-accent/30">
                     <div
-                        className="p-2 hover:bg-monokai-accent cursor-pointer flex items-center gap-2 group transition-colors"
+                        className="p-2 hover:bg-monokai-bg cursor-pointer flex items-center gap-2 group transition-colors"
                         onClick={() => toggleExpand(table)}
                     >
                         <span className="text-[10px] text-monokai-comment group-hover:text-white transition-colors w-4 text-center">
@@ -69,7 +69,7 @@ export const TableTree: React.FC<TableTreeProps> = ({ tables, onInsert }) => {
                             {schemaCache[table].map(col => (
                                 <div
                                     key={col.name}
-                                    className="pl-8 pr-2 py-1 text-[11px] font-mono text-monokai-comment hover:text-monokai-orange hover:bg-monokai-accent/20 cursor-pointer flex justify-between group items-center"
+                                    className="pl-8 pr-2 py-1 text-[11px] font-mono text-monokai-comment hover:text-monokai-orange hover:bg-monokai-bg cursor-pointer flex justify-between group items-center"
                                     onClick={() => onInsert(col.name)}
                                     title={`Click to insert: ${col.name}`}
                                 >

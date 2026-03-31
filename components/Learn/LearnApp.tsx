@@ -1,16 +1,18 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { TutorialMetadata, getTutorialById, tutorials, getRecommendedFirstTutorial, getUserTutorialContent } from '../../data/tutorials';
 import { TutorialHome } from './TutorialHome';
-import { MarkdownViewer } from './MarkdownViewer';
+import { MarkdownViewer, extractToc, buildTocTree, TocItem } from './MarkdownViewer';
 import { NavigationPanel, Breadcrumb } from './NavigationPanel';
 import { ProgressTracker } from './ProgressTracker';
 
-import { EMBEDDED_CONTENT } from '../../data/tutorialContent';
+import { EMBEDDED_CONTENT } from '../../data/tutorials';
 
 interface LearnAppProps {
   onTryCode?: (code: string) => void;
   onOpenTable?: (tableName: string) => void;
 }
+
+
 
 export const LearnApp: React.FC<LearnAppProps> = ({ onTryCode, onOpenTable }) => {
   const [view, setView] = useState<'home' | 'tutorial' | 'onboarding'>('home');
@@ -19,6 +21,10 @@ export const LearnApp: React.FC<LearnAppProps> = ({ onTryCode, onOpenTable }) =>
   const [docContent, setDocContent] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  // TOC 状态
+  const toc = useMemo(() => extractToc(docContent), [docContent]);
+  const tocTree = useMemo(() => buildTocTree(toc), [toc]);
 
   // 加载教程文档内容
   useEffect(() => {
@@ -103,13 +109,22 @@ export const LearnApp: React.FC<LearnAppProps> = ({ onTryCode, onOpenTable }) =>
   // 处理章节导航
   const handleNavigateSection = useCallback((anchor: string) => {
     setCurrentSection(anchor);
-    // 滚动到对应标题
+    // 滚动到对应标题 - 在正确的滚动容器中查找
     setTimeout(() => {
-      const element = document.getElementById(anchor);
+      const contentArea = document.querySelector('.markdown-content-area');
+      const element = contentArea?.querySelector(`#${anchor}`) || document.getElementById(anchor);
+
       if (element) {
-        const top = element.getBoundingClientRect().top + window.scrollY - 80;
-        window.scrollTo({ top, behavior: 'smooth' });
+        if (contentArea) {
+          // 内容区内部滚动
+          element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } else {
+          const top = element.getBoundingClientRect().top + window.scrollY - 80;
+          window.scrollTo({ top, behavior: 'smooth' });
+        }
       }
+      // 更新 URL hash
+      window.history.pushState(null, '', `#${anchor}`);
     }, 100);
   }, []);
 
@@ -157,7 +172,7 @@ export const LearnApp: React.FC<LearnAppProps> = ({ onTryCode, onOpenTable }) =>
               {selectedTutorial && (
                 <div className="flex items-center gap-3">
                   <h1 className="text-xl font-bold text-white truncate">{selectedTutorial.title}</h1>
-                  <span className={`text-xs px-2 py-1 rounded shrink-0 ${selectedTutorial.difficulty === 'Beginner' ? 'bg-monokai-green/20 text-monokai-green' :
+                  <span className={`text-[10px] px-2 py-1 rounded shrink-0 ${selectedTutorial.difficulty === 'Beginner' ? 'bg-monokai-green/20 text-monokai-green' :
                     selectedTutorial.difficulty === 'Intermediate' ? 'bg-monokai-orange/20 text-monokai-orange' :
                       selectedTutorial.difficulty === 'Advanced' ? 'bg-monokai-purple/20 text-monokai-purple' :
                         'bg-monokai-blue/20 text-monokai-blue'
@@ -165,7 +180,7 @@ export const LearnApp: React.FC<LearnAppProps> = ({ onTryCode, onOpenTable }) =>
                     {selectedTutorial.difficulty}
                   </span>
                   {selectedTutorial.estimatedTime && (
-                    <span className="text-xs text-monokai-comment shrink-0">
+                    <span className="text-[10px] text-monokai-comment shrink-0">
                       ⏱️ {selectedTutorial.estimatedTime}
                     </span>
                   )}
@@ -187,6 +202,9 @@ export const LearnApp: React.FC<LearnAppProps> = ({ onTryCode, onOpenTable }) =>
                   content={docContent}
                   onTryCode={onTryCode}
                   onOpenTable={onOpenTable}
+                  tutorialId={selectedTutorial?.id}
+                  tutorialTitle={selectedTutorial?.title}
+                  showToc={true}
                 />
               ) : loadError ? (
                 <div className="flex items-center justify-center h-full">
@@ -227,19 +245,13 @@ export const LearnApp: React.FC<LearnAppProps> = ({ onTryCode, onOpenTable }) =>
               )}
             </div>
           </div>
-
-          {/* Right Sidebar - Progress */}
-          <ProgressTracker
-            selectedTutorial={selectedTutorial}
-            onNavigateSection={handleNavigateSection}
-            onNavigateToTutorial={handleNavigateToTutorial}
-            onTryCode={onTryCode}
-          />
         </>
       )}
     </div>
   );
 };
+
+
 
 // 从 markdown 文档中提取内容
 function getEmbeddedDoc(tutorialId: string): string {
@@ -256,29 +268,29 @@ function getEmbeddedDoc(tutorialId: string): string {
 
   // 返回默认提示
   return `
-# 教程加载中...
+      # 教程加载中...
 
-请确保文档文件已正确配置。
+      请确保文档文件已正确配置。
 
-## 当前教程 ID: ${tutorialId}
+      ## 当前教程 ID: ${tutorialId}
 
-### 如何添加教程内容：
+      ### 如何添加教程内容：
 
-1. 在 \`components/Learn/LearnApp.tsx\` 中的 \`EMBEDDED_CONTENT\` 对象添加内容
-2. 或者通过 \`(window as any).__DOC_CONTENT__\` 注入内容
-3. 或者将 markdown 文件放入 \`public/docs/\` 目录
+      1. 在 \`components/Learn/LearnApp.tsx\` 中的 \`EMBEDDED_CONTENT\` 对象添加内容
+      2. 或者通过 \`(window as any).__DOC_CONTENT__\` 注入内容
+      3. 或者将 markdown 文件放入 \`public/docs/\` 目录
 
----
+      ---
 
-### 推荐学习路径
+      ### 推荐学习路径
 
-建议从「DuckDB SQL 完整使用教程」开始，这是为小白用户设计的入门课程。
+      建议从「DuckDB SQL 完整使用教程」开始，这是为小白用户设计的入门课程。
 
-### 下一章预告
+      ### 下一章预告
 
-完成本教程后，可以继续学习：
-- 哲学数据库入门 - 通过哲学案例学习数据库设计
-`;
+      完成本教程后，可以继续学习：
+      - 哲学数据库入门 - 通过哲学案例学习数据库设计
+      `;
 }
 
 export default LearnApp;

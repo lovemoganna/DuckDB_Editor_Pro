@@ -109,7 +109,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({
             ))}
           </div>
         ) : (
-          <div className="text-sm text-white mt-0.5">{value}</div>
+          <div className="text-sm text-monokai-fg mt-0.5">{value}</div>
         )}
       </div>
     </div>
@@ -126,7 +126,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({
         <textarea
           value={editForm[field] as string}
           onChange={(e) => setEditForm({ ...editForm, [field]: e.target.value })}
-          className="w-full bg-monokai-bg border border-monokai-accent p-2 rounded text-sm text-white focus:border-monokai-blue outline-none resize-none"
+          className="w-full bg-monokai-bg border border-monokai-accent p-2 rounded text-sm text-monokai-fg focus:border-monokai-blue outline-none resize-none"
           rows={3}
         />
       ) : (
@@ -134,7 +134,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({
           type="text"
           value={editForm[field] as string}
           onChange={(e) => setEditForm({ ...editForm, [field]: e.target.value })}
-          className="w-full bg-monokai-bg border border-monokai-accent p-2 rounded text-sm text-white focus:border-monokai-blue outline-none"
+          className="w-full bg-monokai-bg border border-monokai-accent p-2 rounded text-sm text-monokai-fg focus:border-monokai-blue outline-none"
         />
       )}
     </div>
@@ -148,14 +148,14 @@ export const MetricCard: React.FC<MetricCardProps> = ({
           <div className="flex gap-2">
             <button
               onClick={handleSaveEdit}
-              className="p-1.5 bg-monokai-green text-monokai-bg rounded hover:opacity-90"
+              className="p-1.5 !bg-monokai-surface border border-monokai-green text-monokai-green rounded hover:opacity-90"
               title="保存"
             >
               <Check size={14} />
             </button>
             <button
               onClick={handleCancelEdit}
-              className="p-1.5 bg-monokai-accent text-white rounded hover:bg-monokai-comment"
+              className="p-1.5 !bg-monokai-surface border border-monokai-accent text-monokai-accent rounded hover:opacity-80"
               title="取消"
             >
               <X size={14} />
@@ -183,7 +183,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({
       {/* Header */}
       <div className="flex justify-between items-start mb-3">
         <div className="flex-1">
-          <h3 className="text-base font-bold text-white flex items-center gap-2">
+          <h3 className="text-base font-bold text-monokai-fg flex items-center gap-2">
             <span className="text-monokai-pink">{metric.name}</span>
             {metric.category && (
               <span className="px-2 py-0.5 bg-monokai-purple/30 rounded text-xs text-monokai-purple">
@@ -276,8 +276,8 @@ export const MetricCard: React.FC<MetricCardProps> = ({
               onClick={() => onToggleFavorite(metric.id)}
               className={`p-1.5 hover:bg-monokai-accent rounded transition-colors ${
                 isFavorite 
-                  ? 'text-yellow-400 hover:text-yellow-300' 
-                  : 'text-monokai-comment hover:text-yellow-400'
+                  ? 'text-monokai-yellow hover:text-monokai-yellow' 
+                  : 'text-monokai-comment hover:text-monokai-yellow'
               }`}
               title={isFavorite ? "取消收藏" : "收藏指标"}
             >
