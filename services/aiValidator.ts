@@ -2,7 +2,7 @@ import { DeepInsight } from '../types';
 
 export type AIStage = 'p1_semantic' | 'p3_causal' | 'p4_insights' | 'sql_lifecycle' | 'sql_batch' | 'core_analysis' | 'deep_intelligence'
     | 'semantic' | 'quality' | 'ops' | 'causal' | 'insights' | 'narrative' | 'probe'
-    | 'regex_gen' | 'fix_error' | 'smart_pivot' | 'unit_test'
+    | 'regex_gen' | 'fix_error' | 'smart_pivot' | 'unit_test' | 'ontology'
     | 'unified'; // v6.0: Single mega-call for all core stages
 
 export interface ValidationResult {
@@ -109,6 +109,12 @@ export class AIValidator {
 
             case 'narrative':
                 if (!data || typeof data !== 'string' || data.length < 10) missingFields.push('narrative_text');
+                break;
+
+            case 'ontology':
+                if (!data || !data.objects || !Array.isArray(data.objects)) {
+                    missingFields.push('objects_array');
+                }
                 break;
 
             // v6.0: Unified Mega-Call validation

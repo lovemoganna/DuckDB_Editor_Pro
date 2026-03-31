@@ -2,6 +2,7 @@ import * as duckdb from '@duckdb/duckdb-wasm';
 import duckdb_wasm from '@duckdb/duckdb-wasm/dist/duckdb-eh.wasm?url';
 import duckdb_worker from '@duckdb/duckdb-wasm/dist/duckdb-browser-eh.worker.js?url';
 import { ColumnStats, ImportOptions, EnrichedColumnStats } from '../types';
+import { ONTOLOGY_CREATE_STATEMENTS, ONTOLOGY_SEED_STATEMENTS } from '../components/Library/ontologyDataModel';
 
 const DUCKDB_VERSION = '1.33.1';
 
@@ -42,7 +43,16 @@ class DuckDBService {
       // Initialize with local worker + CACHE BUSTING
       // We append a timestamp to force the browser to ignore the stuck v0.9.1 cache
       const worker = new Worker(`${mainWorkerURL}?t=${Date.now()}`, { type: 'module' });
-      const logger = new duckdb.ConsoleLogger();
+      // Custom logger that silences "table does not exist" / "Catalog Error" noise.
+      // DuckDB logs these at INFO level (not ERROR), so we filter by message content only.
+      // duckdb.Logger is an interface, not a class — implement it directly.
+      const logger: duckdb.Logger = {
+        log(entry: duckdb.LogEntryVariant) {
+          const msg = typeof entry.value === 'string' ? entry.value : '';
+          if (/Table with name|Catalog Error|does not exist/i.test(msg)) return;
+          console.log(`[DuckDB] [${duckdb.getLogLevelLabel(entry.level)}] ${msg}`);
+        }
+      };
 
       this.db = new duckdb.AsyncDuckDB(logger, worker);
       await this.db.instantiate(mainModuleURL);
@@ -192,6 +202,23 @@ class DuckDBService {
 
     const result = await this.conn.query(sql);
     return result.toArray().map((row) => row.toJSON());
+  }
+
+  /** Execute a batch of SQL statements sequentially, returning results for each. */
+  async batchQuery(statements: string[]): Promise<{ index: number; data?: any[]; error?: string; executionTime?: number }[]> {
+    const results: { index: number; data?: any[]; error?: string; executionTime?: number }[] = [];
+    for (let i = 0; i < statements.length; i++) {
+      const stmt = statements[i].trim();
+      if (!stmt) continue;
+      const start = performance.now();
+      try {
+        const data = await this.query(stmt);
+        results.push({ index: i, data, executionTime: performance.now() - start });
+      } catch (e: any) {
+        results.push({ index: i, error: e.message, executionTime: performance.now() - start });
+      }
+    }
+    return results;
   }
 
   // --- Phase 3: Live Preview ---
@@ -390,6 +417,177 @@ class DuckDBService {
     }
 
     return new Blob([JSON.stringify(dump, (k, v) => typeof v === 'bigint' ? v.toString() : v, 2)], { type: 'application/json' });
+  }
+
+  // Schema 导出 - 导出 DDL（CREATE TABLE/VIEW/SEQUENCE）
+  async exportSchema(): Promise<string> {
+    if (!this.conn) throw new Error("DB not ready");
+
+    let ddl = `-- DuckDB Schema Export\n-- Generated: ${new Date().toISOString()}\n\n`;
+    ddl += `-- ========================================\n`;
+    ddl += `-- SCHEMA: duckdb_schema.sql\n`;
+    ddl += `-- ========================================\n\n`;
+
+    // 1. 导出 Tables
+    const tables = await this.getTables();
+    if (tables.length > 0) {
+      ddl += `-- ----------------------------------------\n`;
+      ddl += `-- TABLES\n`;
+      ddl += `-- ----------------------------------------\n\n`;
+
+      for (const tableName of tables) {
+        const columns = await this.conn.query(`PRAGMA table_info('${tableName}')`);
+        const cols = columns.toArray();
+
+        ddl += `CREATE TABLE "${tableName}" (\n`;
+        const colDefs: string[] = [];
+        for (const col of cols) {
+          const colName = col.name;
+          let colType = col.type || 'VARCHAR';
+          // DuckDB 类型映射
+          colType = colType.replace(/^INTEGER$/i, 'INTEGER')
+            .replace(/^BIGINT$/i, 'BIGINT')
+            .replace(/^DOUBLE$/i, 'DOUBLE')
+            .replace(/^BOOLEAN$/i, 'BOOLEAN')
+            .replace(/^DATE$/i, 'DATE')
+            .replace(/^TIMESTAMP$/i, 'TIMESTAMP')
+            .replace(/^VARCHAR$/i, 'VARCHAR');
+
+          let colDef = `  "${colName}" ${colType}`;
+          if (col.notnull) colDef += ' NOT NULL';
+          if (col.dflt_value !== null) {
+            colDef += ` DEFAULT ${col.dflt_value}`;
+          }
+          colDefs.push(colDef);
+        }
+        ddl += colDefs.join(',\n');
+        ddl += '\n);\n\n';
+      }
+    }
+
+    // 2. 导出 Views
+    try {
+      const views = await this.conn.query("SELECT table_name FROM information_schema.views WHERE table_schema = 'main'");
+      const viewRows = views.toArray();
+      if (viewRows.length > 0) {
+        ddl += `-- ----------------------------------------\n`;
+        ddl += `-- VIEWS\n`;
+        ddl += `-- ----------------------------------------\n\n`;
+
+        for (const row of viewRows) {
+          const viewName = row.table_name;
+          try {
+            const viewDef = await this.conn.query(`SELECT sql FROM sqlite_master WHERE type='view' AND name='${viewName}'`);
+            const defRows = viewDef.toArray();
+            if (defRows.length > 0 && defRows[0].sql) {
+              ddl += `CREATE OR REPLACE VIEW "${viewName}" AS\n${defRows[0].sql};\n\n`;
+            }
+          } catch (e) {
+            // Skip if cannot get view definition
+          }
+        }
+      }
+    } catch (e) {
+      // Views may not be supported
+    }
+
+    // 3. 导出 Sequences
+    try {
+      const seqs = await this.conn.query("SELECT sequence_name FROM information_schema.sequences");
+      const seqRows = seqs.toArray();
+      if (seqRows.length > 0) {
+        ddl += `-- ----------------------------------------\n`;
+        ddl += `-- SEQUENCES\n`;
+        ddl += `-- ----------------------------------------\n\n`;
+
+        for (const row of seqRows) {
+          const seqName = row.sequence_name;
+          ddl += `CREATE SEQUENCE "${seqName}";\n`;
+        }
+        ddl += '\n';
+      }
+    } catch (e) {
+      // Sequences may not be supported
+    }
+
+    return ddl;
+  }
+
+  // 数据导出为 SQL（INSERT 语句）
+  async exportDataAsSQL(tables?: string[]): Promise<string> {
+    if (!this.conn) throw new Error("DB not ready");
+
+    let sql = `-- DuckDB Data Export (INSERT Statements)\n-- Generated: ${new Date().toISOString()}\n\n`;
+    sql += `-- ========================================\n`;
+    sql += `-- DATA: duckdb_data.sql\n`;
+    sql += `-- ========================================\n\n`;
+
+    const targetTables = tables || await this.getTables();
+
+    for (const tableName of targetTables) {
+      const data = await this.query(`SELECT * FROM "${tableName}"`);
+      const rows = Array.isArray(data) ? data : [data];
+
+      if (rows.length === 0) {
+        sql += `-- Table "${tableName}" is empty\n\n`;
+        continue;
+      }
+
+      sql += `-- ----------------------------------------\n`;
+      sql += `-- TABLE: ${tableName} (${rows.length} rows)\n`;
+      sql += `-- ----------------------------------------\n\n`;
+
+      // 获取列名
+      const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
+      if (columns.length === 0) continue;
+
+      // 生成 INSERT 语句（每 100 行一条，提高性能）
+      const batchSize = 100;
+      for (let i = 0; i < rows.length; i += batchSize) {
+        const batch = rows.slice(i, i + batchSize);
+        const values: string[] = [];
+
+        for (const row of batch) {
+          const vals = columns.map(col => this.escapeLiteral(row[col])).join(', ');
+          values.push(`(${vals})`);
+        }
+
+        sql += `INSERT INTO "${tableName}" (${columns.map(c => `"${c}"`).join(', ')}) VALUES\n`;
+        sql += values.join(',\n');
+        sql += ';\n\n';
+      }
+    }
+
+    return sql;
+  }
+
+  // 完整备份 - Schema + Data
+  async exportFullBackup(format: 'sql' | 'json' = 'sql'): Promise<Blob> {
+    if (!this.conn) throw new Error("DB not ready");
+
+    if (format === 'sql') {
+      const schema = await this.exportSchema();
+      const data = await this.exportDataAsSQL();
+      return new Blob([schema + '\n' + data], { type: 'text/plain;charset=utf-8' });
+    } else {
+      // JSON 格式
+      const tables = await this.getTables();
+      const dump: any = {
+        metadata: {
+          generated: new Date().toISOString(),
+          type: 'full_backup',
+          tables: tables.length
+        },
+        tables: {}
+      };
+
+      for (const t of tables) {
+        const data = await this.query(`SELECT * FROM "${t}"`);
+        dump.tables[t] = data;
+      }
+
+      return new Blob([JSON.stringify(dump, (k, v) => typeof v === 'bigint' ? v.toString() : v, 2)], { type: 'application/json' });
+    }
   }
 
   async exportParquet(query: string, filename: string): Promise<Blob> {
@@ -1260,6 +1458,177 @@ class DuckDBService {
     const buffer = await this.db.copyFileToBuffer(fileName);
     await this.db.registerFileText(fileName, ''); // Cleanup?
     return buffer;
+  }
+
+  // ==================== Ontology Layer ====================
+
+  async ontologyInit(): Promise<void> {
+    if (!this.conn) return;
+    for (const sql of ONTOLOGY_CREATE_STATEMENTS) {
+      try { await this.query(sql); } catch {}
+    }
+  }
+
+  async ontologySeed(): Promise<void> {
+    if (!this.conn) return;
+    for (const sql of ONTOLOGY_SEED_STATEMENTS) {
+      try { await this.query(sql); } catch {}
+    }
+  }
+
+  async getOntologyObjects(): Promise<any[]> {
+    return this.query('SELECT * FROM life_object ORDER BY id');
+  }
+
+  async getOntologyObjectTypes(): Promise<any[]> {
+    return this.query('SELECT * FROM life_object_type ORDER BY id');
+  }
+
+  async getOntologyLinks(): Promise<any[]> {
+    return this.query('SELECT * FROM life_link ORDER BY id');
+  }
+
+  async getOntologyLinkTypes(): Promise<any[]> {
+    return this.query('SELECT * FROM life_link_type ORDER BY id');
+  }
+
+  async getOntologyActions(): Promise<any[]> {
+    return this.query('SELECT * FROM life_action ORDER BY id');
+  }
+
+  async getOntologyIntrospections(): Promise<any[]> {
+    return this.query('SELECT * FROM life_introspection ORDER BY id');
+  }
+
+  async getOntologyInsights(): Promise<any[]> {
+    return this.query('SELECT * FROM life_insight ORDER BY id');
+  }
+
+  // Unified save for the generated AI draft
+  async executeOntologyDraft(draftData: {
+    objects: any[], links: any[], actions: any[], introspections: any[], insights: any[]
+  }): Promise<void> {
+    if (!this.conn) return;
+    try {
+      // Execute in sequence to maintain FK constraints
+      for (const obj of draftData.objects || []) {
+        await this.query(`INSERT INTO life_object (id, object_type_id, name, properties, annotations) VALUES (${obj.id}, ${obj.object_type_id || 1}, '${obj.name.replace(/'/g, "''")}', '${JSON.stringify(obj.properties || {}).replace(/'/g, "''")}', '${(obj.annotations || '').replace(/'/g, "''")}') ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name, properties=EXCLUDED.properties, annotations=EXCLUDED.annotations, object_type_id=EXCLUDED.object_type_id`);
+      }
+      for (const link of draftData.links || []) {
+        await this.query(`INSERT INTO life_link (id, link_type_id, source_object_id, target_object_id, weight) VALUES (${link.id}, ${link.link_type_id || 1}, ${link.source_object_id}, ${link.target_object_id}, ${link.weight || 1.0}) ON CONFLICT (id) DO UPDATE SET link_type_id=EXCLUDED.link_type_id, source_object_id=EXCLUDED.source_object_id, target_object_id=EXCLUDED.target_object_id, weight=EXCLUDED.weight`);
+      }
+      for (const action of draftData.actions || []) {
+        await this.query(`INSERT INTO life_action (id, object_id, name, description, status) VALUES (${action.id}, ${action.object_id}, '${action.name.replace(/'/g, "''")}', '${(action.description || '').replace(/'/g, "''")}', '${action.status || 'pending'}') ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name, description=EXCLUDED.description, status=EXCLUDED.status, object_id=EXCLUDED.object_id`);
+      }
+      for (const intro of draftData.introspections || []) {
+        await this.query(`INSERT INTO life_introspection (id, object_id, question, answer) VALUES (${intro.id}, ${intro.object_id}, '${intro.question.replace(/'/g, "''")}', '${(intro.answer || '').replace(/'/g, "''")}') ON CONFLICT (id) DO UPDATE SET question=EXCLUDED.question, answer=EXCLUDED.answer, object_id=EXCLUDED.object_id`);
+      }
+      for (const insight of draftData.insights || []) {
+        await this.query(`INSERT INTO life_insight (id, object_id, insight, tag) VALUES (${insight.id}, ${insight.object_id}, '${insight.insight.replace(/'/g, "''")}', '${(insight.tag || '').replace(/'/g, "''")}') ON CONFLICT (id) DO UPDATE SET insight=EXCLUDED.insight, tag=EXCLUDED.tag, object_id=EXCLUDED.object_id`);
+      }
+    } catch (err) {
+      console.error('Execute ontology draft failed', err);
+      throw err;
+    }
+  }
+
+  // Common unified delete for Graph
+  async deleteOntologyNodeTree(objectId: number): Promise<void> {
+    if (!this.conn) return;
+    try {
+      await this.query(`DELETE FROM life_action WHERE object_id = ${objectId}`);
+      await this.query(`DELETE FROM life_introspection WHERE object_id = ${objectId}`);
+      await this.query(`DELETE FROM life_insight WHERE object_id = ${objectId}`);
+      await this.query(`DELETE FROM life_link WHERE source_object_id = ${objectId} OR target_object_id = ${objectId}`);
+      await this.query(`DELETE FROM life_canvas_state WHERE object_id = ${objectId}`);
+      await this.query(`DELETE FROM life_object WHERE id = ${objectId}`);
+    } catch (e) {
+      console.error('Delete ontology node tree failed', e);
+    }
+  }
+
+  // Real-time Update methods
+  async updateOntologyObject(id: number, updates: { name?: string, properties?: any }): Promise<void> {
+    let sets = [];
+    if (updates.name) sets.push(`name = '${updates.name.replace(/'/g, "''")}'`);
+    if (updates.properties) sets.push(`properties = '${JSON.stringify(updates.properties).replace(/'/g, "''")}'`);
+    if (sets.length === 0) return;
+    await this.query(`UPDATE life_object SET ${sets.join(', ')} WHERE id = ${id}`);
+  }
+
+  async updateOntologyAction(id: number, updates: { name?: string, description?: string, status?: string }): Promise<void> {
+    let sets = [];
+    if (updates.name) sets.push(`name = '${updates.name.replace(/'/g, "''")}'`);
+    if (updates.description) sets.push(`description = '${updates.description.replace(/'/g, "''")}'`);
+    if (updates.status) sets.push(`status = '${updates.status.replace(/'/g, "''")}'`);
+    if (sets.length === 0) return;
+    await this.query(`UPDATE life_action SET ${sets.join(', ')} WHERE id = ${id}`);
+  }
+
+  async updateOntologyInsight(id: number, updates: { insight?: string, tag?: string }): Promise<void> {
+    let sets = [];
+    if (updates.insight) sets.push(`insight = '${updates.insight.replace(/'/g, "''")}'`);
+    if (updates.tag) sets.push(`tag = '${updates.tag.replace(/'/g, "''")}'`);
+    if (sets.length === 0) return;
+    await this.query(`UPDATE life_insight SET ${sets.join(', ')} WHERE id = ${id}`);
+  }
+
+  async updateOntologyIntrospection(id: number, updates: { question?: string, answer?: string }): Promise<void> {
+    let sets = [];
+    if (updates.question) sets.push(`question = '${updates.question.replace(/'/g, "''")}'`);
+    if (updates.answer) sets.push(`answer = '${updates.answer.replace(/'/g, "''")}'`);
+    if (sets.length === 0) return;
+    await this.query(`UPDATE life_introspection SET ${sets.join(', ')} WHERE id = ${id}`);
+  }
+
+  async createOntologyObject(name: string, objectTypeId: number, properties: string = '{}'): Promise<void> {
+    await this.query(`INSERT INTO life_object (name, object_type_id, properties) VALUES ('${name.replace(/'/g, "''")}', ${objectTypeId}, '${properties.replace(/'/g, "''")}')`);
+  }
+
+  async updateOntologyAnnotation(objectId: number, annotation: string): Promise<void> {
+    await this.query(`UPDATE life_object SET annotations = '${annotation.replace(/'/g, "''")}' WHERE id = ${objectId}`);
+  }
+
+  async updateOntologyProperties(objectId: number, properties: string): Promise<void> {
+    await this.query(`UPDATE life_object SET properties = '${properties.replace(/'/g, "''")}' WHERE id = ${objectId}`);
+  }
+
+  async updateOntologyLinkWeight(linkId: number, weight: number): Promise<void> {
+    await this.query(`UPDATE life_link SET weight = ${weight} WHERE id = ${linkId}`);
+  }
+
+  async createOntologyLink(linkTypeId: number, sourceId: number, targetId: number, weight: number = 1.0): Promise<void> {
+    await this.query(`INSERT INTO life_link (link_type_id, source_object_id, target_object_id, weight) VALUES (${linkTypeId}, ${sourceId}, ${targetId}, ${weight})`);
+  }
+
+  async deleteOntologyLink(linkId: number): Promise<void> {
+    await this.query(`DELETE FROM life_link WHERE id = ${linkId}`);
+  }
+
+  // Introspection
+  async addIntrospection(objectId: number, question: string, answer: string): Promise<void> {
+    await this.query(`INSERT INTO life_introspection (object_id, question, answer) VALUES (${objectId}, '${question.replace(/'/g, "''")}', '${answer.replace(/'/g, "''")}')`);
+  }
+
+  async getIntrospections(objectId: number): Promise<any[]> {
+    return this.query(`SELECT * FROM life_introspection WHERE object_id = ${objectId} ORDER BY created_at DESC`);
+  }
+
+  // Insights
+  async addInsight(objectId: number, insight: string, tag: string): Promise<void> {
+    await this.query(`INSERT INTO life_insight (object_id, insight, tag) VALUES (${objectId}, '${insight.replace(/'/g, "''")}', '${tag.replace(/'/g, "''")}')`);
+  }
+
+  async getInsights(): Promise<any[]> {
+    return this.query('SELECT li.*, lo.name as object_name FROM life_insight li LEFT JOIN life_object lo ON li.object_id = lo.id ORDER BY li.created_at DESC');
+  }
+
+  async getInsightsByTag(tag: string): Promise<any[]> {
+    return this.query(`SELECT * FROM life_insight WHERE tag = '${tag.replace(/'/g, "''")}' ORDER BY created_at DESC`);
+  }
+
+  async deleteInsight(id: number): Promise<void> {
+    await this.query(`DELETE FROM life_insight WHERE id = ${id}`);
   }
 }
 
