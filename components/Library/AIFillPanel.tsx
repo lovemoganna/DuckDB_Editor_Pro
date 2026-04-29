@@ -104,7 +104,7 @@ function renderResultPreview(result: any, mode: AIFillMode): React.ReactNode {
                     {ot.properties && Object.keys(ot.properties).length > 0 && (
                       <div className="flex flex-wrap gap-1 mt-1">
                         {Object.entries(ot.properties).map(([k, v]) => (
-                          <span key={k} className="px-1.5 py-0.5 bg-monokai-purple/10 text-monokai-purple/80 text-[9px] rounded font-mono">{k}: {v}</span>
+                          <span key={k} className="px-1.5 py-0.5 bg-monokai-purple/10 text-monokai-purple/80 text-[9px] rounded font-mono">{k}: {String(v)}</span>
                         ))}
                       </div>
                     )}

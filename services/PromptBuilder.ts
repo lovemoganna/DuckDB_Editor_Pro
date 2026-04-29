@@ -84,7 +84,7 @@ FROM "${tableName}";`;
   private static injectSkills(ids: string[]): string {
     // SKL-403: 语义压缩与动态注入逻辑
     return ids.map(id => {
-      const skill = (AI_SCHEMA.skills as any)[id];
+      const skill = AI_SCHEMA.skills[id];
       if (!skill) return "";
       return `\n\n### [SKL-${id}] ${skill.title}\n${skill.fullContent}`;
     }).join("");

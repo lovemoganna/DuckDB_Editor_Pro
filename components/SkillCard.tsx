@@ -1,131 +1,21 @@
 /**
- * Skill Card Component
+ * SkillCard Component - Enhanced Visual Design
  *
- * Displays a skill item in the skill list.
+ * Modern card design with category color indicators and enhanced interactions.
  */
 
 import React from 'react';
 import {
-  Lightbulb,
-  FileCode,
-  Database,
-  BarChart3,
-  ArrowRightLeft,
-  Gauge,
-  Wrench,
-  Layers,
-  Filter,
-  Hash,
-  Calculator,
   TrendingUp,
-  Clock,
-  Table,
-  Wand2,
-  Microscope,
-  Trash2,
-  Eye,
-  Settings2,
-  GitBranch,
-  Calendar,
-  Type,
-  TrendingDown,
-  FileText,
-  Puzzle,
-  ShieldCheck,
+  CheckCircle,
   AlertTriangle,
   HelpCircle,
-  CheckCircle,
+  Star,
+  Zap,
+  ArrowRight,
 } from 'lucide-react';
 import { AISkill, SkillCategory } from '../types';
-
-// Icon mapping based on skill category and patterns
-const getCategoryIcon = (skill: AISkill): React.ReactNode => {
-  const iconMap: Record<string, React.ElementType> = {
-    'sql-select': FileCode,
-    'sql-join': Layers,
-    'sql-cte': GitBranch,
-    'sql-insert': Database,
-    'sql-update': Settings2,
-    'sql-delete': Trash2,
-    'sql-create-table': Table,
-    'sql-alter-table': Settings2,
-    'sql-drop-table': TrendingDown,
-    'sql-view': Eye,
-    'sql-index': Hash,
-    'sql-table': Table,
-    'analysis-time-series': TrendingUp,
-    'analysis-comparison': BarChart3,
-    'analysis-funnel': Filter,
-    'analysis-retention': Clock,
-    'transformation-pivot': Table,
-    'transformation-unpivot': ArrowRightLeft,
-    'transformation-type': Calculator,
-    'transformation-string': Type,
-    'transformation-date': Calendar,
-    'optimization-explain': Microscope,
-    'optimization-rewrite': Wand2,
-    'optimization-index': Hash,
-    'utility-test-data': Puzzle,
-    'utility-sample': Filter,
-    'utility-summarize': FileText,
-  };
-
-  // Try to match by skill ID
-  for (const [key, Icon] of Object.entries(iconMap)) {
-    if (skill.id.includes(key.replace('sql-', '').replace('analysis-', '').replace('transformation-', '').replace('optimization-', '').replace('utility-', ''))) {
-      return <Icon className="w-5 h-5" />;
-    }
-  }
-
-  // Fallback to category-based icons
-  const categoryIcons: Record<SkillCategory, React.ElementType> = {
-    sql: FileCode,
-    analysis: BarChart3,
-    transformation: ArrowRightLeft,
-    optimization: Gauge,
-    utility: Wrench,
-  };
-
-  const Icon = categoryIcons[skill.category] || Lightbulb;
-  return <Icon className="w-5 h-5" />;
-};
-
-// Category color mapping - following Monokai design system
-const getCategoryColors = (category: SkillCategory) => {
-  const colors: Record<SkillCategory, { bg: string; text: string; border: string; gradient: string }> = {
-    sql: {
-      bg: 'bg-monokai-blue/20',
-      text: 'text-monokai-blue',
-      border: 'border-monokai-blue/30',
-      gradient: 'from-monokai-blue/20 to-monokai-accent/20'
-    },
-    analysis: {
-      bg: 'bg-monokai-green/20',
-      text: 'text-monokai-green',
-      border: 'border-monokai-green/30',
-      gradient: 'from-monokai-green/20 to-monokai-green/20'
-    },
-    transformation: {
-      bg: 'bg-monokai-purple/20',
-      text: 'text-monokai-purple',
-      border: 'border-monokai-purple/30',
-      gradient: 'from-monokai-purple/20 to-monokai-pink/20'
-    },
-    optimization: {
-      bg: 'bg-monokai-orange/20',
-      text: 'text-monokai-orange',
-      border: 'border-monokai-orange/30',
-      gradient: 'from-monokai-orange/20 to-monokai-yellow/20'
-    },
-    utility: {
-      bg: 'bg-monokai-comment/20',
-      text: 'text-monokai-comment',
-      border: 'border-monokai-comment/30',
-      gradient: 'from-monokai-comment/20 to-monokai-fg/20'
-    },
-  };
-  return colors[category] || colors.utility;
-};
+import { CATEGORY_DESIGN, getSkillIcon } from './theme/ai-skills';
 
 interface SkillCardProps {
   skill: AISkill;
@@ -133,27 +23,30 @@ interface SkillCardProps {
   onClick: () => void;
   currentTable?: string;
   validationStatus?: 'valid' | 'invalid' | 'untested' | 'testing';
+  usageCount?: number;
+  isFavorite?: boolean;
 }
 
-export const SkillCard: React.FC<SkillCardProps> = ({ 
-  skill, 
-  isSelected, 
-  onClick, 
+export const SkillCard: React.FC<SkillCardProps> = ({
+  skill,
+  isSelected,
+  onClick,
   currentTable,
-  validationStatus = 'untested'
+  validationStatus = 'untested',
+  usageCount = 0,
+  isFavorite = false,
 }) => {
-  const categoryColors = getCategoryColors(skill.category);
+  const design = CATEGORY_DESIGN[skill.category];
+  const Icon = getSkillIcon(skill.id);
   const hasExamples = skill.examples && skill.examples.length > 0;
-  
-  // Check if skill can work with current context
-  const isReadyToUse = !skill.requiresTable || (skill.requiresTable && currentTable);
+  const isReadyToUse = !skill.requiresTable || (skill.requiresTable && !!currentTable);
+  const primaryColor = design?.colors.primary || '#ae81ff';
 
-  // Validation badge config
   const validationBadge = {
-    valid: { icon: CheckCircle, color: 'text-monokai-green', bg: 'bg-monokai-green/20', label: '已验证' },
-    invalid: { icon: AlertTriangle, color: 'text-monokai-red', bg: 'bg-monokai-red/20', label: '有问题' },
-    testing: { icon: ShieldCheck, color: 'text-monokai-yellow', bg: 'bg-monokai-yellow/20', label: '验证中' },
-    untested: { icon: HelpCircle, color: 'text-monokai-comment', bg: 'bg-monokai-comment/20', label: '待验证' },
+    valid: { icon: CheckCircle, color: '#a6e22e', label: '已验证' },
+    invalid: { icon: AlertTriangle, color: '#f92672', label: '有问题' },
+    testing: { icon: CheckCircle, color: '#e6db74', label: '测试中' },
+    untested: { icon: HelpCircle, color: '#75715e', label: '未测试' },
   };
   const badge = validationBadge[validationStatus];
   const BadgeIcon = badge.icon;
@@ -161,87 +54,145 @@ export const SkillCard: React.FC<SkillCardProps> = ({
   return (
     <button
       onClick={onClick}
-      className={`w-full text-left p-2.5 rounded-lg transition-all duration-200 group relative overflow-hidden ${
-        isSelected
-          ? `bg-gradient-to-r ${categoryColors.gradient} border-2 ${categoryColors.border}`
-          : 'bg-monokai-bg border-2 border-transparent hover:border-monokai-accent/50 hover:bg-monokai-sidebar'
-      }`}
+      className={`
+        w-full text-left relative rounded-lg overflow-hidden
+        transition-all duration-200 group
+        ${isSelected
+          ? 'ring-1 ring-offset-1'
+          : 'hover:ring-1 hover:ring-offset-1'
+        }
+      `}
+      style={{
+        backgroundColor: isSelected ? `${primaryColor}10` : '#272822',
+        borderColor: isSelected ? primaryColor : '#3e3d32',
+        borderWidth: '1px',
+      }}
     >
-      {/* Selection indicator */}
-      {isSelected && (
-        <div className={`absolute left-0 top-0 bottom-0 w-1 ${categoryColors.bg}`} />
-      )}
+      {/* Left color indicator */}
+      <div
+        className="absolute left-0 top-0 bottom-0 w-[3px] transition-all duration-200"
+        style={{
+          backgroundColor: isSelected ? primaryColor : 'transparent',
+        }}
+      />
 
-      <div className="flex items-start gap-2.5 pl-1">
-        {/* Icon */}
-        <div className={`w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-105 ${
-          isSelected
-            ? `${categoryColors.bg} ${categoryColors.text}`
-            : 'bg-monokai-sidebar text-monokai-comment'
-        }`}>
-          {getCategoryIcon(skill)}
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <h3 className={`text-sm font-medium truncate transition-colors ${
-              isSelected
-                ? `${categoryColors.text}`
-                : 'text-monokai-fg group-hover:text-monokai-purple'
-            }`}>
-              {skill.name}
-            </h3>
-            {/* Example count badge */}
-            {hasExamples && (
-              <span className="flex-shrink-0 px-1.5 py-0.5 text-[10px] bg-monokai-purple/20 text-monokai-purple rounded-full">
-                {skill.examples?.length}
-              </span>
-            )}
-            {/* Validation status badge */}
-            <span 
-              className={`flex-shrink-0 px-1.5 py-0.5 text-[10px] ${badge.bg} ${badge.color} rounded-full flex items-center gap-0.5`}
-              title={badge.label}
-            >
-              <BadgeIcon className="w-2.5 h-2.5" />
-            </span>
-            {/* Context ready indicator */}
-            {isReadyToUse && (
-              <span className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-monokai-green" title="可立即使用" />
-            )}
+      <div className="relative p-3 pl-4">
+        {/* Header row */}
+        <div className="flex items-start gap-2.5">
+          {/* Icon container */}
+          <div
+            className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 transition-all duration-200"
+            style={{
+              backgroundColor: `${primaryColor}15`,
+              borderWidth: '1px',
+              borderColor: isSelected ? primaryColor : '#3e3d32',
+            }}
+          >
+            <Icon
+              className="w-4 h-4 transition-colors"
+              style={{ color: primaryColor }}
+            />
           </div>
-          <p className={`text-xs mt-0.5 line-clamp-2 ${
-            isSelected
-              ? 'text-monokai-comment'
-              : 'text-monokai-comment'
-          }`}>
-            {skill.description}
-          </p>
-          
-          {/* Quick hint when selected */}
-          {isSelected && skill.inputSchema.length > 0 && (
-            <div className="flex items-center gap-2 mt-1.5">
-              <span className="text-[10px] text-monokai-comment">
-                {skill.inputSchema.length} 个输入项
-              </span>
-              {skill.inputSchema.some(f => f.required) && (
-                <span className="text-[10px] text-monokai-pink">
-                  {skill.inputSchema.filter(f => f.required).length} 必填
-                </span>
-              )}
-            </div>
-          )}
-        </div>
 
-        {/* Arrow indicator */}
-        <div className={`flex-shrink-0 transition-all duration-200 ${
-          isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
-        }`}>
-          <svg className={`w-3.5 h-3.5 ${categoryColors.text}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-          </svg>
+          {/* Content */}
+          <div className="flex-1 min-w-0">
+            {/* Title row */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3
+                className="text-xs font-semibold leading-tight truncate"
+                style={{ color: isSelected ? primaryColor : '#f8f8f2' }}
+              >
+                {skill.name}
+              </h3>
+
+              {/* Badges row */}
+              <div className="flex items-center gap-1 flex-wrap">
+                {isFavorite && (
+                  <span
+                    className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-medium"
+                    style={{ backgroundColor: '#f1fa8c20', color: '#f1fa8c' }}
+                  >
+                    <Star className="w-2.5 h-2.5 fill-current" />
+                    收藏
+                  </span>
+                )}
+
+                {hasExamples && (
+                  <span
+                    className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-mono"
+                    style={{ backgroundColor: '#ae81ff15', color: '#ae81ff' }}
+                  >
+                    {skill.examples?.length} 示例
+                  </span>
+                )}
+
+                {isReadyToUse && (
+                  <span
+                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-medium"
+                    style={{ backgroundColor: '#a6e22e15', color: '#a6e22e' }}
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#a6e22e' }} />
+                    就绪
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Description */}
+            <p
+              className="text-[10px] mt-1 leading-relaxed line-clamp-2"
+              style={{ color: '#75715e' }}
+            >
+              {skill.description}
+            </p>
+
+            {/* Footer row - stats and validation */}
+            <div className="flex items-center justify-between mt-2 pt-2"
+              style={{ borderTopWidth: '1px', borderColor: '#3e3d3230' }}
+            >
+              {/* Stats */}
+              <div className="flex items-center gap-2">
+                {usageCount > 0 && (
+                  <span
+                    className="inline-flex items-center gap-1 text-[9px]"
+                    style={{ color: '#75715e' }}
+                  >
+                    <TrendingUp className="w-3 h-3" />
+                    {usageCount} 次使用
+                  </span>
+                )}
+
+                {/* Validation badge */}
+                <span
+                  className="inline-flex items-center gap-1 text-[9px]"
+                  style={{ color: badge.color }}
+                >
+                  <BadgeIcon className="w-3 h-3" />
+                  {badge.label}
+                </span>
+              </div>
+
+              {/* Arrow indicator */}
+              <ArrowRight
+                className="w-4 h-4 transition-all duration-200"
+                style={{
+                  color: primaryColor,
+                  opacity: isSelected ? 1 : 0,
+                  transform: isSelected ? 'translateX(0)' : 'translateX(-4px)',
+                }}
+              />
+            </div>
+          </div>
         </div>
       </div>
+
+      {/* Hover overlay */}
+      <div
+        className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none"
+        style={{
+          background: `linear-gradient(135deg, ${primaryColor}05 0%, transparent 50%)`,
+        }}
+      />
     </button>
   );
 };

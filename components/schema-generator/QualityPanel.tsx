@@ -17,75 +17,75 @@ export const QualityPanel: React.FC<QualityPanelProps> = ({ report }) => {
         <div className="space-y-6">
             {/* Overview Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm flex flex-col justify-between">
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Quality Score</span>
+                <div className="bg-monokai-surface p-5 rounded-2xl border border-monokai-border shadow-sm flex flex-col justify-between">
+                    <span className="text-[10px] font-bold text-monokai-comment uppercase tracking-widest">Quality Score</span>
                     <div className="flex items-end gap-2 mt-2">
-                        <span className="text-3xl font-black text-gray-900">{report.overallScore}</span>
-                        <span className="text-sm text-gray-400 mb-1">/100</span>
+                        <span className="text-3xl font-black text-monokai-fg">{report.overallScore}</span>
+                        <span className="text-sm text-monokai-comment mb-1">/100</span>
                     </div>
-                    <div className="mt-4 w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="mt-4 w-full h-1.5 bg-monokai-sidebar rounded-full overflow-hidden">
                         <div
-                            className={`h-full rounded-full ${report.overallScore >= 90 ? 'bg-green-500' : report.overallScore >= 60 ? 'bg-amber-500' : 'bg-red-500'}`}
+                            className={`h-full rounded-full ${report.overallScore >= 90 ? 'bg-monokai-green' : report.overallScore >= 60 ? 'bg-monokai-yellow' : 'bg-monokai-red'}`}
                             style={{ width: `${report.overallScore}%` }}
                         ></div>
                     </div>
                 </div>
 
-                <div className="bg-red-50 p-5 rounded-2xl border border-red-100 shadow-sm">
-                    <span className="text-[10px] font-bold text-red-400 uppercase tracking-widest flex items-center gap-1">
+                <div className="bg-monokai-red/5 p-5 rounded-2xl border border-monokai-red/20 shadow-sm">
+                    <span className="text-[10px] font-bold text-monokai-red uppercase tracking-widest flex items-center gap-1">
                         <XCircle size={10} /> Errors
                     </span>
-                    <div className="text-3xl font-black text-red-600 mt-2">{errorCount}</div>
-                    <p className="text-[10px] text-red-400 mt-1">Require immediate fix</p>
+                    <div className="text-3xl font-black text-monokai-red mt-2">{errorCount}</div>
+                    <p className="text-[10px] text-monokai-red/60 mt-1">Require immediate fix</p>
                 </div>
 
-                <div className="bg-amber-50 p-5 rounded-2xl border border-amber-100 shadow-sm">
-                    <span className="text-[10px] font-bold text-amber-500 uppercase tracking-widest flex items-center gap-1">
+                <div className="bg-monokai-yellow/5 p-5 rounded-2xl border border-monokai-yellow/20 shadow-sm">
+                    <span className="text-[10px] font-bold text-monokai-yellow uppercase tracking-widest flex items-center gap-1">
                         <AlertTriangle size={10} /> Warnings
                     </span>
-                    <div className="text-3xl font-black text-amber-600 mt-2">{warnCount}</div>
-                    <p className="text-[10px] text-amber-500 mt-1">Recommended for review</p>
+                    <div className="text-3xl font-black text-monokai-yellow mt-2">{warnCount}</div>
+                    <p className="text-[10px] text-monokai-yellow/60 mt-1">Recommended for review</p>
                 </div>
 
-                <div className="bg-blue-50 p-5 rounded-2xl border border-blue-100 shadow-sm">
-                    <span className="text-[10px] font-bold text-blue-400 uppercase tracking-widest flex items-center gap-1">
+                <div className="bg-monokai-blue/5 p-5 rounded-2xl border border-monokai-blue/20 shadow-sm">
+                    <span className="text-[10px] font-bold text-monokai-blue uppercase tracking-widest flex items-center gap-1">
                         <Info size={10} /> Observations
                     </span>
-                    <div className="text-3xl font-black text-blue-600 mt-2">{infoCount}</div>
-                    <p className="text-[10px] text-blue-400 mt-1">Informational insights</p>
+                    <div className="text-3xl font-black text-monokai-blue mt-2">{infoCount}</div>
+                    <p className="text-[10px] text-monokai-blue/60 mt-1">Informational insights</p>
                 </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Issues List */}
-                <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
-                    <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex items-center gap-2">
-                        <AlertTriangle size={16} className="text-amber-500" />
-                        <h4 className="text-sm font-bold text-gray-700">发现的问题列表 (Detected Issues)</h4>
+                <div className="bg-monokai-surface rounded-2xl border border-monokai-border overflow-hidden shadow-sm">
+                    <div className="px-6 py-4 border-b border-monokai-border bg-monokai-bg flex items-center gap-2">
+                        <AlertTriangle size={16} className="text-monokai-yellow" />
+                        <h4 className="text-sm font-bold text-monokai-fg">发现的问题列表 (Detected Issues)</h4>
                     </div>
                     <div className="p-4 space-y-3">
                         {report.issues.length === 0 ? (
-                            <div className="py-8 text-center text-gray-400 flex flex-col items-center gap-2">
-                                <CheckCircle2 size={32} className="text-green-500 opacity-20" />
+                            <div className="py-8 text-center text-monokai-comment flex flex-col items-center gap-2">
+                                <CheckCircle2 size={32} className="text-monokai-green opacity-20" />
                                 <span className="text-sm font-medium">No quality issues detected</span>
                             </div>
                         ) : (
                             report.issues.map((issue, idx) => (
-                                <div key={idx} className={`p-4 rounded-xl border-l-4 flex gap-3 ${issue.severity === 'error' ? 'bg-red-50/50 border-red-500' :
-                                        issue.severity === 'warning' ? 'bg-amber-50/50 border-amber-500' :
-                                            'bg-blue-50/50 border-blue-500'
+                                <div key={idx} className={`p-4 rounded-xl border-l-4 flex gap-3 ${issue.severity === 'error' ? 'bg-monokai-red/5 border-monokai-red' :
+                                        issue.severity === 'warning' ? 'bg-monokai-yellow/5 border-monokai-yellow' :
+                                            'bg-monokai-blue/5 border-monokai-blue'
                                     }`}>
                                     <div className="flex-1">
                                         <div className="flex items-center gap-2 mb-1">
-                                            <span className="font-bold text-gray-900 text-xs">[{issue.column}] {issue.type}</span>
-                                            <span className={`text-[9px] px-1.5 py-0.5 rounded font-black uppercase ${issue.severity === 'error' ? 'bg-red-100 text-red-600' :
-                                                    issue.severity === 'warning' ? 'bg-amber-100 text-amber-600' :
-                                                        'bg-blue-100 text-blue-600'
+                                            <span className="font-bold text-monokai-fg text-xs">[{issue.column}] {issue.type}</span>
+                                            <span className={`text-[9px] px-1.5 py-0.5 rounded font-black uppercase ${issue.severity === 'error' ? 'bg-monokai-red/20 text-monokai-red' :
+                                                    issue.severity === 'warning' ? 'bg-monokai-yellow/20 text-monokai-yellow' :
+                                                        'bg-monokai-blue/20 text-monokai-blue'
                                                 }`}>{issue.severity}</span>
                                         </div>
-                                        <p className="text-xs text-gray-600 leading-relaxed">{issue.detail}</p>
-                                        <div className="mt-2 flex items-center gap-1.5 text-gray-900 font-bold text-[10px] bg-white w-fit px-2 py-1 rounded border border-gray-100 italic">
-                                            <Lightbulb size={12} className="text-amber-500" />
+                                        <p className="text-xs text-monokai-fg leading-relaxed">{issue.detail}</p>
+                                        <div className="mt-2 flex items-center gap-1.5 text-monokai-fg font-bold text-[10px] bg-monokai-surface w-fit px-2 py-1 rounded border border-monokai-border italic">
+                                            <Lightbulb size={12} className="text-monokai-yellow" />
                                             Suggest: {issue.suggestion}
                                         </div>
                                     </div>
@@ -96,24 +96,24 @@ export const QualityPanel: React.FC<QualityPanelProps> = ({ report }) => {
                 </div>
 
                 {/* Recommendations */}
-                <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
-                    <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex items-center gap-2">
-                        <Lightbulb size={16} className="text-amber-500" />
-                        <h4 className="text-sm font-bold text-gray-700">修复与优化建议 (Recommendations)</h4>
+                <div className="bg-monokai-surface rounded-2xl border border-monokai-border overflow-hidden shadow-sm">
+                    <div className="px-6 py-4 border-b border-monokai-border bg-monokai-bg flex items-center gap-2">
+                        <Lightbulb size={16} className="text-monokai-yellow" />
+                        <h4 className="text-sm font-bold text-monokai-fg">修复与优化建议 (Recommendations)</h4>
                     </div>
                     <div className="p-6">
                         {report.recommendations.length === 0 ? (
-                            <div className="py-8 text-center text-gray-400">
+                            <div className="py-8 text-center text-monokai-comment">
                                 <span className="text-sm">No specific recommendations at this time</span>
                             </div>
                         ) : (
                             <ul className="space-y-4">
                                 {report.recommendations.map((rec, idx) => (
                                     <li key={idx} className="flex gap-4">
-                                        <div className="w-6 h-6 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-xs font-bold flex-shrink-0">
+                                        <div className="w-6 h-6 rounded-full bg-monokai-blue/20 text-monokai-blue flex items-center justify-center text-xs font-bold flex-shrink-0">
                                             {idx + 1}
                                         </div>
-                                        <div className="text-sm text-gray-700 leading-relaxed pt-1">
+                                        <div className="text-sm text-monokai-fg leading-relaxed pt-1">
                                             {rec}
                                         </div>
                                     </li>
@@ -121,9 +121,9 @@ export const QualityPanel: React.FC<QualityPanelProps> = ({ report }) => {
                             </ul>
                         )}
 
-                        <div className="mt-8 p-4 bg-indigo-50 rounded-xl border border-indigo-100">
-                            <h5 className="text-[10px] font-bold text-indigo-900 uppercase tracking-widest mb-1">Expert Tip</h5>
-                            <p className="text-xs text-indigo-700">执行建议的修复脚本可以自动优化数据结构，减少存储占用并提升查询性能。</p>
+                        <div className="mt-8 p-4 bg-monokai-purple/5 rounded-xl border border-monokai-purple/20">
+                            <h5 className="text-[10px] font-bold text-monokai-purple uppercase tracking-widest mb-1">Expert Tip</h5>
+                            <p className="text-xs text-monokai-fg">执行建议的修复脚本可以自动优化数据结构，减少存储占用并提升查询性能。</p>
                         </div>
                     </div>
                 </div>

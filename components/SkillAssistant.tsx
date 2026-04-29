@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { AISkill } from '../types';
 import { useSkillRouter } from '../hooks/useSkillRouter';
+import { INTENT_LABELS_SIMPLE } from './constants/skills';
 
 interface SkillAssistantProps {
   isOpen: boolean;
@@ -31,13 +32,6 @@ interface SkillAssistantProps {
   currentTable?: string;
   currentColumns?: { name: string; type: string }[];
 }
-
-const INTENT_LABELS: Record<string, string> = {
-  select: '数据查询', insert: '数据插入', update: '数据更新', delete: '数据删除',
-  aggregation: '聚合统计', join: '多表关联', window: '窗口函数',
-  transformation: '数据转换', analysis: '数据分析', optimization: 'SQL 优化',
-  utility: '工具生成',
-};
 
 export const SkillAssistant: React.FC<SkillAssistantProps> = ({
   isOpen,
@@ -77,7 +71,7 @@ export const SkillAssistant: React.FC<SkillAssistantProps> = ({
       />
 
       {/* Modal */}
-      <div className="relative w-full max-w-2xl mx-4 bg-monokai-bg border border-monokai-accent rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="relative w-full max-w-2xl mx-4 bg-monokai-bg border border-monokai-accent rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-slide-up">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-monokai-accent bg-monokai-sidebar">
           <div className="flex items-center gap-3">
@@ -139,7 +133,7 @@ export const SkillAssistant: React.FC<SkillAssistantProps> = ({
                 className="px-3 py-1.5 text-xs font-medium bg-monokai-purple/20 text-monokai-purple rounded-lg hover:bg-monokai-purple/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-1.5"
               >
                 {router.isAnalyzing ? (
-                  <><Loader2 className="w-3.5 h-3.5 animate-spin" /> 分析中</>
+                  <><span className="typing-dot"><span /><span /><span /></span> 分析中</>
                 ) : (
                   <><Lightbulb className="w-3.5 h-3.5" /> 分析</>
                 )}
@@ -150,7 +144,7 @@ export const SkillAssistant: React.FC<SkillAssistantProps> = ({
                 className="px-3 py-1.5 text-xs font-medium bg-gradient-to-r from-monokai-purple to-monokai-pink text-white rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-1.5"
               >
                 {router.isExecuting ? (
-                  <><Loader2 className="w-3.5 h-3.5 animate-spin" /> 执行中</>
+                  <><span className="typing-dot"><span /><span /><span /></span> 执行中</>
                 ) : (
                   <><Zap className="w-3.5 h-3.5" /> 一键生成</>
                 )}
@@ -160,12 +154,12 @@ export const SkillAssistant: React.FC<SkillAssistantProps> = ({
 
           {/* Intent Analysis Result */}
           {router.intentAnalysis && !router.executionResult && (
-            <div className="p-3 bg-monokai-bg border border-monokai-accent rounded-lg space-y-3">
+            <div className="p-3 bg-monokai-bg border border-monokai-accent rounded-lg space-y-3 animate-fade-in-up">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-medium text-monokai-comment">识别意图:</span>
                   <span className="px-2 py-0.5 text-xs font-medium bg-monokai-purple/20 text-monokai-purple rounded">
-                    {INTENT_LABELS[router.intentAnalysis.intent] || router.intentAnalysis.intent}
+                    {INTENT_LABELS_SIMPLE[router.intentAnalysis.intent] || router.intentAnalysis.intent}
                   </span>
                 </div>
                 <div className="flex items-center gap-1">
@@ -193,10 +187,11 @@ export const SkillAssistant: React.FC<SkillAssistantProps> = ({
                 <div>
                   <span className="text-xs font-medium text-monokai-comment">推荐技能:</span>
                   <div className="flex flex-wrap gap-1.5 mt-1.5">
-                    {router.suggestedSkills.slice(0, 4).map(skill => (
+                    {router.suggestedSkills.slice(0, 4).map((skill, idx) => (
                       <span
                         key={skill.id}
-                        className="px-2 py-1 text-xs bg-monokai-accent/30 text-monokai-fg rounded flex items-center gap-1"
+                        className="px-2 py-1 text-xs bg-monokai-accent/30 text-monokai-fg rounded flex items-center gap-1 animate-fade-in-up"
+                        style={{ animationDelay: `${idx * 80}ms`, animationFillMode: 'both' }}
                       >
                         {skill.icon && <span>{skill.icon}</span>}
                         {skill.name}
@@ -210,7 +205,7 @@ export const SkillAssistant: React.FC<SkillAssistantProps> = ({
 
           {/* Execution Result */}
           {router.executionResult && (
-            <div className={`p-4 border rounded-lg ${router.executionResult.success
+            <div className={`p-4 border rounded-lg animate-fade-in-up ${router.executionResult.success
                 ? 'bg-monokai-green/5 border-monokai-green/30'
                 : 'bg-monokai-red/5 border-monokai-red/30'
               }`}>

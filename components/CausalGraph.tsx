@@ -11,6 +11,7 @@ import ReactFlow, {
     MarkerType
 } from 'reactflow';
 import 'reactflow/dist/style.css';
+import { Gamepad2 } from 'lucide-react';
 
 interface CausalGraphProps {
     data: {
@@ -50,14 +51,14 @@ const CausalGraph: React.FC<CausalGraphProps> = ({ data, correlations }) => {
                 data: { label: node.label },
                 type: 'default',
                 style: {
-                    background: '#fff',
-                    border: '1px solid #777',
+                    background: '#1e1f1c',
+                    border: '1px solid #49483e',
                     borderRadius: '8px',
                     padding: '12px',
                     fontWeight: 'bold',
                     width: 160,
                     textAlign: 'center',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
                 }
             };
         });
@@ -73,7 +74,7 @@ const CausalGraph: React.FC<CausalGraphProps> = ({ data, correlations }) => {
                 target: edge.to,
                 label: label,
                 animated: isCausal,
-                style: { stroke: isCausal ? '#333' : '#aaa', strokeWidth: 2 },
+                style: { stroke: isCausal ? '#49483e' : '#3e3d32', strokeWidth: 2 },
                 markerEnd: { type: MarkerType.ArrowClosed },
                 type: 'smoothstep'
             };
@@ -88,8 +89,8 @@ const CausalGraph: React.FC<CausalGraphProps> = ({ data, correlations }) => {
     useEffect(() => {
         setNodes((nds) => nds.map((node) => {
             const delta = deltas[node.id] || 0;
-            let bg = '#fff';
-            let border = '1px solid #777';
+            let bg = '#1e1f1c';
+            let border = '1px solid #49483e';
             let label = node.data.label;
 
             // Reset label to base before appending (hacky but works for simple case)
@@ -171,23 +172,26 @@ const CausalGraph: React.FC<CausalGraphProps> = ({ data, correlations }) => {
     };
 
     return (
-        <div className="w-full h-full min-h-[500px] border border-gray-200 rounded-lg bg-gray-50 flex flex-col relative">
+        <div className="w-full h-full min-h-[500px] border border-monokai-border rounded-lg bg-monokai-bg flex flex-col relative">
             {/* Header / Controls */}
-            <div className="p-3 bg-white border-b border-gray-200 flex justify-between items-center z-10 shadow-sm">
+            <div className="p-3 bg-monokai-surface border-b border-monokai-border flex justify-between items-center z-10 shadow-sm">
                 <div className="flex items-center gap-4">
-                    <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Causal Graph</span>
+                    <span className="text-xs font-bold text-monokai-comment uppercase tracking-wider">Causal Graph</span>
                     <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-gray-700">🕹️ Simulation Mode</span>
+                        <span className="text-sm font-bold text-monokai-fg flex items-center gap-2">
+                            <Gamepad2 size={16} className="text-monokai-blue" />
+                            Simulation Mode
+                        </span>
                         <button
                             onClick={() => { setIsSimulating(!isSimulating); setDeltas({}); setSelectedNode(null); }}
-                            className={`w-10 h-5 rounded-full flex items-center transition-colors px-1 ${isSimulating ? 'bg-blue-600 justify-end' : 'bg-gray-300 justify-start'}`}
+                            className={`w-10 h-5 rounded-full flex items-center transition-colors px-1 ${isSimulating ? 'bg-monokai-blue justify-end' : 'bg-monokai-sidebar justify-start'}`}
                         >
                             <div className="w-3 h-3 bg-white rounded-full shadow-md"></div>
                         </button>
                     </div>
                 </div>
                 {isSimulating && (
-                    <button onClick={() => setDeltas({})} className="text-xs text-red-500 font-bold hover:underline">Reset</button>
+                    <button onClick={() => setDeltas({})} className="text-xs text-monokai-red font-bold hover:underline">Reset</button>
                 )}
             </div>
 
@@ -208,12 +212,12 @@ const CausalGraph: React.FC<CausalGraphProps> = ({ data, correlations }) => {
 
                 {/* Simulation Overlay */}
                 {isSimulating && selectedNode && (
-                    <div className="absolute top-4 right-4 bg-white/90 backdrop-blur border border-gray-200 p-4 rounded-xl shadow-xl w-64 z-20">
-                        <h4 className="font-bold text-gray-800 mb-2 text-sm">Adjust {selectedNode}</h4>
+                    <div className="absolute top-4 right-4 bg-monokai-surface/90 backdrop-blur border border-monokai-border p-4 rounded-xl shadow-xl w-64 z-20">
+                        <h4 className="font-bold text-monokai-fg mb-2 text-sm">Adjust {selectedNode}</h4>
                         <div className="mb-4">
-                            <div className="flex justify-between text-xs text-gray-500 mb-1">
+                            <div className="flex justify-between text-xs text-monokai-comment mb-1">
                                 <span>-50%</span>
-                                <span className="font-bold text-blue-600">{(deltas[selectedNode] || 0).toFixed(0)}%</span>
+                                <span className="font-bold text-monokai-blue">{(deltas[selectedNode] || 0).toFixed(0)}%</span>
                                 <span>+50%</span>
                             </div>
                             <input
@@ -221,10 +225,10 @@ const CausalGraph: React.FC<CausalGraphProps> = ({ data, correlations }) => {
                                 min="-50" max="50"
                                 value={deltas[selectedNode] || 0}
                                 onChange={(e) => handleSimulationChange(selectedNode, Number(e.target.value))}
-                                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                                className="w-full h-2 bg-monokai-sidebar rounded-lg appearance-none cursor-pointer accent-monokai-blue"
                             />
                         </div>
-                        <p className="text-[10px] text-gray-400 leading-tight">
+                        <p className="text-[10px] text-monokai-comment leading-tight">
                             Adjusting this factor will propagate effects to downstream nodes based on correlation strength.
                         </p>
                     </div>

@@ -118,16 +118,16 @@ export const CustomAssertionPanel: React.FC<CustomAssertionPanelProps> = ({
   };
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+    <div className="bg-monokai-surface rounded-xl border border-monokai-border overflow-hidden">
       {/* Header */}
-      <div 
-        className="flex items-center justify-between px-4 py-3 bg-rose-50/50 border-b border-gray-100 cursor-pointer"
+      <div
+        className="flex items-center justify-between px-4 py-3 bg-monokai-red/5 border-b border-monokai-border cursor-pointer"
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex items-center gap-2">
-          <Settings size={16} className="text-rose-500" />
-          <h3 className="text-sm font-bold text-gray-800">自定义断言</h3>
-          <span className="px-1.5 py-0.5 text-[10px] font-bold bg-rose-100 text-rose-700 rounded-full">
+          <Settings size={16} className="text-monokai-red" />
+          <h3 className="text-sm font-bold text-monokai-fg">自定义断言</h3>
+          <span className="px-1.5 py-0.5 text-[10px] font-bold bg-monokai-red/20 text-monokai-red rounded-full">
             {customAssertions.length}
           </span>
         </div>
@@ -142,13 +142,13 @@ export const CustomAssertionPanel: React.FC<CustomAssertionPanelProps> = ({
             <Plus size={12} />
             添加
           </button>
-          {isExpanded ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
+          {isExpanded ? <ChevronUp size={16} className="text-monokai-comment" /> : <ChevronDown size={16} className="text-monokai-comment" />}
         </div>
       </div>
 
       {/* Template Selector */}
       {showTemplateSelector && (
-        <div className="p-4 bg-gray-50 border-b border-gray-200">
+        <div className="p-4 bg-monokai-bg border-b border-monokai-border">
           {/* Category Tabs */}
           <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
             {categories.map(cat => (
@@ -156,9 +156,9 @@ export const CustomAssertionPanel: React.FC<CustomAssertionPanelProps> = ({
                 key={cat}
                 onClick={() => setSelectedCategory(selectedCategory === cat ? null : cat)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
-                  selectedCategory === cat 
-                    ? 'bg-rose-500 text-white' 
-                    : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+                  selectedCategory === cat
+                    ? 'bg-monokai-red text-white'
+                    : 'bg-monokai-surface text-monokai-fg hover:bg-monokai-sidebar border border-monokai-border'
                 }`}
               >
                 {categoryIcons[cat]}
@@ -176,14 +176,14 @@ export const CustomAssertionPanel: React.FC<CustomAssertionPanelProps> = ({
                   onClick={() => handleTemplateSelect(template)}
                   className={`p-3 rounded-lg border text-left transition-all ${
                     selectedTemplate?.id === template.id
-                      ? 'border-rose-500 bg-rose-50'
-                      : 'border-gray-200 hover:border-rose-300 bg-white'
+                      ? 'border-monokai-red bg-monokai-red/10'
+                      : 'border-monokai-border hover:border-monokai-red bg-monokai-surface'
                   }`}
                 >
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs font-bold text-gray-800">{template.name}</span>
+                    <span className="text-xs font-bold text-monokai-fg">{template.name}</span>
                   </div>
-                  <p className="text-[10px] text-gray-500">{template.description}</p>
+                  <p className="text-[10px] text-monokai-comment">{template.description}</p>
                 </button>
               ))}
             </div>
@@ -191,19 +191,19 @@ export const CustomAssertionPanel: React.FC<CustomAssertionPanelProps> = ({
 
           {/* Template Config */}
           {selectedTemplate && (
-            <div className="p-3 bg-white rounded-lg border border-gray-200 mb-3">
-              <div className="text-xs font-bold text-gray-700 mb-2">
+            <div className="p-3 bg-monokai-surface rounded-lg border border-monokai-border mb-3">
+              <div className="text-xs font-bold text-monokai-fg mb-2">
                 配置 {selectedTemplate.name}
               </div>
-              
+
               {/* Column Selector (if needed) */}
               {selectedTemplate.params.some(p => p.name === 'column') && (
                 <div className="mb-2">
-                  <label className="block text-[10px] text-gray-500 mb-1">选择字段</label>
+                  <label className="block text-[10px] text-monokai-comment mb-1">选择字段</label>
                   <select
                     value={selectedColumn}
                     onChange={(e) => setSelectedColumn(e.target.value)}
-                    className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded-lg"
+                    className="w-full px-2 py-1.5 text-xs border border-monokai-accent rounded-lg bg-monokai-bg text-monokai-fg"
                   >
                     <option value="">选择字段...</option>
                     {columns.map(col => (
@@ -218,7 +218,7 @@ export const CustomAssertionPanel: React.FC<CustomAssertionPanelProps> = ({
                 .filter(p => p.name !== 'table' && p.name !== 'column')
                 .map(param => (
                   <div key={param.name} className="mb-2">
-                    <label className="block text-[10px] text-gray-500 mb-1">
+                    <label className="block text-[10px] text-monokai-comment mb-1">
                       {param.name} {param.required && '*'}
                     </label>
                     {param.type === 'number' ? (
@@ -226,7 +226,7 @@ export const CustomAssertionPanel: React.FC<CustomAssertionPanelProps> = ({
                         type="number"
                         value={templateParams[param.name] || ''}
                         onChange={(e) => setTemplateParams({ ...templateParams, [param.name]: e.target.value })}
-                        className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded-lg"
+                        className="w-full px-2 py-1.5 text-xs border border-monokai-accent rounded-lg bg-monokai-bg text-monokai-fg"
                         placeholder={param.default ? String(param.default) : ''}
                       />
                     ) : (
@@ -234,7 +234,7 @@ export const CustomAssertionPanel: React.FC<CustomAssertionPanelProps> = ({
                         type="text"
                         value={templateParams[param.name] || ''}
                         onChange={(e) => setTemplateParams({ ...templateParams, [param.name]: e.target.value })}
-                        className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded-lg"
+                        className="w-full px-2 py-1.5 text-xs border border-monokai-accent rounded-lg bg-monokai-bg text-monokai-fg"
                         placeholder={param.default ? String(param.default) : ''}
                       />
                     )}
@@ -250,14 +250,14 @@ export const CustomAssertionPanel: React.FC<CustomAssertionPanelProps> = ({
                 setShowTemplateSelector(false);
                 setSelectedTemplate(null);
               }}
-              className="px-3 py-1.5 text-xs text-gray-500 hover:text-gray-700"
+              className="px-3 py-1.5 text-xs text-monokai-comment hover:text-monokai-fg"
             >
               取消
             </button>
             <button
               onClick={handleAddFromTemplate}
               disabled={!selectedTemplate || (selectedTemplate.params.some(p => p.name === 'column' && p.required) && !selectedColumn)}
-              className="flex items-center gap-1 px-3 py-1.5 bg-rose-500 hover:bg-rose-600 disabled:bg-gray-300 text-white text-xs font-bold rounded-lg transition-colors"
+              className="flex items-center gap-1 px-3 py-1.5 bg-monokai-red hover:bg-monokai-red/80 disabled:bg-monokai-sidebar text-white text-xs font-bold rounded-lg transition-colors"
             >
               <Plus size={12} />
               添加断言
@@ -270,7 +270,7 @@ export const CustomAssertionPanel: React.FC<CustomAssertionPanelProps> = ({
       {isExpanded && (
         <div className="p-4">
           {customAssertions.length === 0 ? (
-            <div className="text-center py-8 text-gray-400">
+            <div className="text-center py-8 text-monokai-comment">
               <HelpCircle size={32} className="mx-auto mb-2 opacity-50" />
               <p className="text-xs">暂无自定义断言</p>
               <p className="text-[10px] mt-1">点击上方"添加"按钮创建数据质量校验规则</p>
@@ -283,65 +283,65 @@ export const CustomAssertionPanel: React.FC<CustomAssertionPanelProps> = ({
                 return (
                   <div 
                     key={assertion.id}
-                    className="p-3 bg-gray-50 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors"
+                    className="p-3 bg-monokai-bg rounded-lg border border-monokai-border hover:border-monokai-accent transition-colors"
                   >
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex items-center gap-2">
                         <div className={`w-6 h-6 rounded flex items-center justify-center ${
-                          assertion.category === 'null_check' ? 'bg-blue-100 text-blue-600' :
-                          assertion.category === 'uniqueness' ? 'bg-purple-100 text-purple-600' :
-                          assertion.category === 'range' ? 'bg-orange-100 text-orange-600' :
-                          'bg-gray-200 text-gray-600'
+                          assertion.category === 'null_check' ? 'bg-monokai-blue/20 text-monokai-blue' :
+                          assertion.category === 'uniqueness' ? 'bg-monokai-purple/20 text-monokai-purple' :
+                          assertion.category === 'range' ? 'bg-monokai-orange/20 text-monokai-orange' :
+                          'bg-monokai-sidebar text-monokai-comment'
                         }`}>
                           {categoryIcons[assertion.category] || <FileText size={14} />}
                         </div>
-                        <span className="text-xs font-bold text-gray-800">{assertion.name}</span>
+                        <span className="text-xs font-bold text-monokai-fg">{assertion.name}</span>
                       </div>
                       <div className="flex items-center gap-1">
                         {/* Status Indicator */}
                         {status === 'pass' && (
-                          <span className="flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 text-[10px] font-bold rounded">
+                          <span className="flex items-center gap-1 px-2 py-0.5 bg-monokai-green/20 text-monokai-green text-[10px] font-bold rounded">
                             <CheckCircle2 size={10} /> 通过
                           </span>
                         )}
                         {status === 'fail' && (
-                          <span className="flex items-center gap-1 px-2 py-0.5 bg-red-100 text-red-700 text-[10px] font-bold rounded">
+                          <span className="flex items-center gap-1 px-2 py-0.5 bg-monokai-red/20 text-monokai-red text-[10px] font-bold rounded">
                             <AlertTriangle size={10} /> 失败
                           </span>
                         )}
                         {status === 'running' && (
-                          <span className="flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded">
-                            <div className="w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+                          <span className="flex items-center gap-1 px-2 py-0.5 bg-monokai-blue/20 text-monokai-blue text-[10px] font-bold rounded">
+                            <div className="w-3 h-3 border-2 border-monokai-blue border-t-transparent rounded-full animate-spin" />
                             运行中
                           </span>
                         )}
                         <button
                           onClick={() => onRunAssertion(assertion, idx)}
-                          className="p-1 hover:bg-gray-200 rounded transition-colors"
+                          className="p-1 hover:bg-monokai-sidebar rounded transition-colors"
                           title="运行"
                         >
-                          <Play size={12} className="text-gray-500" />
+                          <Play size={12} className="text-monokai-comment" />
                         </button>
                         <button
                           onClick={() => {
                             navigator.clipboard.writeText(assertion.sql);
                           }}
-                          className="p-1 hover:bg-gray-200 rounded transition-colors"
+                          className="p-1 hover:bg-monokai-sidebar rounded transition-colors"
                           title="复制"
                         >
-                          <Copy size={12} className="text-gray-500" />
+                          <Copy size={12} className="text-monokai-comment" />
                         </button>
                         <button
                           onClick={() => onRemoveAssertion(assertion.id)}
-                          className="p-1 hover:bg-red-100 rounded transition-colors"
+                          className="p-1 hover:bg-monokai-red/10 rounded transition-colors"
                           title="删除"
                         >
-                          <Trash2 size={12} className="text-red-400" />
+                          <Trash2 size={12} className="text-monokai-red/70" />
                         </button>
                       </div>
                     </div>
-                    
-                    <p className="text-[10px] text-gray-500 mb-2">{assertion.description}</p>
+
+                    <p className="text-[10px] text-monokai-comment mb-2">{assertion.description}</p>
                     
                     <pre className="text-[10px] font-mono bg-slate-900 text-slate-300 p-2 rounded overflow-x-auto">
                       {assertion.sql}

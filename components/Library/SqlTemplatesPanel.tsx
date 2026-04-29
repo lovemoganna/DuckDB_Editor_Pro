@@ -239,7 +239,8 @@ export const SqlTemplatesPanel: React.FC<SqlTemplatesPanelProps> = ({
       description: newTemplate.description,
       sql: newTemplate.sql,
       category: newTemplate.category,
-      tags: newTemplate.tags.split(',').map(t => t.trim()).filter(Boolean)
+      tags: newTemplate.tags.split(',').map(t => t.trim()).filter(Boolean),
+      params: []
     });
     setNewTemplate({ name: '', description: '', sql: '', category: 'custom', tags: '' });
     setShowAddForm(false);

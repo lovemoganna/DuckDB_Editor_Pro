@@ -58,12 +58,12 @@ export const TableManager: React.FC<TableManagerProps> = ({ onTableSelect, activ
     };
 
     return (
-        <div className="w-64 bg-gray-50 border-r border-gray-200 h-full flex flex-col">
-            <div className="p-4 border-b border-gray-200 flex justify-between items-center">
-                <h3 className="font-bold text-gray-700 flex items-center gap-2">
+        <div className="w-64 bg-monokai-bg border-r border-monokai-accent h-full flex flex-col">
+            <div className="p-4 border-b border-monokai-accent flex justify-between items-center">
+                <h3 className="font-bold text-monokai-fg flex items-center gap-2">
                     <Database className="w-4 h-4" /> Tables
                 </h3>
-                <button onClick={loadTables} className="p-1 hover:bg-gray-200 rounded">
+                <button onClick={loadTables} className="p-1 hover:bg-monokai-sidebar rounded">
                     <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
                 </button>
             </div>
@@ -72,7 +72,7 @@ export const TableManager: React.FC<TableManagerProps> = ({ onTableSelect, activ
                 {tables.map(t => (
                     <div
                         key={t}
-                        className={`group flex items-center justify-between p-2 rounded-lg cursor-pointer text-sm ${activeTable === t ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100 text-gray-600'
+                        className={`group flex items-center justify-between p-2 rounded-lg cursor-pointer text-sm ${activeTable === t ? 'bg-monokai-blue/20 text-monokai-blue' : 'hover:bg-monokai-sidebar text-monokai-fg'
                             }`}
                         onClick={() => onTableSelect(t)}
                     >
@@ -83,7 +83,7 @@ export const TableManager: React.FC<TableManagerProps> = ({ onTableSelect, activ
                         {activeTable !== t && (
                             <button
                                 onClick={(e) => { e.stopPropagation(); handleDelete(t); }}
-                                className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-500"
+                                className="opacity-0 group-hover:opacity-100 p-1 hover:text-monokai-red"
                             >
                                 <Trash2 className="w-3 h-3" />
                             </button>
@@ -92,16 +92,16 @@ export const TableManager: React.FC<TableManagerProps> = ({ onTableSelect, activ
                 ))}
 
                 {tables.length === 0 && !loading && (
-                    <div className="text-center py-8 text-gray-400 text-xs">
+                    <div className="text-center py-8 text-monokai-comment text-xs">
                         No tables found
                     </div>
                 )}
             </div>
 
-            <div className="p-3 border-t border-gray-200 bg-white">
-                <label className={`flex items-center justify-center gap-2 w-full py-2 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-all ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
-                    <Upload className="w-4 h-4 text-blue-500" />
-                    <span className="text-xs font-medium text-gray-600">
+            <div className="p-3 border-t border-monokai-border bg-monokai-surface">
+                <label className={`flex items-center justify-center gap-2 w-full py-2 border-2 border-dashed border-monokai-accent rounded-lg cursor-pointer hover:border-monokai-blue hover:bg-monokai-blue/10 transition-all ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                    <Upload className="w-4 h-4 text-monokai-blue" />
+                    <span className="text-xs font-medium text-monokai-fg">
                         {uploading ? 'Importing...' : 'Import CSV'}
                     </span>
                     <input type="file" accept=".csv,.parquet,.json" className="hidden" onChange={handleUpload} />

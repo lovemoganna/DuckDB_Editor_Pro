@@ -241,9 +241,9 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose }) => 
   const currentFormatConfig = FORMAT_CONFIG[exportFormat];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 animate-[fadeIn_0.2s]" onClick={onClose}>
       <div
-        className="w-full max-w-4xl bg-monokai-bg border border-monokai-accent rounded-xl shadow-2xl overflow-hidden"
+        className="w-full max-w-4xl bg-monokai-bg border border-monokai-accent rounded-xl shadow-2xl overflow-hidden animate-[slideIn_0.2s_ease-out]"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}

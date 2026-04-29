@@ -9,8 +9,8 @@ describe('E2E Cognitive Pipeline Verification (v5.2)', () => {
         columnCount: 9,
         sampleData: '本体ID,术语名称,所属领域,定义描述,负责人邮箱,联系电话,复杂度评分,引用次数,最后核验日期\n1001,数字实体,核心域,"数据的离散单位",data.gov@example.com,13812345678,0.1,15000,2024-01-15',
         stats: [
-            { column: '联系电话', count: 10, unique: 10, nulls: 0 },
-            { column: '最后核验日期', count: 10, unique: 10, nulls: 0 }
+            { column: '联系电话', count: 10, unique: 10, nulls: 0 } as any,
+            { column: '最后核验日期', count: 10, unique: 10, nulls: 0 } as any
         ]
     };
 

@@ -6,7 +6,7 @@
  */
 
 import { useState, useCallback, useMemo } from 'react';
-import { AISkill, SkillExecutionContext, SkillResult, IntentAnalysis } from '../types';
+import { AISkill, SkillExecutionContext, SkillResult, IntentAnalysis, ColumnInfo } from '../types';
 import { analyzeIntent, suggestSkills, executeFromIntent } from '../services/skillRouter';
 
 export interface UseSkillRouterOptions {
@@ -37,6 +37,13 @@ export interface UseSkillRouterReturn {
     context: SkillExecutionContext;
 }
 
+/** Type guard for ColumnInfo arrays */
+function isColumnInfoArray(val: unknown): val is ColumnInfo[] {
+    return Array.isArray(val) && val.every(v =>
+        typeof v === 'object' && v !== null && 'name' in v && 'type' in v
+    );
+}
+
 export function useSkillRouter(options: UseSkillRouterOptions): UseSkillRouterReturn {
     const { currentTable, currentColumns } = options;
 
@@ -49,7 +56,7 @@ export function useSkillRouter(options: UseSkillRouterOptions): UseSkillRouterRe
 
     const context = useMemo<SkillExecutionContext>(() => ({
         tableName: currentTable,
-        columns: currentColumns as any,
+        columns: isColumnInfoArray(currentColumns) ? currentColumns : undefined,
         userIntent: input,
     }), [currentTable, currentColumns, input]);
 

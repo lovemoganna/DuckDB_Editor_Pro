@@ -139,8 +139,8 @@ const extractTextFromChildren = (children: React.ReactNode): string => {
   if (Array.isArray(children)) {
     return children.map(extractTextFromChildren).join('');
   }
-  if (React.isValidElement(children) && children.props?.children) {
-    return extractTextFromChildren(children.props.children);
+  if (React.isValidElement(children) && (children.props as any)?.children) {
+    return extractTextFromChildren((children.props as any).children);
   }
   return '';
 };

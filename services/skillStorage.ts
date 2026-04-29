@@ -380,7 +380,7 @@ class SkillStorage {
       const gistData = await response.json();
       
       // Find JSON files in the Gist
-      const jsonFiles = Object.values(gistData.files as Record<string, { content: string }>)
+      const jsonFiles = Object.values(gistData.files as Record<string, { content: string, filename: string }>)
         .filter(file => file.content && (file.filename.endsWith('.json') || file.filename.includes('skill')));
 
       if (jsonFiles.length === 0) {
@@ -468,7 +468,7 @@ class SkillStorage {
         id: 'marketplace-advanced-join',
         name: '高级 JOIN 查询',
         description: '复杂多表关联查询，支持多对多关系和递归查询',
-        category: 'sql',
+        category: 'modeling',
         author: 'DuckDB Community',
         version: '1.2.0',
         downloads: 15420,
@@ -478,7 +478,7 @@ class SkillStorage {
           id: 'marketplace-advanced-join',
           name: '高级 JOIN 查询',
           description: '复杂多表关联查询',
-          category: 'sql',
+          category: 'modeling',
           icon: '🔗',
           inputSchema: [
             { name: 'joinType', type: 'select', required: true, label: '连接类型', options: ['INNER', 'LEFT', 'RIGHT', 'FULL', 'CROSS'] },
@@ -494,7 +494,7 @@ class SkillStorage {
         id: 'marketplace-time-series-forecast',
         name: '时间序列预测',
         description: '基于历史数据进行时间序列分析和简单预测',
-        category: 'analysis',
+        category: 'insights',
         author: 'DataScience Hub',
         version: '2.0.1',
         downloads: 8930,
@@ -504,7 +504,7 @@ class SkillStorage {
           id: 'marketplace-time-series-forecast',
           name: '时间序列预测',
           description: '基于历史数据进行时间序列分析',
-          category: 'analysis',
+          category: 'insights',
           icon: '📊',
           inputSchema: [
             { name: 'timeColumn', type: 'column', required: true, label: '时间列' },
@@ -519,8 +519,8 @@ class SkillStorage {
       {
         id: 'marketplace-json-parser',
         name: 'JSON 数据解析',
-        description: '高效解析和提取 JSON 数据，支持嵌套结构',
-        category: 'transformation',
+        description: '高效解析和提取 JSON 数据，支持 nesting 结构',
+        category: 'wrangling',
         author: 'JSON Tools',
         version: '1.5.0',
         downloads: 12300,
@@ -530,7 +530,7 @@ class SkillStorage {
           id: 'marketplace-json-parser',
           name: 'JSON 数据解析',
           description: '高效解析和提取 JSON 数据',
-          category: 'transformation',
+          category: 'wrangling',
           icon: '{}',
           inputSchema: [
             { name: 'jsonColumn', type: 'column', required: true, label: 'JSON 列' },

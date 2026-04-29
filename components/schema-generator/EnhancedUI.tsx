@@ -18,6 +18,7 @@ import {
   Lightbulb,
   BrainCircuit,
   Gauge,
+  Shield,
 } from 'lucide-react';
 
 // ============================================================
@@ -280,7 +281,7 @@ export const ConfidenceBar: React.FC<{
   return (
     <div className="flex items-center gap-2">
       <div
-        className="flex-1 rounded-full overflow-hidden bg-gray-100"
+        className="flex-1 rounded-full overflow-hidden bg-monokai-sidebar"
         style={{ height }}
       >
         <div
@@ -325,7 +326,7 @@ export const ReasoningToggle: React.FC<{
         {expanded ? <ChevronUp size={14} className="text-amber-500" /> : <ChevronDown size={14} className="text-amber-500" />}
       </button>
       {expanded && (
-        <div className="px-3 py-2 bg-white text-xs text-slate-600 leading-relaxed border-t border-amber-200/30">
+        <div className="px-3 py-2 bg-monokai-surface text-xs text-monokai-fg leading-relaxed border-t border-monokai-yellow/20">
           {reasoning}
         </div>
       )}
@@ -377,12 +378,12 @@ export const EmptyState: React.FC<{
 }> = ({ icon, title, description, action }) => {
   return (
     <div className="flex flex-col items-center justify-center py-12 text-center">
-      <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 mb-4">
+      <div className="w-12 h-12 rounded-full bg-monokai-sidebar flex items-center justify-center text-monokai-comment mb-4">
         {icon}
       </div>
-      <h3 className="text-sm font-bold text-gray-700 mb-1">{title}</h3>
+      <h3 className="text-sm font-bold text-monokai-fg mb-1">{title}</h3>
       {description && (
-        <p className="text-xs text-gray-500 mb-4 max-w-sm">{description}</p>
+        <p className="text-xs text-monokai-comment mb-4 max-w-sm">{description}</p>
       )}
       {action}
     </div>
@@ -401,7 +402,7 @@ export const LoadingSkeleton: React.FC<{
       {Array.from({ length: lines }).map((_, i) => (
         <div
           key={i}
-          className="h-4 bg-gray-200 rounded animate-pulse"
+          className="h-4 bg-monokai-sidebar rounded animate-pulse"
           style={{ width: `${Math.random() * 40 + 60}%` }}
         />
       ))}
@@ -425,14 +426,14 @@ export const SectionCard: React.FC<{
   const [expanded, setExpanded] = React.useState(defaultExpanded);
 
   return (
-    <div className={`bg-white rounded-xl border border-gray-200 overflow-hidden ${className}`}>
+    <div className={`bg-monokai-surface rounded-xl border border-monokai-border overflow-hidden ${className}`}>
       <div
-        className="flex items-center justify-between px-4 py-3 bg-gray-50/50 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors"
+        className="flex items-center justify-between px-4 py-3 bg-monokai-bg/50 border-b border-monokai-border cursor-pointer hover:bg-monokai-bg transition-colors"
         onClick={() => setExpanded(!expanded)}
       >
         <div className="flex items-center gap-2">
-          {icon && <span className="text-gray-500">{icon}</span>}
-          <h3 className="text-sm font-bold text-gray-800">{title}</h3>
+          {icon && <span className="text-monokai-comment">{icon}</span>}
+          <h3 className="text-sm font-bold text-monokai-fg">{title}</h3>
           {badge !== undefined && (
             <span
               className="px-1.5 py-0.5 text-[10px] font-bold rounded-full"
@@ -447,7 +448,7 @@ export const SectionCard: React.FC<{
         </div>
         <div className="flex items-center gap-2">
           {actions}
-          {expanded ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
+          {expanded ? <ChevronUp size={16} className="text-monokai-comment" /> : <ChevronDown size={16} className="text-monokai-comment" />}
         </div>
       </div>
       {expanded && (
@@ -479,16 +480,16 @@ export const ThreeColumnLayout: React.FC<{
         {leftCollapsed ? (
           <button
             onClick={() => setLeftCollapsed(false)}
-            className="w-full h-full flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded-xl border border-gray-200"
+            className="w-full h-full flex items-center justify-center bg-monokai-sidebar hover:bg-monokai-accent rounded-xl border border-monokai-border"
           >
-            <ChevronRight size={16} className="text-gray-500" />
+            <ChevronRight size={16} className="text-monokai-comment" />
           </button>
         ) : (
           <div className="space-y-4">
             {left}
             <button
               onClick={() => setLeftCollapsed(true)}
-              className="w-full flex items-center justify-center py-2 text-gray-400 hover:text-gray-600 text-xs"
+              className="w-full flex items-center justify-center py-2 text-monokai-comment hover:text-monokai-fg text-xs"
             >
               <ChevronLeft size={14} className="mr-1" /> 收起
             </button>
@@ -506,16 +507,16 @@ export const ThreeColumnLayout: React.FC<{
         {rightCollapsed ? (
           <button
             onClick={() => setRightCollapsed(false)}
-            className="w-full h-full flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded-xl border border-gray-200"
+            className="w-full h-full flex items-center justify-center bg-monokai-sidebar hover:bg-monokai-accent rounded-xl border border-monokai-border"
           >
-            <ChevronLeft size={16} className="text-gray-500" />
+            <ChevronLeft size={16} className="text-monokai-comment" />
           </button>
         ) : (
           <div className="space-y-4">
             {right}
             <button
               onClick={() => setRightCollapsed(true)}
-              className="w-full flex items-center justify-center py-2 text-gray-400 hover:text-gray-600 text-xs"
+              className="w-full flex items-center justify-center py-2 text-monokai-comment hover:text-monokai-fg text-xs"
             >
               收起 <ChevronRight size={14} className="ml-1" />
             </button>

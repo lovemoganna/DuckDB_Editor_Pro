@@ -1,7 +1,7 @@
 // ============================================================
 // Assertion Template Library for V6.0
 // ============================================================
-import { AssertionTemplate, CustomAssertion } from '../../types';
+import { AssertionTemplate, CustomAssertion } from '../types';
 
 /**
  * Pre-defined assertion templates for common data quality checks
