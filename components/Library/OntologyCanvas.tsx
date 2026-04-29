@@ -12,7 +12,7 @@ import {
 import dagre from 'dagre';
 import { duckDBService } from '../../services/duckdbService';
 import { ontologyAiService, MECELayer, MeceCanvasLayoutPlan } from '../../services/ontologyAiService';
-import { CanvasTopologyManager, NodeType } from './CanvasTopologyManager';
+import { compileToSql, NodeType } from './CanvasTopologyManager';
 import { CanvasNodeInspector } from './CanvasNodeInspector';
 import { CanvasHelpPanel } from '../skills/CanvasHelpPanel';
 import { CANVAS_MECE_LAYER_DESIGN } from '../skills/CanvasHelpPanel';
@@ -431,11 +431,13 @@ const OntologyCanvasInner: React.FC<OntologyCanvasProps & { objects: any[]; obje
     setRedoStack([]);
   }, []);
 
-  // ── SQL Compilation ──
-  const compiledSql = useMemo(() => {
+  // ── SQL Compilation (topology-to-SQL engine) ──
+  const compileResult = useMemo(() => {
     const allItems = [...canvasState.items, ...canvasState.spaces.flatMap(s => s.items)];
-    return CanvasTopologyManager.compileToSql(allItems as any, canvasState.edges, objects);
-  }, [canvasState.items, canvasState.spaces, canvasState.edges, objects]);
+    return compileToSql(allItems as any, canvasState.edges);
+  }, [canvasState.items, canvasState.spaces, canvasState.edges]);
+
+  const compiledSql = compileResult.sql;
 
   // ── Effects ──
   const checkAndInit = useCallback(async () => {
@@ -1325,10 +1327,48 @@ const OntologyCanvasInner: React.FC<OntologyCanvasProps & { objects: any[]; obje
               <button onClick={() => setShowSqlPreview(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}><X className="w-4 h-4" /></button>
             </div>
             <div style={{ flex: 1, padding: 20, overflow: 'auto' }}>
-              <pre style={{ margin: 0, fontSize: 11, color: '#94a3b8', whiteSpace: 'pre-wrap', fontFamily: 'monospace', lineHeight: 1.6, background: '#000', padding: 12, borderRadius: 8 }}>{compiledSql}</pre>
-              <div style={{ marginTop: 24, padding: 12, borderRadius: 10, background: 'rgba(99,102,241,0.05)', border: '1px solid rgba(99,102,241,0.1)', fontSize: 11, color: '#94a3b8' }}>
-                <div style={{ color: '#6366f1', fontWeight: 600, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 5 }}><Sparkles className="w-3.5 h-3.5" /> 智能洞察</div>
-                • 检测到 {canvasState.edges.length} 条数据依赖路径。<br/>• 建议：为 Transform 节点配置变换逻辑。
+              {/* Topology metadata badges */}
+              <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 4, background: 'rgba(99,102,241,0.15)', color: '#818cf8', border: '1px solid rgba(99,102,241,0.2)' }}>
+                  {canvasState.items.length} 节点
+                </span>
+                <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 4, background: 'rgba(56,189,248,0.1)', color: '#38bdf8', border: '1px solid rgba(56,189,248,0.2)' }}>
+                  {canvasState.edges.length} 边
+                </span>
+                <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 4, background: 'rgba(251,146,60,0.1)', color: '#fb923c', border: '1px solid rgba(251,146,60,0.2)' }}>
+                  {compileResult.ctes.length} CTE
+                </span>
+                {compileResult.warnings.length > 0 && (
+                  <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 4, background: 'rgba(239,68,68,0.1)', color: '#f87171', border: '1px solid rgba(239,68,68,0.2)' }}>
+                    {compileResult.warnings.length} 警告
+                  </span>
+                )}
+              </div>
+
+              {/* SQL Preview */}
+              <pre style={{ margin: 0, fontSize: 11, color: '#94a3b8', whiteSpace: 'pre-wrap', fontFamily: 'monospace', lineHeight: 1.6, background: '#000', padding: 12, borderRadius: 8, maxHeight: 260, overflow: 'auto' }}>{compiledSql}</pre>
+
+              {/* Warnings */}
+              {compileResult.warnings.length > 0 && (
+                <div style={{ marginTop: 12, padding: 10, borderRadius: 8, background: 'rgba(251,146,60,0.06)', border: '1px solid rgba(251,146,60,0.15)', fontSize: 10, color: '#fb923c', lineHeight: 1.6 }}>
+                  <div style={{ fontWeight: 600, marginBottom: 4 }}>⚠ 拓扑警告</div>
+                  {compileResult.warnings.map((w, i) => <div key={i}>• {w}</div>)}
+                </div>
+              )}
+
+              {/* Topology Insights */}
+              <div style={{ marginTop: 14, padding: 12, borderRadius: 10, background: 'rgba(99,102,241,0.05)', border: '1px solid rgba(99,102,241,0.1)', fontSize: 11, color: '#94a3b8' }}>
+                <div style={{ color: '#6366f1', fontWeight: 600, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 5 }}><Sparkles className="w-3.5 h-3.5" /> 拓扑洞察</div>
+                {compileResult.ctes.length === 0 ? (
+                  <span>画布为空或所有节点均为 Control 类型。请添加 Source/Transform/Sink 节点并连线。</span>
+                ) : (
+                  <>
+                    <span>检测到 <strong style={{ color: '#818cf8' }}>{canvasState.edges.length}</strong> 条数据依赖路径，共 <strong style={{ color: '#818cf8' }}>{compileResult.ctes.length}</strong> 个 CTE 阶段。</span><br/>
+                    {compileResult.success
+                      ? <span style={{ color: '#4ade80' }}>✓ 拓扑结构有效，可生成 SQL</span>
+                      : <span style={{ color: '#f87171' }}>✗ 存在错误，请检查节点配置</span>}
+                  </>
+                )}
               </div>
 
               {/* 二次优化入口 */}
