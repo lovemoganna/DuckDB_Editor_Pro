@@ -4,7 +4,7 @@ import { AIValidator, AIStage } from './aiValidator';
 import { PromptBuilder } from './PromptBuilder';
 import { duckDBService } from './duckdbService';
 
-export type AIProvider = 'google' | 'groq' | 'openai';
+export type AIProvider = 'google' | 'groq' | 'openai' | 'claude';
 
 export interface AIConfig {
     provider: AIProvider;
@@ -74,7 +74,11 @@ class AIService {
         const provider = (localStorage.getItem('duckdb_ai_provider') as AIProvider) || 'google';
         const apiKey = localStorage.getItem('duckdb_ai_api_key') || import.meta.env.VITE_API_KEY || '';
         const baseUrl = localStorage.getItem('duckdb_ai_base_url') || '';
-        const model = localStorage.getItem('duckdb_ai_model') || (provider === 'google' ? 'gemini-2.0-flash-exp' : 'llama-3.3-70b-versatile');
+        const defaultModel = provider === 'google' ? 'gemini-2.0-flash-exp'
+            : provider === 'claude' ? 'claude-sonnet-4-20250514'
+            : provider === 'openai' ? 'gpt-4o'
+            : 'llama-3.3-70b-versatile';
+        const model = localStorage.getItem('duckdb_ai_model') || defaultModel;
 
         return { provider, apiKey, baseUrl, model };
     }
@@ -123,6 +127,65 @@ class AIService {
                     }
                 });
                 return response.text || "";
+            }
+        } else if (config.provider === 'claude') {
+            // Anthropic Claude API
+            const url = config.baseUrl || 'https://api.anthropic.com/v1/messages';
+            const headers: Record<string, string> = {
+                'x-api-key': config.apiKey,
+                'anthropic-version': '2023-06-01',
+                'content-type': 'application/json',
+            };
+            const body: Record<string, any> = {
+                model: modelToUse,
+                max_tokens: 4096,
+                messages: [],
+            };
+            if (systemInstruction) {
+                body.system = systemInstruction;
+            }
+            body.messages.push({ role: 'user', content: prompt });
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(body)
+            });
+
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({ error: { message: response.statusText } }));
+                throw new Error(`Claude API Error (${response.status}): ${err.error?.message || response.statusText}`);
+            }
+
+            if (onChunk && response.body) {
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = "";
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split("\n");
+                    buffer = lines.pop() || "";
+                    for (const line of lines) {
+                        const cleanLine = line.trim();
+                        if (!cleanLine || !cleanLine.startsWith("data: ")) continue;
+                        const data = cleanLine.slice(6);
+                        if (data === "[DONE]") break;
+                        try {
+                            const json = JSON.parse(data);
+                            const text = json.choices?.[0]?.delta?.content || json.content?.[0]?.text || "";
+                            if (text) {
+                                fullText += text;
+                                onChunk(text);
+                            }
+                        } catch (_) { /* ignore */ }
+                    }
+                }
+                return fullText;
+            } else {
+                const data = await response.json();
+                return data.content?.[0]?.text || "";
             }
         } else {
             // Groq / OpenAI REST API
@@ -307,10 +370,14 @@ class AIService {
         throw lastError || new Error(`AI generation failed for ${stage}`);
     }
 
-    async generateSql(prompt: string, schemaContext: string): Promise<string> {
+    async generateSql(
+        prompt: string,
+        schemaContext: string,
+        onChunk?: (text: string) => void
+    ): Promise<string> {
         try {
             const { prompt: fullPrompt, system } = PromptBuilder.buildSqlGenPrompt(prompt, schemaContext);
-            const response = await this.callProvider(fullPrompt, system, false);
+            const response = await this.callProvider(fullPrompt, system, false, undefined, onChunk);
             return response.trim() || "-- No SQL generated";
         } catch (error: any) {
             console.error("AIService Error:", error);
@@ -616,7 +683,7 @@ class AIService {
                 }
                 return models.length > 0 ? models : this.getDefaultModels(config.provider);
             } else {
-                let baseUrl = config.baseUrl || (config.provider === 'groq' ? 'https://api.groq.com/openai/v1' : 'https://api.openai.com/v1');
+                let baseUrl = config.baseUrl || (config.provider === 'groq' ? 'https://api.groq.com/openai/v1' : config.provider === 'claude' ? 'https://api.anthropic.com' : 'https://api.openai.com/v1');
                 baseUrl = baseUrl.replace(/\/chat\/completions\/?$/, '');
                 const modelsUrl = `${baseUrl}/models`;
 
@@ -655,11 +722,18 @@ class AIService {
                     { id: 'mixtral-8x7b-32768', name: 'Mixtral 8x7B' },
                 ];
             case 'openai':
-            default:
                 return [
                     { id: 'gpt-4o', name: 'GPT-4o' },
                     { id: 'gpt-4-turbo', name: 'GPT-4 Turbo' },
                 ];
+            case 'claude':
+                return [
+                    { id: 'claude-sonnet-4-20250514', name: 'Claude Sonnet 4 (May 2025)' },
+                    { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet' },
+                    { id: 'claude-3-5-haiku-20241022', name: 'Claude 3.5 Haiku' },
+                ];
+            default:
+                return [];
         }
     }
 }

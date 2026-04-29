@@ -13,6 +13,11 @@ class DuckDBService {
   private isLegacy = false;
   private initPromise: Promise<void> | null = null;
 
+  /** 确保 DuckDB 连接就绪后再返回，外部调用方无需自行 await init() */
+  private async waitForInit(): Promise<void> {
+    await this.init();
+  }
+
   async init(): Promise<void> {
     if (this.isInitialized) return;
     if (this.initPromise) return this.initPromise;
@@ -190,6 +195,7 @@ class DuckDBService {
   }
 
   async query(sql: string): Promise<any[]> {
+    await this.waitForInit();
     if (!this.conn) throw new Error("Database not connected");
 
     if (this.isLegacy) {
@@ -301,6 +307,7 @@ class DuckDBService {
   }
 
   async getTables(): Promise<string[]> {
+    await this.waitForInit();
     if (!this.conn) return [];
     const res = await this.conn.query("SHOW TABLES");
     const rows = res.toArray().map(r => r.toJSON());
@@ -1476,6 +1483,19 @@ class DuckDBService {
     }
   }
 
+  // helper to normalize date objects/epoch from duckdb into YYYY-MM-DD string
+  private _normalizeDate(val: any): string | null {
+    if (!val) return null;
+    if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
+    if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(val)) return val.slice(0, 10);
+    if (typeof val === 'number') {
+      const d = new Date(val);
+      if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+    }
+    if (val instanceof Date && !isNaN(val.getTime())) return val.toISOString().slice(0, 10);
+    return null;
+  }
+
   async getOntologyObjects(): Promise<any[]> {
     return this.query('SELECT * FROM life_object ORDER BY id');
   }
@@ -1493,15 +1513,18 @@ class DuckDBService {
   }
 
   async getOntologyActions(): Promise<any[]> {
-    return this.query('SELECT * FROM life_action ORDER BY id');
+    const rows = await this.query('SELECT * FROM life_action ORDER BY id');
+    return rows.map(r => ({ ...r, execute_at: this._normalizeDate(r.execute_at) }));
   }
 
   async getOntologyIntrospections(): Promise<any[]> {
-    return this.query('SELECT * FROM life_introspection ORDER BY id');
+    const rows = await this.query('SELECT * FROM life_introspection ORDER BY id');
+    return rows.map(r => ({ ...r, created_at: this._normalizeDate(r.created_at) }));
   }
 
   async getOntologyInsights(): Promise<any[]> {
-    return this.query('SELECT * FROM life_insight ORDER BY id');
+    const rows = await this.query('SELECT * FROM life_insight ORDER BY id');
+    return rows.map(r => ({ ...r, created_at: this._normalizeDate(r.created_at) }));
   }
 
   // Unified save for the generated AI draft

@@ -76,7 +76,7 @@ export function useAIFill() {
     canvas:        { isLoading: false, error: null, result: null, mode: 'canvas', input: '' },
     crud:          { isLoading: false, error: null, result: null, mode: 'crud', input: '' },
     introspection: { isLoading: false, error: null, result: null, mode: 'introspection', input: '' },
-    suggestions:   { isLoading: false, error: null, result: null, mode: 'suggestions' },
+    suggestions:   { isLoading: false, error: null, result: null, mode: 'suggestions', input: '' },
   });
 
   const abortRef = useRef<AbortController | null>(null);

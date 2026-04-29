@@ -1,26 +1,12 @@
 /**
  * OntologyApp - 本体论知识管理主组件
  *
- * 三列布局：左侧 MECE 五层 Tab + 中间内容 + 右侧帮助面板
- *
- * 左侧导航（6 个 Tab）：
- * 1. 基础层 — 核心概念定义（Object/Link Type）
- * 2. 关系层 — 关系实例建模（Link CRUD + 权重）
- * 3. 方法层 — 建模方法论（反思/清理）
- * 4. 模式层 — 核心模式（递归/视图）
- * 5. 领域层 — 垂直领域（种子数据导入）
- * 6. 图谱  — ReactFlow 交互式图谱
- *
- * 每个 Tab 内按语义子导航展开：类型 / 实例 / 模板
+ * 重构后：复用新的 OntologyPanel 统一入口，删除 MECE 五层结构，
+ * 改为直觉化的三视图导航（图谱 / 数据 / 画布）。
  */
 
-import React, { useState } from 'react';
-import {
-  X,
-  Sparkles,
-} from 'lucide-react';
-
-import { OntologyMECEPanel } from './OntologyMECEPanel';
+import React from 'react';
+import { OntologyPanel } from './OntologyPanel';
 
 interface OntologyAppProps {
   isOpen: boolean;
@@ -39,8 +25,7 @@ export const OntologyApp: React.FC<OntologyAppProps> = ({
 
   return (
     <div className="flex h-full w-full overflow-hidden">
-      {/* 主内容区 — 复用 OntologyMECEPanel 的完整布局（已含三列结构） */}
-      <OntologyMECEPanel
+      <OntologyPanel
         onInsert={onInsertToEditor}
         onTablesReady={onTablesReady}
       />

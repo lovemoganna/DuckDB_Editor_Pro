@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { duckDBService } from './services/duckdbService';
-import { aiService } from './services/aiService';
 import { getTypeIcon } from './utils';
 import { Tab, Notification, ColumnInfo, ColumnStats, ImportOptions, MetricChart, ChartConfig } from './types';
 import { Code, Settings, Plus, Maximize, Play, Save, PlaySquare, Eye, Table as TableIcon, Activity, Key, Upload, FileJson, Link, Trash2, ArrowRight, MousePointerClick, ChevronRight, Download, CheckCircle2, ChevronDown, Check, Columns, Filter, Lock, ExternalLink, Globe, Layout, Smartphone, PenTool, Hash, Type, ToggleLeft, ArrowDown01, FileText, ChevronLeft, Calendar as CalendarIcon, Clock, Binary, Image as ImageIcon, Box, MoreVertical, RefreshCw, X, LogOut, ArrowUp, ArrowDown, LayoutDashboard, ListPlus, Database } from 'lucide-react';
@@ -8,25 +7,25 @@ import { SqlEditor } from './components/SqlEditor';
 import { Extensions } from './components/Extensions';
 import { Dashboard } from './components/Dashboard';
 import { LearnApp } from './components/Learn';
-import { SchemaGenerator } from './components/SchemaGenerator';
 import { AICooldownBanner } from './components/AICooldownBanner';
 import { MetricManager } from './components/MetricManager';
-import { SkillPanel } from './components/SkillPanel';
+import { SkillPanel } from './components/skills/SkillPanel';
 import { LibraryApp, OntologyApp } from './components/Library';
-import { AbstractionTablePanel } from './components/Library/AbstractionTablePanel';
+import { AnalysisHubPanel } from './components/AnalysisHub/AnalysisHubPanel';
 import { ExportModal } from './components/ExportModal';
+import { CreateTableModal } from './components/CreateTableModal';
+import { DuplicateTableModal } from './components/DuplicateTableModal';
+import { ImportWizard } from './components/ImportWizard';
+import { RowDetailPanel } from './components/RowDetailPanel';
+import { CommandPalette } from './components/CommandPalette';
+import { SettingsModal } from './components/SettingsModal';
+import { DataTab } from './components/DataTab';
+import { StructureTab } from './components/StructureTab';
+import { AuditTab } from './components/AuditTab';
 
 
 // --- Ontology Icons Helper ---
 
-
-interface CommandItem {
-    id: string;
-    label: string;
-    icon: string;
-    action: () => void;
-    group: 'Navigation' | 'Action' | 'Table';
-}
 
 const App: React.FC = () => {
     const [isReady, setIsReady] = useState(false);
@@ -69,25 +68,12 @@ const App: React.FC = () => {
 
     // Modal State: Create Table
     const [showCreateModal, setShowCreateModal] = useState(false);
-    const [newTableName, setNewTableName] = useState('');
 
     // Modal State: Duplicate Table
     const [showDuplicateModal, setShowDuplicateModal] = useState(false);
-    const [duplicateTargetName, setDuplicateTargetName] = useState('');
 
     // Modal State: Import Wizard
     const [showImportModal, setShowImportModal] = useState(false);
-    const [importMode, setImportMode] = useState<'local' | 'url' | 'paste'>('local');
-    const [importFile, setImportFile] = useState<File | null>(null);
-    const [importUrl, setImportUrl] = useState('');
-    const [importText, setImportText] = useState('');
-    const [importTableName, setImportTableName] = useState('');
-    const [importOptions, setImportOptions] = useState<ImportOptions>({
-        header: true,
-        delimiter: ',',
-        quote: '"',
-        dateFormat: '%Y-%m-%d'
-    });
 
     // Modal State: Settings
     const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -116,12 +102,6 @@ const App: React.FC = () => {
         return () => window.removeEventListener('storage', handleStorageChange);
     }, []);
 
-
-    // Command Palette State
-    const [showCommandPalette, setShowCommandPalette] = useState(false);
-    const [commandQuery, setCommandQuery] = useState('');
-    const [selectedCommandIdx, setSelectedCommandIdx] = useState(0);
-    const commandInputRef = useRef<HTMLInputElement>(null);
 
     // Cross-Tab Communication
     const [pendingSql, setPendingSql] = useState<string>('');
@@ -192,30 +172,6 @@ const App: React.FC = () => {
         };
         loadSchema();
     }, [activeTab, tables]);
-
-    // Command Palette Listener
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-                e.preventDefault();
-                setShowCommandPalette(prev => !prev);
-                setCommandQuery('');
-                setSelectedCommandIdx(0);
-            }
-            if (showCommandPalette && e.key === 'Escape') {
-                setShowCommandPalette(false);
-            }
-        };
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [showCommandPalette]);
-
-    // Focus input when palette opens
-    useEffect(() => {
-        if (showCommandPalette && commandInputRef.current) {
-            commandInputRef.current.focus();
-        }
-    }, [showCommandPalette]);
 
     const fetchTableData = async (tableName: string, offset: number, limit: number, currentSort = sortConfig, currentFilter = filterQuery) => {
         setLoadingData(true);
@@ -360,35 +316,6 @@ const App: React.FC = () => {
         }
     };
 
-    const handleCreateTable = async () => {
-        if (!newTableName) return;
-        try {
-            await duckDBService.createTable(newTableName, [{ name: 'id', type: 'INTEGER', pk: true }]);
-            addNotification(`Table "${newTableName}" created`, 'success');
-            await refreshTables();
-            setShowCreateModal(false);
-            setNewTableName('');
-            handleTableSelect(newTableName);
-        } catch (e: any) {
-            addNotification(e.message, 'error');
-        }
-    };
-
-    const handleDuplicateTable = async () => {
-        if (!currentTable || !duplicateTargetName) return;
-        try {
-            const sql = `CREATE TABLE "${duplicateTargetName}" AS SELECT * FROM "${currentTable}"`;
-            await duckDBService.executeAndAudit(sql, 'CREATE', duplicateTargetName, `Duplicated from ${currentTable}`);
-            addNotification(`Table "${duplicateTargetName}" duplicated successfully`, 'success');
-            await refreshTables();
-            setShowDuplicateModal(false);
-            setDuplicateTargetName('');
-            handleTableSelect(duplicateTargetName);
-        } catch (e: any) {
-            addNotification(e.message, 'error');
-        }
-    };
-
     const handleRenameTable = async () => {
         if (!currentTable || !renameTableName) return;
         try {
@@ -412,68 +339,6 @@ const App: React.FC = () => {
             setActiveTab(Tab.DASHBOARD);
         } catch (e: any) {
             addNotification(e.message, 'error');
-        }
-    };
-
-    const openImportWizard = () => {
-        setImportMode('local');
-        setImportFile(null);
-        setImportUrl('');
-        setImportText('');
-        setImportTableName('');
-        setShowImportModal(true);
-    };
-
-    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
-            const file = e.target.files[0];
-            setImportFile(file);
-            if (!importTableName) {
-                const name = file.name.split('.')[0].replace(/[^a-zA-Z0-9_]/g, '_');
-                setImportTableName(name);
-            }
-        }
-    };
-
-    const applyPreset = (name: string, url: string) => {
-        setImportMode('url');
-        setImportUrl(url);
-        setImportTableName(name);
-    };
-
-    const executeImport = async () => {
-        try {
-            if (importMode === 'local') {
-                if (!importFile) return;
-                await duckDBService.importFile(importFile, importTableName, importOptions);
-                addNotification(`Imported ${importFile.name} as ${importTableName}`, 'success');
-            } else if (importMode === 'paste') {
-                if (!importText) return;
-                await duckDBService.importText(importText, importTableName);
-                addNotification(`Imported from clipboard as ${importTableName}`, 'success');
-            } else {
-                // URL Import
-                if (!importUrl) return;
-                // Simple check for parquet vs csv based on extension
-                const isParquet = importUrl.endsWith('.parquet');
-                const sql = isParquet
-                    ? `CREATE TABLE "${importTableName}" AS SELECT * FROM read_parquet('${importUrl}')`
-                    : `CREATE TABLE "${importTableName}" AS SELECT * FROM read_csv_auto('${importUrl}')`;
-
-                await duckDBService.executeAndAudit(sql, 'IMPORT', importTableName, `Imported from URL: ${importUrl}`);
-                addNotification(`Imported from URL as ${importTableName}`, 'success');
-            }
-
-            await refreshTables();
-            setShowImportModal(false);
-            setImportFile(null);
-            setImportUrl('');
-            setImportText('');
-        } catch (e: any) {
-            const msg = e.message.includes("HTTP")
-                ? `CORS Error: The server hosting the file must allow cross-origin requests. (${e.message})`
-                : `Import failed: ${e.message}`;
-            addNotification(msg, 'error');
         }
     };
 
@@ -692,539 +557,87 @@ const App: React.FC = () => {
         addNotification('Schema copied to clipboard', 'success');
     };
 
-    // --- Command Palette Logic ---
-    const commands: CommandItem[] = [
-        { id: 'nav-dash', label: 'Go to Dashboard', icon: '🏠', group: 'Navigation', action: () => setActiveTab(Tab.DASHBOARD) },
-        { id: 'nav-data', label: 'Go to Data Browser', icon: '📊', group: 'Navigation', action: () => setActiveTab(Tab.DATA) },
-        { id: 'nav-sql', label: 'Go to SQL Editor', icon: '📝', group: 'Navigation', action: () => setActiveTab(Tab.SQL) },
-        { id: 'nav-struct', label: 'Go to Schema/Structure', icon: '📐', group: 'Navigation', action: () => setActiveTab(Tab.STRUCTURE) },
-        { id: 'nav-schema-gen', label: 'Go to AI Schema Generator', icon: '🤖', group: 'Navigation', action: () => setActiveTab(Tab.SCHEMA_GENERATOR) },
-        { id: 'nav-learn', label: 'Go to Tutorials', icon: '🎓', group: 'Navigation', action: () => setActiveTab(Tab.TUTORIALS) },
-        { id: 'act-import', label: 'Import Data', icon: '📥', group: 'Action', action: openImportWizard },
-        { id: 'act-create', label: 'Create New Table', icon: '✨', group: 'Action', action: () => setShowCreateModal(true) },
-        { id: 'act-export-db', label: 'Export Database', icon: '📤', group: 'Action', action: () => setShowExportModal(true) },
-        { id: 'act-settings', label: 'Open Settings', icon: '⚙️', group: 'Action', action: () => setShowSettingsModal(true) },
-        { id: 'act-skills', label: 'Go to AI Skills', icon: '⚡', group: 'Navigation', action: () => setActiveTab(Tab.AI_SKILLS) },
-        { id: 'act-library', label: 'Go to Library', icon: '📚', group: 'Navigation', action: () => setActiveTab(Tab.LIBRARY) },
-        ...tables.map(t => ({ id: `tbl-${t}`, label: `Select Table: ${t}`, icon: '📂', group: 'Table' as const, action: () => handleTableSelect(t) }))
-    ];
-
-    const filteredCommands = commands.filter(c => c.label.toLowerCase().includes(commandQuery.toLowerCase()));
-
-    const handleCommandExec = (cmd: CommandItem) => {
-        cmd.action();
-        setShowCommandPalette(false);
-    };
-
-    const handleCommandKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === 'ArrowDown') {
-            e.preventDefault();
-            setSelectedCommandIdx(prev => Math.min(prev + 1, filteredCommands.length - 1));
-        } else if (e.key === 'ArrowUp') {
-            e.preventDefault();
-            setSelectedCommandIdx(prev => Math.max(prev - 1, 0));
-        } else if (e.key === 'Enter') {
-            e.preventDefault();
-            if (filteredCommands[selectedCommandIdx]) {
-                handleCommandExec(filteredCommands[selectedCommandIdx]);
-            }
-        }
-    };
+    // --- Command Palette is now handled by CommandPalette component ---
 
     if (initError) return <div className="h-screen flex items-center justify-center bg-monokai-bg text-monokai-pink font-mono p-4 text-center"><div><h1 className="text-2xl mb-2">Initialize Error</h1>{initError}</div></div>;
     if (!isReady) return <div className="h-screen flex items-center justify-center bg-monokai-bg text-monokai-blue font-mono animate-pulse"><span className="text-4xl mr-4">🦆</span> Initializing DuckDB WASM...</div>;
 
     const pkColumn = schema.find(c => c.pk);
-    const expandedRow = expandedRowIdx !== null ? tableData[expandedRowIdx] : null;
-    const visibleColumns = tableColumns.filter(c => !hiddenColumns.has(c));
-
-    // --- ER Diagram Renderer (Simple SVG) ---
-    const renderSchemaGraph = () => {
-        const tableNames = Object.keys(fullSchemaTree);
-        if (tableNames.length === 0) return <div className="text-monokai-comment p-8">No tables to visualize.</div>;
-
-        // Simple grid layout
-        const NODE_WIDTH = 220;
-        const NODE_HEIGHT_BASE = 40;
-        const ROW_HEIGHT = 20;
-        const MARGIN_X = 50;
-        const MARGIN_Y = 50;
-
-        const cols = 3;
-        const nodes: any[] = [];
-        const edges: any[] = [];
-
-        // Calculate Nodes
-        tableNames.forEach((t, i) => {
-            const colIdx = i % cols;
-            const rowIdx = Math.floor(i / cols);
-            const x = MARGIN_X + colIdx * (NODE_WIDTH + 100);
-            const y = MARGIN_Y + rowIdx * 300;
-
-            nodes.push({
-                name: t,
-                x,
-                y,
-                columns: fullSchemaTree[t]
-            });
-        });
-
-        // Calculate Edges (Simple Name-based Inference)
-        nodes.forEach(source => {
-            source.columns.forEach((col: ColumnInfo) => {
-                if (col.name.endsWith('_id')) {
-                    const targetName = col.name.replace(/_id$/, '') + 's'; // Infer plural 'users' from 'user_id'
-                    const targetNode = nodes.find(n => n.name === targetName || n.name === col.name.replace(/_id$/, ''));
-
-                    if (targetNode) {
-                        edges.push({
-                            source,
-                            target: targetNode,
-                            col: col.name
-                        });
-                    }
-                }
-            });
-        });
-
-        return (
-            <div className="overflow-auto h-full bg-[#1e1f1c] relative p-10 rounded border border-monokai-accent/30 shadow-inner">
-                <svg width="100%" height="1500" className="absolute top-0 left-0 pointer-events-none">
-                    <defs>
-                        <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
-                            <polygon points="0 0, 10 3.5, 0 7" fill="#66d9ef" />
-                        </marker>
-                    </defs>
-                    {edges.map((e, i) => {
-                        const sx = e.source.x + NODE_WIDTH;
-                        const sy = e.source.y + NODE_HEIGHT_BASE;
-                        const tx = e.target.x;
-                        const ty = e.target.y + NODE_HEIGHT_BASE;
-                        // Bezier curve
-                        const d = `M ${sx} ${sy} C ${sx + 50} ${sy}, ${tx - 50} ${ty}, ${tx} ${ty}`;
-                        return (
-                            <g key={i}>
-                                <path d={d} stroke="#66d9ef" strokeWidth="2" fill="none" markerEnd="url(#arrowhead)" opacity="0.6" />
-                                <text x={(sx + tx) / 2} y={(sy + ty) / 2} fill="#66d9ef" fontSize="10" textAnchor="middle" dy="-5">{e.col}</text>
-                            </g>
-                        );
-                    })}
-                </svg>
-
-                {nodes.map(node => (
-                    <div
-                        key={node.name}
-                        className="absolute bg-monokai-bg border border-monokai-accent rounded shadow-xl hover:border-monokai-blue transition-colors flex flex-col w-[220px]"
-                        style={{ left: node.x, top: node.y }}
-                    >
-                        <div className="bg-monokai-accent/50 p-2 font-bold text-monokai-yellow text-center border-b border-monokai-accent flex justify-between items-center">
-                            <span>{node.name}</span>
-                            <span className="text-[9px] text-monokai-comment">Table</span>
-                        </div>
-                        <div className="p-2 space-y-1">
-                            {node.columns.map((c: ColumnInfo) => (
-                                <div key={c.name} className="flex justify-between text-xs font-mono">
-                                    <span className={c.pk ? 'text-monokai-pink font-bold' : 'text-monokai-fg'}>
-                                        {c.pk && '🔑 '}{c.name}
-                                    </span>
-                                    <span className="text-monokai-comment text-[10px]">{c.type}</span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                ))}
-            </div>
-        );
-    };
 
     return (
         <div className="flex h-screen overflow-hidden text-monokai-fg flex-col">
-            {/* Command Palette Modal */}
-            {showCommandPalette && (
-                <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-start justify-center pt-[20vh]" onClick={() => setShowCommandPalette(false)}>
-                    <div className="bg-monokai-bg border border-monokai-accent rounded-lg shadow-2xl w-full max-w-xl flex flex-col overflow-hidden animate-[slideIn_0.1s_ease-out]" onClick={e => e.stopPropagation()}>
-                        <div className="p-4 border-b border-monokai-accent flex items-center gap-3">
-                            <span className="text-monokai-comment text-xl">🔍</span>
-                            <input
-                                ref={commandInputRef}
-                                className="bg-transparent outline-none text-lg text-white w-full placeholder-monokai-comment"
-                                placeholder="Type a command or search..."
-                                value={commandQuery}
-                                onChange={e => { setCommandQuery(e.target.value); setSelectedCommandIdx(0); }}
-                                onKeyDown={handleCommandKeyDown}
-                            />
-                            <span className="text-xs text-monokai-comment bg-monokai-bg px-2 py-1 rounded border border-monokai-accent">ESC</span>
-                        </div>
-                        <div className="max-h-[300px] overflow-y-auto p-2">
-                            {filteredCommands.length === 0 && <div className="p-4 text-center text-monokai-comment">No matching commands</div>}
-                            {filteredCommands.map((cmd, idx) => (
-                                <div
-                                    key={cmd.id}
-                                    className={`flex items-center gap-3 p-3 rounded cursor-pointer transition-colors ${idx === selectedCommandIdx ? 'bg-monokai-blue text-monokai-bg font-bold' : 'text-monokai-fg hover:bg-monokai-accent'}`}
-                                    onClick={() => handleCommandExec(cmd)}
-                                    onMouseEnter={() => setSelectedCommandIdx(idx)}
-                                >
-                                    <span className="text-lg">{cmd.icon}</span>
-                                    <div className="flex-1">{cmd.label}</div>
-                                    <span className={`text-[10px] uppercase tracking-wider opacity-50 ${idx === selectedCommandIdx ? 'text-monokai-bg' : 'text-monokai-comment'}`}>{cmd.group}</span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            )}
+            <CommandPalette
+              tables={tables}
+              currentTable={currentTable}
+              onSelectTable={handleTableSelect}
+              onSetActiveTab={(tab) => setActiveTab(Tab[tab as keyof typeof Tab])}
+              onOpenCreateTable={() => setShowCreateModal(true)}
+              onOpenImportWizard={() => setShowImportModal(true)}
+              onOpenExport={() => setShowExportModal(true)}
+              onOpenSettings={() => setShowSettingsModal(true)}
+              onAction={(prompt) => {
+                setPendingSql(prompt);
+                setActiveTab(Tab.AI_SKILLS);
+              }}
+            />
 
             {/* Create Table Modal */}
-            {showCreateModal && (
-                <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4 backdrop-blur-md animate-[fadeIn_0.2s]">
-                    <div className="bg-monokai-bg border border-monokai-accent p-6 rounded shadow-2xl w-full max-w-md animate-[slideIn_0.2s_ease-out]">
-                        <h2 className="text-xl font-bold mb-4 text-monokai-green">Create New Table</h2>
-                        <input type="text" value={newTableName} onChange={(e) => setNewTableName(e.target.value)} placeholder="Table Name" className="w-full bg-monokai-surface border border-monokai-accent p-2 rounded mb-4 text-monokai-fg focus:border-monokai-green outline-none" />
-                        <div className="text-xs text-monokai-comment mb-6">Creates a table with a default <code>id INTEGER PRIMARY KEY</code> column.</div>
-                        <div className="flex justify-end gap-3">
-                            <button onClick={() => setShowCreateModal(false)} className="px-4 py-2 rounded text-sm text-monokai-fg hover:bg-monokai-accent">Cancel</button>
-                            <button onClick={handleCreateTable} className="px-4 py-2 bg-monokai-green text-monokai-bg font-bold rounded text-sm hover:opacity-90">Create</button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <CreateTableModal
+              isOpen={showCreateModal}
+              onClose={() => setShowCreateModal(false)}
+              onTableCreated={handleTableSelect}
+              onRefreshTables={refreshTables}
+              onNotify={addNotification}
+            />
 
             {/* Duplicate Table Modal */}
-            {showDuplicateModal && (
-                <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4 backdrop-blur-md animate-[fadeIn_0.2s]">
-                    <div className="bg-monokai-bg border border-monokai-accent p-6 rounded shadow-2xl w-full max-w-md animate-[slideIn_0.2s_ease-out]">
-                        <h2 className="text-xl font-bold mb-4 text-monokai-blue">Duplicate Table</h2>
-                        <p className="text-sm text-monokai-comment mb-2">Source: <span className="text-monokai-fg font-mono">{currentTable}</span></p>
-                        <input type="text" value={duplicateTargetName} onChange={(e) => setDuplicateTargetName(e.target.value)} placeholder="New Table Name" className="w-full bg-monokai-surface border border-monokai-accent p-2 rounded mb-6 text-monokai-fg focus:border-monokai-blue outline-none" />
-                        <div className="flex justify-end gap-3">
-                            <button onClick={() => setShowDuplicateModal(false)} className="px-4 py-2 rounded text-sm text-monokai-fg hover:bg-monokai-accent">Cancel</button>
-                            <button onClick={handleDuplicateTable} className="px-4 py-2 bg-monokai-blue text-monokai-bg font-bold rounded text-sm hover:opacity-90">Duplicate</button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <DuplicateTableModal
+              isOpen={showDuplicateModal}
+              onClose={() => setShowDuplicateModal(false)}
+              sourceTable={currentTable}
+              onTableCreated={handleTableSelect}
+              onRefreshTables={refreshTables}
+              onNotify={addNotification}
+            />
 
-            {/* Row Detail Modal */}
-            {expandedRow && (
-                <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4 backdrop-blur-md animate-[fadeIn_0.2s]" onClick={() => setExpandedRowIdx(null)}>
-                    <div className="bg-monokai-bg border border-monokai-accent p-6 rounded shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col relative animate-[slideIn_0.2s_ease-out]" onClick={e => e.stopPropagation()}>
-                        <div className="flex justify-between items-center mb-4 border-b border-monokai-accent pb-2">
-                            <h2 className="text-xl font-bold text-monokai-blue font-mono">Row Details</h2>
-                            <div className="flex items-center gap-2">
-                                <span className="text-xs text-monokai-comment font-mono mr-2">Row {expandedRowIdx! + 1}</span>
-                                <button
-                                    onClick={() => setExpandedRowIdx(Math.max(0, expandedRowIdx! - 1))}
-                                    disabled={expandedRowIdx === 0}
-                                    className="px-2 py-1 bg-monokai-surface hover:bg-monokai-comment text-monokai-fg rounded disabled:opacity-30 text-xs"
-                                >
-                                    ◀
-                                </button>
-                                <button
-                                    onClick={() => setExpandedRowIdx(Math.min(tableData.length - 1, expandedRowIdx! + 1))}
-                                    disabled={expandedRowIdx === tableData.length - 1}
-                                    className="px-2 py-1 bg-monokai-surface hover:bg-monokai-comment text-monokai-fg rounded disabled:opacity-30 text-xs"
-                                >
-                                    ▶
-                                </button>
-                                <button onClick={() => setExpandedRowIdx(null)} className="ml-4 text-monokai-pink hover:text-monokai-orange text-lg font-bold">✕</button>
-                            </div>
-                        </div>
-                        <div className="overflow-auto flex-1 font-mono text-sm">
-                            <table className="w-full">
-                                <tbody>
-                                    {Object.entries(expandedRow).map(([key, val]) => (
-                                        <tr key={key} className="border-b border-monokai-accent/30 hover:bg-monokai-surface/50">
-                                            <td className="p-3 text-monokai-comment w-1/3 align-top font-bold select-none">{key}</td>
-                                            <td className="p-3 text-monokai-fg break-all whitespace-pre-wrap selection:bg-monokai-pink selection:text-white">
-                                                {typeof val === 'object' && val !== null ? JSON.stringify(val, null, 2) : String(val)}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <RowDetailPanel
+              isOpen={expandedRowIdx !== null}
+              expandedRowIdx={expandedRowIdx}
+              tableData={tableData}
+              onClose={() => setExpandedRowIdx(null)}
+              onNavigatePrev={() => setExpandedRowIdx(Math.max(0, (expandedRowIdx ?? 0) - 1))}
+              onNavigateNext={() => setExpandedRowIdx(Math.min(tableData.length - 1, (expandedRowIdx ?? 0) + 1))}
+            />
 
 
-            {/* Settings Modal */}
-            {showSettingsModal && (
-                <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4 backdrop-blur-md animate-[fadeIn_0.2s]" onClick={() => setShowSettingsModal(false)}>
-                    <div className="bg-monokai-bg border border-monokai-accent p-6 rounded shadow-2xl w-full max-w-lg animate-[slideIn_0.2s_ease-out] flex flex-col max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-                        <h2 className="text-xl font-bold mb-4 text-monokai-yellow flex items-center gap-2"><span>⚙️</span> Workspace Settings</h2>
-
-                        <div className="space-y-6">
-                            {/* AI Configuration Section */}
-                            <div className="bg-monokai-bg p-4 rounded border border-monokai-accent">
-                                <h3 className="text-sm font-bold text-monokai-fg mb-2">🤖 AI Configuration</h3>
-                                <p className="text-xs text-monokai-comment mb-4">Configure your AI provider for SQL generation and schema analysis.</p>
-
-                                <div className="space-y-4">
-                                    {/* 1. Provider Selection */}
-                                    <div>
-                                        <label className="block text-xs font-medium text-monokai-comment mb-1">AI Provider</label>
-                                        <select
-                                            value={aiProvider}
-                                            onChange={(e) => {
-                                                const newProvider = e.target.value;
-                                                setAiProvider(newProvider);
-                                                localStorage.setItem('duckdb_ai_provider', newProvider);
-
-                                                // Set defaults if switching
-                                                let defaultModel = '';
-                                                let defaultBaseUrl = '';
-
-                                                if (newProvider === 'groq') {
-                                                    defaultModel = 'llama-3.3-70b-versatile';
-                                                    defaultBaseUrl = 'https://api.groq.com/openai/v1';
-                                                } else if (newProvider === 'google') {
-                                                    defaultModel = 'gemini-2.0-flash-exp';
-                                                }
-
-                                                if (defaultModel) {
-                                                    setAiModel(defaultModel);
-                                                    localStorage.setItem('duckdb_ai_model', defaultModel);
-                                                }
-                                                if (defaultBaseUrl) {
-                                                    setAiBaseUrl(defaultBaseUrl);
-                                                    localStorage.setItem('duckdb_ai_base_url', defaultBaseUrl);
-                                                }
-                                            }}
-                                            className="w-full px-3 py-2 bg-monokai-bg border border-monokai-accent rounded text-sm text-monokai-fg focus:outline-none focus:ring-1 focus:ring-monokai-blue"
-                                        >
-                                            <option value="google">Google Gemini (Default)</option>
-                                            <option value="groq">Groq (Fastest)</option>
-                                            <option value="openai">OpenAI / Compatible</option>
-                                        </select>
-                                    </div>
-
-                                    {/* 2. API Key */}
-                                    <div>
-                                        <label className="block text-xs font-medium text-monokai-comment mb-1">API Key</label>
-                                        <div className="flex gap-2">
-                                            <input
-                                                type="password"
-                                                value={aiApiKey}
-                                                onChange={(e) => setAiApiKey(e.target.value)}
-                                                placeholder={`Enter your ${aiProvider} API key...`}
-                                                className="flex-1 px-3 py-2 bg-monokai-sidebar border border-monokai-accent rounded text-sm text-monokai-fg placeholder-monokai-comment focus:outline-none focus:ring-1 focus:ring-monokai-blue"
-                                            />
-                                            <button
-                                                onClick={() => {
-                                                    localStorage.setItem('duckdb_ai_api_key', aiApiKey);
-                                                    addNotification('API key saved!', 'success');
-                                                }}
-                                                className="px-3 py-2 bg-monokai-blue hover:bg-monokai-blue/80 transition-colors text-white font-bold rounded text-sm"
-                                            >
-                                                Save
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    {/* 3. Base URL (Conditional) */}
-                                    <div>
-                                        <label className="block text-xs font-medium text-monokai-comment mb-1">
-                                            Base URL {aiProvider === 'google' ? '(Optional)' : '(Required for Custom/Groq)'}
-                                        </label>
-                                        <input
-                                            type="text"
-                                            value={aiBaseUrl}
-                                            onChange={(e) => {
-                                                setAiBaseUrl(e.target.value);
-                                                localStorage.setItem('duckdb_ai_base_url', e.target.value);
-                                            }}
-                                            placeholder={aiProvider === 'groq' ? 'https://api.groq.com/openai/v1' : 'https://api.openai.com/v1'}
-                                            className="w-full px-3 py-2 bg-monokai-sidebar border border-monokai-accent rounded text-sm text-monokai-fg placeholder-monokai-comment focus:outline-none focus:ring-1 focus:ring-monokai-blue"
-                                        />
-                                    </div>
-
-                                    {/* 4. Model Selection */}
-                                    <div>
-                                        <label className="block text-xs font-medium text-monokai-comment mb-1">AI Model</label>
-                                        <div className="flex gap-2">
-                                            <select
-                                                value={aiModel}
-                                                onChange={(e) => {
-                                                    setAiModel(e.target.value);
-                                                    localStorage.setItem('duckdb_ai_model', e.target.value);
-                                                }}
-                                                disabled={loadingModels}
-                                                className="flex-1 px-3 py-2 bg-monokai-sidebar border border-monokai-accent rounded text-sm text-monokai-fg appearance-none focus:outline-none focus:ring-1 focus:ring-monokai-blue disabled:opacity-50"
-                                            >
-                                                {availableModels.length === 0 && (
-                                                    <option value={aiModel}>{aiModel || 'Click Refresh to load models...'}</option>
-                                                )}
-                                                {availableModels.map(m => (
-                                                    <option key={m.id} value={m.id}>{m.name}</option>
-                                                ))}
-                                            </select>
-                                            <button
-                                                onClick={async () => {
-                                                    if (!aiApiKey.trim()) {
-                                                        addNotification('Please save your API key first.', 'error');
-                                                        return;
-                                                    }
-                                                    // Save key to localStorage immediately so aiService can use it
-                                                    localStorage.setItem('duckdb_ai_api_key', aiApiKey);
-                                                    localStorage.setItem('duckdb_ai_provider', aiProvider);
-                                                    if (aiBaseUrl) {
-                                                        localStorage.setItem('duckdb_ai_base_url', aiBaseUrl);
-                                                    }
-
-                                                    setLoadingModels(true);
-                                                    try {
-                                                        const models = await aiService.fetchAvailableModels();
-                                                        setAvailableModels(models);
-                                                        if (models.length > 0 && !models.find(m => m.id === aiModel)) {
-                                                            setAiModel(models[0].id);
-                                                            localStorage.setItem('duckdb_ai_model', models[0].id);
-                                                        }
-                                                        addNotification(`Loaded ${models.length} models`, 'success');
-                                                    } catch (err: any) {
-                                                        addNotification(`Failed to fetch models: ${err.message}`, 'error');
-                                                    } finally {
-                                                        setLoadingModels(false);
-                                                    }
-                                                }}
-                                                disabled={loadingModels || !aiApiKey.trim()}
-                                                className="px-3 py-2 bg-monokai-green hover:bg-monokai-green/80 transition-colors text-monokai-bg font-bold rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                                            >
-                                                {loadingModels ? '⏳' : '🔄'}
-                                            </button>
-                                        </div>
-                                        <p className="text-[10px] text-monokai-comment mt-1">
-                                            {availableModels.length > 0
-                                                ? `✓ ${availableModels.length} models available`
-                                                : 'Click 🔄 to fetch available models from your provider.'}
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Backup & Restore Section */}
-                            <div className="bg-monokai-bg p-4 rounded border border-monokai-accent">
-                                <h3 className="text-sm font-bold text-monokai-fg mb-2">Backup Workspace</h3>
-                                <p className="text-xs text-monokai-comment mb-3">Export your query history and saved queries to a JSON file.</p>
-                                <button onClick={handleExportWorkspace} className="w-full py-2 bg-monokai-accent hover:bg-monokai-blue hover:text-monokai-bg transition-colors text-monokai-blue font-bold rounded text-sm">
-                                    📤 Download Backup
-                                </button>
-                            </div>
-
-                            <div className="bg-monokai-bg p-4 rounded border border-monokai-accent">
-                                <h3 className="text-sm font-bold text-monokai-fg mb-2">Restore Workspace</h3>
-                                <p className="text-xs text-monokai-comment mb-3">Restore settings from a backup file. <strong className="text-monokai-pink">Warning: Overwrites history.</strong></p>
-                                <label className="block w-full py-2 bg-monokai-green/20 hover:bg-monokai-green/40 border border-monokai-green/50 hover:border-monokai-green transition-colors text-monokai-green font-bold rounded text-sm text-center cursor-pointer">
-                                    📥 Upload Backup File
-                                    <input type="file" accept=".json" onChange={handleImportWorkspace} className="hidden" />
-                                </label>
-                            </div>
-                        </div>
-
-                        <div className="flex justify-end mt-6">
-                            <button onClick={() => setShowSettingsModal(false)} className="px-4 py-2 rounded text-sm bg-monokai-accent hover:text-white">Close</button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <SettingsModal
+              isOpen={showSettingsModal}
+              onClose={() => setShowSettingsModal(false)}
+              aiProvider={aiProvider}
+              aiApiKey={aiApiKey}
+              aiBaseUrl={aiBaseUrl}
+              aiModel={aiModel}
+              availableModels={availableModels}
+              loadingModels={loadingModels}
+              onSetAiProvider={setAiProvider}
+              onSetAiApiKey={setAiApiKey}
+              onSetAiBaseUrl={setAiBaseUrl}
+              onSetAiModel={setAiModel}
+              onSetAvailableModels={setAvailableModels}
+              onSetLoadingModels={setLoadingModels}
+              onNotify={addNotification}
+              onExportWorkspace={handleExportWorkspace}
+              onImportWorkspace={handleImportWorkspace}
+            />
 
             {/* Import Wizard Modal */}
-            {showImportModal && (
-                <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4 backdrop-blur-md animate-[fadeIn_0.2s]">
-                    <div className="bg-monokai-bg border border-monokai-accent p-5 rounded-lg shadow-2xl w-full max-w-lg animate-[slideIn_0.2s_ease-out] flex flex-col max-h-[90vh]">
-                        <h2 className="text-lg font-bold mb-3 text-monokai-fg flex items-center gap-2"><span>📥</span> Import Wizard</h2>
-
-                        <div className="flex mb-4 border-b border-monokai-accent shrink-0">
-                            <button
-                                className={`flex-1 py-2 text-sm font-bold transition-colors flex items-center justify-center gap-2 ${importMode === 'local' ? 'text-monokai-orange border-b-2 border-monokai-orange bg-monokai-accent/20' : 'text-monokai-comment hover:text-monokai-fg'}`}
-                                onClick={() => setImportMode('local')}
-                            >
-                                <span>📁</span> Local File
-                            </button>
-                            <button
-                                className={`flex-1 py-2 text-sm font-bold transition-colors flex items-center justify-center gap-2 ${importMode === 'url' ? 'text-monokai-blue border-b-2 border-monokai-blue bg-monokai-accent/20' : 'text-monokai-comment hover:text-monokai-fg'}`}
-                                onClick={() => setImportMode('url')}
-                            >
-                                <span>🔗</span> From URL
-                            </button>
-                            <button
-                                className={`flex-1 py-2 text-sm font-bold transition-colors flex items-center justify-center gap-2 ${importMode === 'paste' ? 'text-monokai-green border-b-2 border-monokai-green bg-monokai-accent/20' : 'text-monokai-comment hover:text-monokai-fg'}`}
-                                onClick={() => setImportMode('paste')}
-                            >
-                                <span>📋</span> Paste Text
-                            </button>
-                        </div>
-
-                        <div className="overflow-y-auto flex-1">
-                            <div className="mb-3">
-                                <label className="block text-xs text-monokai-comment mb-1">📋 Target Table Name</label>
-                                <input value={importTableName} onChange={(e) => setImportTableName(e.target.value)} className="w-full bg-monokai-surface border border-monokai-accent p-2 rounded text-sm text-monokai-fg focus:border-monokai-orange outline-none" placeholder="e.g., my_table" />
-                            </div>
-
-                            {importMode === 'url' && (
-                                <div className="mb-3">
-                                    {!importUrl && (
-                                        <div className="mb-3">
-                                            <label className="block text-xs text-monokai-comment mb-2">🚀 Quick Presets (Public Data)</label>
-                                            <div className="flex gap-2 flex-wrap">
-                                                <button onClick={() => applyPreset('titanic', 'https://raw.githubusercontent.com/datasciencedojo/datasets/master/titanic.csv')} className="px-2 py-1 text-xs bg-monokai-accent rounded hover:bg-monokai-blue hover:text-monokai-bg transition-colors">🚢 Titanic</button>
-                                                <button onClick={() => applyPreset('iris', 'https://raw.githubusercontent.com/mwaskom/seaborn-data/master/iris.csv')} className="px-2 py-1 text-xs bg-monokai-accent rounded hover:bg-monokai-green hover:text-monokai-bg transition-colors">🌸 Iris</button>
-                                                <button onClick={() => applyPreset('tips', 'https://raw.githubusercontent.com/mwaskom/seaborn-data/master/tips.csv')} className="px-2 py-1 text-xs bg-monokai-accent rounded hover:bg-monokai-yellow hover:text-monokai-bg transition-colors">💰 Tips</button>
-                                            </div>
-                                        </div>
-                                    )}
-                                    <label className="block text-xs text-monokai-comment mb-1">🔗 File URL (CSV/Parquet)</label>
-                                    <input
-                                        value={importUrl}
-                                        onChange={(e) => setImportUrl(e.target.value)}
-                                        placeholder="https://raw.githubusercontent.com/..."
-                                        className="w-full bg-monokai-surface border border-monokai-accent p-2 rounded text-sm text-monokai-fg focus:border-monokai-blue outline-none"
-                                    />
-                                    <div className="text-[10px] text-monokai-comment mt-1">Note: Server must support CORS (Cross-Origin Resource Sharing).</div>
-                                </div>
-                            )}
-
-                            {importMode === 'local' && (
-                                <div className="mb-3">
-                                    <label className="block w-full py-6 px-4 border-2 border-dashed border-monokai-accent rounded text-center cursor-pointer hover:border-monokai-orange hover:bg-monokai-accent/20 transition-all">
-                                        <div className="text-xl mb-2 text-monokai-comment">📄</div>
-                                        <div className="text-sm font-bold text-monokai-fg">{importFile ? importFile.name : 'Click to select a file'}</div>
-                                        <div className="text-xs text-monokai-comment mt-1">Supports CSV, JSON, Parquet</div>
-                                        <input type="file" className="hidden" onChange={handleFileSelect} accept=".csv,.json,.parquet,.txt" />
-                                    </label>
-                                </div>
-                            )}
-
-                            {importMode === 'paste' && (
-                                <div className="mb-3 h-40">
-                                    <label className="block text-xs text-monokai-comment mb-1">📝 Paste CSV/TSV Data</label>
-                                    <textarea
-                                        value={importText}
-                                        onChange={(e) => setImportText(e.target.value)}
-                                        className="w-full h-full bg-monokai-surface border border-monokai-accent p-2 rounded text-xs font-mono text-monokai-fg outline-none resize-none focus:border-monokai-green"
-                                        placeholder={`id,name,value\n1,Alice,100\n2,Bob,200`}
-                                    />
-                                </div>
-                            )}
-
-                            {((importMode === 'local' && (importFile?.name.endsWith('.csv') || importFile?.name.endsWith('.txt'))) || importMode === 'paste') ? (
-                                <div className="grid grid-cols-2 gap-3 mb-2 p-3 bg-monokai-surface border border-monokai-accent rounded">
-                                    <div className="col-span-2 text-xs font-bold text-monokai-blue uppercase tracking-wider mb-1">⚙️ CSV Options (Auto-detected if empty)</div>
-                                    <label className="flex items-center gap-2 cursor-pointer col-span-2">
-                                        <input type="checkbox" checked={importOptions.header} onChange={e => setImportOptions({ ...importOptions, header: e.target.checked })} />
-                                        <span className="text-sm text-monokai-fg">File has Header</span>
-                                    </label>
-                                </div>
-                            ) : null}
-                        </div>
-
-                        <div className="flex justify-end gap-3 mt-3 pt-3 border-t border-monokai-accent">
-                            <button onClick={() => { setShowImportModal(false); setImportFile(null); }} className="px-4 py-1.5 rounded text-xs text-monokai-fg hover:bg-monokai-accent">Cancel</button>
-                            <button onClick={executeImport} className="px-4 py-1.5 bg-monokai-green text-monokai-bg font-bold rounded text-xs hover:opacity-90">Import Data</button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <ImportWizard
+              isOpen={showImportModal}
+              onClose={() => setShowImportModal(false)}
+              onImportComplete={() => {}}
+              onRefreshTables={refreshTables}
+              onNotify={addNotification}
+            />
 
             {/* Toast Notifications */}
             <div className="fixed bottom-10 right-4 z-50 flex flex-col gap-2 pointer-events-none">
@@ -1286,7 +699,7 @@ const App: React.FC = () => {
                                         <span>⚡</span> Data I/O
                                     </h3>
                                     <div className="grid grid-cols-2 gap-2">
-                                        <button onClick={openImportWizard} className="flex flex-col items-center justify-center gap-1 py-3 px-2 border border-dashed border-monokai-blue/40 rounded-lg text-xs text-monokai-blue hover:bg-monokai-blue/15 hover:border-monokai-blue transition-all">
+                                        <button onClick={() => setShowImportModal(true)} className="flex flex-col items-center justify-center gap-1 py-3 px-2 border border-dashed border-monokai-blue/40 rounded-lg text-xs text-monokai-blue hover:bg-monokai-blue/15 hover:border-monokai-blue transition-all">
                                             <span className="text-xl">📥</span> Import
                                         </button>
                                         <button onClick={() => setShowExportModal(true)} className="flex flex-col items-center justify-center gap-1 py-3 px-2 border border-dashed border-monokai-orange/40 rounded-lg text-xs text-monokai-orange hover:bg-monokai-orange/15 hover:border-monokai-orange transition-all">
@@ -1313,7 +726,7 @@ const App: React.FC = () => {
                         {isSidebarCollapsed && (
                             <div className="flex flex-col gap-3 items-center mt-2">
                                 <button onClick={() => setShowCreateModal(true)} className="text-monokai-green text-xl hover:scale-110 transition-transform" title="Create Table">+</button>
-                                <button onClick={openImportWizard} className="text-monokai-blue text-xl hover:scale-110 transition-transform" title="Import Data">📥</button>
+                                <button onClick={() => setShowImportModal(true)} className="text-monokai-blue text-xl hover:scale-110 transition-transform" title="Import Data">📥</button>
                                 <button onClick={() => setShowExportModal(true)} className="text-monokai-orange text-xl hover:scale-110 transition-transform" title="Export DB">📤</button>
                             </div>
                         )}
@@ -1368,7 +781,7 @@ const App: React.FC = () => {
                         {/* Secondary Tabs */}
                         <div className="flex items-center gap-1">
                             {[
-                                { id: Tab.SCHEMA_GENERATOR, label: 'AI Schema', icon: '🤖' },
+                                { id: Tab.ANALYSIS_HUB, label: 'Analysis Hub', icon: '🤖' },
                                 { id: Tab.METRICS, label: 'Metrics', icon: '📈' },
                                 { id: Tab.AUDIT, label: 'Logs', icon: '📜' },
                             ].map(tab => (
@@ -1411,14 +824,14 @@ const App: React.FC = () => {
                             {/* AI Skills as a capability */}
                             <button
                                 onClick={() => setActiveTab(Tab.AI_SKILLS)}
-                                className={`h-9 px-3 flex items-center gap-2 text-sm font-medium transition-all rounded-md relative ${activeTab === Tab.AI_SKILLS ? 'bg-monokai-bg text-monokai-fg' : 'text-monokai-purple hover:text-monokai-fg hover:bg-monokai-purple/20'}`}
+                                className={`h-9 px-3 flex items-center gap-2 text-sm font-medium transition-all rounded-md relative font-sans ${activeTab === Tab.AI_SKILLS ? 'bg-monokai-bg text-monokai-fg' : 'text-monokai-purple hover:text-monokai-fg hover:bg-monokai-purple/20'}`}
                             >
                                 <span>⚡</span> AI Skills
                             </button>
                             {/* Library as a capability */}
                             <button
                                 onClick={() => setActiveTab(Tab.LIBRARY)}
-                                className={`h-9 px-3 flex items-center gap-2 text-sm font-medium transition-all rounded-md relative ${activeTab === Tab.LIBRARY ? 'bg-monokai-bg text-monokai-fg' : 'text-monokai-blue hover:text-monokai-fg hover:bg-monokai-blue/20'}`}
+                                className={`h-9 px-3 flex items-center gap-2 text-sm font-medium transition-all rounded-md relative font-sans ${activeTab === Tab.LIBRARY ? 'bg-monokai-bg text-monokai-fg' : 'text-monokai-blue hover:text-monokai-fg hover:bg-monokai-blue/20'}`}
                             >
                                 <span>📚</span> Library
                             </button>
@@ -1428,13 +841,6 @@ const App: React.FC = () => {
                                 className={`h-9 px-3 flex items-center gap-2 text-sm font-medium transition-all rounded-md relative ${activeTab === Tab.ONTOLOGY ? 'bg-monokai-bg text-monokai-fg' : 'text-monokai-purple hover:text-monokai-fg hover:bg-monokai-purple/20'}`}
                             >
                                 <span>🕸️</span> Ontology
-                            </button>
-                            {/* Abstraction as a capability */}
-                            <button
-                                onClick={() => setActiveTab(Tab.ABSTRACTION)}
-                                className={`h-9 px-3 flex items-center gap-2 text-sm font-medium transition-all rounded-md relative ${activeTab === Tab.ABSTRACTION ? 'bg-monokai-bg text-monokai-fg' : 'text-monokai-cyan hover:text-monokai-fg hover:bg-monokai-cyan/20'}`}
-                            >
-                                <span>🗂️</span> Abstraction
                             </button>
                         </div>
 
@@ -1447,303 +853,75 @@ const App: React.FC = () => {
 
                         {/* DATA TAB */}
                         <div className={activeTab === Tab.DATA ? 'block h-full' : 'hidden'}>
-                            {currentTable ? (
-                                <div className="h-full flex flex-col">
-                                    <div className="p-2 bg-monokai-bg border-b border-monokai-accent shrink-0 flex flex-col gap-2">
-                                        <div className="flex justify-between items-center">
-                                            <div className="flex items-center gap-4">
-                                                <h2 className="text-lg font-mono text-monokai-yellow font-bold px-2">{currentTable}</h2>
-                                                <div className="flex bg-monokai-surface rounded overflow-hidden border border-monokai-accent">
-                                                    <button onClick={() => setDataViewMode('grid')} className={`px-3 py-1 flex items-center gap-1.5 text-xs font-bold transition-colors ${dataViewMode === 'grid' ? 'bg-monokai-accent text-monokai-fg' : 'text-monokai-comment hover:text-monokai-fg'}`}><TableIcon size={12} /> Grid</button>
-                                                    <button onClick={() => { setDataViewMode('profile'); if (currentTable) fetchProfileData(currentTable); }} className={`px-3 py-1 flex items-center gap-1.5 text-xs font-bold transition-colors ${dataViewMode === 'profile' ? 'bg-monokai-accent text-monokai-orange' : 'text-monokai-comment hover:text-monokai-orange'}`}><LayoutDashboard size={12} /> Profile</button>
-                                                </div>
-                                                {selectedRows.size > 0 && dataViewMode === 'grid' && (
-                                                    <button onClick={handleBulkDelete} className="text-xs flex items-center gap-1.5 bg-monokai-pink text-monokai-fg px-3 py-1 rounded font-bold animate-pulse hover:opacity-90"><Trash2 size={12} /> Delete {selectedRows.size} Selected</button>
-                                                )}
-                                            </div>
-                                            <div className="flex items-center gap-4">
-                                                <div className="relative">
-                                                    <button onClick={() => setShowColMenu(!showColMenu)} className="text-xs bg-monokai-accent hover:bg-monokai-comment px-3 py-1 rounded border border-transparent hover:border-monokai-comment transition-colors flex items-center gap-1.5 text-monokai-fg">
-                                                        <Columns size={12} /> Columns
-                                                    </button>
-                                                    {showColMenu && (
-                                                        <div className="absolute right-0 top-full mt-1 bg-monokai-bg border border-monokai-accent p-2 rounded shadow-xl z-30 max-h-60 overflow-y-auto min-w-[150px]">
-                                                            {tableColumns.map(col => (
-                                                                <label key={col} className="flex items-center gap-2 p-1 hover:bg-monokai-accent/50 cursor-pointer text-xs">
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        checked={!hiddenColumns.has(col)}
-                                                                        onChange={() => toggleColumnVisibility(col)}
-                                                                    />
-                                                                    <span className={hiddenColumns.has(col) ? 'opacity-50 text-monokai-comment' : 'text-monokai-fg'}>{col}</span>
-                                                                </label>
-                                                            ))}
-                                                            <div className="border-t border-monokai-accent mt-2 pt-2 flex justify-center">
-                                                                <button onClick={() => setHiddenColumns(new Set())} className="text-[10px] text-monokai-blue hover:underline">Reset All</button>
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                    {showColMenu && <div className="fixed inset-0 z-20" onClick={() => setShowColMenu(false)} />}
-                                                </div>
-                                                <div className="flex gap-1 mr-4">
-                                                    <button onClick={() => downloadData('csv')} className="text-xs flex items-center gap-1 bg-monokai-accent hover:bg-monokai-blue hover:text-monokai-bg px-2 py-1 rounded transition-colors text-monokai-fg" title="Export as CSV"><FileText size={10} /> CSV</button>
-                                                    <button onClick={() => downloadData('json')} className="text-xs flex items-center gap-1 bg-monokai-accent hover:bg-monokai-yellow hover:text-monokai-bg px-2 py-1 rounded transition-colors text-monokai-fg" title="Export as JSON"><Code size={10} /> JSON</button>
-                                                    <button onClick={() => downloadData('parquet')} className="text-xs flex items-center gap-1 bg-monokai-accent hover:bg-monokai-orange hover:text-monokai-bg px-2 py-1 rounded text-monokai-orange transition-colors" title="Export as Parquet"><Database size={10} /> Parquet</button>
-                                                </div>
-                                                {pkColumn && <button onClick={handleInsertRow} className="text-xs flex items-center gap-1 bg-monokai-green text-monokai-bg px-3 py-1 rounded font-bold hover:opacity-90"><ListPlus size={12} /> Insert Row</button>}
-                                            </div>
-                                        </div>
-                                        {dataViewMode === 'grid' && (
-                                            <div className="flex gap-2 items-center">
-                                                <span className="text-xs font-bold text-monokai-blue flex items-center gap-1"><Filter size={12} /> WHERE</span>
-                                                <input className="flex-1 bg-monokai-surface border border-monokai-accent text-xs p-1.5 rounded text-monokai-fg font-mono outline-none focus:border-monokai-blue" placeholder="id > 5 AND status = 'active'..." value={filterQuery} onChange={(e) => setFilterQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleApplyFilter()} />
-                                                <button onClick={handleApplyFilter} className="px-3 py-1 flex items-center gap-1 bg-monokai-accent hover:bg-monokai-comment text-xs rounded transition-colors text-monokai-fg"><Check size={12} /> Apply Filter</button>
-                                                {filterQuery && <button onClick={() => { setFilterQuery(''); setTimeout(() => fetchTableData(currentTable!, 0, pagination.limit, sortConfig, ''), 0); }} className="text-monokai-comment hover:text-monokai-pink transition-colors"><X size={14} /></button>}
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div className="flex-1 overflow-auto bg-monokai-bg">
-                                        {loadingData ? (
-                                            <div className="h-full flex items-center justify-center text-monokai-comment flex-col gap-2">
-                                                <RefreshCw size={32} className="text-monokai-blue animate-spin mb-4" />
-                                                <div className="animate-pulse">Loading data...</div>
-                                            </div>
-                                        ) : dataViewMode === 'profile' ? (
-                                            <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                                                {profileData.map((col: any) => {
-                                                    const nullPct = parseFloat(col.null_percentage) || 0;
-                                                    const validPct = 100 - nullPct;
-                                                    return (
-                                                        <div key={col.column_name} className="bg-monokai-bg border border-monokai-accent rounded-lg p-5 shadow-lg hover:border-monokai-blue transition-all group flex flex-col hover:shadow-[0_0_15px_rgba(102,217,239,0.1)]">
-                                                            <div className="flex justify-between items-start mb-3">
-                                                                <h3 className="text-lg font-mono font-bold text-monokai-fg truncate max-w-[70%]" title={col.column_name}>{col.column_name}</h3>
-                                                                <span className="text-[10px] font-mono bg-monokai-surface border border-monokai-accent/50 px-2 py-0.5 rounded text-monokai-orange uppercase tracking-wider flex items-center gap-1">
-                                                                    {getTypeIcon(col.column_type)} {col.column_type}
-                                                                </span>
-                                                            </div>
-
-                                                            <div className="space-y-3 mb-4 flex-1">
-                                                                {/* Distribution Bar */}
-                                                                <div>
-                                                                    <div className="flex justify-between text-[10px] text-monokai-comment mb-1">
-                                                                        <span>Valid</span>
-                                                                        <span>Nulls</span>
-                                                                    </div>
-                                                                    <div className="w-full h-2 bg-monokai-bg rounded-full overflow-hidden flex">
-                                                                        <div className="bg-monokai-green h-full" style={{ width: `${validPct}%` }} title={`Valid: ${validPct.toFixed(1)}%`}></div>
-                                                                        <div className="bg-monokai-orange h-full" style={{ width: `${nullPct}%` }} title={`Nulls: ${nullPct.toFixed(1)}%`}></div>
-                                                                    </div>
-                                                                </div>
-
-                                                                <div className="grid grid-cols-2 gap-4 text-xs">
-                                                                    <div>
-                                                                        <div className="text-monokai-comment text-[10px] uppercase">Unique</div>
-                                                                        <div className="font-mono text-monokai-purple">{col.approx_unique}</div>
-                                                                    </div>
-                                                                    <div className="text-right">
-                                                                        <div className="text-monokai-comment text-[10px] uppercase">Nulls</div>
-                                                                        <div className="font-mono text-monokai-orange">{nullPct.toFixed(1)}%</div>
-                                                                    </div>
-                                                                </div>
-
-                                                                {col.min !== null && (
-                                                                    <div className="bg-monokai-bg p-2 rounded text-[10px] font-mono border border-monokai-accent/50">
-                                                                        <div className="flex justify-between mb-1">
-                                                                            <span className="text-monokai-comment">Min</span>
-                                                                            <span className="text-monokai-fg truncate max-w-[100px]" title={String(col.min)}>{String(col.min)}</span>
-                                                                        </div>
-                                                                        <div className="flex justify-between">
-                                                                            <span className="text-monokai-comment">Max</span>
-                                                                            <span className="text-monokai-fg truncate max-w-[100px]" title={String(col.max)}>{String(col.max)}</span>
-                                                                        </div>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    )
-                                                })}
-                                                {profileData.length === 0 && <div className="col-span-full text-center text-monokai-comment py-10">No profile data available.</div>}
-                                            </div>
-                                        ) : (
-                                            <table className="w-full text-left text-xs whitespace-nowrap border-collapse">
-                                                <thead className="bg-monokai-surface border-b border-monokai-accent sticky top-0 z-10 shadow-sm">
-                                                    <tr>
-                                                        <th className="p-1.5 w-10 border-b border-monokai-comment bg-monokai-surface text-center left-0 sticky z-20">
-                                                            {pkColumn && <input type="checkbox" className="cursor-pointer" onChange={(e) => handleSelectAll(e.target.checked)} checked={tableData.length > 0 && tableData.every(r => selectedRows.has(r[pkColumn.name]))} />}
-                                                        </th>
-                                                        <th className="p-1.5 w-10 border-b border-monokai-comment bg-monokai-surface z-10"></th>
-                                                        {visibleColumns.map((col, idx) => {
-                                                            const colInfo = schema.find(s => s.name === col);
-                                                            const isSticky = idx === 0 && pkColumn?.name === col;
-                                                            return <th key={col} className={`p-2 font-mono text-xs text-monokai-blue font-bold border-b border-monokai-comment border-r border-monokai-comment/30 cursor-pointer hover:bg-monokai-comment/20 select-none group ${isSticky ? 'sticky left-20 z-20 bg-monokai-surface shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)]' : ''}`} onClick={() => handleSort(col)}>
-                                                                <div className="flex items-center gap-2"><span>{col}</span>{colInfo && <span className="text-[10px] text-monokai-comment px-1 rounded bg-monokai-bg border border-monokai-accent/50 flex items-center gap-1" title={colInfo.type}>{getTypeIcon(colInfo.type)}</span>}{sortConfig?.key === col && <span className="text-monokai-pink flex items-center">{sortConfig.direction === 'ASC' ? <ArrowUp size={12} /> : <ArrowDown size={12} />}</span>}</div>
-                                                            </th>
-                                                        })}
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="font-mono">
-                                                    {tableData.map((row, rowIdx) => {
-                                                        const pkVal = pkColumn ? row[pkColumn.name] : null;
-                                                        const isSelected = pkVal !== null && selectedRows.has(pkVal);
-                                                        return <tr key={rowIdx} className={`border-b border-monokai-accent/50 group odd:bg-monokai-bg even:bg-monokai-sidebar/30 hover:bg-monokai-surface/50 ${isSelected ? 'bg-monokai-accent/40' : ''}`}>
-                                                            <td className="p-1 text-center border-r border-monokai-accent/30 sticky left-0 z-10 bg-inherit">
-                                                                {pkColumn && <input type="checkbox" checked={isSelected} onChange={(e) => handleSelectRow(pkVal, e.target.checked)} className="cursor-pointer" />}
-                                                            </td>
-                                                            <td className="p-1 text-center border-r border-monokai-accent/30">
-                                                                <button onClick={() => setExpandedRowIdx(rowIdx)} className="text-xs text-monokai-comment hover:text-monokai-blue opacity-50 hover:opacity-100 transition-opacity"><Maximize size={12} /></button>
-                                                            </td>
-                                                            {visibleColumns.map((col, idx) => {
-                                                                const isEditing = editingCell?.rowIdx === rowIdx && editingCell?.col === col;
-                                                                const cellValue = row[col];
-                                                                const colInfo = schema.find(s => s.name === col);
-                                                                const isNum = colInfo?.type.includes('INT') || colInfo?.type.includes('FLOAT') || colInfo?.type.includes('DOUBLE');
-                                                                const isNull = cellValue === null;
-                                                                const isSticky = idx === 0 && pkColumn?.name === col;
-                                                                // Helper for object display
-                                                                const displayVal = (typeof cellValue === 'object' && cellValue !== null) ? (Array.isArray(cellValue) ? '[List]' : '{Struct}') : String(cellValue);
-
-                                                                return <td key={`${rowIdx}-${col}`} className={`p-2 border-r border-monokai-accent/30 text-xs text-monokai-fg cursor-text min-w-[80px] max-w-[250px] truncate ${isNull ? 'italic text-monokai-comment/50' : 'opacity-90'} ${isSticky ? 'sticky left-20 z-10 bg-inherit shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)]' : ''}`} onDoubleClick={() => handleCellEdit(rowIdx, col, cellValue)} title={String(cellValue)}>
-                                                                    {isEditing ? <input autoFocus type={isNum ? 'number' : 'text'} value={editingCell.val} onChange={(e) => setEditingCell({ ...editingCell, val: isNum ? e.target.valueAsNumber : e.target.value })} onBlur={saveCellEdit} onKeyDown={(e) => { if (e.key === 'Enter') saveCellEdit(); if (e.key === 'Escape') setEditingCell(null); }} className="w-full bg-monokai-bg border border-monokai-blue px-1 py-0.5 outline-none text-monokai-fg" /> : (isNull ? 'NULL' : displayVal)}
-                                                                </td>
-                                                            })}
-                                                        </tr>
-                                                    })}
-                                                </tbody>
-                                            </table>
-                                        )}
-                                    </div>
-                                    {dataViewMode === 'grid' && (
-                                        <div className="p-2 border-t border-monokai-accent bg-monokai-sidebar flex justify-between items-center text-xs text-monokai-comment">
-                                            <span>{pagination.total} records found</span>
-                                            <div className="flex items-center gap-2">
-                                                <button onClick={() => handlePageChange(pagination.offset - pagination.limit)} disabled={pagination.offset === 0} className="px-2 py-1 flex items-center gap-1 bg-monokai-accent rounded disabled:opacity-30 hover:bg-monokai-comment transition-colors text-monokai-fg"><ChevronLeft size={14} /> Prev</button>
-                                                <span className="font-mono min-w-[80px] text-center text-monokai-fg">{pagination.offset + 1} - {Math.min(pagination.offset + pagination.limit, pagination.total)}</span>
-                                                <button onClick={() => handlePageChange(pagination.offset + pagination.limit)} disabled={pagination.offset + pagination.limit >= pagination.total} className="px-2 py-1 flex items-center gap-1 bg-monokai-accent rounded disabled:opacity-30 hover:bg-monokai-comment transition-colors text-monokai-fg">Next <ChevronRight size={14} /></button>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            ) : (
-                                <div className="h-full flex items-center justify-center text-monokai-comment flex-col bg-monokai-bg">
-                                    <div className="text-center opacity-50"><MousePointerClick size={48} className="mx-auto mb-4 animate-bounce" /><p>Select a table to browse data</p></div>
-                                </div>
-                            )}
+                            <DataTab
+                                currentTable={currentTable}
+                                tableData={tableData}
+                                tableColumns={tableColumns}
+                                schema={schema}
+                                hiddenColumns={hiddenColumns}
+                                loadingData={loadingData}
+                                pagination={pagination}
+                                sortConfig={sortConfig}
+                                filterQuery={filterQuery}
+                                selectedRows={selectedRows}
+                                dataViewMode={dataViewMode}
+                                profileData={profileData}
+                                editingCell={editingCell}
+                                showColMenu={showColMenu}
+                                pkColumn={pkColumn}
+                                expandedRowIdx={expandedRowIdx}
+                                onToggleColumnVisibility={toggleColumnVisibility}
+                                onSetShowColMenu={setShowColMenu}
+                                onSetHiddenColumns={setHiddenColumns}
+                                onSetDataViewMode={setDataViewMode}
+                                onFetchProfileData={fetchProfileData}
+                                onFetchTableData={fetchTableData}
+                                onSetFilterQuery={setFilterQuery}
+                                onSetEditingCell={setEditingCell}
+                                onSaveCellEdit={saveCellEdit}
+                                onHandleSelectRow={handleSelectRow}
+                                onHandleSelectAll={handleSelectAll}
+                                onHandleBulkDelete={handleBulkDelete}
+                                onHandlePageChange={handlePageChange}
+                                onHandleSort={handleSort}
+                                onHandleApplyFilter={handleApplyFilter}
+                                onDownloadData={downloadData}
+                                onHandleInsertRow={handleInsertRow}
+                                onSetExpandedRowIdx={setExpandedRowIdx}
+                                onAddNotification={addNotification}
+                            />
                         </div>
 
-                        {/* STRUCTURE TAB */}
                         <div className={activeTab === Tab.STRUCTURE ? 'block h-full' : 'hidden'}>
-                            {activeTab === Tab.STRUCTURE && tables.length === 0 ? (
-                                <div className="h-full flex items-center justify-center text-monokai-comment flex-col">
-                                    <div className="text-4xl mb-4">📐</div>
-                                    <div>No tables found. Import or create a table to view schema.</div>
-                                </div>
-                            ) : (
-                                <div className="h-full flex flex-col bg-monokai-bg relative">
-                                    {/* Header / Controls */}
-                                    <div className="p-4 border-b border-monokai-accent flex justify-between items-center shrink-0 z-10 bg-monokai-bg/80 backdrop-blur-sm">
-                                        <div className="flex items-center gap-4">
-                                            <h2 className="text-xl font-bold text-monokai-fg flex gap-2 items-center">
-                                                <span className="text-monokai-purple">📐</span> Schema Architecture
-                                            </h2>
-                                            <div className="flex bg-monokai-sidebar rounded p-0.5 border border-monokai-accent">
-                                                <button onClick={() => setStructureViewMode('list')} className={`px-3 py-1 text-xs font-bold rounded transition-colors ${structureViewMode === 'list' ? 'bg-monokai-accent text-white' : 'text-monokai-comment hover:text-white'}`}>List View</button>
-                                                <button onClick={() => setStructureViewMode('graph')} className={`px-3 py-1 text-xs font-bold rounded transition-colors ${structureViewMode === 'graph' ? 'bg-monokai-accent text-monokai-blue' : 'text-monokai-comment hover:text-monokai-blue'}`}>ER Diagram</button>
-                                            </div>
-                                        </div>
-                                        {currentTable && structureViewMode === 'list' && (
-                                            <div className="flex gap-2">
-                                                <button onClick={() => { setDuplicateTargetName(`${currentTable}_copy`); setShowDuplicateModal(true); }} className="text-xs bg-monokai-blue/10 text-monokai-blue hover:bg-monokai-blue hover:text-monokai-bg px-3 py-1.5 rounded font-bold transition-colors border border-monokai-blue">Duplicate Table</button>
-                                                <button onClick={handleDropTable} className="text-xs bg-monokai-pink/10 text-monokai-pink hover:bg-monokai-pink hover:text-white px-3 py-1.5 rounded font-bold transition-colors border border-monokai-pink">Drop Table</button>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    <div className="flex-1 overflow-hidden relative">
-                                        {structureViewMode === 'graph' ? (
-                                            renderSchemaGraph()
-                                        ) : (
-                                            // LIST VIEW (Existing Logic)
-                                            currentTable ? (
-                                                <div className="h-full p-6 overflow-auto">
-                                                    <div className="flex items-center gap-2 mb-6">
-                                                        {isRenaming ? (
-                                                            <input autoFocus className="bg-monokai-bg border border-monokai-blue text-monokai-fg text-2xl font-bold px-2 py-1 rounded outline-none" value={renameTableName} onChange={e => setRenameTableName(e.target.value)} onBlur={() => setIsRenaming(false)} onKeyDown={e => { if (e.key === 'Enter') handleRenameTable(); if (e.key === 'Escape') setIsRenaming(false); }} />
-                                                        ) : (
-                                                            <span className="text-2xl font-bold text-monokai-fg cursor-pointer hover:underline decoration-dashed decoration-monokai-comment" onClick={() => { setRenameTableName(currentTable); setIsRenaming(true); }} title="Click to Rename">{currentTable}</span>
-                                                        )}
-                                                    </div>
-
-                                                    <div className="flex gap-6 items-start flex-col xl:flex-row">
-                                                        <div className="bg-monokai-sidebar border border-monokai-accent rounded flex-1 w-full flex flex-col shadow-lg">
-                                                            <table className="w-full text-left">
-                                                                <thead className="bg-monokai-surface border-b border-monokai-accent/50 text-xs uppercase tracking-wider">
-                                                                    <tr>
-                                                                        <th className="p-3 text-monokai-blue font-mono">Column</th><th className="p-3 text-monokai-orange font-mono">Type</th><th className="p-3 text-monokai-pink font-mono">Constraints</th><th className="p-3 text-monokai-green font-mono text-right">Action</th>
-                                                                    </tr>
-                                                                </thead>
-                                                                <tbody className="text-sm bg-[#030303]">
-                                                                    {schema.map(col => {
-                                                                        const isEditing = editColumnMode?.colName === col.name;
-                                                                        return <tr key={col.name} className="border-b border-monokai-accent/50 hover:bg-monokai-accent/20 transition-colors">
-                                                                            <td className="p-3 font-mono font-bold text-monokai-fg">{isEditing ? <input value={editColumnMode.newName} onChange={e => setEditColumnMode({ ...editColumnMode, newName: e.target.value })} className="bg-monokai-bg border border-monokai-blue px-2 py-1 rounded w-full outline-none text-white" /> : col.name}</td>
-                                                                            <td className="p-3 font-mono text-monokai-comment">
-                                                                                {isEditing ?
-                                                                                    <select value={editColumnMode.newType} onChange={e => setEditColumnMode({ ...editColumnMode, newType: e.target.value })} className="bg-monokai-bg border border-monokai-blue px-2 py-1 rounded w-full outline-none text-white">{['VARCHAR', 'INTEGER', 'BOOLEAN', 'FLOAT', 'DOUBLE', 'DATE', 'TIMESTAMP', 'JSON', 'BLOB'].map(t => <option key={t} value={t}>{t}</option>)}</select>
-                                                                                    : <span className="flex items-center gap-2 px-2 py-1 bg-monokai-bg rounded w-fit border border-monokai-accent/30">{getTypeIcon(col.type)} {col.type}</span>
-                                                                                }
-                                                                            </td>
-                                                                            <td className="p-3 font-mono text-xs">{col.pk ? <span className="bg-monokai-pink/20 text-monokai-pink border border-monokai-pink px-2 py-0.5 rounded mr-2 font-bold">PK</span> : null}{col.notnull ? <span className="bg-monokai-yellow/20 text-monokai-yellow border border-monokai-yellow px-2 py-0.5 rounded font-bold">NOT NULL</span> : null}</td>
-                                                                            <td className="p-3 text-right flex justify-end gap-2">
-                                                                                {isEditing ? <><button onClick={handleSaveColumnEdit} className="text-xs bg-monokai-green text-monokai-bg px-2 py-1 rounded font-bold">Save</button><button onClick={() => setEditColumnMode(null)} className="text-xs bg-monokai-accent text-white px-2 py-1 rounded">Cancel</button></> : <><button onClick={() => setEditColumnMode({ colName: col.name, newName: col.name, newType: col.type })} className="text-xs bg-monokai-accent hover:bg-monokai-comment px-2 py-1 rounded text-monokai-fg transition-colors">Edit</button><button onClick={() => showColumnStats(col.name)} className="text-xs bg-monokai-accent hover:bg-monokai-comment px-2 py-1 rounded text-monokai-blue transition-colors">Stats</button><button onClick={() => handleDropColumn(col.name)} className="text-xs bg-monokai-accent hover:bg-monokai-pink hover:text-white px-2 py-1 rounded text-monokai-pink transition-colors" title="Drop Column">✕</button></>}
-                                                                            </td>
-                                                                        </tr>
-                                                                    })}
-                                                                </tbody>
-                                                            </table>
-                                                            {selectedColStats && (
-                                                                <div className="p-4 bg-monokai-bg border-t border-monokai-accent animate-[slideIn_0.2s_ease-out]">
-                                                                    <div className="flex justify-between items-center mb-2"><h4 className="font-bold text-monokai-yellow">Stats: {selectedColStats.col}</h4><button onClick={() => setSelectedColStats(null)} className="text-monokai-comment hover:text-white">✕</button></div>
-                                                                    <div className="grid grid-cols-5 gap-4 text-center mb-4">
-                                                                        <div className="bg-monokai-sidebar p-2 rounded border border-monokai-accent"><div className="text-xs text-monokai-comment">Total</div><div className="font-mono text-lg">{selectedColStats.stats.total_count}</div></div>
-                                                                        <div className="bg-monokai-sidebar p-2 rounded border border-monokai-accent"><div className="text-xs text-monokai-comment">Nulls</div><div className="font-mono text-lg text-monokai-orange">{selectedColStats.stats.null_count}</div></div>
-                                                                        <div className="bg-monokai-sidebar p-2 rounded border border-monokai-accent"><div className="text-xs text-monokai-comment">Unique (Est)</div><div className="font-mono text-lg text-monokai-blue">{selectedColStats.stats.distinct_count}</div></div>
-                                                                        <div className="bg-monokai-sidebar p-2 rounded border border-monokai-accent"><div className="text-xs text-monokai-comment">Min</div><div className="font-mono text-sm truncate py-1" title={String(selectedColStats.stats.min)}>{String(selectedColStats.stats.min)}</div></div>
-                                                                        <div className="bg-monokai-sidebar p-2 rounded border border-monokai-accent"><div className="text-xs text-monokai-comment">Max</div><div className="font-mono text-sm truncate py-1" title={String(selectedColStats.stats.max)}>{String(selectedColStats.stats.max)}</div></div>
-                                                                    </div>
-                                                                    {selectedColStats.stats.top_k && selectedColStats.stats.top_k.length > 0 && (
-                                                                        <div className="bg-monokai-sidebar p-3 rounded border border-monokai-accent"><h5 className="text-xs uppercase font-bold text-monokai-comment mb-2">Top 5 Values</h5><div className="space-y-1">{selectedColStats.stats.top_k.map((k, idx) => (<div key={idx} className="flex items-center gap-2 text-xs"><div className="w-24 truncate text-right font-mono" title={String(k.value)}>{String(k.value)}</div><div className="flex-1 h-2 bg-monokai-bg rounded-full overflow-hidden"><div className="h-full bg-monokai-green" style={{ width: `${(k.count / selectedColStats.stats.total_count) * 100}%` }}></div></div><div className="w-10 text-right text-monokai-comment">{k.count}</div></div>))}</div></div>
-                                                                    )}
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                        <div className="bg-[#030303] p-5 border border-monokai-accent rounded w-full xl:w-80 shrink-0 shadow-lg">
-                                                            <h3 className="text-monokai-green font-bold mb-4 uppercase text-sm">Add New Column</h3>
-                                                            <div className="space-y-4">
-                                                                <div><label className="block text-xs text-monokai-comment mb-1">Column Name</label><input value={newColName} onChange={e => setNewColName(e.target.value)} className="w-full bg-monokai-bg border border-monokai-accent p-2 rounded text-sm text-white focus:border-monokai-green outline-none" placeholder="e.g., status" /></div>
-                                                                <div><label className="block text-xs text-monokai-comment mb-1">Type</label><select value={newColType} onChange={e => setNewColType(e.target.value)} className="w-full bg-monokai-bg border border-monokai-accent p-2 rounded text-sm text-white focus:border-monokai-green outline-none">{['VARCHAR', 'INTEGER', 'BOOLEAN', 'FLOAT', 'DOUBLE', 'DATE', 'TIMESTAMP', 'JSON'].map(t => <option key={t} value={t}>{t}</option>)}</select></div>
-                                                                <button onClick={handleAddColumn} className="w-full bg-[#030303] font-bold text-sm py-1 px-2.5 rounded-[4px] shadow-lg flex flex-col items-start justify-start gap-1 overflow-hidden border border-black" style={{ backgroundClip: 'unset', WebkitBackgroundClip: 'unset', color: 'rgba(3, 3, 3, 1)', boxShadow: 'inset 0px 1px 3px 0px rgba(11, 9, 9, 0.3)' }}>Add Column</button>
-                                                            </div>
-
-                                                            <div className="mt-8 pt-6 border-t border-monokai-accent">
-                                                                <h3 className="text-monokai-comment font-bold uppercase text-sm mb-2">DDL Preview</h3>
-                                                                <div className="relative group">
-                                                                    <pre className="font-mono text-[10px] text-monokai-green overflow-x-auto p-2 bg-monokai-bg rounded border border-monokai-accent/50 max-h-40">{`CREATE TABLE ${currentTable} (\n  ${schema.map(c => `${c.name} ${c.type}${c.pk ? ' PRIMARY KEY' : ''}`).join(',\n  ')}\n);`}</pre>
-                                                                    <button onClick={handleCopySchema} className="absolute top-1 right-1 text-[10px] bg-monokai-accent hover:bg-white hover:text-monokai-bg text-white px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">Copy</button>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            ) : (
-                                                <div className="h-full flex items-center justify-center text-monokai-comment flex-col">
-                                                    <div className="text-4xl mb-4 opacity-50">👈</div>
-                                                    <p>Select a table from the sidebar to view structure.</p>
-                                                </div>
-                                            )
-                                        )}
-                                    </div>
-                                </div>
-                            )}
+                            <StructureTab
+                                tables={tables}
+                                currentTable={currentTable}
+                                schema={schema}
+                                fullSchemaTree={fullSchemaTree}
+                                structureViewMode={structureViewMode}
+                                editColumnMode={editColumnMode}
+                                newColName={newColName}
+                                newColType={newColType}
+                                selectedColStats={selectedColStats}
+                                isRenaming={isRenaming}
+                                renameTableName={renameTableName}
+                                onSetStructureViewMode={setStructureViewMode}
+                                onSetEditColumnMode={setEditColumnMode}
+                                onSetNewColName={setNewColName}
+                                onSetNewColType={setNewColType}
+                                onSetSelectedColStats={setSelectedColStats}
+                                onSetIsRenaming={setIsRenaming}
+                                onSetRenameTableName={setRenameTableName}
+                                onHandleRenameTable={handleRenameTable}
+                                onHandleAddColumn={handleAddColumn}
+                                onHandleDropColumn={handleDropColumn}
+                                onHandleSaveColumnEdit={handleSaveColumnEdit}
+                                onShowColumnStats={showColumnStats}
+                                onHandleCopySchema={handleCopySchema}
+                                onHandleDuplicateTable={handleDuplicateTable}
+                                onHandleDropTable={handleDropTable}
+                                onAddNotification={addNotification}
+                            />
                         </div>
 
                         {/* SQL TAB */}
@@ -1771,16 +949,11 @@ const App: React.FC = () => {
                             />
                         </div>
 
-                        {/* SCHEMA GENERATOR TAB */}
-                        <div className={activeTab === Tab.SCHEMA_GENERATOR ? 'block h-full' : 'hidden'}>
-                            <SchemaGenerator
-                                onExecuteSql={(sql) => {
+                        <div className={activeTab === Tab.ANALYSIS_HUB ? 'block h-full' : 'hidden'}>
+                            <AnalysisHubPanel
+                                onInsertSql={(sql) => {
                                     setPendingSql(sql);
                                     setActiveTab(Tab.SQL);
-                                }}
-                                onRefresh={() => {
-                                    refreshTables();
-                                    refreshAudit();
                                 }}
                             />
                         </div>
@@ -1799,15 +972,7 @@ const App: React.FC = () => {
 
                         {/* AUDIT TAB */}
                         <div className={activeTab === Tab.AUDIT ? 'block h-full' : 'hidden'}>
-                            <div className="h-full flex flex-col bg-monokai-bg">
-                                <div className="p-4 border-b border-monokai-accent shrink-0"><h2 className="text-xl font-bold text-monokai-orange">System Audit Log</h2><p className="text-sm text-monokai-comment">Persistent tracking of all data modification operations.</p></div>
-                                <div className="flex-1 overflow-auto">
-                                    <table className="w-full text-left text-sm whitespace-nowrap">
-                                        <thead className="bg-monokai-surface border-b border-monokai-accent sticky top-0"><tr><th className="p-3 font-mono text-monokai-blue">Time</th><th className="p-3 font-mono text-monokai-pink">Type</th><th className="p-3 font-mono text-monokai-yellow">Table</th><th className="p-3 font-mono text-monokai-fg w-full">Details</th><th className="p-3 font-mono text-monokai-green text-right">Rows</th></tr></thead>
-                                        <tbody className="font-mono">{auditLogs.map((log) => (<tr key={log.id} className="border-b border-monokai-accent hover:bg-monokai-sidebar"><td className="p-3 text-monokai-comment">{new Date(log.log_time).toLocaleString()}</td><td className="p-3 font-bold">{log.operation_type}</td><td className="p-3">{log.target_table || '-'}</td><td className="p-3 opacity-90 truncate max-w-xl" title={log.details}>{log.details}</td><td className="p-3 text-right">{log.affected_rows}</td></tr>))}</tbody>
-                                    </table>
-                                </div>
-                            </div>
+                            <AuditTab auditLogs={auditLogs} />
                         </div>
 
                         {/* EXTENSIONS TAB */}
@@ -1846,7 +1011,7 @@ const App: React.FC = () => {
                         </div>
 
                         {/* ONTOLOGY TAB */}
-                        <div className={activeTab === Tab.ONTOLOGY ? 'block h-full' : 'hidden'}>
+                        <div className={activeTab === Tab.ONTOLOGY ? 'flex flex-1 w-full h-full overflow-hidden' : 'hidden'}>
                             <OntologyApp
                                 isOpen={true}
                                 onClose={() => setActiveTab(Tab.DASHBOARD)}
@@ -1856,18 +1021,6 @@ const App: React.FC = () => {
                                 }}
                                 onTablesReady={() => refreshTables()}
                             />
-                        </div>
-
-                        {/* ABSTRACTION TAB */}
-                        <div className={activeTab === Tab.ABSTRACTION ? 'block h-full' : 'hidden'}>
-                            <div className="bg-monokai-bg h-full">
-                                <AbstractionTablePanel
-                                    onInsert={(sql) => {
-                                        setPendingSql(sql);
-                                        setActiveTab(Tab.SQL);
-                                    }}
-                                />
-                            </div>
                         </div>
                     </div>
                 </div>

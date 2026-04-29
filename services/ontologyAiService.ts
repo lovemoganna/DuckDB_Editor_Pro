@@ -1,14 +1,28 @@
 /**
- * ontologyAiService — 本体论 AI 服务层（重构版）
+ * ontologyAiService — 本体论 AI 服务层
  *
- * 重构要点：
- * 1. 统一的 AI 调用接口（所有 AI 能力通过一个 service 暴露）
- * 2. 层感知工作流（每个 MECE 层对应特定的 AI 能力组合）
- * 3. 结果自动格式化（可直接写入 DuckDB 或渲染到 UI）
- * 4. 错误处理标准化
+ * 核心入口（推荐优先使用）：
+ *  - generateOntologyDraft()    — 全局 Draft 生成，组合所有 AI 能力
+ *  - generateGraphLayout()      — 图谱布局生成
+ *  - generateCanvasLayout()    — 画布布局生成
+ *  - generateSuggestions()       — 图谱补全建议
+ *  - generateIntrospectionGuidance() — 引导性问题
+ *
+ * 辅助入口（按需调用）：
+ *  - executeLayerWorkflow()   — 简化版层感知工作流（内部使用 LAYER_WORKFLOWS）
+ *  - generateObjectModel()    — 对象建模
+ *  - generateLinkModel()       — 关系建模
+ *  - generateMethodologyAdvice() — 建模方法建议
+ *  - generatePatternSQL()      — 高级 SQL 模式生成
+ *  - generateDomainModel()     — 完整领域模型生成
+ *  - generateCRUDFill()        — CRUD 表单预填充
+ *  - generateAbstractionSQL()   — Abstraction 模块专用 SQL
  */
 
 import { aiService } from './aiService';
+
+// AIStage type (mirrored from aiValidator to avoid cross-file resolution issues)
+type AIStage = 'p1_semantic' | 'p3_causal' | 'p4_insights' | 'sql_lifecycle' | 'sql_batch' | 'core_analysis' | 'deep_intelligence';
 
 // ============================================================
 // Layer-Specific AI Fill Response Types
@@ -95,6 +109,13 @@ export interface DomainModelFill {
   seedLinks: Array<{ sourceName: string; linkTypeName: string; targetName: string; weight: number }>;
   views: Array<{ name: string; sql: string; description: string }>;
   initializationSQL: string;
+  dynamicMapping: {
+    objectTable: string;
+    objectTypeTable: string;
+    linkTable: string;
+    linkTypeTable: string;
+    actionTable: string;
+  };
 }
 
 export interface GraphLayoutPlan {
@@ -108,6 +129,33 @@ export interface CanvasLayoutPlan {
   spaces: Array<{ id: string; name: string; x: number; y: number; w: number; h: number; color: string }>;
   groups: Array<{ spaceId: string; name: string; x: number; y: number; items: string[] }>;
   layoutDescription: string;
+}
+
+export type MECELayer = 'foundation' | 'relations' | 'methodology' | 'patterns' | 'domains';
+
+/** MECE 层感知的画布布局方案 — 每层有独特结构 */
+export interface MeceCanvasLayoutPlan {
+  layer: MECELayer;
+  spaces: Array<{ id: string; name: string; x: number; y: number; w: number; h: number; color: string }>;
+  items: Array<{
+    id: string;
+    spaceId: string;
+    objectId?: number;
+    objectName: string;
+    nodeType: 'Source' | 'Transform' | 'Sink';
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    metadata: {
+      tableName?: string;
+      sqlFragment?: string;
+      layerTag?: string;
+    };
+  }>;
+  edges: Array<{ id: string; sourceId: string; targetId: string; label?: string }>;
+  layoutDescription: string;
+  meceLayerHint: string;
 }
 
 export interface CRUDFillContent {
@@ -192,7 +240,8 @@ const LAYER_WORKFLOWS: Record<MECELayer, LayerWorkflow> = {
 };
 
 // ============================================================
-// Service
+// Service — 保留 7 个核心方法
+// 重构后核心入口为 generateOntologyDraft，其余按需调用。
 // ============================================================
 
 class OntologyAiService {
@@ -297,8 +346,14 @@ class OntologyAiService {
         const result = await this.generateDomainModel(input);
         return {
           executableSQL: result.initializationSQL,
+          draftPayload: {
+            objects: [], links: [], actions: [],
+            introspections: [], insights: [],
+            // @ts-ignore - internal use for mapping update
+            mapping: result.dynamicMapping
+          } as any,
           raw: result,
-          summary: `生成了领域 "${result.domainName}"，含 ${result.objectTypes?.length || 0} 个对象类型、${result.seedObjects?.length || 0} 个种子对象`,
+          summary: `生成了领域 "${result.domainName}"，包含自定义表：${result.dynamicMapping.objectTable}, ${result.dynamicMapping.linkTable}`,
         };
       }
       default:
@@ -339,6 +394,78 @@ class OntologyAiService {
 
 要求：spaces 1-3 个，groups 每个 space 内 2-4 个分组；color 使用 tailwind 支持的颜色名`,
       '你是空间设计专家'
+    );
+  }
+
+  /**
+   * MECE 层感知画布布局生成
+   *
+   * @param layer  MECE 五层之一
+   * @param existingObjects  画布已有的对象名称列表
+   * @param objectTypes      画布已有的对象类型名称列表
+   * @param meceLayerHint    MECE 层描述提示（如 CANVAS_MECE_PROMPTS.example(layer)）
+   */
+  async generateMeceCanvasLayout(
+    layer: MECELayer,
+    existingObjects: string[] = [],
+    objectTypes: string[] = [],
+    meceLayerHint: string = '',
+  ): Promise<MeceCanvasLayoutPlan> {
+    const layerContext: Record<MECELayer, string> = {
+      foundation: `当前是 MECE Foundation（基础层）。聚焦于对象类型（Object Type）和实例（Object Instance）的定义。每个 Space 对应一个对象类型，Item 对应实例。对象类型：${objectTypes.join(' / ') || '未定义'}。已有对象：${existingObjects.join(' / ') || '无'}。${meceLayerHint}`,
+      relations: `当前是 MECE Relations（关系层）。聚焦于对象间的关系（Link）和关系类型（Link Type）。用 Item 表示对象，用边表示关系，metadata.sqlFragment 存放 JOIN 或 CTE 片段。已有对象：${existingObjects.join(' / ') || '无'}。${meceLayerHint}`,
+      methodology: `当前是 MECE Methodology（方法论层）。聚焦于建模范式和分步计划。用 Group 表示方法论步骤（Plan/Build/Review），Item 表示操作要点，metadata.sqlFragment 存放方法论 SQL 示例。${meceLayerHint}`,
+      patterns: `当前是 MECE Patterns（模式层）。聚焦于高级 SQL 模式（递归 CTE、聚合视图、时序版本化）。Item 使用 Transform 类型，metadata.sqlFragment 存放 DuckDB SQL 模板。${meceLayerHint}`,
+      domains: `当前是 MECE Domains（领域层）。聚焦于完整的领域模型。多个 Space 代表子领域，Space 内 Item 表示核心对象，Item 间边表示领域内关系。${meceLayerHint}`,
+    };
+
+    const context = layerContext[layer];
+    const existingObjectsStr = existingObjects.length > 0
+      ? `已有对象：${existingObjects.join('、')}。`
+      : '';
+
+    const prompt = `${context}
+
+${existingObjectsStr}
+
+请为该 MECE 层生成完整的画布布局方案。
+
+输出必须是纯 JSON（无 markdown 块）：
+{
+  "layer": "${layer}",
+  "meceLayerHint": "该层对应的 MECE 描述（简短语）",
+  "spaces": [
+    { "id": "space_1", "name": "空间名称（如对象类型名或子领域名）", "x": 0, "y": 0, "w": 400, "h": 320, "color": "purple|blue|green|orange|yellow|cyan|red" }
+  ],
+  "items": [
+    {
+      "id": "item_1",
+      "spaceId": "space_1",
+      "objectName": "对象/概念名称",
+      "nodeType": "Source|Transform|Sink",
+      "x": 10, "y": 10, "width": 180, "height": 75,
+      "metadata": { "tableName": "对应表名", "sqlFragment": "SQL片段（可选）", "layerTag": "${layer}" }
+    }
+  ],
+  "edges": [
+    { "id": "edge_1", "sourceId": "item_1", "targetId": "item_2", "label": "关系名（可选）" }
+  ],
+  "layoutDescription": "整体布局描述"
+}
+
+要求：
+- Foundation 层：1-3 个 Space（每个 = 对象类型），2-5 个 Item（每个 = 实例），线性或分组布局
+- Relations 层：0-1 个 Space（可选），3-6 个 Item，3-5 条边，树状或线性拓扑
+- Methodology 层：0-2 个 Space（方法论步骤大类），4-8 个 Item，步骤式布局（从上到下或从左到右）
+- Patterns 层：0-1 个 Space，2-4 个 Item（Transform 类型），0-2 条边
+- Domains 层：2-3 个 Space（子领域），6-10 个 Item，网格或分组布局
+- 所有 x/y/w/h 使用数字，不要使用变量
+- color 使用 tailwind 支持的颜色名（小写英文）`;
+
+    return this._callAI<MeceCanvasLayoutPlan>(
+      'ontology-mece-canvas-layout',
+      prompt,
+      `你是 MECE 本体论画布布局专家，专注于 ${layer} 层的结构化建模`
     );
   }
 
@@ -438,6 +565,130 @@ class OntologyAiService {
     return this._callAI<MethodologyAdvice>(
       'ontology-methodology', prompt, '你是本体论方法论专家'
     );
+  }
+
+  /**
+   * 生成 SQL 模板 — Abstraction 模块专用
+   * 支持所有 SQL 操作类型 + schema 上下文注入
+   */
+  async generateAbstractionSQL(request: {
+    operation: string;
+    concept: string;
+    property?: string;
+    relation?: string;
+    context?: string;
+  }): Promise<{ sql: string; explanation: string; patternType: string; tips: string[] }> {
+    const { operation, concept, property, relation, context } = request;
+
+    // 根据操作类型映射到 patternType
+    const patternDescriptions: Record<string, string> = {
+      SELECT: '普通查询 SELECT',
+      INSERT: '批量插入 INSERT INTO ... SELECT',
+      UPDATE: '条件更新 UPDATE ... SET',
+      DELETE: '条件删除 DELETE FROM ... WHERE',
+      AGGREGATE: '聚合统计（COUNT/SUM/AVG/GROUP BY）',
+      JOIN: '多表关联（LEFT/INNER JOIN）',
+      WINDOW: '窗口函数（OVER/PARTITION BY/ROW_NUMBER）',
+      CTE: '公用表表达式 WITH AS + 递归 CTE',
+    };
+
+    // 拼接完整 prompt
+    const fullContext = [
+      `## 任务`,
+      `请为「${concept}」生成 ${patternDescriptions[operation] || operation} SQL 模板。`,
+      property ? `分析维度：${property}` : '',
+      relation ? `关联关系：${relation}` : '',
+      context ? `\\n## 业务背景\\n${context}` : '',
+    ].filter(Boolean).join('\\n');
+
+    const prompt = `${fullContext}
+
+输出必须是纯 JSON（无 markdown 块），包含：
+{
+  "patternType": "模式类型（英文）",
+  "description": "模式功能描述",
+  "sql": "完整可执行的 DuckDB SQL 模板（使用 {{placeholder}} 作为参数占位符）",
+  "explanation": "SQL 工作原理说明",
+  "tips": ["提示1", "提示2"]
+}
+
+要求：
+- SQL 模板使用 {{placeholder}} 格式作为参数占位符（不要用 \${} 变量格式）
+- 生成完整、可直接执行的 SQL 语句
+- 注释清晰，便于理解
+- 提供 2-3 条优化 tips`;
+
+    try {
+      const result = await this._callAI<{
+        patternType: string;
+        description: string;
+        sql: string;
+        explanation: string;
+        tips: string[];
+      }>('ontology-patterns', prompt, '你是 DuckDB SQL 专家');
+      return {
+        sql: result.sql,
+        explanation: result.explanation || result.description,
+        patternType: result.patternType,
+        tips: result.tips || [],
+      };
+    } catch (err) {
+      // 如果 AI 调用失败，返回一个基础的占位模板
+      return {
+        sql: this.getFallbackSQL(operation, concept, property),
+        explanation: `基于「${concept}」生成了 ${operation} 类型 SQL 模板`,
+        patternType: operation,
+        tips: ['请根据实际表名替换模板中的占位符'],
+      };
+    }
+  }
+
+  private getFallbackSQL(operation: string, concept: string, property?: string): string {
+    const fallbacks: Record<string, string> = {
+      SELECT: `SELECT \${columns}
+FROM \${table_name}
+WHERE \${condition}
+ORDER BY \${sort_column} DESC
+LIMIT \${limit}`,
+      INSERT: `INSERT INTO \${table_name} (\${columns})
+SELECT \${values}
+FROM \${source_table}
+WHERE \${condition}`,
+      UPDATE: `UPDATE \${table_name}
+SET \${column} = \${new_value}
+WHERE \${condition}`,
+      DELETE: `DELETE FROM \${table_name}
+WHERE \${condition}`,
+      AGGREGATE: `SELECT
+  \${group_by_column},
+  COUNT(*) AS count,
+  SUM(\${metric_column}) AS total,
+  AVG(\${metric_column}) AS average
+FROM \${table_name}
+GROUP BY \${group_by_column}
+ORDER BY total DESC`,
+      JOIN: `SELECT
+  t1.\${t1_column},
+  t2.\${t2_column}
+FROM \${table1} t1
+LEFT JOIN \${table2} t2 ON t1.id = t2.\${fk_column}
+WHERE \${condition}`,
+      WINDOW: `SELECT
+  \${columns},
+  ROW_NUMBER() OVER (PARTITION BY \${partition_col} ORDER BY \${sort_col} DESC) AS rank_in_group,
+  SUM(\${column}) OVER (PARTITION BY \${partition_col} ORDER BY \${sort_col}) AS running_total
+FROM \${table_name}
+WHERE \${condition}`,
+      CTE: `WITH ranked AS (
+  SELECT
+    \${columns},
+    ROW_NUMBER() OVER (PARTITION BY \${group_col} ORDER BY \${sort_col} DESC) AS rn
+  FROM \${table_name}
+  WHERE \${condition}
+)
+SELECT * FROM ranked WHERE rn <= \${top_n}`,
+    };
+    return fallbacks[operation] || fallbacks.SELECT;
   }
 
   // ============================================================
@@ -595,7 +846,7 @@ action 模式：
       throw new Error('AI Provider API key not configured. Please set it in Settings.');
     }
     try {
-      return await aiService.robustCall<T>(taskName, prompt, role);
+      return await aiService.robustCall<T>(taskName as AIStage, prompt, role);
     } catch (err) {
       console.error(`[OntologyAI] ${taskName} failed:`, err);
       throw new Error(`AI 返回格式无效，无法完成 ${taskName} 操作。`);
@@ -609,4 +860,6 @@ export const ontologyAiService = new OntologyAiService();
 export type {
   AIWorkflowResult,
   LayerWorkflow,
+  MECELayer,
+  MeceCanvasLayoutPlan,
 };

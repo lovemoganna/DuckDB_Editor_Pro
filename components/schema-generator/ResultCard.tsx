@@ -32,6 +32,7 @@ import {
   Settings,
   Sparkles,
   ShieldCheck,
+  Shield,
   Zap,
   Layout,
   BarChart3,

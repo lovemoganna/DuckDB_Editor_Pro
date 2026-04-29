@@ -339,7 +339,7 @@ export const LibraryApp: React.FC<LibraryAppProps> = ({
   return (
     <div className="flex h-full w-full overflow-hidden border border-monokai-accent rounded-xl bg-monokai-bg">
       {/* 左侧边栏 - Tab 导航 */}
-      <div className="w-56 flex-shrink-0 border-r border-monokai-accent flex flex-col bg-monokai-sidebar">
+      <div className="w-40 sm:w-48 md:w-56 flex-shrink-0 border-r border-monokai-accent flex flex-col bg-monokai-sidebar">
         {/* 头部 */}
         <div className="p-3 border-b border-monokai-accent">
           <div className="flex items-center justify-between mb-3">
@@ -449,35 +449,15 @@ export const LibraryApp: React.FC<LibraryAppProps> = ({
               <Info className="w-4 h-4" />
             </button>
 
-            {/* AI 一键填充按钮 - 显示 AI 功能说明 */}
+            {/* AI 一键填充按钮 - 功能开发中 */}
             <button
-              onClick={() => {
-                // 显示提示信息
-                const tabLabels: Record<LibraryTab, string> = {
-                  meta: '元知识',
-                  ddl: 'DDL',
-                  dml: 'DML',
-                  dql: 'DQL',
-                  functions: '函数库',
-                  dcl: 'DCL/TCL',
-                  optimization: '性能优化'
-                };
-                const messages: Record<LibraryTab, string> = {
-                  meta: '查看 SQL 基础概念：语言分类、OLTP/OLAP、执行顺序、数据类型、方言差异\n\n快捷键：Ctrl+Shift+A',
-                  ddl: '查看数据库定义语言：库表创建、约束、索引、视图、物化视图、分区\n\n快捷键：Ctrl+Shift+A',
-                  dml: '查看数据操纵语言：INSERT、UPDATE、DELETE、MERGE\n\n快捷键：Ctrl+Shift+A',
-                  dql: '查看数据查询语言：条件查询、多表关联、聚合分组、子查询、窗口函数\n\n快捷键：Ctrl+Shift+A',
-                  functions: '查看内置函数：字符串、数值、日期、JSON、数组函数\n\n快捷键：Ctrl+Shift+A',
-                  dcl: '查看权限与事务：GRANT/REVOKE、BEGIN/COMMIT、ACID、隔离级别\n\n快捷键：Ctrl+Shift+A',
-                  optimization: '查看性能优化：执行计划、索引策略、查询改写\n\n快捷键：Ctrl+Shift+A'
-                };
-                alert(`📚 ${tabLabels[activeTab]} AI 填充功能\n\n${messages[activeTab]}`);
-              }}
-              className="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-monokai-purple to-monokai-pink rounded-lg text-white text-sm font-medium hover:opacity-90 transition-opacity"
-              title="点击查看 AI 填充功能使用说明（快捷键：Ctrl+Shift+A）"
+              disabled
+              className="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-monokai-purple/40 to-monokai-pink/40 rounded-lg text-white/50 text-sm font-medium cursor-not-allowed"
+              title="AI 填充功能开发中"
             >
               <Sparkles className="w-4 h-4" />
               <span>AI 填充</span>
+              <span className="text-xs bg-white/10 px-1.5 py-0.5 rounded">开发中</span>
             </button>
           </div>
         </div>
@@ -546,7 +526,7 @@ export const LibraryApp: React.FC<LibraryAppProps> = ({
 
       {/* 右侧信息面板 */}
       {showHelpPanel && (
-        <div className="w-72 border-l border-monokai-accent bg-monokai-sidebar p-4 overflow-y-auto">
+        <div className="w-52 sm:w-64 md:w-72 border-l border-monokai-accent bg-monokai-sidebar p-4 overflow-y-auto">
           <h4 className="text-sm font-bold text-monokai-fg mb-3 flex items-center gap-2">
             <Info className="w-4 h-4" />
             {zoneInfo.title}

@@ -259,7 +259,24 @@ const ConfirmDialog: React.FC<{
   </div>
 );
 
-// ==================== Main Component ====================
+// ============================================================
+// Date normalization helper
+// DuckDB returns DATE fields as epoch ms, Date objects, or ISO strings.
+// HTML date input needs 'YYYY-MM-DD', DuckDB SQL needs 'YYYY-MM-DD'.
+// ============================================================
+function normalizeDateToString(raw: any): string {
+  if (!raw) return '';
+  if (typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  if (typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(raw)) return raw.slice(0, 10);
+  if (typeof raw === 'number' && raw > 1e8) {
+    const d = new Date(raw);
+    if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+  }
+  if (raw instanceof Date && !isNaN(raw.getTime())) return raw.toISOString().slice(0, 10);
+  const parsed = new Date(raw);
+  if (!isNaN(parsed.getTime())) return parsed.toISOString().slice(0, 10);
+  return '';
+}
 
 const OntologyEditor: React.FC<OntologyEditorProps> = ({ onDataChange }) => {
   // Data state
@@ -544,7 +561,7 @@ const OntologyEditor: React.FC<OntologyEditorProps> = ({ onDataChange }) => {
       setFormName(target.name);
       setFormDesc(target.description || '');
       setFormStatus(target.status || 'pending');
-      setFormExecuteAt(target.execute_at || '');
+      setFormExecuteAt(normalizeDateToString(target.execute_at));
       setFormActionObjectId(target.object_id || null);
     }
   };
@@ -604,7 +621,7 @@ const OntologyEditor: React.FC<OntologyEditorProps> = ({ onDataChange }) => {
           showToast('关系已创建', 'success');
         }
       } else if (editMode === 'action') {
-        const execDate = formExecuteAt ? `'${formExecuteAt}'` : 'NULL';
+        const execDate = formExecuteAt ? `'${normalizeDateToString(formExecuteAt)}'` : 'NULL';
         const objId = formActionObjectId ? formActionObjectId : 'NULL';
         if (editTarget) {
           await duckDBService.query(`UPDATE life_action SET object_id=${objId}, name='${formName}', description='${formDesc}', status='${formStatus}', execute_at=${execDate} WHERE id=${editTarget.id}`);

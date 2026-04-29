@@ -14,6 +14,39 @@ export interface ReasoningChain {
   timestamp: number;
 }
 
+// ============================================
+// AI Thinking Display Types
+// ============================================
+
+/**
+ * AI 思考过程的阶段
+ */
+export type ThinkingPhase =
+  | 'intent'           // 意图识别
+  | 'extract'          // 参数提取
+  | 'skill_select'     // 技能选择
+  | 'sql_generate'     // SQL 生成
+  | 'validating'       // 验证 SQL
+  | 'executing'       // 执行 SQL
+  | 'confirm';        // 等待确认
+
+/**
+ * 思考步骤的状态
+ */
+export type ThinkingStepStatus = 'pending' | 'running' | 'done' | 'error' | 'cancelled';
+
+/**
+ * 单个思考步骤
+ */
+export interface ThinkingStep {
+  phase: ThinkingPhase;
+  label: string;
+  status: ThinkingStepStatus;
+  content?: string;    // 阶段产生的分析内容或 SQL
+  startTime?: number;
+  endTime?: number;
+}
+
 /**
  * 带置信度校准的语义标注
  */
@@ -367,12 +400,11 @@ export enum Tab {
   AUDIT = 'audit',
   EXTENSIONS = 'extensions',
   TUTORIALS = 'tutorials',
-  SCHEMA_GENERATOR = 'schema_generator',
+  ANALYSIS_HUB = 'analysis_hub',   // Abstraction + SchemaGenerator merged
   METRICS = 'metrics',
   AI_SKILLS = 'ai_skills',
   LIBRARY = 'library',
   ONTOLOGY = 'ontology',
-  ABSTRACTION = 'abstraction'
 }
 
 export type SemanticType = 'DIM' | 'MEA' | 'ID' | 'TIME' | 'ATTR' | 'RATIO' | 'CURR';
@@ -626,7 +658,7 @@ export interface Dashboard {
 /**
  * 技能分类
  */
-export type SkillCategory = 'sql' | 'analysis' | 'transformation' | 'optimization' | 'utility';
+export type SkillCategory = 'modeling' | 'wrangling' | 'insights' | 'optimization' | 'engineering' | 'handbook';
 
 /**
  * 输入字段类型
@@ -639,20 +671,115 @@ export type InputFieldType = 'text' | 'textarea' | 'select' | 'table' | 'column'
 export type OutputType = 'sql' | 'json' | 'markdown' | 'table';
 
 /**
- * 输入字段定义
+ * 基础输入字段属性（所有类型共享）
  */
-export interface SkillInputField {
+interface BaseSkillInputField {
   name: string;
-  type: InputFieldType;
   required: boolean;
   label: string;
-  placeholder?: string;
   description?: string;
-  options?: string[];
-  defaultValue?: any;
+  defaultValue?: unknown;
+}
+
+/**
+ * 文本输入字段
+ */
+interface TextSkillInputField extends BaseSkillInputField {
+  type: 'text';
+  placeholder?: string;
+}
+
+/**
+ * 多行文本输入字段
+ */
+interface TextareaSkillInputField extends BaseSkillInputField {
+  type: 'textarea';
+  placeholder?: string;
+  rows?: number;
+}
+
+/**
+ * 下拉选择字段
+ */
+interface SelectSkillInputField extends BaseSkillInputField {
+  type: 'select';
+  options: string[];
+  placeholder?: string;
+}
+
+/**
+ * 数字输入字段
+ */
+interface NumberSkillInputField extends BaseSkillInputField {
+  type: 'number';
   min?: number;
   max?: number;
-  rows?: number;
+  step?: number;
+  placeholder?: string;
+}
+
+/**
+ * 布尔开关字段
+ */
+interface BooleanSkillInputField extends BaseSkillInputField {
+  type: 'boolean';
+}
+
+/**
+ * 表名选择字段
+ */
+interface TableSkillInputField extends BaseSkillInputField {
+  type: 'table';
+  placeholder?: string;
+}
+
+/**
+ * 列名选择字段
+ */
+interface ColumnSkillInputField extends BaseSkillInputField {
+  type: 'column';
+  allowMultiple?: boolean;
+  placeholder?: string;
+}
+
+/**
+ * 输入字段定义（discriminated union，按 type 区分）
+ *
+ * 所有字段类型均包含基础属性，通过 type 字段进行类型区分。
+ * 渲染组件使用 switch(field.type) 进行分发。
+ *
+ * @example
+ * function renderField(field: SkillInputField) {
+ *   switch (field.type) {
+ *     case 'select': return <Select options={field.options} />;
+ *     case 'number': return <NumberInput min={field.min} max={field.max} />;
+ *   }
+ * }
+ */
+export type SkillInputField =
+  | TextSkillInputField
+  | TextareaSkillInputField
+  | SelectSkillInputField
+  | NumberSkillInputField
+  | BooleanSkillInputField
+  | TableSkillInputField
+  | ColumnSkillInputField;
+
+/**
+ * 输入字段类型守卫
+ */
+export function isSkillInputField(v: unknown): v is SkillInputField {
+  if (!v || typeof v !== 'object') return false;
+  const t = (v as Record<string, unknown>).type;
+  return (
+    t === 'text' ||
+    t === 'textarea' ||
+    t === 'select' ||
+    t === 'number' ||
+    t === 'boolean' ||
+    t === 'table' ||
+    t === 'column'
+  );
 }
 
 /**
@@ -670,14 +797,19 @@ export interface SkillResult {
 
 /**
  * 技能执行上下文
+ *
+ * @typeParam T - 样本数据的类型，默认 Record<string, unknown>
  */
-export interface SkillExecutionContext {
+export interface SkillExecutionContext<T extends Record<string, unknown> = Record<string, unknown>> {
   tableName?: string;
   columns?: ColumnInfo[];
   schema?: string;
-  sampleData?: any[];
+  sampleData?: T[];
   currentSql?: string;
   userIntent?: string;
+  matchedOfficialSkills?: string[]; // 已触发的官方手册技能 ID
+  // 扩展字段，供插件和 handbook executor 使用
+  [key: string]: unknown;
 }
 
 /**
@@ -694,16 +826,33 @@ export interface AISkill {
   requiresTable?: boolean;
   requiresColumns?: boolean;
   examples?: SkillExample[];
-  // 意图关键词，用于自动匹配
+  // 意图分析引导，用于自动匹配和推荐
   intentKeywords?: string[];
-  // 意图匹配正则表达式
   intentPatterns?: string[];
+  
+  // [NEW] 声明式触发规则 (替代 intentKeywords/intentPatterns)
+  triggers?: {
+    keywords?: string[];
+    patterns?: (string | RegExp)[];
+    sqlOperations?: SqlOperationType[];
+    confidence?: number;
+  };
+
+  // [NEW] 声明式参数提取器
+  // 如果提供，则由 ParameterExtractor 调用以获取技能输入
+  inputParser?: (request: string, context: SkillExecutionContext) => Record<string, any>;
+
   // 可组合的其他技能 ID（用于多技能编排）
   compatibleWith?: string[];
   // 技能操作的 SQL 类型
   sqlOperationType?: SqlOperationType;
+  // [NEW] Generator 注册表 ID — 声明式路由，替代 skillExecutor.ts 硬编码 if-else
+  generatorId?: string;
   // 执行函数（动态加载）
   execute?: (input: Record<string, any>, context: SkillExecutionContext) => Promise<SkillResult>;
+
+  // [Handbook] 认知层级 — 仅官方手册技能使用，标注该技能属于哪一认知层
+  _layer?: 'perception' | 'strategy' | 'execution' | 'meta';
 }
 
 /**
@@ -729,6 +878,7 @@ export interface IntentAnalysis {
   intent: SqlOperationType;
   confidence: number;  // 0-1 置信度
   requiredSkills: string[];  // 需要的技能 ID 列表
+  matchedOfficialSkills?: string[]; // 匹配到的官方手册技能 ID (SKL-xxx)
   skillChain?: SkillChain;  // 技能调用链（复杂需求）
   missingInfo?: string[];  // 需要补充的信息
   userRequest: string;  // 原始用户请求
@@ -744,12 +894,14 @@ export interface SkillChain {
 }
 
 /**
- * 技能链步骤
+ * 技能链步骤（带类型化输入）
  */
-export interface SkillChainStep {
+export interface SkillChainStep<
+  TInputs extends Record<string, unknown> = Record<string, unknown>
+> {
   stepId: string;
   skillId: string;
-  inputs: Record<string, any>;
+  inputs: TInputs;
   dependsOn: string[];  // 依赖的前置步骤 ID
   expectedOutput?: string;
 }
@@ -794,6 +946,10 @@ export interface SkillInvokeRequest {
   inputs: Record<string, any>;
   context: SkillExecutionContext;
   simulateOnly?: boolean;
+  /** Streaming callback for real-time token output */
+  onChunk?: (text: string) => void;
+  /** Cancel token for aborting execution */
+  cancelToken?: { cancelled: boolean };
 }
 
 /**
@@ -1086,7 +1242,7 @@ export interface AbstractionTable {
   
   // SQL 生成参数
   sqlConfig: {
-    operation: SqlOperation;         // 操作类型：SELECT/INSERT/UPDATE/DELETE/AGGREGATE
+    operation: AbstractionSqlOperation;         // 操作类型：SELECT/INSERT/UPDATE/DELETE/AGGREGATE
     template: string;                // SQL 模板（可参数化）
     parameters?: SqlParameter[];      // 参数定义
     sampleOutput?: string;           // 示例输出
@@ -1108,7 +1264,7 @@ export interface AbstractionTable {
 /**
  * SQL 操作类型
  */
-export type SqlOperation = 
+export type AbstractionSqlOperation = 
   | 'SELECT'        // 查询
   | 'INSERT'        // 插入
   | 'UPDATE'        // 更新
@@ -1134,7 +1290,7 @@ export interface SqlParameter {
  */
 export interface SqlGenerationRequest {
   abstractionPath: AbstractionTable['abstractionPath'];
-  operation: SqlOperation;
+  operation: AbstractionSqlOperation;
   customParameters?: Record<string, string>;
   context?: string;                   // 额外上下文
 }

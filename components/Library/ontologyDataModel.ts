@@ -76,6 +76,25 @@ CREATE TABLE life_action (
     description VARCHAR,
     status VARCHAR DEFAULT 'pending',
     execute_at DATE
+);
+
+-- ⑥ Canvas 布局状态表
+CREATE TABLE life_canvas_state (
+    id VARCHAR PRIMARY KEY,
+    space_id VARCHAR,
+    object_id INTEGER,
+    title VARCHAR,
+    color VARCHAR,
+    x DECIMAL, y DECIMAL, width DECIMAL, height DECIMAL,
+    node_type VARCHAR DEFAULT 'Source',
+    metadata JSON DEFAULT '{}'
+);
+
+-- ⑦ Canvas 画布连线表
+CREATE TABLE life_canvas_edge (
+    id VARCHAR PRIMARY KEY,
+    source_id VARCHAR,
+    target_id VARCHAR
 );`;
 
 // ============================================
@@ -149,19 +168,22 @@ export const ONTOLOGY_CREATE_STATEMENTS: string[] = [
   `CREATE TABLE IF NOT EXISTS life_action (id INTEGER PRIMARY KEY, object_id INTEGER, name VARCHAR NOT NULL, description VARCHAR, status VARCHAR DEFAULT 'pending', execute_at DATE)`,
   `CREATE TABLE IF NOT EXISTS life_introspection (id INTEGER PRIMARY KEY, object_id INTEGER, question VARCHAR, answer VARCHAR, created_at DATE DEFAULT CURRENT_DATE)`,
   `CREATE TABLE IF NOT EXISTS life_insight (id INTEGER PRIMARY KEY, object_id INTEGER, insight VARCHAR, tag VARCHAR, created_at DATE DEFAULT CURRENT_DATE)`,
-  `CREATE TABLE IF NOT EXISTS life_canvas_state (id VARCHAR PRIMARY KEY, space_id VARCHAR, object_id INTEGER, title VARCHAR, color VARCHAR, x DECIMAL, y DECIMAL, width DECIMAL, height DECIMAL)`,
+  `CREATE TABLE IF NOT EXISTS life_canvas_state (id VARCHAR PRIMARY KEY, space_id VARCHAR, object_id INTEGER, title VARCHAR, color VARCHAR, x DECIMAL, y DECIMAL, width DECIMAL, height DECIMAL, node_type VARCHAR DEFAULT 'Source', metadata JSON DEFAULT '{}')`,
+  `CREATE TABLE IF NOT EXISTS life_canvas_edge (id VARCHAR PRIMARY KEY, source_id VARCHAR, target_id VARCHAR)`,
 ];
 
 /** 种子数据 INSERT 语句数组 — 与 ONTOLOGY_SEED_DATA 内容一致 */
 export const ONTOLOGY_SEED_STATEMENTS: string[] = [
-  `INSERT INTO life_object_type VALUES (1, 'Aspect', '生活维度'), (2, 'Person', '人物'), (3, 'Goal', '目标')`,
-  `INSERT INTO life_object (id, object_type_id, name, properties) VALUES (1, 1, '心态', '{"state": "焦虑", "goal": "内心平静"}'), (2, 1, '工作', '{"role": "工程师", "struggle": "沟通与办公室政治"}'), (3, 1, '家庭', '{"priority": "最高"}'), (4, 1, '身体', '{"state": "还行", "goal": "健康"}')`,
-  `INSERT INTO life_link_type VALUES (1, '影响', 'A 作用于 B'), (2, '养活', 'A 为 B 提供物质基础'), (3, '锚定', 'A 为 B 提供精神支撑'), (4, '支撑', 'A 为 B 提供基础条件')`,
-  `INSERT INTO life_link VALUES (1, 1, 1, 2, 0.9), (2, 2, 2, 3, 1.0), (3, 3, 3, 1, 0.8), (4, 4, 4, 1, 0.7)`,
-  `INSERT INTO life_action VALUES (1, 4, '早睡早起', '调整作息，保持充足睡眠', 'pending', '2024-12-31')`,
-  `INSERT INTO life_introspection VALUES (1, 1, '为什么最近总是焦虑？', '因为工作沟通不顺畅，把情绪带到了生活中。', CURRENT_DATE)`,
-  `INSERT INTO life_insight VALUES (1, 2, '沟通是工程师最大的软技能壁垒', '职场真相', CURRENT_DATE)`,
-  `INSERT INTO life_canvas_state VALUES ('space-1', 'space-1', NULL, '个人生活', '#a78bfa', 100, 100, 320, 350), ('item-1', 'space-1', 1, NULL, NULL, 20, 50, 280, 100), ('item-4', 'space-1', 4, NULL, NULL, 20, 180, 280, 100), ('space-2', 'space-2', NULL, '外部事务', '#38bdf8', 480, 100, 320, 350), ('item-2', 'space-2', 2, NULL, NULL, 20, 50, 280, 100), ('item-3', 'space-2', 3, NULL, NULL, 20, 180, 280, 100)`,
+  `INSERT INTO life_object_type VALUES (1, 'Aspect', '生活维度'), (2, 'Person', '人物'), (3, 'Goal', '目标') ON CONFLICT (id) DO NOTHING`,
+  `INSERT INTO life_object (id, object_type_id, name, properties) VALUES (1, 1, '心态', '{"state": "焦虑", "goal": "内心平静"}'), (2, 1, '工作', '{"role": "工程师", "struggle": "沟通与办公室政治"}'), (3, 1, '家庭', '{"priority": "最高"}'), (4, 1, '身体', '{"state": "还行", "goal": "健康"}') ON CONFLICT (id) DO NOTHING`,
+  `INSERT INTO life_object (id, object_type_id, name, properties) VALUES (5, 2, '父母', '{"relationship": "直系亲属", "emotional_anchor": true, "contact_freq": "每月"}'), (6, 2, '配偶', '{"relationship": "伴侣", "emotional_anchor": true, "contact_freq": "每天"}'), (7, 2, '同事小王', '{"relationship": "同事", "support_level": "高", "contact_freq": "工作日"}'), (8, 2, '老友老李', '{"relationship": "挚友", "emotional_anchor": true, "contact_freq": "每周"}') ON CONFLICT (id) DO NOTHING`,
+  `INSERT INTO life_object (id, object_type_id, name, properties) VALUES (9, 3, '副业变现', '{"deadline": "2025-12-31", "progress": 20, "priority": "高"}'), (10, 3, '读完50本书', '{"deadline": "2025-12-31", "progress": 38, "priority": "中"}'), (11, 3, '跑完半马', '{"deadline": "2025-06-01", "progress": 60, "priority": "高"}'), (12, 3, '掌握日语N3', '{"deadline": "2025-12-31", "progress": 45, "priority": "低"}') ON CONFLICT (id) DO NOTHING`,
+  `INSERT INTO life_link_type VALUES (1, '影响', 'A 作用于 B'), (2, '养活', 'A 为 B 提供物质基础'), (3, '锚定', 'A 为 B 提供精神支撑'), (4, '支撑', 'A 为 B 提供基础条件'), (5, '依恋', 'A 深度依赖 B'), (6, '协助', 'A 帮助 B 完成任务') ON CONFLICT (id) DO NOTHING`,
+  `INSERT INTO life_link VALUES (1, 1, 1, 2, 0.9), (2, 2, 2, 3, 1.0), (3, 3, 3, 1, 0.8), (4, 4, 4, 1, 0.7), (5, 1, 6, 1, 0.95), (6, 3, 5, 1, 0.85), (7, 5, 5, 6, 1.0), (8, 6, 7, 2, 0.6), (9, 1, 8, 1, 0.7), (10, 3, 8, 1, 0.75), (11, 4, 4, 11, 0.9), (12, 2, 2, 9, 0.8), (13, 1, 1, 10, 0.5) ON CONFLICT (id) DO NOTHING`,
+  `INSERT INTO life_action VALUES (1, 4, '早睡早起', '调整作息，保持充足睡眠', 'pending', '2024-12-31'), (2, 9, '搭建 MVP', '完成副业项目第一个可演示版本', 'pending', '2025-06-01'), (3, 11, '月跑量80公里', '本月跑步总里程目标', 'pending', '2025-05-01') ON CONFLICT (id) DO NOTHING`,
+  `INSERT INTO life_introspection VALUES (1, 1, '为什么最近总是焦虑？', '因为工作沟通不顺畅，把情绪带到了生活中。', CURRENT_DATE), (2, 2, '工作对我意味着什么？', '既是收入来源，也是自我价值实现的途径。', CURRENT_DATE) ON CONFLICT (id) DO NOTHING`,
+  `INSERT INTO life_insight VALUES (1, 2, '沟通是工程师最大的软技能壁垒', '职场真相', CURRENT_DATE), (2, 6, '家庭是情绪的稳定器，再忙也要留时间', '家庭优先级', CURRENT_DATE), (3, 8, '老友不需要常常联系，但关键时刻一定在', '友情', CURRENT_DATE) ON CONFLICT (id) DO NOTHING`,
+  `INSERT INTO life_canvas_state VALUES ('space-1', 'space-1', NULL, '个人生活', '#a78bfa', 100, 100, 320, 350), ('item-1', 'space-1', 1, NULL, NULL, 20, 50, 280, 100), ('item-4', 'space-1', 4, NULL, NULL, 20, 180, 280, 100), ('space-2', 'space-2', NULL, '外部事务', '#38bdf8', 480, 100, 320, 350), ('item-2', 'space-2', 2, NULL, NULL, 20, 50, 280, 100), ('item-3', 'space-2', 3, NULL, NULL, 20, 180, 280, 100) ON CONFLICT (id) DO NOTHING`,
 ];
 
 // ============================================

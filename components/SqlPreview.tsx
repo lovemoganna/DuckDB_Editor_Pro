@@ -2,15 +2,10 @@
  * SQL Preview Component
  *
  * Displays generated SQL with syntax highlighting and execution options.
- * Design follows Monokai theme from DESIGN_SYSTEM.md
- * Features:
- * - Enhanced SQL syntax highlighting
- * - Complex query handling
- * - Line-by-line analysis
- * - Error context display
+ * Design: Flat Monokai — no glassmorphism, no shadows, 1px borders.
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Copy,
   Check,
@@ -25,10 +20,25 @@ import {
   FileCode,
   CheckCircle2,
   Clipboard,
-  Maximize2,
-  Minimize2
 } from 'lucide-react';
 import { highlightSql } from '../utils.tsx';
+
+// ─── Monokai hex palette ─────────────────────────────────────────────────────
+const C = {
+  bg:      '#272822',
+  surface: '#1e1f1c',
+  sidebar: '#3e3d32',
+  border:  '#3e3d32',
+  fg:      '#f8f8f2',
+  muted:   '#75715e',
+  green:   '#a6e22e',
+  blue:    '#66d9ef',
+  purple:  '#ae81ff',
+  pink:    '#f92672',
+  yellow:  '#e6db74',
+  orange:  '#fd971f',
+  accent:  '#66d9ef',
+};
 
 interface SqlPreviewProps {
   sql: string;
@@ -50,12 +60,10 @@ export const SqlPreview: React.FC<SqlPreviewProps> = ({
   const [editedSql, setEditedSql] = useState(sql);
   const [isExpanded, setIsExpanded] = useState(true);
 
-  // Sync edited SQL with prop
   React.useEffect(() => {
     setEditedSql(sql);
   }, [sql]);
 
-  // Copy to clipboard
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(editedSql);
@@ -66,14 +74,10 @@ export const SqlPreview: React.FC<SqlPreviewProps> = ({
     }
   };
 
-  // Execute SQL
   const handleExecute = () => {
-    if (onExecute) {
-      onExecute(editedSql);
-    }
+    if (onExecute) onExecute(editedSql);
   };
 
-  // Download SQL
   const handleDownload = () => {
     const blob = new Blob([editedSql], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
@@ -87,27 +91,36 @@ export const SqlPreview: React.FC<SqlPreviewProps> = ({
   };
 
   return (
-    <div className="bg-monokai-sidebar border-t border-monokai-accent">
+    <div style={{ background: C.sidebar, borderTop: `1px solid ${C.border}` }}>
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-monokai-accent bg-monokai-sidebar">
+      <div
+        className="flex items-center justify-between px-4 py-2"
+        style={{ borderBottom: `1px solid ${C.border}`, background: C.sidebar }}
+      >
         <div className="flex items-center gap-3">
           <button
             onClick={() => setIsExpanded(!isExpanded)}
-            className="flex items-center gap-2 text-sm font-semibold text-monokai-fg hover:text-monokai-purple transition-colors"
+            className="flex items-center gap-2 text-sm font-semibold transition-colors"
+            style={{ color: C.fg }}
           >
-            <div className="w-7 h-7 rounded-lg bg-monokai-purple/20 flex items-center justify-center">
-              <FileCode className="w-4 h-4 text-monokai-purple" />
+            <div
+              className="w-7 h-7 flex items-center justify-center"
+              style={{ background: `${C.purple}30` }}
+            >
+              <FileCode className="w-4 h-4" style={{ color: C.purple }} />
             </div>
-            <span className="text-monokai-fg">SQL 预览</span>
-            {isExpanded ? (
-              <ChevronUp className="w-4 h-4 text-monokai-comment" />
-            ) : (
-              <ChevronDown className="w-4 h-4 text-monokai-comment" />
-            )}
+            <span>SQL 预览</span>
+            {isExpanded
+              ? <ChevronUp className="w-4 h-4" style={{ color: C.muted }} />
+              : <ChevronDown className="w-4 h-4" style={{ color: C.muted }} />
+            }
           </button>
 
           {error && (
-            <span className="flex items-center gap-1.5 px-2.5 py-1 bg-monokai-pink/20 text-monokai-pink text-xs font-medium rounded-lg">
+            <span
+              className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium"
+              style={{ background: `${C.pink}30`, color: C.pink, border: `1px solid ${C.pink}50` }}
+            >
               <AlertCircle className="w-3.5 h-3.5" />
               生成失败
             </span>
@@ -117,10 +130,12 @@ export const SqlPreview: React.FC<SqlPreviewProps> = ({
         <div className="flex items-center gap-1">
           <button
             onClick={() => setIsEditing(!isEditing)}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 ${isEditing
-                ? 'bg-monokai-purple/20 text-monokai-purple'
-                : 'text-monokai-comment hover:text-monokai-fg hover:bg-monokai-accent'
-              }`}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium border transition-colors"
+            style={{
+              color: isEditing ? C.purple : C.muted,
+              borderColor: isEditing ? C.purple : C.border,
+              background: isEditing ? `${C.purple}15` : 'transparent',
+            }}
           >
             <Edit3 className="w-3.5 h-3.5" />
             {isEditing ? '取消编辑' : '编辑'}
@@ -128,27 +143,24 @@ export const SqlPreview: React.FC<SqlPreviewProps> = ({
 
           <button
             onClick={handleCopy}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 ${copied
-                ? 'bg-monokai-green/20 text-monokai-green'
-                : 'text-monokai-comment hover:text-monokai-fg hover:bg-monokai-accent'
-              }`}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium border transition-colors"
+            style={{
+              color: copied ? C.green : C.muted,
+              borderColor: copied ? C.green : C.border,
+              background: copied ? `${C.green}15` : 'transparent',
+            }}
           >
             {copied ? (
-              <>
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>已复制</span>
-              </>
+              <><CheckCircle2 className="w-3.5 h-3.5" /> <span>已复制</span></>
             ) : (
-              <>
-                <Clipboard className="w-3.5 h-3.5" />
-                <span>复制</span>
-              </>
+              <><Clipboard className="w-3.5 h-3.5" /> <span>复制</span></>
             )}
           </button>
 
           <button
             onClick={handleDownload}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-monokai-comment hover:text-monokai-fg hover:bg-monokai-accent rounded-lg transition-all duration-200"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium border transition-colors"
+            style={{ color: C.muted, borderColor: C.border }}
           >
             <Download className="w-3.5 h-3.5" />
             <span>下载</span>
@@ -157,7 +169,8 @@ export const SqlPreview: React.FC<SqlPreviewProps> = ({
           {onExecute && !error && (
             <button
               onClick={handleExecute}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-monokai-green hover:opacity-90 text-monokai-bg text-xs font-semibold rounded-lg transition-all duration-200"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold border transition-colors"
+              style={{ background: C.green, color: C.surface, borderColor: C.green }}
             >
               <Play className="w-3.5 h-3.5" />
               <span>执行</span>
@@ -167,7 +180,8 @@ export const SqlPreview: React.FC<SqlPreviewProps> = ({
           {onClose && (
             <button
               onClick={onClose}
-              className="p-1.5 text-monokai-comment hover:text-monokai-fg hover:bg-monokai-accent rounded-lg transition-all duration-200"
+              className="p-1.5 transition-colors"
+              style={{ color: C.muted }}
             >
               <X className="w-4 h-4" />
             </button>
@@ -179,18 +193,20 @@ export const SqlPreview: React.FC<SqlPreviewProps> = ({
       {isExpanded && (
         <div className="p-3">
           {error ? (
-            <div className="p-4 bg-monokai-pink/20 border border-monokai-pink/30 rounded-lg">
+            <div
+              className="p-4"
+              style={{ background: `${C.pink}15`, border: `1px solid ${C.pink}50` }}
+            >
               <div className="flex items-start gap-3">
-                <div className="w-9 h-9 rounded-lg bg-monokai-pink/20 flex items-center justify-center flex-shrink-0">
-                  <AlertCircle className="w-4 h-4 text-monokai-pink" />
+                <div
+                  className="w-9 h-9 flex items-center justify-center flex-shrink-0"
+                  style={{ background: `${C.pink}30` }}
+                >
+                  <AlertCircle className="w-4 h-4" style={{ color: C.pink }} />
                 </div>
-                <div className="flex-1">
-                  <p className="text-sm font-semibold text-monokai-pink">
-                    执行错误
-                  </p>
-                  <p className="text-sm text-monokai-pink mt-1">
-                    {error}
-                  </p>
+                <div>
+                  <p className="text-sm font-semibold" style={{ color: C.pink }}>执行错误</p>
+                  <p className="text-sm mt-1" style={{ color: C.pink }}>{error}</p>
                 </div>
               </div>
             </div>
@@ -200,35 +216,51 @@ export const SqlPreview: React.FC<SqlPreviewProps> = ({
                 <textarea
                   value={editedSql}
                   onChange={(e) => setEditedSql(e.target.value)}
-                  className="w-full h-48 px-4 py-3 font-mono text-sm bg-monokai-bg border border-monokai-accent rounded-lg focus:outline-none focus:ring-2 focus:ring-monokai-purple focus:border-transparent transition-all text-monokai-fg"
+                  className="w-full h-48 px-4 py-3 font-mono text-sm resize-none focus:outline-none"
+                  style={{
+                    background: C.bg,
+                    border: `1px solid ${C.border}`,
+                    color: C.fg,
+                  }}
                   spellCheck={false}
                 />
               ) : (
                 <pre
-                  className="w-full h-auto max-h-48 overflow-auto p-4 font-mono text-sm bg-monokai-bg border border-monokai-accent rounded-lg whitespace-pre-wrap custom-scrollbar text-monokai-fg"
+                  className="w-full max-h-48 overflow-auto p-4 font-mono text-sm whitespace-pre-wrap custom-scrollbar"
+                  style={{
+                    background: C.bg,
+                    border: `1px solid ${C.border}`,
+                    color: C.fg,
+                  }}
                   dangerouslySetInnerHTML={{ __html: highlightSql(editedSql) }}
                 />
               )}
 
               {explanation && !isEditing && (
-                <div className="mt-3 p-3 bg-monokai-blue/20 border border-monokai-blue/30 rounded-lg">
+                <div
+                  className="mt-3 p-3"
+                  style={{ background: `${C.blue}15`, border: `1px solid ${C.blue}50` }}
+                >
                   <div className="flex items-start gap-2">
-                    <div className="w-7 h-7 rounded-lg bg-monokai-blue/20 flex items-center justify-center flex-shrink-0">
-                      <FileCode className="w-4 h-4 text-monokai-blue" />
+                    <div
+                      className="w-7 h-7 flex items-center justify-center flex-shrink-0"
+                      style={{ background: `${C.blue}30` }}
+                    >
+                      <FileCode className="w-4 h-4" style={{ color: C.blue }} />
                     </div>
-                    <p className="text-sm text-monokai-blue leading-relaxed">
+                    <p className="text-sm leading-relaxed" style={{ color: C.blue }}>
                       {explanation}
                     </p>
                   </div>
                 </div>
               )}
 
-              <div className="mt-3 flex items-center gap-3 text-xs text-monokai-comment">
-                <span className="flex items-center gap-1.5 bg-monokai-sidebar px-2.5 py-1 rounded">
+              <div className="mt-3 flex items-center gap-3 text-xs" style={{ color: C.muted }}>
+                <span className="flex items-center gap-1.5 px-2.5 py-1" style={{ background: C.sidebar }}>
                   <Clock className="w-3 h-3" />
                   <span>{editedSql.length} 字符</span>
                 </span>
-                <span className="flex items-center gap-1.5 bg-monokai-sidebar px-2.5 py-1 rounded">
+                <span className="flex items-center gap-1.5 px-2.5 py-1" style={{ background: C.sidebar }}>
                   <FileCode className="w-3 h-3" />
                   <span>{editedSql.split('\n').length} 行</span>
                 </span>
@@ -239,12 +271,12 @@ export const SqlPreview: React.FC<SqlPreviewProps> = ({
       )}
 
       <style>{`
-        /* SQL Syntax Highlighting - Monokai Theme (for backward compatibility) */
-        .sql-keyword { color: #ae81ff !important; font-weight: 600; }
-        .sql-function { color: #66d9ef !important; font-weight: 500; }
-        .sql-string { color: #a6e22e !important; font-style: italic; }
-        .sql-number { color: #fd971f !important; }
-        .sql-comment { color: #75715e !important; font-style: italic; }
+        /* SQL Syntax Highlighting — Monokai Theme */
+        .sql-keyword   { color: #ae81ff !important; font-weight: 600; }
+        .sql-function  { color: #66d9ef !important; font-weight: 500; }
+        .sql-string    { color: #a6e22e !important; font-style: italic; }
+        .sql-number    { color: #fd971f !important; }
+        .sql-comment   { color: #75715e !important; font-style: italic; }
       `}</style>
     </div>
   );

@@ -11,10 +11,11 @@ import {
   OntologyView,
   AbstractionTable
 } from '../types';
+import { AISession } from '../types/abstraction';
 
 // ==================== 数据库配置 ====================
 const DB_NAME = 'duckdb_library';
-const DB_VERSION = 3; // 升级版本号（3: 新增 abstraction_tables）
+const DB_VERSION = 4; // 升级版本号（4: 新增 ai_sessions）
 
 // 对象仓库名称
 const STORES = {
@@ -24,7 +25,8 @@ const STORES = {
   CODE_SNIPPETS: 'code_snippets',
   ONTOLOGY_ENTRIES: 'ontology_entries',
   ONTOLOGY_VIEWS: 'ontology_views',
-  ABSTRACTION_TABLES: 'abstraction_tables'
+  ABSTRACTION_TABLES: 'abstraction_tables',
+  AI_SESSIONS: 'ai_sessions',
 } as const;
 
 // ==================== 工具函数 ====================
@@ -91,6 +93,13 @@ const openDB = (): Promise<IDBDatabase> => {
         const abstractionStore = db.createObjectStore(STORES.ABSTRACTION_TABLES, { keyPath: 'id' });
         abstractionStore.createIndex('domain', 'domain', { unique: false });
         abstractionStore.createIndex('isSystem', 'isSystem', { unique: false });
+      }
+
+      // 创建 AI 会话仓库
+      if (!db.objectStoreNames.contains(STORES.AI_SESSIONS)) {
+        const sessionStore = db.createObjectStore(STORES.AI_SESSIONS, { keyPath: 'id' });
+        sessionStore.createIndex('database', 'database', { unique: false });
+        sessionStore.createIndex('updatedAt', 'updatedAt', { unique: false });
       }
     };
   });
@@ -1754,4 +1763,179 @@ export const initializeOntologyData = async (): Promise<void> => {
   }
 
   console.log('[Library] Ontology data initialized');
+};
+
+// ==================== Abstraction 补充方法 ====================
+
+/**
+ * 根据领域获取抽象表
+ */
+export const getAbstractionTablesByDomain = async (domain: string): Promise<AbstractionTable[]> => {
+  const tables = await getAllAbstractionTables();
+  return tables.filter(t => t.domain === domain);
+};
+
+/**
+ * 根据操作类型获取抽象表
+ */
+export const getAbstractionTablesByOperation = async (
+  operation: string
+): Promise<AbstractionTable[]> => {
+  const tables = await getAllAbstractionTables();
+  return tables.filter(t => t.sqlConfig.operation === operation);
+};
+
+/**
+ * 获取收藏的抽象表
+ */
+export const getFavoriteAbstractionTables = async (): Promise<AbstractionTable[]> => {
+  const tables = await getAllAbstractionTables();
+  return tables.filter(t => t.isFavorite);
+};
+
+/**
+ * 搜索抽象表
+ */
+export const searchAbstractionTables = async (query: string): Promise<AbstractionTable[]> => {
+  if (!query.trim()) {
+    return getAllAbstractionTables();
+  }
+
+  const tables = await getAllAbstractionTables();
+  const lowerQuery = query.toLowerCase();
+
+  return tables.filter(
+    t =>
+      t.name.toLowerCase().includes(lowerQuery) ||
+      t.description?.toLowerCase().includes(lowerQuery) ||
+      t.tags.some(tag => tag.toLowerCase().includes(lowerQuery)) ||
+      t.sqlConfig.template.toLowerCase().includes(lowerQuery)
+  );
+};
+
+/**
+ * 切换抽象表收藏状态
+ */
+export const toggleAbstractionFavorite = async (id: string): Promise<AbstractionTable | null> => {
+  const tables = await getAllAbstractionTables();
+  const table = tables.find(t => t.id === id);
+
+  if (!table) return null;
+
+  const updated: AbstractionTable = {
+    ...table,
+    isFavorite: !table.isFavorite,
+    updatedAt: Date.now(),
+  };
+
+  await updateAbstractionTable(updated);
+  return updated;
+};
+
+/**
+ * 获取抽象表统计信息
+ */
+export const getAbstractionStats = async (): Promise<{
+  total: number;
+  byDomain: Record<string, number>;
+  byOperation: Record<string, number>;
+}> => {
+  const tables = await getAllAbstractionTables();
+
+  const stats = {
+    total: tables.length,
+    byDomain: {} as Record<string, number>,
+    byOperation: {} as Record<string, number>,
+  };
+
+  for (const table of tables) {
+    stats.byDomain[table.domain] = (stats.byDomain[table.domain] || 0) + 1;
+    const op = table.sqlConfig.operation;
+    stats.byOperation[op] = (stats.byOperation[op] || 0) + 1;
+  }
+
+  return stats;
+};
+
+/**
+ * 批量保存抽象表（用于导入）
+ */
+export const batchSaveAbstractionTables = async (
+  tables: Omit<AbstractionTable, 'id' | 'createdAt' | 'updatedAt'>[]
+): Promise<AbstractionTable[]> => {
+  const saved: AbstractionTable[] = [];
+
+  for (const table of tables) {
+    const result = await saveAbstractionTable(table);
+    saved.push(result);
+  }
+
+  return saved;
+};
+
+// ==================== AI Session 会话管理 ====================
+
+/** 获取指定数据库的所有会话（按最近更新时间倒序） */
+export const getAISessions = async (database: string): Promise<AISession[]> => {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORES.AI_SESSIONS, 'readonly');
+    const store = tx.objectStore(STORES.AI_SESSIONS);
+    const index = store.index('database');
+    const request = index.getAll(database);
+
+    request.onsuccess = () => {
+      const sessions = (request.result as AISession[]).sort((a, b) => b.updatedAt - a.updatedAt);
+      resolve(sessions);
+    };
+    request.onerror = () => reject(request.error);
+  });
+};
+
+/** 创建新会话 */
+export const createAISession = async (
+  database: string,
+  name: string
+): Promise<AISession> => {
+  const db = await openDB();
+  const now = Date.now();
+  const session: AISession = {
+    id: generateId(),
+    database,
+    name,
+    messages: [],
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORES.AI_SESSIONS, 'readwrite');
+    const request = tx.objectStore(STORES.AI_SESSIONS).add(session);
+    request.onsuccess = () => resolve(session);
+    request.onerror = () => reject(request.error);
+  });
+};
+
+/** 更新会话（追加消息、修改名称等） */
+export const updateAISession = async (session: AISession): Promise<AISession> => {
+  const db = await openDB();
+  const updated = { ...session, updatedAt: Date.now() };
+
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORES.AI_SESSIONS, 'readwrite');
+    const request = tx.objectStore(STORES.AI_SESSIONS).put(updated);
+    request.onsuccess = () => resolve(updated);
+    request.onerror = () => reject(request.error);
+  });
+};
+
+/** 删除会话 */
+export const deleteAISession = async (id: string): Promise<void> => {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORES.AI_SESSIONS, 'readwrite');
+    const request = tx.objectStore(STORES.AI_SESSIONS).delete(id);
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+  });
 };

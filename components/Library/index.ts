@@ -11,6 +11,5 @@ export { LearningPathPanel } from './LearningPathPanel';
 export { MySnippetsPanel } from './MySnippetsPanel';
 export { OntologyPanel } from './OntologyPanel';
 export { OntologyApp } from './OntologyApp';
-export { OntologyMECEPanel } from './OntologyMECEPanel';
 export { default as OntologyCanvas } from './OntologyCanvas';
 export { default as OntologyInsightsPanel } from './OntologyInsightsPanel';

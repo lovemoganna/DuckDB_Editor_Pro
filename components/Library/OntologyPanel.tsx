@@ -1,43 +1,48 @@
 /**
- * OntologyPanel - 本体论知识工作台
+ * OntologyPanel — 本体论知识图谱统一入口
  *
- * 基于 MECE 原则设计，围绕"我的人生"场景展开
- * 5 大互斥分类 × 7 维度背景说明 × AI 一键填充 × 快速清除
+ * 重构目标：应用 3-pane 左中右三栏现代 SaaS 布局
+ * - 左侧：导航与列表库 (Templates / 数据列表)
+ * - 中间：图谱 / Canvas 可视化焦点区域
+ * - 右侧：选中实体的 Context Inspector 属性检视器
  *
- * MECE 分类体系：
- * - DDL-结构：五张核心表的创建
- * - DML-操作：数据增删改操作
- * - DQL-查询：基础检索查询
- * - DQL-分析：高级分析查询（聚合、递归）
- * - DDL-进阶：视图与清理
+ * 主题：维系 Monokai 的科技暗色调，但移除边框光害，增大字号与留白。
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import {
-  Copy, Check, ChevronDown, ChevronUp, ArrowRight, Play,
-  Network, Layers, Link2, Zap, Database, Eye,
-  ArrowDownRight, TrendingUp, BookOpen, Sparkles,
-  Trash2, Lightbulb, AlertTriangle, Loader2, RotateCcw, Info,
-  Target, Star, Clock
+  Network, Database, LayoutGrid, Sparkles, ChevronRight, ChevronDown,
+  ChevronLeft, X, Search, RefreshCw, Play, ArrowRight, Loader2,
+  Table2, Link2, Layers, AlertTriangle, Check, Plus, Edit3, Trash2,
+  Lightbulb, Zap, PanelRightDashed, AlignLeft, GripVertical,
+  List, Map, BarChart2, Pencil, Download, Upload, Brain, Wand2
 } from 'lucide-react';
 import CodeMirror from '@uiw/react-codemirror';
-import { sql } from '@codemirror/lang-sql';
+import { sql as sqlLang } from '@codemirror/lang-sql';
 import { EditorView } from '@codemirror/view';
 import { monokai } from '@uiw/codemirror-theme-monokai';
+
+import { useOntologyStore, ontologyActions } from '../../hooks/useOntologyStore';
+import {
+  ONTOLOGY_TEMPLATE_CATEGORIES,
+  TEMPLATE_CATEGORY_ORDER,
+} from '../../data/ontologyTemplates';
+import D3GraphView from './D3GraphView';
+import OntologyCanvas from './OntologyCanvas';
+import OntologyInsightsPanel from './OntologyInsightsPanel';
+import { OntologyDataView } from './OntologyDataView';
+import { OntologyModelingWizard } from './OntologyModelingWizard';
 import { duckDBService } from '../../services/duckdbService';
 import { ResultTable } from '../Learn/ResultTable';
-import {
-  CATEGORY_HELP,
-  AI_FILL_TEMPLATES,
-  CategoryHelpData
-} from '../../hooks/useOntologyPanel';
+import { ResizableLayout } from '../ui/ResizableLayout';
+import { MappingConsole } from './MappingConsole';
 
-interface OntologyPanelProps {
-  onCopy?: (id: string, content: string) => void;
-  onInsert?: (sql: string) => void;
-  copiedId?: string | null;
-  onTablesReady?: () => void;
-}
+// ============================================================
+// Types
+// ============================================================
+
+type ViewTab = 'graph' | 'data' | 'canvas';
+type DrawerTab = 'templates' | 'crud' | 'insights' | 'mapping';
 
 interface ExecutionResult {
   data: any[] | null;
@@ -46,1103 +51,1337 @@ interface ExecutionResult {
   executionTime?: number;
 }
 
-interface SqlSnippet {
-  label: string;
-  sql: string;
-  description?: string;
-  refreshTables?: boolean;
-}
+type EditMode = 'none' | 'objectType' | 'object' | 'linkType' | 'link' | 'action';
 
-interface OntologyCategory {
-  id: string;
-  title: string;
-  icon: React.ElementType;
-  color: string;
-  badgeColor: string;
-  description: string;
-  meceCategory: string;
-  snippets: SqlSnippet[];
+interface FormState {
+  name: string; desc: string; objectTypeId: number; properties: string;
+  linkTypeId: number; sourceId: number | null; targetId: number | null;
+  weight: number; status: string; executeAt: string;
 }
 
 // ============================================================
-// MECE 五分类数据 - 互斥且完整穷尽
+// Live Clock
 // ============================================================
 
-const ONTOLOGY_DATA: OntologyCategory[] = [
+const LiveClock: React.FC = () => {
+  const [time, setTime] = useState(() => new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
 
-  // ─────────────────────────────────────────────
-  // 第 1 类：DDL-结构（表结构定义）
-  // ─────────────────────────────────────────────
-  {
-    id: 'ddl-structure',
-    title: 'DDL 结构定义',
-    icon: Database,
-    color: 'text-monokai-purple',
-    badgeColor: 'bg-monokai-purple/20 text-monokai-purple',
-    description: '创建"我的人生"五张核心表。类型表是金字塔尖，实例表通过外键引用类型表。',
-    meceCategory: 'ddl-structure',
-    snippets: [
-      {
-        label: '创建对象类型表',
-        sql: `CREATE TABLE life_object_type (
-    id          INTEGER PRIMARY KEY,
-    name        VARCHAR NOT NULL,
-    description VARCHAR
-);`,
-        description: 'id、name、description 三列',
-        refreshTables: true
-      },
-      {
-        label: '创建对象实例表',
-        sql: `CREATE TABLE life_object (
-    id             INTEGER PRIMARY KEY,
-    object_type_id INTEGER REFERENCES life_object_type(id),
-    name           VARCHAR NOT NULL,
-    properties     JSON    DEFAULT '{}'
-);`,
-        description: 'object_type_id 指向类型表，properties 用 JSON 存储灵活属性',
-        refreshTables: true
-      },
-      {
-        label: '创建关系类型表',
-        sql: `CREATE TABLE life_link_type (
-    id          INTEGER PRIMARY KEY,
-    name        VARCHAR NOT NULL,
-    description VARCHAR
-);`,
-        description: '和对象类型表结构相同，但语义不同',
-        refreshTables: true
-      },
-      {
-        label: '创建关系实例表',
-        sql: `CREATE TABLE life_link (
-    id               INTEGER PRIMARY KEY,
-    link_type_id     INTEGER REFERENCES life_link_type(id),
-    source_object_id INTEGER REFERENCES life_object(id),
-    target_object_id INTEGER REFERENCES life_object(id),
-    weight           DECIMAL(3,2) DEFAULT 1.0
-);`,
-        description: '三个外键 + weight 表示关系强度 0.0~1.0',
-        refreshTables: true
-      },
-      {
-        label: '创建行动表',
-        sql: `CREATE TABLE life_action (
-    id          INTEGER PRIMARY KEY,
-    name        VARCHAR NOT NULL,
-    description VARCHAR,
-    status      VARCHAR DEFAULT 'pending',
-    execute_at  DATE
-);`,
-        description: 'status 控制状态机：pending→in_progress→executed',
-        refreshTables: true
-      }
-    ]
-  },
+  useEffect(() => {
+    const id = setInterval(() => {
+      setTime(new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+    }, 1000);
+    return () => clearInterval(id);
+  }, []);
 
-  // ─────────────────────────────────────────────
-  // 第 2 类：DML-操作（数据增删改）
-  // ─────────────────────────────────────────────
-  {
-    id: 'dml-operation',
-    title: 'DML 数据操作',
-    icon: Zap,
-    color: 'text-monokai-yellow',
-    badgeColor: 'bg-monokai-yellow/20 text-monokai-yellow',
-    description: '插入、修改、删除数据。反思后调整权重是本体论迭代的核心操作。',
-    meceCategory: 'dml-operation',
-    snippets: [
-      {
-        label: '插入类型数据',
-        sql: `INSERT INTO life_object_type VALUES
-    (1, 'Aspect', '生活维度'),
-    (2, 'Person', '人物'),
-    (3, 'Goal',   '目标');`,
-        description: '三个预设类型'
-      },
-      {
-        label: '插入对象实例',
-        sql: `INSERT INTO life_object VALUES
-    (1, 1, '心态', '{"state": "焦虑", "goal": "内心平静"}'),
-    (2, 1, '工作', '{"role": "工程师", "struggle": "沟通"}'),
-    (3, 1, '家庭', '{"priority": "最高"}'),
-    (4, 1, '身体', '{"state": "还行", "goal": "健康"}');`,
-        description: '四个实例都属于 Aspect 类型（object_type_id=1）'
-      },
-      {
-        label: '插入关系类型',
-        sql: `INSERT INTO life_link_type VALUES
-    (1, '影响', 'A 作用于 B，强度可量化'),
-    (2, '养活', 'A 为 B 提供物质基础'),
-    (3, '锚定', 'A 为 B 提供精神支撑'),
-    (4, '支撑', 'A 为 B 提供基础条件');`,
-        description: '四种核心关系'
-      },
-      {
-        label: '插入关系实例',
-        sql: `INSERT INTO life_link VALUES
-    (1, 1, 1, 2, 0.9),
-    (2, 2, 2, 3, 1.0),
-    (3, 3, 3, 1, 0.8),
-    (4, 4, 4, 1, 0.7);`,
-        description: '心态→影响→工作(0.9)，工作→养活→家庭(1.0)，家庭→锚定→心态(0.8)，身体→支撑→心态(0.7)'
-      },
-      {
-        label: '插入预设行动',
-        sql: `INSERT INTO life_action VALUES
-    (1, '深呼吸', '就这一刻。其他的都不重要。', 'pending', NULL),
-    (2, '迈出下一步', '低头看路。路已经在脚下了。', 'pending', NULL);`,
-        description: '两个预设行动'
-      },
-      {
-        label: '更新关系权重（反思后）',
-        sql: `UPDATE life_link
-SET weight = 0.6
-WHERE source_object_id = (SELECT id FROM life_object WHERE name = '心态')
-  AND target_object_id = (SELECT id FROM life_object WHERE name = '工作');`,
-        description: '权重不是一成不变的，定期反思后可以调整'
-      },
-      {
-        label: '标记行动已执行',
-        sql: `UPDATE life_action
-SET status = 'executed', execute_at = CURRENT_DATE
-WHERE name = '深呼吸';`,
-        description: '执行完一个行动后更新状态'
-      }
-    ]
-  },
+  return <span className="text-monokai-fg font-mono text-xs tabular-nums">{time}</span>;
+};
 
-  // ─────────────────────────────────────────────
-  // 第 3 类：DQL-查询（基础检索）
-  // ─────────────────────────────────────────────
-  {
-    id: 'dql-query',
-    title: 'DQL 数据查询',
-    icon: Eye,
-    color: 'text-monokai-blue',
-    badgeColor: 'bg-monokai-blue/20 text-monokai-blue',
-    description: '从五张表检索数据，包括基本查询、JOIN 多表、JSON 属性提取。',
-    meceCategory: 'dql-query',
-    snippets: [
-      {
-        label: '查看所有对象及类型',
-        sql: `SELECT lo.id, lo.name, lot.name AS type_name, lo.properties
-FROM life_object lo
-JOIN life_object_type lot ON lo.object_type_id = lot.id;`,
-        description: 'JOIN 查看对象时带上类型名称'
-      },
-      {
-        label: '查询某类型的全部对象',
-        sql: `SELECT name, properties
-FROM life_object
-WHERE object_type_id = (
-    SELECT id FROM life_object_type WHERE name = 'Aspect'
-);`,
-        description: '通过子查询查找特定类型的对象'
-      },
-      {
-        label: '完整关系视图（带名称）',
-        sql: `SELECT
-    src.name         AS 来源对象,
-    lt.name          AS 关系类型,
-    tgt.name         AS 目标对象,
-    ll.weight        AS 强度
-FROM life_link ll
-JOIN life_link_type lt ON ll.link_type_id  = lt.id
-JOIN life_object  src ON ll.source_object_id = src.id
-JOIN life_object  tgt ON ll.target_object_id = tgt.id
-ORDER BY ll.weight DESC;`,
-        description: '三表 JOIN，将 id 翻译成名称'
-      },
-      {
-        label: '查询所有"影响"关系',
-        sql: `SELECT
-    src.name AS 发起方,
-    tgt.name AS 被影响方,
-    ll.weight AS 影响强度
-FROM life_link ll
-JOIN life_link_type lt ON ll.link_type_id = lt.id
-JOIN life_object src ON ll.source_object_id = src.id
-JOIN life_object tgt ON ll.target_object_id = tgt.id
-WHERE lt.name = '影响';`,
-        description: '筛选特定关系类型的全部实例'
-      },
-      {
-        label: '关系强度分级',
-        sql: `SELECT
-    src.name || ' -> ' || tgt.name AS 关系,
-    ll.weight,
-    CASE
-        WHEN ll.weight >= 0.9 THEN '★★★ 核心'
-        WHEN ll.weight >= 0.7 THEN '★★ 重要'
-        ELSE '★ 一般'
-    END AS 重要程度
-FROM life_link ll
-JOIN life_object src ON ll.source_object_id = src.id
-JOIN life_object tgt ON ll.target_object_id = tgt.id;`,
-        description: '用 CASE WHEN 对关系强度进行分级'
-      },
-      {
-        label: 'JSON 属性查询：状态为"焦虑"的对象',
-        sql: `SELECT name, properties['state']::VARCHAR AS state
-FROM life_object
-WHERE properties['state']::VARCHAR = '焦虑';`,
-        description: 'DuckDB 支持直接用 :: 类型转换从 JSON 提取字段'
-      },
-      {
-        label: 'JSON 属性查询：有目标的对象',
-        sql: `SELECT name, properties['goal']::VARCHAR AS goal
-FROM life_object
-WHERE properties['goal'] IS NOT NULL;`,
-        description: '筛选 properties 中存在 goal 字段的行'
-      },
-      {
-        label: '查询所有待执行行动',
-        sql: `SELECT name, description FROM life_action WHERE status = 'pending';`,
-        description: '查看所有未完成的承诺'
-      }
-    ]
-  },
+// ============================================================
+// View Tabs Configuration
+// ============================================================
 
-  // ─────────────────────────────────────────────
-  // 第 4 类：DQL-分析（高级分析）
-  // ─────────────────────────────────────────────
-  {
-    id: 'dql-analysis',
-    title: 'DQL 数据分析',
-    icon: TrendingUp,
-    color: 'text-monokai-cyan',
-    badgeColor: 'bg-monokai-cyan/20 text-monokai-cyan',
-    description: '聚合统计、递归 CTE 追溯影响链。理解本体论整体状态和关系路径。',
-    meceCategory: 'dql-analysis',
-    snippets: [
-      {
-        label: '本体论总览',
-        sql: `SELECT '对象类型' AS 指标, COUNT(*) AS 数值 FROM life_object_type
-UNION ALL
-SELECT '对象实例',         COUNT(*)        FROM life_object
-UNION ALL
-SELECT '关系类型',         COUNT(*)        FROM life_link_type
-UNION ALL
-SELECT '关系实例',         COUNT(*)        FROM life_link
-UNION ALL
-SELECT '待执行行动',       COUNT(*)        FROM life_action WHERE status = 'pending';`,
-        description: '用 UNION ALL 统计各表行数'
-      },
-      {
-        label: '每个类型的对象数量',
-        sql: `SELECT
-    lot.name  AS 类型名称,
-    COUNT(lo.id) AS 对象数量
-FROM life_object_type lot
-LEFT JOIN life_object lo ON lot.id = lo.object_type_id
-GROUP BY lot.id, lot.name
-ORDER BY 对象数量 DESC;`,
-        description: '统计各类型的实例数量（LEFT JOIN 含零计数）'
-      },
-      {
-        label: '每种关系的数量和平均强度',
-        sql: `SELECT
-    lt.name           AS 关系类型,
-    COUNT(ll.id)      AS 实例数,
-    AVG(ll.weight)    AS 平均强度,
-    MAX(ll.weight)    AS 最强,
-    MIN(ll.weight)    AS 最弱
-FROM life_link_type lt
-LEFT JOIN life_link ll ON lt.id = ll.link_type_id
-GROUP BY lt.id, lt.name
-ORDER BY 实例数 DESC;`,
-        description: '了解哪种关系类型使用最频繁'
-      },
-      {
-        label: '最核心的关系（Top 3）',
-        sql: `SELECT
-    src.name || ' --(' || lt.name || ')--> ' || tgt.name AS 关系链,
-    ll.weight AS 强度
-FROM life_link ll
-JOIN life_link_type lt ON ll.link_type_id = lt.id
-JOIN life_object src ON ll.source_object_id = src.id
-JOIN life_object tgt ON ll.target_object_id = tgt.id
-ORDER BY ll.weight DESC
-LIMIT 3;`,
-        description: '找出权重最高的三条关系'
-      },
-      {
-        label: '递归追溯：从 A 出发的所有影响路径',
-        sql: `WITH RECURSIVE impact_chain AS (
-    SELECT
-        source_object_id AS start_id,
-        target_object_id AS current_id,
-        CAST(src.name || ' -> ' || tgt.name AS VARCHAR) AS path,
-        1 AS depth
-    FROM life_link ll
-    JOIN life_object src ON ll.source_object_id = src.id
-    JOIN life_object tgt ON ll.target_object_id = tgt.id
-    WHERE src.name = '心态'
-
-    UNION ALL
-
-    SELECT
-        ic.start_id,
-        ll.target_object_id,
-        ic.path || ' -> ' || tgt.name,
-        ic.depth + 1
-    FROM impact_chain ic
-    JOIN life_link ll ON ll.source_object_id = ic.current_id
-    JOIN life_object tgt ON ll.target_object_id = tgt.id
-    WHERE ic.depth < 10
-      AND ic.path NOT LIKE '%' || tgt.name || '%'
-)
-SELECT * FROM impact_chain ORDER BY depth, weight DESC;`,
-        description: '递归 CTE 追溯影响链，depth 限制防止无限递归'
-      },
-      {
-        label: '完整影响网络（递归）',
-        sql: `WITH RECURSIVE full_network AS (
-    SELECT
-        source_object_id AS root_id,
-        source_object_id AS current_id,
-        CAST(src.name AS VARCHAR) AS path,
-        0 AS depth
-    FROM life_link ll
-    JOIN life_object src ON ll.source_object_id = src.id
-
-    UNION ALL
-
-    SELECT
-        fn.root_id,
-        ll.target_object_id,
-        fn.path || ' -> ' || tgt.name,
-        fn.depth + 1
-    FROM full_network fn
-    JOIN life_link ll ON ll.source_object_id = fn.current_id
-    JOIN life_object tgt ON ll.target_object_id = tgt.id
-    WHERE fn.depth < 10
-      AND fn.path NOT LIKE '%' || tgt.name || '%'
-)
-SELECT path, COUNT(*) AS times FROM full_network GROUP BY path ORDER BY depth;`,
-        description: '从任意节点出发探索完整影响网络'
-      },
-      {
-        label: '将关系转化为行动',
-        sql: `SELECT
-    src.name || ' --(' || lt.name || ')--> ' || tgt.name AS 关系,
-    ll.weight,
-    CASE
-        WHEN ll.weight < 0.5 THEN '建议：重新评估关系价值'
-        WHEN ll.weight < 0.7 THEN '建议：定期维护'
-        ELSE '关系稳固，继续保持'
-    END AS 行动建议
-FROM life_link ll
-JOIN life_link_type lt ON ll.link_type_id = lt.id
-JOIN life_object src ON ll.source_object_id = src.id
-JOIN life_object tgt ON ll.target_object_id = tgt.id;`,
-        description: '用 SQL 分析哪些关系需要行动介入'
-      }
-    ]
-  },
-
-  // ─────────────────────────────────────────────
-  // 第 5 类：DDL-进阶（视图与清理）
-  // ─────────────────────────────────────────────
-  {
-    id: 'ddl-advanced',
-    title: 'DDL 进阶操作',
-    icon: Layers,
-    color: 'text-monokai-green',
-    badgeColor: 'bg-monokai-green/20 text-monokai-green',
-    description: 'CTE 封装、视图创建、数据清理。固化查询逻辑，方便复用。',
-    meceCategory: 'ddl-advanced',
-    snippets: [
-      {
-        label: 'CTE：带权重的完整关系视图',
-        sql: `WITH relation_view AS (
-    SELECT
-        src.name  AS source,
-        lt.name   AS relation,
-        tgt.name  AS target,
-        ll.weight AS weight,
-        CASE
-            WHEN ll.weight >= 0.9 THEN '核心'
-            WHEN ll.weight >= 0.7 THEN '重要'
-            ELSE '一般'
-        END AS importance
-    FROM life_link ll
-    JOIN life_link_type lt ON ll.link_type_id  = lt.id
-    JOIN life_object  src ON ll.source_object_id = src.id
-    JOIN life_object  tgt ON ll.target_object_id = tgt.id
-)
-SELECT * FROM relation_view ORDER BY weight DESC;`,
-        description: '封装关系 JOIN + CASE 分级，后续可直接 SELECT * FROM relation_view'
-      },
-      {
-        label: 'CTE：行动转化分析',
-        sql: `WITH action_analysis AS (
-    SELECT
-        la.name        AS 行动名称,
-        la.status      AS 状态,
-        CASE
-            WHEN la.status = 'pending'    THEN '等待执行'
-            WHEN la.status = 'executed'   THEN '已完成'
-            ELSE '进行中'
-        END AS 状态描述
-    FROM life_action la
-)
-SELECT * FROM action_analysis;`,
-        description: '将 CASE WHEN 逻辑封装在 CTE 中'
-      },
-      {
-        label: '创建视图：关系网络',
-        sql: `CREATE OR REPLACE VIEW v_relation_network AS
-SELECT
-    src.name  AS source_object,
-    lt.name   AS relation_type,
-    tgt.name  AS target_object,
-    ll.weight AS relation_weight
-FROM life_link ll
-JOIN life_link_type lt ON ll.link_type_id  = lt.id
-JOIN life_object  src ON ll.source_object_id = src.id
-JOIN life_object  tgt ON ll.target_object_id = tgt.id;`,
-        description: '视图将三表 JOIN 固化，之后直接 SELECT * FROM v_relation_network',
-        refreshTables: true
-      },
-      {
-        label: '使用视图查询',
-        sql: `SELECT * FROM v_relation_network
-WHERE relation_weight > 0.7
-ORDER BY relation_weight DESC;`,
-        description: '基于视图做二次过滤'
-      },
-      {
-        label: '删除视图',
-        sql: `DROP VIEW IF EXISTS v_relation_network;`,
-        description: '清理创建的视图',
-        refreshTables: true
-      },
-      {
-        label: '删除所有表（反向依赖顺序）',
-        sql: `-- 重要：先删子表，再删父表（外键约束顺序）
-DROP TABLE IF EXISTS life_action;
-DROP TABLE IF EXISTS life_link;
-DROP TABLE IF EXISTS life_object;
-DROP TABLE IF EXISTS life_link_type;
-DROP TABLE IF EXISTS life_object_type;`,
-        description: '清理全部五张表（反向：子→父）',
-        refreshTables: true
-      },
-      {
-        label: '清空数据（保留表结构）',
-        sql: `-- 保留表结构，只清数据
-TRUNCATE TABLE life_action;
-TRUNCATE TABLE life_link;
-TRUNCATE TABLE life_object;
-TRUNCATE TABLE life_link_type;`,
-        description: 'TRUNCATE 比 DELETE 快很多，适合重新初始化数据'
-      }
-    ]
-  }
-
+const VIEW_TABS: { id: ViewTab; label: string; icon: React.ElementType }[] = [
+  { id: 'graph', label: '知识图谱', icon: Network },
+  { id: 'data',  label: '数据视图', icon: Database },
+  { id: 'canvas', label: '高阶画布', icon: LayoutGrid },
 ];
 
 // ============================================================
-// 子组件：背景说明面板
+// AIDraftModal
 // ============================================================
 
-const CategoryHelpPanel: React.FC<{
-  help: CategoryHelpData;
-  isExpanded: boolean;
-  onToggle: () => void;
-}> = ({ help, isExpanded, onToggle }) => (
-  <div className="rounded-lg border border-monokai-accent/60 bg-monokai-sidebar/70 overflow-hidden">
-    <button
-      onClick={onToggle}
-      className="w-full flex items-center justify-between px-3.5 py-2.5 text-left hover:bg-monokai-accent/20 transition-colors"
-    >
-      <div className="flex items-center gap-2">
-        <Lightbulb className="w-4 h-4 text-monokai-yellow" />
-        <span className="text-xs font-semibold text-monokai-fg">{help.title}</span>
-        <span className="text-[11px] text-monokai-comment">使用帮助</span>
-      </div>
-      <div className={`transform transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}>
-        <ChevronDown className="w-4 h-4 text-monokai-comment" />
-      </div>
-    </button>
+const AIDraftModal: React.FC<{
+  payload: any;
+  jsonStr: string;
+  onCommit: () => void;
+  onCancel: () => void;
+}> = ({ payload, jsonStr, onCommit, onCancel }) => {
+  const [committing, setCommitting] = useState(false);
 
-    {isExpanded && (
-      <div className="px-3.5 pb-3 space-y-3">
-        <p className="text-xs text-monokai-comment">{help.description}</p>
-
-        {/* 三列布局：适用场景 + 常见错误 + AI 提示 */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-monokai-green/90">
-              <Target className="w-3 h-3" /><span>适用场景</span>
-            </div>
-            <ul className="space-y-1">
-              {help.scenarios.map((s, idx) => (
-                <li key={idx} className="text-[11px] text-monokai-comment leading-relaxed flex items-start gap-1">
-                  <span className="text-monokai-green/70 mt-0.5">•</span><span>{s}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-monokai-pink/90">
-              <AlertTriangle className="w-3 h-3" /><span>常见错误</span>
-            </div>
-            <ul className="space-y-1">
-              {help.commonErrors.slice(0, 4).map((s, idx) => (
-                <li key={idx} className="text-[11px] text-monokai-comment leading-relaxed flex items-start gap-1">
-                  <span className="text-monokai-pink/70 mt-0.5">•</span><span>{s}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-monokai-purple/90">
-              <Sparkles className="w-3 h-3" /><span>AI 协作提示</span>
-            </div>
-            <ul className="space-y-1">
-              {help.aiHints.slice(0, 3).map((s, idx) => (
-                <li key={idx} className="text-[11px] text-monokai-comment leading-relaxed flex items-start gap-1">
-                  <span className="text-monokai-purple/70 mt-0.5">•</span><span>{s}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-
-        {/* 快速开始 + 最佳实践 */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t border-monokai-accent/40">
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-monokai-cyan/90">
-              <Clock className="w-3 h-3" /><span>快速开始</span>
-            </div>
-            <ul className="space-y-1">
-              {help.quickStart.map((s, idx) => (
-                <li key={idx} className="text-[11px] text-monokai-comment leading-relaxed">{s}</li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-monokai-orange/90">
-              <Star className="w-3 h-3" /><span>最佳实践</span>
-            </div>
-            <ul className="space-y-1">
-              {help.bestPractices.map((s, idx) => (
-                <li key={idx} className="text-[11px] text-monokai-comment leading-relaxed flex items-start gap-1">
-                  <span className="text-monokai-orange/70 mt-0.5">✓</span><span>{s}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      </div>
-    )}
-  </div>
-);
-
-// ============================================================
-// 子组件：AI 填充面板
-// ============================================================
-
-const AIFillPanel: React.FC<{
-  categoryId: string;
-  onFill: (sql: string, description: string) => void;
-  isLoading: boolean;
-}> = ({ categoryId, onFill, isLoading }) => {
-  const templates = AI_FILL_TEMPLATES[categoryId];
-  if (!templates || templates.length === 0) return null;
+  const handleCommit = async () => {
+    setCommitting(true);
+    try {
+      await duckDBService.executeOntologyDraft(payload);
+      onCommit();
+    } catch (e: any) {
+      alert(`提交失败: ${e.message}`);
+    } finally {
+      setCommitting(false);
+    }
+  };
 
   return (
-    <div className="mb-3 p-2 bg-monokai-purple/5 border border-monokai-purple/20 rounded-lg">
-      <div className="flex items-center gap-2 mb-2">
-        <Sparkles className="w-3.5 h-3.5 text-monokai-purple" />
-        <span className="text-[11px] font-medium text-monokai-purple">AI 一键填充</span>
-        <span className="text-[10px] text-monokai-comment">快速生成示例内容</span>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        {templates.map((t, idx) => (
-          <button
-            key={idx}
-            onClick={() => onFill(t.sql, t.description)}
-            disabled={isLoading}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] rounded bg-monokai-purple/10 text-monokai-purple hover:bg-monokai-purple/20 transition-colors disabled:opacity-50 disabled:cursor-wait"
-            title={t.description}
-          >
-            {isLoading ? (
-              <Loader2 className="w-3 h-3 animate-spin" />
-            ) : (
-              <Sparkles className="w-3 h-3" />
-            )}
-            <span>{t.description}</span>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+      <div className="w-[720px] max-h-[85vh] bg-monokai-bg border border-monokai-accent/20 rounded-2xl shadow-2xl flex flex-col">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-monokai-accent/10">
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 rounded-xl bg-monokai-purple/15 flex items-center justify-center">
+              <Sparkles className="w-5 h-5 text-monokai-purple" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-monokai-fg">AI 生成预览</h3>
+              <p className="text-xs text-monokai-comment mt-1">请审核并确认即将注入图谱的新知数据</p>
+            </div>
+          </div>
+          <button onClick={onCancel} className="p-2 rounded-xl hover:bg-monokai-accent/10 text-monokai-comment hover:text-monokai-fg transition-colors">
+            <X className="w-5 h-5" />
           </button>
-        ))}
+        </div>
+
+        <div className="px-6 py-4 border-b border-monokai-accent/10 bg-monokai-sidebar/30 flex items-center gap-6 text-sm">
+          {payload.objects?.length > 0 && <span className="text-monokai-blue flex items-center gap-2"><Table2 className="w-4 h-4" /> 对象 × {payload.objects.length}</span>}
+          {payload.links?.length > 0 && <span className="text-monokai-purple flex items-center gap-2"><Link2 className="w-4 h-4" /> 关系 × {payload.links.length}</span>}
+          {payload.actions?.length > 0 && <span className="text-monokai-yellow flex items-center gap-2"><Zap className="w-4 h-4" /> 行动 × {payload.actions.length}</span>}
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-2">
+          <CodeMirror
+            value={jsonStr}
+            height="400px"
+            theme={monokai}
+            extensions={[sqlLang(), EditorView.lineWrapping, EditorView.theme({ "&": { fontSize: "14px" } })]}
+            editable={false}
+            basicSetup={false}
+          />
+        </div>
+
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-monokai-accent/10">
+          <button onClick={onCancel} className="px-5 py-2.5 text-sm rounded-xl text-monokai-comment hover:text-monokai-fg hover:bg-monokai-accent/10 transition-colors">
+            取消
+          </button>
+          <button onClick={handleCommit} disabled={committing} className="flex items-center gap-2 px-5 py-2.5 text-sm rounded-xl bg-monokai-purple/20 text-monokai-purple hover:bg-monokai-purple/30 transition-colors disabled:opacity-50 font-medium">
+            {committing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+            确认并注入
+          </button>
+        </div>
       </div>
     </div>
   );
 };
 
 // ============================================================
-// 主组件
+// Template Panel (Left Pane Content)
 // ============================================================
 
-export const OntologyPanel: React.FC<OntologyPanelProps> = ({
-  onCopy,
-  onInsert,
-  copiedId,
-  onTablesReady
-}) => {
-  // 分类展开状态
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
-    new Set(ONTOLOGY_DATA.map(c => c.id))
+const CATEGORY_ACCENT: Record<string, string> = {
+  setup:  'from-monokai-purple/30 via-monokai-purple/10 to-transparent',
+  query:  'from-monokai-cyan/30 via-monokai-cyan/10 to-transparent',
+  modify: 'from-monokai-yellow/30 via-monokai-yellow/10 to-transparent',
+  export: 'from-monokai-green/30 via-monokai-green/10 to-transparent',
+};
+
+const CATEGORY_ICONS: Record<string, React.ElementType> = {
+  setup:  Database,
+  query:  BarChart2,
+  modify:  Pencil,
+  export:  Download,
+};
+
+const CATEGORY_COLORS: Record<string, string> = {
+  setup: 'text-monokai-purple', query: 'text-monokai-cyan',
+  modify: 'text-monokai-yellow', export: 'text-monokai-green',
+};
+
+
+// ── Syntax-highlighted SQL code block ──────────────────────────
+const SqlPreview: React.FC<{ sql: string; maxHeight?: string }> = ({ sql, maxHeight }) => (
+  <div className={`rounded border border-monokai-border/40 overflow-hidden`}>
+    <div className="flex items-center justify-between px-2.5 py-1 border-b border-monokai-border/30">
+      <span className="text-[9px] text-monokai-comment/50 font-mono tracking-wider uppercase">SQL</span>
+    </div>
+    <div className={maxHeight ? 'overflow-auto custom-scrollbar' : ''} style={maxHeight ? { maxHeight } : undefined}>
+      <CodeMirror
+        value={sql}
+        theme={monokai}
+        editable={false}
+        basicSetup={false}
+        extensions={[
+          sqlLang(),
+          EditorView.lineWrapping,
+          EditorView.theme({
+            '&': { fontSize: '11px' },
+            '.cm-scroller': { fontFamily: 'inherit', overflow: 'hidden' },
+            '.cm-content': { padding: '8px 0' },
+            '.cm-gutters': { display: 'none' },
+          }),
+        ]}
+      />
+    </div>
+  </div>
+);
+
+// ── Status badge pill ──────────────────────────────────────────
+const StatusBadge: React.FC<{ result?: ExecutionResult }> = ({ result }) => {
+  if (result?.loading) return (
+    <span className="inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full bg-monokai-yellow/12 text-monokai-yellow border border-monokai-yellow/20 font-medium">
+      <Loader2 className="w-2.5 h-2.5 animate-spin" /> 运行中
+    </span>
   );
-  // 片段展开状态
-  const [expandedSnippets, setExpandedSnippets] = useState<Set<string>>(new Set());
-  // 全部展开/折叠
-  const [allExpanded, setAllExpanded] = useState(true);
-  // 帮助面板展开状态
-  const [expandedHelpCategories, setExpandedHelpCategories] = useState<Set<string>>(new Set());
-  // AI 填充状态
-  const [aiFillingStates, setAIFillingStates] = useState<Record<string, boolean>>({});
-  // 执行结果
-  const [executionResults, setExecutionResults] = useState<Record<string, ExecutionResult>>({});
-  // 填充后的 SQL（用于预览）
-  const [filledSql, setFilledSql] = useState<{ [key: string]: string }>({});
-  // 错误消息（用于提示）
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  if (result?.error) return (
+    <span className="inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full bg-monokai-red/10 text-monokai-red border border-monokai-red/20 font-medium">
+      <span className="w-1 h-1 rounded-full bg-monokai-red inline-block" /> 失败
+    </span>
+  );
+  if (result?.data !== undefined) return (
+    <span className="inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full bg-monokai-green/10 text-monokai-green border border-monokai-green/20 font-medium">
+      <span className="w-1 h-1 rounded-full bg-monokai-green inline-block" />
+      {result.executionTime ? `${result.executionTime.toFixed(0)}ms` : '完成'}
+    </span>
+  );
+  return null;
+};
 
-  // 执行 SQL
-  const handleExecute = useCallback(async (id: string, sql: string, refreshTables?: boolean) => {
-    setExecutionResults(prev => ({ ...prev, [id]: { data: null, error: null, loading: true } }));
-    setErrorMessage(null);
-    const startTime = performance.now();
-    try {
-      const res = await duckDBService.query(sql);
-      const endTime = performance.now();
-      setExecutionResults(prev => ({
-        ...prev,
-        [id]: { data: res, error: null, loading: false, executionTime: endTime - startTime }
-      }));
-      if (refreshTables) onTablesReady?.();
-    } catch (e: any) {
-      setExecutionResults(prev => ({
-        ...prev,
-        [id]: { data: null, error: e.message, loading: false }
-      }));
-      setErrorMessage(e.message);
-    }
-  }, [onTablesReady]);
+// ── Individual Template Card ──────────────────────────────────
+const TemplateCard: React.FC<{
+  tpl: any;
+  result?: ExecutionResult;
+  categoryColor: string;
+  accentClass: string;
+  onExecute: (id: string, sql: string, refreshTables?: boolean) => void;
+  onInsert?: (sql: string) => void;
+}> = ({ tpl, result, categoryColor, accentClass, onExecute, onInsert }) => {
+  const [expanded, setExpanded] = useState(false);
 
-  // 切换分类展开
-  const toggleCategory = useCallback((id: string) => {
-    setExpandedCategories(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }, []);
+  const isFirst = tpl.id === 'init-full';
+  const hasError = !!result?.error;
+  const hasData = result?.data !== undefined;
+  const isLoading = !!result?.loading;
 
-  // 切换片段展开
-  const toggleSnippet = useCallback((id: string) => {
-    setExpandedSnippets(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }, []);
+  // Status dot color
+  const dotClass = hasError
+    ? 'bg-monokai-red'
+    : hasData
+    ? 'bg-monokai-green'
+    : 'bg-monokai-comment/30';
 
-  // 切换全部展开/折叠
-  const toggleAll = useCallback(() => {
-    if (allExpanded) {
-      setExpandedCategories(new Set());
-      setExpandedSnippets(new Set());
-    } else {
-      setExpandedCategories(new Set(ONTOLOGY_DATA.map(c => c.id)));
-    }
-    setAllExpanded(!allExpanded);
-  }, [allExpanded]);
+  // Execute button
+  const execBtnClass = isLoading
+    ? 'bg-monokai-yellow/10 text-monokai-yellow border border-monokai-yellow/30 cursor-not-allowed'
+    : hasError
+    ? `bg-monokai-red/10 ${categoryColor} border border-monokai-red/30 hover:bg-monokai-red/20`
+    : hasData
+    ? 'bg-monokai-green/10 text-monokai-green border border-monokai-green/30 hover:bg-monokai-green/20'
+    : `${accentClass} ${categoryColor} border border-current/20 hover:border-current/40`;
 
-  // 切换帮助面板
-  const toggleHelp = useCallback((categoryId: string) => {
-    setExpandedHelpCategories(prev => {
-      const next = new Set(prev);
-      if (next.has(categoryId)) next.delete(categoryId);
-      else next.add(categoryId);
-      return next;
-    });
-  }, []);
-
-  // AI 填充处理
-  const handleAIFill = useCallback(async (categoryId: string, sql: string, description: string) => {
-    const key = `ai-fill-${categoryId}`;
-    setAIFillingStates(prev => ({ ...prev, [key]: true }));
-
-    // 模拟 AI 处理延迟
-    await new Promise(resolve => setTimeout(resolve, 300));
-
-    // 将填充的 SQL 设置到第一个 DDL 语句
-    setFilledSql(prev => ({ ...prev, [categoryId]: sql }));
-    setAIFillingStates(prev => ({ ...prev, [key]: false }));
-
-    // 自动展开该分类
-    setExpandedCategories(prev => {
-      const next = new Set(prev);
-      next.add(categoryId);
-      return next;
-    });
-  }, []);
-
-  // 快速清除 - 清除所有状态
-  const handleClearAll = useCallback(() => {
-    setExpandedCategories(new Set());
-    setExpandedSnippets(new Set());
-    setExpandedHelpCategories(new Set());
-    setFilledSql({});
-    setErrorMessage(null);
-    setAllExpanded(false);
-  }, []);
-
-  // 获取当前分类的帮助数据
-  const getHelp = useCallback((categoryId: string): CategoryHelpData | undefined => {
-    return CATEGORY_HELP[categoryId];
-  }, []);
+  const execBtnLabel = isLoading ? '执行中' : hasError ? '重试' : hasData ? '再次执行' : '执行';
 
   return (
-    <div className="h-full overflow-y-auto p-4">
-      {/* 顶部：统计 + 全局控制 */}
-      <div className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <BookOpen className="w-4 h-4 text-monokai-purple" />
-          <span className="text-xs text-monokai-fg font-medium">本体论知识工作台</span>
-          <span className="text-xs text-monokai-comment">
-            {ONTOLOGY_DATA.length} 个分类 · {ONTOLOGY_DATA.reduce((a, c) => a + c.snippets.length, 0)} 个代码块
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={toggleAll}
-            className="px-3 py-1.5 text-xs rounded bg-monokai-accent/20 text-monokai-accent hover:bg-monokai-accent/30 transition-colors"
-          >
-            {allExpanded ? '全部折叠' : '全部展开'}
-          </button>
-          {/* 快速清除按钮 */}
-          <button
-            onClick={handleClearAll}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded bg-monokai-pink/10 border border-monokai-pink/40 text-monokai-pink hover:bg-monokai-pink/20 transition-colors"
-            title="一键清空所有输入和状态"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-            <span>快速清除</span>
-          </button>
-          <button
-            onClick={() => {
-              handleExecute('cleanup-all', 'DROP TABLE IF EXISTS life_action;DROP TABLE IF EXISTS life_link;DROP TABLE IF EXISTS life_object;DROP TABLE IF EXISTS life_link_type;DROP TABLE IF EXISTS life_object_type;DROP VIEW IF EXISTS v_relation_network;', true);
-            }}
-            className="px-3 py-1.5 text-xs rounded bg-monokai-red/20 text-monokai-red hover:bg-monokai-red/30 transition-colors"
-          >
-            清空所有表
-          </button>
-        </div>
-      </div>
+    <div
+      className={`
+        rounded-lg border overflow-hidden transition-all duration-200 group relative
+        ${isFirst && !hasError && !hasData
+          ? `template-card-first`
+          : hasError
+          ? 'border-monokai-red/30 bg-monokai-red/[0.04] hover:border-monokai-red/50'
+          : hasData
+          ? 'border-monokai-green/25 bg-monokai-green/[0.03] hover:border-monokai-green/40'
+          : 'border-monokai-border/40 bg-monokai-surface hover:border-monokai-border/70 hover:bg-monokai-sidebar/30'
+        }
+      `}
+    >
+      {/* Left accent stripe — category color indicator */}
+      <div className={`
+        absolute left-0 top-0 bottom-0 w-[2px] rounded-l-lg transition-all duration-200
+        ${hasError
+          ? 'bg-monokai-red'
+          : hasData
+          ? 'bg-monokai-green'
+          : isFirst
+          ? 'bg-monokai-purple'
+          : hasData
+          ? 'bg-monokai-green'
+          : 'bg-monokai-comment/20 group-hover:bg-monokai-comment/40'
+        }
+      `} />
 
-      {/* 错误消息提示 */}
-      {errorMessage && (
-        <div className="mb-4 p-2 bg-monokai-red/10 border border-monokai-red/30 rounded-lg flex items-start gap-2">
-          <AlertTriangle className="w-4 h-4 text-monokai-red shrink-0 mt-0.5" />
-          <div>
-            <p className="text-[11px] text-monokai-red font-medium">执行错误</p>
-            <p className="text-[11px] text-monokai-comment mt-0.5">{errorMessage}</p>
+      {/* Card header */}
+      <button
+        type="button"
+        className="w-full flex items-center pl-3 pr-2 py-1.5 text-left"
+        onClick={() => setExpanded(!expanded)}
+      >
+        {/* Left: status dot + content */}
+        <div className="flex items-start gap-2 min-w-0 flex-1">
+          {/* Status dot */}
+          <div className={`w-1.5 h-1.5 rounded-full shrink-0 mt-[3px] transition-all ${dotClass}`} />
+
+          {/* Title + description stack */}
+          <div className="min-w-0 flex-1">
+            {/* Title row: label + inline status */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className={`${expanded ? 'text-[11px]' : 'text-xs'} font-medium leading-tight ${isFirst && !hasError && !hasData ? 'text-monokai-purple' : 'text-monokai-fg'}`}>
+                {tpl.label}
+              </span>
+              <StatusBadge result={result} />
+            </div>
+            {/* Description */}
+            <p className={`${expanded ? 'text-[10px]' : 'text-[11px]'} text-monokai-comment/60 leading-normal mt-0.5 pr-2 line-clamp-2`}>
+              {tpl.description}
+            </p>
+          </div>
+        </div>
+
+        {/* Right: chevron */}
+        <div className="shrink-0 self-center">
+          <ChevronDown
+            className={`w-3 h-3 text-monokai-comment/40 transition-transform duration-200 ${expanded ? 'rotate-180 text-monokai-fg/60' : ''}`}
+          />
+        </div>
+      </button>
+
+      {/* Expanded panel */}
+      {expanded && (
+        <div className="border-t border-monokai-border/30 px-3 pt-2 pb-2.5 space-y-2 bg-monokai-sidebar/15">
+          {/* Action bar */}
+          <div className="flex items-center gap-1 flex-wrap">
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onExecute(tpl.id, tpl.sql, tpl.refreshTables); }}
+              disabled={isLoading}
+              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-semibold transition-all ${execBtnClass}`}>
+              {isLoading
+                ? <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                : <Play className="w-2.5 h-2.5" />
+              }
+              {execBtnLabel}
+            </button>
+
+            {onInsert && (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onInsert(tpl.sql); }}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-medium bg-monokai-blue/10 text-monokai-blue border border-monokai-blue/20 hover:bg-monokai-blue/20 transition-all">
+                <ArrowRight className="w-2.5 h-2.5" /> 复制
+              </button>
+            )}
+          </div>
+
+          {/* Code block with syntax highlighting */}
+          <SqlPreview sql={tpl.sql} />
+
+          {/* Result table */}
+          {result && (
+            <ResultTable
+              data={result.data || []}
+              error={result.error}
+              loading={result.loading}
+              executionTime={result.executionTime}
+            />
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ── Main Template Panel ──────────────────────────────────────
+const TemplatePanel: React.FC<{
+  state: any;
+  onInsert?: (sql: string) => void;
+  onTablesReady?: () => void;
+  refresh: () => Promise<void>;
+}> = ({ state, onInsert, onTablesReady, refresh }) => {
+  // All categories collapsed by default for clean first impression
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  const [results, setResults] = useState<Record<string, ExecutionResult>>({});
+
+  const toggleCategory = (id: string) => {
+    setExpandedCategories(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const handleExecute = useCallback(async (id: string, sql: string, refreshTables?: boolean) => {
+    setResults(prev => ({ ...prev, [id]: { data: null, error: null, loading: true } }));
+    const start = performance.now();
+    try {
+      const res = await duckDBService.query(sql);
+      if (refreshTables) {
+        await refresh();
+      }
+      setResults(prev => ({ ...prev, [id]: { data: res, error: null, loading: false, executionTime: performance.now() - start } }));
+      onTablesReady?.();
+    } catch (e: any) {
+      setResults(prev => ({ ...prev, [id]: { data: null, error: e.message, loading: false } }));
+    }
+  }, [onTablesReady, refresh]);
+
+  const isNoTables = state?.initState === 'no-tables';
+
+  return (
+    <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-4">
+      {/* ── Init Banner ── */}
+      {isNoTables && (
+        <div className="mb-3 p-3 rounded-lg border border-monokai-purple/30 overflow-hidden relative template-init-banner">
+
+          <div className="flex items-start gap-2.5 pl-0.5">
+            {/* Icon block */}
+            <div className="shrink-0 mt-0.5">
+              <div className="w-8 h-8 rounded-lg bg-monokai-purple/15 border border-monokai-purple/20 flex items-center justify-center">
+                <Database className="w-4 h-4 text-monokai-purple" />
+              </div>
+            </div>
+
+            <div className="flex-1 min-w-0">
+              {/* Title row */}
+              <div className="flex items-center gap-2 mb-1">
+                <h3 className="text-sm font-semibold text-monokai-fg">知识图谱尚未初始化</h3>
+                <span className="init-badge bg-monokai-orange/10 text-monokai-orange border border-monokai-orange/20 font-mono">
+                  0 表
+                </span>
+              </div>
+              {/* Subtitle */}
+              <p className="text-xs text-monokai-comment/70 mb-2.5">
+                一键创建 7 张本体论表，导入教学种子数据
+              </p>
+              {/* CTA */}
+              <button
+                onClick={() => handleExecute('init-full', ONTOLOGY_TEMPLATE_CATEGORIES.setup.templates[0].sql, true)}
+                className="group inline-flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-lg
+                  bg-monokai-purple text-white
+                  hover:bg-monokai-purple/90 hover:shadow-[0_0_20px_rgba(174,129,255,0.4)]
+                  transition-all duration-200 active:scale-[0.97]">
+                <Zap className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
+                一键完整初始化
+              </button>
+            </div>
           </div>
         </div>
       )}
 
-      {/* 场景说明横幅 */}
-      <div className="mb-4 p-3 bg-monokai-purple/10 border border-monokai-purple/30 rounded-lg">
-        <div className="flex items-center gap-2 mb-2">
-          <Network className="w-4 h-4 text-monokai-purple" />
-          <span className="text-xs font-bold text-monokai-purple">场景：我的人生</span>
-          <span className="text-[10px] text-monokai-comment ml-2">MECE 五分类体系</span>
-        </div>
-        <p className="text-[11px] text-monokai-comment leading-relaxed">
-          本体论的核心三元组：<span className="text-monokai-orange">Object（对象）</span>、
-          <span className="text-monokai-blue">Link（关系）</span>、
-          <span className="text-monokai-yellow">Action（行动）</span>。
-          MECE 五分类：<span className="text-monokai-purple">DDL-结构</span>、
-          <span className="text-monokai-yellow">DML-操作</span>、
-          <span className="text-monokai-blue">DQL-查询</span>、
-          <span className="text-monokai-cyan">DQL-分析</span>、
-          <span className="text-monokai-green">DDL-进阶</span>
-        </p>
-        <div className="mt-2 flex flex-wrap gap-2 text-[10px] font-mono">
-          <span className="px-2 py-0.5 rounded bg-monokai-bg text-monokai-comment">身体 →(支撑)→ 心态</span>
-          <span className="text-monokai-comment">→</span>
-          <span className="px-2 py-0.5 rounded bg-monokai-bg text-monokai-comment">心态 →(影响)→ 工作</span>
-          <span className="text-monokai-comment">→</span>
-          <span className="px-2 py-0.5 rounded bg-monokai-bg text-monokai-comment">工作 →(养活)→ 家庭</span>
-          <span className="text-monokai-comment">←</span>
-          <span className="px-2 py-0.5 rounded bg-monokai-bg text-monokai-comment">家庭 →(锚定)→ 心态</span>
-        </div>
-      </div>
+      {/* ── Category Cards ── */}
+      {TEMPLATE_CATEGORY_ORDER.map(catId => {
+        const cat = ONTOLOGY_TEMPLATE_CATEGORIES[catId];
+        if (!cat) return null;
+        const isExpanded = expandedCategories.has(catId);
+        const colorClass = CATEGORY_COLORS[catId] || 'text-monokai-comment';
+        const accentClass = CATEGORY_ACCENT[catId] || '';
+        const Icon = CATEGORY_ICONS[catId] || Layers;
+        const catBgClass = catId === 'setup' ? 'template-cat-setup'
+          : catId === 'query' ? 'template-cat-query'
+          : catId === 'modify' ? 'template-cat-modify'
+          : catId === 'export' ? 'template-cat-export'
+          : '';
 
-      {/* 分类卡片列表 */}
-      <div className="space-y-3">
-        {ONTOLOGY_DATA.map((cat) => {
-          const Icon = cat.icon;
-          const isExpanded = expandedCategories.has(cat.id);
-          const help = getHelp(cat.meceCategory);
-          const isHelpExpanded = expandedHelpCategories.has(cat.meceCategory);
-          const isFilling = aiFillingStates[`ai-fill-${cat.meceCategory}`] || false;
-          const currentFilledSql = filledSql[cat.meceCategory];
-
-          return (
-            <div key={cat.id} className="bg-monokai-sidebar border border-monokai-accent rounded-lg overflow-hidden">
-
-              {/* 分类头部 */}
-              <div
-                className="px-4 py-3 bg-monokai-bg border-b border-monokai-accent flex items-center justify-between cursor-pointer hover:bg-monokai-accent/10"
-                onClick={() => toggleCategory(cat.id)}
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <Icon className={`w-4 h-4 shrink-0 ${cat.color}`} />
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-medium text-monokai-fg">{cat.title}</span>
-                      <span className={`text-[10px] px-2 py-0.5 rounded ${cat.badgeColor}`}>
-                        {cat.snippets.length} 个代码块
-                      </span>
-                    </div>
-                    <p className="text-[10px] text-monokai-comment mt-0.5 hidden md:block">
-                      {cat.description}
-                    </p>
-                  </div>
+        return (
+          <div key={catId} className={`rounded-xl border border-monokai-border/50 overflow-hidden bg-monokai-surface hover:border-monokai-accent/30 transition-all shadow-sm ${catBgClass}`}>
+            <div className="p-3">
+              {/* Category header */}
+              <div className="flex items-center justify-between cursor-pointer group" onClick={() => toggleCategory(catId)}>
+                <div className="flex items-center gap-2">
+                  <div className={`w-1 h-4 rounded-full bg-current ${colorClass} opacity-80`} />
+                  <Icon className={`w-4 h-4 ${colorClass} shrink-0`} />
+                  <span className={`text-xs font-bold uppercase tracking-wider ${colorClass}`}>{cat.label}</span>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  {/* AI 填充按钮 */}
-                  {isExpanded && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (currentFilledSql) {
-                          // 如果已经有填充内容，使用已填充的 SQL
-                          handleAIFill(cat.meceCategory, currentFilledSql, '已填充');
-                        } else {
-                          // 否则使用第一个模板
-                          const templates = AI_FILL_TEMPLATES[cat.meceCategory];
-                          if (templates && templates.length > 0) {
-                            handleAIFill(cat.meceCategory, templates[0].sql, templates[0].description);
-                          }
-                        }
-                      }}
-                      disabled={isFilling}
-                      className="flex items-center gap-1 px-2 py-1 text-[10px] rounded bg-monokai-purple/10 text-monokai-purple hover:bg-monokai-purple/20 transition-colors disabled:opacity-50"
-                      title="AI 一键填充"
-                    >
-                      {isFilling ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
-                      <span>AI 填充</span>
-                    </button>
-                  )}
-                  {isExpanded
-                    ? <ChevronUp className="w-4 h-4 text-monokai-comment" />
-                    : <ChevronDown className="w-4 h-4 text-monokai-comment" />
-                  }
+                <div className="flex items-center gap-2">
+                  <span className="template-category-badge">{cat.templates.length}</span>
+                  {isExpanded ? <ChevronDown className="w-4 h-4 text-monokai-comment" /> : <ChevronRight className="w-4 h-4 text-monokai-comment" />}
                 </div>
               </div>
 
-              {/* 展开内容 */}
+              {/* Separator between header and template list */}
               {isExpanded && (
-                <div className="p-3">
-                  {/* 背景说明面板 */}
-                  {help && (
-                    <CategoryHelpPanel
-                      help={help}
-                      isExpanded={isHelpExpanded}
-                      onToggle={() => toggleHelp(cat.meceCategory)}
+                <div className={`mt-2.5 mb-2 h-px bg-gradient-to-r ${accentClass}`} />
+              )}
+
+              {/* Template cards list */}
+              {isExpanded && (
+                <div className="space-y-2">
+                  {cat.templates.map(tpl => (
+                    <TemplateCard
+                      key={tpl.id}
+                      tpl={tpl}
+                      result={results[tpl.id]}
+                      categoryColor={colorClass}
+                      accentClass={accentClass}
+                      onExecute={handleExecute}
+                      onInsert={onInsert}
                     />
-                  )}
-
-                  {/* AI 填充面板 */}
-                  <AIFillPanel
-                    categoryId={cat.meceCategory}
-                    onFill={(sql, desc) => handleAIFill(cat.meceCategory, sql, desc)}
-                    isLoading={isFilling}
-                  />
-
-                  {/* 快速清除按钮 */}
-                  <div className="mb-3 flex items-center justify-between">
-                    <span className="text-[10px] text-monokai-comment">
-                      点击代码块标题展开操作
-                    </span>
-                    <button
-                      onClick={() => {
-                        setExpandedSnippets(prev => {
-                          const next = new Set(prev);
-                          Object.keys(prev).forEach(key => {
-                            if (key.startsWith(cat.id)) next.delete(key);
-                          });
-                          return next;
-                        });
-                        setFilledSql(prev => {
-                          const next = { ...prev };
-                          delete next[cat.meceCategory];
-                          return next;
-                        });
-                      }}
-                      className="flex items-center gap-1 px-2 py-1 text-[10px] rounded bg-monokai-pink/10 text-monokai-pink hover:bg-monokai-pink/20 transition-colors"
-                      title="快速清除"
-                    >
-                      <RotateCcw className="w-3 h-3" />
-                      <span>清除</span>
-                    </button>
-                  </div>
-
-                  {/* 代码块列表 */}
-                  <div className="space-y-2">
-                    {cat.snippets.map((snippet, idx) => {
-                      const snippetId = `${cat.id}-${idx}`;
-                      const result = executionResults[snippetId];
-                      const isSnippetExpanded = expandedSnippets.has(snippetId);
-                      // 如果有填充内容，使用填充内容替换默认 SQL
-                      const displaySql = currentFilledSql && idx === 0 ? currentFilledSql : snippet.sql;
-
-                      return (
-                        <div key={idx} className="bg-monokai-bg rounded border border-monokai-accent/50 overflow-hidden">
-
-                          {/* 片段标题栏 */}
-                          <div
-                            className="px-3 py-2 flex items-center justify-between cursor-pointer hover:bg-monokai-accent/5"
-                            onClick={() => toggleSnippet(snippetId)}
-                          >
-                            <div className="flex items-center gap-2 min-w-0">
-                              {result?.error ? (
-                                <span className="text-monokai-red text-[10px]">✕</span>
-                              ) : result?.data !== null && result?.data !== undefined ? (
-                                <span className="text-monokai-green text-[10px]">✓</span>
-                              ) : null}
-                              <span className="text-xs font-medium text-monokai-fg">{snippet.label}</span>
-                              {snippet.description && (
-                                <span className="text-[10px] text-monokai-comment hidden sm:inline">
-                                  — {snippet.description}
-                                </span>
-                              )}
-                              {/* 标记是否为 AI 填充 */}
-                              {currentFilledSql && idx === 0 && (
-                                <span className="text-[9px] px-1 py-0.5 rounded bg-monokai-purple/20 text-monokai-purple">
-                                  AI 填充
-                                </span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-1 shrink-0">
-                              {isSnippetExpanded
-                                ? <ChevronUp className="w-3 h-3 text-monokai-comment" />
-                                : <ChevronDown className="w-3 h-3 text-monokai-comment" />
-                              }
-                            </div>
-                          </div>
-
-                          {/* 展开内容 */}
-                          {isSnippetExpanded && (
-                            <>
-                              {/* 操作按钮栏 */}
-                              <div className="px-3 py-1.5 bg-monokai-accent/5 border-t border-monokai-accent/30 flex items-center gap-1">
-                                {/* 执行 */}
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleExecute(snippetId, displaySql, snippet.refreshTables);
-                                  }}
-                                  disabled={result?.loading}
-                                  className={`p-1.5 rounded transition-colors ${
-                                    result?.loading
-                                      ? 'bg-monokai-yellow/20 text-monokai-yellow cursor-wait'
-                                      : result?.error
-                                      ? 'hover:bg-monokai-pink/30 text-monokai-pink'
-                                      : result?.data !== null && result?.data !== undefined
-                                      ? 'hover:bg-monokai-green/30 text-monokai-green'
-                                      : 'hover:bg-monokai-green/30 text-monokai-comment hover:text-monokai-green'
-                                  }`}
-                                  title={result?.loading ? '执行中...' : '执行 SQL'}
-                                >
-                                  {result?.loading
-                                    ? <span className="w-3.5 h-3.5 border-2 border-monokai-yellow border-t-transparent rounded-full animate-spin" />
-                                    : <Play className="w-3.5 h-3.5" />
-                                  }
-                                </button>
-                                {/* 插入 */}
-                                {onInsert && (
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      onInsert(displaySql);
-                                    }}
-                                    className="p-1.5 rounded hover:bg-monokai-blue/30 text-monokai-comment hover:text-monokai-blue transition-colors"
-                                    title="插入到 SQL 编辑器"
-                                  >
-                                    <ArrowRight className="w-3.5 h-3.5" />
-                                  </button>
-                                )}
-                                {/* 复制 */}
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    onCopy?.(snippetId, displaySql);
-                                  }}
-                                  className="p-1.5 rounded hover:bg-monokai-accent/30 text-monokai-comment hover:text-monokai-fg transition-colors"
-                                  title="复制 SQL"
-                                >
-                                  {copiedId === snippetId
-                                    ? <Check className="w-3.5 h-3.5 text-monokai-green" />
-                                    : <Copy className="w-3.5 h-3.5" />
-                                  }
-                                </button>
-                              </div>
-
-                              {/* 代码块 */}
-                              <div>
-                                <CodeMirror
-                                  value={displaySql}
-                                  height="auto"
-                                  theme={monokai}
-                                  extensions={[
-                                    sql(),
-                                    EditorView.lineWrapping,
-                                    EditorView.theme({
-                                      "&": { fontSize: "12px" },
-                                      ".cm-content": { fontSize: "12px" },
-                                      ".cm-line": { fontSize: "12px" }
-                                    })
-                                  ]}
-                                  editable={false}
-                                  basicSetup={false}
-                                />
-                              </div>
-
-                              {/* 执行结果 */}
-                              {result && (
-                                <ResultTable
-                                  data={result.data || []}
-                                  error={result.error}
-                                  loading={result.loading}
-                                  executionTime={result.executionTime}
-                                />
-                              )}
-                            </>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
+                  ))}
                 </div>
               )}
             </div>
-          );
-        })}
+          </div>
+        );
+      })}
+      {/* ── Empty State ── */}
+      {TEMPLATE_CATEGORY_ORDER.every(catId => {
+        const cat = ONTOLOGY_TEMPLATE_CATEGORIES[catId];
+        return !cat || cat.templates.length === 0;
+      }) && (
+        <div className="text-center py-10 px-4">
+          <Database className="w-10 h-10 text-monokai-comment/25 mx-auto mb-3" />
+          <p className="text-sm text-monokai-comment/60 font-medium mb-1">暂无预设模板</p>
+          <p className="text-xs text-monokai-comment/40">请先完成知识图谱初始化</p>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ============================================================
+// MECE Section Divider
+// ============================================================
+const MECESectionDivider: React.FC<{ label: string; color: string }> = ({ label, color }) => {
+  const colorMap: Record<string, string> = {
+    purple: 'bg-monokai-purple/30 text-monokai-purple',
+    blue: 'bg-monokai-blue/30 text-monokai-blue',
+    green: 'bg-monokai-green/30 text-monokai-green',
+    yellow: 'bg-monokai-yellow/30 text-monokai-yellow',
+  };
+  return (
+    <div className="flex items-center gap-2 mb-3 mt-1">
+      <div className={`w-1 h-2.5 rounded-full ${colorMap[color] || colorMap.purple}`} />
+      <span className={`text-[10px] font-bold uppercase tracking-widest ${colorMap[color] || colorMap.purple} opacity-60`}>{label}</span>
+      <div className="flex-1 h-px bg-gradient-to-r from-monokai-border/30 to-transparent" />
+    </div>
+  );
+};
+
+// ============================================================
+// CRUD List (Left Pane Content)
+// MECE 分类：Schema(类型定义) / Node(实体实例) / Edge(关系实例) / Action(行动)
+// ============================================================
+
+const CRUDList: React.FC<{
+  onInspect: (mode: EditMode, target: any) => void;
+  onRequestDelete: (type: string, id: number, label: string) => void;
+}> = ({ onInspect, onRequestDelete }) => {
+  const store = useOntologyStore();
+  const { state } = store;
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({
+    objectTypes: true, objects: true, linkTypes: true, links: true, actions: true,
+    introspections: false, insights: false,
+  });
+  const [search, setSearch] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importSuccess, setImportSuccess] = useState<string | null>(null);
+
+  const exportOntologyJSON = useCallback(async () => {
+    try {
+      const [objectTypes, objects, linkTypes, links, actions] = await Promise.all([
+        duckDBService.query(`SELECT * FROM ${state.mapping.objectTypeTable}`),
+        duckDBService.query(`SELECT * FROM ${state.mapping.objectTable}`),
+        duckDBService.query(`SELECT * FROM ${state.mapping.linkTypeTable}`),
+        duckDBService.query(`SELECT * FROM ${state.mapping.linkTable}`),
+        duckDBService.query(`SELECT * FROM ${state.mapping.actionTable}`),
+      ]);
+      const payload = {
+        version: '1.0',
+        exportedAt: new Date().toISOString(),
+        objectTypes: objectTypes || [],
+        objects: objects || [],
+        linkTypes: linkTypes || [],
+        links: links || [],
+        actions: actions || [],
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ontology-export-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setImportSuccess('导出成功');
+      setTimeout(() => setImportSuccess(null), 2000);
+    } catch (e: any) {
+      setImportError('导出失败: ' + e.message);
+      setTimeout(() => setImportError(null), 3000);
+    }
+  }, [state.mapping]);
+
+  const importOntologyJSON = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
+  const handleFileImport = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      if (!data.objectTypes || !data.objects) throw new Error('无效的本体论 JSON 格式');
+      for (const ot of data.objectTypes || []) {
+        await duckDBService.query(`INSERT OR REPLACE INTO ${state.mapping.objectTypeTable} (id, name, description, created_at) VALUES (?, ?, ?, ?)`,
+          [ot.id, ot.name, ot.description || null, ot.created_at || null]);
+      }
+      for (const o of data.objects || []) {
+        await duckDBService.query(`INSERT OR REPLACE INTO ${state.mapping.objectTable} (id, name, object_type_id, properties, annotations, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
+          [o.id, o.name, o.object_type_id, o.properties || null, o.annotations || null, o.created_at || null]);
+      }
+      for (const lt of data.linkTypes || []) {
+        await duckDBService.query(`INSERT OR REPLACE INTO ${state.mapping.linkTypeTable} (id, name, description, created_at) VALUES (?, ?, ?, ?)`,
+          [lt.id, lt.name, lt.description || null, lt.created_at || null]);
+      }
+      for (const l of data.links || []) {
+        await duckDBService.query(`INSERT OR REPLACE INTO ${state.mapping.linkTable} (id, source_object_id, link_type_id, target_object_id, weight, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
+          [l.id, l.source_object_id, l.link_type_id, l.target_object_id, l.weight || 0.5, l.created_at || null]);
+      }
+      for (const a of data.actions || []) {
+        await duckDBService.query(`INSERT OR REPLACE INTO ${state.mapping.actionTable} (id, name, description, status, payload, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
+          [a.id, a.name, a.description || null, a.status || 'pending', a.payload || null, a.created_at || null]);
+      }
+      await store.refresh();
+      setImportSuccess(`导入成功：${(data.objects || []).length} 个对象`);
+      setTimeout(() => setImportSuccess(null), 3000);
+    } catch (err: any) {
+      setImportError('导入失败: ' + err.message);
+      setTimeout(() => setImportError(null), 4000);
+    }
+    e.target.value = '';
+  }, [state.mapping, store]);
+
+  const filteredObjects = useMemo(() => {
+    if (!search) return state.objects;
+    const t = search.toLowerCase();
+    return state.objects.filter(o =>
+      o.name.toLowerCase().includes(t) ||
+      (store.objectTypeMap[o.object_type_id]?.name || '').toLowerCase().includes(t)
+    );
+  }, [state.objects, search, store.objectTypeMap]);
+
+  const filteredLinks = useMemo(() => {
+    if (!search) return state.links;
+    const t = search.toLowerCase();
+    return state.links.filter(l =>
+      store.objectNameMap[l.source_object_id]?.toLowerCase().includes(t) ||
+      store.objectNameMap[l.target_object_id]?.toLowerCase().includes(t) ||
+      (store.linkTypeMap[l.link_type_id]?.name || '').toLowerCase().includes(t)
+    );
+  }, [state.links, search, store.objectNameMap, store.linkTypeMap]);
+
+  const filteredObjectTypes = useMemo(() => {
+    if (!search) return state.objectTypes;
+    const t = search.toLowerCase();
+    return state.objectTypes.filter(ot => ot.name.toLowerCase().includes(t) || (ot.description || '').toLowerCase().includes(t));
+  }, [state.objectTypes, search]);
+
+  const filteredActions = useMemo(() => {
+    if (!search) return state.actions;
+    const t = search.toLowerCase();
+    return state.actions.filter(a => a.name.toLowerCase().includes(t) || (a.description || '').toLowerCase().includes(t));
+  }, [state.actions, search]);
+
+  return (
+    <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="px-3 py-3 shrink-0 border-b border-monokai-border/50 flex items-center gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-monokai-comment/50" />
+          <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="搜索节点、关系..."
+            className="w-full pl-8 pr-4 py-2 text-xs bg-monokai-surface border border-monokai-border/30 hover:border-monokai-accent/40 text-monokai-fg placeholder-monokai-comment/40 rounded-lg focus:outline-none focus:border-monokai-cyan/50 focus:bg-monokai-bg transition-all" />
+          {search && (
+            <button onClick={() => setSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-monokai-comment/40 hover:text-monokai-fg transition-colors">
+              <X className="w-3 h-3" />
+            </button>
+          )}
+        </div>
+        <button onClick={() => importOntologyJSON()} title="导入 JSON"
+          className="shrink-0 p-1.5 rounded-lg text-monokai-comment/50 hover:text-monokai-cyan hover:bg-monokai-cyan/10 transition-colors">
+          <Upload className="w-3.5 h-3.5" />
+        </button>
+        <button onClick={() => exportOntologyJSON()} title="导出 JSON"
+          className="shrink-0 p-1.5 rounded-lg text-monokai-comment/50 hover:text-monokai-cyan hover:bg-monokai-cyan/10 transition-colors">
+          <Download className="w-3.5 h-3.5" />
+        </button>
       </div>
+      <input ref={fileInputRef} type="file" accept=".json" className="hidden" onChange={handleFileImport} />
+
+      <div className="flex-1 overflow-y-auto custom-scrollbar px-3 py-4 space-y-5">
+        {state.initState === 'no-tables' ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center rounded-2xl bg-monokai-sidebar/30">
+            <AlertTriangle className="w-10 h-10 mb-4 text-monokai-orange opacity-40" />
+            <p className="text-sm font-medium text-monokai-fg mb-4">知识图谱数据仓未链接</p>
+            <button onClick={() => store.initOntology()} disabled={state.initting}
+              className="px-6 py-2.5 text-sm font-medium rounded-xl bg-monokai-purple/20 text-monokai-purple hover:bg-monokai-purple/30 transition-colors disabled:opacity-50">
+              {state.initting ? '挂载中...' : '一键构建并挂载'}
+            </button>
+          </div>
+        ) : (
+          <>
+            {/* ── MECE: Definition Layer ── */}
+            <MECESectionDivider label="Ⅰ. 类型定义" color="purple" />
+
+            <CRUDSection title="对象类型" icon={Layers} color="purple" count={filteredObjectTypes.length}
+              expanded={expanded.objectTypes} onToggle={() => setExpanded(p => ({...p, objectTypes: !p.objectTypes}))} onAdd={() => onInspect('objectType', null)}>
+              {filteredObjectTypes.map(ot => <CRUDRow key={ot.id} name={ot.name} desc={ot.description} onEdit={() => onInspect('objectType', ot)} onDelete={() => onRequestDelete('objectType', ot.id, ot.name)} />)}
+            </CRUDSection>
+
+            {/* ── MECE: Instance Layer — Nodes ── */}
+            <MECESectionDivider label="Ⅱ. 实体节点 Nodes" color="blue" />
+
+            <CRUDSection title="结构化实例" icon={Table2} color="blue" count={filteredObjects.length}
+              expanded={expanded.objects} onToggle={() => setExpanded(p => ({...p, objects: !p.objects}))} onAdd={() => onInspect('object', null)}>
+              {filteredObjects.map(obj => (
+                <div key={obj.id} className="flex items-center justify-between px-2 py-2.5 rounded-lg hover:bg-monokai-sidebar/60 group transition-colors cursor-pointer" onClick={() => onInspect('object', obj)}>
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <div className="w-1.5 h-1.5 rounded-full bg-monokai-blue shrink-0 shadow-[0_0_8px_rgba(102,217,239,0.8)]" />
+                    <span className="text-sm text-monokai-fg truncate">{obj.name}</span>
+                    <span className="text-xs px-2 py-0.5 bg-monokai-purple/10 text-monokai-purple/80 rounded shrink-0">{store.objectTypeMap[obj.object_type_id]?.name || '?'}</span>
+                  </div>
+                  <div className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity ml-2 block">
+                    <button onClick={(e) => { e.stopPropagation(); onRequestDelete('object', obj.id, obj.name); }} className="p-1.5 rounded-lg text-monokai-comment hover:text-monokai-orange hover:bg-monokai-orange/10"><Trash2 className="w-4 h-4" /></button>
+                  </div>
+                </div>
+              ))}
+            </CRUDSection>
+
+            {/* ── MECE: Instance Layer — Edges ── */}
+            <MECESectionDivider label="Ⅲ. 关系连线 Edges" color="green" />
+
+            <CRUDSection title="拓扑关系" icon={Network} color="green" count={filteredLinks.length}
+              expanded={expanded.links} onToggle={() => setExpanded(p => ({...p, links: !p.links}))} onAdd={() => onInspect('link', null)}>
+              {filteredLinks.map(link => (
+                <div key={link.id} className="flex items-center justify-between px-2 py-2.5 rounded-lg hover:bg-monokai-sidebar/60 group transition-colors cursor-pointer" onClick={() => onInspect('link', link)}>
+                  <div className="flex items-center gap-2 min-w-0 flex-1 flex-wrap">
+                    <span className="text-xs text-monokai-purple truncate max-w-[80px]">{store.objectNameMap[link.source_object_id]}</span>
+                    <ChevronRight className="w-3 h-3 text-monokai-comment shrink-0" />
+                    <span className="text-[11px] px-1.5 py-0.5 bg-monokai-green/10 text-monokai-green rounded shrink-0">{store.linkTypeMap[link.link_type_id]?.name}</span>
+                    <ChevronRight className="w-3 h-3 text-monokai-comment shrink-0" />
+                    <span className="text-xs text-monokai-blue truncate max-w-[80px]">{store.objectNameMap[link.target_object_id]}</span>
+                  </div>
+                  <div className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity shrink-0 ml-2">
+                    <button onClick={(e) => { e.stopPropagation(); onRequestDelete('link', link.id, `关系 #${link.id}`); }} className="p-1.5 rounded-lg text-monokai-comment hover:text-monokai-orange hover:bg-monokai-orange/10"><Trash2 className="w-4 h-4" /></button>
+                  </div>
+                </div>
+              ))}
+            </CRUDSection>
+
+            {/* ── MECE: Execution Layer ── */}
+            <MECESectionDivider label="Ⅳ. 行动执行 Actions" color="yellow" />
+
+            <CRUDSection title="逻辑驱动" icon={Zap} color="yellow" count={filteredActions.length}
+               expanded={expanded.actions} onToggle={() => setExpanded(p => ({...p, actions: !p.actions}))} onAdd={() => onInspect('action', null)}>
+               {filteredActions.map(action => (
+                 <CRUDRow key={action.id} name={action.name} desc={action.description || 'Action'} onEdit={() => onInspect('action', action)} onDelete={() => onRequestDelete('action', action.id, action.name)} />
+               ))}
+            </CRUDSection>
+
+            {/* ── MECE: Reflection Layer ── */}
+            <MECESectionDivider label="Ⅴ. 沉思与洞察 Reflection" color="cyan" />
+
+            <CRUDSection title="引导反思" icon={Brain} color="cyan" count={state.introspections.length}
+              expanded={expanded.introspections} onToggle={() => setExpanded(p => ({...p, introspections: !p.introspections}))}
+              onAdd={() => {}}>
+              {state.introspections.length === 0 ? (
+                <p className="text-xs text-monokai-comment p-2">暂无沉思记录</p>
+              ) : (
+                state.introspections.map(intro => (
+                  <div key={intro.id} className="px-2 py-2.5 rounded-lg hover:bg-monokai-sidebar/60 transition-colors">
+                    <div className="text-sm font-medium text-monokai-fg">{intro.question || '无标题'}</div>
+                    {intro.answer && <div className="text-xs text-monokai-comment mt-1 line-clamp-2">{intro.answer}</div>}
+                  </div>
+                ))
+              )}
+            </CRUDSection>
+
+            <CRUDSection title="洞察记录" icon={Lightbulb} color="pink" count={state.insights.length}
+              expanded={expanded.insights} onToggle={() => setExpanded(p => ({...p, insights: !p.insights}))}
+              onAdd={() => {}}>
+              {state.insights.length === 0 ? (
+                <p className="text-xs text-monokai-comment p-2">暂无洞察记录</p>
+              ) : (
+                state.insights.map(insight => (
+                  <div key={insight.id} className="px-2 py-2.5 rounded-lg hover:bg-monokai-sidebar/60 transition-colors">
+                    <div className="text-sm font-medium text-monokai-fg">{insight.content || '无标题'}</div>
+                    {insight.category && (
+                      <span className="inline-block mt-1 text-[10px] px-1.5 py-0.5 rounded-full bg-monokai-pink/10 text-monokai-pink">{insight.category}</span>
+                    )}
+                  </div>
+                ))
+              )}
+            </CRUDSection>
+
+            {(importError || importSuccess) && (
+              <div className={`shrink-0 mx-4 mb-3 px-4 py-2.5 rounded-xl text-xs font-medium border transition-all ${importError ? 'bg-monokai-orange/10 border-monokai-orange/20 text-monokai-orange' : 'bg-monokai-green/10 border-monokai-green/20 text-monokai-green'}`}>
+                {importError || importSuccess}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const CRUDSection: React.FC<{ title: string; icon: React.ElementType; color: string; count: number; expanded: boolean; onToggle: () => void; onAdd: () => void; children: React.ReactNode; }> = ({ title, icon: Icon, color, count, expanded, onToggle, onAdd, children }) => {
+  const colorClasses: Record<string, string> = { purple: 'text-monokai-purple', blue: 'text-monokai-blue', green: 'text-monokai-green', yellow: 'text-monokai-yellow' };
+  const badgeClasses: Record<string, string> = { purple: 'bg-monokai-purple/10 text-monokai-purple', blue: 'bg-monokai-blue/10 text-monokai-blue', green: 'bg-monokai-green/10 text-monokai-green', yellow: 'bg-monokai-yellow/10 text-monokai-yellow' };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between group cursor-pointer" onClick={onToggle}>
+        <div className="flex items-center gap-3">
+          <Icon className={`w-4 h-4 ${colorClasses[color]}`} />
+          <h4 className="text-sm font-semibold text-monokai-fg tracking-wide">{title}</h4>
+          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${badgeClasses[color]}`}>{count}</span>
+        </div>
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
+          <button onClick={e => { e.stopPropagation(); onAdd(); }} className="p-1.5 rounded-lg text-monokai-comment hover:text-monokai-fg hover:bg-black/20"><Plus className="w-4 h-4" /></button>
+          {expanded ? <ChevronDown className="w-4 h-4 text-monokai-comment ml-1" /> : <ChevronRight className="w-4 h-4 text-monokai-comment ml-1" />}
+        </div>
+      </div>
+      {expanded && <div className="pl-2 space-y-1">{children || <p className="text-xs text-monokai-comment p-2">暂无记录</p>}</div>}
+    </div>
+  );
+};
+
+const CRUDRow: React.FC<{ name: string; desc: string; onEdit: () => void; onDelete: () => void }> = ({ name, desc, onEdit, onDelete }) => (
+  <div className="flex items-center justify-between px-2 py-2.5 rounded-lg hover:bg-monokai-sidebar/60 group transition-colors cursor-pointer" onClick={onEdit}>
+    <div className="min-w-0 flex-1">
+      <div className="text-sm font-medium text-monokai-fg truncate">{name}</div>
+      {desc && <div className="text-xs text-monokai-comment truncate mt-0.5">{desc}</div>}
+    </div>
+    <div className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity ml-2 flex gap-1">
+      <button onClick={(e) => { e.stopPropagation(); onDelete(); }} className="p-1.5 rounded-lg text-monokai-comment hover:text-monokai-orange hover:bg-monokai-orange/10"><Trash2 className="w-4 h-4" /></button>
+    </div>
+  </div>
+);
+
+// ============================================================
+// Date normalization helper
+// DuckDB returns DATE fields as various types (epoch ms, Date objects, ISO strings).
+// HTML date input needs 'YYYY-MM-DD', DuckDB SQL needs 'YYYY-MM-DD'.
+// ============================================================
+function normalizeDateToString(raw: any): string {
+  if (!raw) return '';
+  // Already a valid YYYY-MM-DD string
+  if (typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  // ISO datetime string like '2024-12-31T00:00:00.000Z'
+  if (typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(raw)) return raw.slice(0, 10);
+  // Numeric timestamp (milliseconds since epoch)
+  if (typeof raw === 'number' && raw > 1e8) {
+    const d = new Date(raw);
+    if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+  }
+  // Date object
+  if (raw instanceof Date && !isNaN(raw.getTime())) return raw.toISOString().slice(0, 10);
+  // Fallback: try parsing
+  const parsed = new Date(raw);
+  if (!isNaN(parsed.getTime())) return parsed.toISOString().slice(0, 10);
+  return '';
+}
+
+// ============================================================
+// Context Inspector (Right Pane)
+// ============================================================
+
+const RightInspector: React.FC<{
+  mode: EditMode;
+  target: any;
+  onClose: () => void;
+  onSave?: () => void;
+}> = ({ mode, target, onClose, onSave }) => {
+  const store = useOntologyStore();
+  const { state } = store;
+  const [form, setForm] = useState<FormState>({
+    name: '', desc: '', objectTypeId: 1, properties: '',
+    linkTypeId: 1, sourceId: null, targetId: null, weight: 0.5,
+    status: 'pending', executeAt: '',
+  });
+
+  // Sync target into form — always fully reset to avoid stale field bleed
+  useEffect(() => {
+    if (!target) {
+      setForm({ name: '', desc: '', objectTypeId: state.objectTypes[0]?.id || 1, properties: '', linkTypeId: state.linkTypes[0]?.id || 1, sourceId: null, targetId: null, weight: 0.5, status: 'pending', executeAt: '' });
+      return;
+    }
+    if (mode === 'objectType' || mode === 'linkType') setForm({ name: target.name, desc: target.description || '', objectTypeId: state.objectTypes[0]?.id || 1, properties: '', linkTypeId: state.linkTypes[0]?.id || 1, sourceId: null, targetId: null, weight: 0.5, status: 'pending', executeAt: '' });
+    else if (mode === 'object') setForm({ name: target.name, desc: '', objectTypeId: target.object_type_id, properties: target.properties || '', linkTypeId: state.linkTypes[0]?.id || 1, sourceId: null, targetId: null, weight: 0.5, status: 'pending', executeAt: '' });
+    else if (mode === 'link') setForm({ name: '', desc: '', objectTypeId: state.objectTypes[0]?.id || 1, properties: '', linkTypeId: target.link_type_id, sourceId: target.source_object_id, targetId: target.target_object_id, weight: target.weight ?? 0.5, status: 'pending', executeAt: '' });
+    else if (mode === 'action') setForm({ name: target.name, desc: target.description || '', objectTypeId: state.objectTypes[0]?.id || 1, properties: '', linkTypeId: state.linkTypes[0]?.id || 1, sourceId: null, targetId: null, weight: 0.5, status: target.status || 'pending', executeAt: normalizeDateToString(target.execute_at) });
+  }, [mode, target, state.objectTypes, state.linkTypes]);
+
+  const titleMap = { objectType: '节点类型 (Schema)', object: '超级节点属性', linkType: '拓扑类型', link: '依赖与连线', action: '执行行动' };
+
+  // AI 填充：调用时使用显式参数而非闭包捕获的旧值，确保 form 状态同步到 UI
+  const aiFillField = useCallback(async (field: string, currentMode: EditMode) => {
+    try {
+      const { ontologyAiService } = await import('../../services/ontologyAiService');
+      const modeLabel = titleMap[currentMode];
+      const prompt = `为 "${modeLabel}" 实体推荐一个合适的 ${field === 'name' ? '名称' : '描述'}`;
+      const result = await ontologyAiService.generateObjectModel(prompt);
+      const objects = result.objects || [];
+      if (objects.length > 0) {
+        const obj = objects[0];
+        if (field === 'name') setForm(f => ({ ...f, name: obj.name }));
+        else if (field === 'desc') setForm(f => ({ ...f, desc: (obj as any).description || obj.annotations || obj.name }));
+      }
+    } catch (e: any) {
+      console.warn('AI 预填失败:', e.message);
+    }
+  }, []);
+
+  const handleSave = async () => {
+    try {
+      if (mode === 'objectType') {
+        if (target) await store.updateObjectType(target.id, form.name, form.desc);
+        else await store.createObjectType(form.name, form.desc);
+      } else if (mode === 'object') {
+         if (!form.name.trim()) return alert("节点名不能为空");
+        if (target) await store.updateObject(target.id, form.name, form.objectTypeId, form.properties || '{}');
+        else await store.createObject(form.name, form.objectTypeId, form.properties || '{}');
+      } else if (mode === 'linkType') {
+        if (target) await store.updateLinkType(target.id, form.name, form.desc);
+        else await store.createLinkType(form.name, form.desc);
+      } else if (mode === 'link') {
+        if (!form.sourceId || !form.targetId) return alert("请选择起点和终点");
+        if (target) await store.updateLink(target.id, form.linkTypeId, form.sourceId, form.targetId, form.weight);
+        else await store.createLink(form.linkTypeId, form.sourceId, form.targetId, form.weight);
+      } else if (mode === 'action') {
+        if (!form.name.trim()) return alert("行动名称不能为空");
+        const normalizedDate = normalizeDateToString(form.executeAt);
+        if (target) await store.updateAction(target.id, form.name, form.desc, form.status, normalizedDate || undefined);
+        else await store.createAction(form.name, 0, form.desc, form.status, normalizedDate || undefined);
+      }
+      await store.refresh();
+      onClose();
+      onSave?.();
+    } catch (e: any) { alert(`保存失败: ${e.message}`); }
+  };
+
+  return (
+    <div className="flex-1 flex flex-col bg-monokai-bg/95 border-l border-monokai-accent/20 shadow-2xl relative z-20">
+      {/* Header */}
+      <div className="px-6 py-5 flex items-center justify-between border-b border-monokai-accent/10">
+        <div>
+           <h3 className="text-base font-bold text-monokai-fg flex items-center gap-2">
+             <PanelRightDashed className="w-5 h-5 text-monokai-cyan" />
+             {target ? '属性检视器' : '新建实体'}
+           </h3>
+           <p className="text-xs text-monokai-fg-muted mt-1">{titleMap[mode]} {target ? `#${target.id}` : ''}</p>
+        </div>
+        <button onClick={onClose} className="p-2 rounded-xl text-monokai-comment hover:text-monokai-fg hover:bg-monokai-accent/10 transition-colors">
+          <X className="w-5 h-5" />
+        </button>
+      </div>
+
+      {/* Form Fields */}
+      <div className="flex-1 p-6 space-y-5 overflow-y-auto custom-scrollbar">
+        {mode !== 'link' && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs font-semibold text-monokai-accent">名称 Identifier</label>
+              <button onClick={() => aiFillField('name', mode)}
+                className="text-[10px] px-2 py-0.5 rounded-full bg-monokai-purple/10 text-monokai-purple hover:bg-monokai-purple/20 transition-colors">
+                AI 填充
+              </button>
+            </div>
+            <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="输入名称..."
+              className="w-full px-4 py-3 text-sm bg-monokai-surface border border-monokai-border/40 text-monokai-fg placeholder-monokai-comment/40 rounded-lg focus:outline-none focus:border-monokai-cyan/50 focus:bg-monokai-bg transition-all" />
+          </div>
+        )}
+
+        {(mode === 'objectType' || mode === 'linkType' || mode === 'action') && (
+          <div className="space-y-2">
+             <div className="flex items-center justify-between mb-1">
+              <label className="text-xs font-semibold text-monokai-accent">描述 Description</label>
+              <button onClick={() => aiFillField('desc', mode)}
+                className="text-[10px] px-2 py-0.5 rounded-full bg-monokai-purple/10 text-monokai-purple hover:bg-monokai-purple/20 transition-colors">
+                AI 填充
+              </button>
+            </div>
+             <textarea value={form.desc} onChange={e => setForm(f => ({ ...f, desc: e.target.value }))} placeholder="补充信息..." rows={3}
+               className="w-full px-4 py-3 text-sm bg-monokai-surface border border-monokai-border/40 text-monokai-fg placeholder-monokai-comment/40 rounded-lg focus:outline-none focus:border-monokai-cyan/50 focus:bg-monokai-bg transition-all resize-none" />
+          </div>
+        )}
+
+        {mode === 'action' && (
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-monokai-accent">计划执行时间 Execute At</label>
+            <input type="date" value={form.executeAt} onChange={e => setForm(f => ({ ...f, executeAt: e.target.value }))}
+              className="w-full px-4 py-3 text-sm bg-monokai-surface border border-monokai-border/40 text-monokai-fg rounded-lg focus:outline-none focus:border-monokai-cyan/50 focus:bg-monokai-bg transition-all" />
+          </div>
+        )}
+
+        {mode === 'action' && (
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-monokai-accent">状态 Status</label>
+            <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}
+              className="w-full px-4 py-3 text-sm bg-monokai-surface border border-monokai-border/40 text-monokai-fg rounded-lg focus:outline-none focus:border-monokai-cyan/50 focus:bg-monokai-bg transition-all appearance-none cursor-pointer">
+              <option value="pending" className="bg-monokai-bg">待执行</option>
+              <option value="running" className="bg-monokai-bg">执行中</option>
+              <option value="done" className="bg-monokai-bg">已完成</option>
+              <option value="failed" className="bg-monokai-bg">失败</option>
+            </select>
+          </div>
+        )}
+
+        {mode === 'object' && (
+          <>
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-monokai-accent">类型 Schema Binding</label>
+              <select value={form.objectTypeId} onChange={e => setForm(f => ({ ...f, objectTypeId: Number(e.target.value) }))}
+                className="w-full px-4 py-3 text-sm bg-monokai-surface border border-monokai-border/40 text-monokai-fg rounded-lg focus:outline-none focus:border-monokai-cyan/50 focus:bg-monokai-bg transition-all appearance-none cursor-pointer">
+                {state.objectTypes.map(ot => <option key={ot.id} value={ot.id} className="bg-monokai-bg">{ot.name}</option>)}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-monokai-accent">JSON 附加属性 Metadata</label>
+              <textarea value={form.properties} onChange={e => setForm(f => ({ ...f, properties: e.target.value }))} placeholder="{}" rows={5}
+                className="w-full px-4 py-3 text-sm font-mono bg-black/40 border border-monokai-accent/20 text-monokai-blue placeholder-monokai-comment/40 rounded-xl focus:outline-none focus:border-monokai-cyan/50 focus:bg-black/60 transition-all resize-none leading-relaxed" />
+            </div>
+          </>
+        )}
+
+        {mode === 'link' && (
+          <>
+            <div className="space-y-2">
+               <label className="text-xs font-semibold text-monokai-accent">起点 Source Node</label>
+               <select value={form.sourceId ?? ''} onChange={e => setForm(f => ({ ...f, sourceId: Number(e.target.value) }))}
+                  className="w-full px-4 py-3 text-sm bg-monokai-surface border border-monokai-border/40 text-monokai-fg rounded-lg focus:outline-none focus:border-monokai-cyan/50 focus:bg-monokai-bg transition-all appearance-none cursor-pointer">
+                  <option value="">选取节点...</option>
+                  {state.objects.map(o => <option key={o.id} value={o.id} className="bg-monokai-bg">{o.name}</option>)}
+               </select>
+            </div>
+            <div className="space-y-2">
+               <label className="text-xs font-semibold text-monokai-comment">连接语意 Link Type</label>
+               <select value={form.linkTypeId} onChange={e => setForm(f => ({ ...f, linkTypeId: Number(e.target.value) }))}
+                  className="w-full px-4 py-3 text-sm bg-monokai-green/10 border border-monokai-green/30 text-monokai-green rounded-xl focus:outline-none focus:border-monokai-green/60 transition-all font-medium">
+                  {state.linkTypes.map(lt => <option key={lt.id} value={lt.id} className="bg-monokai-bg">{lt.name}</option>)}
+               </select>
+            </div>
+            <div className="space-y-2">
+               <label className="text-xs font-semibold text-monokai-accent">终点 Target Node</label>
+               <select value={form.targetId ?? ''} onChange={e => setForm(f => ({ ...f, targetId: Number(e.target.value) }))}
+                  className="w-full px-4 py-3 text-sm bg-monokai-surface border border-monokai-border/40 text-monokai-fg rounded-lg focus:outline-none focus:border-monokai-cyan/50 focus:bg-monokai-bg transition-all appearance-none cursor-pointer">
+                  <option value="">选取节点...</option>
+                  {state.objects.map(o => <option key={o.id} value={o.id} className="bg-monokai-bg">{o.name}</option>)}
+               </select>
+            </div>
+            <div className="space-y-2 mt-4 pt-4 border-t border-monokai-accent/10">
+               <div className="flex items-center justify-between mb-2">
+                 <label className="text-xs font-semibold text-monokai-accent">连接张力 Weight</label>
+                 <span className="text-sm font-mono text-monokai-cyan">{(Number(form.weight) || 0).toFixed(2)}</span>
+               </div>
+               <input type="range" min="0" max="1" step="0.05" value={form.weight} onChange={e => setForm(f => ({ ...f, weight: Number(e.target.value) }))}
+                  className="w-full h-1.5 rounded-full appearance-none bg-monokai-border/40 accent-monokai-cyan outline-none cursor-pointer" />
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="p-4 border-t border-monokai-border/30 flex gap-2 justify-center bg-monokai-sidebar/40">
+         <button onClick={onClose} className="flex-1 py-2.5 text-sm font-medium rounded-lg text-monokai-comment hover:text-monokai-fg hover:bg-monokai-surface transition-colors border border-transparent hover:border-monokai-border/40 flex items-center justify-center min-w-0">
+           <span className="truncate">取消</span>
+         </button>
+         <button onClick={handleSave} className="flex-1 py-2.5 text-sm font-bold rounded-lg text-monokai-bg bg-monokai-cyan hover:bg-monokai-cyan/90 active:scale-[0.97] transition-all shadow-[0_0_16px_rgba(102,217,239,0.3)] flex items-center justify-center min-w-0">
+           <span className="truncate">保存配置</span>
+         </button>
+      </div>
+    </div>
+  );
+};
+
+
+// ============================================================
+// Main Application Component
+// ============================================================
+
+export const OntologyPanel: React.FC<{
+  onInsert?: (sql: string) => void;
+  onTablesReady?: () => void;
+}> = ({ onInsert, onTablesReady }) => {
+  const { state: rawState, dispatch, refresh, batchImportModelingResult } = useOntologyStore();
+  const state = rawState ?? {
+    initState: 'loading', initting: false,
+    objectTypes: [], objects: [], linkTypes: [], links: [], actions: [],
+    introspections: [], insights: [],
+    activeTab: 'graph', drawerOpen: true, drawerTab: 'templates',
+    insightsOpen: false, search: '', aiTopic: '', isGenerating: false,
+    draftPayload: null, draftJsonStr: '', error: null,
+    stats: { objectTypes: 0, objects: 0, linkTypes: 0, links: 0, actions: 0, introspections: 0, insights: 0 },
+    mapping: {
+      objectTable: 'life_object',
+      objectTypeTable: 'life_object_type',
+      linkTable: 'life_link',
+      linkTypeTable: 'life_link_type',
+      actionTable: 'life_action',
+    },
+  };
+
+  const [aiInput, setAiInput] = useState('');
+  const { activeTab, drawerOpen, drawerTab } = state;
+
+  // New states for the Inspector architecture
+  const [inspectorMode, setInspectorMode] = useState<EditMode>('none');
+  const [inspectorTarget, setInspectorTarget] = useState<any>(null);
+  const d3GraphRefreshRef = useRef<(() => void) | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ type: string; id: number; label: string } | null>(null);
+  const [modelingWizardOpen, setModelingWizardOpen] = useState(false);
+
+  const handleModelingImport = useCallback(async (result: any) => {
+    if (result.graphLayout) {
+      (window as any).__ontologyGraphLayout = result.graphLayout;
+    }
+    await batchImportModelingResult(result);
+  }, [batchImportModelingResult]);
+
+  const handleGraphSaved = useCallback(() => {
+    d3GraphRefreshRef.current?.();
+  }, []);
+
+  const openInspector = (mode: EditMode, target: any) => {
+    setInspectorMode(mode);
+    setInspectorTarget(target);
+    dispatch(ontologyActions.setDrawerTab('crud')); // Snap to CRUD layer if editing
+  };
+
+  const DRAWER_TABS: { id: DrawerTab; label: string; icon: React.ElementType; sub?: string }[] = [
+    { id: 'templates', label: '预设库', icon: Database, sub: '场景化 SQL' },
+    { id: 'crud',     label: '实体库', icon: List, sub: 'Schema · Node · Edge' },
+    { id: 'mapping',  label: '映射台', icon: Map, sub: '数据 → 本体' },
+  ];
+
+  return (
+    <div className="h-full w-full flex flex-col bg-monokai-bg overflow-hidden text-monokai-fg">
+      {/* ── Top Master Header ── */}
+      <div className="h-16 px-6 flex items-center justify-between border-b border-monokai-accent/10 bg-monokai-bg shrink-0 z-20 relative shadow-sm">
+        
+        {/* Branding & Global Drawer Toggle */}
+        <div className="flex items-center gap-4">
+          <button onClick={() => dispatch(ontologyActions.toggleDrawer())} className="p-2 rounded-xl text-monokai-comment hover:text-white hover:bg-monokai-accent/10 transition-colors">
+            {drawerOpen ? <AlignLeft className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
+          </button>
+          <div className="flex items-center gap-2">
+            <Network className="w-5 h-5 text-monokai-cyan" />
+            <span className="text-sm font-bold tracking-widest uppercase text-monokai-fg">DATA ONTOLOGY</span>
+          </div>
+        </div>
+
+        {/* View Segmented Control */}
+        <div className="flex items-center bg-black/30 p-1.5 rounded-xl border border-monokai-accent/5">
+          {VIEW_TABS.map(tab => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button key={tab.id} onClick={() => dispatch(ontologyActions.setActiveTab(tab.id))}
+                className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                  isActive ? 'bg-monokai-sidebar shadow text-monokai-cyan' : 'text-monokai-comment hover:text-monokai-fg'
+                }`}>
+                <Icon className="w-4 h-4" /> {tab.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* AI Cmd Bar */}
+        <div className="flex items-center gap-3">
+          <div className="relative group">
+            <Sparkles className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-monokai-purple/60 group-hover:text-monokai-purple transition-colors" />
+            <input type="text" value={aiInput} onChange={e => setAiInput(e.target.value)} placeholder="使用自然语言建立映射脉络..."
+              className="pl-9 pr-4 py-2.5 text-sm w-72 bg-monokai-sidebar/30 border border-monokai-accent/20 text-monokai-fg placeholder-monokai-comment/50 rounded-xl focus:outline-none focus:border-monokai-purple/60 focus:bg-monokai-sidebar/80 transition-all shadow-inner" />
+          </div>
+
+          <button onClick={() => setModelingWizardOpen(true)}
+            className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-xl
+              bg-monokai-purple/15 text-monokai-purple hover:bg-monokai-purple/25 border border-monokai-purple/20
+              transition-all">
+            <Wand2 className="w-4 h-4" /> 本体建模
+          </button>
+
+          <button onClick={() => { setInspectorMode('none'); dispatch(ontologyActions.toggleInsights()); }} 
+            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-xl transition-all ${
+              state.insightsOpen ? 'bg-monokai-yellow/15 text-monokai-yellow' : 'bg-monokai-sidebar/30 text-monokai-comment hover:bg-monokai-sidebar hover:text-white border border-transparent hover:border-monokai-accent/20'
+            }`}>
+            <Lightbulb className="w-4 h-4" /> 聚合洞察
+          </button>
+        </div>
+      </div>
+
+      {/* ── Sub Header / Status Bar ── */}
+      <div className="h-9 px-6 flex items-center justify-between bg-black/40 border-b border-monokai-accent/5 shrink-0">
+        <div className="flex items-center gap-6 text-xs text-monokai-comment uppercase font-mono tracking-wider">
+          {state.initState === 'loading' ? (
+            <span className="flex items-center gap-2">
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-monokai-cyan" />
+              <span className="text-monokai-cyan">加载中...</span>
+            </span>
+          ) : state.initState === 'no-tables' ? (
+            <span className="flex items-center gap-2">
+              <Database className="w-3.5 h-3.5 text-monokai-purple/70" />
+              <span className="text-monokai-orange/80">本体论未初始化 — 请在左侧点击「一键构建并挂载」</span>
+            </span>
+          ) : (
+            <>
+              <span>Entities: <strong className="text-monokai-blue">{state.objects?.length ?? 0}</strong></span>
+              <span>Edges: <strong className="text-monokai-purple">{state.links?.length ?? 0}</strong></span>
+              <span>Schemas: <strong className="text-monokai-yellow">{state.objectTypes?.length ?? 0}</strong></span>
+              <span>LinkTypes: <strong className="text-monokai-green">{state.linkTypes?.length ?? 0}</strong></span>
+              <span>Actions: <strong className="text-monokai-orange">{state.actions?.length ?? 0}</strong></span>
+              {state.introspections?.length > 0 && (
+                <span>Introspections: <strong className="text-monokai-cyan">{state.introspections.length}</strong></span>
+              )}
+              {state.insights?.length > 0 && (
+                <span>Insights: <strong className="text-monokai-pink">{state.insights.length}</strong></span>
+              )}
+            </>
+          )}
+        </div>
+        {/* Right side: clock + refresh + reseed */}
+        <div className="flex items-center gap-4">
+          <button onClick={() => refresh()} title="刷新图谱数据"
+            className="p-1.5 rounded-lg text-monokai-comment hover:text-monokai-cyan hover:bg-monokai-cyan/10 transition-colors">
+            <RefreshCw className="w-3.5 h-3.5" />
+          </button>
+          {state.initState === 'ready' && (
+            <button onClick={() => (window as any).__ontologyReseed?.()} disabled={state.initting} title="补充人物和目标数据"
+              className="px-2 py-1 rounded-lg text-xs bg-monokai-purple/10 text-monokai-purple hover:bg-monokai-purple/20 transition-colors disabled:opacity-50">
+              {state.initting ? '写入中...' : '补充数据'}
+            </button>
+          )}
+          <LiveClock />
+        </div>
+      </div>
+
+      {/* ── Main Workspace ── */}
+      <div className="flex-1 overflow-hidden relative">
+        <ResizableLayout leftInitialWidth={340} rightInitialWidth={380} minWidth={220} maxLeftRatio={0.35} maxRightRatio={0.40}>
+          {({ leftWidth, rightWidth, startResizingLeft, startResizingRight }) => (
+            <div className="flex h-full w-full overflow-hidden">
+              
+              {/* LEFT NAV PANEL */}
+              {drawerOpen && (
+                <div style={{ width: leftWidth }} className="flex-shrink-0 flex flex-col border-r border-monokai-accent/10 bg-monokai-bg/80 backdrop-blur-xl relative z-10 shadow-2xl">
+                  {/* Resizer Handle Left */}
+                  <div onMouseDown={startResizingLeft} onTouchStart={startResizingLeft}
+                    className="absolute right-0 top-0 w-1 h-full cursor-col-resize hover:bg-monokai-cyan/40 transition-colors z-20 group">
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"><GripVertical className="w-4 h-4 text-monokai-cyan" /></div>
+                  </div>
+
+                  <div className="flex items-center pt-2 px-3 pb-0 shrink-0 relative gap-1">
+                    {DRAWER_TABS.map(tab => {
+                      const Icon = tab.icon;
+                      const isActive = drawerTab === tab.id;
+                      return (
+                        <button key={tab.id} onClick={() => dispatch(ontologyActions.setDrawerTab(tab.id))}
+                          title={tab.sub}
+                          className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-2 px-1 rounded-lg text-xs transition-all relative ${
+                            isActive
+                              ? 'bg-monokai-cyan/12 text-monokai-cyan'
+                              : 'text-monokai-comment/50 hover:text-monokai-fg hover:bg-monokai-sidebar/40'
+                          }`}>
+                          <Icon className={`w-4 h-4 transition-transform ${isActive ? 'scale-110' : ''}`} />
+                          <span className="font-semibold tracking-tight leading-none text-[10px]">{tab.label}</span>
+                          {isActive && (
+                            <div className="absolute bottom-0 left-3 right-3 h-0.5 rounded-full bg-monokai-cyan shadow-[0_0_8px_rgba(102,217,239,0.6)]" />
+                          )}
+                        </button>
+                      );
+                    })}
+                    {/* Tab bar bottom border */}
+                    <div className="absolute bottom-0 left-2 right-2 h-px bg-gradient-to-r from-transparent via-monokai-accent/20 to-transparent" />
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto custom-scrollbar p-3">
+                    {drawerTab === 'templates' && <TemplatePanel state={state} onInsert={onInsert} onTablesReady={onTablesReady} refresh={refresh} />}
+                    {drawerTab === 'crud' && <CRUDList onInspect={openInspector} onRequestDelete={(type, id, label) => setDeleteConfirm({ type, id, label })} />}
+                    {drawerTab === 'mapping' && <MappingConsole />}
+                  </div>
+                </div>
+              )}
+
+              {/* CENTER CANVAS */}
+              <div className="flex-1 relative overflow-hidden bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-monokai-sidebar/30 via-monokai-bg to-monokai-bg">
+                {activeTab === 'graph' && <D3GraphView onRefreshRef={fn => d3GraphRefreshRef.current = fn} />}
+                {activeTab === 'data' && <OntologyDataView />}
+                {activeTab === 'canvas' && <OntologyCanvas onInsert={onInsert} />}
+              </div>
+
+              {/* RIGHT INSPECTOR PANEL */}
+              {inspectorMode !== 'none' && (
+                <div style={{ width: rightWidth }} className="flex-shrink-0 flex flex-col shadow-[-10px_0_30px_rgba(0,0,0,0.5)] z-20 relative bg-monokai-bg/90 backdrop-blur-2xl">
+                   {/* Resizer Handle Right */}
+                  <div onMouseDown={startResizingRight} onTouchStart={startResizingRight}
+                    className="absolute left-0 top-0 w-1 h-full cursor-col-resize hover:bg-monokai-cyan/40 transition-colors z-20 group">
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"><GripVertical className="w-4 h-4 text-monokai-cyan" /></div>
+                  </div>
+                  <RightInspector key={`inspector-${inspectorMode}-${inspectorTarget?.id ?? 'new'}`} mode={inspectorMode} target={inspectorTarget} onClose={() => setInspectorMode('none')} onSave={handleGraphSaved} />
+                </div>
+              )}
+
+              {/* INSIGHTS PANEL (Alternative Right Pane) */}
+              {state.insightsOpen && inspectorMode === 'none' && (
+                <div style={{ width: rightWidth }} className="flex-shrink-0 flex flex-col bg-monokai-bg/90 border-l border-monokai-accent/20 shadow-[-10px_0_30px_rgba(0,0,0,0.5)] z-20 relative backdrop-blur-2xl">
+                   {/* Resizer Handle Right for Insights */}
+                  <div onMouseDown={startResizingRight} onTouchStart={startResizingRight}
+                    className="absolute left-0 top-0 w-1 h-full cursor-col-resize hover:bg-monokai-cyan/40 transition-colors z-20 group">
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"><GripVertical className="w-4 h-4 text-monokai-cyan" /></div>
+                  </div>
+                  <OntologyInsightsPanel objects={state.objects} objectTypes={state.objectTypes} links={state.links} linkTypes={state.linkTypes} />
+                </div>
+              )}
+            </div>
+          )}
+        </ResizableLayout>
+      </div>
+
+      {/* Delete Confirmation Alert */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm transition-all">
+          <div className="w-96 bg-monokai-bg border border-monokai-accent/20 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6">
+               <div className="flex items-center gap-4 mb-4">
+                 <div className="w-12 h-12 rounded-xl bg-monokai-red/10 flex items-center justify-center shrink-0">
+                    <AlertTriangle className="w-6 h-6 text-monokai-red" />
+                 </div>
+                 <div>
+                   <h4 className="text-lg font-bold text-monokai-fg">破坏性操作确认</h4>
+                   <p className="text-sm text-monokai-comment mt-1">此操作将永久修改知识图谱库数据。</p>
+                 </div>
+               </div>
+               <p className="text-sm text-monokai-fg p-4 bg-monokai-sidebar/40 rounded-xl font-medium border border-monokai-accent/10">确定要销毁「{deleteConfirm.label}」吗？</p>
+            </div>
+            <div className="px-6 py-4 bg-monokai-sidebar/30 flex justify-end gap-3 border-t border-monokai-accent/10">
+              <button onClick={() => setDeleteConfirm(null)} className="px-5 py-2.5 text-sm font-medium rounded-xl text-monokai-fg bg-black/40 hover:bg-black/60 transition-colors">取消</button>
+              <button 
+                onClick={async () => {
+                  try {
+                    if (deleteConfirm.type === 'objectType') await store.deleteObjectType(deleteConfirm.id);
+                    else if (deleteConfirm.type === 'object') await store.deleteObject(deleteConfirm.id);
+                    else if (deleteConfirm.type === 'linkType') await store.deleteLinkType(deleteConfirm.id);
+                    else if (deleteConfirm.type === 'link') await store.deleteLink(deleteConfirm.id);
+                    else if (deleteConfirm.type === 'action') await store.deleteAction(deleteConfirm.id);
+                    setDeleteConfirm(null);
+                    setInspectorMode('none');
+                    await store.refresh();
+                  } catch (e: any) { alert(`销毁失败: ${e.message}`); }
+                }} 
+                className="px-5 py-2.5 text-sm font-bold rounded-xl bg-monokai-red/20 text-monokai-red hover:bg-monokai-red hover:text-white transition-colors shadow-[0_0_15px_rgba(249,38,114,0.3)]">
+                确认销毁
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* AI Draft Global Alert */}
+      {state.draftPayload && (
+        <AIDraftModal
+          payload={state.draftPayload}
+          jsonStr={state.draftJsonStr}
+          onCommit={async () => {
+             // If payload contains mapping, apply it before refresh
+             const mapping = (state.draftPayload as any)?.mapping;
+             if (mapping) {
+               dispatch({ type: 'UPDATE_MAPPING', mapping });
+             }
+             await refresh();
+             dispatch(ontologyActions.clearDraft());
+          }}
+          onCancel={() => dispatch(ontologyActions.clearDraft())}
+        />
+      )}
+
+      {/* AI Modeling Wizard */}
+      {modelingWizardOpen && (
+        <OntologyModelingWizard
+          onClose={() => setModelingWizardOpen(false)}
+          onImport={handleModelingImport}
+        />
+      )}
     </div>
   );
 };

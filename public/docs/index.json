@@ -1,7 +1,7 @@
 {
   "version": "1.0",
-  "generatedAt": "2026-03-31T09:55:07.966Z",
-  "count": 13,
+  "generatedAt": "2026-04-29T15:55:43.135Z",
+  "count": 18,
   "tutorials": [
     {
       "id": "duckdb",
@@ -67,11 +67,39 @@
       "docPath": "/docs/Ontology_AI_Skills_Optimize_Prompt.md"
     },
     {
+      "id": "ontologycanvasmeceoptimizeprompt",
+      "title": "Ontology 高阶画布优化提示词（MECE 体系）",
+      "category": "进阶",
+      "difficulty": "Intermediate",
+      "docPath": "/docs/Ontology_Canvas_MECE_Optimize_Prompt.md"
+    },
+    {
+      "id": "ontologycanvasoptimizeprompt",
+      "title": "Ontology 高阶画布优化提示词（MECE 体系）",
+      "category": "进阶",
+      "difficulty": "Intermediate",
+      "docPath": "/docs/Ontology_Canvas_Optimize_Prompt.md"
+    },
+    {
       "id": "ontologymoduleoptimizationprompt",
       "title": "Ontology 模块优化提示词 (MECE 体系)",
       "category": "进阶",
       "difficulty": "Intermediate",
       "docPath": "/docs/Ontology_Module_Optimization_Prompt.md"
+    },
+    {
+      "id": "plan-ai-skills-refactor",
+      "title": "🧠 PLAN - AI Skills Refactoring",
+      "category": "进阶",
+      "difficulty": "Intermediate",
+      "docPath": "/docs/PLAN-ai-skills-refactor.md"
+    },
+    {
+      "id": "plan-canvas-ai-optimize",
+      "title": "PLAN: High-Level Canvas AI Optimization (高阶画布 AI 优化方案)",
+      "category": "进阶",
+      "difficulty": "Intermediate",
+      "docPath": "/docs/PLAN-canvas-ai-optimize.md"
     },
     {
       "id": "plan-graph-animation",
@@ -86,6 +114,13 @@
       "category": "进阶",
       "difficulty": "Intermediate",
       "docPath": "/docs/PLAN-ontology-ai.md"
+    },
+    {
+      "id": "plan-ontology-canvas-mece-prompt",
+      "title": "Ontology 高阶画布 MECE 优化提示词文档",
+      "category": "进阶",
+      "difficulty": "Intermediate",
+      "docPath": "/docs/PLAN-ontology-canvas-mece-prompt.md"
     },
     {
       "id": "quicktutorial",

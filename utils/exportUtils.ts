@@ -51,6 +51,6 @@ export function downloadObjectsAsExcel<T extends Record<string, unknown>>(
     return;
   }
   const headers = Object.keys(objects[0]);
-  const rows = objects.map(obj => headers.map(h => obj[h] ?? null as unknown as undefined));
-  downloadExcel([{ name: sheetName, headers, rows }], filename);
+  const rows = objects.map(obj => headers.map(h => obj[h] ?? null));
+  downloadExcel([{ name: sheetName, headers, rows: rows as (string | number | boolean | null | undefined)[][] }], filename);
 }
