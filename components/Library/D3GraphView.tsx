@@ -16,7 +16,7 @@
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as d3 from 'd3';
-import { RefreshCw, Sparkles, Loader2, HelpCircle } from 'lucide-react';
+import { RefreshCw, Sparkles, Loader2, HelpCircle, Trash2, AlertTriangle } from 'lucide-react';
 import { duckDBService } from '../../services/duckdbService';
 import { ontologyAiService } from '../../services/ontologyAiService';
 import { encodeCSV, downloadExcel } from '../../utils/exportUtils';
@@ -371,6 +371,7 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void }> = ({ on
   const [showAIFillInput, setShowAIFillInput] = useState(false);
   const [aiFillTopic, setAiFillTopic] = useState('');
   const [showHelp, setShowHelp] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   // 1. D3 Physics Controls State — tuned for compact semantic layout
   const [chargeStrength, setChargeStrength] = useState(-150);
@@ -451,6 +452,27 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void }> = ({ on
     return map[color] || '#94a3b8';
   }
 
+  // ── Quick Clear: Delete all ontology data ──
+  const handleQuickClear = useCallback(async () => {
+    setShowClearConfirm(false);
+    try {
+      await duckDBService.query('DELETE FROM life_link');
+      await duckDBService.query('DELETE FROM life_action');
+      await duckDBService.query('DELETE FROM life_object');
+      await duckDBService.query('DELETE FROM life_object_type');
+      await duckDBService.query('DELETE FROM life_link_type');
+      setGraphData(null);
+      graphDataRef.current = null;
+      setSelectedNode(null);
+      setFocusedNodeId(null);
+      setSearchTerm('');
+      setInfoContent('');
+    } catch (err) {
+      console.error('[D3GraphView] Quick clear failed:', err);
+      alert('清空数据失败: ' + (err instanceof Error ? err.message : String(err)));
+    }
+  }, []);
+
   // Load data when DuckDB tables are ready
   useEffect(() => {
     if (state.initState === 'ready') {
@@ -469,46 +491,58 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void }> = ({ on
 
     svg.selectAll('*').remove();
 
-    // Scoped CSS
+    // Scoped CSS — ui-ux-pro-max: restrained visual noise
     const styleId = 'nv-styles-' + Date.now();
     const styleEl = document.createElement('style');
     styleEl.id = styleId;
     styleEl.textContent = `
-      .nv-link-instance { stroke: #FFD166 !important; stroke-width: 2.5px !important; opacity: 0.88 !important; fill: none !important; }
-      .nv-link-typeinst  { stroke: rgba(255,255,255,0.45) !important; stroke-width: 1.5px !important; opacity: 0.7 !important; fill: none !important; stroke-dasharray: 5 3; }
-      .nv-link-action    { stroke: #FF9CF7 !important; stroke-width: 1px !important; opacity: 0.75 !important; fill: none !important; }
+      /* Link styles: subtle, no overwhelming animations */
+      .nv-link-instance { stroke: #FFD166 !important; stroke-width: 2px !important; opacity: 0.7 !important; fill: none !important; }
+      .nv-link-typeinst  { stroke: rgba(255,255,255,0.35) !important; stroke-width: 1px !important; opacity: 0.5 !important; fill: none !important; stroke-dasharray: 5 3; }
+      .nv-link-action    { stroke: #FF9CF7 !important; stroke-width: 1px !important; opacity: 0.6 !important; fill: none !important; }
+
+      /* Node: clean, no persistent glow */
       .nv-node { cursor: move; }
-      .nv-node:hover { filter: drop-shadow(0 0 10px currentColor); }
-      .nv-typehub:hover { filter: drop-shadow(0 0 16px #FF9F1C) !important; }
-      .nv-instance:hover { filter: drop-shadow(0 0 10px #4CC9F0) !important; }
+      /* Hover: restrained glow — soft drop-shadow only on TypeHub/Instance */
+      .nv-node:hover { filter: drop-shadow(0 2px 6px rgba(0,0,0,0.5)) !important; }
+      .nv-typehub:hover { filter: drop-shadow(0 3px 8px rgba(0,0,0,0.5)) !important; }
+      .nv-instance:hover { filter: drop-shadow(0 2px 6px rgba(0,0,0,0.4)) !important; }
+
+      /* Labels */
       .nv-node-label {
         font-size: 10px; font-weight: bold; fill: white;
         text-anchor: start; pointer-events: none;
-        text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000, 0 0 3px rgba(0,0,0,0.9);
+        text-shadow: 0 0 3px rgba(0,0,0,0.9);
         stroke: #000; stroke-width: 0.5px; paint-order: stroke fill;
       }
       .nv-typehub-label { font-size: 12px !important; font-weight: 800 !important; }
       .nv-linktype-label {
         font-size: 8px !important; fill: #FFD166 !important; font-style: italic;
         text-anchor: middle; pointer-events: none;
-        text-shadow: 0 0 3px #000, -1px -1px 0 #000;
+        text-shadow: 0 0 3px #000;
       }
-      .nv-highlight-node { filter: drop-shadow(0 0 16px #FFD166) !important; }
-      .nv-dim { opacity: 0.12 !important; }
+
+      /* Search/select: highlight without heavy glow */
+      .nv-highlight-node { filter: drop-shadow(0 2px 8px rgba(0,0,0,0.6)) !important; }
+      .nv-dim { opacity: 0.15 !important; }
       .nv-dim-label { opacity: 0.1 !important; }
-      .nv-label-selected { fill: #FFD166 !important; font-size: 14px !important; font-weight: bold !important; }
+      .nv-label-selected { fill: #FFD166 !important; font-size: 13px !important; font-weight: bold !important; }
       .nv-label-match { fill: #4CC9F0 !important; }
       .nv-hidden { display: none !important; }
       .nv-svg { overflow: visible; }
-      .nv-selected-pulse { animation: nv-pulse-ring 1.5s ease-out infinite; }
-      @keyframes nv-pulse-ring {
-        0%   { filter: drop-shadow(0 0 6px #FFD166); }
-        50%  { filter: drop-shadow(0 0 18px #FFD166); }
-        100% { filter: drop-shadow(0 0 6px #FFD166); }
+
+      /* Selected node: gentle pulse (reduced from 18px glow to 8px) */
+      .nv-selected-pulse { animation: nv-pulse-subtle 2s ease-out infinite; }
+      @keyframes nv-pulse-subtle {
+        0%   { filter: drop-shadow(0 0 4px #FFD166); opacity: 0.85; }
+        50%  { filter: drop-shadow(0 0 10px #FFD166); opacity: 1; }
+        100% { filter: drop-shadow(0 0 4px #FFD166); opacity: 0.85; }
       }
-      .nv-icon-typehub { fill: rgba(255,255,255,0.22); stroke: rgba(255,255,255,0.6); stroke-width: 1px; pointer-events: none; }
-      .nv-icon-instance { fill: none; stroke: rgba(255,255,255,0.5); stroke-width: 1px; pointer-events: none; }
-      .nv-icon-action   { fill: rgba(255,255,255,0.3); stroke: rgba(255,255,255,0.7); stroke-width: 0.8px; pointer-events: none; }
+
+      /* Icons */
+      .nv-icon-typehub { fill: rgba(255,255,255,0.18); stroke: rgba(255,255,255,0.5); stroke-width: 1px; pointer-events: none; }
+      .nv-icon-instance { fill: none; stroke: rgba(255,255,255,0.4); stroke-width: 1px; pointer-events: none; }
+      .nv-icon-action   { fill: rgba(255,255,255,0.25); stroke: rgba(255,255,255,0.6); stroke-width: 0.8px; pointer-events: none; }
     `;
     document.head.appendChild(styleEl);
 
@@ -1493,6 +1527,30 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void }> = ({ on
               </button>
             )}
           </div>
+
+          {/* Quick Clear */}
+          {showClearConfirm ? (
+            <div style={{ marginTop: 8, padding: 8, border: '1px solid #ef4444', borderRadius: 6, background: 'rgba(239,68,68,0.08)' }}>
+              <div style={{ fontSize: 11, color: '#f87171', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
+                <AlertTriangle className="inline w-3.5 h-3.5" />
+                确认清空所有本体论数据？
+              </div>
+              <div style={{ display: 'flex', gap: 5 }}>
+                <button onClick={handleQuickClear} style={{ ...btnStyle, flex: 1, background: '#ef4444', borderColor: '#ef4444', color: '#fff', fontSize: 10, padding: '5px 8px' }}>
+                  <Trash2 className="inline w-3 h-3 mr-1" />
+                  确认清空
+                </button>
+                <button onClick={() => setShowClearConfirm(false)} style={{ ...btnStyle, flex: 1, fontSize: 10, padding: '5px 8px' }}>
+                  取消
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button onClick={() => setShowClearConfirm(true)} style={{ ...btnStyle, marginTop: 5, width: '100%', borderColor: '#ef4444', color: '#f87171', fontSize: 10 }}>
+              <Trash2 className="inline w-3 h-3 mr-1" />
+              快捷清空
+            </button>
+          )}
           
           {/* Physics Engine Controls */}
           <div style={{ marginTop: 10, borderTop: '1px solid #333', paddingTop: 8 }}>
