@@ -902,10 +902,17 @@ const OntologyCanvasInner: React.FC<OntologyCanvasProps & { objects: any[]; obje
         const allIds = [...canvasState.items.map(i => i.id), ...canvasState.spaces.flatMap(s => s.items.map(i => i.id))];
         setSelectedItemIds(new Set(allIds));
       }
+      // Ctrl+Shift+R → Quick clear all canvas
+      if (e.key === 'R' && e.ctrlKey && e.shiftKey) {
+        e.preventDefault();
+        if (confirm('确认清空画布？此操作不可撤销。')) {
+          handleClear('all');
+        }
+      }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [isAIFilling, showClearMenu, showHelp, undoStack, redoStack, canvasState, selectedItemId, contextMenu]);
+  }, [isAIFilling, showClearMenu, showHelp, undoStack, redoStack, canvasState, selectedItemId, contextMenu, handleClear]);
 
   return (
     <div className="h-full w-full flex bg-[#0d0d14] relative overflow-hidden text-slate-200">

@@ -229,8 +229,7 @@ export const AbstractionLab: React.FC<AbstractionLabProps> = ({
                   onChange={(e) => setSaveDomain(e.target.value)}
                   className="w-full px-3 py-2 text-sm bg-monokai-bg border border-monokai-border rounded-lg text-monokai-fg focus:outline-none focus:border-monokai-purple transition-colors"
                 >
-                  {domains.map((d) => <option key={d} value={d}>{d}</option>)}
-                  <option value="通用">通用</option>
+                  {[...new Set(domains)].map((d) => <option key={d} value={d}>{d}</option>)}
                 </select>
               </div>
               <div className="flex items-center justify-end gap-2 pt-2">
