@@ -57,7 +57,7 @@ const CANVAS_HELP: HelpSection[] = [
       'Transform 节点应至少有一个输入边、一个输出边',
       'Sink 节点放在拓扑最右侧，作为数据出口',
       '为每个节点配置 tableName 和 sqlFragment，便于调试',
-      'Ctrl+Shift+O 快速触发 AI 填充，Escape 清空画布',
+      'Ctrl+Shift+O 快速触发 AI 填充 · Ctrl+Shift+R 清空画布 · Escape 清空或退出',
     ],
   },
 ];

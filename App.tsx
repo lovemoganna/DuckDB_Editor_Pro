@@ -1,4 +1,5 @@
 import React, { useEffect, useCallback, useState } from 'react';
+import { ErrorBoundary } from './components/ui/ErrorBoundary';
 import { duckDBService } from './services/duckdbService';
 import { Tab, Notification, ColumnInfo, ColumnStats, MetricChart } from './types';
 import { SqlEditor } from './components/SqlEditor';
@@ -609,46 +610,46 @@ const App: React.FC = () => {
 
           {/* Tab Content */}
           <div className="flex-1 overflow-hidden p-0 relative flex flex-col">
-            <div className={activeTab === Tab.DASHBOARD ? 'block h-full' : 'hidden'}><Dashboard tables={tables} onNavigate={setActiveTab} /></div>
-            <div className={activeTab === Tab.DATA ? 'block h-full' : 'hidden'}>
+            <ErrorBoundary section="Dashboard"><div className={activeTab === Tab.DASHBOARD ? 'block h-full' : 'hidden'}><Dashboard tables={tables} onNavigate={setActiveTab} /></div></ErrorBoundary>
+            <ErrorBoundary section="Data Tab"><div className={activeTab === Tab.DATA ? 'block h-full' : 'hidden'}>
               <DataTab currentTable={currentTable} tableData={tableData} tableColumns={tableColumns} schema={schema} hiddenColumns={hiddenColumns} loadingData={loadingData} pagination={pagination} sortConfig={sortConfig} filterQuery={filterQuery} selectedRows={selectedRows} dataViewMode={dataViewMode} profileData={profileData} editingCell={editingCell} showColMenu={showColMenu} pkColumn={pkColumn} expandedRowIdx={expandedRowIdx} onToggleColumnVisibility={(col) => { const ns = new Set(hiddenColumns); hiddenColumns.has(col) ? ns.delete(col) : ns.add(col); setHiddenColumns(ns); }} onSetShowColMenu={setShowColMenu} onSetHiddenColumns={setHiddenColumns} onSetDataViewMode={setDataViewMode} onFetchProfileData={fetchProfileData} onFetchTableData={fetchTableData} onSetFilterQuery={setFilterQuery} onSetEditingCell={setEditingCell} onSaveCellEdit={saveCellEdit} onHandleSelectRow={handleSelectRow} onHandleSelectAll={handleSelectAll} onHandleBulkDelete={handleBulkDelete} onHandlePageChange={handlePageChange} onHandleSort={handleSort} onHandleApplyFilter={handleApplyFilter} onDownloadData={downloadData} onHandleInsertRow={handleInsertRow} onSetExpandedRowIdx={setExpandedRowIdx} onAddNotification={addNotification} />
-            </div>
-            <div className={activeTab === Tab.STRUCTURE ? 'block h-full' : 'hidden'}>
+            </div></ErrorBoundary>
+            <ErrorBoundary section="Schema Tab"><div className={activeTab === Tab.STRUCTURE ? 'block h-full' : 'hidden'}>
               <StructureTab tables={tables} currentTable={currentTable} schema={schema} fullSchemaTree={fullSchemaTree} structureViewMode={structureViewMode} editColumnMode={editColumnMode} newColName={newColName} newColType={newColType} selectedColStats={selectedColStats} isRenaming={isRenaming} renameTableName={renameTableName} onSetStructureViewMode={setStructureViewMode} onSetEditColumnMode={setEditColumnMode} onSetNewColName={setNewColName} onSetNewColType={setNewColType} onSetSelectedColStats={setSelectedColStats} onSetIsRenaming={setIsRenaming} onSetRenameTableName={setRenameTableName} onHandleRenameTable={handleRenameTable} onHandleAddColumn={handleAddColumn} onHandleDropColumn={handleDropColumn} onHandleSaveColumnEdit={handleSaveColumnEdit} onShowColumnStats={showColumnStats} onHandleCopySchema={handleCopySchema} onHandleDuplicateTable={() => currentTable && setShowDuplicateModal(true)} onHandleDropTable={handleDropTable} onAddNotification={addNotification} />
-            </div>
-            <div className={activeTab === Tab.SQL ? 'block h-full' : 'hidden'}>
+            </div></ErrorBoundary>
+            <ErrorBoundary section="SQL Editor"><div className={activeTab === Tab.SQL ? 'block h-full' : 'hidden'}>
               <div className="h-full p-4 bg-monokai-bg">
                 <SqlEditor onRun={() => { refreshTables(); refreshAudit(); }} initialCode={pendingSql} pendingChartConfig={pendingChartConfig} isZenMode={isZenMode} onToggleZen={() => setIsZenMode(!isZenMode)} onPendingConsumed={handlePendingConsumed} />
               </div>
-            </div>
-            <div className={activeTab === Tab.TUTORIALS ? 'block h-full' : 'hidden'}>
+            </div></ErrorBoundary>
+            <ErrorBoundary section="Tutorials"><div className={activeTab === Tab.TUTORIALS ? 'block h-full' : 'hidden'}>
               <LearnApp onTryCode={(code) => { setPendingSql(code); setActiveTab(Tab.SQL); }} onOpenTable={(tableName) => { handleTableSelect(tableName); setActiveTab(Tab.DATA); }} />
-            </div>
-            <div className={activeTab === Tab.ANALYSIS_HUB ? 'block h-full' : 'hidden'}>
+            </div></ErrorBoundary>
+            <ErrorBoundary section="Analysis Hub"><div className={activeTab === Tab.ANALYSIS_HUB ? 'block h-full' : 'hidden'}>
               <AnalysisHubPanel onInsertSql={(sql) => { setPendingSql(sql); setActiveTab(Tab.SQL); }} />
-            </div>
-            <div className={activeTab === Tab.METRICS ? 'block h-full' : 'hidden'}>
+            </div></ErrorBoundary>
+            <ErrorBoundary section="Metrics"><div className={activeTab === Tab.METRICS ? 'block h-full' : 'hidden'}>
               <MetricManager tables={tables} onExecuteSql={(sql) => { setPendingSql(sql); setActiveTab(Tab.SQL); }} onChartGenerated={handleChartGenerated} />
-            </div>
-            <div className={activeTab === Tab.AUDIT ? 'block h-full' : 'hidden'}>
+            </div></ErrorBoundary>
+            <ErrorBoundary section="Audit Log"><div className={activeTab === Tab.AUDIT ? 'block h-full' : 'hidden'}>
               <AuditTab auditLogs={auditLogs} />
-            </div>
-            <div className={activeTab === Tab.EXTENSIONS ? 'block h-full' : 'hidden'}>
+            </div></ErrorBoundary>
+            <ErrorBoundary section="Extensions"><div className={activeTab === Tab.EXTENSIONS ? 'block h-full' : 'hidden'}>
               <div className="bg-monokai-bg h-full"><Extensions onTryExtension={(sql) => { setPendingSql(sql); setActiveTab(Tab.SQL); }} /></div>
-            </div>
-            <div className={activeTab === Tab.AI_SKILLS ? 'block h-full' : 'hidden'}>
+            </div></ErrorBoundary>
+            <ErrorBoundary section="AI Skills"><div className={activeTab === Tab.AI_SKILLS ? 'block h-full' : 'hidden'}>
               <div className="bg-monokai-bg h-full">
                 <SkillPanel isOpen={true} onClose={() => setActiveTab(Tab.DASHBOARD)} onExecuteSql={(sql) => { setPendingSql(sql); setActiveTab(Tab.SQL); }} currentTable={currentTable || undefined} currentColumns={schema.map(col => ({ name: col.name, type: col.type }))} />
               </div>
-            </div>
-            <div className={activeTab === Tab.LIBRARY ? 'block h-full' : 'hidden'}>
+            </div></ErrorBoundary>
+            <ErrorBoundary section="Library"><div className={activeTab === Tab.LIBRARY ? 'block h-full' : 'hidden'}>
               <div className="bg-monokai-bg h-full">
                 <LibraryApp isOpen={true} onClose={() => setActiveTab(Tab.DASHBOARD)} onInsertToEditor={(sql) => { setPendingSql(sql); setActiveTab(Tab.SQL); }} />
               </div>
-            </div>
-            <div className={activeTab === Tab.ONTOLOGY ? 'flex flex-1 w-full h-full overflow-hidden' : 'hidden'}>
+            </div></ErrorBoundary>
+            <ErrorBoundary section="Ontology"><div className={activeTab === Tab.ONTOLOGY ? 'flex flex-1 w-full h-full overflow-hidden' : 'hidden'}>
               <OntologyApp isOpen={true} onClose={() => setActiveTab(Tab.DASHBOARD)} onInsertToEditor={(sql) => { setPendingSql(sql); setActiveTab(Tab.SQL); }} onTablesReady={() => refreshTables()} />
-            </div>
+            </div></ErrorBoundary>
           </div>
         </div>
       </div>
