@@ -44,14 +44,42 @@ export const UniversalImporter: React.FC<UniversalImporterProps> = ({ onImportSu
           }
         };
         reader.readAsBinaryString(file);
-      } else if (extension === 'csv' || extension === 'json' || extension === 'parquet' || extension === 'duckdb') {
+      } else if (extension === 'csv') {
+        const reader = new FileReader();
+        reader.onload = async (evt) => {
+          try {
+            const buffer = evt.target?.result as ArrayBuffer;
+            let text = '';
+            try {
+              text = new TextDecoder('utf-8', { fatal: true }).decode(buffer);
+            } catch (e) {
+              console.log('[UniversalImporter] UTF-8 decoding failed, falling back to GBK');
+              text = new TextDecoder('gbk').decode(buffer);
+            }
+            await duckDBService.importText(text, tableName);
+            setSuccess(`Successfully imported CSV as table: ${tableName}`);
+            onImportSuccess(tableName);
+          } catch (err: any) {
+            setError(`CSV Import Error: ${err.message}`);
+          } finally {
+            setLoading(false);
+          }
+        };
+        reader.readAsArrayBuffer(file);
+      } else if (extension === 'json' || extension === 'parquet' || extension === 'duckdb') {
         // Use duckdb-wasm native loaders
         await duckDBService.importFile(file, tableName);
         setSuccess(`Successfully imported ${extension.toUpperCase()} as table: ${tableName}`);
         onImportSuccess(tableName);
         setLoading(false);
       } else {
-        throw new Error(`Unsupported file format: .${extension}`);
+        const supported = ['csv', 'xlsx', 'xls', 'json', 'parquet', 'duckdb'];
+        const isSql = extension === 'sql';
+        throw new Error(
+          isSql
+            ? `.sql 文件不能直接导入数据。请将 SQL 内容复制到 SQL 编辑器执行。`
+            : `不支持 .${extension} 格式。支持：${supported.join(' / ')}`
+        );
       }
     } catch (err: any) {
       console.error(err);

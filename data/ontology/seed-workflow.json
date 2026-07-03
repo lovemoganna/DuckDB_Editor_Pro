@@ -1,0 +1,115 @@
+{
+  "_meta": {
+    "name": "工作流程编排系统",
+    "description": "模拟复杂业务流程的步骤、依赖和状态变迁，测试知识图谱在流程建模场景下的稳定性",
+    "version": "1.0.0",
+    "author": "system",
+    "created_at": "2025-05-06",
+    "scenario": "workflow-orchestration",
+    "complexity": "medium",
+    "entity_counts": {
+      "object_types": 6,
+      "objects": 18,
+      "link_types": 8,
+      "links": 30,
+      "actions": 6,
+      "introspections": 3,
+      "insights": 3
+    }
+  },
+
+  "objectTypes": [
+    { "id": 1, "name": "Stage",     "description": "流程阶段" },
+    { "id": 2, "name": "Task",      "description": "具体任务" },
+    { "id": 3, "name": "Role",      "description": "角色/岗位" },
+    { "id": 4, "name": "System",    "description": "系统/工具" },
+    { "id": 5, "name": "Artifact",  "description": "产出物/文档" },
+    { "id": 6, "name": "Gate",      "description": "决策门/审批点" }
+  ],
+
+  "objects": [
+    { "id": 1,  "object_type_id": 1, "name": "需求收集阶段",      "properties": "{\"status\": \"completed\", \"duration_days\": 5, \"start\": \"2025-04-20\", \"end\": \"2025-04-25\"}", "annotations": "" },
+    { "id": 2,  "object_type_id": 1, "name": "方案设计阶段",        "properties": "{\"status\": \"completed\", \"duration_days\": 8, \"start\": \"2025-04-26\", \"end\": \"2025-05-04\"}", "annotations": "" },
+    { "id": 3,  "object_type_id": 1, "name": "开发实现阶段",        "properties": "{\"status\": \"in_progress\", \"duration_days\": 20, \"start\": \"2025-05-05\", \"end\": \"2025-05-25\"}", "annotations": "" },
+    { "id": 4,  "object_type_id": 1, "name": "测试验收阶段",        "properties": "{\"status\": \"pending\", \"duration_days\": 7, \"start\": \"2025-05-26\", \"end\": \"2025-06-02\"}", "annotations": "" },
+    { "id": 5,  "object_type_id": 1, "name": "上线发布阶段",        "properties": "{\"status\": \"pending\", \"duration_days\": 3, \"start\": \"2025-06-03\", \"end\": \"2025-06-06\"}", "annotations": "" },
+    { "id": 6,  "object_type_id": 2, "name": "用户访谈",            "properties": "{\"status\": \"completed\", \"owner\": \"产品经理\", \"effort_hours\": 16}",                        "annotations": "" },
+    { "id": 7,  "object_type_id": 2, "name": "竞品分析",            "properties": "{\"status\": \"completed\", \"owner\": \"产品经理\", \"effort_hours\": 12}",                        "annotations": "" },
+    { "id": 8,  "object_type_id": 2, "name": "PRD文档编写",         "properties": "{\"status\": \"completed\", \"owner\": \"产品经理\", \"effort_hours\": 8}",                         "annotations": "" },
+    { "id": 9,  "object_type_id": 2, "name": "技术方案设计",        "properties": "{\"status\": \"completed\", \"owner\": \"技术负责人\", \"effort_hours\": 20}",                     "annotations": "" },
+    { "id": 10, "object_type_id": 2, "name": "数据库设计",          "properties": "{\"status\": \"completed\", \"owner\": \"后端工程师\", \"effort_hours\": 12}",                   "annotations": "" },
+    { "id": 11, "object_type_id": 2, "name": "接口开发",             "properties": "{\"status\": \"in_progress\", \"owner\": \"后端工程师\", \"effort_hours\": 40}",                 "annotations": "" },
+    { "id": 12, "object_type_id": 2, "name": "前端开发",             "properties": "{\"status\": \"in_progress\", \"owner\": \"前端工程师\", \"effort_hours\": 32}",                 "annotations": "" },
+    { "id": 13, "object_type_id": 2, "name": "集成测试",            "properties": "{\"status\": \"pending\", \"owner\": \"测试工程师\", \"effort_hours\": 16}",                      "annotations": "" },
+    { "id": 14, "object_type_id": 3, "name": "产品经理",            "properties": "{\"department\": \"产品部\", \"capacity\": 1.0, \"current_load\": 0.7}",                         "annotations": "" },
+    { "id": 15, "object_type_id": 3, "name": "技术负责人",          "properties": "{\"department\": \"研发部\", \"capacity\": 1.0, \"current_load\": 0.9}",                         "annotations": "" },
+    { "id": 16, "object_type_id": 3, "name": "测试工程师",          "properties": "{\"department\": \"质量部\", \"capacity\": 0.8, \"current_load\": 0.5}",                        "annotations": "" },
+    { "id": 17, "object_type_id": 4, "name": "Jira",                "properties": "{\"type\": \"项目管理\", \"usage\": \"任务跟踪\", \"status\": \"活跃\"}",                        "annotations": "" },
+    { "id": 18, "object_type_id": 4, "name": "GitLab",              "properties": "{\"type\": \"代码托管\", \"usage\": \"代码仓库与CI\", \"status\": \"活跃\"}",                       "annotations": "" }
+  ],
+
+  "linkTypes": [
+    { "id": 1, "name": "前置依赖",  "description": "A 是 B 的前置步骤（B 依赖 A）" },
+    { "id": 2, "name": "包含",     "description": "A 阶段包含 B 任务" },
+    { "id": 3, "name": "负责",     "description": "A 角色负责 B 任务" },
+    { "id": 4, "name": "使用",     "description": "A 任务使用 B 系统" },
+    { "id": 5, "name": "产出",     "description": "A 任务产出 B 文档" },
+    { "id": 6, "name": "审批通过",  "description": "A 审批门通过后 B 才能开始" },
+    { "id": 7, "name": "触发",     "description": "A 任务完成自动触发 B" },
+    { "id": 8, "name": "并行",     "description": "A 和 B 可并行执行" }
+  ],
+
+  "links": [
+    { "id": 1,  "link_type_id": 2, "source_object_id": 1,  "target_object_id": 6,  "weight": 1.00 },
+    { "id": 2,  "link_type_id": 2, "source_object_id": 1,  "target_object_id": 7,  "weight": 1.00 },
+    { "id": 3,  "link_type_id": 2, "source_object_id": 1,  "target_object_id": 8,  "weight": 1.00 },
+    { "id": 4,  "link_type_id": 2, "source_object_id": 2,  "target_object_id": 9,  "weight": 1.00 },
+    { "id": 5,  "link_type_id": 2, "source_object_id": 2,  "target_object_id": 10, "weight": 1.00 },
+    { "id": 6,  "link_type_id": 2, "source_object_id": 3,  "target_object_id": 11, "weight": 1.00 },
+    { "id": 7,  "link_type_id": 2, "source_object_id": 3,  "target_object_id": 12, "weight": 1.00 },
+    { "id": 8,  "link_type_id": 2, "source_object_id": 4,  "target_object_id": 13, "weight": 1.00 },
+    { "id": 9,  "link_type_id": 1, "source_object_id": 6,  "target_object_id": 7,  "weight": 0.90 },
+    { "id": 10, "link_type_id": 1, "source_object_id": 7,  "target_object_id": 8,  "weight": 1.00 },
+    { "id": 11, "link_type_id": 1, "source_object_id": 8,  "target_object_id": 9,  "weight": 1.00 },
+    { "id": 12, "link_type_id": 1, "source_object_id": 9,  "target_object_id": 10, "weight": 0.90 },
+    { "id": 13, "link_type_id": 1, "source_object_id": 10, "target_object_id": 11, "weight": 1.00 },
+    { "id": 14, "link_type_id": 8, "source_object_id": 11, "target_object_id": 12, "weight": 0.60 },
+    { "id": 15, "link_type_id": 1, "source_object_id": 12, "target_object_id": 13, "weight": 1.00 },
+    { "id": 16, "link_type_id": 1, "source_object_id": 11, "target_object_id": 13, "weight": 0.80 },
+    { "id": 17, "link_type_id": 1, "source_object_id": 1,  "target_object_id": 2,  "weight": 1.00 },
+    { "id": 18, "link_type_id": 1, "source_object_id": 2,  "target_object_id": 3,  "weight": 1.00 },
+    { "id": 19, "link_type_id": 1, "source_object_id": 3,  "target_object_id": 4,  "weight": 1.00 },
+    { "id": 20, "link_type_id": 1, "source_object_id": 4,  "target_object_id": 5,  "weight": 1.00 },
+    { "id": 21, "link_type_id": 3, "source_object_id": 14, "target_object_id": 6,  "weight": 1.00 },
+    { "id": 22, "link_type_id": 3, "source_object_id": 14, "target_object_id": 7,  "weight": 1.00 },
+    { "id": 23, "link_type_id": 3, "source_object_id": 14, "target_object_id": 8,  "weight": 1.00 },
+    { "id": 24, "link_type_id": 3, "source_object_id": 15, "target_object_id": 9,  "weight": 1.00 },
+    { "id": 25, "link_type_id": 3, "source_object_id": 15, "target_object_id": 10, "weight": 0.80 },
+    { "id": 26, "link_type_id": 3, "source_object_id": 16, "target_object_id": 13, "weight": 1.00 },
+    { "id": 27, "link_type_id": 4, "source_object_id": 6,  "target_object_id": 17, "weight": 0.80 },
+    { "id": 28, "link_type_id": 4, "source_object_id": 9,  "target_object_id": 17, "weight": 0.90 },
+    { "id": 29, "link_type_id": 4, "source_object_id": 11, "target_object_id": 18, "weight": 1.00 },
+    { "id": 30, "link_type_id": 4, "source_object_id": 12, "target_object_id": 18, "weight": 1.00 }
+  ],
+
+  "actions": [
+    { "id": 1, "object_id": 13, "name": "完成集成测试用例设计",     "description": "根据接口文档设计覆盖边界条件和异常场景的测试用例",                    "status": "pending", "execute_at": "2025-05-25" },
+    { "id": 2, "object_id": 11, "name": "完成后端接口文档输出",      "description": "Swagger文档编写，确保与前端对齐",                                     "status": "pending", "execute_at": "2025-05-22" },
+    { "id": 3, "object_id": 12, "name": "完成前端组件开发",          "description": "12个业务组件全部开发完成并自测通过",                                   "status": "in_progress", "execute_at": "2025-05-20" },
+    { "id": 4, "object_id": 10, "name": "完成数据库索引优化评审",    "description": "针对高频查询添加必要索引，评审通过后实施",                             "status": "pending", "execute_at": "2025-05-18" },
+    { "id": 5, "object_id": 5,  "name": "完成上线发布计划",          "description": "制定灰度发布策略、监控告警配置和回滚预案",                              "status": "pending", "execute_at": "2025-05-30" },
+    { "id": 6, "object_id": 16, "name": "测试环境准备完成",           "description": "部署测试环境、准备测试数据、搭建接口Mock服务",                         "status": "pending", "execute_at": "2025-05-24" }
+  ],
+
+  "introspections": [
+    { "id": 1, "object_id": 1,  "question": "需求收集阶段最耗时的环节是什么？",                     "answer": "竞品分析花的时间比预期多了一倍，因为产品经理在分析过程中发现了更多值得研究的维度，导致范围蔓延。", "created_at": "2025-05-01" },
+    { "id": 2, "object_id": 3, "question": "为什么开发阶段进度比计划慢了3天？",                 "answer": "接口开发与前端开发并行，但接口定义在开发过程中调整了2次，导致前端需要返工。以后应该先冻结接口再并行开发。", "created_at": "2025-05-04" },
+    { "id": 3, "object_id": 15, "question": "技术负责人的工作量是否过载？",                          "answer": "当前项目占用了他90%的精力，同时他还在支持另外2个项目的技术评审。瓶颈明显，急需拆分职责。", "created_at": "2025-05-05" }
+  ],
+
+  "insights": [
+    { "id": 1, "object_id": 9,  "insight": "技术方案评审的最佳时机是PRD定稿后、代码编写前，此时改方案成本最低",                              "tag": "流程优化",  "created_at": "2025-05-02" },
+    { "id": 2, "object_id": 11, "insight": "前后端并行开发的前提是接口先行冻结，否则联调阶段的返工成本会吃掉所有并行节省的时间",              "tag": "流程优化",  "created_at": "2025-05-04" },
+    { "id": 3, "object_id": 13, "insight": "测试用例应该在开发阶段同步编写，而不是等开发完成才开始——这样能提前发现很多需求理解不一致的问题", "tag": "质量保障",  "created_at": "2025-05-05" }
+  ]
+}

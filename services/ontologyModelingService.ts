@@ -129,7 +129,7 @@ class OntologyModelingService {
 
       const seedData: Record<string, ModelingObject[]> = {};
       for (const obj of (objectModel.objects || [])) {
-        const typeName = obj.typeName || obj.objectType || objectTypeNames[0];
+        const typeName = obj.typeName || objectTypeNames[0];
         if (!seedData[typeName]) seedData[typeName] = [];
         seedData[typeName].push({
           name: obj.name,
@@ -180,7 +180,7 @@ class OntologyModelingService {
     const objectTypeNames = (objectModel.objectTypes || []).map((t: any) => t.name);
     const seedData: Record<string, ModelingObject[]> = {};
     for (const obj of (objectModel.objects || [])) {
-      const typeName = obj.typeName || obj.objectType || objectTypeNames[0];
+      const typeName = obj.typeName || objectTypeNames[0];
       if (!seedData[typeName]) seedData[typeName] = [];
       seedData[typeName].push({
         name: obj.name,

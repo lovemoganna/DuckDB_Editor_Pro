@@ -22,6 +22,7 @@ import { DataTab } from './components/DataTab';
 import { StructureTab } from './components/StructureTab';
 import { AuditTab } from './components/AuditTab';
 import { useAppStore } from './hooks/store/useAppStore';
+import { useOntologyStore } from './hooks/useOntologyStore';
 
 const App: React.FC = () => {
   const {
@@ -40,6 +41,8 @@ const App: React.FC = () => {
     auditLogs, setAuditLogs,
     addNotification,
   } = useAppStore();
+
+  const { setPendingCommand } = useOntologyStore();
 
   // ── Init ──────────────────────────────────────────────────────
   const [isReady, setIsReady] = useState(false);
@@ -96,7 +99,7 @@ const App: React.FC = () => {
     duckDBService.init()
       .then(async () => {
         setIsReady(true);
-        await refreshTables();
+        refreshTables().catch((e) => console.error(e));
       })
       .catch((e) => setInitError(e.message));
   }, [refreshTables]);
@@ -448,7 +451,7 @@ const App: React.FC = () => {
   // ── Render ──────────────────────────────────────────────────────
   return (
     <div className="flex h-screen overflow-hidden text-monokai-fg flex-col">
-      {/* Command Palette */}
+      {/* Command Palette (keyboard-only, no visible bar) */}
       <CommandPalette
         tables={tables}
         currentTable={currentTable}
@@ -459,6 +462,10 @@ const App: React.FC = () => {
         onOpenExport={() => setShowExportModal(true)}
         onOpenSettings={() => setShowSettingsModal(true)}
         onAction={(prompt) => { setPendingSql(prompt); setActiveTab(Tab.AI_SKILLS); }}
+        onOntologyAction={(command) => {
+          setActiveTab(Tab.ONTOLOGY);
+          setPendingCommand(command);
+        }}
       />
 
       {/* Modals */}

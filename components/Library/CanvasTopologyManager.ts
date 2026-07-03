@@ -12,9 +12,11 @@
  * 5. Validation — cycles, orphan nodes, missing table names
  */
 
-import type { NodeType } from './CanvasTopologyManager';
+// NodeType is re-exported from the bottom of this file
 
 // ─── Public Types ───────────────────────────────────────────────
+
+export type NodeType = 'Source' | 'Transform' | 'Sink' | 'Control';
 
 export interface CanvasItem {
   id: string;

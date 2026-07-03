@@ -1,0 +1,106 @@
+{
+  "_meta": {
+    "name": "健康追踪系统",
+    "description": "模拟个人健康与健身数据的追踪管理，测试知识图谱在时间序列和数值指标类数据上的稳定性",
+    "version": "1.0.0",
+    "author": "system",
+    "created_at": "2025-05-06",
+    "scenario": "health-tracking",
+    "complexity": "medium",
+    "entity_counts": {
+      "object_types": 5,
+      "objects": 17,
+      "link_types": 6,
+      "links": 26,
+      "actions": 5,
+      "introspections": 3,
+      "insights": 3
+    }
+  },
+
+  "objectTypes": [
+    { "id": 1, "name": "Metric",   "description": "健康指标" },
+    { "id": 2, "name": "Habit",    "description": "习惯/行为" },
+    { "id": 3, "name": "Goal",     "description": "目标" },
+    { "id": 4, "name": "Trigger",   "description": "触发因素" },
+    { "id": 5, "name": "Symptom",  "description": "症状/感受" }
+  ],
+
+  "objects": [
+    { "id": 1,  "object_type_id": 1, "name": "体重",          "properties": "{\"unit\": \"kg\", \"baseline\": 72, \"current\": 70.5, \"target\": 68}",        "annotations": "" },
+    { "id": 2,  "object_type_id": 1, "name": "睡眠时长",       "properties": "{\"unit\": \"hours\", \"baseline\": 6.5, \"current\": 7.2, \"target\": 7.5}",  "annotations": "" },
+    { "id": 3,  "object_type_id": 1, "name": "睡眠质量",       "properties": "{\"unit\": \"score\", \"baseline\": 65, \"current\": 72, \"target\": 85}",      "annotations": "" },
+    { "id": 4,  "object_type_id": 1, "name": "静息心率",       "properties": "{\"unit\": \"bpm\", \"baseline\": 72, \"current\": 68, \"target\": 60}",      "annotations": "" },
+    { "id": 5,  "object_type_id": 1, "name": "空腹血糖",       "properties": "{\"unit\": \"mg/dL\", \"baseline\": 105, \"current\": 98, \"target\": 95}",   "annotations": "" },
+    { "id": 6,  "object_type_id": 1, "name": "日步数",         "properties": "{\"unit\": \"steps\", \"baseline\": 5000, \"current\": 7500, \"target\": 10000}", "annotations": "" },
+    { "id": 7,  "object_type_id": 2, "name": "晨跑习惯",       "properties": "{\"frequency\": \"每周3次\", \"avg_duration_min\": 35, \"streak\": 8}",       "annotations": "" },
+    { "id": 8,  "object_type_id": 2, "name": "睡前冥想",       "properties": "{\"frequency\": \"每天\", \"duration_min\": 10, \"streak\": 21}",             "annotations": "" },
+    { "id": 9,  "object_type_id": 2, "name": "晚间刷手机",     "properties": "{\"frequency\": \"每天\", \"avg_duration_min\": 45, \"pattern\": \"影响入睡\"}", "annotations": "" },
+    { "id": 10, "object_type_id": 2, "name": "喝水习惯",       "properties": "{\"frequency\": \"每日\", \"target_ml\": 2500, \"current_avg_ml\": 1800}",     "annotations": "" },
+    { "id": 11, "object_type_id": 3, "name": "体脂率降至20%以下", "properties": "{\"deadline\": \"2025-09-01\", \"progress\": 55, \"baseline\": 25}",      "annotations": "" },
+    { "id": 12, "object_type_id": 3, "name": "深睡比例达25%",   "properties": "{\"deadline\": \"2025-06-01\", \"progress\": 60, \"baseline\": 18}",       "annotations": "" },
+    { "id": 13, "object_type_id": 4, "name": "咖啡因摄入",     "properties": "{\"mg_per_day\": 200, \"limit\": 400, \"pattern\": \"上午为主\"}",           "annotations": "" },
+    { "id": 14, "object_type_id": 4, "name": "晚餐时间",        "properties": "{\"avg_time\": \"20:30\", \"target\": \"19:00前\", \"pattern\": \"偏晚\"}",   "annotations": "" },
+    { "id": 15, "object_type_id": 5, "name": "午后犯困",       "properties": "{\"frequency\": \"每周4次\", \"severity\": \"中度\", \"impact\": \"工作效率下降\"}", "annotations": "" },
+    { "id": 16, "object_type_id": 5, "name": "情绪波动",       "properties": "{\"frequency\": \"每周2次\", \"triggers\": [\"睡眠不足\", \"空腹\"], \"severity\": \"轻度\"}", "annotations": "" },
+    { "id": 17, "object_type_id": 5, "name": "精力充沛感",     "properties": "{\"frequency\": \"每周3天\", \"baseline\": \"每周1天\", \"trend\": \"上升\"}",   "annotations": "" }
+  ],
+
+  "linkTypes": [
+    { "id": 1, "name": "正向影响", "description": "A 对 B 有正面促进作用" },
+    { "id": 2, "name": "负向影响", "description": "A 对 B 有负面影响" },
+    { "id": 3, "name": "支撑",     "description": "A 是 B 的基础条件" },
+    { "id": 4, "name": "触发",     "description": "A 触发 B 的发生" },
+    { "id": 5, "name": "达成支撑", "description": "A 支撑 B 的目标达成" },
+    { "id": 6, "name": "相关",     "description": "A 与 B 存在关联（因果待验证）" }
+  ],
+
+  "links": [
+    { "id": 1,  "link_type_id": 1, "source_object_id": 7,  "target_object_id": 1,  "weight": 0.80 },
+    { "id": 2,  "link_type_id": 1, "source_object_id": 7,  "target_object_id": 4,  "weight": 0.75 },
+    { "id": 3,  "link_type_id": 1, "source_object_id": 8,  "target_object_id": 3,  "weight": 0.85 },
+    { "id": 4,  "link_type_id": 1, "source_object_id": 8,  "target_object_id": 17, "weight": 0.70 },
+    { "id": 5,  "link_type_id": 1, "source_object_id": 10, "target_object_id": 6,  "weight": 0.65 },
+    { "id": 6,  "link_type_id": 1, "source_object_id": 6,  "target_object_id": 17, "weight": 0.70 },
+    { "id": 7,  "link_type_id": 2, "source_object_id": 9,  "target_object_id": 3,  "weight": 0.90 },
+    { "id": 8,  "link_type_id": 2, "source_object_id": 9,  "target_object_id": 2,  "weight": 0.85 },
+    { "id": 9,  "link_type_id": 2, "source_object_id": 14, "target_object_id": 3,  "weight": 0.75 },
+    { "id": 10, "link_type_id": 2, "source_object_id": 14, "target_object_id": 2,  "weight": 0.70 },
+    { "id": 11, "link_type_id": 2, "source_object_id": 13, "target_object_id": 15, "weight": 0.60 },
+    { "id": 12, "link_type_id": 4, "source_object_id": 2,  "target_object_id": 15, "weight": 0.80 },
+    { "id": 13, "link_type_id": 4, "source_object_id": 5,  "target_object_id": 16, "weight": 0.50 },
+    { "id": 14, "link_type_id": 6, "source_object_id": 3,  "target_object_id": 17, "weight": 0.75 },
+    { "id": 15, "link_type_id": 6, "source_object_id": 2,  "target_object_id": 17, "weight": 0.70 },
+    { "id": 16, "link_type_id": 5, "source_object_id": 7,  "target_object_id": 11, "weight": 0.85 },
+    { "id": 17, "link_type_id": 5, "source_object_id": 8,  "target_object_id": 12, "weight": 0.80 },
+    { "id": 18, "link_type_id": 5, "source_object_id": 1,  "target_object_id": 11, "weight": 0.60 },
+    { "id": 19, "link_type_id": 3, "source_object_id": 2,  "target_object_id": 3,  "weight": 0.90 },
+    { "id": 20, "link_type_id": 3, "source_object_id": 4,  "target_object_id": 7,  "weight": 0.50 },
+    { "id": 21, "link_type_id": 2, "source_object_id": 15, "target_object_id": 16, "weight": 0.60 },
+    { "id": 22, "link_type_id": 1, "source_object_id": 6,  "target_object_id": 4,  "weight": 0.55 },
+    { "id": 23, "link_type_id": 2, "source_object_id": 2,  "target_object_id": 15, "weight": 0.40 },
+    { "id": 24, "link_type_id": 6, "source_object_id": 1,  "target_object_id": 4,  "weight": 0.40 },
+    { "id": 25, "link_type_id": 1, "source_object_id": 10, "target_object_id": 5,  "weight": 0.45 },
+    { "id": 26, "link_type_id": 2, "source_object_id": 9,  "target_object_id": 15, "weight": 0.65 }
+  ],
+
+  "actions": [
+    { "id": 1, "object_id": 9,  "name": "设定睡前手机禁用时间",    "description": "22:00后自动开启勿扰模式，减少手机使用",                            "status": "pending", "execute_at": "2025-05-15" },
+    { "id": 2, "object_id": 14, "name": "提前晚餐至19:00前",       "description": "分阶段调整：先提前到19:30，再提前到19:00",                        "status": "pending", "execute_at": "2025-05-20" },
+    { "id": 3, "object_id": 10, "name": "养成每小时喝水习惯",      "description": "使用水杯和手机提醒，确保每日2500ml",                            "status": "in_progress", "execute_at": "2025-05-10" },
+    { "id": 4, "object_id": 12, "name": "连续4周深睡比例记录",    "description": "每天记录睡眠数据，分析改善趋势",                                 "status": "pending", "execute_at": "2025-06-01" },
+    { "id": 5, "object_id": 7,  "name": "增加周末跑量",           "description": "周末增加一次LSD训练，每次10公里以上",                            "status": "pending", "execute_at": "2025-05-17" }
+  ],
+
+  "introspections": [
+    { "id": 1, "object_id": 15, "question": "午后犯困的核心原因是什么？",                          "answer": "主要是睡眠深度不足（深睡比例仅18%），其次是午餐碳水摄入过多。",     "created_at": "2025-05-01" },
+    { "id": 2, "object_id": 17, "question": "为什么最近精力充沛感明显提升了？",                     "answer": "晨跑习惯坚持3周，加上睡前冥想改善了睡眠结构，深睡比例从18%升到22%。", "created_at": "2025-05-04" },
+    { "id": 3, "object_id": 3,  "question": "睡眠质量的提升，最关键的单点干预是什么？",             "answer": "减少睡前手机使用时间（从45分钟降到15分钟）是投入产出比最高的改变。",   "created_at": "2025-05-05" }
+  ],
+
+  "insights": [
+    { "id": 1, "object_id": 3,  "insight": "睡前1小时远离手机，比任何助眠产品都有效",                      "tag": "睡眠",    "created_at": "2025-05-02" },
+    { "id": 2, "object_id": 17, "insight": "运动对精力的提升有延迟效应，通常需要2-3周才能感受到明显变化",   "tag": "运动",    "created_at": "2025-05-04" },
+    { "id": 3, "object_id": 15, "insight": "午后犯困不一定是睡眠问题，也可能是血糖波动导致的，吃蛋白质比碳水更抗饿", "tag": "营养", "created_at": "2025-05-05" }
+  ]
+}

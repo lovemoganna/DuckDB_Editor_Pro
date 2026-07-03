@@ -64,6 +64,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ tables, onNavigate }) => {
     useEffect(() => {
         loadDashboards();
         loadSystemStats();
+        const interval = setInterval(loadSystemStats, 5000);
+        return () => clearInterval(interval);
     }, []);
 
     const loadDashboards = async () => {
@@ -77,8 +79,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ tables, onNavigate }) => {
             const vRes = await duckDBService.query('SELECT version() as v');
             setVersion(vRes[0]?.v || 'Unknown');
             const exts = await duckDBService.getExtensions();
+            const tableList = await duckDBService.getTables();
             setStats({
-                tables: tables.length,
+                tables: tableList.length,
                 extensions: exts.filter((e: any) => e.installed).length
             });
 

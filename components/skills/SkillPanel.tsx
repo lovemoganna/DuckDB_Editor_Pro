@@ -125,7 +125,7 @@ export const SkillPanel: React.FC<SkillPanelProps> = ({
   if (!isOpen) return null;
 
   return (
-    <SkillProvider currentTable={currentTable} currentColumns={currentColumns as any}>
+    <SkillProvider>
       <SkillPanelInner
         onExecuteSql={onExecuteSql}
       />

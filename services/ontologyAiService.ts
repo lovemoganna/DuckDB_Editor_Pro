@@ -189,8 +189,6 @@ export interface SuggestionItem {
 // AI Workflow Engine
 // ============================================================
 
-type MECELayer = 'foundation' | 'relations' | 'methodology' | 'patterns' | 'domains';
-
 interface AIWorkflowResult {
   /** 可直接执行的 SQL */
   executableSQL?: string;
@@ -860,6 +858,4 @@ export const ontologyAiService = new OntologyAiService();
 export type {
   AIWorkflowResult,
   LayerWorkflow,
-  MECELayer,
-  MeceCanvasLayoutPlan,
 };

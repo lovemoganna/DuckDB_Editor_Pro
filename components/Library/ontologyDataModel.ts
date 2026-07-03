@@ -78,7 +78,25 @@ CREATE TABLE life_action (
     execute_at DATE
 );
 
--- ⑥ Canvas 布局状态表
+-- ⑥ 反思记录表
+CREATE TABLE life_introspection (
+    id INTEGER PRIMARY KEY,
+    object_id INTEGER REFERENCES life_object(id),
+    question VARCHAR,
+    answer VARCHAR,
+    created_at DATE DEFAULT CURRENT_DATE
+);
+
+-- ⑦ 洞察表
+CREATE TABLE life_insight (
+    id INTEGER PRIMARY KEY,
+    object_id INTEGER REFERENCES life_object(id),
+    insight VARCHAR,
+    tag VARCHAR,
+    created_at DATE DEFAULT CURRENT_DATE
+);
+
+-- ⑧ Canvas 布局状态表
 CREATE TABLE life_canvas_state (
     id VARCHAR PRIMARY KEY,
     space_id VARCHAR,
@@ -90,7 +108,7 @@ CREATE TABLE life_canvas_state (
     metadata JSON DEFAULT '{}'
 );
 
--- ⑦ Canvas 画布连线表
+-- ⑨ Canvas 画布连线表
 CREATE TABLE life_canvas_edge (
     id VARCHAR PRIMARY KEY,
     source_id VARCHAR,
@@ -133,7 +151,7 @@ INSERT INTO life_link VALUES
     (3, 3, 3, 1, 0.8),   -- 家庭 -> 锚定 -> 心态
     (4, 4, 4, 1, 0.7);   -- 身体 -> 支撑 -> 心态
 
--- 行动实例（将行动关联到具体的本体对象）
+-- 行动实例（将行动关联 to 具体的本体对象）
 INSERT INTO life_action VALUES
     (1, 4, '早睡早起', '调整作息，保持充足睡眠', 'pending', '2024-12-31');
 
@@ -146,7 +164,7 @@ INSERT INTO life_insight VALUES
     (1, 2, '沟通是工程师最大的软技能壁垒', '职场真相', CURRENT_DATE);
 
 -- Canvas 画布状态
-INSERT INTO life_canvas_state VALUES
+INSERT INTO life_canvas_state (id, space_id, object_id, title, color, x, y, width, height) VALUES
     ('space-1', 'space-1', NULL, '个人生活', '#a78bfa', 100, 100, 320, 350),
     ('item-1',  'space-1', 1,     NULL,              NULL,  20,  50,  280, 100),
     ('item-4',  'space-1', 4,     NULL,              NULL,  20,  180, 280, 100),
@@ -181,18 +199,19 @@ export const ONTOLOGY_SEED_STATEMENTS: string[] = [
   `INSERT INTO life_link_type VALUES (1, '影响', 'A 作用于 B'), (2, '养活', 'A 为 B 提供物质基础'), (3, '锚定', 'A 为 B 提供精神支撑'), (4, '支撑', 'A 为 B 提供基础条件'), (5, '依恋', 'A 深度依赖 B'), (6, '协助', 'A 帮助 B 完成任务') ON CONFLICT (id) DO NOTHING`,
   `INSERT INTO life_link VALUES (1, 1, 1, 2, 0.9), (2, 2, 2, 3, 1.0), (3, 3, 3, 1, 0.8), (4, 4, 4, 1, 0.7), (5, 1, 6, 1, 0.95), (6, 3, 5, 1, 0.85), (7, 5, 5, 6, 1.0), (8, 6, 7, 2, 0.6), (9, 1, 8, 1, 0.7), (10, 3, 8, 1, 0.75), (11, 4, 4, 11, 0.9), (12, 2, 2, 9, 0.8), (13, 1, 1, 10, 0.5) ON CONFLICT (id) DO NOTHING`,
   `INSERT INTO life_action VALUES (1, 4, '早睡早起', '调整作息，保持充足睡眠', 'pending', '2024-12-31'), (2, 9, '搭建 MVP', '完成副业项目第一个可演示版本', 'pending', '2025-06-01'), (3, 11, '月跑量80公里', '本月跑步总里程目标', 'pending', '2025-05-01') ON CONFLICT (id) DO NOTHING`,
-  `INSERT INTO life_introspection VALUES (1, 1, '为什么最近总是焦虑？', '因为工作沟通不顺畅，把情绪带到了生活中。', CURRENT_DATE), (2, 2, '工作对我意味着什么？', '既是收入来源，也是自我价值实现的途径。', CURRENT_DATE) ON CONFLICT (id) DO NOTHING`,
-  `INSERT INTO life_insight VALUES (1, 2, '沟通是工程师最大的软技能壁垒', '职场真相', CURRENT_DATE), (2, 6, '家庭是情绪的稳定器，再忙也要留时间', '家庭优先级', CURRENT_DATE), (3, 8, '老友不需要常常联系，但关键时刻一定在', '友情', CURRENT_DATE) ON CONFLICT (id) DO NOTHING`,
-  `INSERT INTO life_canvas_state VALUES ('space-1', 'space-1', NULL, '个人生活', '#a78bfa', 100, 100, 320, 350), ('item-1', 'space-1', 1, NULL, NULL, 20, 50, 280, 100), ('item-4', 'space-1', 4, NULL, NULL, 20, 180, 280, 100), ('space-2', 'space-2', NULL, '外部事务', '#38bdf8', 480, 100, 320, 350), ('item-2', 'space-2', 2, NULL, NULL, 20, 50, 280, 100), ('item-3', 'space-2', 3, NULL, NULL, 20, 180, 280, 100) ON CONFLICT (id) DO NOTHING`,
+  `INSERT INTO life_introspection (id, object_id, question, answer, created_at) VALUES (1, 1, '为什么最近总是焦虑？', '因为工作沟通不顺畅，把情绪带到了生活中。', CURRENT_DATE), (2, 2, '工作对我意味着什么？', '既是收入来源，也是自我价值实现的途径。', CURRENT_DATE) ON CONFLICT (id) DO NOTHING`,
+  `INSERT INTO life_insight (id, object_id, insight, tag, created_at) VALUES (1, 2, '沟通是工程师最大的软技能壁垒', '职场真相', CURRENT_DATE), (2, 6, '家庭是情绪的稳定器，再忙也要留时间', '家庭优先级', CURRENT_DATE), (3, 8, '老友不需要常常联系，但关键时刻一定在', '友情', CURRENT_DATE) ON CONFLICT (id) DO NOTHING`,
+  `INSERT INTO life_canvas_state (id, space_id, object_id, title, color, x, y, width, height) VALUES ('space-1', 'space-1', NULL, '个人生活', '#a78bfa', 100, 100, 320, 350), ('item-1', 'space-1', 1, NULL, NULL, 20, 50, 280, 100), ('item-4', 'space-1', 4, NULL, NULL, 20, 180, 280, 100), ('space-2', 'space-2', NULL, '外部事务', '#38bdf8', 480, 100, 320, 350), ('item-2', 'space-2', 2, NULL, NULL, 20, 50, 280, 100), ('item-3', 'space-2', 3, NULL, NULL, 20, 180, 280, 100) ON CONFLICT (id) DO NOTHING`,
 ];
 
 // ============================================
 // 3. 完整初始化脚本（建表 + 种子数据）
 // ============================================
 
-export const ONTOLOGY_INIT_SCRIPT = `${ONTOLOGY_CREATE_TABLES};
-
-${ONTOLOGY_SEED_DATA};`;
+export const ONTOLOGY_INIT_SCRIPT = [
+  ...ONTOLOGY_CREATE_STATEMENTS,
+  ...ONTOLOGY_SEED_STATEMENTS,
+].join(';\n\n') + ';';
 
 // ============================================
 // 4. 数据模型元信息（用于 UI 显示）

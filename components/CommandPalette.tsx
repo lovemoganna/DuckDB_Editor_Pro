@@ -8,10 +8,7 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import {
   Search,
-  Table as TableIcon,
   Compass,
-  Zap,
-  ArrowRight,
   CornerDownLeft,
   X,
 } from 'lucide-react';
@@ -21,6 +18,7 @@ import {
   buildCommandPalette,
 } from './CommandPaletteData';
 import { AISkill } from '../types';
+import { OntologyCommand } from '../hooks/useOntologyStore';
 
 interface CommandPaletteProps {
   tables: string[];
@@ -33,6 +31,8 @@ interface CommandPaletteProps {
   onOpenSettings: () => void;
   onAction: (prompt: string) => void;
   skills?: AISkill[];
+  /** Called when user selects an ontology-specific command from the palette */
+  onOntologyAction?: (command: OntologyCommand) => void;
 }
 
 const RECENT_KEY = 'duckdb_command_palette_recent';
@@ -62,6 +62,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
   onOpenSettings,
   onAction,
   skills = [],
+  onOntologyAction,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -85,6 +86,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       const group = cmd.type === 'table' ? 'Tables'
         : cmd.type === 'skill' ? 'AI Skills'
         : cmd.type === 'navigation' ? 'Navigation'
+        : cmd.type === 'ontology' ? 'Ontology'
         : 'Actions';
       if (!groups[group]) groups[group] = [];
       groups[group].push(cmd);
@@ -136,6 +138,8 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         case 'action-export': onOpenExport(); break;
         case 'action-settings': onOpenSettings(); break;
       }
+    } else if (cmd.type === 'ontology' && cmd.ontologyCommand && onOntologyAction) {
+      onOntologyAction(cmd.ontologyCommand);
     } else if (cmd.type === 'skill' && cmd.skillId) {
       onAction(`使用技能 ${cmd.label}`);
     }
@@ -160,22 +164,6 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
 
   return (
     <>
-      {/* Trigger bar */}
-      <div
-        className="h-10 border-b border-monokai-accent/30 bg-monokai-sidebar flex items-center px-4 gap-3 cursor-pointer hover:bg-monokai-accent/20 transition-colors select-none"
-        onClick={() => setIsOpen(true)}
-      >
-        <Search className="w-4 h-4 text-monokai-comment flex-shrink-0" />
-        <span className="text-sm text-monokai-comment flex-1">
-          命令面板... (Ctrl+K)
-        </span>
-        {currentTable && (
-          <span className="text-xs font-mono px-2 py-0.5 rounded bg-monokai-accent/30 text-monokai-fg border border-monokai-accent/50">
-            {currentTable}
-          </span>
-        )}
-      </div>
-
       {/* Overlay */}
       {isOpen && (
         <div className="fixed inset-0 z-[200] flex items-start justify-center pt-[12vh] bg-black/50 backdrop-blur-sm">

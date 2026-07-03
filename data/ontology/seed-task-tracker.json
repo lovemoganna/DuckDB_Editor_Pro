@@ -1,0 +1,103 @@
+{
+  "_meta": {
+    "name": "任务项目管理知识图谱",
+    "description": "简单的任务-项目-成员本体论，用于快速验证 SQL 编辑器、本体导入和图谱可视化功能",
+    "version": "1.0.0",
+    "author": "system",
+    "created_at": "2026-05-17",
+    "scenario": "task-management",
+    "complexity": "low",
+    "entity_counts": {
+      "object_types": 4,
+      "objects": 18,
+      "link_types": 6,
+      "links": 24,
+      "actions": 4,
+      "introspections": 3,
+      "insights": 3
+    }
+  },
+
+  "objectTypes": [
+    { "id": 1, "name": "Project",    "description": "项目" },
+    { "id": 2, "name": "Task",      "description": "任务" },
+    { "id": 3, "name": "Member",    "description": "团队成员" },
+    { "id": 4, "name": "Milestone", "description": "里程碑" }
+  ],
+
+  "objects": [
+    { "id": 1,  "object_type_id": 1, "name": "官网重构 2024",      "properties": "{\"status\": \"active\", \"priority\": \"high\", \"team_size\": 5}",         "annotations": "" },
+    { "id": 2,  "object_type_id": 1, "name": "数据看板 V2",        "properties": "{\"status\": \"active\", \"priority\": \"medium\", \"team_size\": 3}",       "annotations": "" },
+    { "id": 3,  "object_type_id": 1, "name": "APP 性能优化",       "properties": "{\"status\": \"planning\", \"priority\": \"high\", \"team_size\": 4}",       "annotations": "" },
+    { "id": 4,  "object_type_id": 1, "name": "用户体系升级",        "properties": "{\"status\": \"completed\", \"priority\": \"low\", \"team_size\": 2}",       "annotations": "" },
+    { "id": 5,  "object_type_id": 3, "name": "陈工（前端工程师）",   "properties": "{\"department\": \"研发部\", \"role\": \"前端\", \"capacity\": 1.0}",    "annotations": "" },
+    { "id": 6,  "object_type_id": 3, "name": "林工（后端工程师）",   "properties": "{\"department\": \"研发部\", \"role\": \"后端\", \"capacity\": 1.0}",    "annotations": "" },
+    { "id": 7,  "object_type_id": 3, "name": "刘PM（产品经理）",   "properties": "{\"department\": \"产品部\", \"role\": \"PM\", \"capacity\": 1.0}",        "annotations": "" },
+    { "id": 8,  "object_type_id": 3, "name": "赵QA（测试工程师）",   "properties": "{\"department\": \"质量部\", \"role\": \"测试\", \"capacity\": 0.8}",  "annotations": "" },
+    { "id": 9,  "object_type_id": 3, "name": "王设计（UI设计师）",  "properties": "{\"department\": \"设计部\", \"role\": \"设计\", \"capacity\": 1.0}",     "annotations": "" },
+    { "id": 10, "object_type_id": 3, "name": "吴总（技术负责人）",   "properties": "{\"department\": \"研发部\", \"role\": \"负责人\", \"capacity\": 0.5}", "annotations": "" },
+    { "id": 11, "object_type_id": 2, "name": "首页前端实现",         "properties": "{\"status\": \"in_progress\", \"priority\": \"high\", \"estimate_h\": 40}", "annotations": "" },
+    { "id": 12, "object_type_id": 2, "name": "图表组件开发",         "properties": "{\"status\": \"in_progress\", \"priority\": \"medium\", \"estimate_h\": 60}", "annotations": "" },
+    { "id": 13, "object_type_id": 2, "name": "性能基线测量",         "properties": "{\"status\": \"in_progress\", \"priority\": \"high\", \"estimate_h\": 16}", "annotations": "" },
+    { "id": 14, "object_type_id": 2, "name": "OAuth 社交登录",      "properties": "{\"status\": \"done\", \"priority\": \"medium\", \"estimate_h\": 32}",    "annotations": "" },
+    { "id": 15, "object_type_id": 4, "name": "核心功能上线",         "properties": "{\"target_date\": \"2024-08-15\", \"status\": \"in_progress\"}",       "annotations": "" },
+    { "id": 16, "object_type_id": 4, "name": "MVP 交付",            "properties": "{\"target_date\": \"2024-09-01\", \"status\": \"pending\"}",          "annotations": "" },
+    { "id": 17, "object_type_id": 4, "name": "性能达标",             "properties": "{\"target_date\": \"2024-11-30\", \"status\": \"pending\"}",          "annotations": "" },
+    { "id": 18, "object_type_id": 4, "name": "全站上线",             "properties": "{\"target_date\": \"2024-09-30\", \"status\": \"pending\"}",          "annotations": "" }
+  ],
+
+  "linkTypes": [
+    { "id": 1, "name": "包含",    "description": "A 项目包含 B 任务" },
+    { "id": 2, "name": "负责",    "description": "A 成员负责 B 任务" },
+    { "id": 3, "name": "参与",    "description": "A 成员参与 B 项目" },
+    { "id": 4, "name": "归属",    "description": "A 里程碑归属 B 项目" },
+    { "id": 5, "name": "前置",    "description": "A 任务是 B 任务的前置依赖" },
+    { "id": 6, "name": "主管",    "description": "A 成员是 B 项目的主管" }
+  ],
+
+  "links": [
+    { "id": 1,  "link_type_id": 1, "source_object_id": 1,  "target_object_id": 11, "weight": 1.00 },
+    { "id": 2,  "link_type_id": 1, "source_object_id": 2,  "target_object_id": 12, "weight": 1.00 },
+    { "id": 3,  "link_type_id": 1, "source_object_id": 3,  "target_object_id": 13, "weight": 1.00 },
+    { "id": 4,  "link_type_id": 1, "source_object_id": 4,  "target_object_id": 14, "weight": 1.00 },
+    { "id": 5,  "link_type_id": 2, "source_object_id": 5,  "target_object_id": 11, "weight": 1.00 },
+    { "id": 6,  "link_type_id": 2, "source_object_id": 5,  "target_object_id": 12, "weight": 0.50 },
+    { "id": 7,  "link_type_id": 2, "source_object_id": 6,  "target_object_id": 12, "weight": 0.70 },
+    { "id": 8,  "link_type_id": 2, "source_object_id": 8,  "target_object_id": 13, "weight": 0.80 },
+    { "id": 9,  "link_type_id": 2, "source_object_id": 6,  "target_object_id": 14, "weight": 1.00 },
+    { "id": 10, "link_type_id": 3, "source_object_id": 5,  "target_object_id": 1,  "weight": 1.00 },
+    { "id": 11, "link_type_id": 3, "source_object_id": 6,  "target_object_id": 1,  "weight": 0.80 },
+    { "id": 12, "link_type_id": 3, "source_object_id": 9,  "target_object_id": 1,  "weight": 0.60 },
+    { "id": 13, "link_type_id": 3, "source_object_id": 8,  "target_object_id": 1,  "weight": 0.50 },
+    { "id": 14, "link_type_id": 3, "source_object_id": 5,  "target_object_id": 2,  "weight": 0.70 },
+    { "id": 15, "link_type_id": 3, "source_object_id": 6,  "target_object_id": 2,  "weight": 0.80 },
+    { "id": 16, "link_type_id": 3, "source_object_id": 5,  "target_object_id": 3,  "weight": 0.60 },
+    { "id": 17, "link_type_id": 3, "source_object_id": 6,  "target_object_id": 3,  "weight": 0.60 },
+    { "id": 18, "link_type_id": 3, "source_object_id": 8,  "target_object_id": 3,  "weight": 0.50 },
+    { "id": 19, "link_type_id": 4, "source_object_id": 15, "target_object_id": 1,  "weight": 1.00 },
+    { "id": 20, "link_type_id": 4, "source_object_id": 18, "target_object_id": 1,  "weight": 1.00 },
+    { "id": 21, "link_type_id": 4, "source_object_id": 16, "target_object_id": 2,  "weight": 1.00 },
+    { "id": 22, "link_type_id": 4, "source_object_id": 17, "target_object_id": 3,  "weight": 1.00 },
+    { "id": 23, "link_type_id": 6, "source_object_id": 10, "target_object_id": 1,  "weight": 1.00 },
+    { "id": 24, "link_type_id": 6, "source_object_id": 10, "target_object_id": 3,  "weight": 1.00 }
+  ],
+
+  "actions": [
+    { "id": 1, "object_id": 11, "name": "完成首页性能优化PR",          "description": "确保 Lighthouse 评分达到 90+，包括图片压缩、代码分割和 CDN 配置",     "status": "pending", "execute_at": "2024-07-15" },
+    { "id": 2, "object_id": 12, "name": "完成 Dashboard 布局引擎",      "description": "支持拖拽式仪表盘配置，数据源绑定和布局保存功能",                    "status": "pending", "execute_at": "2024-09-15" },
+    { "id": 3, "object_id": 13, "name": "完成图片加载优化方案评审",      "description": "制定 WebP 转换、CDN 加速和渐进式加载的具体实施方案并评审通过",        "status": "pending", "execute_at": "2024-08-20" },
+    { "id": 4, "object_id": 14, "name": "完成用户体系升级项目复盘",      "description": "输出项目复盘文档，总结社交登录和积分体系的经验教训",                "status": "pending", "execute_at": "2024-05-15" }
+  ],
+
+  "introspections": [
+    { "id": 1, "object_id": 1,  "question": "官网重构项目进度为何比计划慢了一周？",              "answer": "设计稿在首页交互细节上返工了 2 次，导致前端实现等待。另外 SEO 配置被低估，实际工作量是预估的 2 倍。", "created_at": "2024-07-10" },
+    { "id": 2, "object_id": 2,  "question": "陈工同时参与 3 个项目，精力是否透支？",             "answer": "陈工在 3 个项目的工时估算之和约 40h/周，而他实际容量约 44h/周，处于临界状态。需要协调任务优先级或延期部分需求。", "created_at": "2024-08-01" },
+    { "id": 3, "object_id": 10, "question": "吴总同时主管多个项目，如何保证技术质量？",           "answer": "目前主要靠周会和代码 review 两条线，但精力有限。建议给每个项目配备独立的技术负责人，吴总只做跨项目决策和关键方案评审。", "created_at": "2024-08-05" }
+  ],
+
+  "insights": [
+    { "id": 1, "object_id": 1,  "insight": "前端任务的工作量评估误差率最高（平均偏差 40%），建议引入历史工时数据并增加 20% 的 Buffer",                    "tag": "估算方法",    "created_at": "2024-07-15" },
+    { "id": 2, "object_id": 5,  "insight": "在多个项目间并行切换的成员，产出质量低于专注单一项目 25%，任务上下文切换成本不可忽视",                        "tag": "团队效能",    "created_at": "2024-08-01" },
+    { "id": 3, "object_id": 12, "insight": "里程碑延期往往是多个任务延期累积的结果，而非单点故障。提前识别 2 周内的任务延期风险是预防里程碑延期的关键",  "tag": "项目管理",    "created_at": "2024-08-05" }
+  ]
+}

@@ -18,12 +18,14 @@ import {
   GenerationResult,
   AnalysisSummary,
   SavedAnalysis,
+} from '../../types';
+import {
   AbstractionFilters,
   AISession,
   AISessionMessage,
   AbstractionGenerationRequest,
   AbstractionGenerationResult,
-} from '../../types';
+} from '../../types/abstraction';
 import {
   DEFAULT_FILTERS,
 } from '../../types/abstraction';
@@ -37,7 +39,7 @@ import {
   updateAISession,
   deleteAISession,
 } from '../../services/libraryStorage';
-import type { PipelineStage, PipelineError, PipelineContext, AnalysisViewMode, AnalysisHubMainTab } from '../../types/analysisHub';
+import type { PipelineStage, PipelineError, PipelineContext, AnalysisViewMode } from '../../types/analysisHub';
 
 // ============================================================
 // Types
@@ -178,6 +180,13 @@ type AnalysisHubStore = LibrarySlice & FilterSlice & AISlice & SandboxSlice & Se
   setHandbookProgress: (progress: number) => void;
   setIsGeneratingHandbook: (v: boolean) => void;
   resetAnalysis: () => void;
+
+  // Backward-compatible aliases (for AbstractionChatSession)
+  selectSession: (sessionId: string | null) => void;
+  renameSession: (sessionId: string, name: string) => Promise<void>;
+  getActiveSession: () => AISession | null;
+  updateInputField: (field: 'concept' | 'property' | 'relation' | 'context', value: string) => void;
+  setInputOperation: (op: AbstractionSqlOperation) => void;
 };
 
 // ============================================================
@@ -312,7 +321,7 @@ export const useAnalysisHubStore = create<AnalysisHubStore>()(
       const { tables } = get();
       const table = tables.find(t => t.id === id);
       if (table) {
-        const updated = { ...table, favorite: !table.favorite, updatedAt: Date.now() };
+        const updated = { ...table, isFavorite: !table.isFavorite, updatedAt: Date.now() };
         await updateAbstractionTable(updated);
         await get().loadTables();
       }
@@ -395,18 +404,24 @@ export const useAnalysisHubStore = create<AnalysisHubStore>()(
 
     // --- Session ---
     loadSessions: async () => {
-      const sessions = await getAISessions();
+      const dbName = localStorage.getItem('duckdb_current_db') || 'default';
+      const sessions = await getAISessions(dbName);
       set({ sessions });
     },
 
     createSession: async (concept, property, relation, context, operation) => {
-      const session = await createAISession({ concept, property, relation, context, operation });
+      const dbName = localStorage.getItem('duckdb_current_db') || 'default';
+      const name = concept || '(无标题)';
+      const session = await createAISession(dbName, name);
       set(state => ({ sessions: [session, ...state.sessions], activeSessionId: session.id }));
       return session;
     },
 
     updateSession: async (id, updates) => {
-      await updateAISession(id, updates);
+      const session = get().sessions.find(s => s.id === id);
+      if (session) {
+        await updateAISession({ ...session, ...updates });
+      }
       await get().loadSessions();
     },
 
@@ -422,14 +437,18 @@ export const useAnalysisHubStore = create<AnalysisHubStore>()(
       const message: AISessionMessage = {
         id: crypto.randomUUID(),
         timestamp: Date.now(),
-        role,
+        role: role as 'user' | 'assistant',
         content,
         sql,
         error,
       };
-      await updateAISession(sessionId, {
-        messages: [...(get().sessions.find(s => s.id === sessionId)?.messages ?? []), message],
-      });
+      const session = get().sessions.find(s => s.id === sessionId);
+      if (session) {
+        await updateAISession({
+          ...session,
+          messages: [...session.messages, message],
+        });
+      }
       await get().loadSessions();
     },
 
@@ -543,12 +562,12 @@ export const useFilteredTables = () => {
   const tables = useAnalysisHubStore(s => s.tables);
   const filters = useAnalysisHubStore(s => s.filters);
   return tables.filter(t => {
-    const q = (filters.search || '').toLowerCase();
+    const q = (filters.searchQuery || '').toLowerCase();
     if (q && !t.name.toLowerCase().includes(q) && !t.description?.toLowerCase().includes(q)) return false;
     if (filters.domain && t.domain !== filters.domain) return false;
     if (filters.operation && t.sqlConfig.operation !== filters.operation) return false;
-    if (filters.level && t.abstractionLevel !== filters.level) return false;
-    if (filters.favoritesOnly && !t.isFavorite) return false;
+    if (filters.abstractionLevel && t.sqlConfig.operation !== filters.abstractionLevel) return false;
+    if (filters.isFavorite && !t.isFavorite) return false;
     return true;
   });
 };

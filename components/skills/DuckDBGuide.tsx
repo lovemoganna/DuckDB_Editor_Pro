@@ -381,14 +381,14 @@ export const DuckDBGuide: React.FC<DuckDBGuideProps> = ({
               type="text"
               value={nlInput}
               onChange={e => { setNlInput(e.target.value); }}
-              onKeyDown={e => e.key === 'Enter' && onAnalyze()}
+              onKeyDown={e => e.key === 'Enter' && onAnalyze(nlInput, { tableName: tableName || '', columns: [] })}
               placeholder={tableName
                 ? `针对 ${tableName} 描述需求，例如：统计每月的订单数量`
                 : '描述你的 SQL 需求，例如：创建一个用户表'}
               className="flex-1 px-3 py-2 text-xs bg-[#272822] border border-[#49483e] text-monokai-fg placeholder-monokai-comment/50 focus:outline-none focus:border-[#75715e] font-sans"
             />
             <button
-              onClick={() => onAnalyze()}
+              onClick={() => onAnalyze(nlInput, { tableName: tableName || '', columns: [] })}
               disabled={isAnalyzingOrExecuting || !nlInput.trim()}
               className="px-3 py-2 text-xs border text-monokai-comment hover:text-monokai-fg hover:border-[#75715e] disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5 font-sans cursor-pointer"
             >
@@ -399,7 +399,7 @@ export const DuckDBGuide: React.FC<DuckDBGuideProps> = ({
               )}
             </button>
             <button
-              onClick={() => onOneClickGenerate()}
+              onClick={() => onAnalyze(nlInput, { tableName: tableName || '', columns: [] })}
               disabled={isAnalyzingOrExecuting || !nlInput.trim()}
               className="px-4 py-2 text-xs font-sans cursor-pointer transition-all duration-200 flex items-center gap-1.5 border"
               style={{
