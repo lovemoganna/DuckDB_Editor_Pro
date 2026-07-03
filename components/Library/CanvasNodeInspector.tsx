@@ -144,7 +144,8 @@ export const CanvasNodeInspector: React.FC<CanvasNodeInspectorProps> = ({
       }
       setAiHint(hint || nodeTypeMeta?.hint || '暂无提示');
     } catch {
-      setAiHint(nodeTypeMeta?.hint || '暂无提示');
+      const nodeTypeMetaFallback = NODE_TYPES.find(n => n.id === nodeType);
+      setAiHint(nodeTypeMetaFallback?.hint || '暂无提示');
     } finally {
       setIsAiLoading(false);
     }

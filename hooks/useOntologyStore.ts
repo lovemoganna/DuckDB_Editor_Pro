@@ -22,6 +22,40 @@ import { useState, useCallback, useEffect, useRef, useMemo, useReducer } from 'r
 import { duckDBService } from '../services/duckdbService';
 import { OntologyDraftPayload } from '../services/ontologyAiService';
 
+import seedEcommerce from '../data/ontology/seed-ecommerce.json';
+import seedHealthTracker from '../data/ontology/seed-health-tracker.json';
+import seedMyLife from '../data/ontology/seed-my-life.json';
+import seedProductCatalog from '../data/ontology/seed-product-catalog.json';
+import seedProjectTracker from '../data/ontology/seed-project-tracker.json';
+import seedRiskInvestigation from '../data/ontology/seed-risk-investigation.json';
+import seedStressTest from '../data/ontology/seed-stress-test.json';
+import seedTaskTracker from '../data/ontology/seed-task-tracker.json';
+import seedWorkflow from '../data/ontology/seed-workflow.json';
+
+export const ONTOLOGY_SEEDS: Record<string, any> = {
+  'my-life': seedMyLife,
+  'ecommerce': seedEcommerce,
+  'health-tracker': seedHealthTracker,
+  'product-catalog': seedProductCatalog,
+  'project-tracker': seedProjectTracker,
+  'risk-investigation': seedRiskInvestigation,
+  'stress-test': seedStressTest,
+  'task-tracker': seedTaskTracker,
+  'workflow': seedWorkflow
+};
+
+export const ONTOLOGY_SEED_INFOS = [
+  { id: 'my-life', name: '我的人生 (个人生活与自我认知)', category: 'Personal', icon: '🧠', description: '关于个人心态、工作、家庭、身体相互关系与反思的个人成长图谱' },
+  { id: 'ecommerce', name: '电商运营知识图谱', category: 'Analysis', icon: '🛒', description: '模拟电商企业的产品销售、渠道投放、核心指标监控与用户细分' },
+  { id: 'health-tracker', name: '健康与体质追踪图谱', category: 'Personal', icon: '💪', description: '身体各项指标（如体重、体脂）到健康习惯和目标的驱动图谱' },
+  { id: 'product-catalog', name: '商品类目关系拓扑', category: 'Knowledge', icon: '📦', description: '商品的细分分类与多级标签的父子关系及依赖度' },
+  { id: 'project-tracker', name: '项目里程碑与关联图谱', category: 'Productivity', icon: '🏗️', description: '从史诗任务 (Epic) 拆解到用户故事与 Sprint 节奏的敏捷管理系统' },
+  { id: 'risk-investigation', name: '金融风控审计图谱', category: 'Analysis', icon: '🔍', description: '风控反洗钱审计：商户、涉事交易与防封控策略的关联排查' },
+  { id: 'task-tracker', name: 'GTD任务流转本体', category: 'Productivity', icon: '🔁', description: '基于收集、处理、执行、回顾理论的个人事务流转图谱' },
+  { id: 'workflow', name: '审批流与业务协作拓扑', category: 'Productivity', icon: '⚙️', description: '企业工作流节点、角色权限和资源流转的协同网络' },
+  { id: 'stress-test', name: '图谱压力测试模型 (多节点)', category: 'Analysis', icon: '⚡', description: '包含 50+ 个节点和 100+ 条连线的大规模图谱渲染测试模型' }
+];
+
 // ============================================================
 // Types — 与 DuckDB 五表一一对应
 // ============================================================
@@ -103,10 +137,20 @@ export type ViewTab = 'graph' | 'data' | 'canvas';
 /** 左侧抽屉 Tab：模板 / CRUD / 洞察 */
 export type DrawerTab = 'templates' | 'crud' | 'insights' | 'mapping';
 
+/** Imperative command accepted by OntologyPanel (e.g. from CommandPalette) */
+export type OntologyCommand =
+  | { action: 'open-view'; view: ViewTab }
+  | { action: 'open-drawer'; drawer: DrawerTab }
+  | { action: 'open-inspector'; mode: 'create-object-type' | 'create-object' | 'create-link' | 'create-link-type' | 'create-action' }
+  | { action: 'init' }
+  | { action: 'reseed' }
+  | { action: 'refresh' };
+
 export interface OntologyStoreState {
   // Initialization
   initState: InitState;
   initting: boolean;
+  activeTemplateId: string;
 
   // Core data (五表)
   objectTypes: LifeObjectType[];
@@ -133,6 +177,9 @@ export interface OntologyStoreState {
   // Error
   error: string | null;
 
+  // Pending command (from CommandPalette etc.) — consumed on panel mount
+  pendingCommand: OntologyCommand | null;
+
   // Stats (derived)
   stats: {
     objectTypes: number;
@@ -151,6 +198,8 @@ export interface OntologyStoreState {
     linkTable: string;
     linkTypeTable: string;
     actionTable: string;
+    objectFields: Record<string, string>;
+    linkFields: Record<string, string>;
   };
 
   // Canvas state
@@ -166,6 +215,7 @@ export interface OntologyStoreState {
 export type OntologyAction =
   | { type: 'SET_INIT_STATE'; state: InitState }
   | { type: 'SET_INITTING'; value: boolean }
+  | { type: 'SET_ACTIVE_TEMPLATE'; templateId: string }
   | { type: 'SET_DATA'; objectTypes: LifeObjectType[]; objects: LifeObject[]; linkTypes: LifeLinkType[]; links: LifeLink[]; actions: LifeAction[]; introspections: LifeIntrospection[]; insights: LifeInsight[] }
   | { type: 'SET_ACTIVE_TAB'; tab: ViewTab }
   | { type: 'SET_DRAWER_TAB'; tab: DrawerTab }
@@ -177,6 +227,7 @@ export type OntologyAction =
   | { type: 'SET_DRAFT'; payload: OntologyDraftPayload | null; jsonStr?: string }
   | { type: 'CLEAR_DRAFT' }
   | { type: 'SET_ERROR'; error: string | null }
+  | { type: 'SET_PENDING_COMMAND'; command: OntologyCommand | null }
   | { type: 'SET_INTROSPECTIONS'; introspections: LifeIntrospection[] }
   | { type: 'SET_INSIGHTS'; insights: LifeInsight[] }
   | { type: 'UPDATE_MAPPING'; mapping: Partial<OntologyStoreState['mapping']> }
@@ -193,6 +244,9 @@ function reducer(state: OntologyStoreState, action: OntologyAction): OntologySto
   switch (action.type) {
     case 'SET_INIT_STATE':
       return { ...state, initState: action.state };
+
+    case 'SET_ACTIVE_TEMPLATE':
+      return { ...state, activeTemplateId: action.templateId };
 
     case 'SET_INITTING':
       return { ...state, initting: action.value };
@@ -252,6 +306,9 @@ function reducer(state: OntologyStoreState, action: OntologyAction): OntologySto
     case 'SET_ERROR':
       return { ...state, error: action.error };
 
+    case 'SET_PENDING_COMMAND':
+      return { ...state, pendingCommand: action.command };
+
     case 'SET_INTROSPECTIONS':
       return {
         ...state,
@@ -304,6 +361,7 @@ function reducer(state: OntologyStoreState, action: OntologyAction): OntologySto
 const initState: OntologyStoreState = {
   initState: 'loading',
   initting: false,
+  activeTemplateId: 'my-life',
   objectTypes: [],
   objects: [],
   linkTypes: [],
@@ -321,6 +379,7 @@ const initState: OntologyStoreState = {
   draftPayload: null,
   draftJsonStr: '',
   error: null,
+  pendingCommand: null,
   stats: {
     objectTypes: 0, objects: 0, linkTypes: 0, links: 0,
     actions: 0, introspections: 0, insights: 0,
@@ -331,6 +390,20 @@ const initState: OntologyStoreState = {
     linkTable: 'life_link',
     linkTypeTable: 'life_link_type',
     actionTable: 'life_action',
+    objectFields: {
+      id: 'id',
+      name: 'name',
+      object_type_id: 'object_type_id',
+      properties: 'properties',
+      annotations: 'annotations',
+    },
+    linkFields: {
+      id: 'id',
+      link_type_id: 'link_type_id',
+      source_object_id: 'source_object_id',
+      target_object_id: 'target_object_id',
+      weight: 'weight',
+    },
   },
   canvasActiveLayer: 'foundation',
   canvasAiFillLoading: false,
@@ -433,6 +506,23 @@ export function useOntologyStore() {
       await duckDBService.ontologySeed();
       await loadData();
     } catch (e: any) {
+      dispatchAction({ type: 'SET_ERROR', error: e.message });
+    } finally {
+      dispatchAction({ type: 'SET_INITTING', value: false });
+    }
+  }, [loadData]);
+
+  // ── Switch template dynamically ──
+  const switchTemplate = useCallback(async (templateId: string) => {
+    const seed = ONTOLOGY_SEEDS[templateId];
+    if (!seed) return;
+    dispatchAction({ type: 'SET_INITTING', value: true });
+    try {
+      await duckDBService.loadOntologyTemplate(seed);
+      dispatchAction({ type: 'SET_ACTIVE_TEMPLATE', templateId });
+      await loadData();
+    } catch (e: any) {
+      console.error('Switch template failed:', e);
       dispatchAction({ type: 'SET_ERROR', error: e.message });
     } finally {
       dispatchAction({ type: 'SET_INITTING', value: false });
@@ -748,6 +838,8 @@ export function useOntologyStore() {
     loadData,
     initOntology,
     reseedOntology,
+    switchTemplate,
+    activeTemplateId: state.activeTemplateId,
     refresh,
 
     // CRUD
@@ -779,6 +871,8 @@ export function useOntologyStore() {
     deleteInsight,
 
     // Canvas helpers
+    pendingCommand: state.pendingCommand,
+    setPendingCommand: (command: OntologyCommand | null) => dispatch({ type: 'SET_PENDING_COMMAND', command }),
     canvasSnapshots: state.canvasSnapshots,
     canvasActiveLayer: state.canvasActiveLayer,
     canvasAiFillLoading: state.canvasAiFillLoading,
@@ -803,6 +897,8 @@ export const ontologyActions = {
   setGenerating: (value: boolean): OntologyAction => ({ type: 'SET_GENERATING', value }),
   setDraft: (payload: OntologyDraftPayload | null, jsonStr?: string): OntologyAction => ({ type: 'SET_DRAFT', payload, jsonStr }),
   clearDraft: (): OntologyAction => ({ type: 'CLEAR_DRAFT' }),
+  setPendingCommand: (command: OntologyCommand | null): OntologyAction => ({ type: 'SET_PENDING_COMMAND', command }),
+  setActiveTemplate: (templateId: string): OntologyAction => ({ type: 'SET_ACTIVE_TEMPLATE', templateId }),
   setCanvasLayer: (layer: MECELayer): OntologyAction => ({ type: 'SET_CANVAS_LAYER', layer }),
   setCanvasAiFillLoading: (value: boolean): OntologyAction => ({ type: 'SET_CANVAS_AI_FILL_LOADING', value }),
   pushCanvasSnapshot: (snapshot: CanvasSnapshot): OntologyAction => ({ type: 'PUSH_CANVAS_SNAPSHOT', snapshot }),

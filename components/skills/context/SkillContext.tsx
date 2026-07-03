@@ -104,7 +104,7 @@ export const useSkillContext = (): SkillContextValue => {
 // Provider
 // ============================================================
 
-export const SkillProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const SkillProvider: React.FC<{ children: React.ReactNode; currentTable?: string; currentColumns?: { name: string; type: string }[] }> = ({ children, currentTable: initTable, currentColumns: initColumns }) => {
   // View mode
   const [viewMode, setViewMode] = useState<'guide' | 'browse'>('guide');
 
@@ -127,8 +127,8 @@ export const SkillProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [streamingSql, setStreamingSql] = useState('');
 
   // Context for skill execution
-  const [currentTable, setCurrentTable] = useState<string | undefined>(undefined);
-  const [currentColumns, setCurrentColumns] = useState<{ name: string; type: string }[] | undefined>(undefined);
+  const [currentTable, setCurrentTable] = useState<string | undefined>(initTable);
+  const [currentColumns, setCurrentColumns] = useState<{ name: string; type: string }[] | undefined>(initColumns);
 
   // Spotlight
   const [isSpotlightActive, setIsSpotlightActive] = useState(false);

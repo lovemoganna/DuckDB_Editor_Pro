@@ -50,6 +50,7 @@ import {
   ONTOLOGY_SEED_STATEMENTS,
 } from './ontologyDataModel';
 import { saveOntologyEntry } from '../../services/libraryStorage';
+import { normalizeDateToString } from './OntologyPanel.types';
 
 // ==================== Types ====================
 
@@ -258,25 +259,6 @@ const ConfirmDialog: React.FC<{
     </div>
   </div>
 );
-
-// ============================================================
-// Date normalization helper
-// DuckDB returns DATE fields as epoch ms, Date objects, or ISO strings.
-// HTML date input needs 'YYYY-MM-DD', DuckDB SQL needs 'YYYY-MM-DD'.
-// ============================================================
-function normalizeDateToString(raw: any): string {
-  if (!raw) return '';
-  if (typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
-  if (typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(raw)) return raw.slice(0, 10);
-  if (typeof raw === 'number' && raw > 1e8) {
-    const d = new Date(raw);
-    if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
-  }
-  if (raw instanceof Date && !isNaN(raw.getTime())) return raw.toISOString().slice(0, 10);
-  const parsed = new Date(raw);
-  if (!isNaN(parsed.getTime())) return parsed.toISOString().slice(0, 10);
-  return '';
-}
 
 const OntologyEditor: React.FC<OntologyEditorProps> = ({ onDataChange }) => {
   // Data state
@@ -581,30 +563,48 @@ const OntologyEditor: React.FC<OntologyEditorProps> = ({ onDataChange }) => {
     try {
       if (editMode === 'objectType') {
         if (editTarget) {
-          await duckDBService.query(`UPDATE life_object_type SET name='${formName}', description='${formDesc}' WHERE id=${editTarget.id}`);
+          await duckDBService.queryWithParams(
+            `UPDATE life_object_type SET name=$1, description=$2 WHERE id=$3`,
+            [formName, formDesc, editTarget.id]
+          );
           showToast('对象类型已更新', 'success');
         } else {
           const maxId = objectTypes.length > 0 ? Math.max(...objectTypes.map(o => o.id)) : 0;
-          await duckDBService.query(`INSERT INTO life_object_type VALUES (${maxId + 1}, '${formName}', '${formDesc}')`);
+          await duckDBService.queryWithParams(
+            `INSERT INTO life_object_type VALUES ($1, $2, $3)`,
+            [maxId + 1, formName, formDesc]
+          );
           showToast('对象类型已创建', 'success');
         }
       } else if (editMode === 'object') {
         const props = formProperties.trim() || '{}';
         if (editTarget) {
-          await duckDBService.query(`UPDATE life_object SET object_type_id=${formObjectTypeId}, name='${formName}', properties='${props}' WHERE id=${editTarget.id}`);
+          await duckDBService.queryWithParams(
+            `UPDATE life_object SET object_type_id=$1, name=$2, properties=$3 WHERE id=$4`,
+            [formObjectTypeId, formName, props, editTarget.id]
+          );
           showToast('对象已更新', 'success');
         } else {
           const maxId = objects.length > 0 ? Math.max(...objects.map(o => o.id)) : 0;
-          await duckDBService.query(`INSERT INTO life_object VALUES (${maxId + 1}, ${formObjectTypeId}, '${formName}', '${props}')`);
+          await duckDBService.queryWithParams(
+            `INSERT INTO life_object VALUES ($1, $2, $3, $4)`,
+            [maxId + 1, formObjectTypeId, formName, props]
+          );
           showToast('对象已创建', 'success');
         }
       } else if (editMode === 'linkType') {
         if (editTarget) {
-          await duckDBService.query(`UPDATE life_link_type SET name='${formName}', description='${formDesc}' WHERE id=${editTarget.id}`);
+          await duckDBService.queryWithParams(
+            `UPDATE life_link_type SET name=$1, description=$2 WHERE id=$3`,
+            [formName, formDesc, editTarget.id]
+          );
           showToast('关系类型已更新', 'success');
         } else {
           const maxId = linkTypes.length > 0 ? Math.max(...linkTypes.map(l => l.id)) : 0;
-          await duckDBService.query(`INSERT INTO life_link_type VALUES (${maxId + 1}, '${formName}', '${formDesc}')`);
+          await duckDBService.queryWithParams(
+            `INSERT INTO life_link_type VALUES ($1, $2, $3)`,
+            [maxId + 1, formName, formDesc]
+          );
           showToast('关系类型已创建', 'success');
         }
       } else if (editMode === 'link') {
@@ -613,22 +613,34 @@ const OntologyEditor: React.FC<OntologyEditorProps> = ({ onDataChange }) => {
           return;
         }
         if (editTarget) {
-          await duckDBService.query(`UPDATE life_link SET link_type_id=${formLinkTypeId}, source_object_id=${formSourceId}, target_object_id=${formTargetId}, weight=${formWeight} WHERE id=${editTarget.id}`);
+          await duckDBService.queryWithParams(
+            `UPDATE life_link SET link_type_id=$1, source_object_id=$2, target_object_id=$3, weight=$4 WHERE id=$5`,
+            [formLinkTypeId, formSourceId, formTargetId, formWeight, editTarget.id]
+          );
           showToast('关系已更新', 'success');
         } else {
           const maxId = links.length > 0 ? Math.max(...links.map(l => l.id)) : 0;
-          await duckDBService.query(`INSERT INTO life_link VALUES (${maxId + 1}, ${formLinkTypeId}, ${formSourceId}, ${formTargetId}, ${formWeight})`);
+          await duckDBService.queryWithParams(
+            `INSERT INTO life_link VALUES ($1, $2, $3, $4, $5)`,
+            [maxId + 1, formLinkTypeId, formSourceId, formTargetId, formWeight]
+          );
           showToast('关系已创建', 'success');
         }
       } else if (editMode === 'action') {
-        const execDate = formExecuteAt ? `'${normalizeDateToString(formExecuteAt)}'` : 'NULL';
-        const objId = formActionObjectId ? formActionObjectId : 'NULL';
+        const execDate = formExecuteAt || null;
+        const objId = formActionObjectId || null;
         if (editTarget) {
-          await duckDBService.query(`UPDATE life_action SET object_id=${objId}, name='${formName}', description='${formDesc}', status='${formStatus}', execute_at=${execDate} WHERE id=${editTarget.id}`);
+          await duckDBService.queryWithParams(
+            `UPDATE life_action SET object_id=$1, name=$2, description=$3, status=$4, execute_at=$5 WHERE id=$6`,
+            [objId, formName, formDesc, formStatus, execDate, editTarget.id]
+          );
           showToast('行动已更新', 'success');
         } else {
           const maxId = actions.length > 0 ? Math.max(...actions.map(a => a.id)) : 0;
-          await duckDBService.query(`INSERT INTO life_action VALUES (${maxId + 1}, ${objId}, '${formName}', '${formDesc}', '${formStatus}', ${execDate})`);
+          await duckDBService.queryWithParams(
+            `INSERT INTO life_action (id, object_id, name, description, status, execute_at) VALUES ($1, $2, $3, $4, $5, $6)`,
+            [maxId + 1, objId, formName, formDesc, formStatus, execDate]
+          );
           showToast('行动已创建', 'success');
         }
       }

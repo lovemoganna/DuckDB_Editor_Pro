@@ -1,0 +1,105 @@
+{
+  "_meta": {
+    "name": "项目管理系统",
+    "description": "模拟一个软件开发团队的项目管理场景，测试知识图谱在项目管理领域的适用性",
+    "version": "1.0.0",
+    "author": "system",
+    "created_at": "2025-05-06",
+    "scenario": "project-management",
+    "complexity": "medium",
+    "entity_counts": {
+      "object_types": 5,
+      "objects": 16,
+      "link_types": 7,
+      "links": 24,
+      "actions": 6,
+      "introspections": 3,
+      "insights": 3
+    }
+  },
+
+  "objectTypes": [
+    { "id": 1, "name": "Team",      "description": "团队/部门" },
+    { "id": 2, "name": "Person",   "description": "人员" },
+    { "id": 3, "name": "Project",  "description": "项目" },
+    { "id": 4, "name": "Feature",  "description": "功能模块" },
+    { "id": 5, "name": "Metric",   "description": "指标/指标" }
+  ],
+
+  "objects": [
+    { "id": 1,  "object_type_id": 1, "name": "前端团队",     "properties": "{\"size\": 4, \"tech_stack\": [\"React\", \"TypeScript\", \"Tailwind\"], \"velocity\": 40}", "annotations": "" },
+    { "id": 2,  "object_type_id": 1, "name": "后端团队",     "properties": "{\"size\": 5, \"tech_stack\": [\"Go\", \"PostgreSQL\", \"Redis\"], \"velocity\": 35}",     "annotations": "" },
+    { "id": 3,  "object_type_id": 1, "name": "测试团队",     "properties": "{\"size\": 2, \"automation_rate\": 0.65, \"velocity\": 15}",                           "annotations": "" },
+    { "id": 4,  "object_type_id": 2, "name": "技术负责人老王","properties": "{\"role\": \"tech-lead\", \"teams\": [1, 2], \"capacity_hours\": 160}",                 "annotations": "" },
+    { "id": 5,  "object_type_id": 2, "name": "产品经理小陈", "properties": "{\"role\": \"pm\", \"teams\": [1, 2, 3], \"capacity_hours\": 160}",                     "annotations": "" },
+    { "id": 6,  "object_type_id": 2, "name": "架构师老赵",   "properties": "{\"role\": \"architect\", \"teams\": [1, 2], \"capacity_hours\": 120}",                "annotations": "" },
+    { "id": 7,  "object_type_id": 3, "name": "用户中心重构", "properties": "{\"status\": \"in_progress\", \"deadline\": \"2025-06-15\", \"budget_days\": 45}",       "annotations": "" },
+    { "id": 8,  "object_type_id": 3, "name": "移动端App 2.0","properties": "{\"status\": \"planning\", \"deadline\": \"2025-09-01\", \"budget_days\": 90}",         "annotations": "" },
+    { "id": 9,  "object_type_id": 3, "name": "数据分析平台", "properties": "{\"status\": \"completed\", \"completion_rate\": 100, \"lessons_learned\": true}",      "annotations": "" },
+    { "id": 10, "object_type_id": 4, "name": "统一登录模块", "properties": "{\"project_id\": 7, \"priority\": \"P0\", \"dependencies\": []}",                       "annotations": "" },
+    { "id": 11, "object_type_id": 4, "name": "权限管理模块", "properties": "{\"project_id\": 7, \"priority\": \"P0\", \"dependencies\": [10]}",                      "annotations": "" },
+    { "id": 12, "object_type_id": 4, "name": "订单履约流程", "properties": "{\"project_id\": 8, \"priority\": \"P1\", \"dependencies\": []}",                       "annotations": "" },
+    { "id": 13, "object_type_id": 5, "name": "团队速率",      "properties": "{\"unit\": \"story-points/ sprint\", \"baseline\": 40, \"current\": 42}",            "annotations": "" },
+    { "id": 14, "object_type_id": 5, "name": "代码覆盖率",    "properties": "{\"unit\": \"%\", \"baseline\": 55, \"current\": 62, \"target\": 75}",               "annotations": "" },
+    { "id": 15, "object_type_id": 5, "name": "缺陷密度",      "properties": "{\"unit\": \"defects/ KLOC\", \"baseline\": 3.2, \"current\": 2.1, \"target\": 1.5}", "annotations": "" },
+    { "id": 16, "object_type_id": 4, "name": "支付网关集成",  "properties": "{\"project_id\": 8, \"priority\": \"P0\", \"dependencies\": []}",                       "annotations": "" }
+  ],
+
+  "linkTypes": [
+    { "id": 1, "name": "负责",    "description": "A 负责/管理 B" },
+    { "id": 2, "name": "协作",    "description": "A 与 B 协作" },
+    { "id": 3, "name": "依赖",    "description": "A 依赖 B，B 是前置" },
+    { "id": 4, "name": "属于",    "description": "A 属于 B（团队成员、模块属于项目）" },
+    { "id": 5, "name": "影响",    "description": "A 的变化会影响 B" },
+    { "id": 6, "name": "支撑",    "description": "A 是 B 的质量保障" },
+    { "id": 7, "name": "资源倾斜", "description": "A 向 B 倾斜更多资源" }
+  ],
+
+  "links": [
+    { "id": 1,  "link_type_id": 1, "source_object_id": 4,  "target_object_id": 7,  "weight": 0.95 },
+    { "id": 2,  "link_type_id": 1, "source_object_id": 4,  "target_object_id": 8,  "weight": 0.85 },
+    { "id": 3,  "link_type_id": 1, "source_object_id": 5,  "target_object_id": 7,  "weight": 0.90 },
+    { "id": 4,  "link_type_id": 1, "source_object_id": 5,  "target_object_id": 8,  "weight": 0.90 },
+    { "id": 5,  "link_type_id": 2, "source_object_id": 1,  "target_object_id": 2,  "weight": 0.80 },
+    { "id": 6,  "link_type_id": 2, "source_object_id": 2,  "target_object_id": 3,  "weight": 0.70 },
+    { "id": 7,  "link_type_id": 4, "source_object_id": 10, "target_object_id": 7,  "weight": 1.00 },
+    { "id": 8,  "link_type_id": 4, "source_object_id": 11, "target_object_id": 7,  "weight": 1.00 },
+    { "id": 9,  "link_type_id": 4, "source_object_id": 12, "target_object_id": 8,  "weight": 1.00 },
+    { "id": 10, "link_type_id": 4, "source_object_id": 16, "target_object_id": 8,  "weight": 1.00 },
+    { "id": 11, "link_type_id": 3, "source_object_id": 11, "target_object_id": 10, "weight": 1.00 },
+    { "id": 12, "link_type_id": 3, "source_object_id": 12, "target_object_id": 16, "weight": 0.80 },
+    { "id": 13, "link_type_id": 6, "source_object_id": 3,  "target_object_id": 7,  "weight": 0.75 },
+    { "id": 14, "link_type_id": 6, "source_object_id": 3,  "target_object_id": 10, "weight": 0.80 },
+    { "id": 15, "link_type_id": 5, "source_object_id": 8,  "target_object_id": 7,  "weight": 0.50 },
+    { "id": 16, "link_type_id": 4, "source_object_id": 6,  "target_object_id": 1,  "weight": 0.90 },
+    { "id": 17, "link_type_id": 4, "source_object_id": 6,  "target_object_id": 2,  "weight": 0.90 },
+    { "id": 18, "link_type_id": 1, "source_object_id": 4,  "target_object_id": 13, "weight": 0.60 },
+    { "id": 19, "link_type_id": 6, "source_object_id": 14, "target_object_id": 7,  "weight": 0.70 },
+    { "id": 20, "link_type_id": 6, "source_object_id": 15, "target_object_id": 7,  "weight": 0.65 },
+    { "id": 21, "link_type_id": 4, "source_object_id": 9,  "target_object_id": 8,  "weight": 0.60 },
+    { "id": 22, "link_type_id": 2, "source_object_id": 4,  "target_object_id": 5,  "weight": 0.85 },
+    { "id": 23, "link_type_id": 2, "source_object_id": 4,  "target_object_id": 6,  "weight": 0.90 },
+    { "id": 24, "link_type_id": 7, "source_object_id": 8,  "target_object_id": 2,  "weight": 0.80 }
+  ],
+
+  "actions": [
+    { "id": 1, "object_id": 10, "name": "完成统一登录API设计",   "description": "输出API文档并评审通过",                                           "status": "in_progress", "execute_at": "2025-05-10" },
+    { "id": 2, "object_id": 11, "name": "完成权限RBAC模型设计",  "description": "设计角色-权限矩阵，评审后进入开发",                               "status": "pending", "execute_at": "2025-05-20" },
+    { "id": 3, "object_id": 9,  "name": "复盘数据分析平台项目",  "description": "组织团队复盘，输出 lessons learned 文档",                         "status": "pending", "execute_at": "2025-05-15" },
+    { "id": 4, "object_id": 14, "name": "覆盖率提升至 70%",      "description": "在统一登录模块中补充单元测试，目标覆盖率70%",                      "status": "pending", "execute_at": "2025-05-25" },
+    { "id": 5, "object_id": 16, "name": "对接第三方支付SDK",      "description": "集成支付宝和微信支付沙箱环境",                                     "status": "pending", "execute_at": "2025-06-01" },
+    { "id": 6, "object_id": 8,  "name": "完成移动端项目Kickoff", "description": "召集所有相关方对齐目标和排期",                                     "status": "pending", "execute_at": "2025-05-08" }
+  ],
+
+  "introspections": [
+    { "id": 1, "object_id": 7,  "question": "为什么用户中心重构进度比预期慢10%？",   "answer": "前后端联调环节沟通成本高，缺乏端到端测试环境，每次回归需要手动验证。", "created_at": "2025-05-01" },
+    { "id": 2, "object_id": 13, "question": "团队速率下降的根因是什么？",             "answer": "跨团队依赖增多，代码审查队列积压，平均等待时间从2天增加到4天。",       "created_at": "2025-05-03" },
+    { "id": 3, "object_id": 1,  "question": "前端团队最需要什么支持？",              "answer": "需要一个共享组件库和统一的设计规范，减少重复造轮子。",               "created_at": "2025-05-05" }
+  ],
+
+  "insights": [
+    { "id": 1, "object_id": 7,  "insight": "跨团队项目需要提前锁定联调时间和环境，否则会不断延期",     "tag": "项目管理",  "created_at": "2025-05-01" },
+    { "id": 2, "object_id": 14, "insight": "代码覆盖率是质量的结果，不是目标；聚焦行为测试更有效",    "tag": "质量工程",  "created_at": "2025-05-03" },
+    { "id": 3, "object_id": 4,  "insight": "技术负责人的价值在于减少团队的技术债务和沟通摩擦，而非写代码", "tag": "技术领导力", "created_at": "2025-05-05" }
+  ]
+}

@@ -370,8 +370,7 @@ export const AbstractionChatSession: React.FC = () => {
 
   // 初始化时加载会话
   useEffect(() => {
-    const dbName = localStorage.getItem('duckdb_current_db') || 'default';
-    loadSessions(dbName);
+    loadSessions();
   }, []);
 
   const activeSession = getActiveSession();

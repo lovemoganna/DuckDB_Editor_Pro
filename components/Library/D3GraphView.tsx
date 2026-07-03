@@ -22,218 +22,92 @@ import { ontologyAiService } from '../../services/ontologyAiService';
 import { encodeCSV, downloadExcel } from '../../utils/exportUtils';
 import { useOntologyStore } from '../../hooks/useOntologyStore';
 import { CanvasHelpPanel } from '../skills/CanvasHelpPanel';
-
-// ==================== Types ====================
-
-interface LifeObjectType { id: number; name: string; description: string }
-interface LifeObject { id: number; object_type_id: number; name: string; properties: string }
-interface LifeLinkType { id: number; name: string; description: string }
-interface LifeLink { id: number; link_type_id: number; source_object_id: number; target_object_id: number; weight: number }
-interface LifeAction { id: number; object_id: number; name: string; description: string; status: string; execute_at: string }
-
-interface GraphNode {
-  id: string; label: string; group: string; color: string;
-  size: number; description: string; x?: number; y?: number;
-  fx?: number | null; fy?: number | null;
-  _typeId?: number; _objId?: number;
-  _propsCount?: number;   // number of key-value pairs in properties
-  _propsRaw?: string;     // raw properties string for display
-  _instanceCount?: number; // count of instances belonging to this typeHub
-  _hasInstances?: boolean; // whether this typeHub has any instances
-}
-
-interface GraphLink {
-  source: string | GraphNode; target: string | GraphNode;
-  color: string; weight: number;
-  _linkTypeId?: number; _linkTypeName?: string;
-}
-
-// D3 graph data (shared between D3 and React state)
-interface GraphData {
-  nodes: GraphNode[];
-  links: GraphLink[];
-  typeMap: Record<number, LifeObjectType>;
-  linkTypeMap: Record<number, LifeLinkType>;
-  typeNames: string[];  // ordered type names for legend
-}
-
-// ==================== SVG Icon Paths (Line-style, consistent) ====================
-
-/** Hexagon — semantically represents a TYPE / CATEGORY node */
-const ICON_HEXAGON = `M 8.66,-5 L 0,-10 L -8.66,-5 L -8.66,5 L 0,10 L 8.66,5 Z`;
-
-/** Box — represents a concrete DATA ENTITY / INSTANCE */
-const ICON_BOX = `M -7,-4 L 0,-8 L 7,-4 L 7,4 L 0,8 L -7,4 Z`;
-
-/** Lightning bolt — represents an ACTION node */
-const ICON_BOLT = `M 2,-9 L -5,1 L -1,1 L -2,9 L 5,-1 L 1,-1 Z`;
-
-/** Type palette: WARM colors for TypeHub (parent), COOL colors for Instance (child) */
-const TYPE_COLORS_WARM = [
-  '#FF6B35', '#F7C59F', '#E63946', '#F4A261', '#D62828',
-  '#FF9F1C', '#E76F51', '#BC4749', '#A8DADC',
-];
-const TYPE_COLORS_COOL = [
-  '#4CC9F0', '#4361EE', '#3A86FF', '#06D6A0', '#00B4D8',
-  '#48CAE4', '#90E0EF', '#0096C7', '#023E8A',
-];
-
-/** Legacy fallback */
-const TYPE_COLORS = TYPE_COLORS_WARM;
+import { ToastNotification } from '../ui/ToastNotification';
+import {
+  aggregateParallelEdges,
+  buildGraphDataFromState,
+  computeEdgeGroupOffsets,
+} from './D3GraphView/D3GraphView.data';
+import { getSourceNode, getTargetNode } from './D3GraphView/D3GraphView.helpers';
+import { computeInitialPositions } from './D3GraphView/D3GraphView.layout';
+import { LINKTYPE_COLORS, LINKTYPE_DASH } from './D3GraphView/D3GraphView.types';
+import {
+  ScopeMode,
+  buildReadableSubgraph,
+  getNodeDegreeMap,
+  pickDefaultFocusNode,
+} from './D3GraphView/D3GraphView.focus';
+import {
+  ICON_HEXAGON,
+  ICON_BOX,
+  ICON_BOLT,
+  TYPE_COLORS_WARM,
+  TYPE_COLORS_COOL,
+  TYPE_COLORS,
+} from './D3GraphView/D3GraphView.visuals';
+import type {
+  LifeObjectType,
+  LifeObject,
+  LifeLinkType,
+  LifeLink,
+  LifeAction,
+  GraphNode,
+  GraphLink,
+  GraphData,
+} from './D3GraphView/D3GraphView.types';
 
 // ==================== Initial Layout ====================
 
-/**
- * Compute initial node positions using SEMANTIC clustering.
- *
- * Core idea: objects that are related via life_link should be placed
- * near each other, not scattered by TypeHub. This makes the graph
- * immediately readable as a mind-map rather than a scattered node-cloud.
- *
- * Layout rules:
- *  - Aspect instances (心态/工作/家庭/身体) → center cluster (r 0-80)
- *  - Person instances (父母/配偶/同事/老友) → near their linked Aspect
- *  - Goal instances (副业变现/读书/跑步/日语) → near their linked Aspect
- *  - TypeHub labels → small rings around their cluster center
- *  - Actions → tight cluster near their owning object
- *  - linkType nodes → tiny ring at center
- */
-function computeInitialPositions(
-  nodes: GraphNode[],
-  typeHubNodes: GraphNode[],
-  svgW: number,
-  svgH: number,
-  rawLinks?: any[]   // passed from loadDynamicGraphData for semantic mapping
-): void {
-  const cx = svgW / 2;
-  const cy = svgH / 2;
-
-  // ---- Build typeHub lookup ----
-  const typeHubById: Record<string, GraphNode> = {};
-  typeHubNodes.forEach(n => { typeHubById[n.id] = n; });
-
-  // ---- Identify which instances are Aspects (typeId === 1) ----
-  const instanceNodes = nodes.filter(n => n.group === 'instance');
-  const aspectInstances = instanceNodes.filter(n => n._typeId === 1);
-  const nonAspectInstances = instanceNodes.filter(n => n._typeId !== 1);
-
-  // ---- Build link weight map: objectId → strongest linked aspect objectId ----
-  // For each non-Aspect instance, find the Aspect instance it links to with highest weight
-  const linkToAspect: Record<string, number> = {}; // non-aspect objectId → aspect objectId
-  const linkStrength: Record<string, number> = {};  // non-aspect objectId → weight
-
-  if (rawLinks) {
-    rawLinks.forEach((link: any) => {
-      const srcId = link.source_object_id;
-      const tgtId = link.target_object_id;
-      const weight = Number(link.weight) || 0.5;
-
-      // Check both directions: src is non-aspect linking to aspect, or vice versa
-      const srcNode = instanceNodes.find(n => n._objId === srcId);
-      const tgtNode = instanceNodes.find(n => n._objId === tgtId);
-      const srcIsAspect = srcNode?._typeId === 1;
-      const tgtIsAspect = tgtNode?._typeId === 1;
-
-      if (srcIsAspect && !tgtIsAspect) {
-        const key = String(tgtId);
-        if (!linkStrength[key] || weight > linkStrength[key]) {
-          linkToAspect[key] = srcId;
-          linkStrength[key] = weight;
-        }
-      } else if (!srcIsAspect && tgtIsAspect) {
-        const key = String(srcId);
-        if (!linkStrength[key] || weight > linkStrength[key]) {
-          linkToAspect[key] = tgtId;
-          linkStrength[key] = weight;
-        }
-      }
-    });
-  }
-
-  // ---- Place Aspect instances in a compact center cluster ----
-  // Assign them to 4 quadrants around center
-  const quadrantAngles: Record<number, number> = {
-    1: -Math.PI / 4,   // 心态 → top-right
-    2: Math.PI / 4,    // 工作 → bottom-right
-    3: 3 * Math.PI / 4, // 家庭 → bottom-left
-    4: -3 * Math.PI / 4, // 身体 → top-left
-  };
-  const aspectClusterRadius = 70;
-
-  aspectInstances.forEach((node, i) => {
-    const objId = node._objId ?? i + 1;
-    const baseAngle = quadrantAngles[objId] ?? (i / Math.max(aspectInstances.length, 1)) * 2 * Math.PI - Math.PI / 2;
-    const r = aspectClusterRadius + (i % 2) * 20; // slight stagger
-    node.x = cx + r * Math.cos(baseAngle);
-    node.y = cy + r * Math.sin(baseAngle);
-  });
-
-  // ---- Place TypeHub labels compactly around the center ----
-  const typeHubRadius = 130;
-  typeHubNodes.forEach((node, i) => {
-    const angle = (i / Math.max(typeHubNodes.length, 1)) * 2 * Math.PI - Math.PI / 2;
-    node.x = cx + typeHubRadius * Math.cos(angle);
-    node.y = cy + typeHubRadius * Math.sin(angle);
-  });
-
-  // ---- Place non-Aspect instances near their strongest-linked Aspect ----
-  nonAspectInstances.forEach((node, i) => {
-    const objId = node._objId ?? 0;
-    const linkedAspectId = linkToAspect[String(objId)];
-    let baseX = cx;
-    let baseY = cy;
-    let baseAngle = 0;
-
-    if (linkedAspectId) {
-      const anchorNode = aspectInstances.find(n => n._objId === linkedAspectId);
-      if (anchorNode && anchorNode.x !== undefined && anchorNode.y !== undefined) {
-        baseX = anchorNode.x;
-        baseY = anchorNode.y;
-        // Direction from center toward this node's quadrant
-        baseAngle = Math.atan2(baseY - cy, baseX - cx);
-      }
-    } else {
-      // No link found → spread around the Aspect cluster edge
-      baseAngle = (i / Math.max(nonAspectInstances.length, 1)) * 2 * Math.PI;
-    }
-
-    // Place on a ring just outside the Aspect cluster (r 130-200)
-    const orbitRadius = 150 + (i % 3) * 25;
-    const angleOffset = (i % 2 === 0 ? 1 : -1) * (Math.PI / 8); // ±22.5° stagger
-    node.x = baseX + orbitRadius * Math.cos(baseAngle + angleOffset);
-    node.y = baseY + orbitRadius * Math.sin(baseAngle + angleOffset);
-  });
-
-  // ---- Action nodes: scatter near center ----
-  const actionNodes = nodes.filter(n => n.group === 'action');
-  actionNodes.forEach((node, i) => {
-    const angle = (i / Math.max(actionNodes.length, 1)) * 2 * Math.PI;
-    node.x = cx + 50 * Math.cos(angle);
-    node.y = cy + 50 * Math.sin(angle);
-  });
-
-  // ---- linkType nodes: tiny ring at center ----
-  const linkTypeNodes = nodes.filter(n => n.group === 'linkType');
-  linkTypeNodes.forEach((node, i) => {
-    const angle = (i / Math.max(linkTypeNodes.length, 1)) * 2 * Math.PI;
-    node.x = cx + 25 * Math.cos(angle);
-    node.y = cy + 25 * Math.sin(angle);
-  });
-}
-
-// ==================== Data Loading ====================
-
-async function loadDynamicGraphData(mapping: any): Promise<GraphData | null> {
+async function loadDynamicGraphData(mapping: any, storeState?: any): Promise<GraphData | null> {
   try {
+    const objectFields = mapping.objectFields || {};
+    const objIdCol = objectFields.id || 'id';
+    const objNameCol = objectFields.name || 'name';
+    const objTypeCol = objectFields.object_type_id || 'object_type_id';
+    const objPropsCol = objectFields.properties || 'properties';
+    const objAnnoCol = objectFields.annotations || 'annotations';
+
+    const linkFields = mapping.linkFields || {};
+    const linkIdCol = linkFields.id || 'id';
+    const linkTypeCol = linkFields.link_type_id || 'link_type_id';
+    const linkSrcCol = linkFields.source_object_id || 'source_object_id';
+    const linkTgtCol = linkFields.target_object_id || 'target_object_id';
+    const linkWeightCol = linkFields.weight || 'weight';
+
     const [objectTypes, objects, linkTypes, rawLinks, actions] = await Promise.all([
       duckDBService.query(`SELECT * FROM ${mapping.objectTypeTable} ORDER BY id`),
-      duckDBService.query(`SELECT * FROM ${mapping.objectTable} ORDER BY id`),
+      duckDBService.query(`SELECT 
+        "${objIdCol}" as id, 
+        "${objTypeCol}" as object_type_id, 
+        "${objNameCol}" as name, 
+        "${objPropsCol}" as properties, 
+        "${objAnnoCol}" as annotations 
+        FROM ${mapping.objectTable} ORDER BY id`),
       duckDBService.query(`SELECT * FROM ${mapping.linkTypeTable} ORDER BY id`),
-      duckDBService.query(`SELECT * FROM ${mapping.linkTable} ORDER BY id`),
+      duckDBService.query(`SELECT 
+        "${linkIdCol}" as id, 
+        "${linkTypeCol}" as link_type_id, 
+        "${linkSrcCol}" as source_object_id, 
+        "${linkTgtCol}" as target_object_id, 
+        "${linkWeightCol}" as weight 
+        FROM ${mapping.linkTable} ORDER BY id`),
       duckDBService.query(`SELECT * FROM ${mapping.actionTable} ORDER BY id`),
     ]);
 
+    console.log('[D3GraphView] Tables loaded:', {
+      types: objectTypes.length, objects: objects.length,
+      linkTypes: linkTypes.length, rawLinks: rawLinks.length, actions: actions.length,
+    });
+
     if (objects.length === 0) {
+      // DuckDB returned empty — try store state as fallback
+      if (storeState) {
+        const storeData = buildGraphDataFromState(storeState, mapping);
+        if (storeData) {
+          console.log('[D3GraphView] DuckDB empty, using store state fallback:', storeData.nodes.length, 'nodes');
+          return storeData;
+        }
+      }
       return { nodes: [], links: [], typeMap: {}, linkTypeMap: {}, typeNames: [] };
     }
 
@@ -244,12 +118,22 @@ async function loadDynamicGraphData(mapping: any): Promise<GraphData | null> {
 
     const parseProps = (raw: any): { count: number; raw: string } => {
       if (!raw) return { count: 0, raw: '' };
-      if (typeof raw === 'object') return { count: Object.keys(raw).length, raw: JSON.stringify(raw, null, 2) };
+      
+      let jsonStr = '';
+      if (raw instanceof Uint8Array) {
+        try { jsonStr = new TextDecoder().decode(raw); } 
+        catch { jsonStr = String(raw); }
+      } else if (typeof raw === 'object') {
+        return { count: Object.keys(raw).length, raw: JSON.stringify(raw, null, 2) };
+      } else {
+        jsonStr = String(raw);
+      }
+
       try {
-        const parsed = JSON.parse(raw);
+        const parsed = JSON.parse(jsonStr);
         return { count: Object.keys(parsed).length, raw: JSON.stringify(parsed, null, 2) };
       } catch {
-        return { count: 0, raw: String(raw) };
+        return { count: 0, raw: jsonStr };
       }
     };
 
@@ -290,26 +174,21 @@ async function loadDynamicGraphData(mapping: any): Promise<GraphData | null> {
       const layoutPos = layoutNodes[obj.name];
       nodes.push({
         id: `obj::${obj.id}`, label: obj.name, group: 'instance', color, size: 11,
-        description: String(obj.properties || ''), _objId: obj.id, _typeId: obj.object_type_id,
+        description: propRaw, _objId: obj.id, _typeId: obj.object_type_id,
         _propsCount: propCount, _propsRaw: propRaw,
         x: layoutPos?.x, y: layoutPos?.y,
       });
 
       if (type) {
-        links.push({ source: `obj::${obj.id}`, target: `type::${obj.object_type_id}`, color: 'rgba(255,255,255,0.45)', weight: 0.15 });
+        links.push({ source: `obj::${obj.id}`, target: `type::${obj.object_type_id}`, color: 'rgba(255,255,255,0.45)', weight: 0.15, _isTypeInstLink: true });
       }
     });
 
-    const usedLinkTypeIds = new Set(rawLinks.map((l: any) => l.link_type_id));
-    linkTypes.forEach((lt: any) => {
-      if (!usedLinkTypeIds.has(lt.id)) return;
-      nodes.push({ id: `linktype::${lt.id}`, label: lt.name, group: 'linkType', color: '#FFD166', size: 7, description: lt.description || '' });
-    });
-
     rawLinks.forEach((link: any) => {
+      const ltColor = LINKTYPE_COLORS[(link.link_type_id - 1) % LINKTYPE_COLORS.length];
       links.push({
         source: `obj::${link.source_object_id}`, target: `obj::${link.target_object_id}`,
-        color: '#FFD166', weight: Number(link.weight) || 0.5,
+        color: ltColor, weight: Number(link.weight) || 0.5,
         _linkTypeId: link.link_type_id, _linkTypeName: linkTypeMap[link.link_type_id]?.name,
       });
     });
@@ -338,8 +217,9 @@ async function loadDynamicGraphData(mapping: any): Promise<GraphData | null> {
 
 // ==================== Component ====================
 
-const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void }> = ({ onRefreshRef }) => {
-  const { state } = useOntologyStore();
+const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyState?: any }> = ({ onRefreshRef, ontologyState }) => {
+  const store = useOntologyStore();
+  const state = ontologyState ?? store.state;
   const mapping = state.mapping;
   
   const containerRef = useRef<HTMLDivElement>(null);
@@ -350,9 +230,10 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void }> = ({ on
   const searchHighlightedRef = useRef<string[]>([]);
   const graphDataRef = useRef<GraphData | null>(null);
   const nodesRef = useRef<GraphNode[]>([]);
+  const rawLinksRef = useRef<any[]>([]);
   const currentTransformRef = useRef<d3.ZoomTransform>(d3.zoomIdentity);
   // Stable refs for D3 selections used by keyboard handler
-  const linkElsRef = useRef<d3.Selection<SVGLineElement, GraphLink, SVGGElement, unknown> | null>(null);
+  const linkElsRef = useRef<d3.Selection<SVGPathElement, GraphLink, SVGGElement, unknown> | null>(null);
   const labelElsRef = useRef<d3.Selection<SVGTextElement, GraphNode, SVGGElement, unknown> | null>(null);
   const allNodeGroupsRef = useRef<d3.Selection<SVGGElement, GraphNode, SVGGElement, unknown> | null>(null);
 
@@ -366,29 +247,88 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void }> = ({ on
   const [showControls, setShowControls] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const [showLegend, setShowLegend] = useState(false);
+  const [isPanelHovered, setIsPanelHovered] = useState(false);
   const [showScanModal, setShowScanModal] = useState(false);
   const [isAiFilling, setIsAiFilling] = useState(false);
   const [showAIFillInput, setShowAIFillInput] = useState(false);
   const [aiFillTopic, setAiFillTopic] = useState('');
   const [showHelp, setShowHelp] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [scopeMode, setScopeMode] = useState<ScopeMode>('all');
+  const [showWeakLinks, setShowWeakLinks] = useState(false);
+  const [activeRelationTypes, setActiveRelationTypes] = useState<Set<number>>(new Set());
+  const [fullGraphData, setFullGraphData] = useState<GraphData | null>(null);
 
   // 1. D3 Physics Controls State — tuned for compact semantic layout
-  const [chargeStrength, setChargeStrength] = useState(-150);
-  const [linkDistance, setLinkDistance] = useState(60);
-  const [collisionRadius, setCollisionRadius] = useState(6);
+  const [chargeStrength, setChargeStrength] = useState(-180);
+  const [linkDistance, setLinkDistance] = useState(150);
+  const [collisionRadius, setCollisionRadius] = useState(14);
 
   // 2. Progressive Exploration (Focus Mode) State
   const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null);
 
+  // 3. Link Weight Filter — hides weak relations (weight < threshold) by default
+  const [weightThreshold, setWeightThreshold] = useState(0.65);
+
+  // 4. Hover Tooltip State — rich card shown on node hover
+  const [hoveredNode, setHoveredNode] = useState<GraphNode | null>(null);
+  const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
+
   const refreshGraph = useCallback(async () => {
+    console.log('[D3GraphView] refreshGraph called, mapping:', mapping);
     setLoading(true);
     setD3Ready(false);
-    const data = await loadDynamicGraphData(mapping);
-    setGraphData(data);
-    graphDataRef.current = data;
+    const hasLoadedState =
+      (state.objectTypes?.length ?? 0) > 0 ||
+      (state.objects?.length ?? 0) > 0 ||
+      (state.linkTypes?.length ?? 0) > 0 ||
+      (state.links?.length ?? 0) > 0 ||
+      (state.actions?.length ?? 0) > 0;
+    const layoutDims = containerRef.current
+      ? { svgW: containerRef.current.clientWidth, svgH: containerRef.current.clientHeight }
+      : undefined;
+    const data = hasLoadedState
+      ? (buildGraphDataFromState(state, mapping, undefined, layoutDims) as GraphData | null)
+      : await loadDynamicGraphData(mapping, state);
+    if (!data) {
+      console.log('[D3GraphView] loadDynamicGraphData returned null');
+      setLoading(false);
+      return;
+    }
+    // Also store rawLinks so the D3 useEffect can pass them to computeInitialPositions
+    if (data._rawLinks) {
+      rawLinksRef.current = data._rawLinks;
+    } else {
+      try {
+      const rawLinks = await duckDBService.query(`SELECT * FROM ${mapping.linkTable} ORDER BY id`);
+      rawLinksRef.current = rawLinks || [];
+      } catch {
+        rawLinksRef.current = [];
+      }
+    }
+    setFullGraphData(data);
+    setFocusedNodeId(prev => prev || pickDefaultFocusNode(data));
     setLoading(false);
-  }, [mapping]);
+  }, [mapping, state]);
+
+  useEffect(() => {
+    if (!fullGraphData) {
+      setGraphData(null);
+      graphDataRef.current = null;
+      return;
+    }
+    const next = buildReadableSubgraph(
+      fullGraphData,
+      focusedNodeId || pickDefaultFocusNode(fullGraphData),
+      scopeMode,
+      weightThreshold,
+      showWeakLinks,
+      activeRelationTypes,
+    );
+    setGraphData(next);
+    graphDataRef.current = next;
+  }, [fullGraphData, focusedNodeId, scopeMode, weightThreshold, showWeakLinks, activeRelationTypes]);
 
   // Expose refreshGraph via callback prop so parent can trigger graph reload after CRUD
   useEffect(() => {
@@ -438,7 +378,7 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void }> = ({ on
       setShowAIFillInput(false);
     } catch (err) {
       console.error('[D3GraphView] AI fill failed:', err);
-      alert('AI 图谱生成失败，请检查 AI 配置');
+      setToast({ message: 'AI 图谱生成失败，请检查 AI 配置', type: 'error' });
     } finally {
       setIsAiFilling(false);
     }
@@ -469,7 +409,7 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void }> = ({ on
       setInfoContent('');
     } catch (err) {
       console.error('[D3GraphView] Quick clear failed:', err);
-      alert('清空数据失败: ' + (err instanceof Error ? err.message : String(err)));
+      setToast({ message: '清空数据失败: ' + (err instanceof Error ? err.message : String(err)), type: 'error' });
     }
   }, []);
 
@@ -497,9 +437,11 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void }> = ({ on
     styleEl.id = styleId;
     styleEl.textContent = `
       /* Link styles: subtle, no overwhelming animations */
-      .nv-link-instance { stroke: #FFD166 !important; stroke-width: 2px !important; opacity: 0.7 !important; fill: none !important; }
-      .nv-link-typeinst  { stroke: rgba(255,255,255,0.35) !important; stroke-width: 1px !important; opacity: 0.5 !important; fill: none !important; stroke-dasharray: 5 3; }
-      .nv-link-action    { stroke: #FF9CF7 !important; stroke-width: 1px !important; opacity: 0.6 !important; fill: none !important; }
+      .nv-links path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+      /* Weight-mapped thickness: 1px–4px across weight range, opacity 0.5–1.0 */
+      .nv-link-instance { }
+      .nv-link-typeinst  { stroke-width: 1px; opacity: 0.42; stroke-dasharray: 5 4; }
+      .nv-link-action    { stroke-width: 1.6px; opacity: 0.78; stroke-dasharray: 3 3; }
 
       /* Node: clean, no persistent glow */
       .nv-node { cursor: move; }
@@ -517,15 +459,16 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void }> = ({ on
       }
       .nv-typehub-label { font-size: 12px !important; font-weight: 800 !important; }
       .nv-linktype-label {
-        font-size: 8px !important; fill: #FFD166 !important; font-style: italic;
+        font-size: 7px !important; font-style: normal;
+        font-weight: 600; letter-spacing: 0.3px;
         text-anchor: middle; pointer-events: none;
         text-shadow: 0 0 3px #000;
       }
 
       /* Search/select: highlight without heavy glow */
       .nv-highlight-node { filter: drop-shadow(0 2px 8px rgba(0,0,0,0.6)) !important; }
-      .nv-dim { opacity: 0.15 !important; }
-      .nv-dim-label { opacity: 0.1 !important; }
+      .nv-dim { opacity: 0.08 !important; }
+      .nv-dim-label { opacity: 0 !important; }
       .nv-label-selected { fill: #FFD166 !important; font-size: 13px !important; font-weight: bold !important; }
       .nv-label-match { fill: #4CC9F0 !important; }
       .nv-hidden { display: none !important; }
@@ -539,10 +482,19 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void }> = ({ on
         100% { filter: drop-shadow(0 0 4px #FFD166); opacity: 0.85; }
       }
 
+      /* Hub node: subtle warm pulse to indicate the graph's focal point */
+      .nv-hub-node { animation: nv-hub-pulse 3s ease-in-out infinite; }
+      @keyframes nv-hub-pulse {
+        0%   { opacity: 0.78; }
+        50%  { opacity: 1; }
+        100% { opacity: 0.78; }
+      }
+
       /* Icons */
       .nv-icon-typehub { fill: rgba(255,255,255,0.18); stroke: rgba(255,255,255,0.5); stroke-width: 1px; pointer-events: none; }
       .nv-icon-instance { fill: none; stroke: rgba(255,255,255,0.4); stroke-width: 1px; pointer-events: none; }
       .nv-icon-action   { fill: rgba(255,255,255,0.25); stroke: rgba(255,255,255,0.6); stroke-width: 0.8px; pointer-events: none; }
+      .nv-icon-linktype { fill: none; stroke: rgba(0,0,0,0.55); stroke-width: 1.2px; pointer-events: none; }
     `;
     document.head.appendChild(styleEl);
 
@@ -561,25 +513,73 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void }> = ({ on
     }, { passive: false });
 
     // Fit All — zoom to show all nodes with padding and minimum zoom
+    // Guards against:
+    //  a) Empty graph (bail silently)
+    //  b) All nodes at origin (0,0) — wait for force simulation to spread them
+    //  c) Single node — center it without zoom
     (window as any).__d3FitAll = () => {
       const ns = graphDataRef.current?.nodes || [];
       if (ns.length === 0) return;
-      const xs = ns.map(n => n.x || 0);
-      const ys = ns.map(n => n.y || 0);
+
+      // Filter to nodes with valid, non-zero positions (force sim has settled)
+      const valid = ns.filter(n => n.x != null && !isNaN(n.x!) && n.x !== 0);
+      if (valid.length === 0) {
+        // Nodes haven't spread yet — force sim still running; retry after settling window
+        setTimeout(() => { (window as any).__d3FitAll?.(); }, 600);
+        return;
+      }
+
+      // Compute degree centrality to find the hub (most-connected instance node)
+      const degreeMap: Record<string, number> = {};
+      ns.forEach(n => { degreeMap[n.id] = 0; });
+      graphDataRef.current?.links.forEach((l: GraphLink) => {
+        const s = typeof l.source === 'object' ? (l.source as GraphNode).id : l.source;
+        const t = typeof l.target === 'object' ? (l.target as GraphNode).id : l.target;
+        if (degreeMap[s] !== undefined) degreeMap[s]++;
+        if (degreeMap[t] !== undefined) degreeMap[t]++;
+      });
+
+      // Hub = highest-degree instance (not typeHub, not action)
+      let hubNode = valid.find(n => n.group === 'instance') || valid[0];
+      valid.forEach(n => {
+        if (n.group === 'instance' && (degreeMap[n.id] || 0) > (degreeMap[hubNode.id] || 0)) {
+          hubNode = n;
+        }
+      });
+
+      // Store hub node id for CSS glow ring
+      (window as any).__hubNodeId = hubNode?.id || null;
+
+      const xs = valid.map(n => n.x!);
+      const ys = valid.map(n => n.y!);
       const minX = Math.min(...xs), maxX = Math.max(...xs);
       const minY = Math.min(...ys), maxY = Math.max(...ys);
       const bw = maxX - minX || 1, bh = maxY - minY || 1;
-      // Add 20% padding on each side
-      const paddedW = bw * 1.4, paddedH = bh * 1.4;
-      // Minimum scale: 0.35 so graph is never too small to see
-      const rawScale = Math.min(0.85 * W / paddedW, 0.85 * H / paddedH);
-      const scale = Math.max(0.35, Math.min(rawScale, 4));
-      const centerX = (minX + maxX) / 2;
-      const centerY = (minY + maxY) / 2;
-      const tx = W / 2 - centerX * scale;
-      const ty = H / 2 - centerY * scale;
+
+      // Single node or all at same point → no zoom, just center
+      if (bw < 2 && bh < 2) {
+        const scale = Math.min(W / 400, H / 300, 2);
+        const tx = W / 2 - (ns[0].x || 0) * scale;
+        const ty = H / 2 - (ns[0].y || 0) * scale;
+        svg.transition().duration(600)
+          .call(zoom.transform as any, d3.zoomIdentity.translate(tx, ty).scale(scale));
+        return;
+      }
+
+      // When graph is small (≤15 nodes), center on hub directly.
+      // When large, show full graph in view with hub emphasized visually.
+      const scale = Math.min(0.85 * W / (bw * 1.4), 0.85 * H / (bh * 1.4), 5);
+      let tx: number, ty: number;
+      if (valid.length <= 15 && hubNode.x !== undefined) {
+        tx = W / 2 - hubNode.x * scale;
+        ty = H / 2 - hubNode.y * scale;
+      } else {
+        tx = W / 2 - ((minX + maxX) / 2) * scale;
+        ty = H / 2 - ((minY + maxY) / 2) * scale;
+      }
+
       svg.transition().duration(800)
-        .call(zoom.transform as any, d3.zoomIdentity.translate(tx, ty).scale(scale));
+        .call(zoom.transform as any, d3.zoomIdentity.translate(tx, ty).scale(Math.max(0.3, scale)));
     };
 
     if (!graphDataRef.current) {
@@ -602,20 +602,64 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void }> = ({ on
     const data = graphDataRef.current;
     const nodes = data.nodes;
     const links = data.links;
+    const nodeMap = new Map<string, GraphNode>(nodes.map(n => [n.id, n]));
+    const endpointLinks = links.filter(link => getSourceNode(link as any, nodeMap as any) && getTargetNode(link as any, nodeMap as any));
+    const { aggregatedLinks } = aggregateParallelEdges(
+      endpointLinks as any,
+      nodeMap as any,
+      (link: GraphLink) => getSourceNode(link as any, nodeMap as any) as any,
+      (link: GraphLink) => getTargetNode(link as any, nodeMap as any) as any,
+    );
+    const edgeGroupOffsets = computeEdgeGroupOffsets(
+      aggregatedLinks as any,
+      (link: GraphLink) => getSourceNode(link as any, nodeMap as any) as any,
+      (link: GraphLink) => getTargetNode(link as any, nodeMap as any) as any,
+    );
+    const renderLinks = aggregatedLinks.map((link: GraphLink) => {
+      const sourceNode = getSourceNode(link as any, nodeMap as any) as GraphNode | undefined;
+      const targetNode = getTargetNode(link as any, nodeMap as any) as GraphNode | undefined;
+      const sourceId = sourceNode?.id || '';
+      const targetId = targetNode?.id || '';
+      const directedOffset = edgeGroupOffsets.get(`${sourceId}|${targetId}`);
+      const fallbackOffset = link._linkTypeId !== undefined ? 30 : link._isTypeInstLink ? 0 : 18;
+      return { ...link, _groupOffset: directedOffset ?? fallbackOffset };
+    });
     nodesRef.current = nodes;
 
     // Re-compute initial positions with actual canvas dimensions
     const typeHubNodes = nodes.filter(n => n.group === 'typeHub');
-    computeInitialPositions(nodes, typeHubNodes, W, H, undefined);
+    computeInitialPositions(nodes, typeHubNodes, W, H, rawLinksRef.current);
+
+    // Compute degree centrality to identify the hub node (used by fitAll and rendering)
+    const degreeMap: Record<string, number> = {};
+    nodes.forEach(n => { degreeMap[n.id] = 0; });
+    links.forEach((l: GraphLink) => {
+      const s = typeof l.source === 'object' ? (l.source as GraphNode).id : l.source;
+      const t = typeof l.target === 'object' ? (l.target as GraphNode).id : l.target;
+      if (degreeMap[s] !== undefined) degreeMap[s]++;
+      if (degreeMap[t] !== undefined) degreeMap[t]++;
+    });
+    let hubNodeId = '';
+    let hubDegree = -1;
+    nodes.forEach(n => {
+      if (n.group === 'instance' && (degreeMap[n.id] || 0) > hubDegree) {
+        hubDegree = degreeMap[n.id];
+        hubNodeId = n.id;
+      }
+    });
+    (window as any).__hubNodeId = hubNodeId;
 
     // Force Simulation
+    const nodeCount = nodes.length;
+    const decay = nodeCount > 150 ? 0.08 : nodeCount > 80 ? 0.06 : 0.04;
     const sim = d3.forceSimulation<GraphNode, GraphLink>(nodes)
       .alpha(0.8)
-      .alphaDecay(0.04)
-      .force('link', d3.forceLink<GraphNode, GraphLink>(links).id(d => d.id).distance(d => {
-        const s = d as any;
-        if (s._linkTypeId !== undefined) return linkDistance * 1.5;
-        if (s.source?.group === 'typeHub' || s.target?.group === 'typeHub') return linkDistance * 2.25;
+      .alphaDecay(decay)
+      .force('link', d3.forceLink<GraphNode, GraphLink>(renderLinks).id(d => d.id).distance(d => {
+        const src = getSourceNode(d as any, nodeMap as any);
+        const tgt = getTargetNode(d as any, nodeMap as any);
+        if (d._linkTypeId !== undefined) return linkDistance * 1.45;
+        if (src?.group === 'typeHub' || tgt?.group === 'typeHub') return linkDistance * 2.15;
         return linkDistance;
       }).strength(0.4))
       .force('charge', d3.forceManyBody().strength(chargeStrength))
@@ -628,47 +672,155 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void }> = ({ on
     // Links
     const linkGroup = g.append('g').attr('class', 'nv-links');
     const defs = g.append('defs');
-    const mkArrow = (id: string, color: string) =>
+    const mkArrow = (id: string, color: string, opacity = 1) =>
       defs.append('marker')
-        .attr('id', id).attr('markerWidth', 10).attr('markerHeight', 7)
-        .attr('refX', 9).attr('refY', 3.5).attr('orient', 'auto')
+        .attr('id', id).attr('markerWidth', 6).attr('markerHeight', 4)
+        .attr('refX', 5).attr('refY', 2).attr('orient', 'auto')
         .append('polygon')
-        .attr('points', '0 0, 10 3.5, 0 7')
-        .attr('fill', color);
-    mkArrow('arrow-amber', '#FFD166');
-    mkArrow('arrow-gray', 'rgba(255,255,255,0.55)');
+        .attr('points', '0 0, 6 2, 0 4')
+        .attr('fill', color)
+        .attr('opacity', opacity);
     mkArrow('arrow-lavender', '#FF9CF7');
+    Array.from(new Map(
+      renderLinks
+        .filter(link => link._linkTypeId !== undefined)
+        .map(link => [link._linkTypeId, link.color] as const)
+    )).forEach(([linkTypeId, color]) => mkArrow(`arrow-linktype-${linkTypeId}`, color));
 
-    const linkEls = linkGroup.selectAll<SVGLineElement, GraphLink>('line')
-      .data(links)
+    const getVisualRadius = (node?: GraphNode) => {
+      if (!node) return 10;
+      const level = node._focusLevel ?? 1;
+      const multiplier = level === 0 ? 1.85 : level === 1 ? 1.15 : level === 2 ? 0.92 : 0.82;
+      if (node.group === 'typeHub') return (node.size || 28) * (level === 0 ? 1.25 : 1);
+      if (node.group === 'action') return Math.max(7, (node.size || 10) * multiplier);
+      return Math.max(8, (node.size || 11) * multiplier);
+    };
+
+    const getNodeRadius = (node?: GraphNode) => {
+      if (!node) return 10;
+      return getVisualRadius(node) + (node.group === 'typeHub' ? 7 : 4);
+    };
+
+    const getTrimmedCurve = (link: GraphLink) => {
+      const src = getSourceNode(link as any, nodeMap as any) as GraphNode | undefined;
+      const tgt = getTargetNode(link as any, nodeMap as any) as GraphNode | undefined;
+      if (!src || !tgt) return { path: '', labelX: 0, labelY: 0 };
+      const sx0 = src.x || 0, sy0 = src.y || 0;
+      const tx0 = tgt.x || 0, ty0 = tgt.y || 0;
+      const dx = tx0 - sx0, dy = ty0 - sy0;
+      const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+      const srcPad = getNodeRadius(src);
+      const tgtPad = getNodeRadius(tgt) + (link._isTypeInstLink ? 0 : 4);
+      const sx = sx0 + (dx / dist) * srcPad;
+      const sy = sy0 + (dy / dist) * srcPad;
+      const tx = tx0 - (dx / dist) * tgtPad;
+      const ty = ty0 - (dy / dist) * tgtPad;
+      const offset = link._groupOffset || 0;
+      if (!offset) {
+        return { path: `M${sx},${sy} L${tx},${ty}`, labelX: (sx + tx) / 2, labelY: (sy + ty) / 2 - 5 };
+      }
+      const mx = (sx + tx) / 2;
+      const my = (sy + ty) / 2;
+      const nx = -dy / dist * offset;
+      const ny = dx / dist * offset;
+      return {
+        path: `M${sx},${sy} Q${mx + nx},${my + ny} ${tx},${ty}`,
+        labelX: mx + nx * 0.58,
+        labelY: my + ny * 0.58 - 5,
+      };
+    };
+
+    const linkEls = linkGroup.selectAll<SVGPathElement, GraphLink>('path')
+      .data(renderLinks)
       .enter()
-      .append('line');
+      .append('path');
 
     linkEls
       .attr('class', (d: GraphLink) => {
         if (d._linkTypeId !== undefined) return 'nv-link-instance';
-        const src = d.source as GraphNode;
-        const tgt = d.target as GraphNode;
+        const src = getSourceNode(d as any, nodeMap as any);
+        const tgt = getTargetNode(d as any, nodeMap as any);
         if (src?.group === 'typeHub' || tgt?.group === 'typeHub') return 'nv-link-typeinst';
         return 'nv-link-action';
       })
       .style('stroke', (d: GraphLink) => d.color)
+      .style('stroke-dasharray', (d: GraphLink) => {
+        if (d._linkTypeId === undefined) return null;
+        return LINKTYPE_DASH[(d._linkTypeId - 1) % LINKTYPE_DASH.length];
+      })
+      .style('stroke-width', (d: GraphLink) => {
+        // Weight-mapped thickness: 1px (weight=0.3) → 2.4px (weight=1.0)
+        const w = Math.max(0.3, Math.min(1.0, d.weight ?? 0.5));
+        return `${(1 + (w - 0.3) * 2.0).toFixed(2)}px`;
+      })
       .style('opacity', (d: GraphLink) => {
-        if (d._linkTypeId !== undefined) return 0.88;
-        if ((d.source as GraphNode)?.group === 'typeHub' || (d.target as GraphNode)?.group === 'typeHub') return 0.7;
-        return 0.75;
+        // Weight-mapped opacity: 0.45 (weight=0.3) → 1.0 (weight=1.0)
+        // Hidden entirely when below threshold
+        if (!showWeakLinks && d._linkTypeId !== undefined && d.weight < weightThreshold) return '0';
+        const w = Math.max(0.3, Math.min(1.0, d.weight ?? 0.5));
+        return (0.45 + (w - 0.3) * 0.79).toFixed(2);
+      })
+      .style('display', (d: GraphLink) => {
+        // Hide links below weight threshold entirely (removes them from layout calculations)
+        if (!showWeakLinks && d._linkTypeId !== undefined && d.weight < weightThreshold) return 'none';
+        return null;
       })
       .attr('marker-end', (d: GraphLink) => {
-        if (d._linkTypeId !== undefined) return 'url(#arrow-amber)';
-        if ((d.source as GraphNode)?.group === 'typeHub' || (d.target as GraphNode)?.group === 'typeHub') return 'url(#arrow-gray)';
+        if (d._linkTypeId !== undefined) return `url(#arrow-linktype-${d._linkTypeId})`;
+        const src = getSourceNode(d as any, nodeMap as any);
+        const tgt = getTargetNode(d as any, nodeMap as any);
+        if (src?.group === 'typeHub' || tgt?.group === 'typeHub') return null;
         return 'url(#arrow-lavender)';
+      })
+      .attr('d', (d: GraphLink) => getTrimmedCurve(d).path)
+      .each(function(d: GraphLink) {
+        const src = getSourceNode(d as any, nodeMap as any) as GraphNode | undefined;
+        const tgt = getTargetNode(d as any, nodeMap as any) as GraphNode | undefined;
+        const rel = d._linkTypeName || 'membership';
+        const lt = d._linkTypeId !== undefined ? data.linkTypeMap[d._linkTypeId] : null;
+        d3.select(this).append('title')
+          .text(`${src?.label || '?'} -> ${rel} -> ${tgt?.label || '?'}\n权重: ${Number(d.weight || 0).toFixed(2)}${lt?.description ? `\n描述: ${lt.description}` : ''}`);
       });
 
     linkElsRef.current = linkEls;
 
     let enforceInterval = setInterval(() => {
-      d3.selectAll<SVGLineElement, GraphLink>('.nv-link-instance')
-        .style('stroke', '#FFD166').style('opacity', '0.88');
+      const currentHighlightId = (window as any).__currentNodeId || (window as any).__focusedNodeId;
+      
+      d3.selectAll<SVGPathElement, GraphLink>('.nv-link-instance, .nv-link-typeinst, .nv-link-action')
+        .style('stroke', (d: GraphLink) => {
+          if (currentHighlightId) {
+            const s = typeof d.source === 'object' ? (d.source as GraphNode).id : d.source;
+            const t = typeof d.target === 'object' ? (d.target as GraphNode).id : d.target;
+            if (s === currentHighlightId || t === currentHighlightId) {
+              return '#66d9ef';
+            }
+          }
+          return d.color;
+        })
+        .style('stroke-dasharray', (d: GraphLink) => {
+          if (d._linkTypeId === undefined) return null;
+          return LINKTYPE_DASH[(d._linkTypeId - 1) % LINKTYPE_DASH.length];
+        })
+        .style('opacity', (d: GraphLink) => {
+          if (currentHighlightId) {
+            const s = typeof d.source === 'object' ? (d.source as GraphNode).id : d.source;
+            const t = typeof d.target === 'object' ? (d.target as GraphNode).id : d.target;
+            if (s === currentHighlightId || t === currentHighlightId) return '1.0';
+            return '0.08';
+          }
+          const w = Math.max(0.3, Math.min(1.0, d.weight ?? 0.5));
+          return (0.45 + (w - 0.3) * 0.79).toFixed(2);
+        })
+        .style('stroke-width', (d: GraphLink) => {
+          if (currentHighlightId) {
+            const s = typeof d.source === 'object' ? (d.source as GraphNode).id : d.source;
+            const t = typeof d.target === 'object' ? (d.target as GraphNode).id : d.target;
+            if (s === currentHighlightId || t === currentHighlightId) return '3px';
+          }
+          const w = Math.max(0.3, Math.min(1.0, d.weight ?? 0.5));
+          return `${(1 + (w - 0.3) * 2.0).toFixed(2)}px`;
+        });
     }, 1500);
 
     // Viewport culling: skip rendering updates for nodes far outside visible area.
@@ -715,15 +867,15 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void }> = ({ on
       .attr('class', 'nv-typehub nv-node')
       .style('cursor', 'move')
       .call(d3.drag<SVGGElement, GraphNode>().on('start', dragstarted).on('drag', dragged).on('end', dragended));
-    typeHubG.append('circle').attr('r', (d: GraphNode) => (d.size || 28) + 6)
+    typeHubG.append('circle').attr('r', (d: GraphNode) => getVisualRadius(d) + 6)
       .style('fill', 'none').style('stroke', (d: GraphNode) => d.color)
       .style('stroke-width', 1.5)
       .style('opacity', (d: GraphNode) => d._hasInstances !== false ? 0.35 : 0.15)
       .style('pointer-events', 'none');
-    typeHubG.append('circle').attr('r', (d: GraphNode) => d.size || 28)
+    typeHubG.append('circle').attr('r', (d: GraphNode) => getVisualRadius(d))
       .style('fill', (d: GraphNode) => d.color)
       .style('stroke', 'rgba(255,255,255,0.6)').style('stroke-width', 2)
-      .style('opacity', (d: GraphNode) => d._hasInstances !== false ? 0.92 : 0.45)
+      .style('opacity', (d: GraphNode) => d._hasInstances !== false ? 0.78 : 0.35)
       .style('pointer-events', 'all');
     typeHubG.append('path').attr('d', ICON_HEXAGON).attr('class', 'nv-icon-typehub')
       .attr('transform', 'scale(1.6) translate(0, 1)')
@@ -733,13 +885,17 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void }> = ({ on
     const instanceG = nodeContainer.selectAll<SVGGElement, GraphNode>('.nv-instance')
       .data(instanceNodes)
       .enter().append('g')
-      .attr('class', 'nv-instance nv-node')
+      .attr('class', (d: GraphNode) =>
+        `nv-instance nv-node${d.id === hubNodeId ? ' nv-hub-node' : ''}${d.id === focusedNodeId ? ' nv-focus-node' : ''}`
+      )
       .style('cursor', 'pointer')
       .call(d3.drag<SVGGElement, GraphNode>().on('start', dragstarted).on('drag', dragged).on('end', dragended));
-    instanceG.append('circle').attr('r', (d: GraphNode) => d.size || 11)
+    instanceG.append('circle').attr('r', (d: GraphNode) => getVisualRadius(d))
       .style('fill', (d: GraphNode) => d.color)
-      .style('stroke', 'rgba(255,255,255,0.55)').style('stroke-width', 1.5)
-      .style('opacity', 0.9).style('pointer-events', 'all');
+      .style('stroke', (d: GraphNode) => d.id === focusedNodeId ? '#FFD166' : 'rgba(255,255,255,0.55)')
+      .style('stroke-width', (d: GraphNode) => d.id === focusedNodeId ? 3 : 1.5)
+      .style('opacity', (d: GraphNode) => d._focusLevel === 0 ? 0.95 : d._focusLevel === 1 ? 0.78 : 0.52)
+      .style('pointer-events', 'all');
     instanceG.append('path').attr('d', ICON_BOX).attr('class', 'nv-icon-instance')
       .attr('transform', 'scale(1.0) translate(0, 1)');
 
@@ -748,7 +904,7 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void }> = ({ on
       const count = d._propsCount || 0;
       if (count === 0) return;
       const gInst = d3.select(this);
-      const r = d.size || 11;
+      const r = getVisualRadius(d);
       const badgeR = Math.max(5, Math.min(8, 3 + count * 1.2));
 
       gInst.append('circle')
@@ -789,20 +945,22 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void }> = ({ on
       .attr('class', 'nv-action nv-node')
       .style('cursor', 'pointer')
       .call(d3.drag<SVGGElement, GraphNode>().on('start', dragstarted).on('drag', dragged).on('end', dragended));
-    actionG.append('circle').attr('r', (d: GraphNode) => d.size || 6)
+    actionG.append('circle').attr('r', (d: GraphNode) => getVisualRadius(d))
       .style('fill', (d: GraphNode) => d.color)
       .style('stroke', 'rgba(255,255,255,0.6)').style('stroke-width', 1)
       .style('pointer-events', 'all');
     actionG.append('path').attr('d', ICON_BOLT).attr('class', 'nv-icon-action')
       .attr('transform', 'scale(0.55) translate(0, 1)');
 
-    // Labels (typeHub shows description as label; instance/action show name; linkType excluded)
+    // Labels (typeHub shows description as label; other nodes show name)
     const LABEL_MAX = 18;
     const labelGroup = g.append('g').attr('class', 'nv-labels');
     const labelEls = labelGroup.selectAll<SVGTextElement, GraphNode>('text')
-      .data(nodes.filter(d => d.group !== 'linkType'))
+      .data(nodes)
       .enter().append('text')
-      .attr('class', (d: GraphNode) => d.group === 'typeHub' ? 'nv-node-label nv-typehub-label' : 'nv-node-label')
+      .attr('class', (d: GraphNode) => d.group === 'typeHub'
+        ? 'nv-node-label nv-typehub-label'
+        : 'nv-node-label')
       .text((d: GraphNode) => {
         // typeHub: show description as VALUE label; instance/action: show name
         if (d.group === 'typeHub') {
@@ -811,7 +969,7 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void }> = ({ on
         }
         return d.label.length > LABEL_MAX ? d.label.slice(0, LABEL_MAX) + '…' : d.label;
       })
-      .style('font-size', (d: GraphNode) => d.group === 'typeHub' ? '12px' : '10px')
+      .style('font-size', (d: GraphNode) => d._focusLevel === 0 ? '15px' : d.group === 'typeHub' ? '12px' : d._focusLevel === 1 ? '11px' : '9px')
       .style('fill', 'white').style('font-weight', 'bold');
     // typeHub tooltip shows name (KEY); others show label
     labelEls.each(function(d: GraphNode) {
@@ -825,16 +983,20 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void }> = ({ on
     // Link type labels on edges: show description (VALUE), tooltip shows name + weight (KEY)
     const linkLabelGroup = g.append('g').attr('class', 'nv-link-labels');
     const linkLabelEls = linkLabelGroup.selectAll<SVGTextElement, GraphLink>('text')
-      .data(links.filter(l => l._linkTypeId !== undefined))
+      .data(renderLinks.filter(l => l._linkTypeId !== undefined))
       .enter().append('text').attr('class', 'nv-linktype-label')
+      .style('fill', (d: GraphLink) => d.color)
+      .style('opacity', () => scopeMode === 'all' ? 0 : 0.82)
+      .style('paint-order', 'stroke')
+      .style('stroke', 'rgba(13,12,10,0.85)')
+      .style('stroke-width', 3)
       .text((d: GraphLink) => {
-        // Show description on edge label; fall back to name; never show empty
+        // Show name (keyword) on edge label; max 8 chars so it never dominates visually
         const lt = data.linkTypeMap[d._linkTypeId as number];
-        const label = lt?.description || d._linkTypeName || '';
-        if (label.length >= 2) {
-          return label.length > 12 ? label.slice(0, 12) + '…' : label;
+        const label = lt?.name || d._linkTypeName || '';
+        if (label.length >= 1) {
+          return label.length > 8 ? label.slice(0, 8) + '…' : label;
         }
-        // description is empty/1-char → show a visual placeholder so the edge is not blank
         return '—';
       })
       .each(function(d: GraphLink) {
@@ -857,37 +1019,31 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void }> = ({ on
       const visibleNodes = getVisibleNodes(nodes, currentTransformRef.current, W, H);
       const visibleNodeIds = new Set(visibleNodes.map(n => n.id));
 
+      // LOD zoom thresholds
+      const k = currentTransformRef.current.k;
+      const hideLabels = k < 0.6;
+      const hideActions = k < 0.35;
+
       linkEls
         .style('display', (d: GraphLink) => {
           const sId = typeof d.source === 'object' ? (d.source as GraphNode).id : d.source;
           const tId = typeof d.target === 'object' ? (d.target as GraphNode).id : d.target;
           return (visibleNodeIds.has(String(sId)) || visibleNodeIds.has(String(tId))) ? null : 'none';
         })
-        .attr('x1', (d: GraphLink) => (d.source as GraphNode).x || 0)
-        .attr('y1', (d: GraphLink) => (d.source as GraphNode).y || 0)
-        .attr('x2', (d: GraphLink) => {
-          const src = d.source as GraphNode, tgt = d.target as GraphNode;
-          const dx = (tgt.x || 0) - (src.x || 0);
-          const dy = (tgt.y || 0) - (src.y || 0);
-          const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-          return (tgt.x || 0) - (dx / dist) * ((tgt.size || 10) + 2);
-        })
-        .attr('y2', (d: GraphLink) => {
-          const src = d.source as GraphNode, tgt = d.target as GraphNode;
-          const dx = (tgt.x || 0) - (src.x || 0);
-          const dy = (tgt.y || 0) - (src.y || 0);
-          const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-          return (tgt.y || 0) - (dy / dist) * ((tgt.size || 10) + 2);
-        });
+        .attr('d', (d: GraphLink) => getTrimmedCurve(d).path);
       typeHubG.attr('transform', (d: GraphNode) => `translate(${d.x || 0},${d.y || 0})`);
       instanceG.attr('transform', (d: GraphNode) => `translate(${d.x || 0},${d.y || 0})`);
-      actionG.attr('transform', (d: GraphNode) => `translate(${d.x || 0},${d.y || 0})`);
+      actionG
+        .style('display', (d: GraphNode) => hideActions ? 'none' : null)
+        .attr('transform', (d: GraphNode) => `translate(${d.x || 0},${d.y || 0})`);
       labelEls
-        .attr('x', (d: GraphNode) => (d.x || 0) + (d.size || 10) + 5)
+        .style('display', (d: GraphNode) => (hideLabels && d.group !== 'typeHub') ? 'none' : null)
+        .attr('x', (d: GraphNode) => (d.x || 0) + getVisualRadius(d) + 7)
         .attr('y', (d: GraphNode) => (d.y || 0) + 4);
       linkLabelEls
-        .attr('x', (d: GraphLink) => (((d.source as GraphNode).x || 0) + ((d.target as GraphNode).x || 0)) / 2)
-        .attr('y', (d: GraphLink) => (((d.source as GraphNode).y || 0) + ((d.target as GraphNode).y || 0)) / 2 - 4);
+        .style('display', () => hideLabels ? 'none' : null)
+        .attr('x', (d: GraphLink) => getTrimmedCurve(d).labelX)
+        .attr('y', (d: GraphLink) => getTrimmedCurve(d).labelY);
     };
 
     // Flush any pending tick when simulation pauses
@@ -909,10 +1065,49 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void }> = ({ on
     // Event handlers
     const allNodeGroups = nodeContainer.selectAll<SVGGElement, GraphNode>('g.nv-node');
     allNodeGroupsRef.current = allNodeGroups;
+    allNodeGroups.on('mouseover', (event: MouseEvent, d: GraphNode) => {
+      // Highlight hovered node and its immediate connections
+      d3.selectAll<SVGPathElement, GraphLink>('.nv-link-instance')
+        .style('opacity', (l: GraphLink) => {
+          if (!showWeakLinks && l.weight !== undefined && l.weight < weightThreshold) return '0';
+          const s = typeof l.source === 'object' ? (l.source as GraphNode).id : l.source;
+          const t = typeof l.target === 'object' ? (l.target as GraphNode).id : l.target;
+          if (s === d.id || t === d.id) return 1;
+          return 0.2;
+        });
+      // Show edge labels only for links connected to the hovered node
+      d3.selectAll<SVGTextElement, GraphLink>('.nv-linktype-label')
+        .style('opacity', (l: GraphLink) => {
+          const s = typeof l.source === 'object' ? (l.source as GraphNode).id : l.source;
+          const t = typeof l.target === 'object' ? (l.target as GraphNode).id : l.target;
+          return s === d.id || t === d.id ? 1 : 0;
+        });
+      // Position tooltip relative to the SVG container
+      const svgRect = svgRef.current?.getBoundingClientRect();
+      if (svgRect) {
+        setTooltipPos({ x: event.clientX - svgRect.left, y: event.clientY - svgRect.top });
+      }
+      setHoveredNode(d);
+    });
+    allNodeGroups.on('mousemove', (event: MouseEvent) => {
+      const svgRect = svgRef.current?.getBoundingClientRect();
+      if (svgRect) {
+        setTooltipPos({ x: event.clientX - svgRect.left, y: event.clientY - svgRect.top });
+      }
+    });
+    allNodeGroups.on('mouseout', () => {
+      d3.selectAll<SVGTextElement, GraphLink>('.nv-linktype-label').style('opacity', scopeMode === 'all' ? '0' : '0.82');
+      d3.selectAll<SVGPathElement, GraphLink>('.nv-link-instance')
+        .style('opacity', (l: GraphLink) => {
+          if (!showWeakLinks && l.weight !== undefined && l.weight < weightThreshold) return '0';
+          const w = Math.max(0.3, Math.min(1.0, l.weight ?? 0.5));
+          return (0.45 + (w - 0.3) * 0.79).toFixed(2);
+        });
+      setHoveredNode(null);
+    });
     allNodeGroups.on('click', (event: MouseEvent, d: GraphNode) => {
       event.stopPropagation();
       setSelectedNode(d);
-      highlightSelectedNode(d.id, nodes, linkEls, labelEls, allNodeGroups);
       showNodeInfo(d, data);
       (window as any).__currentNodeId = d.id;
     });
@@ -927,16 +1122,22 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void }> = ({ on
     });
     allNodeGroups.on('contextmenu', (event: MouseEvent, d: GraphNode) => {
       event.preventDefault();
-      toggleNodeCollapse(d.id, nodes, links, allNodeGroups, labelEls, linkEls, collapsedRef.current);
+      toggleNodeCollapse(d.id, nodes, renderLinks, allNodeGroups, labelEls, linkEls, collapsedRef.current);
     });
     svg.on('click', () => {
       setSelectedNode(null);
       setFocusedNodeId(null);
+      setHoveredNode(null);
       (window as any).__currentNodeId = null;
-      resetHighlights(nodes, linkEls, labelEls, allNodeGroups);
+      (window as any).__focusedNodeId = null;
     });
 
     setD3Ready(true);
+
+    // P1-Fix: Fallback fitAll — ensures labels/edges are visible even if the
+    // simulation's onEnd callback never fires (e.g. simulation killed before cooling down).
+    // Triggers after mount so the SVG and __d3FitAll are guaranteed to exist.
+    const fitAllTimer = setTimeout(() => { (window as any).__d3FitAll?.(); }, 200);
 
     // ResizeObserver
     const ro = new ResizeObserver(() => {
@@ -950,14 +1151,16 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void }> = ({ on
 
     return () => {
       clearInterval(enforceInterval);
+      clearTimeout(fitAllTimer);
       ro.disconnect();
       simulationRef.current?.stop();
       const el = document.getElementById(styleId);
       if (el) el.remove();
       delete (window as any).__d3FitAll;
       delete (window as any).__currentNodeId;
+      delete (window as any).__hubNodeId;
     };
-  }, [graphData]);
+  }, [graphData, state.objectTypes.length, state.objects.length, state.initState]);
 
   // Dynamic Simulation Physics Updates
   useEffect(() => {
@@ -984,44 +1187,115 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void }> = ({ on
     sim.alpha(0.3).restart();
   }, [chargeStrength, linkDistance, collisionRadius]);
 
-  // Focus Mode Visual Updates
+  // Highlight Mode Visual Updates (Selection & Focus)
   useEffect(() => {
     if (!svgRef.current || !graphData) return;
     const svg = d3.select(svgRef.current);
     
-    if (!focusedNodeId) {
+    const activeHighlightId = selectedNode?.id || focusedNodeId;
+    (window as any).__currentNodeId = selectedNode?.id || null;
+    (window as any).__focusedNodeId = focusedNodeId;
+    
+    // Reset all selection classes first
+    svg.selectAll('.nv-node')
+       .classed('nv-highlight-node', false)
+       .classed('nv-selected-pulse', false);
+    svg.selectAll('.nv-node-label')
+       .classed('nv-label-selected', false);
+
+    if (!activeHighlightId) {
       svg.selectAll('.nv-node, .nv-link-instance, .nv-link-typeinst, .nv-link-action, .nv-node-label, .nv-linktype-label')
          .classed('nv-dim', false)
          .classed('nv-dim-label', false);
+      svg.selectAll('.nv-link-instance, .nv-link-typeinst, .nv-link-action')
+         .style('stroke', null)
+         .style('stroke-width', null)
+         .style('opacity', null);
+      svg.selectAll('.nv-linktype-label')
+         .style('opacity', scopeMode === 'all' ? '0' : '0.82');
       return;
     }
 
     const connectedIds = new Set<string>();
-    connectedIds.add(focusedNodeId);
+    connectedIds.add(activeHighlightId);
     
     graphData.links.forEach(l => {
       const sId = typeof l.source === 'object' ? (l.source as any).id : l.source;
       const tId = typeof l.target === 'object' ? (l.target as any).id : l.target;
-      if (sId === focusedNodeId) connectedIds.add(tId);
-      if (tId === focusedNodeId) connectedIds.add(sId);
+      if (sId === activeHighlightId) connectedIds.add(tId);
+      if (tId === activeHighlightId) connectedIds.add(sId);
     });
 
-    svg.selectAll('.nv-node').classed('nv-dim', (d: any) => !connectedIds.has(d.id));
-    svg.selectAll('.nv-node-label').classed('nv-dim-label', (d: any) => !connectedIds.has(d.id));
+    // 1. Nodes highlighting & dimming
+    svg.selectAll('.nv-node')
+       .classed('nv-dim', (d: any) => !connectedIds.has(d.id))
+       .classed('nv-highlight-node', (d: any) => d.id === activeHighlightId)
+       .classed('nv-selected-pulse', (d: any) => d.id === activeHighlightId);
+       
+    svg.selectAll('.nv-node-label')
+       .classed('nv-dim-label', (d: any) => !connectedIds.has(d.id))
+       .classed('nv-label-selected', (d: any) => d.id === activeHighlightId);
     
-    svg.selectAll('.nv-link-instance, .nv-link-typeinst, .nv-link-action').classed('nv-dim', (l: any) => {
-      const sId = typeof l.source === 'object' ? (l.source as any).id : l.source;
-      const tId = typeof l.target === 'object' ? (l.target as any).id : l.target;
-      return sId !== focusedNodeId && tId !== focusedNodeId;
-    });
-    
-    svg.selectAll('.nv-linktype-label').classed('nv-dim-label', (l: any) => {
-      const sId = typeof l.source === 'object' ? (l.source as any).id : l.source;
-      const tId = typeof l.target === 'object' ? (l.target as any).id : l.target;
-      return sId !== focusedNodeId && tId !== focusedNodeId;
-    });
+    // 2. Links highlighting & dimming
+    svg.selectAll('.nv-link-instance, .nv-link-typeinst, .nv-link-action')
+      .classed('nv-dim', (l: any) => {
+        const sId = typeof l.source === 'object' ? (l.source as any).id : l.source;
+        const tId = typeof l.target === 'object' ? (l.target as any).id : l.target;
+        return sId !== activeHighlightId && tId !== activeHighlightId;
+      })
+      .style('stroke', (l: any) => {
+        const sId = typeof l.source === 'object' ? (l.source as any).id : l.source;
+        const tId = typeof l.target === 'object' ? (l.target as any).id : l.target;
+        if (sId === activeHighlightId || tId === activeHighlightId) {
+          // Highlight with high-contrast tech color
+          return '#66d9ef';
+        }
+        return l.color;
+      })
+      .style('stroke-width', (l: any) => {
+        const sId = typeof l.source === 'object' ? (l.source as any).id : l.source;
+        const tId = typeof l.target === 'object' ? (l.target as any).id : l.target;
+        if (sId === activeHighlightId || tId === activeHighlightId) {
+          return '3px';
+        }
+        const w = Math.max(0.3, Math.min(1.0, l.weight ?? 0.5));
+        return `${(1 + (w - 0.3) * 2.0).toFixed(2)}px`;
+      })
+      .style('opacity', (l: any) => {
+        const sId = typeof l.source === 'object' ? (l.source as any).id : l.source;
+        const tId = typeof l.target === 'object' ? (l.target as any).id : l.target;
+        if (sId === activeHighlightId || tId === activeHighlightId) {
+          return '1.0';
+        }
+        return '0.08';
+      });
+      
+    svg.selectAll('.nv-linktype-label')
+      .classed('nv-dim-label', (l: any) => {
+        const sId = typeof l.source === 'object' ? (l.source as any).id : l.source;
+        const tId = typeof l.target === 'object' ? (l.target as any).id : l.target;
+        return sId !== activeHighlightId && tId !== activeHighlightId;
+      })
+      .style('opacity', (l: any) => {
+        const sId = typeof l.source === 'object' ? (l.source as any).id : l.source;
+        const tId = typeof l.target === 'object' ? (l.target as any).id : l.target;
+        return sId === activeHighlightId || tId === activeHighlightId ? '1.0' : '0.0';
+      });
 
-  }, [focusedNodeId, graphData]);
+  }, [focusedNodeId, selectedNode, graphData, scopeMode]);
+
+  // Weight Threshold Filter — update link display when threshold changes
+  useEffect(() => {
+    if (!svgRef.current) return;
+    const svg = d3.select(svgRef.current);
+    svg.selectAll<SVGPathElement, GraphLink>('.nv-link-instance')
+      .style('display', (d: GraphLink) => !showWeakLinks && d.weight < weightThreshold ? 'none' : null)
+      .style('opacity', (d: GraphLink) => {
+        if (!showWeakLinks && d.weight < weightThreshold) return '0';
+        const w = Math.max(0.3, Math.min(1.0, d.weight ?? 0.5));
+        return (0.45 + (w - 0.3) * 0.79).toFixed(2);
+      });
+  }, [weightThreshold, showWeakLinks]);
 
   // ==================== Helpers ====================
 
@@ -1029,7 +1303,7 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void }> = ({ on
     nodeId: string, nodes: GraphNode[], links: GraphLink[],
     allNodeGroups: d3.Selection<SVGGElement, GraphNode, SVGGElement, unknown>,
     labelEls: d3.Selection<SVGTextElement, GraphNode, SVGGElement, unknown>,
-    linkEls: d3.Selection<SVGLineElement, GraphLink, SVGGElement, unknown>,
+    linkEls: d3.Selection<SVGPathElement, GraphLink, SVGGElement, unknown>,
     collapsed: Set<string>
   ) {
     const getConnNodes = (id: string) => {
@@ -1086,12 +1360,18 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void }> = ({ on
 
   function highlightSelectedNode(
     nodeId: string, nodes: GraphNode[],
-    linkEls: d3.Selection<SVGLineElement, GraphLink, SVGGElement, unknown>,
+    linkEls: d3.Selection<SVGPathElement, GraphLink, SVGGElement, unknown>,
     labelEls: d3.Selection<SVGTextElement, GraphNode, SVGGElement, unknown>,
     allNodeGroups: d3.Selection<SVGGElement, GraphNode, SVGGElement, unknown>
   ) {
-    d3.selectAll<SVGLineElement, GraphLink>('.nv-link-instance').style('stroke', '#FFD166').style('opacity', 0.88);
-    d3.selectAll<SVGTextElement, GraphNode>('.nv-node-label').style('fill', 'white').style('font-size', null).style('font-weight', null);
+    // Restore weight-mapped styles before applying selection highlight
+    linkEls.style('opacity', (d: GraphLink) => {
+      const w = Math.max(0.3, Math.min(1.0, d.weight ?? 0.5));
+      return (0.45 + (w - 0.3) * 0.79).toFixed(2);
+    }).style('stroke-width', (d: GraphLink) => {
+      const w = Math.max(0.3, Math.min(1.0, d.weight ?? 0.5));
+      return `${(1 + (w - 0.3) * 5.0).toFixed(2)}px`;
+    });
 
     allNodeGroups.classed('nv-highlight-node', (d: GraphNode) => d.id === nodeId);
     allNodeGroups.classed('nv-selected-pulse', (d: GraphNode) => d.id === nodeId);
@@ -1101,24 +1381,45 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void }> = ({ on
       .style('opacity', (l: GraphLink) => {
         const s = typeof l.source === 'object' ? (l.source as GraphNode).id : l.source;
         const t = typeof l.target === 'object' ? (l.target as GraphNode).id : l.target;
-        return s === nodeId || t === nodeId ? 1 : 0.3;
+        return s === nodeId || t === nodeId ? 1 : 0.25;
       })
-      .style('stroke', (l: GraphLink) => {
+      .style('stroke-width', (l: GraphLink) => {
         const s = typeof l.source === 'object' ? (l.source as GraphNode).id : l.source;
         const t = typeof l.target === 'object' ? (l.target as GraphNode).id : l.target;
-        return s === nodeId || t === nodeId ? '#FFD166' : l.color;
+        if (s !== nodeId && t !== nodeId) {
+          const w = Math.max(0.3, Math.min(1.0, l.weight ?? 0.5));
+          return `${(1 + (w - 0.3) * 5.0).toFixed(2)}px`;
+        }
+        const w = Math.max(0.3, Math.min(1.0, l.weight ?? 0.5));
+        const baseW = 1 + (w - 0.3) * 5.0;
+        return `${(baseW * 1.6).toFixed(2)}px`;
       });
   }
 
   function resetHighlights(
     nodes: GraphNode[],
-    linkEls: d3.Selection<SVGLineElement, GraphLink, SVGGElement, unknown>,
+    linkEls: d3.Selection<SVGPathElement, GraphLink, SVGGElement, unknown>,
     labelEls: d3.Selection<SVGTextElement, GraphNode, SVGGElement, unknown>,
     allNodeGroups: d3.Selection<SVGGElement, GraphNode, SVGGElement, unknown>
   ) {
-    d3.selectAll<SVGLineElement, GraphLink>('.nv-link-instance').style('opacity', 0.88).style('stroke', '#FFD166');
-    d3.selectAll<SVGLineElement, GraphLink>('.nv-link-typeinst').style('opacity', 0.7).style('stroke', 'rgba(255,255,255,0.45)');
-    d3.selectAll<SVGLineElement, GraphLink>('.nv-link-action').style('opacity', 0.75).style('stroke', '#FF9CF7');
+    // Restore weight-mapped styles for instance links
+    linkEls.filter((d: GraphLink) => d._linkTypeId !== undefined)
+      .style('opacity', (d: GraphLink) => {
+        const w = Math.max(0.3, Math.min(1.0, d.weight ?? 0.5));
+        return (0.45 + (w - 0.3) * 0.79).toFixed(2);
+      })
+      .style('stroke-width', (d: GraphLink) => {
+        const w = Math.max(0.3, Math.min(1.0, d.weight ?? 0.5));
+        return `${(1 + (w - 0.3) * 5.0).toFixed(2)}px`;
+      })
+      .style('stroke-dasharray', (d: GraphLink) => {
+        if (d._linkTypeId === undefined) return null;
+        return LINKTYPE_DASH[(d._linkTypeId - 1) % LINKTYPE_DASH.length];
+      });
+    d3.selectAll<SVGPathElement, GraphLink>('.nv-link-typeinst')
+      .style('opacity', 0.42).style('stroke-width', '1px');
+    d3.selectAll<SVGPathElement, GraphLink>('.nv-link-action')
+      .style('opacity', 0.78).style('stroke-width', '1.6px');
     labelEls.style('fill', 'white').style('font-size', null).style('font-weight', null).classed('nv-label-selected', false);
     allNodeGroups.classed('nv-highlight-node', false).classed('nv-selected-pulse', false);
     setInfoContent('');
@@ -1185,13 +1486,11 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void }> = ({ on
 
   // ==================== Search ====================
   useEffect(() => {
-    // Wait for D3 to finish initial render before applying search highlights
-    if (!svgRef.current || !d3Ready) return;
+    if (!svgRef.current) return;
+    if (!graphData || graphData.nodes.length === 0) return;
     const isActive = searchTerm.trim().length > 0;
     const terms = searchTerm.toLowerCase().split(/\s+/).filter(Boolean);
-    if (!graphDataRef.current) return;
-
-    const nodes = graphDataRef.current.nodes;
+    const nodes = graphData.nodes;
     const matched = nodes.filter(n =>
       terms.some(t =>
         n.label.toLowerCase().includes(t) ||
@@ -1208,14 +1507,17 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void }> = ({ on
       .classed('nv-dim-label', (d: GraphNode) => isActive && !matched.includes(d.id))
       .classed('nv-label-match', (d: GraphNode) => matched.includes(d.id) && isActive)
       .style('fill', (d: GraphNode) => matched.includes(d.id) && isActive ? '#00BFFF' : 'white');
-    d3.selectAll<SVGLineElement, GraphLink>('.nv-link-instance')
+    d3.selectAll<SVGPathElement, GraphLink>('.nv-link-instance')
       .style('opacity', (l: GraphLink) => {
-        if (!isActive) return 0.88;
+        if (!isActive) {
+          const w = Math.max(0.3, Math.min(1.0, l.weight ?? 0.5));
+          return (0.45 + (w - 0.3) * 0.79).toFixed(2);
+        }
         const s = typeof l.source === 'object' ? (l.source as GraphNode).id : l.source;
         const t = typeof l.target === 'object' ? (l.target as GraphNode).id : l.target;
-        return matched.includes(s) || matched.includes(t) ? 1 : 0.05;
+        return matched.includes(s) || matched.includes(t) ? 1 : 0.08;
       });
-  }, [searchTerm, d3Ready]);
+  }, [searchTerm, graphData]);
 
   const navigateSearch = (dir: 1 | -1) => {
     const results = searchHighlightedRef.current;
@@ -1313,7 +1615,7 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void }> = ({ on
       const typeHubNodes = data.nodes.filter(n => n.group === 'typeHub');
       const W = containerRef.current.clientWidth;
       const H = containerRef.current.clientHeight;
-      computeInitialPositions(data.nodes, typeHubNodes, W, H, undefined);
+      computeInitialPositions(data.nodes, typeHubNodes, W, H, rawLinksRef.current);
     }
     sim.alpha(1).restart();
     sim.on('end', () => { (window as any).__d3FitAll?.(); });
@@ -1327,7 +1629,31 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void }> = ({ on
     d3.select(svgRef.current).transition().duration(300).call(zoomRef.current.scaleBy, 1 / 1.4);
   };
 
+  const toggleRelationType = (id: number) => {
+    setActiveRelationTypes(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   const stats = graphData ? { nodes: graphData.nodes.length, links: graphData.links.length } : { nodes: 0, links: 0 };
+  const fullStats = fullGraphData ? { nodes: fullGraphData.nodes.length, links: fullGraphData.links.length } : stats;
+  const focusNode = fullGraphData?.nodes.find(n => n.id === focusedNodeId) || graphData?.nodes.find(n => n.id === focusedNodeId) || null;
+  const relationLegendItems = fullGraphData
+    ? Object.values(fullGraphData.linkTypeMap).map((lt) => {
+        const sample = fullGraphData.links.find(l => l._linkTypeId === lt.id);
+        return {
+          id: lt.id,
+          name: lt.name || `LinkType ${lt.id}`,
+          description: lt.description || '',
+          color: sample?.color || LINKTYPE_COLORS[(lt.id - 1) % LINKTYPE_COLORS.length],
+          count: fullGraphData.links.filter(l => l._linkTypeId === lt.id).length,
+          visibleCount: graphData?.links.filter(l => l._linkTypeId === lt.id).length || 0,
+        };
+      })
+    : [];
 
   // ==================== Styles ====================
   // Monokai-inspired palette for D3 overlay panels
@@ -1404,6 +1730,130 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void }> = ({ on
           }
         }}
       />
+
+      {graphData && fullGraphData && (
+        <div
+          onMouseEnter={() => setIsPanelHovered(true)}
+          onMouseLeave={() => setIsPanelHovered(false)}
+          style={{
+            position: 'absolute',
+            top: 12,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 1000,
+            ...panelBase,
+            padding: isPanelHovered ? '8px 10px' : '4px 12px',
+            width: isPanelHovered ? 'min(760px, calc(100% - 220px))' : 'auto',
+            minWidth: 0,
+            boxShadow: '0 10px 28px rgba(0,0,0,0.35)',
+            borderRadius: isPanelHovered ? '8px' : '20px',
+            transition: 'all 0.2s ease-in-out',
+            opacity: isPanelHovered ? 1 : 0.85,
+            border: isPanelHovered ? panelBase.border : '1.5px dashed rgba(255, 209, 102, 0.4)',
+            cursor: 'pointer',
+          }}
+        >
+          {!isPanelHovered ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#FFD166', whiteSpace: 'nowrap' }}>
+              <span style={{
+                display: 'inline-block',
+                width: 6,
+                height: 6,
+                borderRadius: '50%',
+                background: '#FFD166',
+                boxShadow: '0 0 6px #FFD166',
+              }} />
+              核心节点与关系筛选面板 (悬浮展开)
+            </div>
+          ) : (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <div style={{ minWidth: 150, flex: '1 1 170px' }}>
+              <div style={{ fontSize: 10, color: '#9ca3af', marginBottom: 2 }}>核心节点</div>
+              <select
+                value={focusedNodeId || ''}
+                onChange={e => { setFocusedNodeId(e.target.value || null); setScopeMode('focus'); }}
+                style={{
+                  width: '100%', background: 'rgba(13,12,10,0.92)', color: '#f8f8f2',
+                  border: '1px solid rgba(245,239,224,0.16)', borderRadius: 6,
+                  padding: '4px 8px', fontSize: 11, outline: 'none',
+                }}
+              >
+                {fullGraphData.nodes.filter(n => n.group === 'instance').map(node => (
+                  <option key={node.id} value={node.id}>{node.label}</option>
+                ))}
+              </select>
+            </div>
+            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+              {[
+                { id: 'focus' as ScopeMode, label: '一跳' },
+                { id: 'two-hop' as ScopeMode, label: '二跳' },
+                { id: 'all' as ScopeMode, label: '全图' },
+              ].map(item => (
+                <button
+                  key={item.id}
+                  onClick={() => setScopeMode(item.id)}
+                  style={{
+                    ...btnStyle,
+                    borderColor: scopeMode === item.id ? '#FFD166' : 'rgba(245,239,224,0.12)',
+                    color: scopeMode === item.id ? '#FFD166' : '#f8f8f2',
+                    background: scopeMode === item.id ? 'rgba(255,209,102,0.12)' : btnStyle.background,
+                  }}
+                >
+                  {item.label}
+                </button>
+              ))}
+              <button
+                onClick={() => setShowWeakLinks(v => !v)}
+                style={{
+                  ...btnStyle,
+                  borderColor: showWeakLinks ? '#50fa7b' : 'rgba(245,239,224,0.12)',
+                  color: showWeakLinks ? '#50fa7b' : '#f8f8f2',
+                }}
+              >
+                {showWeakLinks ? '含弱关系' : '强关系'}
+              </button>
+            </div>
+            <div style={{ color: '#cbd5e1', fontSize: 11, whiteSpace: 'nowrap', marginLeft: 'auto' }}>
+              {stats.nodes}/{fullStats.nodes} 节点 · {stats.links}/{fullStats.links} 边
+            </div>
+          </div>
+          {relationLegendItems.length > 0 && (
+            <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginTop: 7 }}>
+              {relationLegendItems.map(item => {
+                const active = activeRelationTypes.size === 0 || activeRelationTypes.has(item.id);
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => toggleRelationType(item.id)}
+                    title={item.description}
+                    style={{
+                      ...btnStyle,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 5,
+                      padding: '3px 7px',
+                      opacity: active ? 1 : 0.42,
+                      borderColor: active ? item.color : 'rgba(245,239,224,0.12)',
+                    }}
+                  >
+                    <span style={{ width: 14, height: 2, background: item.color, display: 'inline-block' }} />
+                    <span>{item.name}</span>
+                    <span style={{ color: '#9ca3af' }}>{item.visibleCount}/{item.count}</span>
+                  </button>
+                );
+              })}
+              {activeRelationTypes.size > 0 && (
+                <button onClick={() => setActiveRelationTypes(new Set())} style={{ ...btnStyle, color: '#9ca3af' }}>
+                  全部类型
+                </button>
+              )}
+            </div>
+          )}
+            </>
+          )}
+        </div>
+      )}
 
       {/* ==================== EMPTY / UNINITIALIZED STATE ==================== */}
       {!loading && !graphData && (
@@ -1569,8 +2019,42 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void }> = ({ on
                 <input type="range" min="0" max="50" value={collisionRadius} onChange={e => setCollisionRadius(Number(e.target.value))} style={{ flex: 1, accentColor: '#FF9CF7', height: 4 }} />
               </label>
               <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                <button onClick={() => { setLinkDistance(80); setChargeStrength(-250); setCollisionRadius(8); }} style={{ ...btnStyle, fontSize: 9, padding: '2px 6px', opacity: 0.8 }}>复位力场</button>
+                <button onClick={() => { setLinkDistance(100); setChargeStrength(-80); setCollisionRadius(4); }} style={{ ...btnStyle, fontSize: 9, padding: '2px 6px', opacity: 0.8 }}>复位力场</button>
               </div>
+            </div>
+          </div>
+
+          {/* Link Weight Filter */}
+          <div style={{ marginTop: 10, borderTop: '1px solid #333', paddingTop: 8 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+              <strong style={{ fontSize: 11 }}>关系强度过滤</strong>
+              <span style={{ fontSize: 10, color: '#FFD166' }}>
+                {weightThreshold === 0 ? '显示全部' : `隐藏 weight &lt; ${weightThreshold}`}
+              </span>
+            </div>
+            <label style={{ display: 'flex', alignItems: 'center', fontSize: 10, gap: 8 }}>
+              <span style={{ width: 36, color: '#888' }}>过滤阈值</span>
+              <input
+                type="range" min="0" max="0.9" step="0.05"
+                value={weightThreshold}
+                onChange={e => setWeightThreshold(Number(e.target.value))}
+                style={{ flex: 1, accentColor: '#FFD166', height: 4 }}
+              />
+              <span style={{ width: 24, color: '#ccc', fontSize: 10, textAlign: 'right' }}>{weightThreshold.toFixed(1)}</span>
+            </label>
+            <div style={{ display: 'flex', gap: 4, marginTop: 6 }}>
+              <button
+                onClick={() => setWeightThreshold(0)}
+                style={{ ...btnStyle, flex: 1, fontSize: 9, padding: '3px 6px', borderColor: weightThreshold === 0 ? '#FFD166' : undefined, color: weightThreshold === 0 ? '#FFD166' : undefined }}
+              >全部</button>
+              <button
+                onClick={() => setWeightThreshold(0.5)}
+                style={{ ...btnStyle, flex: 1, fontSize: 9, padding: '3px 6px', borderColor: weightThreshold === 0.5 ? '#FFD166' : undefined, color: weightThreshold === 0.5 ? '#FFD166' : undefined }}
+              >强关系 (0.5)</button>
+              <button
+                onClick={() => setWeightThreshold(0.7)}
+                style={{ ...btnStyle, flex: 1, fontSize: 9, padding: '3px 6px', borderColor: weightThreshold === 0.7 ? '#FFD166' : undefined, color: weightThreshold === 0.7 ? '#FFD166' : undefined }}
+              >核心 (0.7)</button>
             </div>
           </div>
 
@@ -1697,7 +2181,25 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void }> = ({ on
             <span style={{ fontSize: 11, color: '#ccc' }}>属性数量徽标 (右下角)</span>
           </div>
           <div style={{ borderTop: '1px solid #333', paddingTop: 6, marginTop: 4 }}>
-            <div style={{ display: 'flex', alignItems: 'center', marginTop: 4 }}>
+            {relationLegendItems.map(item => (
+              <div key={item.id} style={{ display: 'flex', alignItems: 'center', marginTop: 4 }} title={item.description}>
+                <svg width="36" height="10" style={{ marginRight: 5 }}>
+                  <defs>
+                    <marker id={`leg-arrow-linktype-${item.id}`} markerWidth="6" markerHeight="4" refX="6" refY="2" orient="auto">
+                      <polygon points="0 0, 6 2, 0 4" fill={item.color} />
+                    </marker>
+                  </defs>
+                  <line
+                    x1="0" y1="5" x2="26" y2="5"
+                    stroke={item.color} strokeWidth="2.5"
+                    strokeDasharray={LINKTYPE_DASH[(item.id - 1) % LINKTYPE_DASH.length]}
+                    markerEnd={`url(#leg-arrow-linktype-${item.id})`}
+                  />
+                </svg>
+                <span style={{ fontSize: 11, color: '#ccc' }}>{item.name} ({item.count})</span>
+              </div>
+            ))}
+            {false && <div style={{ display: 'flex', alignItems: 'center', marginTop: 4 }}>
               <svg width="36" height="10" style={{ marginRight: 5 }}>
                 <defs>
                   <marker id="leg-arrow-amber" markerWidth="6" markerHeight="4" refX="6" refY="2" orient="auto">
@@ -1713,15 +2215,20 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void }> = ({ on
                 <line x1="0" y1="5" x2="26" y2="5" stroke="#FFD166" strokeWidth="2.5" markerEnd="url(#leg-arrow-amber)" />
               </svg>
               <span style={{ fontSize: 11, color: '#ccc' }}>关系连线</span>
-            </div>
+            </div>}
             <div style={{ display: 'flex', alignItems: 'center', marginTop: 4 }}>
               <svg width="36" height="10" style={{ marginRight: 5 }}>
-                <line x1="0" y1="5" x2="26" y2="5" stroke="rgba(255,255,255,0.45)" strokeWidth="1.5" strokeDasharray="5 3" markerEnd="url(#leg-arrow-gray)" />
+                <line x1="0" y1="5" x2="26" y2="5" stroke="rgba(255,255,255,0.45)" strokeWidth="1.2" strokeDasharray="5 3" />
               </svg>
               <span style={{ fontSize: 11, color: '#ccc' }}>类型归属 (虚线)</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', marginTop: 4 }}>
               <svg width="36" height="10" style={{ marginRight: 5 }}>
+                <defs>
+                  <marker id="leg-arrow-lavender" markerWidth="6" markerHeight="4" refX="6" refY="2" orient="auto">
+                    <polygon points="0 0, 6 2, 0 4" fill="#FF9CF7" />
+                  </marker>
+                </defs>
                 <line x1="0" y1="5" x2="26" y2="5" stroke="#FF9CF7" strokeWidth="1" markerEnd="url(#leg-arrow-lavender)" />
               </svg>
               <span style={{ fontSize: 11, color: '#ccc' }}>行动连线</span>
@@ -1739,11 +2246,10 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void }> = ({ on
       {/* ==================== TOP-CENTER: Compact Search ==================== */}
       {graphData && (
         <div style={{
-          position: 'absolute', top: 10,
-          left: showControls ? 300 : 180, zIndex: 1000,
+          position: 'absolute', right: 10, bottom: 10, zIndex: 1000,
           background: 'rgba(39,40,34,0.88)', border: '1px solid rgba(245,239,224,0.15)', borderRadius: 6,
           padding: '6px 12px', display: 'flex', alignItems: 'center', gap: 8,
-          transition: 'left 0.3s',
+          maxWidth: 'min(280px, calc(100% - 20px))',
         }}>
           <span style={{ fontSize: 11, color: '#888' }}>🔎</span>
           <input
@@ -1754,7 +2260,7 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void }> = ({ on
               if (e.key === 'Enter') navigateSearch(1);
               else if (e.key === 'Escape') setSearchTerm('');
             }}
-            placeholder="搜索... (Alt+S)"
+            placeholder="搜索节点... (Alt+S)"
             style={{ background: 'transparent', color: 'white', border: 'none', outline: 'none', fontSize: 12, width: 200 }}
           />
           {searchTerm && (
@@ -1824,6 +2330,158 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void }> = ({ on
         <CanvasHelpPanel
           config={{ type: 'graph' }}
           onClose={() => setShowHelp(false)}
+        />
+      )}
+
+      {/* ==================== Hover Tooltip Card ==================== */}
+      {hoveredNode && graphData && (
+        <div
+          style={{
+            position: 'absolute',
+            left: Math.min(tooltipPos.x + 14, (containerRef.current?.clientWidth ?? 800) - 260),
+            top: Math.min(tooltipPos.y - 8, (containerRef.current?.clientHeight ?? 600) - 320),
+            zIndex: 1500,
+            minWidth: 220,
+            maxWidth: 260,
+            background: 'rgba(13,12,10,0.96)',
+            border: `1.5px solid ${hoveredNode.color || 'rgba(245,239,224,0.2)'}`,
+            borderRadius: 10,
+            padding: '10px 12px',
+            pointerEvents: 'none',
+            boxShadow: `0 4px 20px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.04)`,
+            backdropFilter: 'blur(8px)',
+          }}
+        >
+          {(() => {
+            const d = hoveredNode;
+            const connLinks = graphData.links.filter(l => {
+              const s = typeof l.source === 'object' ? (l.source as GraphNode).id : l.source;
+              const t = typeof l.target === 'object' ? (l.target as GraphNode).id : l.target;
+              return s === d.id || t === d.id;
+            });
+            const nodeMap = new Map(graphData.nodes.map(n => [n.id, n]));
+            const getNodeLabel = (id: string) => nodeMap.get(id)?.label || id;
+
+            // Collect connected nodes grouped by link type
+            const connMap: Record<string, { label: string; weight: number }[]> = {};
+            connLinks.forEach(l => {
+              const s = typeof l.source === 'object' ? (l.source as GraphNode).id : l.source;
+              const t = typeof l.target === 'object' ? (l.target as GraphNode).id : l.target;
+              const otherId = s === d.id ? t : s;
+              const otherNode = nodeMap.get(otherId);
+              if (!otherNode) return;
+              const relName = l._linkTypeName || graphData.linkTypeMap[l._linkTypeId ?? -1]?.name || '关联';
+              if (!connMap[relName]) connMap[relName] = [];
+              if (!connMap[relName].find(c => c.label === otherNode.label)) {
+                connMap[relName].push({ label: otherNode.label, weight: Number(l.weight) || 0.5 });
+              }
+            });
+
+            return (
+              <>
+                {/* Header: label + type */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                  <div style={{
+                    width: 10, height: 10, borderRadius: '50%',
+                    background: d.color, flexShrink: 0,
+                    boxShadow: `0 0 6px ${d.color}80`,
+                  }} />
+                  <span style={{ fontSize: 13, fontWeight: 700, color: '#f8f8f2', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {d.label}
+                  </span>
+                </div>
+
+                {/* Type badge */}
+                <div style={{ marginBottom: 8 }}>
+                  {d.group === 'typeHub' && (
+                    <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, background: `${d.color}30`, color: d.color, border: `1px solid ${d.color}50`, fontWeight: 600 }}>
+                      类型 {d._instanceCount !== undefined ? `· ${d._instanceCount} 个实例` : ''}
+                    </span>
+                  )}
+                  {d.group === 'instance' && (
+                    <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, background: `${d.color}30`, color: d.color, border: `1px solid ${d.color}50`, fontWeight: 600 }}>
+                      实例
+                    </span>
+                  )}
+                  {d.group === 'action' && (
+                    <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, background: `${d.color}30`, color: d.color, border: `1px solid ${d.color}50`, fontWeight: 600 }}>
+                      行动
+                    </span>
+                  )}
+                </div>
+
+                {/* TypeHub: show description */}
+                {d.group === 'typeHub' && d.description && (
+                  <div style={{ fontSize: 10, color: '#888', marginBottom: 6, lineHeight: 1.5 }}>
+                    {d.description.slice(0, 60)}{d.description.length > 60 ? '…' : ''}
+                  </div>
+                )}
+
+                {/* Instance: show top properties */}
+                {d.group === 'instance' && d._propsRaw && (() => {
+                  let parsed: Record<string, any> = {};
+                  try { parsed = JSON.parse(d._propsRaw); } catch { /* non-JSON */ }
+                  const keys = Object.keys(parsed).filter(k => !k.startsWith('_')).slice(0, 4);
+                  if (keys.length === 0) return null;
+                  return (
+                    <div style={{ marginBottom: 8 }}>
+                      {keys.map(k => {
+                        const v = parsed[k];
+                        const vStr = typeof v === 'object' ? JSON.stringify(v).slice(0, 20) : String(v);
+                        return (
+                          <div key={k} style={{ display: 'flex', gap: 4, fontSize: 10, lineHeight: 1.7 }}>
+                            <span style={{ color: '#ae81ff', flexShrink: 0 }}>{k}:</span>
+                            <span style={{ color: '#ccc', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{vStr}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+
+                {/* Connected relations summary */}
+                {Object.keys(connMap).length > 0 && (
+                  <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 6 }}>
+                    <div style={{ fontSize: 9, color: '#555', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      关联 {connLinks.length} 个节点
+                    </div>
+                    {Object.entries(connMap).slice(0, 4).map(([rel, nodes]) => (
+                      <div key={rel} style={{ marginBottom: 3 }}>
+                        <div style={{ fontSize: 9, color: '#666', marginBottom: 1 }}>{rel}</div>
+                        <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                          {nodes.slice(0, 3).map(n => (
+                            <span key={n.label} style={{
+                              fontSize: 9, padding: '1px 5px', borderRadius: 3,
+                              background: 'rgba(255,255,255,0.06)', color: '#aaa',
+                              maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                            }}>
+                              {n.label}
+                            </span>
+                          ))}
+                          {nodes.length > 3 && (
+                            <span style={{ fontSize: 9, color: '#555' }}>+{nodes.length - 3}</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Footer hint */}
+                <div style={{ marginTop: 6, fontSize: 9, color: '#444', textAlign: 'center' }}>
+                  单击查看详情 · 右键折叠/展开
+                </div>
+              </>
+            );
+          })()}
+        </div>
+      )}
+
+      {toast && (
+        <ToastNotification
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
         />
       )}
     </div>

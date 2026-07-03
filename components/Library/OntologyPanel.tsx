@@ -22,7 +22,7 @@ import { sql as sqlLang } from '@codemirror/lang-sql';
 import { EditorView } from '@codemirror/view';
 import { monokai } from '@uiw/codemirror-theme-monokai';
 
-import { useOntologyStore, ontologyActions } from '../../hooks/useOntologyStore';
+import { useOntologyStore, ontologyActions, ONTOLOGY_SEED_INFOS } from '../../hooks/useOntologyStore';
 import {
   ONTOLOGY_TEMPLATE_CATEGORIES,
   TEMPLATE_CATEGORY_ORDER,
@@ -36,6 +36,7 @@ import { duckDBService } from '../../services/duckdbService';
 import { ResultTable } from '../Learn/ResultTable';
 import { ResizableLayout } from '../ui/ResizableLayout';
 import { MappingConsole } from './MappingConsole';
+import { QuickClearMenu } from './QuickClearMenu';
 
 // ============================================================
 // Types
@@ -168,6 +169,7 @@ const CATEGORY_ACCENT: Record<string, string> = {
   query:  'from-monokai-cyan/30 via-monokai-cyan/10 to-transparent',
   modify: 'from-monokai-yellow/30 via-monokai-yellow/10 to-transparent',
   export: 'from-monokai-green/30 via-monokai-green/10 to-transparent',
+  industry: 'from-monokai-purple/30 via-monokai-purple/10 to-transparent',
 };
 
 const CATEGORY_ICONS: Record<string, React.ElementType> = {
@@ -175,11 +177,13 @@ const CATEGORY_ICONS: Record<string, React.ElementType> = {
   query:  BarChart2,
   modify:  Pencil,
   export:  Download,
+  industry: Sparkles,
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
   setup: 'text-monokai-purple', query: 'text-monokai-cyan',
   modify: 'text-monokai-yellow', export: 'text-monokai-green',
+  industry: 'text-monokai-purple',
 };
 
 
@@ -380,7 +384,9 @@ const TemplatePanel: React.FC<{
   onInsert?: (sql: string) => void;
   onTablesReady?: () => void;
   refresh: () => Promise<void>;
-}> = ({ state, onInsert, onTablesReady, refresh }) => {
+  activeTemplateId: string;
+  switchTemplate: (templateId: string) => Promise<void>;
+}> = ({ state, onInsert, onTablesReady, refresh, activeTemplateId, switchTemplate }) => {
   // All categories collapsed by default for clean first impression
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [results, setResults] = useState<Record<string, ExecutionResult>>({});
@@ -411,11 +417,57 @@ const TemplatePanel: React.FC<{
   const isNoTables = state?.initState === 'no-tables';
 
   return (
-    <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-4">
+    <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-4">
+      {/* ── Template Switcher ── */}
+      <div className="mb-4 p-2 rounded-xl bg-monokai-sidebar/20 border border-monokai-accent/5 space-y-2">
+        <div className="flex items-center justify-between px-1">
+          <span className="text-[10px] font-bold text-monokai-comment uppercase tracking-wider">切换本体种子</span>
+          <span className="text-[9px] text-monokai-cyan font-mono bg-monokai-cyan/10 px-1.5 py-0.5 rounded border border-monokai-cyan/20">
+            {ONTOLOGY_SEED_INFOS.find(s => s.id === activeTemplateId)?.category || 'Personal'}
+          </span>
+        </div>
+        <div className="grid grid-cols-1 gap-1.5 max-h-[220px] overflow-y-auto custom-scrollbar pr-1">
+          {ONTOLOGY_SEED_INFOS.map(seed => {
+            const isActive = seed.id === activeTemplateId;
+            return (
+              <button
+                key={seed.id}
+                onClick={() => {
+                  if (isActive) return;
+                  switchTemplate(seed.id);
+                }}
+                disabled={state.initting}
+                className={`flex items-start gap-2 p-1.5 rounded-lg border text-left transition-all relative ${
+                  isActive
+                    ? 'border-monokai-cyan/40 bg-monokai-cyan/5 text-monokai-fg shadow-sm'
+                    : 'border-monokai-border/40 bg-monokai-sidebar/10 text-monokai-comment hover:border-monokai-border/80 hover:bg-monokai-sidebar/30'
+                }`}
+              >
+                <span className="text-sm shrink-0 mt-0.5">{seed.icon}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between">
+                    <span className={`text-[10px] font-bold truncate ${isActive ? 'text-monokai-cyan' : 'text-monokai-fg'}`}>
+                      {seed.name}
+                    </span>
+                    {isActive && (
+                      <span className="text-[8px] bg-monokai-cyan/20 text-monokai-cyan px-1 rounded font-mono uppercase font-bold shrink-0">
+                        当前
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[9px] text-monokai-comment/70 mt-0.5 leading-normal line-clamp-1">
+                    {seed.description}
+                  </p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* ── Init Banner ── */}
       {isNoTables && (
         <div className="mb-3 p-3 rounded-lg border border-monokai-purple/30 overflow-hidden relative template-init-banner">
-
           <div className="flex items-start gap-2.5 pl-0.5">
             {/* Icon block */}
             <div className="shrink-0 mt-0.5">
@@ -557,6 +609,9 @@ const CRUDList: React.FC<{
   });
   const [search, setSearch] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const showToast = useCallback((message: string, type: 'success' | 'error') => {
+    setToast({ message, type });
+  }, []);
   const [importError, setImportError] = useState<string | null>(null);
   const [importSuccess, setImportSuccess] = useState<string | null>(null);
 
@@ -604,25 +659,36 @@ const CRUDList: React.FC<{
       const text = await file.text();
       const data = JSON.parse(text);
       if (!data.objectTypes || !data.objects) throw new Error('无效的本体论 JSON 格式');
+      
+      // Auto-initialize tables if they don't exist yet
+      await duckDBService.ontologyInit();
+
+      const esc = (val: any) => {
+        if (val === null || val === undefined) return 'NULL';
+        return `'${String(val).replace(/'/g, "''")}'`;
+      };
+
       for (const ot of data.objectTypes || []) {
-        await duckDBService.query(`INSERT OR REPLACE INTO ${state.mapping.objectTypeTable} (id, name, description, created_at) VALUES (?, ?, ?, ?)`,
-          [ot.id, ot.name, ot.description || null, ot.created_at || null]);
+        await duckDBService.query(`INSERT OR REPLACE INTO ${state.mapping.objectTypeTable} (id, name, description) VALUES (${ot.id}, ${esc(ot.name)}, ${esc(ot.description)})`);
       }
       for (const o of data.objects || []) {
-        await duckDBService.query(`INSERT OR REPLACE INTO ${state.mapping.objectTable} (id, name, object_type_id, properties, annotations, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
-          [o.id, o.name, o.object_type_id, o.properties || null, o.annotations || null, o.created_at || null]);
+        const propsVal = typeof o.properties === 'object' ? JSON.stringify(o.properties) : (o.properties || '{}');
+        await duckDBService.query(`INSERT OR REPLACE INTO ${state.mapping.objectTable} (id, name, object_type_id, properties, annotations) VALUES (${o.id}, ${esc(o.name)}, ${o.object_type_id}, ${esc(propsVal)}, ${esc(o.annotations)})`);
       }
       for (const lt of data.linkTypes || []) {
-        await duckDBService.query(`INSERT OR REPLACE INTO ${state.mapping.linkTypeTable} (id, name, description, created_at) VALUES (?, ?, ?, ?)`,
-          [lt.id, lt.name, lt.description || null, lt.created_at || null]);
+        await duckDBService.query(`INSERT OR REPLACE INTO ${state.mapping.linkTypeTable} (id, name, description) VALUES (${lt.id}, ${esc(lt.name)}, ${esc(lt.description)})`);
       }
       for (const l of data.links || []) {
-        await duckDBService.query(`INSERT OR REPLACE INTO ${state.mapping.linkTable} (id, source_object_id, link_type_id, target_object_id, weight, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
-          [l.id, l.source_object_id, l.link_type_id, l.target_object_id, l.weight || 0.5, l.created_at || null]);
+        await duckDBService.query(`INSERT OR REPLACE INTO ${state.mapping.linkTable} (id, source_object_id, link_type_id, target_object_id, weight) VALUES (${l.id}, ${l.source_object_id}, ${l.link_type_id}, ${l.target_object_id}, ${l.weight || 0.5})`);
       }
       for (const a of data.actions || []) {
-        await duckDBService.query(`INSERT OR REPLACE INTO ${state.mapping.actionTable} (id, name, description, status, payload, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
-          [a.id, a.name, a.description || null, a.status || 'pending', a.payload || null, a.created_at || null]);
+        await duckDBService.query(`INSERT OR REPLACE INTO ${state.mapping.actionTable} (id, object_id, name, description, status, execute_at) VALUES (${a.id}, ${a.object_id || 'NULL'}, ${esc(a.name)}, ${esc(a.description)}, ${esc(a.status || 'pending')}, ${a.execute_at ? esc(a.execute_at) : 'NULL'})`);
+      }
+      for (const intro of data.introspections || []) {
+        await duckDBService.query(`INSERT OR REPLACE INTO life_introspection (id, object_id, question, answer, created_at) VALUES (${intro.id}, ${intro.object_id}, ${esc(intro.question)}, ${esc(intro.answer)}, ${intro.created_at ? esc(intro.created_at) : 'NULL'})`);
+      }
+      for (const ins of data.insights || []) {
+        await duckDBService.query(`INSERT OR REPLACE INTO life_insight (id, object_id, insight, tag, created_at) VALUES (${ins.id}, ${ins.object_id}, ${esc(ins.insight)}, ${esc(ins.tag)}, ${ins.created_at ? esc(ins.created_at) : 'NULL'})`);
       }
       await store.refresh();
       setImportSuccess(`导入成功：${(data.objects || []).length} 个对象`);
@@ -1084,7 +1150,8 @@ export const OntologyPanel: React.FC<{
   onInsert?: (sql: string) => void;
   onTablesReady?: () => void;
 }> = ({ onInsert, onTablesReady }) => {
-  const { state: rawState, dispatch, refresh, batchImportModelingResult } = useOntologyStore();
+  const { state: rawState, dispatch, refresh, initOntology, reseedOntology, batchImportModelingResult, setPendingCommand,
+    deleteObjectType, deleteObject, deleteLinkType, deleteLink, deleteAction, switchTemplate, activeTemplateId } = useOntologyStore();
   const state = rawState ?? {
     initState: 'loading', initting: false,
     objectTypes: [], objects: [], linkTypes: [], links: [], actions: [],
@@ -1111,6 +1178,19 @@ export const OntologyPanel: React.FC<{
   const d3GraphRefreshRef = useRef<(() => void) | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: string; id: number; label: string } | null>(null);
   const [modelingWizardOpen, setModelingWizardOpen] = useState(false);
+  const [reseedMessage, setReseedMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+
+  const handleReseedSupplement = useCallback(async () => {
+    setReseedMessage(null);
+    try {
+      await reseedOntology();
+      setReseedMessage({ text: '数据补充成功', type: 'success' });
+      setTimeout(() => setReseedMessage(null), 3000);
+      refresh();
+    } catch (e: any) {
+      setReseedMessage({ text: '补充失败: ' + e.message, type: 'error' });
+    }
+  }, [reseedOntology, refresh]);
 
   const handleModelingImport = useCallback(async (result: any) => {
     if (result.graphLayout) {
@@ -1227,10 +1307,18 @@ export const OntologyPanel: React.FC<{
             <RefreshCw className="w-3.5 h-3.5" />
           </button>
           {state.initState === 'ready' && (
-            <button onClick={() => (window as any).__ontologyReseed?.()} disabled={state.initting} title="补充人物和目标数据"
-              className="px-2 py-1 rounded-lg text-xs bg-monokai-purple/10 text-monokai-purple hover:bg-monokai-purple/20 transition-colors disabled:opacity-50">
-              {state.initting ? '写入中...' : '补充数据'}
-            </button>
+            <div className="flex shrink-0 items-center gap-2 whitespace-nowrap">
+              <button onClick={handleReseedSupplement} disabled={state.initting} title="补充缺失的人物和目标数据"
+                className="shrink-0 whitespace-nowrap px-2 py-1 rounded-lg text-xs bg-monokai-purple/10 text-monokai-purple hover:bg-monokai-purple/20 transition-colors disabled:opacity-50">
+                {state.initting ? '写入中...' : '补充数据'}
+              </button>
+              {reseedMessage && (
+                <span className={`shrink-0 text-[10px] font-mono ${reseedMessage.type === 'success' ? 'text-monokai-green' : 'text-monokai-pink'}`}>
+                  {reseedMessage.text}
+                </span>
+              )}
+              <QuickClearMenu onClear={refresh} />
+            </div>
           )}
           <LiveClock />
         </div>
@@ -1243,7 +1331,7 @@ export const OntologyPanel: React.FC<{
             <div className="flex h-full w-full overflow-hidden">
               
               {/* LEFT NAV PANEL */}
-              {drawerOpen && (
+              {drawerOpen && activeTab !== 'canvas' && (
                 <div style={{ width: leftWidth }} className="flex-shrink-0 flex flex-col border-r border-monokai-accent/10 bg-monokai-bg/80 backdrop-blur-xl relative z-10 shadow-2xl">
                   {/* Resizer Handle Left */}
                   <div onMouseDown={startResizingLeft} onTouchStart={startResizingLeft}
@@ -1276,7 +1364,16 @@ export const OntologyPanel: React.FC<{
                   </div>
 
                   <div className="flex-1 overflow-y-auto custom-scrollbar p-3">
-                    {drawerTab === 'templates' && <TemplatePanel state={state} onInsert={onInsert} onTablesReady={onTablesReady} refresh={refresh} />}
+                    {drawerTab === 'templates' && (
+                      <TemplatePanel
+                        state={state}
+                        onInsert={onInsert}
+                        onTablesReady={onTablesReady}
+                        refresh={refresh}
+                        activeTemplateId={activeTemplateId}
+                        switchTemplate={switchTemplate}
+                      />
+                    )}
                     {drawerTab === 'crud' && <CRUDList onInspect={openInspector} onRequestDelete={(type, id, label) => setDeleteConfirm({ type, id, label })} />}
                     {drawerTab === 'mapping' && <MappingConsole />}
                   </div>
@@ -1285,9 +1382,9 @@ export const OntologyPanel: React.FC<{
 
               {/* CENTER CANVAS */}
               <div className="flex-1 relative overflow-hidden bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-monokai-sidebar/30 via-monokai-bg to-monokai-bg">
-                {activeTab === 'graph' && <D3GraphView onRefreshRef={fn => d3GraphRefreshRef.current = fn} />}
-                {activeTab === 'data' && <OntologyDataView />}
-                {activeTab === 'canvas' && <OntologyCanvas onInsert={onInsert} />}
+                {activeTab === 'graph' && <D3GraphView onRefreshRef={fn => d3GraphRefreshRef.current = fn} ontologyState={state} />}
+                {activeTab === 'data' && <OntologyDataView ontologyState={state} />}
+                {activeTab === 'canvas' && <OntologyCanvas onInsert={onInsert} ontologyState={state} />}
               </div>
 
               {/* RIGHT INSPECTOR PANEL */}
@@ -1336,19 +1433,19 @@ export const OntologyPanel: React.FC<{
             </div>
             <div className="px-6 py-4 bg-monokai-sidebar/30 flex justify-end gap-3 border-t border-monokai-accent/10">
               <button onClick={() => setDeleteConfirm(null)} className="px-5 py-2.5 text-sm font-medium rounded-xl text-monokai-fg bg-black/40 hover:bg-black/60 transition-colors">取消</button>
-              <button 
+              <button
                 onClick={async () => {
-                  try {
-                    if (deleteConfirm.type === 'objectType') await store.deleteObjectType(deleteConfirm.id);
-                    else if (deleteConfirm.type === 'object') await store.deleteObject(deleteConfirm.id);
-                    else if (deleteConfirm.type === 'linkType') await store.deleteLinkType(deleteConfirm.id);
-                    else if (deleteConfirm.type === 'link') await store.deleteLink(deleteConfirm.id);
-                    else if (deleteConfirm.type === 'action') await store.deleteAction(deleteConfirm.id);
-                    setDeleteConfirm(null);
-                    setInspectorMode('none');
-                    await store.refresh();
-                  } catch (e: any) { alert(`销毁失败: ${e.message}`); }
-                }} 
+                try {
+                  if (deleteConfirm.type === 'objectType') await deleteObjectType(deleteConfirm.id);
+                  else if (deleteConfirm.type === 'object') await deleteObject(deleteConfirm.id);
+                  else if (deleteConfirm.type === 'linkType') await deleteLinkType(deleteConfirm.id);
+                  else if (deleteConfirm.type === 'link') await deleteLink(deleteConfirm.id);
+                  else if (deleteConfirm.type === 'action') await deleteAction(deleteConfirm.id);
+                  setDeleteConfirm(null);
+                  setInspectorMode('none');
+                  await refresh();
+                } catch (e: any) { console.error('销毁失败:', e.message); }
+              }}
                 className="px-5 py-2.5 text-sm font-bold rounded-xl bg-monokai-red/20 text-monokai-red hover:bg-monokai-red hover:text-white transition-colors shadow-[0_0_15px_rgba(249,38,114,0.3)]">
                 确认销毁
               </button>

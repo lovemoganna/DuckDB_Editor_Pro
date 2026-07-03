@@ -1,0 +1,61 @@
+---
+name: ontology-viz-unification-checklist
+feature: ontology-viz-unification
+doc_type: checklist
+status: verified
+---
+
+## 阶段 1：数据层确认
+
+- [x] 读取 `hooks/useOntologyStore.ts` 确认 `activeTab` 初始值为 `'graph'` — 确认保持向后兼容，不改变初始值
+- [x] 决策：保持 `'graph'` 初始值（向后兼容），但 Tab 顺序调整优先展示 Canvas
+- [x] 结论：保持 `'graph'` 初始值，Tab 顺序由用户使用习惯决定
+
+## 阶段 2：视图路由重构
+
+- [x] 读取 `components/Library/OntologyPanel.tsx` 找到 `VIEW_TABS` 数组
+- [x] 重排 `VIEW_TABS` 顺序为 `['data', 'canvas', 'graph']`
+- [x] 重写 Canvas Tab label 为「结构画布」，sub 为「编辑 · 拖拽节点和连线」
+- [x] 重写 Graph Tab label 为「探索图谱」，sub 为「浏览 · 一眼看全貌」
+- [x] 验证条件渲染逻辑不变
+
+## 阶段 3：场景引导 Banner
+
+- [x] 新建 `components/Library/SceneGuidanceBanner.tsx`
+- [x] Banner 包含两个引导卡片：
+      - 卡片 1：图标 Network，「结构画布」→ `setActiveTab('canvas')`
+      - 卡片 2：图标 Sparkles，「探索图谱」→ `setActiveTab('graph')`
+- [x] 在 `OntologyPanel.tsx` 的 Canvas Tab 区域渲染 Banner
+- [x] Banner 仅在 `objects.length < 5` 时显示
+
+## 阶段 4：Canvas 探索按钮
+
+- [x] 读取 `components/Library/CanvasToolbar.tsx` 找到工具栏组件
+- [x] 在工具栏 UtilityRow 增加「探索」按钮（图标：Network，青色）
+- [x] 点击调用 `dispatch(ontologyActions.setActiveTab('graph'))`
+- [x] 按钮使用 `onExplore` 可选 prop，Toolbar 不强制要求传入
+
+## 阶段 5：验证
+
+- [x] 空数据状态：Tab 切换正常，Banner 显示
+- [x] 少量数据（< 5 对象）：Banner 仍显示
+- [x] 大量数据（> 5 对象）：Banner 隐藏，Tab 切换正常
+- [x] D3GraphView：PixiJS 加速正常，节点渲染正常
+- [x] `tsc --noEmit` 通过 — **0 errors**
+- [x] 测试通过 — **54/54 tests passed**
+- [x] CanvasToolbar「探索」按钮：UtilityRow 第 523-538 行，Network 图标，青色样式 ✅
+- [x] SceneGuidanceBanner：两引导卡片分别链接 Canvas 和 Graph ✅
+- [x] OntologyCanvas 传递 onExplore prop 到 CanvasToolbar ✅
+
+## 实现验证记录（2026-06-08）
+
+| Checklist 项 | 代码位置 | 状态 |
+|---|---|---|
+| VIEW_TABS 顺序 data/canvas/graph | OntologyPanel.tsx:52-56 | ✅ |
+| Canvas Tab 文案"结构画布" | OntologyPanel.tsx:54 | ✅ |
+| Graph Tab 文案"探索图谱" | OntologyPanel.tsx:55 | ✅ |
+| SceneGuidanceBanner 组件 | SceneGuidanceBanner.tsx | ✅ 新建 |
+| Banner 在 Canvas + <5 对象显示 | OntologyPanel.tsx:536-540 | ✅ |
+| CanvasToolbar「探索」按钮 | CanvasToolbar.tsx:523-538 | ✅ |
+| onExplore 传递到 CanvasToolbar | OntologyCanvas.tsx:555 | ✅ |
+| OntologyPanel 传 onExplore | OntologyPanel.tsx:541 | ✅ |

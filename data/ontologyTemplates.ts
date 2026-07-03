@@ -1,9 +1,4 @@
-/**
- * 本体论 SQL 模板库 - 按功能组织
- *
- * 重构后按功能（初始化/查询/修改/导出）分类，替代原有的 MECE 五层分类。
- * 组件只负责渲染，数据统一在此管理。
- */
+import { ONTOLOGY_INIT_SCRIPT } from '../components/Library/ontologyDataModel';
 
 export interface SqlTemplate {
   id: string;
@@ -34,94 +29,7 @@ export const ONTOLOGY_TEMPLATE_CATEGORIES: Record<string, TemplateCategory> = {
         id: 'init-full',
         label: '一键完整初始化',
         description: '建表 + 导入种子数据，开启完整体验',
-        sql: `-- ═══════════════════════════════════════
--- 本体论教学数据模型 - 我的人生
--- 业务场景：个人生活管理 / 自我认知
--- ═══════════════════════════════════════
-
-CREATE TABLE IF NOT EXISTS life_object_type (
-    id INTEGER PRIMARY KEY,
-    name VARCHAR NOT NULL,
-    description VARCHAR
-);
-
-CREATE TABLE IF NOT EXISTS life_object (
-    id INTEGER PRIMARY KEY,
-    object_type_id INTEGER REFERENCES life_object_type(id),
-    name VARCHAR NOT NULL,
-    properties JSON DEFAULT '{}',
-    annotations VARCHAR DEFAULT ''
-);
-
-CREATE TABLE IF NOT EXISTS life_link_type (
-    id INTEGER PRIMARY KEY,
-    name VARCHAR NOT NULL,
-    description VARCHAR
-);
-
-CREATE TABLE IF NOT EXISTS life_link (
-    id INTEGER PRIMARY KEY,
-    link_type_id INTEGER REFERENCES life_link_type(id),
-    source_object_id INTEGER REFERENCES life_object(id),
-    target_object_id INTEGER REFERENCES life_object(id),
-    weight DECIMAL(3,2) DEFAULT 1.0
-);
-
-CREATE TABLE IF NOT EXISTS life_action (
-    id INTEGER PRIMARY KEY,
-    object_id INTEGER,
-    name VARCHAR NOT NULL,
-    description VARCHAR,
-    status VARCHAR DEFAULT 'pending',
-    execute_at DATE
-);
-
-CREATE TABLE IF NOT EXISTS life_introspection (
-    id INTEGER PRIMARY KEY,
-    object_id INTEGER,
-    question VARCHAR,
-    answer VARCHAR,
-    created_at DATE DEFAULT CURRENT_DATE
-);
-
-CREATE TABLE IF NOT EXISTS life_insight (
-    id INTEGER PRIMARY KEY,
-    object_id INTEGER,
-    insight VARCHAR,
-    tag VARCHAR,
-    created_at DATE DEFAULT CURRENT_DATE
-);
-
--- 对象类型
-INSERT INTO life_object_type VALUES
-    (1, 'Aspect', '生活维度'),
-    (2, 'Person', '人物'),
-    (3, 'Goal',   '目标');
-
--- 对象实例
-INSERT INTO life_object (id, object_type_id, name, properties) VALUES
-    (1, 1, '心态', '{"state": "焦虑", "goal": "内心平静"}'),
-    (2, 1, '工作', '{"role": "工程师", "struggle": "沟通"}'),
-    (3, 1, '家庭', '{"priority": "最高"}'),
-    (4, 1, '身体', '{"state": "还行", "goal": "健康"}');
-
--- 关系类型
-INSERT INTO life_link_type VALUES
-    (1, '影响', 'A 作用于 B'),
-    (2, '养活', 'A 为 B 提供物质基础'),
-    (3, '锚定', 'A 为 B 提供精神支撑'),
-    (4, '支撑', 'A 为 B 提供基础条件');
-
--- 关系实例
-INSERT INTO life_link VALUES
-    (1, 1, 1, 2, 0.9),
-    (2, 2, 2, 3, 1.0),
-    (3, 3, 3, 1, 0.8),
-    (4, 4, 4, 1, 0.7);
-
--- 行动
-INSERT INTO life_action VALUES
-    (1, 4, '早睡早起', '调整作息', 'pending', '2024-12-31');`,
+        sql: ONTOLOGY_INIT_SCRIPT,
         refreshTables: true,
       },
       {
@@ -484,6 +392,56 @@ DROP VIEW IF EXISTS v_relation_network;`,
       },
     ],
   },
+  industry: {
+    label: '行业模板',
+    description: '快速导入典型行业本体论结构',
+    color: 'purple',
+    icon: 'Sparkles',
+    templates: [
+      {
+        id: 'financial-audit',
+        label: '金融审计风控图谱',
+        description: '商户 -> 账户 -> 异常交易 -> 风控处置',
+        sql: `INSERT INTO life_object_type VALUES (110, 'Merchant', '商户'), (111, 'Card', '银行卡'), (112, 'RiskAlert', '风险告警');
+INSERT INTO life_object (id, object_type_id, name, properties) VALUES (1100, 110, '商户A', '{"industry": "Retail", "risk_level": "medium"}'), (1101, 111, '尾号8888的借记卡', '{"bank": "ICBC"}'), (1102, 112, '洗钱嫌疑告警', '{"rules_triggered": 3, "score": 92}');
+INSERT INTO life_link_type VALUES (110, '绑定', 'A 绑定了 B'), (111, '触发', 'A 交易触发了 B 告警');
+INSERT INTO life_link VALUES (1100, 110, 1101, 1100, 1.0), (1101, 111, 1101, 1102, 0.95);
+INSERT INTO life_action (id, object_id, name, description, status) VALUES (1100, 1102, '冻结账户并上报', '触发高风险洗钱告警，需要立即执行暂停交易处置', 'pending');`,
+        refreshTables: true,
+      },
+      {
+        id: 'supply-chain',
+        label: '物流供应链物流图谱',
+        description: '仓库 -> 货运线路 -> 承运商',
+        sql: `INSERT INTO life_object_type VALUES (120, 'Warehouse', '仓库'), (121, 'Route', '线路'), (122, 'Carrier', '承运商');
+INSERT INTO life_object (id, object_type_id, name, properties) VALUES (1200, 120, '华东1号仓', '{\"capacity\": 50000}'), (1201, 121, '沪宁高速专线', '{\"distance\": 310}'), (1202, 122, '顺丰速运', '{\"contract_active\": true}');
+INSERT INTO life_link_type VALUES (120, '指派', 'A 任务指派给 B'), (121, '起始于', 'A 线路起始于 B 仓');
+INSERT INTO life_link VALUES (1201, 120, 1201, 1200, 0.9), (1202, 120, 1202, 1201, 0.85);`,
+        refreshTables: true,
+      },
+      {
+        id: 'devops-observability',
+        label: 'DevOps可观测性图谱',
+        description: '服务 -> 核心指标 -> 故障事件',
+        sql: `INSERT INTO life_object_type VALUES (130, 'Service', '微服务'), (131, 'Metric', '核心指标'), (132, 'Incident', '故障事件');
+INSERT INTO life_object (id, object_type_id, name, properties) VALUES (1300, 130, '订单API服务', '{\"language\": \"Go\", \"version\": \"v2.1\"}'), (1301, 131, 'P99 响应延迟', '{\"unit\": \"ms\", \"value\": 1200}'), (1302, 132, '支付超时故障', '{\"severity\": \"P0\", \"status\": \"active\"}');
+INSERT INTO life_link_type VALUES (130, '引发', 'A 异常导致 B 故障'), (131, '监控', 'A 监控 B 服务性能');
+INSERT INTO life_link VALUES (1301, 131, 1301, 1300, 0.95), (1301, 130, 1301, 1302, 0.9);
+INSERT INTO life_action (id, object_id, name, description, status) VALUES (1300, 1302, '重启Pod实例', '立即重启以清空连接池异常状态', 'pending');`,
+        refreshTables: true,
+      },
+      {
+        id: 'ai-knowledge',
+        label: 'AI 学术与模型图谱',
+        description: '论文 -> 模型 -> 评估基准',
+        sql: `INSERT INTO life_object_type VALUES (140, 'Paper', '论文'), (141, 'Model', 'AI模型'), (142, 'Benchmark', '评估基准');
+INSERT INTO life_object (id, object_type_id, name, properties) VALUES (1400, 140, 'Attention Is All You Need', '{\"year\": 2017}'), (1401, 141, 'Transformer', '{\"parameters\": \"large\"}'), (1402, 142, 'MMLU', '{\"metric\": \"Accuracy\"}');
+INSERT INTO life_link_type VALUES (140, '提出', 'A 论文提出了 B 模型'), (141, '测试于', 'A 模型测试于 B 基准');
+INSERT INTO life_link VALUES (1400, 140, 1400, 1401, 1.0), (1401, 141, 1401, 1402, 0.92);`,
+        refreshTables: true,
+      },
+    ],
+  },
 };
 
-export const TEMPLATE_CATEGORY_ORDER = ['setup', 'query', 'modify', 'export'];
+export const TEMPLATE_CATEGORY_ORDER = ['setup', 'query', 'modify', 'export', 'industry'];

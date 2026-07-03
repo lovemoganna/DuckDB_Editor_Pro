@@ -1,0 +1,81 @@
+{
+  "_meta": {
+    "name": "项目风险调查",
+    "description": "模拟一个软件开发项目的风险传导场景：供应商事件如何通过依赖链路影响关键指标，支持路径查询「如果 X 断供，哪些指标会受影响」",
+    "version": "1.0.0",
+    "author": "system",
+    "created_at": "2025-06-01",
+    "scenario": "project-risk-investigation",
+    "complexity": "medium",
+    "entity_counts": {
+      "object_types": 5,
+      "objects": 10,
+      "link_types": 5,
+      "links": 12,
+      "actions": 4,
+      "introspections": 2,
+      "insights": 2
+    }
+  },
+
+  "objectTypes": [
+    { "id": 1, "name": "RiskEvent",   "description": "风险事件：供应商中断、依赖变更、安全告警等" },
+    { "id": 2, "name": "Component",   "description": "技术组件或服务模块" },
+    { "id": 3, "name": "Metric",      "description": "可量化的关键指标" },
+    { "id": 4, "name": "Team",        "description": "负责团队" },
+    { "id": 5, "name": "Stakeholder", "description": "干系人或决策者" }
+  ],
+
+  "objects": [
+    { "id": 1,  "object_type_id": 1, "name": "供应商A断供",     "properties": "{\"severity\": \"critical\", \"category\": \"supply_chain\", \"probability\": 0.3, \"impact_area\": [\"后端服务\", \"数据管道\"]}", "annotations": "A公司是后端 API 和数据管道的主要供应商，2025Q3 合同到期且续约谈判陷入僵局" },
+    { "id": 2,  "object_type_id": 1, "name": "API网关版本升级",  "properties": "{\"severity\": \"medium\", \"category\": \"dependency\", \"probability\": 0.7, \"breaking_changes\": true}", "annotations": "供应商将在 Q3 强制升级 API 网关到 v4，需评估兼容风险" },
+    { "id": 3,  "object_type_id": 1, "name": "安全漏洞 CVE-2025-4471", "properties": "{\"severity\": \"high\", \"category\": \"security\", \"cvss\": 8.9, \"affected_component\": \"前端依赖包\"}", "annotations": "已知利用漏洞，需在 72 小时内修复或隔离受影响组件" },
+    { "id": 4,  "object_type_id": 2, "name": "后端服务",         "properties": "{\"stack\": [\"Go\", \"PostgreSQL\", \"Redis\"], \"sl_a目标\": 99.9, \"当前sl_a\": 99.5, \"依赖供应商\": true}", "annotations": "" },
+    { "id": 5,  "object_type_id": 2, "name": "数据管道",         "properties": "{\"stack\": [\"Airbyte\", \"dbt\", \"BigQuery\"], \"sl_a目标\": 99.0, \"当前sl_a\": 98.2, \"依赖供应商\": true}", "annotations": "" },
+    { "id": 6,  "object_type_id": 2, "name": "前端应用",         "properties": "{\"stack\": [\"React\", \"TypeScript\"], \"用户量\": 15000, \"月活\": 8500}", "annotations": "" },
+    { "id": 7,  "object_type_id": 3, "name": "系统可用性",         "properties": "{\"unit\": \"%\", \"baseline\": 99.5, \"当前\": 99.5, \"目标\": 99.9, \"threshold\": 99.0}", "annotations": "" },
+    { "id": 8,  "object_type_id": 3, "name": "发布频率",          "properties": "{\"unit\": \"releases/week\", \"baseline\": 4.2, \"当前\": 3.8, \"目标\": 5.0, \"threshold\": 3.0}", "annotations": "" },
+    { "id": 9,  "object_type_id": 3, "name": "缺陷逃逸率",        "properties": "{\"unit\": \"%\", \"baseline\": 15, \"当前\": 18, \"目标\": 10, \"threshold\": 20}", "annotations": "生产环境发现的缺陷 / 总缺陷，越低越好" },
+    { "id": 10, "object_type_id": 3, "name": "平均恢复时间",      "properties": "{\"unit\": \"minutes\", \"baseline\": 45, \"当前\": 52, \"目标\": 30, \"threshold\": 60}", "annotations": "" }
+  ],
+
+  "linkTypes": [
+    { "id": 1, "name": "直接依赖",   "description": "A 直接依赖 B 运行，A 的可用性受 B 约束" },
+    { "id": 2, "name": "风险传导",   "description": "A 的风险事件会传导到 B（权重表示传导强度，1=完全传导，0=不传导）" },
+    { "id": 3, "name": "影响指标",   "description": "A 的状态变化会直接影响指标 M" },
+    { "id": 4, "name": "团队负责",   "description": "团队 T 负责组件 A" },
+    { "id": 5, "name": "上报干系人", "description": "风险/指标异常需上报给干系人 S" }
+  ],
+
+  "links": [
+    { "id": 1,  "link_type_id": 2, "source_object_id": 1,  "target_object_id": 4,  "weight": 1.00 },
+    { "id": 2,  "link_type_id": 2, "source_object_id": 1,  "target_object_id": 5,  "weight": 0.90 },
+    { "id": 3,  "link_type_id": 2, "source_object_id": 2,  "target_object_id": 4,  "weight": 0.70 },
+    { "id": 4,  "link_type_id": 2, "source_object_id": 3,  "target_object_id": 6,  "weight": 1.00 },
+    { "id": 5,  "link_type_id": 1, "source_object_id": 4,  "target_object_id": 5,  "weight": 0.60 },
+    { "id": 6,  "link_type_id": 1, "source_object_id": 4,  "target_object_id": 6,  "weight": 0.40 },
+    { "id": 7,  "link_type_id": 3, "source_object_id": 4,  "target_object_id": 7,  "weight": 0.80 },
+    { "id": 8,  "link_type_id": 3, "source_object_id": 4,  "target_object_id": 10, "weight": 0.90 },
+    { "id": 9,  "link_type_id": 3, "source_object_id": 5,  "target_object_id": 8,  "weight": 0.70 },
+    { "id": 10, "link_type_id": 3, "source_object_id": 6,  "target_object_id": 9,  "weight": 0.60 },
+    { "id": 11, "link_type_id": 3, "source_object_id": 6,  "target_object_id": 8,  "weight": 0.50 },
+    { "id": 12, "link_type_id": 3, "source_object_id": 3,  "target_object_id": 9,  "weight": 0.95 }
+  ],
+
+  "actions": [
+    { "id": 1, "object_id": 1,  "name": "启动供应商B备选评估",      "description": "联系备选供应商，完成技术验证，2周内输出评估报告",      "status": "in_progress", "execute_at": "2025-06-15" },
+    { "id": 2, "object_id": 2,  "name": "API v4 兼容性评估",        "description": "审查 v4 breaking changes，列出受影响接口，估算迁移工时", "status": "pending",     "execute_at": "2025-06-08" },
+    { "id": 3, "object_id": 3,  "name": "隔离并修复 CVE-2025-4471", "description": "升级受影响依赖包，验证无回归，紧急发布 patch",       "status": "in_progress", "execute_at": "2025-06-03" },
+    { "id": 4, "object_id": 7,  "name": "MTTR 优化：建立 Runbook", "description": "为后端服务编写故障处理手册，目标将 MTTR 降至 30 分钟","status": "pending",     "execute_at": "2025-06-20" }
+  ],
+
+  "introspections": [
+    { "id": 1, "object_id": 1,  "question": "如果供应商A断供且切换到供应商B需要2周，这2周内系统的可用性能撑住吗？", "answer": "数据管道 SLA 会降到 85% 以下（供应商A权重=0.90传导），低于阈值 99%，必须提前启动切换流程。", "created_at": "2025-06-01" },
+    { "id": 2, "object_id": 3,  "question": "安全漏洞 CVE-2025-4471 的修复优先级是否高于供应商切换？",          "answer": "是。CVSS=8.9 属于严重漏洞，而供应商A断供概率仅 0.3。应并行处理，但安全和供应商工作应由不同团队负责。", "created_at": "2025-06-01" }
+  ],
+
+  "insights": [
+    { "id": 1, "object_id": 7,  "insight": "后端服务（后端服务）是整个风险传导网络的核心枢纽：3条「风险传导」边汇聚，2条「影响指标」边发出。确保其高可用是降低整体风险暴露的最优杠杆。",  "tag": "风险分析",  "created_at": "2025-06-01" },
+    { "id": 2, "object_id": 10, "insight": "供应商A的风险传导路径最长可达4跳：供应商A断供(1)→后端服务(2)→平均恢复时间(3)→（若未修复）→系统可用性(4)。在供应商评估阶段必须将MTTR纳入合同SLA。", "tag": "风险传导",  "created_at": "2025-06-01" }
+  ]
+}

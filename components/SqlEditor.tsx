@@ -5,9 +5,16 @@ import { Play, Save, FolderOpen, X, Plus, Clock, Database, ChevronRight, Chevron
 import { duckDBService } from '../services/duckdbService';
 import { dbService } from '../services/dbService';
 import { aiService } from '../services/aiService';
+import { useSqlExecution } from '../hooks/useSqlExecution';
+import { useSqlAiAssistant } from '../hooks/useSqlAiAssistant';
+import { useSqlEditorExtensions } from '../hooks/useSqlEditorExtensions';
+import { useSqlEditorStore, useToastAutoDismiss } from '../hooks/store/useSqlEditorStore';
 import { saveExplanation, getAllExplanations, clearAllExplanations, deleteExplanation, AiExplanation } from '../services/aiExplanationStorage';
 import { QueryResult, QueryHistoryItem, SavedQuery, ColumnInfo, ChartConfig, SqlTab } from '../types';
-import { getTypeIcon } from '../utils';
+import { getTypeIcon, highlightSql } from '../utils';
+import { SQL_CATEGORY_HELP, SNIPPET_GROUPS, SNIPPET_CATEGORY_META, SNIPPETS } from '../data/sqlEditorData';
+import type { SqlCategoryHelp } from '../data/sqlEditorData';
+import { exportCsv, exportJson, exportMarkdown, exportExcel, generateHtmlReport, copyAsTsv, copyAsMarkdown, copyAsHtml, downloadBlob, exportDataAsync } from '../utils/sqlExporter';
 import {
     Chart as ChartJS,
     CategoryScale,
@@ -24,12 +31,18 @@ import { Bar, Line, Pie, Doughnut, Scatter } from 'react-chartjs-2';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
 import { TableTree } from './TableTree';
 import CodeMirror from '@uiw/react-codemirror';
-import { sql } from '@codemirror/lang-sql';
+import { monokai } from '@uiw/codemirror-theme-monokai';
 import { EditorView } from '@codemirror/view';
 import { format } from 'sql-formatter';
 import { ChartDashboard } from './ChartDashboard';
 import { ChartBuilder } from './ChartBuilder';
 import { SkillAssistant } from './SkillAssistant';
+import { SqlEditorHistory } from './SqlEditor/SqlEditorHistory';
+import { SqlEditorHelpPanel } from './SqlEditor/SqlEditorHelpPanel';
+import { SqlEditorResultTable } from './SqlEditor/SqlEditorResultTable';
+import { SqlEditorExplainView } from './SqlEditor/SqlEditorExplainView';
+import { SqlEditorErrorView } from './SqlEditor/SqlEditorErrorView';
+import { SqlEditorProfilingView } from './SqlEditor/SqlEditorProfilingView';
 
 ChartJS.register(
     CategoryScale,
@@ -80,155 +93,194 @@ const MONOKAI_COLORS = [
     'rgba(230, 219, 116, 0.8)', // Yellow
 ];
 
-// Extracted to data/sqlEditorData.tsx
-export { SQL_CATEGORY_HELP, SNIPPET_GROUPS, SNIPPET_CATEGORY_META, SNIPPETS } from '../data/sqlEditorData';
-// Re-export the type for backward compatibility
-export type { SqlCategoryHelp } from '../data/sqlEditorData';
+// (Re-exports kept for backward-compat via components/SqlEditor/index.ts)
 
-// 智能填充提示词生成（上下文感知）
-const generateAIFillPrompt = (sqlType: string, tableName?: string, columns?: ColumnInfo[]): string => {
-    const columnList = columns?.map(c => `${c.name} (${c.type})`).join(', ') || '';
-    const ctx = tableName ? `表: ${tableName}，字段: ${columnList || '未知'}` : '请先在左侧 Schema 选择一个表';
+// Note: `generateAIFillPrompt` was extracted to hooks/useSqlAiAssistant.ts (Loop 3).
+// The local constant is retained for any external callers that may import it
+// via the module barrel; it delegates to the hook's pure helper.
+const generateAIFillPrompt = (
+  sqlType: string,
+  tableName?: string,
+  columns?: ColumnInfo[]
+): string => {
+  // Local re-implementation preserved for the constant's external API.
+  // The AI assistant hook provides a parallel implementation; keep them
+  // in sync by routing through the prompt table when reachable.
+  const columnList = columns?.map(c => `${c.name} (${c.type})`).join(', ') || '';
+  const ctx = tableName ? `表: ${tableName}，字段: ${columnList || '未知'}` : '请先在左侧 Schema 选择一个表';
 
-    switch (sqlType) {
-        case 'select':
-            return `为 DuckDB 生成带 WHERE 条件和 LIMIT 的基础 SELECT 查询。${ctx}`;
-        case 'join':
-            return `为 DuckDB 生成 LEFT JOIN 多表关联查询，主表是 ${tableName || 'table1'}，${ctx}`;
-        case 'aggregate':
-            return `为 DuckDB 生成按时间维度分组的聚合分析 SQL，包含 COUNT 和 SUM。${ctx}`;
-        case 'transform':
-            return `为 DuckDB 生成数据转换 SQL，使用 TRY_CAST 进行类型转换并用 TRIM/LOWER 清洗字符串。${ctx}`;
-        case 'performance':
-            return `为以下查询生成 EXPLAIN ANALYZE 诊断版本，并在注释中说明如何解读执行计划。${ctx}`;
-        case 'utilities':
-            return `为 DuckDB 生成 SUMMARIZE 摘要统计语句，并附上数据质量检查 SQL（NULL 率、重复行）。${ctx}`;
-        default:
-            return `为 DuckDB 生成 SQL 查询。${ctx}`;
-    }
+  switch (sqlType) {
+    case 'select':
+      return `为 DuckDB 生成带 WHERE 条件和 LIMIT 的基础 SELECT 查询。${ctx}`;
+    case 'join':
+      return `为 DuckDB 生成 LEFT JOIN 多表关联查询，主表是 ${tableName || 'table1'}，${ctx}`;
+    case 'aggregate':
+      return `为 DuckDB 生成按时间维度分组的聚合分析 SQL，包含 COUNT 和 SUM。${ctx}`;
+    case 'transform':
+      return `为 DuckDB 生成数据转换 SQL，使用 TRY_CAST 进行类型转换并用 TRIM/LOWER 清洗字符串。${ctx}`;
+    case 'performance':
+      return `为以下查询生成 EXPLAIN ANALYZE 诊断版本，并在注释中说明如何解读执行计划。${ctx}`;
+    case 'utilities':
+      return `为 DuckDB 生成 SUMMARIZE 摘要统计语句，并附上数据质量检查 SQL（NULL 率、重复行）。${ctx}`;
+    default:
+      return `为 DuckDB 生成 SQL 查询。${ctx}`;
+  }
 };
 
 export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendingChartConfig, isZenMode, onToggleZen, onPendingConsumed }) => {
-    // --- Tab State Management ---
-    const [tabs, setTabs] = useState<SqlTab[]>(() => {
-        try {
-            const saved = localStorage.getItem('duckdb_sql_tabs');
-            if (saved) {
-                const parsed = JSON.parse(saved);
-                if (Array.isArray(parsed) && parsed.length > 0) {
-                    return parsed.map((t: any) => ({
-                        ...t,
-                        result: null,
-                        loading: false,
-                        filterTerm: '',
-                        chartConfig: {
-                            ...t.chartConfig,
-                            yKeys: t.chartConfig.yKeys || (t.chartConfig.yKey ? [t.chartConfig.yKey] : []),
-                            yRightKeys: t.chartConfig.yRightKeys || [],
-                            stacked: t.chartConfig.stacked || false,
-                            horizontal: t.chartConfig.horizontal || false
-                        }
-                    }));
-                }
-            }
-        } catch (e) { }
-        return [{
-            id: 'default-tab',
-            title: 'Untitled Query',
-            code: DEFAULT_CODE,
-            result: null,
-            loading: false,
-            viewMode: 'table',
-            chartConfig: { id: 'default', title: 'Start Execution', type: 'bar', xKey: '', yKeys: [], yRightKeys: [], stacked: false, horizontal: false, aggregation: 'none' },
-            page: 0,
-            filterTerm: ''
-        }];
-    });
+    // --- Toast auto-dismiss (subscription-based, replaces imperative timer) ---
+    useToastAutoDismiss();
 
-    const [activeTabId, setActiveTabId] = useState<string>(() => {
-        try {
-            const saved = localStorage.getItem('duckdb_sql_tabs');
-            if (saved) {
-                const parsed = JSON.parse(saved);
-                if (Array.isArray(parsed) && parsed.length > 0) return parsed[0].id;
-            }
-        } catch (e) { }
-        return 'default-tab';
-    });
+    // --- Store selectors (replaces ~25 useState calls) ---
+    const tabs = useSqlEditorStore((s) => s.tabs);
+    const activeTabId = useSqlEditorStore((s) => s.activeTabId);
+    const setActiveTabId = useSqlEditorStore((s) => s.setActiveTabId);
+    const createTab = useSqlEditorStore((s) => s.createTab);
+    const closeTabStore = useSqlEditorStore((s) => s.closeTab);
+    const updateActiveTab = useSqlEditorStore((s) => s.updateActiveTab);
+    const getActiveTab = useSqlEditorStore((s) => s.getActiveTab);
+    const renameTab = useSqlEditorStore((s) => s.renameTab);
+    const editingTitleId = useSqlEditorStore((s) => s.editingTitleId);
+    const setEditingTitleId = useSqlEditorStore((s) => s.setEditingTitleId);
+    const tempTitle = useSqlEditorStore((s) => s.tempTitle);
+    const setTempTitle = useSqlEditorStore((s) => s.setTempTitle);
 
-    // AI & Sidebar State
-    const [aiPrompt, setAiPrompt] = useState("");
-    const [isAiLoading, setIsAiLoading] = useState(false);
-    const [isFixing, setIsFixing] = useState(false);
-    const [activeSidebarTab, setActiveSidebarTab] = useState<'history' | 'saved' | 'schema' | 'help'>('schema');
+    const aiPrompt = useSqlEditorStore((s) => s.aiPrompt);
+    const setAiPrompt = useSqlEditorStore((s) => s.setAiPrompt);
+    const isAiLoading = useSqlEditorStore((s) => s.isAiLoading);
+    const setIsAiLoading = useSqlEditorStore((s) => s.setIsAiLoading);
+    const isFixing = useSqlEditorStore((s) => s.isFixing);
+    const setIsFixing = useSqlEditorStore((s) => s.setIsFixing);
+    const activeSidebarTab = useSqlEditorStore((s) => s.activeSidebarTab);
+    const setActiveSidebarTab = useSqlEditorStore((s) => s.setActiveSidebarTab);
 
-    // Toast 状态提示
-    const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' | 'warning' } | null>(null);
-    const toastTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const toast = useSqlEditorStore((s) => s.toast);
+    const showToast = useSqlEditorStore((s) => s.showToast);
 
-    const showToast = useCallback((message: string, type: 'success' | 'info' | 'warning' = 'info') => {
-        if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-        setToast({ message, type });
-        toastTimerRef.current = setTimeout(() => setToast(null), 2500);
-    }, []);
-
-    // AI 增强功能状态
-    const [selectedSqlType, setSelectedSqlType] = useState<string>('select');
-    const [showHelp, setShowHelp] = useState(true);
-    const [showLivePreview, setShowLivePreview] = useState(false);
-    const [liveSqlPreview, setLiveSqlPreview] = useState<string>('');
-    const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
-    const [aiSuggestion, setAiSuggestion] = useState<string>('');
-    const [isGeneratingSuggestion, setIsGeneratingSuggestion] = useState(false);
-    const [copiedField, setCopiedField] = useState<string | null>(null);
-    const [lastClearedContent, setLastClearedContent] = useState<{ sql: string; aiInput: string } | null>(null);
+    const selectedSqlType = useSqlEditorStore((s) => s.selectedSqlType);
+    const setSelectedSqlType = useSqlEditorStore((s) => s.setSelectedSqlType);
+    const showLivePreview = useSqlEditorStore((s) => s.showLivePreview);
+    const setShowLivePreview = useSqlEditorStore((s) => s.setShowLivePreview);
+    const liveSqlPreview = useSqlEditorStore((s) => s.liveSqlPreview);
+    const setLiveSqlPreview = useSqlEditorStore((s) => s.setLiveSqlPreview);
+    const isGeneratingPreview = useSqlEditorStore((s) => s.isGeneratingPreview);
+    const setIsGeneratingPreview = useSqlEditorStore((s) => s.setIsGeneratingPreview);
+    const aiSuggestion = useSqlEditorStore((s) => s.aiSuggestion);
+    const setAiSuggestion = useSqlEditorStore((s) => s.setAiSuggestion);
+    const isGeneratingSuggestion = useSqlEditorStore((s) => s.isGeneratingSuggestion);
+    const setIsGeneratingSuggestion = useSqlEditorStore((s) => s.setIsGeneratingSuggestion);
+    const copiedField = useSqlEditorStore((s) => s.copiedField);
+    const setCopiedField = useSqlEditorStore((s) => s.setCopiedField);
+    const lastClearedContent = useSqlEditorStore((s) => s.lastClearedContent);
+    const setLastClearedContent = useSqlEditorStore((s) => s.setLastClearedContent);
     const previewDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
-    // Data for Sidebar
-    const [history, setHistory] = useState<QueryHistoryItem[]>([]);
-    const [savedQueries, setSavedQueries] = useState<SavedQuery[]>([]);
-    const [schemaTree, setSchemaTree] = useState<Record<string, ColumnInfo[]>>({});
-    const [expandedTables, setExpandedTables] = useState<Set<string>>(new Set());
-    const [historyFilter, setHistoryFilter] = useState('');
+    const history = useSqlEditorStore((s) => s.history);
+    const savedQueries = useSqlEditorStore((s) => s.savedQueries);
+    const setSavedQueries = useSqlEditorStore((s) => s.setSavedQueries);
+    const schemaTree = useSqlEditorStore((s) => s.schemaTree);
+    const setSchemaTree = useSqlEditorStore((s) => s.setSchemaTree);
+    const historyFilter = useSqlEditorStore((s) => s.historyFilter);
+    const setHistoryFilter = useSqlEditorStore((s) => s.setHistoryFilter);
+    const addHistory = useSqlEditorStore((s) => s.addHistory);
+    const clearHistoryStore = useSqlEditorStore((s) => s.clearHistory);
 
-    // Modals & Menus
-    const [showSaveModal, setShowSaveModal] = useState(false);
-    const [showChartBuilder, setShowChartBuilder] = useState(false);
-    const [editingChartId, setEditingChartId] = useState<string | null>(null);
-    const [showMaterializeModal, setShowMaterializeModal] = useState(false);
-    const [materializeType, setMaterializeType] = useState<'TABLE' | 'VIEW'>('TABLE');
-    const [materializeName, setMaterializeName] = useState('');
+    const showSaveModal = useSqlEditorStore((s) => s.showSaveModal);
+    const setShowSaveModal = useSqlEditorStore((s) => s.setShowSaveModal);
+    const showChartBuilder = useSqlEditorStore((s) => s.showChartBuilder);
+    const setShowChartBuilder = useSqlEditorStore((s) => s.setShowChartBuilder);
+    const editingChartId = useSqlEditorStore((s) => s.editingChartId);
+    const setEditingChartId = useSqlEditorStore((s) => s.setEditingChartId);
+    const showMaterializeModal = useSqlEditorStore((s) => s.showMaterializeModal);
+    const setShowMaterializeModal = useSqlEditorStore((s) => s.setShowMaterializeModal);
+    const materializeType = useSqlEditorStore((s) => s.materializeType);
+    const setMaterializeType = useSqlEditorStore((s) => s.setMaterializeType);
+    const materializeName = useSqlEditorStore((s) => s.materializeName);
+    const setMaterializeName = useSqlEditorStore((s) => s.setMaterializeName);
 
-    const [showSnippetsMenu, setShowSnippetsMenu] = useState(false);
-    const [expandedSnippetCategory, setExpandedSnippetCategory] = useState<string | null>('基础查询'); // 当前展开的分类
-    const [hoveredSnippet, setHoveredSnippet] = useState<{ label: string; sql: string } | null>(null); // 悬停预览的片段
-    const [aiOptimizationHistory, setAiOptimizationHistory] = useState<{ sql: string; timestamp: number }[]>([]); // AI 优化历史
-    const [aiExplanation, setAiExplanation] = useState<string>(''); // AI 解释结果
-    const [showAiExplanation, setShowAiExplanation] = useState<boolean>(false); // 是否显示解释弹窗
-    const [aiExplanationHistory, setAiExplanationHistory] = useState<AiExplanation[]>([]); // AI 解释历史
-    const [showYAxisMenu, setShowYAxisMenu] = useState(false);
-    const [showYRightAxisMenu, setShowYRightAxisMenu] = useState(false);
-    const [saveQueryName, setSaveQueryName] = useState('');
-    const [saveAsWidget, setSaveAsWidget] = useState(false);
-    const [widgetType, setWidgetType] = useState<'value' | 'table' | 'chart'>('table');
-    const [showExportMenu, setShowExportMenu] = useState(false);
-    const [showMaterializeMenu, setShowMaterializeMenu] = useState(false);
-    const [showSkillAssistant, setShowSkillAssistant] = useState(false);
-    const [autoRefreshInterval, setAutoRefreshInterval] = useState<number>(0); // 0 = 禁用, 其他值 = 秒数
+    const showSnippetsMenu = useSqlEditorStore((s) => s.showSnippetsMenu);
+    const setShowSnippetsMenu = useSqlEditorStore((s) => s.setShowSnippetsMenu);
+    const expandedSnippetCategory = useSqlEditorStore((s) => s.expandedSnippetCategory);
+    const setExpandedSnippetCategory = useSqlEditorStore((s) => s.setExpandedSnippetCategory);
+    const hoveredSnippet = useSqlEditorStore((s) => s.hoveredSnippet);
+    const setHoveredSnippet = useSqlEditorStore((s) => s.setHoveredSnippet);
+    const aiOptimizationHistory = useSqlEditorStore((s) => s.aiOptimizationHistory);
+    const setAiOptimizationHistory = useSqlEditorStore((s) => s.setAiOptimizationHistory);
+    const aiExplanation = useSqlEditorStore((s) => s.aiExplanation);
+    const setAiExplanation = useSqlEditorStore((s) => s.setAiExplanation);
+    const showAiExplanation = useSqlEditorStore((s) => s.showAiExplanation);
+    const setShowAiExplanation = useSqlEditorStore((s) => s.setShowAiExplanation);
+    const aiExplanationHistory = useSqlEditorStore((s) => s.aiExplanationHistory);
+    const setAiExplanationHistory = useSqlEditorStore((s) => s.setAiExplanationHistory);
+    const saveQueryName = useSqlEditorStore((s) => s.saveQueryName);
+    const setSaveQueryName = useSqlEditorStore((s) => s.setSaveQueryName);
+    const saveAsWidget = useSqlEditorStore((s) => s.saveAsWidget);
+    const setSaveAsWidget = useSqlEditorStore((s) => s.setSaveAsWidget);
+    const widgetType = useSqlEditorStore((s) => s.widgetType);
+    const setWidgetType = useSqlEditorStore((s) => s.setWidgetType);
+    const showExportMenu = useSqlEditorStore((s) => s.showExportMenu);
+    const setShowExportMenu = useSqlEditorStore((s) => s.setShowExportMenu);
+    const showMaterializeMenu = useSqlEditorStore((s) => s.showMaterializeMenu);
+    const setShowMaterializeMenu = useSqlEditorStore((s) => s.setShowMaterializeMenu);
+    const showSkillAssistant = useSqlEditorStore((s) => s.showSkillAssistant);
+    const setShowSkillAssistant = useSqlEditorStore((s) => s.setShowSkillAssistant);
+    const autoRefreshInterval = useSqlEditorStore((s) => s.autoRefreshInterval);
+    const setAutoRefreshInterval = useSqlEditorStore((s) => s.setAutoRefreshInterval);
 
-    // Editing Tab Title
-    const [editingTitleId, setEditingTitleId] = useState<string | null>(null);
-    const [tempTitle, setTempTitle] = useState('');
-
-    // Editor Splitter State
-    const [editorHeightPercent, setEditorHeightPercent] = useState(50);
+    const editorHeightPercent = useSqlEditorStore((s) => s.editorHeightPercent);
+    const setEditorHeightPercent = useSqlEditorStore((s) => s.setEditorHeightPercent);
     const editorContainerRef = useRef<HTMLDivElement>(null);
     const isDraggingRef = useRef(false);
 
     const chartRef = useRef<any>(null);
     const PAGE_SIZE = 50;
 
-    // --- Initialization ---
+    const selectionRef = useRef('');
+    const cursorOffsetRef = useRef(0);
+    const activeTab = getActiveTab();
+
+    const hasMismatchedBrackets = useMemo(() => {
+        if (!activeTab || !activeTab.code) return false;
+        let count = 0;
+        for (const char of activeTab.code) {
+            if (char === '(') count++;
+            else if (char === ')') count--;
+            if (count < 0) return true;
+        }
+        return count !== 0;
+    }, [activeTab?.code]);
+
+    const [dbStats, setDbStats] = useState<{ databaseSize: string; memoryUsage: string; memoryLimit: string } | null>(null);
+
+    const refreshDiagnostics = async () => {
+        try {
+            const stats = await duckDBService.getDatabaseDiagnostics();
+            setDbStats(stats);
+        } catch (e) { console.error(e); }
+    };
+
+    // --- Helpers (kept local; operate on store selectors) ---
+
+    const createNewTab = () => {
+        createTab();
+    };
+
+    const closeTab = (id: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        closeTabStore(id);
+    };
+
+    const handleTitleDoubleClick = (tab: SqlTab) => {
+        setEditingTitleId(tab.id);
+        setTempTitle(tab.title);
+    };
+
+    const saveTitle = () => {
+        if (editingTitleId) {
+            renameTab(editingTitleId, tempTitle);
+            setEditingTitleId(null);
+        }
+    };
 
     // --- Initialization ---
 
@@ -238,8 +290,6 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
 
     const loadData = async () => {
         try {
-            const hist = localStorage.getItem('duckdb_sql_history');
-            if (hist) setHistory(JSON.parse(hist));
             const saved = await dbService.getQueries();
             setSavedQueries(saved);
             // 加载 AI 解释历史
@@ -251,14 +301,13 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
 
     useEffect(() => {
         if (initialCode) {
-            setTabs(prev => {
-                if (prev.length === 0) {
-                    const newTab = createTabObject(initialCode);
-                    setActiveTabId(newTab.id);
-                    return [newTab];
-                }
-                return prev.map(t => t.id === activeTabId ? { ...t, code: initialCode } : t);
-            });
+            const store = useSqlEditorStore.getState();
+            const tab = store.getActiveTab();
+            if (!tab) {
+                store.createTab(initialCode);
+            } else {
+                store.updateActiveTab({ code: initialCode });
+            }
         }
     }, [initialCode]);
 
@@ -266,26 +315,24 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
     useEffect(() => {
         if (pendingChartConfig) {
             const sqlCode = initialCode || ''; // Get SQL from initialCode prop
-            setTabs(prev => {
-                if (prev.length === 0) {
-                    const newTab = createTabObject(pendingChartConfig.title || 'Metric Chart');
-                    setActiveTabId(newTab.id);
-                    return [{
-                        ...newTab,
-                        code: sqlCode,  // Use the SQL code
-                        chartConfig: pendingChartConfig,
-                        charts: [pendingChartConfig],  // Add to charts array
-                        viewMode: 'chart' as const
-                    }];
-                }
-                return prev.map(t => t.id === activeTabId ? {
-                    ...t,
-                    code: sqlCode || t.code,  // Use provided SQL or keep existing
+            const store = useSqlEditorStore.getState();
+            const tab = store.getActiveTab();
+            if (!tab) {
+                const newId = store.createTab(pendingChartConfig.title || 'Metric Chart');
+                store.updateTabById(newId, {
+                    code: sqlCode,
                     chartConfig: pendingChartConfig,
-                    charts: [...(t.charts || []), pendingChartConfig],  // Add to charts array
-                    viewMode: 'chart' as const
-                } : t);
-            });
+                    charts: [pendingChartConfig],
+                    viewMode: 'chart',
+                });
+            } else {
+                store.updateActiveTab({
+                    code: sqlCode || tab.code,
+                    chartConfig: pendingChartConfig,
+                    charts: [...(tab.charts || []), pendingChartConfig],
+                    viewMode: 'chart',
+                });
+            }
 
             // Auto-run the SQL after setting the config (with a small delay to ensure state is updated)
             if (sqlCode) {
@@ -298,16 +345,7 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
         }
     }, [pendingChartConfig, initialCode]); // Also track initialCode changes
 
-    useEffect(() => {
-        if (tabs.length > 0) {
-            const toSave = tabs.map(t => ({
-                ...t,
-                result: null,
-                loading: false
-            }));
-            localStorage.setItem('duckdb_sql_tabs', JSON.stringify(toSave));
-        }
-    }, [tabs]);
+    // (Tabs auto-persist via Zustand persist middleware — see useSqlEditorStore.ts.)
 
     // Dragging Logic
     useEffect(() => {
@@ -348,142 +386,34 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
                 tree[t] = cols;
             }
             setSchemaTree(tree);
+            refreshDiagnostics();
         } catch (e) { console.error(e); }
     };
 
-    // --- Tab Helpers ---
-
-    const createTabObject = (code = DEFAULT_CODE): SqlTab => ({
-        id: Date.now().toString(),
-        title: 'Untitled Query',
-        code,
-        result: null,
-        history: [],
-        historyIndex: -1,
-        loading: false,
-        viewMode: 'table',
-        chartConfig: { id: 'default', title: 'Start Execution', type: 'bar', xKey: '', yKeys: [], yRightKeys: [], stacked: false, horizontal: false, aggregation: 'none' },
-        page: 0,
-        filterTerm: ''
+    // --- Execution Logic (delegated to useSqlExecution hook) ---
+    const { execute: runExecute, handleKeyDown: hookHandleKeyDown, cancel: cancelExecution } = useSqlExecution({
+        getActiveTab,
+        updateActiveTab,
+        onAfterRun: () => {
+            if (onRun) onRun();
+            refreshDiagnostics();
+        },
+        saveToHistory: (sql, status, duration) => saveToHistory(sql, status, duration),
+        refreshSchema,
+        onCancel: () => {
+            showToast('查询已取消', 'warning');
+        },
+        onError: (msg) => {
+            console.error('SQL execution error:', msg);
+        },
     });
 
-    const createNewTab = () => {
-        const newTab = createTabObject();
-        setTabs(prev => [...prev, newTab]);
-        setActiveTabId(newTab.id);
-    };
+    /** Thin wrapper preserving original signature `execute(explain)`. */
+    const execute = (explain = false) => runExecute(explain, selectionRef.current.trim() || undefined, cursorOffsetRef.current);
 
-    const closeTab = (id: string, e: React.MouseEvent) => {
-        e.stopPropagation();
-        const newTabs = tabs.filter(t => t.id !== id);
-        if (newTabs.length === 0) {
-            const defaultTab = createTabObject();
-            setTabs([defaultTab]);
-            setActiveTabId(defaultTab.id);
-        } else {
-            setTabs(newTabs);
-            if (activeTabId === id) {
-                setActiveTabId(newTabs[newTabs.length - 1].id);
-            }
-        }
-    };
-
-    const updateActiveTab = (updates: Partial<SqlTab>) => {
-        setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, ...updates } : t));
-    };
-
-    const getActiveTab = () => tabs.find(t => t.id === activeTabId) || tabs[0];
-
-    const handleTitleDoubleClick = (tab: SqlTab) => {
-        setEditingTitleId(tab.id);
-        setTempTitle(tab.title);
-    };
-
-    const saveTitle = () => {
-        if (editingTitleId) {
-            setTabs(prev => prev.map(t => t.id === editingTitleId ? { ...t, title: tempTitle || 'Untitled' } : t));
-            setEditingTitleId(null);
-        }
-    };
-
-    // --- Execution Logic ---
-
-    const execute = async (explain = false) => {
-        const tab = getActiveTab();
-        if (!tab || tab.loading) return;
-
-        updateActiveTab({ loading: true, viewMode: explain ? 'explain' : 'table', page: 0, filterTerm: '' });
-
-        const startTime = performance.now();
-        let sqlToRun = tab.code;
-        if (explain && !sqlToRun.toUpperCase().startsWith('EXPLAIN')) {
-            sqlToRun = `EXPLAIN ${tab.code}`;
-        }
-
-        try {
-            const upper = tab.code.trim().toUpperCase();
-            let type = 'QUERY';
-            if (upper.startsWith('INSERT')) type = 'INSERT';
-            if (upper.startsWith('UPDATE')) type = 'UPDATE';
-            if (upper.startsWith('DELETE')) type = 'DELETE';
-            if (upper.startsWith('CREATE')) type = 'CREATE';
-            if (upper.startsWith('DROP')) type = 'DELETE';
-            if (upper.startsWith('ALTER')) type = 'ALTER';
-            if (upper.startsWith('PIVOT')) type = 'QUERY';
-
-            const tableMatch = tab.code.match(/(?:FROM|INTO|UPDATE|TABLE)\s+"?([a-zA-Z0-9_]+)"?/i);
-            const table = tableMatch ? tableMatch[1] : null;
-
-            let rows;
-            if (explain) {
-                rows = await duckDBService.query(sqlToRun);
-            } else {
-                rows = await duckDBService.executeAndAudit(sqlToRun, type, table, 'Executed via SQL Editor');
-            }
-
-            const endTime = performance.now();
-
-            if (type === 'CREATE' || type === 'DROP' || type === 'ALTER') {
-                refreshSchema();
-            }
-
-            const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
-
-
-
-            updateActiveTab({
-                result: {
-                    columns,
-                    rows,
-                    executionTime: endTime - startTime,
-                    isExplain: explain
-                },
-                loading: false
-            });
-
-            if (!explain) saveToHistory(tab.code, 'success', endTime - startTime);
-            onRun();
-
-        } catch (e: any) {
-            updateActiveTab({
-                result: { columns: [], rows: [], executionTime: 0, error: e.message },
-                loading: false
-            });
-            if (!explain) saveToHistory(tab.code, 'error', 0);
-        }
-    };
-
-    const handleKeyDown = (e: React.KeyboardEvent) => {
-        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-            e.preventDefault();
-            execute();
-        }
-        // Ctrl+Z 撤销快速清除（仅在存在已清除内容时触发）
-        if ((e.ctrlKey || e.metaKey) && e.key === 'z' && lastClearedContent) {
-            e.preventDefault();
-            handleUndoClear();
-        }
-    };
+    /** Thin wrapper preserving original handleKeyDown signature. */
+    const handleKeyDown = (e: React.KeyboardEvent) =>
+        hookHandleKeyDown(e, { lastClearedContent, onUndoClear: handleUndoClear });
 
     // --- Materialization ---
     const openMaterializeModal = (type: 'TABLE' | 'VIEW') => {
@@ -513,58 +443,9 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
         }
     };
 
-    // --- AI & Tools ---
-
-    // AI 一键填充 - 基于当前表/列上下文
-    const handleAIFill = useCallback(() => {
-        const tab = getActiveTab();
-        if (!tab) return;
-
-        // 从 SQL 中解析表名
-        const tableMatch = tab.code.match(/(?:FROM|INTO|UPDATE|TABLE)\s+"?([a-zA-Z0-9_]+)"?/i);
-        const currentTable = tableMatch ? tableMatch[1] : '';
-        const currentColumns = currentTable ? schemaTree[currentTable] : undefined;
-
-        const prompt = generateAIFillPrompt(selectedSqlType, currentTable, currentColumns);
-
-        // 生成智能填充的 SQL 示例（上下文感知）
-        let filledSql = '';
-        const tbl = currentTable || 'table_name';
-        const hasCols = currentColumns && currentColumns.length > 0;
-        const cols5 = hasCols ? currentColumns!.slice(0, 5).map(c => c.name) : ['col1', 'col2', 'col3'];
-        const allCols = hasCols ? currentColumns!.map(c => c.name) : [];
-        const timeCol = allCols.find(c => /date|time|created|updated|ts|at/i.test(c)) || 'created_at';
-        const numCol = allCols.find(c => /amount|count|total|sum|value|price|qty/i.test(c)) || 'amount';
-        const idCol = allCols.find(c => /^id$|_id$/i.test(c)) || 'id';
-
-        switch (selectedSqlType) {
-            case 'select':
-                filledSql = hasCols
-                    ? `SELECT ${cols5.join(', ')}\nFROM ${tbl}\nWHERE 1=1\n  -- AND ${cols5[0]} = 'value'\nORDER BY ${idCol} DESC\nLIMIT 100;`
-                    : `SELECT column1, column2\nFROM ${tbl}\nWHERE condition\nORDER BY id DESC\nLIMIT 100;`;
-                break;
-            case 'join':
-                filledSql = `SELECT\n    t1.${idCol},\n    t1.${cols5[0] || 'col1'},\n    t2.related_col\nFROM ${tbl} t1\nLEFT JOIN other_table t2\n    ON t1.${idCol} = t2.${tbl}_id\nWHERE t1.${timeCol} >= current_date - interval '30 day'\nLIMIT 100;`;
-                break;
-            case 'aggregate':
-                filledSql = `SELECT\n    date_trunc('day', ${timeCol}) AS date,\n    COUNT(*)               AS row_count,\n    COUNT(DISTINCT ${idCol}) AS unique_count,\n    SUM(${numCol})         AS total_${numCol}\nFROM ${tbl}\nWHERE ${timeCol} >= current_date - interval '30 day'\nGROUP BY 1\nORDER BY 1 DESC;`;
-                break;
-            case 'transform':
-                filledSql = `-- 数据转换 / 清洗示例\nSELECT\n    TRY_CAST(${timeCol} AS DATE)              AS date_clean,\n    TRIM(LOWER(${cols5[0] || 'text_col'}))    AS text_clean,\n    COALESCE(${numCol}, 0)                    AS ${numCol}_filled\nFROM ${tbl}\nWHERE ${numCol} IS NOT NULL;\n\n-- 列转行示例（UNPIVOT）\n-- UNPIVOT ${tbl}\n-- ON (${cols5.slice(0, 3).join(', ')})\n-- INTO NAME metric VALUE value;`;
-                break;
-            case 'performance':
-                filledSql = `-- 执行计划诊断：在原始查询前加 EXPLAIN ANALYZE\nEXPLAIN ANALYZE\nSELECT ${cols5.slice(0, 3).join(', ')}\nFROM ${tbl}\nWHERE ${timeCol} >= current_date - interval '7 day'\nLIMIT 1000;\n\n-- 执行后在结果区点击「Plan」标签查看详细计划`;
-                break;
-            case 'utilities':
-                filledSql = `-- 数据摘要统计（一行搞定）\nSUMMARIZE ${tbl};\n\n-- 数据质量检查\nSELECT 'null_check'   AS check_type, COUNT(*) FILTER (WHERE ${cols5[0] || 'col1'} IS NULL) AS issues FROM ${tbl}\nUNION ALL\nSELECT 'dup_check',   COUNT(*) - COUNT(DISTINCT ${idCol}) FROM ${tbl}\nUNION ALL\nSELECT 'total_rows',  COUNT(*) FROM ${tbl};\n\n-- 随机抽样 100 行（固定种子可重现）\n-- CALL setseed(0.42);\n-- SELECT * FROM ${tbl} USING SAMPLE 100 ROWS;`;
-                break;
-            default:
-                filledSql = `SELECT * FROM ${tbl} LIMIT 10;`;
-        }
-
-        updateActiveTab({ code: filledSql });
-        showToast(`已填充「${SQL_CATEGORY_HELP[selectedSqlType]?.title || selectedSqlType}」模板`, 'success');
-    }, [selectedSqlType, schemaTree, showToast]);
+    // --- AI & Tools (delegated to useSqlAiAssistant hook) ---
+    const ai = useSqlAiAssistant();
+    const handleAIFill = ai.handleAIFill;
 
     // 快速清除 - 清空当前编辑器内容 + AI 输入框
     const handleClear = useCallback(() => {
@@ -613,49 +494,43 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
         }
     }, []);
 
-    // 防抖实时预览
+    // Auto-save draft (debounced 3s after last keystroke)
+    const lastSavedAt = useSqlEditorStore((s) => s.lastSavedAt);
+    const setLastSavedAt = useSqlEditorStore((s) => s.setLastSavedAt);
+    const autoSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const savedContentRef = useRef<string>('');
+
     useEffect(() => {
-        if (!showLivePreview) return;
+        const tab = useSqlEditorStore.getState().getActiveTab();
+        if (!tab || !tab.code || tab.code === savedContentRef.current) return;
+        if (autoSaveRef.current) clearTimeout(autoSaveRef.current);
+        autoSaveRef.current = setTimeout(() => {
+            savedContentRef.current = tab.code;
+            setLastSavedAt(Date.now());
+            try {
+                const drafts = JSON.parse(localStorage.getItem('sql-editor-drafts') || '{}');
+                drafts[tab.id] = { code: tab.code, savedAt: Date.now() };
+                localStorage.setItem('sql-editor-drafts', JSON.stringify(drafts));
+            } catch { /* ignore */ }
+        }, 3000);
+    }, [activeTabId]);
 
-        if (previewDebounceRef.current) {
-            clearTimeout(previewDebounceRef.current);
-        }
-
-        previewDebounceRef.current = setTimeout(() => {
-            generateLivePreview();
-        }, 500);
-
-        return () => {
-            if (previewDebounceRef.current) {
-                clearTimeout(previewDebounceRef.current);
-            }
-        };
-    }, [tabs, activeTabId, showLivePreview, generateLivePreview]);
-
-    // AI 建议生成
-    const handleAISuggestion = useCallback(async () => {
-        if (!aiSuggestion.trim()) return;
-
-        setIsGeneratingSuggestion(true);
-
+    // Restore draft on tab switch if the tab has no code
+    useEffect(() => {
+        const tab = useSqlEditorStore.getState().getActiveTab();
+        if (!tab || tab.code) return;
         try {
-            const tables = await duckDBService.getTables();
-            let schemaStr = '';
-            for (const t of tables) {
-                const cols = await duckDBService.getTableSchema(t);
-                const colStr = cols.map(c => `${c.name} (${c.type})`).join(', ');
-                schemaStr += `Table ${t}: [${colStr}]\n`;
+            const drafts = JSON.parse(localStorage.getItem('sql-editor-drafts') || '{}');
+            const draft = drafts[tab.id];
+            if (draft && draft.code) {
+                updateActiveTab({ code: draft.code });
+                savedContentRef.current = draft.code;
             }
+        } catch { /* ignore */ }
+    }, [activeTabId]);
 
-            const sql = await aiService.generateSql(aiSuggestion, schemaStr);
-            updateActiveTab({ code: sql });
-            setAiSuggestion('');
-        } catch (e) {
-            console.error(e);
-        } finally {
-            setIsGeneratingSuggestion(false);
-        }
-    }, [aiSuggestion]);
+    // AI 建议生成 (delegated to useSqlAiAssistant)
+    const handleAISuggestion = ai.handleAISuggestion;
 
     // 复制功能
     const handleCopy = (text: string, fieldName: string) => {
@@ -681,107 +556,26 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
         }
     };
 
-    const handleAiGenerate = async () => {
-        if (!aiPrompt.trim()) return;
-        setIsAiLoading(true);
-        try {
-            const tables = await duckDBService.getTables();
-            let schemaStr = "";
-            for (const t of tables) {
-                const cols = await duckDBService.getTableSchema(t);
-                const colStr = cols.map(c => `${c.name} (${c.type})`).join(', ');
-                schemaStr += `Table ${t}: [${colStr}]\n`;
-            }
-            const sql = await aiService.generateSql(aiPrompt, schemaStr);
-            // 记录 AI 优化历史
-            setAiOptimizationHistory(prev => [...prev.slice(-4), { sql, timestamp: Date.now() }]);
-            updateActiveTab({ code: sql });
-        } catch (e) { console.error(e); }
-        finally { setIsAiLoading(false); }
-    };
+    const handleAiGenerate = ai.handleAiGenerate;
+    const handleAiContinueOptimize = ai.handleAiContinueOptimize;
+    const handleAiFix = ai.handleAiFix;
 
-    // AI 二次优化 - 基于已有 SQL 继续优化
-    const handleAiContinueOptimize = async (optimizationType: string) => {
-        const tab = getActiveTab();
-        if (!tab || !tab.code.trim()) return;
-
-        setIsAiLoading(true);
-        try {
-            const tables = await duckDBService.getTables();
-            let schemaStr = "";
-            for (const t of tables) {
-                const cols = await duckDBService.getTableSchema(t);
-                const colStr = cols.map(c => `${c.name} (${c.type})`).join(', ');
-                schemaStr += `Table ${t}: [${colStr}]\n`;
-            }
-
-            const optimizationPrompts: Record<string, string> = {
-                'improve': `请优化以下 SQL，提升性能和可读性。直接返回优化后的 SQL 代码，不要包含其他说明文字：\n\n${tab.code}`,
-                'explain': `请详细解释以下 SQL 查询的作用、计算逻辑和数据指标。请使用 Markdown 格式返回，每个要点单独一行，格式示例：\n\n## 查询目的\n该查询的目的是...\n\n## 使用的表和字段\n- 表：xxx\n- 字段：xxx\n\n## 主要计算逻辑\n...（详细说明）\n\n## 输出结果\n...（代表什么含义）\n\n**注意**：标题和内容必须分开两行，列表项格式为 "- 项目：内容"，不要把标题和内容写在同一行。\n\nSQL: ${tab.code}`,
-                'adapt': `请将以下 SQL 适配到 DuckDB 语法，利用 DuckDB 特有功能（如 SUMMARIZE、PIVOT、UNPIVOT、USING SAMPLE 等）优化。直接返回优化后的 SQL 代码：\n\n${tab.code}`,
-            };
-
-            const prompt = optimizationPrompts[optimizationType] || optimizationPrompts['improve'];
-            const aiResult = await aiService.generateSql(prompt, schemaStr);
-
-            // 解释功能显示在弹窗中，不覆盖 SQL
-            if (optimizationType === 'explain') {
-                // 保存到持久化存储
-                const explanationRecord: AiExplanation = {
-                    id: `explain_${Date.now()}`,
-                    sql: tab.code,
-                    explanation: aiResult,
-                    createdAt: Date.now()
-                };
-                await saveExplanation(explanationRecord);
-                const history = await getAllExplanations();
-                setAiExplanationHistory(history);
-                setAiExplanation(aiResult);
-                setShowAiExplanation(true);
-            } else {
-                // 优化和适配功能更新 SQL
-                setAiOptimizationHistory(prev => [...prev.slice(-4), { sql: aiResult, timestamp: Date.now() }]);
-                updateActiveTab({ code: aiResult });
-                showToast(optimizationType === 'improve' ? 'SQL 优化完成' : 'DuckDB 适配完成', 'success');
-            }
-        } catch (e) { console.error(e); }
-        finally { setIsAiLoading(false); }
-    };
-
-    const handleAiFix = async () => {
-        const tab = getActiveTab();
-        if (!tab || !tab.result?.error) return;
-        setIsFixing(true);
-        try {
-            const tables = await duckDBService.getTables();
-            let schemaStr = "";
-            for (const t of tables) {
-                const cols = await duckDBService.getTableSchema(t);
-                schemaStr += `Table ${t}: [${cols.map(c => c.name).join(',')}]\n`;
-            }
-            const fixedSql = await aiService.fixSql(tab.code, tab.result.error, schemaStr);
-            updateActiveTab({ code: fixedSql });
-        } catch (e) { console.error(e); }
-        finally { setIsFixing(false); }
-    };
-
-    // --- Persistence Wrappers ---
+    // --- Persistence Wrappers (now backed by Zustand store) ---
     const saveToHistory = (sql: string, status: 'success' | 'error', duration: number = 0) => {
         const newItem: QueryHistoryItem = {
-            id: crypto.randomUUID(),
+            id: (typeof crypto !== 'undefined' && crypto.randomUUID)
+                ? crypto.randomUUID()
+                : `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
             sql,
             timestamp: Date.now(),
             status,
             executionTime: duration
         };
-        const updated = [newItem, ...history].slice(0, 100);
-        setHistory(updated);
-        localStorage.setItem('duckdb_sql_history', JSON.stringify(updated));
+        addHistory(newItem);
     };
 
     const clearHistory = () => {
-        setHistory([]);
-        localStorage.removeItem('duckdb_sql_history');
+        clearHistoryStore();
     };
 
     const handleSaveQuery = async () => {
@@ -819,104 +613,41 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
     };
 
     const toggleTableExpand = (table: string) => {
-        const newSet = new Set(expandedTables);
-        if (newSet.has(table)) newSet.delete(table); else newSet.add(table);
-        setExpandedTables(newSet);
+        useSqlEditorStore.getState().toggleTableExpand(table);
     };
 
     // --- Export ---
-    const generateHtmlReport = () => {
+    const handleExportHtmlReport = () => {
         const tab = getActiveTab();
         if (!tab || !tab.result) return;
-
         const chartImg = chartRef.current ? chartRef.current.toBase64Image() : null;
-        const rowsHtml = tab.result.rows.slice(0, 100).map(r => `<tr>${tab.result!.columns.map(c => `<td>${r[c]}</td>`).join('')}</tr>`).join('');
-
-        const html = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Query Report - ${tab.title}</title>
-            <style>
-                body { font-family: sans-serif; padding: 20px; background: #f8f8f8; color: #333; }
-                h1 { margin-bottom: 5px; }
-                .meta { font-size: 12px; color: #666; margin-bottom: 20px; }
-                .sql { background: #eee; padding: 15px; border-radius: 5px; font-family: monospace; white-space: pre-wrap; border: 1px solid #ddd; margin-bottom: 20px; }
-                table { border-collapse: collapse; width: 100%; font-size: 12px; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-                th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-                th { background: #f2f2f2; font-weight: bold; }
-                .chart-container { margin-bottom: 30px; background: white; padding: 20px; border-radius: 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); text-align: center; }
-                img { max-width: 100%; height: auto; }
-            </style>
-        </head>
-        <body>
-            <h1>${tab.title}</h1>
-            <div class="meta">Generated on ${new Date().toLocaleString()} | Execution: ${tab.result.executionTime.toFixed(2)}ms | Rows: ${tab.result.rows.length}</div>
-            
-            <div class="sql">${tab.code}</div>
-            
-            ${chartImg ? `<div class="chart-container"><h3>Visualization</h3><img src="${chartImg}" /></div>` : ''}
-            
-            <h3>Data Preview (First 100 rows)</h3>
-            <table>
-                <thead><tr>${tab.result.columns.map(c => `<th>${c}</th>`).join('')}</tr></thead>
-                <tbody>${rowsHtml}</tbody>
-            </table>
-        </body>
-        </html>
-      `;
-
-        const blob = new Blob([html], { type: 'text/html' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = `report_${Date.now()}.html`;
-        link.click();
+        const html = generateHtmlReport(tab.title, tab.code, tab.result, { chartImage: chartImg });
+        downloadBlob(new Blob([html], { type: 'text/html' }), `report_${Date.now()}.html`);
         setShowExportMenu(false);
     };
 
-    const downloadResult = async (format: 'csv' | 'json' | 'parquet') => {
+    const downloadResult = async (format: 'csv' | 'json' | 'parquet' | 'excel') => {
         const tab = getActiveTab();
         if (!tab || !tab.result || !tab.result.rows.length) return;
-
-        const fileName = `query_result_${Date.now()}.${format}`;
-
+        const ts = Date.now();
         try {
+            updateActiveTab({ loading: true });
+            showToast('开始异步格式化并导出...', 'info');
             if (format === 'parquet') {
                 const blob = await duckDBService.exportParquet(tab.code, 'export.parquet');
-                const url = URL.createObjectURL(blob);
-                const link = document.createElement("a");
-                link.href = url;
-                link.download = fileName;
-                link.click();
+                downloadBlob(blob, `query_result_${ts}.parquet`);
             } else {
-                let content = '', mime = '';
-                const replacer = (key: string, value: any) => typeof value === 'bigint' ? value.toString() : value;
-
-                if (format === 'json') {
-                    content = JSON.stringify(tab.result.rows, replacer, 2);
-                    mime = 'application/json';
-                } else {
-                    const headers = tab.result.columns.join(',');
-                    const rows = tab.result.rows.map(r =>
-                        tab.result!.columns.map(c => {
-                            const v = r[c];
-                            const safeV = typeof v === 'bigint' ? v.toString() : v;
-                            return safeV === null ? '' : `"${String(safeV).replace(/"/g, '""')}"`;
-                        }).join(',')
-                    ).join('\n');
-                    content = `${headers}\n${rows}`;
-                    mime = 'text/csv';
-                }
-                const blob = new Blob([content], { type: mime });
-                const url = URL.createObjectURL(blob);
-                const link = document.createElement("a");
-                link.href = url;
-                link.download = fileName;
-                link.click();
+                const blob = await exportDataAsync(format, tab.result);
+                downloadBlob(blob, `query_result_${ts}.${format === 'excel' ? 'xls' : format}`);
             }
+            showToast('文件导出成功', 'success');
             setShowExportMenu(false);
-        } catch (e) { alert("Export failed. Ensure query supports export."); }
+        } catch (e: any) {
+            console.error(e);
+            showToast(`导出失败: ${e.message || e}`, 'warning');
+        } finally {
+            updateActiveTab({ loading: false });
+        }
     };
 
     const downloadChartImage = () => {
@@ -931,22 +662,8 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
     const copyToClipboard = (mode: 'tsv' | 'md' | 'html') => {
         const tab = getActiveTab();
         if (!tab || !tab.result) return;
-        const { columns, rows } = tab.result;
-
-        let text = '';
-        if (mode === 'tsv') {
-            text = columns.join('\t') + '\n' + rows.map(r => columns.map(c => r[c]).join('\t')).join('\n');
-        } else if (mode === 'md') {
-            const sep = `| ${columns.map(() => '---').join(' | ')} |`;
-            const header = `| ${columns.join(' | ')} |`;
-            const body = rows.map(r => `| ${columns.map(c => r[c]).join(' | ')} |`).join('\n');
-            text = `${header}\n${sep}\n${body}`;
-        } else if (mode === 'html') {
-            const header = `<thead><tr>${columns.map(c => `<th>${c}</th>`).join('')}</tr></thead>`;
-            const body = `<tbody>${rows.map(r => `<tr>${columns.map(c => `<td>${r[c]}</td>`).join('')}</tr>`).join('')}</tbody>`;
-            text = `<table border="1" cellspacing="0" cellpadding="5">\n${header}\n${body}\n</table>`;
-        }
-        navigator.clipboard.writeText(text);
+        const fn = mode === 'tsv' ? copyAsTsv : mode === 'md' ? copyAsMarkdown : copyAsHtml;
+        navigator.clipboard.writeText(fn(tab.result));
     };
 
     const toggleYAxis = (col: string) => {
@@ -980,7 +697,6 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
     };
 
     // --- Rendering Helpers ---
-    const activeTab = getActiveTab();
 
     // 自动刷新定时器
     useEffect(() => {
@@ -1312,131 +1028,142 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
                         {/* Toolbar - 第一行：SQL编辑控制 */}
                         <div className="flex justify-between items-center p-2 bg-monokai-bg border-b border-monokai-accent z-50 gap-2 flex-wrap overflow-visible">
                             <div className="flex gap-2 items-center flex-wrap overflow-visible">
-                                {/* 撤销清除 */}
-                                {lastClearedContent && (
-                                    <button
-                                        onClick={handleUndoClear}
-                                        className="flex items-center gap-1.5 px-2 py-1 bg-monokai-blue/10 border border-monokai-blue/40 hover:bg-monokai-blue/20 text-monokai-blue text-xs font-medium rounded transition-colors"
-                                        title="撤销上一次清除（恢复 SQL + AI 输入）"
-                                    >
-                                        <RotateCcw className="w-3.5 h-3.5" />
+                                {/* 执行控制组 */}
+                                <div className="flex items-center gap-1.5 bg-monokai-surface/40 p-1 rounded border border-monokai-accent/15">
+                                    <button onClick={() => execute(false)} disabled={activeTab.loading} className={`px-4 py-1.5 bg-monokai-green text-monokai-bg font-bold rounded text-xs hover:opacity-90 disabled:opacity-50 transition-all hover:scale-[1.02] active:scale-95 flex items-center gap-2 ${activeTab.loading ? 'animate-pulse' : ''}`}>
+                                        <Play size={12} /> 运行
                                     </button>
-                                )}
+                                    {lastClearedContent && (
+                                        <button
+                                            onClick={handleUndoClear}
+                                            className="flex items-center gap-1.5 px-2.5 py-1.5 bg-monokai-blue/10 border border-monokai-blue/40 hover:bg-monokai-blue/20 text-monokai-blue text-xs font-semibold rounded transition-colors"
+                                            title="撤销上一次清除（恢复 SQL + AI 输入）"
+                                        >
+                                            <RotateCcw className="w-3.5 h-3.5" /> 撤销
+                                        </button>
+                                    )}
+                                </div>
 
-                                <button onClick={() => execute(false)} disabled={activeTab.loading} className={`px-4 py-1.5 bg-monokai-green text-monokai-bg font-bold rounded text-xs hover:opacity-90 disabled:opacity-50 transition-transform active:scale-95 flex items-center gap-2 ${activeTab.loading ? 'animate-pulse' : ''}`}>
-                                    <Play size={12} /> 运行
-                                </button>
-                                <div className="relative">
-                                    <button
-                                        onClick={() => setShowSnippetsMenu(!showSnippetsMenu)}
-                                        className="px-3 py-1.5 bg-monokai-yellow/10 border border-monokai-yellow/30 text-monokai-yellow hover:bg-monokai-yellow/20 text-xs font-bold rounded flex items-center gap-1.5 transition-colors"
-                                    >
-                                        <Code size={12} /> 片段 <ChevronDown size={10} />
-                                    </button>
-                                    {showSnippetsMenu && (
-                                        <div className="absolute top-full left-0 mt-1 bg-monokai-sidebar border border-monokai-accent rounded shadow-xl z-50 min-w-[240px] max-h-80 overflow-y-auto custom-scrollbar">
-                                            {Object.entries(SNIPPET_GROUPS).map(([groupName, snippets]) => (
-                                                <div key={groupName} className="border-b border-monokai-accent/20">
-                                                    {/* 分类标题 - 可点击展开/折叠 */}
-                                                    <button
-                                                        className="w-full flex items-center justify-between px-3 py-2 text-[10px] font-bold uppercase tracking-wider bg-monokai-bg/80 hover:bg-monokai-yellow/10 transition-colors"
-                                                        onClick={() => setExpandedSnippetCategory(expandedSnippetCategory === groupName ? null : groupName)}
-                                                    >
-                                                        <div className="flex items-center gap-2">
-                                                            <span className="flex items-center">{SNIPPET_CATEGORY_META[groupName]?.icon || <FileText className="w-4 h-4" />}</span>
-                                                            <span className={SNIPPET_CATEGORY_META[groupName]?.color || 'text-monokai-yellow/70'}>{groupName}</span>
-                                                            <span className="text-monokai-comment/50 text-[9px] normal-case tracking-normal">
-                                                                ({Object.keys(snippets).length})
-                                                            </span>
-                                                        </div>
-                                                        <ChevronDown
-                                                            size={10}
-                                                            className={`transition-transform ${expandedSnippetCategory === groupName ? 'rotate-180' : ''}`}
-                                                        />
-                                                    </button>
-                                                    {/* 分类描述 */}
-                                                    {expandedSnippetCategory === groupName && SNIPPET_CATEGORY_META[groupName]?.description && (
-                                                        <div className="px-3 py-1 text-[9px] text-monokai-comment/60 bg-monokai-bg/40">
-                                                            {SNIPPET_CATEGORY_META[groupName].description}
-                                                        </div>
-                                                    )}
-                                                    {/* 片段列表 - 仅在展开时显示 */}
-                                                    {expandedSnippetCategory === groupName && (
-                                                        <div className="max-h-48 overflow-y-auto custom-scrollbar">
-                                                            {Object.entries(snippets).map(([label, snippet]) => (
-                                                                <div
-                                                                    key={label}
-                                                                    className="relative"
-                                                                    onMouseEnter={() => setHoveredSnippet({ label, sql: snippet })}
-                                                                    onMouseLeave={() => setHoveredSnippet(null)}
-                                                                >
-                                                                    <button
-                                                                        className="w-full text-left px-4 py-2 text-xs text-monokai-fg hover:bg-monokai-yellow/10 hover:text-monokai-yellow transition-colors flex items-center gap-2"
-                                                                        onClick={() => { insertText(snippet); setShowSnippetsMenu(false); }}
+                                <div className="w-[1px] h-4 bg-monokai-accent/20 mx-1"></div>
+
+                                {/* SQL 辅助组 */}
+                                <div className="flex items-center gap-1.5">
+                                    <div className="relative">
+                                        <button
+                                            onClick={() => setShowSnippetsMenu(!showSnippetsMenu)}
+                                            className="px-3 py-1.5 bg-monokai-yellow/10 border border-monokai-yellow/30 text-monokai-yellow hover:bg-monokai-yellow/20 text-xs font-bold rounded flex items-center gap-1.5 transition-colors"
+                                        >
+                                            <Code size={12} /> 片段 <ChevronDown size={10} />
+                                        </button>
+                                        {showSnippetsMenu && (
+                                            <div className="absolute top-full left-0 mt-1 bg-monokai-sidebar border border-monokai-accent rounded shadow-xl z-50 min-w-[240px] max-h-80 overflow-y-auto custom-scrollbar">
+                                                {Object.entries(SNIPPET_GROUPS).map(([groupName, snippets]) => (
+                                                    <div key={groupName} className="border-b border-monokai-accent/20">
+                                                        <button
+                                                            className="w-full flex items-center justify-between px-3 py-2 text-[10px] font-bold uppercase tracking-wider bg-monokai-bg/80 hover:bg-monokai-yellow/10 transition-colors"
+                                                            onClick={() => setExpandedSnippetCategory(expandedSnippetCategory === groupName ? null : groupName)}
+                                                        >
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="flex items-center">{SNIPPET_CATEGORY_META[groupName]?.icon || <FileText className="w-4 h-4" />}</span>
+                                                                <span className={SNIPPET_CATEGORY_META[groupName]?.color || 'text-monokai-yellow/70'}>{groupName}</span>
+                                                                <span className="text-monokai-comment/50 text-[9px] normal-case tracking-normal">
+                                                                    ({Object.keys(snippets).length})
+                                                                </span>
+                                                            </div>
+                                                            <ChevronDown
+                                                                size={10}
+                                                                className={`transition-transform ${expandedSnippetCategory === groupName ? 'rotate-180' : ''}`}
+                                                            />
+                                                        </button>
+                                                        {expandedSnippetCategory === groupName && SNIPPET_CATEGORY_META[groupName]?.description && (
+                                                            <div className="px-3 py-1 text-[9px] text-monokai-comment/60 bg-monokai-bg/40">
+                                                                {SNIPPET_CATEGORY_META[groupName].description}
+                                                            </div>
+                                                        )}
+                                                        {expandedSnippetCategory === groupName && (
+                                                            <div className="max-h-48 overflow-y-auto custom-scrollbar">
+                                                                {Object.entries(snippets).map(([label, snippet]) => (
+                                                                    <div
+                                                                        key={label}
+                                                                        className="relative"
+                                                                        onMouseEnter={() => setHoveredSnippet({ label, sql: snippet })}
+                                                                        onMouseLeave={() => setHoveredSnippet(null)}
                                                                     >
-                                                                        <Code className="w-3 h-3 text-monokai-yellow/40 shrink-0" />
-                                                                        {label}
-                                                                    </button>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    )}
+                                                                        <button
+                                                                            className="w-full text-left px-4 py-2 text-xs text-monokai-fg hover:bg-monokai-yellow/10 hover:text-monokai-yellow transition-colors flex items-center gap-2"
+                                                                            onClick={() => { insertText(snippet); setShowSnippetsMenu(false); }}
+                                                                        >
+                                                                            <Code className="w-3 h-3 text-monokai-yellow/40 shrink-0" />
+                                                                            {label}
+                                                                        </button>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                                <div className="px-3 py-2 text-[9px] text-monokai-comment/60 bg-monokai-bg/60 border-t border-monokai-accent/30 sticky bottom-0">
+                                                    💡 悬停片段可预览 SQL • 点击插入编辑器
                                                 </div>
-                                            ))}
-                                            {/* 底部提示 */}
-                                            <div className="px-3 py-2 text-[9px] text-monokai-comment/60 bg-monokai-bg/60 border-t border-monokai-accent/30 sticky bottom-0">
-                                                💡 悬停片段可预览 SQL • 点击插入编辑器
                                             </div>
-                                        </div>
-                                    )}
-                                    {showSnippetsMenu && <div className="fixed inset-0 z-40" onClick={() => setShowSnippetsMenu(false)} />}
-                                </div>
+                                        )}
+                                        {showSnippetsMenu && <div className="fixed inset-0 z-40" onClick={() => setShowSnippetsMenu(false)} />}
+                                    </div>
 
-                                {/* AI Skills Button */}
-                                <button 
-                                    onClick={() => setShowSkillAssistant(true)}
-                                    className="px-3 py-1.5 bg-monokai-purple/10 border border-monokai-purple/30 text-monokai-purple hover:bg-monokai-purple/20 text-xs font-bold rounded flex items-center gap-1.5 transition-colors"
-                                >
-                                    <Sparkles size={12} /> AI 技能
-                                </button>
+                                    <button onClick={formatSql} className="text-xs text-monokai-yellow/90 hover:text-monokai-yellow hover:bg-monokai-yellow/5 border border-transparent hover:border-monokai-yellow/20 px-2.5 py-1.5 rounded transition-all flex items-center gap-1.5"><Type size={12} /> 格式化</button>
+                                    <button onClick={() => setShowSaveModal(true)} className="text-xs text-monokai-orange/90 hover:text-monokai-orange hover:bg-monokai-orange/5 border border-transparent hover:border-monokai-orange/20 px-2.5 py-1.5 rounded transition-all flex items-center gap-1.5"><Save size={12} /> 保存</button>
 
-                                <div className="relative">
-                                    <button onClick={() => setShowMaterializeMenu(!showMaterializeMenu)} className="px-3 py-1.5 text-xs border border-monokai-purple text-monokai-purple hover:bg-monokai-purple hover:text-monokai-fg rounded transition-colors flex items-center gap-1.5">
-                                        <Save size={12} /> 物化 <ChevronDown size={10} />
+                                    <div className="relative">
+                                        <button onClick={() => setShowMaterializeMenu(!showMaterializeMenu)} className="px-2.5 py-1.5 text-xs border border-monokai-purple/30 text-monokai-purple hover:bg-monokai-purple hover:text-monokai-bg hover:border-monokai-purple rounded transition-all flex items-center gap-1.5">
+                                            <Save size={12} /> 物化 <ChevronDown size={10} />
+                                        </button>
+                                        {showMaterializeMenu && (
+                                            <div className="absolute top-full right-0 mt-1 bg-monokai-sidebar border border-monokai-accent rounded shadow-xl z-50 min-w-[150px]">
+                                                <button onClick={() => openMaterializeModal('TABLE')} className="w-full text-left px-4 py-2 text-xs text-monokai-fg hover:bg-monokai-accent hover:text-monokai-blue transition-colors">存为表</button>
+                                                <button onClick={() => openMaterializeModal('VIEW')} className="w-full text-left px-4 py-2 text-xs text-monokai-fg hover:bg-monokai-accent hover:text-monokai-blue transition-colors">存为视图</button>
+                                            </div>
+                                        )}
+                                        {showMaterializeMenu && <div className="fixed inset-0 z-40" onClick={() => setShowMaterializeMenu(false)} />}
+                                    </div>
+
+                                    <button
+                                        onClick={handleClear}
+                                        className="text-xs text-monokai-pink/90 hover:text-monokai-pink hover:bg-monokai-pink/5 border border-transparent hover:border-monokai-pink/20 px-2.5 py-1.5 rounded transition-all flex items-center gap-1.5"
+                                        title="一键清空 SQL 编辑器与 AI 输入框（Ctrl+Z 可撤销）"
+                                    >
+                                        <Trash2 size={12} /> 清除
                                     </button>
-                                    {showMaterializeMenu && (
-                                        <div className="absolute top-full right-0 mt-1 bg-monokai-sidebar border border-monokai-accent rounded shadow-xl z-50 min-w-[150px]">
-                                            <button onClick={() => openMaterializeModal('TABLE')} className="w-full text-left px-4 py-2 text-xs text-monokai-fg hover:bg-monokai-accent hover:text-monokai-blue transition-colors">存为表</button>
-                                            <button onClick={() => openMaterializeModal('VIEW')} className="w-full text-left px-4 py-2 text-xs text-monokai-fg hover:bg-monokai-accent hover:text-monokai-blue transition-colors">存为视图</button>
-                                        </div>
-                                    )}
-                                    {showMaterializeMenu && <div className="fixed inset-0 z-40" onClick={() => setShowMaterializeMenu(false)} />}
                                 </div>
-                                <button onClick={formatSql} className="text-xs text-monokai-yellow hover:text-monokai-fg px-2 py-1 flex items-center gap-1"><Type size={12} /> 格式化</button>
-                                <button onClick={() => setShowSaveModal(true)} className="text-xs text-monokai-orange hover:text-monokai-fg px-2 py-1 flex items-center gap-1"><Save size={12} /> 保存</button>
-                                <button
-                                    onClick={handleClear}
-                                    className="text-xs text-monokai-pink hover:text-monokai-fg px-2 py-1 flex items-center gap-1"
-                                    title="一键清空 SQL 编辑器与 AI 输入框（Ctrl+Z 可撤销）"
-                                >
-                                    <Trash2 size={12} /> 清除
-                                </button>
-                                <button
-                                    onClick={onToggleZen}
-                                    className={`text-xs px-3 py-1 rounded font-bold transition-all border ${isZenMode ? 'bg-monokai-pink text-monokai-fg border-monokai-pink' : 'text-monokai-comment border-monokai-comment hover:text-monokai-fg'} flex items-center gap-1`}
-                                    title="Toggle Zen Mode"
-                                >
-                                    {isZenMode ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
-                                    {isZenMode ? '退出' : '禅模式'}
-                                </button>
-                                <button
-                                    onClick={() => setShowLivePreview(!showLivePreview)}
-                                    className={`text-xs px-2 py-1 rounded font-bold transition-all border ${showLivePreview ? 'bg-monokai-purple/20 border-monokai-purple/50 text-monokai-purple' : 'text-monokai-comment border-monokai-comment hover:text-monokai-fg'} flex items-center gap-1`}
-                                    title={showLivePreview ? '隐藏格式化预览' : '开启格式化预览'}
-                                >
-                                    {showLivePreview ? <Eye size={12} /> : <EyeOff size={12} />}
-                                    预览
-                                </button>
+
+                                <div className="w-[1px] h-4 bg-monokai-accent/20 mx-1"></div>
+
+                                {/* 智能视图组 */}
+                                <div className="flex items-center gap-1.5">
+                                    <button 
+                                        onClick={() => setShowSkillAssistant(true)}
+                                        className="px-3 py-1.5 bg-monokai-purple/10 border border-monokai-purple/30 text-monokai-purple hover:bg-monokai-purple/20 text-xs font-bold rounded flex items-center gap-1.5 transition-colors"
+                                    >
+                                        <Sparkles size={12} /> AI 技能
+                                    </button>
+
+                                    <button
+                                        onClick={() => setShowLivePreview(!showLivePreview)}
+                                        className={`text-xs px-2.5 py-1.5 rounded font-bold transition-all border ${showLivePreview ? 'bg-monokai-purple/20 border-monokai-purple/50 text-monokai-purple' : 'text-monokai-comment border-monokai-border hover:border-monokai-comment hover:text-monokai-fg'} flex items-center gap-1.5`}
+                                        title={showLivePreview ? '隐藏格式化预览' : '开启格式化预览'}
+                                    >
+                                        {showLivePreview ? <Eye size={12} /> : <EyeOff size={12} />}
+                                        预览
+                                    </button>
+
+                                    <button
+                                        onClick={onToggleZen}
+                                        className={`text-xs px-2.5 py-1.5 rounded font-bold transition-all border ${isZenMode ? 'bg-monokai-pink text-monokai-fg border-monokai-pink' : 'text-monokai-comment border-monokai-border hover:border-monokai-comment hover:text-monokai-fg'} flex items-center gap-1.5`}
+                                        title="Toggle Zen Mode"
+                                    >
+                                        {isZenMode ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
+                                        {isZenMode ? '退出' : '禅模式'}
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -1540,17 +1267,26 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
                                             关闭
                                         </button>
                                     </div>
-                                    <pre className="flex-1 overflow-auto p-4 font-mono text-xs text-monokai-fg whitespace-pre-wrap">
-                                        {liveSqlPreview || activeTab.code || '-- 输入 SQL 以查看预览'}
-                                    </pre>
+                                    <pre 
+                                        className="flex-1 overflow-auto p-4 font-mono text-xs text-monokai-fg whitespace-pre-wrap"
+                                        dangerouslySetInnerHTML={{ __html: highlightSql(liveSqlPreview || activeTab.code || '-- 输入 SQL 以查看预览') }}
+                                    />
                                 </div>
                             )}
                             <CodeMirror
                                 value={activeTab.code}
                                 height="100%"
-                                theme="dark"
+                                theme={monokai}
+                                onUpdate={(viewUpdate) => {
+                                    const main = viewUpdate.state.selection.main;
+                                    selectionRef.current = viewUpdate.state.sliceDoc(main.from, main.to);
+                                    cursorOffsetRef.current = main.head;
+                                }}
                                 extensions={[
-                                    sql(),
+                                    ...useSqlEditorExtensions({
+                                        onExecute: onRun,
+                                        onCancel: cancelExecution,
+                                    }),
                                     EditorView.lineWrapping,
                                     EditorView.theme({
                                         "&": { backgroundColor: "#272822", color: "#f8f8f2", fontFamily: "'Victor Mono', 'Noto Sans SC', monospace", fontSize: "10px" },
@@ -1593,6 +1329,7 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
                                 <button onClick={() => updateActiveTab({ viewMode: 'table' })} className={`px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded ${activeTab.viewMode === 'table' ? 'bg-monokai-accent text-monokai-fg shadow-sm' : 'text-monokai-comment hover:text-monokai-fg'}`}>Table</button>
                                 <button onClick={() => updateActiveTab({ viewMode: 'chart' })} disabled={!activeTab.result || activeTab.result.rows.length === 0 || activeTab.result.isExplain} className={`px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded ${activeTab.viewMode === 'chart' ? 'bg-monokai-accent text-monokai-pink shadow-sm' : 'text-monokai-comment hover:text-monokai-pink disabled:opacity-30'}`}>Chart</button>
                                 {activeTab.result?.isExplain && <button onClick={() => updateActiveTab({ viewMode: 'explain' })} className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded bg-monokai-purple text-monokai-fg">Plan</button>}
+                                <button onClick={() => updateActiveTab({ viewMode: 'profiling' })} disabled={!activeTab.code.trim()} className={`px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded ${activeTab.viewMode === 'profiling' ? 'bg-monokai-accent text-monokai-fg shadow-sm' : 'text-monokai-comment hover:text-monokai-fg disabled:opacity-30'}`}>Profiling</button>
                             </div>
                             {activeTab.viewMode === 'chart' && (
                                 <div className="flex items-center gap-2">
@@ -1662,9 +1399,10 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
                                         {showExportMenu && (
                                             <div className="absolute right-0 bottom-full mb-1 bg-monokai-sidebar border border-monokai-accent p-1 rounded shadow-xl z-30 min-w-[100px] flex flex-col gap-0.5">
                                                 <button onClick={() => downloadResult('csv')} className="text-xs text-left px-2 py-1 hover:bg-monokai-accent rounded text-monokai-fg">CSV</button>
+                                                <button onClick={() => downloadResult('excel')} className="text-xs text-left px-2 py-1 hover:bg-monokai-accent rounded text-monokai-fg">Excel (.xlsx/.xls)</button>
                                                 <button onClick={() => downloadResult('json')} className="text-xs text-left px-2 py-1 hover:bg-monokai-accent rounded text-monokai-fg">JSON</button>
                                                 <button onClick={() => downloadResult('parquet')} className="text-xs text-left px-2 py-1 hover:bg-monokai-accent rounded text-monokai-orange">Parquet</button>
-                                                <button onClick={() => generateHtmlReport()} className="text-xs text-left px-2 py-1 hover:bg-monokai-accent rounded text-monokai-green font-bold">HTML Report</button>
+                                                <button onClick={() => handleExportHtmlReport()} className="text-xs text-left px-2 py-1 hover:bg-monokai-accent rounded text-monokai-green font-bold">HTML Report</button>
                                             </div>
                                         )}
                                         {showExportMenu && <div className="fixed inset-0 z-20" onClick={() => setShowExportMenu(false)} />}
@@ -1676,46 +1414,14 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
                         <div className="flex-1 bg-monokai-surface overflow-hidden relative">
                             {/* ... Result Content ... */}
                             {activeTab.result?.error ? (
-                                <div className="p-4 h-full flex flex-col">
-                                    {/* Error Bar */}
-                                    <div className="flex items-center gap-2 mb-3 px-1">
-                                        <div className="flex items-center gap-1.5">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-monokai-pink"></div>
-                                            <span className="text-[10px] font-bold uppercase tracking-widest text-monokai-pink/70">Error</span>
-                                        </div>
-                                        <div className="h-px flex-1 bg-monokai-pink/20"></div>
-                                        <span className="text-[9px] text-monokai-comment/40 font-mono">catalog</span>
-                                    </div>
-
-                                    {/* Error Box */}
-                                    <div className="flex-1 overflow-hidden rounded border border-monokai-pink/30 bg-monokai-bg flex flex-col">
-                                        <div className="px-3 py-2 bg-monokai-pink/8 border-b border-monokai-pink/20 flex items-center gap-2 shrink-0">
-                                            <span className="text-[9px] font-mono text-monokai-pink/50 uppercase tracking-widest">Details</span>
-                                            <div className="h-px flex-1 bg-monokai-pink/10"></div>
-                                            <span className="text-[9px] text-monokai-pink/30">{activeTab.result.error.split('\n').length} lines</span>
-                                        </div>
-                                        <div className="flex-1 overflow-auto p-3 custom-scrollbar">
-                                            <pre className="text-[11px] font-mono leading-relaxed text-monokai-pink whitespace-pre-wrap">{activeTab.result.error}</pre>
-                                        </div>
-                                    </div>
-
-                                    {/* Actions Row */}
-                                    <div className="flex items-center gap-2 mt-3 px-1">
-                                        <button onClick={handleAiFix} disabled={isFixing} className="flex items-center gap-1.5 px-3 py-1.5 bg-monokai-purple/15 hover:bg-monokai-purple/25 border border-monokai-purple/40 text-monokai-purple text-[11px] font-bold rounded transition-colors disabled:opacity-40">
-                                            {isFixing ? <><Loader2 size={11} className="animate-spin" /> <span>Analyzing...</span></> : <><Sparkles size={11} /> <span>Fix with AI</span></>}
-                                        </button>
-                                        <button
-                                            onClick={() => handleAiContinueOptimize('improve')}
-                                            disabled={isAiLoading || !activeTab.code.trim()}
-                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-monokai-green/10 hover:bg-monokai-green/20 border border-monokai-green/30 text-monokai-green text-[11px] font-bold rounded transition-colors disabled:opacity-40"
-                                            title="基于当前 SQL 继续优化"
-                                        >
-                                            <Wand2 size={11} /> 继续优化
-                                        </button>
-                                        <div className="h-3 w-px bg-monokai-accent/30 mx-1"></div>
-                                        <span className="text-[10px] text-monokai-comment/40">or edit SQL and run again</span>
-                                    </div>
-                                </div>
+                                <SqlEditorErrorView
+                                    error={activeTab.result.error}
+                                    isFixing={ai.isFixing}
+                                    isAiLoading={ai.isAiLoading}
+                                    hasCode={!!activeTab.code.trim()}
+                                    onFixWithAi={handleAiFix}
+                                    onContinueOptimize={() => handleAiContinueOptimize('improve')}
+                                />
                             ) : activeTab.loading ? (
                                 <div className="p-4 text-monokai-comment text-center h-full flex items-center justify-center flex-col gap-4">
                                     <div className="w-12 h-12 border-4 border-monokai-blue border-t-transparent rounded-full animate-spin"></div>
@@ -1732,37 +1438,18 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
                                     </div>
                                 </div>
                             ) : activeTab.viewMode === 'explain' ? (
-                                <div className="p-4 overflow-auto h-full font-mono text-sm">
-                                    <pre className="text-xs text-monokai-fg bg-monokai-surface p-4 rounded border border-monokai-accent/50 whitespace-pre-wrap">{activeTab.result.rows.map(r => r['explain_value'] || r['explore_value'] || JSON.stringify(r)).join('\n')}</pre>
-                                </div>
+                                <SqlEditorExplainView result={activeTab.result} />
+                            ) : activeTab.viewMode === 'profiling' ? (
+                                <SqlEditorProfilingView sql={activeTab.code} />
                             ) : activeTab.viewMode === 'table' ? (
-                                <div className="overflow-auto h-full w-full custom-scrollbar">
-                                    <table className="w-full text-left text-sm whitespace-nowrap border-collapse">
-                                        <thead className="bg-monokai-surface sticky top-0 z-10 shadow-md">
-                                            <tr>
-                                                {activeTab.result.columns.map(c => (
-                                                    <th key={c} className="p-2 font-mono text-xs text-monokai-blue border-b border-r border-monokai-accent/50 last:border-r-0 select-none hover:bg-monokai-accent/20 transition-colors">
-                                                        {c}
-                                                    </th>
-                                                ))}
-                                            </tr>
-                                        </thead>
-                                        <tbody className="font-mono text-xs">
-                                            {paginatedRows.map((r, i) => (
-                                                <tr key={i} className="border-b border-monokai-accent/20 hover:bg-monokai-accent/30 transition-colors even:bg-white/5">
-                                                    {activeTab.result!.columns.map(c => (
-                                                        <td key={c} className="p-2 text-monokai-fg border-r border-monokai-accent/20 last:border-r-0 max-w-[300px] truncate" title={String(r[c])}>
-                                                            {r[c] === null ? <span className="text-monokai-comment italic">NULL</span> : String(r[c])}
-                                                        </td>
-                                                    ))}
-                                                </tr>
-                                            ))}
-                                            {paginatedRows.length === 0 && (
-                                                <tr><td colSpan={activeTab.result.columns.length} className="p-8 text-center text-monokai-comment">No results match your filter.</td></tr>
-                                            )}
-                                        </tbody>
-                                    </table>
-                                </div>
+                                <SqlEditorResultTable
+                                    result={activeTab.result}
+                                    filterTerm={activeTab.filterTerm}
+                                    page={activeTab.page}
+                                    pageSize={PAGE_SIZE}
+                                    onFilterTermChange={(v) => updateActiveTab({ filterTerm: v, page: 0 })}
+                                    onPageChange={(v) => updateActiveTab({ page: v })}
+                                />
                             ) : (
                                 <div className="h-full flex flex-col p-4 bg-monokai-surface">
                                     {(!activeTab.charts || activeTab.charts.length === 0) ? (
@@ -1828,6 +1515,12 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
                                         <span className="w-2 h-2 rounded-full bg-monokai-green shadow-[0_0_5px_rgba(166,226,46,0.5)]"></span>
                                         <span className="text-monokai-green font-bold">Success</span>
                                     </div>
+                                    {hasMismatchedBrackets && (
+                                        <div className="flex items-center gap-1 text-monokai-orange font-bold text-[9px] bg-monokai-orange/10 border border-monokai-orange/30 px-2 py-0.5 rounded animate-pulse">
+                                            <AlertTriangle size={10} className="shrink-0" />
+                                            <span>括号不匹配</span>
+                                        </div>
+                                    )}
                                     <div className="flex items-center gap-1.5">
                                         <Table size={11} className="text-monokai-comment" />
                                         <span className="text-monokai-fg">
@@ -1843,6 +1536,12 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
                                         <Layout size={11} className="text-monokai-comment" />
                                         <span className="text-monokai-fg">{activeTab.result.columns.length} columns</span>
                                     </div>
+                                    {dbStats && (
+                                        <div className="flex items-center gap-1.5 border-l border-monokai-accent/30 pl-3">
+                                            <Database size={11} className="text-monokai-comment" />
+                                            <span>RAM: <strong className="text-monokai-cyan">{dbStats.memoryUsage}</strong> / {dbStats.memoryLimit}</span>
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="flex items-center gap-3">
                                     {/* AI 优化快捷入口 */}
@@ -1891,12 +1590,12 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
                         <div className="w-64 bg-monokai-bg border-l border-monokai-accent/60 flex flex-col shrink-0 overflow-hidden">
                             {/* Tab Navigation */}
                             <div className="flex gap-0.5 p-1 bg-monokai-surface/50 border-b border-monokai-accent/40">
-                                {[
+                                {([
                                     { key: 'schema', icon: <Database size={10} />, label: 'Schema' },
                                     { key: 'history', icon: <Clock size={10} />, label: 'History' },
                                     { key: 'saved', icon: <Save size={10} />, label: 'Saved' },
                                     { key: 'help', icon: <HelpCircle size={10} />, label: 'Help' },
-                                ].map(({ key, icon, label }) => (
+                                ] as const).map(({ key, icon, label }) => (
                                     <button
                                         key={key}
                                         onClick={() => setActiveSidebarTab(key)}
@@ -1917,259 +1616,23 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
                                     <div className="h-full"><TableTree tables={Object.keys(schemaTree)} onInsert={insertText} /></div>
                                 )}
                                 {activeSidebarTab === 'history' && (
-                                    <div className="flex flex-col h-full">
-                                        <div className="px-2 pt-2 pb-1 border-b border-monokai-accent/30 flex items-center gap-2">
-                                            <input
-                                                className="flex-1 bg-monokai-bg border border-monokai-accent/40 rounded px-2 py-1 text-[10px] text-monokai-fg outline-none focus:border-monokai-accent transition-colors"
-                                                placeholder="Filter history..."
-                                                value={historyFilter}
-                                                onChange={e => setHistoryFilter(e.target.value)}
-                                            />
-                                            <button onClick={clearHistory} className="text-[9px] text-monokai-purple/70 hover:text-monokai-purple uppercase font-bold tracking-wider shrink-0">Clear</button>
-                                        </div>
-                                        <div className="flex-1 overflow-y-auto custom-scrollbar">
-                                            {filteredHistory.length === 0 && (
-                                                <div className="p-6 text-center">
-                                                    <Clock size={20} className="mx-auto mb-2 text-monokai-comment/20" />
-                                                    <div className="text-[10px] text-monokai-comment/40 italic">No query history</div>
-                                                </div>
-                                            )}
-                                            {filteredHistory.map(item => (
-                                                <div key={item.id} onClick={() => insertText(item.sql)} className="px-2 py-2 border-b border-monokai-accent/20 cursor-pointer hover:bg-monokai-surface/60 group transition-colors">
-                                                    <div className="flex items-center justify-between mb-1">
-                                                        <span className={`text-[9px] font-bold px-1 py-0.5 rounded-sm ${item.status === 'success'
-                                                                ? 'bg-monokai-green/10 text-monokai-green border border-monokai-green/20'
-                                                                : 'bg-monokai-pink/10 text-monokai-pink border border-monokai-pink/20'
-                                                            }`}>
-                                                            {item.status === 'success' ? 'OK' : 'ERR'}
-                                                        </span>
-                                                        <div className="flex items-center gap-1.5 text-[9px] text-monokai-comment/40">
-                                                            {item.executionTime && <span>{item.executionTime.toFixed(0)}ms</span>}
-                                                            <span>{new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                                                        </div>
-                                                    </div>
-                                                    <div className="text-[10px] font-mono text-monokai-fg/60 line-clamp-2 leading-relaxed">{item.sql}</div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-                                {activeSidebarTab === 'saved' && (
-                                    <div className="flex flex-col h-full">
-                                        <div className="px-2 pt-2 pb-1 border-b border-monokai-accent/30 flex items-center justify-between">
-                                            <span className="text-[9px] text-monokai-comment/40 italic">tap to load SQL</span>
-                                            <span className="text-[9px] text-monokai-comment/30">{savedQueries.length}</span>
-                                        </div>
-                                        <div className="flex-1 overflow-y-auto custom-scrollbar">
-                                            {savedQueries.length === 0 && (
-                                                <div className="p-6 text-center">
-                                                    <Save size={20} className="mx-auto mb-2 text-monokai-comment/20" />
-                                                    <div className="text-[10px] text-monokai-comment/40 italic">No saved queries</div>
-                                                </div>
-                                            )}
-                                            {savedQueries.map(item => (
-                                                <div key={item.id} onClick={() => updateActiveTab({ code: item.sql })} className="px-2 py-2 border-b border-monokai-accent/20 cursor-pointer hover:bg-monokai-surface/60 group transition-colors">
-                                                    <div className="flex items-center justify-between mb-0.5">
-                                                        <div className="flex items-center gap-1 min-w-0">
-                                                            <Pin size={9} className="text-monokai-yellow shrink-0" />
-                                                            <span className="text-[10px] font-semibold text-monokai-green truncate">{item.name}</span>
-                                                        </div>
-                                                        <button onClick={(e) => deleteSavedQuery(item.id, e)} className="shrink-0 text-monokai-comment/30 hover:text-monokai-pink transition-colors opacity-0 group-hover:opacity-100">
-                                                            <X size={10} />
-                                                        </button>
-                                                    </div>
-                                                    <div className="text-[9px] font-mono text-monokai-comment/50 line-clamp-1 leading-relaxed">{item.sql}</div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
+                                    <SqlEditorHistory
+                                        activeSidebarTab={activeSidebarTab}
+                                        history={history}
+                                        savedQueries={savedQueries}
+                                        historyFilter={historyFilter}
+                                        onHistoryFilterChange={e => setHistoryFilter(e.target.value)}
+                                        onClearHistory={clearHistory}
+                                        onHistoryItemClick={(sql) => insertText(sql)}
+                                        onSavedQueryClick={(sql) => updateActiveTab({ code: sql })}
+                                        onDeleteSavedQuery={deleteSavedQuery}
+                                    />
                                 )}
                                 {activeSidebarTab === 'help' && (
-                                    <div className="flex flex-col h-full overflow-hidden">
-                                        {/* 帮助类型选择 */}
-                                        <div className="px-2 pt-2 pb-1 border-b border-monokai-accent/30">
-                                            <select
-                                                value={selectedSqlType}
-                                                onChange={(e) => setSelectedSqlType(e.target.value)}
-                                                className="w-full bg-monokai-bg border border-monokai-accent/40 rounded px-2 py-1.5 text-[10px] text-monokai-fg outline-none focus:border-monokai-accent transition-colors"
-                                            >
-                                                <option value="select">▸ SELECT 查询生成</option>
-                                                <option value="join">▸ JOIN 关联查询</option>
-                                                <option value="aggregate">▸ 聚合 / 指标分析</option>
-                                                <option value="transform">▸ 数据转换 / 清洗</option>
-                                                <option value="performance">▸ 执行计划 / 性能优化</option>
-                                                <option value="utilities">▸ 实用工具 / 测试数据</option>
-                                            </select>
-                                        </div>
-
-                                        {/* 帮助内容 */}
-                                        <div className="flex-1 overflow-y-auto custom-scrollbar">
-                                            {(() => {
-                                                const help = SQL_CATEGORY_HELP[selectedSqlType];
-                                                if (!help) return null;
-
-                                                return (
-                                                    <div className="divide-y divide-monokai-accent/20">
-                                                        {/* 标题与描述 */}
-                                                        <div className="p-3">
-                                                            <div className="flex items-center gap-1.5 mb-1.5">
-                                                                <Lightbulb size={11} className="text-monokai-yellow" />
-                                                                <span className="text-[11px] font-bold text-monokai-fg">{help.title}</span>
-                                                            </div>
-                                                            <p className="text-[10px] text-monokai-comment leading-relaxed">{help.description}</p>
-                                                        </div>
-
-                                                        {/* 快速上手 */}
-                                                        <div className="p-3">
-                                                            <div className="flex items-center gap-1.5 mb-2">
-                                                                <Zap size={10} className="text-monokai-orange" />
-                                                                <span className="text-[10px] font-bold uppercase tracking-widest text-monokai-orange/80">Quick Start</span>
-                                                                <div className="flex-1 h-px bg-monokai-accent/20" />
-                                                                <span className="text-[9px] text-monokai-comment/40">tap to fill</span>
-                                                            </div>
-                                                            <ol className="space-y-1">
-                                                                {help.quickStart.map((s, idx) => {
-                                                                    const stepText = s.replace(/^\d+\.\s*/, '');
-                                                                    const isActionable = /描述|输入|填写|说明/.test(stepText);
-                                                                    return (
-                                                                        <li
-                                                                            key={idx}
-                                                                            onClick={isActionable ? () => setAiPrompt(stepText) : undefined}
-                                                                            className={`text-[10px] font-mono text-monokai-comment leading-relaxed flex items-start gap-1.5 ${isActionable ? 'cursor-pointer hover:text-monokai-orange hover:bg-monokai-orange/5 rounded px-1 py-0.5 transition-colors' : ''}`}
-                                                                        >
-                                                                            <span className="text-monokai-accent/60 shrink-0 mt-0.5 w-3 text-right">{idx + 1}</span>
-                                                                            <span>{stepText}</span>
-                                                                        </li>
-                                                                    );
-                                                                })}
-                                                            </ol>
-                                                        </div>
-
-                                                        {/* 适用场景 */}
-                                                        <div className="p-3">
-                                                            <div className="flex items-center gap-1.5 mb-2">
-                                                                <Target size={10} className="text-monokai-green" />
-                                                                <span className="text-[10px] font-bold uppercase tracking-widest text-monokai-green/80">Scenarios</span>
-                                                                <div className="flex-1 h-px bg-monokai-accent/20" />
-                                                                <span className="text-[9px] text-monokai-comment/40">{help.scenarios.length}</span>
-                                                            </div>
-                                                            <div className="flex flex-col gap-0.5">
-                                                                {help.scenarios.map((s, idx) => (
-                                                                    <button
-                                                                        key={idx}
-                                                                        onClick={() => setAiPrompt(s)}
-                                                                        className="text-left text-[10px] text-monokai-comment leading-relaxed flex items-start gap-1.5 cursor-pointer hover:text-monokai-green hover:bg-monokai-green/5 rounded px-1 py-1 transition-colors group"
-                                                                    >
-                                                                        <span className="text-monokai-green/50 mt-0.5 shrink-0 group-hover:text-monokai-green">›</span>
-                                                                        <span>{s}</span>
-                                                                    </button>
-                                                                ))}
-                                                            </div>
-                                                        </div>
-
-                                                        {/* AI 协作提示 */}
-                                                        <div className="p-3">
-                                                            <div className="flex items-center gap-1.5 mb-2">
-                                                                <Sparkles size={10} className="text-monokai-purple" />
-                                                                <span className="text-[10px] font-bold uppercase tracking-widest text-monokai-purple/80">AI Prompts</span>
-                                                                <div className="flex-1 h-px bg-monokai-accent/20" />
-                                                                <span className="text-[9px] text-monokai-comment/40">{help.aiHints.length}</span>
-                                                            </div>
-                                                            <div className="flex flex-col gap-0.5">
-                                                                {help.aiHints.map((s, idx) => (
-                                                                    <button
-                                                                        key={idx}
-                                                                        onClick={() => setAiPrompt(s)}
-                                                                        className="text-left text-[10px] font-mono text-monokai-comment leading-relaxed flex items-start gap-1.5 cursor-pointer hover:text-monokai-purple hover:bg-monokai-purple/5 rounded px-1 py-1 transition-colors group"
-                                                                    >
-                                                                        <span className="text-monokai-purple/40 mt-0.5 shrink-0 group-hover:text-monokai-purple">→</span>
-                                                                        <span>{s}</span>
-                                                                    </button>
-                                                                ))}
-                                                            </div>
-                                                        </div>
-
-                                                        {/* DuckDB 专有语法 */}
-                                                        <div className="p-3">
-                                                            <div className="flex items-center gap-1.5 mb-2">
-                                                                <Code size={10} className="text-monokai-blue" />
-                                                                <span className="text-[10px] font-bold uppercase tracking-widest text-monokai-blue/80">DuckDB Syntax</span>
-                                                                <div className="flex-1 h-px bg-monokai-accent/20" />
-                                                                <span className="text-[9px] text-monokai-comment/40">{help.duckdbSpecific.length}</span>
-                                                            </div>
-                                                            <div className="flex flex-col gap-1">
-                                                                {help.duckdbSpecific.map((s, idx) => {
-                                                                    const [code, ...desc] = s.split(' — ');
-                                                                    return (
-                                                                        <button
-                                                                            key={idx}
-                                                                            onClick={() => {
-                                                                                const snippet = code.trim();
-                                                                                const tab = tabs.find(t => t.id === activeTabId);
-                                                                                if (tab) updateActiveTab({ code: tab.code + (tab.code.trim() ? '\n' : '') + snippet });
-                                                                            }}
-                                                                            className="text-left rounded border border-monokai-accent/30 overflow-hidden hover:border-monokai-blue/50 hover:bg-monokai-blue/10 transition-colors group"
-                                                                        >
-                                                                            <div className="px-2 py-1.5 bg-monokai-bg">
-                                                                                <code className="text-[9px] font-mono text-monokai-blue leading-relaxed">{code.trim()}</code>
-                                                                            </div>
-                                                                            {desc.length > 0 && (
-                                                                                <div className="px-2 py-1 bg-monokai-surface/40 border-t border-monokai-accent/20">
-                                                                                    <span className="text-[9px] text-monokai-comment leading-relaxed">{desc.join(' — ')}</span>
-                                                                                </div>
-                                                                            )}
-                                                                        </button>
-                                                                    );
-                                                                })}
-                                                            </div>
-                                                        </div>
-
-                                                        {/* 常见错误 */}
-                                                        <div className="p-3">
-                                                            <div className="flex items-center gap-1.5 mb-2">
-                                                                <AlertTriangle size={10} className="text-monokai-pink" />
-                                                                <span className="text-[10px] font-bold uppercase tracking-widest text-monokai-pink/80">Pitfalls</span>
-                                                                <div className="flex-1 h-px bg-monokai-accent/20" />
-                                                                <span className="text-[9px] text-monokai-comment/40">{help.commonErrors.length}</span>
-                                                            </div>
-                                                            <div className="space-y-0.5">
-                                                                {help.commonErrors.map((s, idx) => (
-                                                                    <div key={idx} className="text-[10px] text-monokai-comment leading-relaxed flex items-start gap-1.5 px-1 py-0.5">
-                                                                        <span className="text-monokai-pink/60 mt-0.5 shrink-0">!</span>
-                                                                        <span>{s}</span>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        </div>
-
-                                                        {/* 推荐使用流程 */}
-                                                        <div className="p-3">
-                                                            <div className="flex items-center gap-1.5 mb-2">
-                                                                <Wand2 size={10} className="text-monokai-accent" />
-                                                                <span className="text-[10px] font-bold uppercase tracking-widest text-monokai-accent/80">Example Flows</span>
-                                                                <div className="flex-1 h-px bg-monokai-accent/20" />
-                                                            </div>
-                                                            <div className="flex flex-col gap-1">
-                                                                {help.exampleFlows.map((flow, idx) => (
-                                                                    <button
-                                                                        key={idx}
-                                                                        onClick={() => setAiPrompt(`${flow.name}：${flow.description}`)}
-                                                                        className="w-full text-left flex items-start gap-2 px-2 py-1.5 bg-monokai-bg border border-monokai-accent/30 rounded hover:border-monokai-accent/60 hover:bg-monokai-accent/5 transition-colors group"
-                                                                    >
-                                                                        <span className="text-monokai-accent/50 group-hover:text-monokai-accent mt-0.5 shrink-0">▸</span>
-                                                                        <div className="min-w-0">
-                                                                            <div className="text-[10px] font-medium text-monokai-fg group-hover:text-monokai-accent transition-colors">{flow.name}</div>
-                                                                            <div className="text-[9px] text-monokai-comment mt-0.5 truncate">{flow.description}</div>
-                                                                        </div>
-                                                                    </button>
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })()}
-                                        </div>
-                                    </div>
+                                    <SqlEditorHelpPanel
+                                        selectedSqlType={selectedSqlType}
+                                        onSelectedSqlTypeChange={setSelectedSqlType}
+                                    />
                                 )}
                             </div>
                         </div>

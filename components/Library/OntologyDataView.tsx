@@ -4,7 +4,7 @@ import {
   Database, Hexagon, Box, Link2, Zap, LayoutList, Hash, AtSign,
   Eye, EyeOff, Search, X, Sparkles, AlertTriangle, Info, RefreshCw,
 } from 'lucide-react';
-import { duckDBService } from '../../services/duckdbService';
+import { importOntologyFromJSON } from '../../services/ontology/ontologyStorage';
 
 type DataTab = 'objectType' | 'object' | 'linkType' | 'link' | 'action';
 
@@ -20,8 +20,6 @@ interface TabMeta {
   scenarioDesc: string;
   /** 常见误用/警戒 */
   warningText: string;
-  /** AI 模拟生成 SQL */
-  mockSql: () => string;
 }
 
 const TAB_CONFIG: TabMeta[] = [
@@ -32,11 +30,7 @@ const TAB_CONFIG: TabMeta[] = [
     color: 'text-[#FF9F1C]',
     scenarioTitle: '类型构架层 — 本体论骨架',
     scenarioDesc: '定义实例的「种类标签」。类型是所有实例归属的基底，图谱中所有 Instance 节点均挂载于此层。常见于领域分类、角色谱系、项目维度等场景。',
-    warningText: '⚠︎ 删除或重命名类型会影响所有子实例节点在图谱中的视觉归属，可能引发 D3 TypeHub 渲染缺口。操作前请确认图谱中无孤立实例。',
-    mockSql: () => `INSERT INTO life_object_type (id, name, description) VALUES
-  (100, '认知系统', 'AI 推理与记忆架构'),
-  (101, '行动轨迹', '用户行为序列与触发链'),
-  (102, '资源池', '可调度的算力与数据容量');`,
+    warningText: '删除或重命名类型会影响所有子实例节点在图谱中的视觉归属，可能引发 D3 TypeHub 渲染缺口。操作前请确认图谱中无孤立实例。',
   },
   {
     id: 'object',
@@ -45,11 +39,7 @@ const TAB_CONFIG: TabMeta[] = [
     color: 'text-[#4CC9F0]',
     scenarioTitle: '实例存储层 — 核心知识单元',
     scenarioDesc: '承载所有具体实体（人物、事件、概念、资产等）。每个实体归属于一种类型，并可持有任意结构的 JSON 特性配置（properties）用于存放扩展元数据。',
-    warningText: '⚠︎ properties 字段为原始 JSON 字符串，格式错误会导致图谱属性徽章无法显示。填写时请确保是合法的 JSON（如 {"key": "value"}）。',
-    mockSql: () => `INSERT INTO life_object (id, object_type_id, name, properties) VALUES
-  (200, 1, '深度推理引擎', '{"tier": "core", "latency_ms": 120}'),
-  (201, 1, '向量记忆索引', '{"dim": 1536, "engine": "FAISS"}'),
-  (202, 2, '用户意图解析节点', '{"model": "intent-v3", "accuracy": 0.94}');`,
+    warningText: 'properties 字段为原始 JSON 字符串，格式错误会导致图谱属性徽章无法显示。填写时请确保是合法的 JSON（如 {"key": "value"}）。',
   },
   {
     id: 'linkType',
@@ -58,11 +48,7 @@ const TAB_CONFIG: TabMeta[] = [
     color: 'text-[#E76F51]',
     scenarioTitle: '关系约束层 — 语义边类型',
     scenarioDesc: '规定实体之间可以建立的连接「类别标签」。每条实际关系（link）都必须引用一个已有的关系类型。常见关系如「包含」、「触发」、「继承」等。',
-    warningText: '⚠︎ 删除关系类型不会自动删除引用该类型的所有实际关系（link），会造成关系库中出现悬空 foreign key，请先清除实际关系后再删除类型。',
-    mockSql: () => `INSERT INTO life_link_type (id, name, description) VALUES
-  (10, '依赖调用', '一个系统组件调用另一个接口'),
-  (11, '数据流向', '数据从源头流入目标节点'),
-  (12, '版本继承', '新版本沿用旧版本的核心配置');`,
+    warningText: '删除关系类型不会自动删除引用该类型的所有实际关系（link），会造成关系库中出现悬空 foreign key，请先清除实际关系后再删除类型。',
   },
   {
     id: 'link',
@@ -71,11 +57,7 @@ const TAB_CONFIG: TabMeta[] = [
     color: 'text-[#FFD166]',
     scenarioTitle: '关系连接层 — 图谱拓扑边',
     scenarioDesc: '记录两个实例节点之间的实际连接，每条关系带有一个 0~1 的耦合权重（weight）。权重影响 D3 图谱中边的弹力强度与视觉粗细，是控制图谱引力分布的核心变量。',
-    warningText: '⚠︎ 大幅修改高权重关系（w > 0.8）可能造成 D3 Force Simulation 向心力骤变，导致图谱节点大幅漂移甚至飞出视口。建议先在图谱视图中观察布局再调整权值。',
-    mockSql: () => `INSERT INTO life_link (id, link_type_id, source_object_id, target_object_id, weight) VALUES
-  (300, 1, 1, 2, 0.85),
-  (301, 2, 2, 3, 0.60),
-  (302, 1, 3, 1, 0.45);`,
+    warningText: '大幅修改高权重关系（w > 0.8）可能造成 D3 Force Simulation 向心力骤变，导致图谱节点大幅漂移甚至飞出视口。建议先在图谱视图中观察布局再调整权值。',
   },
   {
     id: 'action',
@@ -84,51 +66,74 @@ const TAB_CONFIG: TabMeta[] = [
     color: 'text-[#FF9CF7]',
     scenarioTitle: '行动任务层 — 实体挂载动作队列',
     scenarioDesc: '每个实例可挂载若干行动（Action），表示该实体需要完成的任务项或阶段里程碑。行动状态（pending / done）粒度清晰，是追踪知识图谱执行进度的主要入口。',
-    warningText: '⚠︎ execute_at 字段需严格遵守 YYYY-MM-DD 格式。传入 ISO 时间戳（含 T 与时区）将导致 DuckDB DATE 类型解析失败，行动将无法被正确落库。',
-    mockSql: () => `INSERT INTO life_action (id, object_id, name, description, status, execute_at) VALUES
-  (400, 1, '压力测试覆盖率达98%', '对推理引擎做全链路压力测试并记录 p99 延迟', 'pending', '2025-06-01'),
-  (401, 2, '索引碎片整理', '定期重建向量索引以降低查询漂移率', 'done', '2025-05-15'),
-  (402, 3, '意图识别模型升级', '切换到 intent-v4 并 A/B 验证准确度提升', 'pending', '2025-07-10');`,
+    warningText: 'execute_at 字段需严格遵守 YYYY-MM-DD 格式。传入 ISO 时间戳（含 T 与时区）将导致 DuckDB DATE 类型解析失败，行动将无法被正确落库。',
   },
 ];
 
 // ─── Component ───────────────────────────────────────────────
 
-export const OntologyDataView: React.FC = () => {
-  const { state, refresh } = useOntologyStore();
+export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologyState }) => {
+  const store = useOntologyStore();
+  const state = ontologyState ?? store.state;
+  const { refresh } = store;
   const [activeDataTab, setActiveDataTab] = useState<DataTab>('objectType');
   const [showJson, setShowJson] = useState<Record<number, boolean>>({});
   const [filterText, setFilterText] = useState('');
   const [showContext, setShowContext] = useState(false);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiResult, setAiResult] = useState<{ sql: string; msg: string } | null>(null);
+  const [hasAutoOpenedContext, setHasAutoOpenedContext] = useState(false);
+
+  // ── Seed import state ──
+  const [showSeedPicker, setShowSeedPicker] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importMsg, setImportMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const SEED_OPTIONS = [
+    { file: 'seed-ecommerce.json', label: '电商运营', desc: 'Product · Customer · Campaign · Metric', count: '5类型 / 16节点 / 24关系' },
+    { file: 'seed-project-tracker.json', label: '项目追踪', desc: 'Team · Person · Project · Feature', count: '5类型 / 16节点 / 24关系' },
+    { file: 'seed-product-catalog.json', label: '产品目录', desc: 'Product · Category · Supplier · Tag', count: '5类型 / 14节点 / 20关系' },
+    { file: 'seed-health-tracker.json', label: '健康追踪', desc: 'Metric · Habit · Goal · Trigger', count: '5类型 / 15节点 / 26关系' },
+    { file: 'seed-workflow.json', label: '工作流引擎', desc: 'Workflow · Step · Agent · Task', count: '多类型 / 稠密关系' },
+    { file: 'seed-task-tracker.json', label: '任务追踪', desc: 'Task · Sprint · Epic · Team', count: '多类型 / 24关系' },
+  ];
 
   const currentTab = TAB_CONFIG.find(t => t.id === activeDataTab)!;
   const toggleJson = (id: number) => setShowJson(p => ({ ...p, [id]: !p[id] }));
 
-  // ── Handle tab switch: clear filter and AI result ─────────
+  // ── Handle tab switch: clear filter ──
   const handleTabSwitch = useCallback((tab: DataTab) => {
     setActiveDataTab(tab);
     setFilterText('');
-    setAiResult(null);
-    setShowContext(false);
-  }, []);
-
-  // ── AI Mock Fill ──────────────────────────────────────────
-  const handleAiFill = useCallback(async () => {
-    setAiLoading(true);
-    setAiResult(null);
-    try {
-      const sql = currentTab.mockSql();
-      await duckDBService.query(sql);
-      await refresh();
-      setAiResult({ sql, msg: '✅ 模拟数据已注入成功，图谱状态已刷新。' });
-    } catch (e: any) {
-      setAiResult({ sql: currentTab.mockSql(), msg: `❌ 注入失败: ${e.message}` });
-    } finally {
-      setAiLoading(false);
+    if (!hasAutoOpenedContext) {
+      setShowContext(true);
+      setHasAutoOpenedContext(true);
     }
-  }, [currentTab, refresh]);
+  }, [hasAutoOpenedContext]);
+
+  // ── Seed Import ──
+  const handleImportSeed = useCallback(async (seedFile: string) => {
+    setImporting(true);
+    setImportMsg(null);
+    setShowSeedPicker(false);
+    try {
+      const resp = await fetch(`/data/ontology/${seedFile}`);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      let data;
+      try {
+        data = await resp.json();
+      } catch {
+        throw new Error(`${seedFile} 不是有效的 JSON 文件，请选择 .json 格式的本体论数据`);
+      }
+      if (!data.objectTypes || !data.objects) throw new Error('无效的种子数据格式');
+      const { objectCount } = await importOntologyFromJSON(state.mapping, data);
+      await refresh();
+      setImportMsg({ type: 'success', text: `导入成功：${objectCount} 个对象 / ${data.links?.length ?? 0} 条关系` });
+      setTimeout(() => setImportMsg(null), 4000);
+    } catch (e: any) {
+      setImportMsg({ type: 'error', text: `导入失败：${e.message}` });
+      setTimeout(() => setImportMsg(null), 5000);
+    }
+    setImporting(false);
+  }, [state.mapping, refresh]);
 
   // ── Metrics ───────────────────────────────────────────────
   const metrics = useMemo(() => {
@@ -310,19 +315,39 @@ export const OntologyDataView: React.FC = () => {
             <Info className="w-3.5 h-3.5" />
           </button>
 
-          {/* AI Fill */}
-          <button
-            onClick={handleAiFill}
-            disabled={aiLoading}
-            title="AI 一键注入模拟数据"
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-monokai-cyan/15 to-[#FF9CF7]/10 border border-monokai-cyan/25 text-monokai-cyan hover:border-monokai-cyan/50 hover:from-monokai-cyan/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {aiLoading
-              ? <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-              : <Sparkles className="w-3.5 h-3.5" />
-            }
-            <span>AI 填装</span>
-          </button>
+          {/* Seed Import */}
+          <div className="relative">
+            <button
+              onClick={() => setShowSeedPicker(p => !p)}
+              disabled={importing}
+              title="从示例模板导入数据"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-monokai-cyan/15 to-[#FF9CF7]/10 border border-monokai-cyan/25 text-monokai-cyan hover:border-monokai-cyan/50 hover:from-monokai-cyan/25 transition-all disabled:opacity-50"
+            >
+              {importing
+                ? <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                : <Sparkles className="w-3.5 h-3.5" />
+              }
+              <span>导入示例</span>
+            </button>
+            {showSeedPicker && (
+              <div className="absolute top-full right-0 mt-1.5 w-72 bg-monokai-bg border border-monokai-border/60 rounded-xl shadow-2xl z-50 overflow-hidden">
+                <div className="px-3 py-2 border-b border-monokai-border/30 text-[10px] text-monokai-comment uppercase tracking-widest font-semibold">
+                  选择示例模板
+                </div>
+                {SEED_OPTIONS.map(opt => (
+                  <button
+                    key={opt.file}
+                    onClick={() => handleImportSeed(opt.file)}
+                    className="w-full px-4 py-3 text-left hover:bg-monokai-sidebar/60 transition-colors border-b border-monokai-border/20 last:border-b-0"
+                  >
+                    <div className="text-xs font-semibold text-monokai-fg">{opt.label}</div>
+                    <div className="text-[10px] text-monokai-comment mt-0.5">{opt.desc}</div>
+                    <div className="text-[10px] text-monokai-cyan/60 mt-0.5 font-mono">{opt.count}</div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -342,14 +367,10 @@ export const OntologyDataView: React.FC = () => {
         </div>
       )}
 
-      {/* ── AI RESULT PANEL ─────────────────────────────── */}
-      {aiResult && (
-        <div className={`shrink-0 rounded-2xl border p-4 animate-in slide-in-from-top-2 duration-200 ${aiResult.msg.startsWith('✅') ? 'border-green-500/20 bg-green-500/5' : 'border-red-500/20 bg-red-500/5'}`}>
-          <div className="flex items-center justify-between mb-2">
-            <p className={`text-xs font-bold ${aiResult.msg.startsWith('✅') ? 'text-green-400' : 'text-red-400'}`}>{aiResult.msg}</p>
-            <button onClick={() => setAiResult(null)} className="text-monokai-comment hover:text-white transition-colors"><X className="w-3.5 h-3.5" /></button>
-          </div>
-          <pre className="text-[10px] text-monokai-comment/70 font-mono leading-relaxed bg-black/20 p-3 rounded-xl overflow-x-auto custom-scrollbar">{aiResult.sql}</pre>
+      {/* ── Import Result ─────────────────────────────── */}
+      {importMsg && (
+        <div className={`shrink-0 rounded-2xl border p-4 animate-in slide-in-from-top-2 duration-200 ${importMsg.type === 'success' ? 'border-green-500/20 bg-green-500/5' : 'border-red-500/20 bg-red-500/5'}`}>
+          <p className={`text-xs font-bold ${importMsg.type === 'success' ? 'text-green-400' : 'text-red-400'}`}>{importMsg.text}</p>
         </div>
       )}
 
@@ -404,7 +425,10 @@ export const OntologyDataView: React.FC = () => {
                           {filterText ? `无匹配记录 — "${filterText}"` : '当前表域无数据记录'}
                         </p>
                         <p className="text-xs text-monokai-comment/30">
-                          {filterText ? '尝试修改关键词或' : '点击顶部'}<button onClick={filterText ? () => setFilterText('') : handleAiFill} className="text-monokai-cyan/60 hover:text-monokai-cyan underline underline-offset-2 ml-1 transition-colors">{filterText ? '清除过滤' : 'AI 填装'}</button>注入模拟数据
+                          {filterText
+                            ? <>尝试修改关键词或<button onClick={() => setFilterText('')} className="text-monokai-cyan/60 hover:text-monokai-cyan underline underline-offset-2 ml-1 transition-colors">清除过滤</button></>
+                            : <>点击上方<button onClick={() => setShowSeedPicker(true)} className="text-monokai-cyan/60 hover:text-monokai-cyan underline underline-offset-2 ml-1 transition-colors">导入示例</button>注入数据</>
+                          }
                         </p>
                       </div>
                     </div>

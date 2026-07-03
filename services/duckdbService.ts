@@ -6,6 +6,41 @@ import { ONTOLOGY_CREATE_STATEMENTS, ONTOLOGY_SEED_STATEMENTS } from '../compone
 
 const DUCKDB_VERSION = '1.33.1';
 
+function splitSqlStatements(sql: string): string[] {
+  const statements: string[] = [];
+  let current = '';
+  let inSingleQuote = false;
+  let inDoubleQuote = false;
+  
+  for (let i = 0; i < sql.length; i++) {
+    const char = sql[i];
+    
+    if (char === "'" && !inDoubleQuote) {
+      if (sql[i - 1] !== '\\') {
+        inSingleQuote = !inSingleQuote;
+      }
+    } else if (char === '"' && !inSingleQuote) {
+      if (sql[i - 1] !== '\\') {
+        inDoubleQuote = !inDoubleQuote;
+      }
+    }
+    
+    if (char === ';' && !inSingleQuote && !inDoubleQuote) {
+      if (current.trim()) {
+        statements.push(current.trim());
+      }
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  
+  if (current.trim()) {
+    statements.push(current.trim());
+  }
+  return statements;
+}
+
 class DuckDBService {
   private db: duckdb.AsyncDuckDB | null = null;
   private conn: duckdb.AsyncDuckDBConnection | null = null;
@@ -206,8 +241,50 @@ class DuckDBService {
       }
     }
 
-    const result = await this.conn.query(sql);
-    return result.toArray().map((row) => row.toJSON());
+    const statements = splitSqlStatements(sql);
+    let lastResult: any[] = [];
+    for (const stmt of statements) {
+      if (!stmt.trim()) continue;
+      const result = await this.conn.query(stmt);
+      try {
+        lastResult = result.toArray().map((row) => {
+          const raw = row.toJSON();
+          const clean: any = {};
+          for (const k of Object.keys(raw)) {
+            const val = raw[k];
+            if (val === null || val === undefined) {
+              clean[k] = null;
+            } else if (typeof val === 'bigint') {
+              clean[k] = Number(val);
+            } else if (typeof val === 'object' && !(val instanceof Date) && !(val instanceof Array)) {
+              const cName = val.constructor?.name || '';
+              if ('scale' in val || cName.includes('Decimal') || cName.includes('Numeric')) {
+                const strVal = typeof val.toString === 'function' ? val.toString() : '';
+                const numVal = Number(strVal);
+                if (!isNaN(numVal)) {
+                  if (val.scale && !strVal.includes('.')) {
+                    clean[k] = numVal / Math.pow(10, val.scale);
+                  } else {
+                    clean[k] = numVal;
+                  }
+                } else {
+                  clean[k] = val;
+                }
+              } else {
+                clean[k] = val;
+              }
+            } else {
+              clean[k] = val;
+            }
+          }
+          return clean;
+        });
+      } catch (e) {
+        // Drop/Create statements might not return rows
+        lastResult = [];
+      }
+    }
+    return lastResult;
   }
 
   /** Execute a batch of SQL statements sequentially, returning results for each. */
@@ -350,6 +427,17 @@ class DuckDBService {
     if (!this.db || !this.conn) return;
 
     await this.db.registerFileHandle(file.name, file, duckdb.DuckDBDataProtocol.BROWSER_FILEREADER, true);
+
+    const isSql = file.name.endsWith('.sql');
+    if (isSql) {
+      const sqlContent = await file.text();
+      await this.query(sqlContent);
+
+      const cleanSql = sqlContent.substring(0, 1000).replace(/'/g, "''");
+      const auditSql = `INSERT INTO memory._sys_audit_log (id, operation_type, target_table, details, affected_rows, sql_statement) VALUES (nextval('memory._sys_audit_seq'), 'IMPORT', '${tableName}', 'Executed SQL script ${file.name}', 0, '${cleanSql}');`;
+      await this.conn.query(auditSql);
+      return;
+    }
 
     const isJson = file.name.endsWith('.json');
     const isCsv = file.name.endsWith('.csv') || file.name.endsWith('.txt');
@@ -1652,6 +1740,97 @@ class DuckDBService {
 
   async deleteInsight(id: number): Promise<void> {
     await this.query(`DELETE FROM life_insight WHERE id = ${id}`);
+  }
+
+  async loadOntologyTemplate(templateData: any): Promise<void> {
+    if (!this.conn) return;
+    try {
+      await this.ontologyInit();
+      const tablesToClear = [
+        'life_canvas_edge',
+        'life_canvas_state',
+        'life_action',
+        'life_introspection',
+        'life_insight',
+        'life_link',
+        'life_link_type',
+        'life_object',
+        'life_object_type'
+      ];
+      for (const t of tablesToClear) {
+        try { await this.query(`DELETE FROM ${t}`); } catch {}
+      }
+
+      const esc = (val: any) => (val ? String(val).replace(/'/g, "''") : '');
+
+      for (const ot of templateData.objectTypes || []) {
+        await this.query(`INSERT INTO life_object_type (id, name, description) VALUES (${ot.id}, '${esc(ot.name)}', '${esc(ot.description)}')`);
+      }
+
+      for (const o of templateData.objects || []) {
+        const propsStr = typeof o.properties === 'string' ? o.properties : JSON.stringify(o.properties || {});
+        await this.query(`INSERT INTO life_object (id, object_type_id, name, properties, annotations) VALUES (${o.id}, ${o.object_type_id}, '${esc(o.name)}', '${esc(propsStr)}', '${esc(o.annotations)}')`);
+      }
+
+      for (const lt of templateData.linkTypes || []) {
+        await this.query(`INSERT INTO life_link_type (id, name, description) VALUES (${lt.id}, '${esc(lt.name)}', '${esc(lt.description)}')`);
+      }
+
+      for (const l of templateData.links || []) {
+        await this.query(`INSERT INTO life_link (id, link_type_id, source_object_id, target_object_id, weight) VALUES (${l.id}, ${l.link_type_id}, ${l.source_object_id}, ${l.target_object_id}, ${l.weight ?? 1.0})`);
+      }
+
+      for (const a of templateData.actions || []) {
+        const execAt = a.execute_at ? `'${a.execute_at}'` : 'NULL';
+        await this.query(`INSERT INTO life_action (id, object_id, name, description, status, execute_at) VALUES (${a.id}, ${a.object_id}, '${esc(a.name)}', '${esc(a.description)}', '${esc(a.status || 'pending')}', ${execAt})`);
+      }
+
+      for (const intro of templateData.introspections || []) {
+        const crAt = intro.created_at ? `'${intro.created_at}'` : 'CURRENT_DATE';
+        await this.query(`INSERT INTO life_introspection (id, object_id, question, answer, created_at) VALUES (${intro.id}, ${intro.object_id}, '${esc(intro.question)}', '${esc(intro.answer)}', ${crAt})`);
+      }
+
+      for (const ins of templateData.insights || []) {
+        const crAt = ins.created_at ? `'${ins.created_at}'` : 'CURRENT_DATE';
+        await this.query(`INSERT INTO life_insight (id, object_id, insight, tag, created_at) VALUES (${ins.id}, ${ins.object_id}, '${esc(ins.insight)}', '${esc(ins.tag)}', ${crAt})`);
+      }
+    } catch (err) {
+      console.error('Load ontology template failed', err);
+      throw err;
+    }
+  }
+
+  async getDatabaseDiagnostics(): Promise<{ databaseSize: string; memoryUsage: string; memoryLimit: string }> {
+    if (!this.conn) return { databaseSize: 'Unknown', memoryUsage: 'Unknown', memoryLimit: 'Unknown' };
+    let databaseSize = 'Unknown';
+    let memoryUsage = 'Unknown';
+    let memoryLimit = 'Unknown';
+    try {
+      const sizeRes = await this.query('CALL pragma_database_size()');
+      if (sizeRes && sizeRes.length > 0) {
+        databaseSize = sizeRes[0].database_size || sizeRes[0].db_size || 'Unknown';
+      }
+    } catch (e) {}
+
+    try {
+      const memRes = await this.query('SELECT * FROM duckdb_memory()');
+      if (memRes && memRes.length > 0) {
+        let total = 0;
+        for (const row of memRes) {
+          total += Number(row.memory_usage ?? 0);
+        }
+        memoryUsage = `${(total / (1024 * 1024)).toFixed(2)} MB`;
+      }
+    } catch (e) {}
+
+    try {
+      const limitRes = await this.query("SELECT value FROM duckdb_settings() WHERE name = 'max_memory'");
+      if (limitRes && limitRes.length > 0) {
+        memoryLimit = limitRes[0].value || 'Unknown';
+      }
+    } catch (e) {}
+
+    return { databaseSize, memoryUsage, memoryLimit };
   }
 }
 

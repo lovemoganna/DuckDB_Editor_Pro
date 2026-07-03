@@ -265,7 +265,7 @@ export interface SqlTab {
   history: string[];
   historyIndex: number;
   loading: boolean;
-  viewMode: 'table' | 'chart' | 'explain';
+  viewMode: 'table' | 'chart' | 'explain' | 'profiling';
   chartConfig: ChartConfig; // Keep for backward compatibility
   charts?: ChartConfig[]; // New multi-chart support
   page: number;

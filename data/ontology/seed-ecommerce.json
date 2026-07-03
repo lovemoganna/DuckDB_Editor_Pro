@@ -1,0 +1,104 @@
+{
+  "_meta": {
+    "name": "电商运营知识图谱",
+    "description": "模拟中小型电商企业的核心运营实体和关系，测试知识图谱在商业数据场景下的稳定性",
+    "version": "1.0.0",
+    "author": "system",
+    "created_at": "2025-05-06",
+    "scenario": "e-commerce",
+    "complexity": "medium",
+    "entity_counts": {
+      "object_types": 5,
+      "objects": 16,
+      "link_types": 7,
+      "links": 24,
+      "actions": 5,
+      "introspections": 3,
+      "insights": 3
+    }
+  },
+
+  "objectTypes": [
+    { "id": 1, "name": "Product",  "description": "商品" },
+    { "id": 2, "name": "Customer", "description": "客户/用户" },
+    { "id": 3, "name": "Channel",  "description": "渠道" },
+    { "id": 4, "name": "Campaign", "description": "营销活动" },
+    { "id": 5, "name": "Metric",    "description": "运营指标" }
+  ],
+
+  "objects": [
+    { "id": 1,  "object_type_id": 1, "name": "主力SKU-A",     "properties": "{\"category\": \"3C数码\", \"price\": 299, \"cost\": 145, \"gm_rate\": 0.515, \"return_rate\": 0.02}", "annotations": "" },
+    { "id": 2,  "object_type_id": 1, "name": "主力SKU-B",     "properties": "{\"category\": \"家居用品\", \"price\": 89, \"cost\": 28, \"gm_rate\": 0.685, \"return_rate\": 0.05}",    "annotations": "" },
+    { "id": 3,  "object_type_id": 1, "name": "引流款C",       "properties": "{\"category\": \"配件\", \"price\": 19.9, \"cost\": 6, \"gm_rate\": 0.698, \"return_rate\": 0.01}",    "annotations": "" },
+    { "id": 4,  "object_type_id": 1, "name": "新品D",         "properties": "{\"category\": \"3C数码\", \"price\": 599, \"cost\": 310, \"gm_rate\": 0.482, \"return_rate\": 0.08}",  "annotations": "" },
+    { "id": 5,  "object_type_id": 2, "name": "高价值用户群",   "properties": "{\"ltv\": 5800, \"order_count_avg\": 12, \"characteristics\": [\"复购率高\", \"客诉率低\"]}",      "annotations": "" },
+    { "id": 6,  "object_type_id": 2, "name": "价格敏感用户群", "properties": "{\"ltv\": 680, \"order_count_avg\": 2.3, \"characteristics\": [\"大促活跃\", \"复购率低\"]}",      "annotations": "" },
+    { "id": 7,  "object_type_id": 2, "name": "沉睡用户群",     "properties": "{\"last_order_days_ago\": 180, \"reactivation_cost\": 15, \"size\": 4500}",                  "annotations": "" },
+    { "id": 8,  "object_type_id": 3, "name": "天猫旗舰店",     "properties": "{\"platform\": \"天猫\", \"gmv_share\": 0.55, \"margins\": 0.35, \"annual_fee\": 60000}",      "annotations": "" },
+    { "id": 9,  "object_type_id": 3, "name": "抖音直播",       "properties": "{\"platform\": \"抖音\", \"gmv_share\": 0.25, \"margins\": 0.18, \"require_stock\": true}",    "annotations": "" },
+    { "id": 10, "object_type_id": 3, "name": "私域社群",       "properties": "{\"platform\": \"微信\", \"gmv_share\": 0.08, \"margins\": 0.55, \"size\": 12000}",            "annotations": "" },
+    { "id": 11, "object_type_id": 4, "name": "618大促活动",    "properties": "{\"budget\": 150000, \"start\": \"2025-06-01\", \"end\": \"2025-06-18\", \"target_gmv\": 2800000}", "annotations": "" },
+    { "id": 12, "object_type_id": 4, "name": "新品首发Campaign","properties": "{\"budget\": 30000, \"start\": \"2025-05-15\", \"end\": \"2025-05-31\", \"target_orders\": 800}",   "annotations": "" },
+    { "id": 13, "object_type_id": 5, "name": "综合毛利率",      "properties": "{\"current\": 0.38, \"baseline\": 0.35, \"target\": 0.42}",                                 "annotations": "" },
+    { "id": 14, "object_type_id": 5, "name": "月活跃用户数",    "properties": "{\"current\": 28500, \"baseline\": 22000, \"target\": 35000}",                               "annotations": "" },
+    { "id": 15, "object_type_id": 5, "name": "平均客单价",      "properties": "{\"current\": 156, \"baseline\": 138, \"target\": 180}",                                      "annotations": "" },
+    { "id": 16, "object_type_id": 5, "name": "库存周转天数",    "properties": "{\"current\": 42, \"baseline\": 55, \"target\": 35}",                                         "annotations": "" }
+  ],
+
+  "linkTypes": [
+    { "id": 1, "name": "销售",    "description": "A 销售 B（渠道-商品）" },
+    { "id": 2, "name": "购买",    "description": "A 购买 B（用户-商品）" },
+    { "id": 3, "name": "投放",    "description": "A 向 B 投放资源" },
+    { "id": 4, "name": "贡献",    "description": "A 对 B 有显著贡献" },
+    { "id": 5, "name": "影响",    "description": "A 变化会影响 B" },
+    { "id": 6, "name": "转化",    "description": "A 能转化为 B" },
+    { "id": 7, "name": "捆绑",    "description": "A 和 B 捆绑销售" }
+  ],
+
+  "links": [
+    { "id": 1,  "link_type_id": 1, "source_object_id": 8,  "target_object_id": 1,  "weight": 0.90 },
+    { "id": 2,  "link_type_id": 1, "source_object_id": 8,  "target_object_id": 2,  "weight": 0.85 },
+    { "id": 3,  "link_type_id": 1, "source_object_id": 9,  "target_object_id": 3,  "weight": 0.95 },
+    { "id": 4,  "link_type_id": 1, "source_object_id": 9,  "target_object_id": 4,  "weight": 0.80 },
+    { "id": 5,  "link_type_id": 1, "source_object_id": 10, "target_object_id": 2,  "weight": 0.75 },
+    { "id": 6,  "link_type_id": 1, "source_object_id": 10, "target_object_id": 1,  "weight": 0.60 },
+    { "id": 7,  "link_type_id": 2, "source_object_id": 5,  "target_object_id": 1,  "weight": 0.85 },
+    { "id": 8,  "link_type_id": 2, "source_object_id": 5,  "target_object_id": 2,  "weight": 0.70 },
+    { "id": 9,  "link_type_id": 2, "source_object_id": 6,  "target_object_id": 3,  "weight": 0.90 },
+    { "id": 10, "link_type_id": 2, "source_object_id": 6,  "target_object_id": 1,  "weight": 0.50 },
+    { "id": 11, "link_type_id": 3, "source_object_id": 11, "target_object_id": 8,  "weight": 0.80 },
+    { "id": 12, "link_type_id": 3, "source_object_id": 11, "target_object_id": 9,  "weight": 0.70 },
+    { "id": 13, "link_type_id": 3, "source_object_id": 12, "target_object_id": 4,  "weight": 0.90 },
+    { "id": 14, "link_type_id": 3, "source_object_id": 12, "target_object_id": 10, "weight": 0.60 },
+    { "id": 15, "link_type_id": 4, "source_object_id": 1,  "target_object_id": 13, "weight": 0.75 },
+    { "id": 16, "link_type_id": 4, "source_object_id": 8,  "target_object_id": 13, "weight": 0.80 },
+    { "id": 17, "link_type_id": 4, "source_object_id": 10, "target_object_id": 14, "weight": 0.70 },
+    { "id": 18, "link_type_id": 5, "source_object_id": 9,  "target_object_id": 16, "weight": 0.60 },
+    { "id": 19, "link_type_id": 5, "source_object_id": 11, "target_object_id": 15, "weight": 0.70 },
+    { "id": 20, "link_type_id": 6, "source_object_id": 7,  "target_object_id": 5,  "weight": 0.40 },
+    { "id": 21, "link_type_id": 6, "source_object_id": 6,  "target_object_id": 5,  "weight": 0.30 },
+    { "id": 22, "link_type_id": 7, "source_object_id": 1,  "target_object_id": 3,  "weight": 0.65 },
+    { "id": 23, "link_type_id": 4, "source_object_id": 2,  "target_object_id": 15, "weight": 0.60 },
+    { "id": 24, "link_type_id": 5, "source_object_id": 4,  "target_object_id": 7,  "weight": 0.50 }
+  ],
+
+  "actions": [
+    { "id": 1, "object_id": 11, "name": "完成618选品清单",         "description": "筛选主力SKU+引流款，制定阶梯定价策略",                          "status": "in_progress", "execute_at": "2025-05-20" },
+    { "id": 2, "object_id": 7,  "name": "沉睡用户召回Campaign",     "description": "针对4500名沉睡用户，发送专属优惠券+个性化推荐",                  "status": "pending", "execute_at": "2025-05-25" },
+    { "id": 3, "object_id": 4,  "name": "新品D详情页优化",          "description": "优化产品主图、视频和买家秀展示，降低新品退货率",                 "status": "pending", "execute_at": "2025-05-30" },
+    { "id": 4, "object_id": 10, "name": "私域社群周活提升",         "description": "本周在社群内开展2次限时秒杀，目标周活率从15%提升至25%",         "status": "pending", "execute_at": "2025-05-12" },
+    { "id": 5, "object_id": 16, "name": "优化供应链周转",           "description": "与供应商协商缩短交期，目标库存周转天数从42天降至35天",           "status": "pending", "execute_at": "2025-06-01" }
+  ],
+
+  "introspections": [
+    { "id": 1, "object_id": 13, "question": "为什么综合毛利率持续下滑？",                                  "answer": "抖音直播渠道GMV占比上升但毛利率只有18%，拉低了整体均值，同时3C数码成本上涨传导滞后。", "created_at": "2025-05-01" },
+    { "id": 2, "object_id": 7,  "question": "沉睡用户的流失根因是什么？",                                  "answer": "超过60%的沉睡用户在购买后30天内没有收到任何触达，说明我们的用户生命周期运营缺失严重。", "created_at": "2025-05-03" },
+    { "id": 3, "object_id": 16, "question": "新品D的高退货率（8%）背后是什么问题？",                        "answer": "详情页描述与实物存在色差，且缺少关键尺寸对比图，导致用户期望落差。",                           "created_at": "2025-05-05" }
+  ],
+
+  "insights": [
+    { "id": 1, "object_id": 13, "insight": "渠道结构决定毛利结构，追求规模就要接受低毛利渠道的稀释",             "tag": "运营策略",  "created_at": "2025-05-01" },
+    { "id": 2, "object_id": 14, "insight": "私域用户的获客成本是流量的1/10，但贡献的GMV占比仅8%，说明私域深度运营空间巨大", "tag": "私域运营", "created_at": "2025-05-03" },
+    { "id": 3, "object_id": 4,  "insight": "新品首发的前30天决定了后续的自然流量天花板，第一印象定价不能只图走量", "tag": "新品运营",  "created_at": "2025-05-05" }
+  ]
+}

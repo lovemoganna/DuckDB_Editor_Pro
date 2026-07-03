@@ -232,7 +232,7 @@ const OntologyInsightsPanel: React.FC<OntologyInsightsPanelProps> = ({
     { id: 'overview' as const, label: '总览', icon: <TrendingUp className="w-3 h-3" />, color: '#a78bfa' },
     { id: 'suggestions' as const, label: `建议 (${suggestions.length})`, icon: <Lightbulb className="w-3 h-3" />, color: '#fbbf24' },
     { id: 'introspect' as const, label: '反思', icon: <Brain className="w-3 h-3" />, color: '#38bdf8' },
-    { id: 'insights' as const, label: `洞察 (${insights.length})`, icon: <Sparkles className="w-3 h-3" />, color: '#4ade80' },
+    { id: 'insights' as const, label: `洞察 (${insights.length})`, icon: <Lightbulb className="w-3 h-3" />, color: '#4ade80' },
   ];
 
   const SEVERITY_COLORS = { high: '#f87171', medium: '#fbbf24', low: '#38bdf8' };
@@ -241,12 +241,12 @@ const OntologyInsightsPanel: React.FC<OntologyInsightsPanelProps> = ({
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#161622', borderRadius: 12, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)' }}>
       {/* Header */}
       <div style={{ padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(0,0,0,0.2)', display: 'flex', alignItems: 'center', gap: 10 }}>
-        <div style={{ width: 30, height: 30, borderRadius: 8, background: 'linear-gradient(135deg, #a78bfa, #6366f1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Sparkles className="w-4 h-4 text-white" />
+        <div style={{ width: 30, height: 30, borderRadius: 8, background: 'linear-gradient(135deg, #66d9ef, #66d9ef)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <TrendingUp className="w-4 h-4 text-white" />
         </div>
         <div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: '#f1f5f9' }}>AI 洞察面板</div>
-          <div style={{ fontSize: 9, color: '#64748b' }}>智能分析 · 反思引导 · 洞察记录</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#f1f5f9' }}>本体洞察面板</div>
+          <div style={{ fontSize: 9, color: '#64748b' }}>结构分析 · 反思引导 · 洞察记录</div>
         </div>
       </div>
 
@@ -383,7 +383,7 @@ const OntologyInsightsPanel: React.FC<OntologyInsightsPanelProps> = ({
                   color: '#fbbf24', fontSize: 12, fontWeight: 600,
                 }}
               >
-                {loadingAISuggestions ? <><div style={{ width: 12, height: 12, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fbbf24', borderRadius: '50%', animation: 'spin 1s linear infinite' }} /> AI 深度分析中...</> : <><Sparkles className="w-3.5 h-3.5" /> AI 深度分析</>}
+                {loadingAISuggestions ? <><div style={{ width: 12, height: 12, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fbbf24', borderRadius: '50%', animation: 'spin 1s linear infinite' }} /> 分析中...</> : <><Sparkles className="w-3.5 h-3.5" /> 图谱分析</>}
               </button>
               {aiSuggestions.length > 0 && (
                 <button onClick={() => setAiSuggestions([])}
@@ -401,7 +401,7 @@ const OntologyInsightsPanel: React.FC<OntologyInsightsPanelProps> = ({
             {aiSuggestions.length > 0 && (
               <div>
                 <div style={{ fontSize: 10, color: '#4ade80', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6, fontWeight: 600 }}>
-                  AI 智能建议 ({aiSuggestions.length})
+                  分析建议 ({aiSuggestions.length})
                 </div>
                 {aiSuggestions.map((item, i) => {
                   const TYPE_COLORS: Record<string, string> = {

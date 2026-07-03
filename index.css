@@ -805,31 +805,31 @@ button:hover, .btn:hover {
 }
 
 .sql-keyword {
-    color: #ae81ff;
+    color: #ae81ff !important;
     font-weight: 600;
 }
 
 .sql-function {
-    color: #66d9ef;
+    color: #66d9ef !important;
     font-weight: 500;
 }
 
 .sql-string {
-    color: #a6e22e;
+    color: #a6e22e !important;
     font-style: italic;
 }
 
 .sql-number {
-    color: #fd971f;
+    color: #fd971f !important;
 }
 
 .sql-comment {
-    color: #75715e;
+    color: #75715e !important;
     font-style: italic;
 }
 
 .sql-identifier {
-    color: #f8f8f2;
+    color: #f8f8f2 !important;
     font-style: italic;
 }
 

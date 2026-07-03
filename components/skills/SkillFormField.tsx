@@ -62,7 +62,7 @@ export const SkillFormField: React.FC<SkillFormFieldProps> = ({
   const [showTooltip, setShowTooltip] = useState(false);
   const error = errors[field.name];
   const hasValue = value && (typeof value === 'string' ? value.trim() : true);
-  const typeHint: FIELD_TYPE_HINTS[string] = FIELD_TYPE_HINTS[field.type] ?? {
+  const typeHint: typeof FIELD_TYPE_HINTS[string] = FIELD_TYPE_HINTS[field.type] ?? {
     hint: '', icon: <Info className="w-3.5 h-3.5" />,
   };
   const hasHint = showHints && (field.description || typeHint.hint || typeHint.example);

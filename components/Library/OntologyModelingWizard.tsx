@@ -591,6 +591,28 @@ export const OntologyModelingWizard: React.FC<Props> = ({ onClose, onImport }) =
                 </p>
               </div>
 
+              {/* Prompt Suggestions */}
+              <div className="space-y-1.5 p-1">
+                <span className="text-[10px] font-bold text-monokai-comment uppercase tracking-wider block">推荐概念模板</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { label: '📚 在线教育', text: '在线教育平台，包含课程、学生、教师、订单、评价等核心实体以及它们之间的选课、支付和授课关系。' },
+                    { label: '🏥 医疗挂号', text: '医院门诊挂号系统，包括患者、医生、科室、挂号单和电子病历实体，关联挂号与诊断流程。' },
+                    { label: '📖 图书馆管理', text: '图书管理系统，包含图书、借阅者、管理人员、借阅单实体，记录图书的借出和归还关系。' },
+                    { label: '🌡️ 物联网监控', text: '智能设备物联网监控系统，包含网关设备、传感器子设备、环境警报实体，反映子设备属于网关和触发警报的关系。' }
+                  ].map(tpl => (
+                    <button
+                      key={tpl.label}
+                      type="button"
+                      onClick={() => setConcept(tpl.text)}
+                      className="text-[10px] px-2 py-1 rounded bg-monokai-sidebar/40 border border-monokai-accent/10 text-monokai-comment hover:text-monokai-cyan hover:border-monokai-cyan/35 transition-all"
+                    >
+                      {tpl.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Error */}
               {error && (
                 <div

@@ -5,6 +5,7 @@
  */
 
 import { AISkill } from '../types';
+import { OntologyCommand } from '../hooks/useOntologyStore';
 
 // ============================================================
 // Command types
@@ -12,7 +13,7 @@ import { AISkill } from '../types';
 
 export interface CommandItem {
   id: string;
-  type: 'action' | 'navigation' | 'table' | 'skill';
+  type: 'action' | 'navigation' | 'table' | 'skill' | 'ontology';
   label: string;
   description?: string;
   icon?: string;
@@ -20,6 +21,7 @@ export interface CommandItem {
   action?: () => void;
   tab?: string;
   skillId?: string;
+  ontologyCommand?: OntologyCommand;
 }
 
 export interface CommandGroup {
@@ -51,6 +53,17 @@ export const BUILT_IN_COMMANDS: CommandItem[] = [
   { id: 'action-import', type: 'action', label: '导入数据', description: '打开导入向导', shortcut: 'Ctrl+I' },
   { id: 'action-export', type: 'action', label: '导出数据', description: '打开导出对话框', shortcut: 'Ctrl+E' },
   { id: 'action-settings', type: 'action', label: '设置与备份', description: '打开设置面板' },
+
+  // Ontology actions (navigation is handled by nav-ontology)
+  { id: 'ont-new-object-type', type: 'ontology', label: '新建对象类型', description: '在 Ontology 中创建新对象类型', ontologyCommand: { action: 'open-inspector', mode: 'create-object-type' } },
+  { id: 'ont-new-object', type: 'ontology', label: '新建本体对象', description: '在 Ontology 中创建新对象', ontologyCommand: { action: 'open-drawer', drawer: 'crud' } },
+  { id: 'ont-new-link', type: 'ontology', label: '新建本体链接', description: '在 Ontology 中创建对象间链接', ontologyCommand: { action: 'open-drawer', drawer: 'crud' } },
+  { id: 'ont-graph-view', type: 'ontology', label: '本体图谱视图', description: '切换到 Ontology 图谱视图', ontologyCommand: { action: 'open-view', view: 'graph' } },
+  { id: 'ont-data-view', type: 'ontology', label: '本体数据视图', description: '切换到 Ontology 数据视图', ontologyCommand: { action: 'open-view', view: 'data' } },
+  { id: 'ont-canvas-view', type: 'ontology', label: '本体画布视图', description: '切换到 Ontology Canvas 视图', ontologyCommand: { action: 'open-view', view: 'canvas' } },
+  { id: 'ont-init', type: 'ontology', label: '初始化本体库', description: '初始化 Ontology 表结构与种子数据', ontologyCommand: { action: 'init' } },
+  { id: 'ont-reseed', type: 'ontology', label: '重新播种本体', description: '重新加载种子数据', ontologyCommand: { action: 'reseed' } },
+  { id: 'ont-refresh', type: 'ontology', label: '刷新本体', description: '重新加载 Ontology 数据', ontologyCommand: { action: 'refresh' } },
 ];
 
 // ============================================================
