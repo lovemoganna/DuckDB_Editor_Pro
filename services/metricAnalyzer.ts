@@ -1,4 +1,5 @@
 import { aiService } from './aiService';
+import { dbService } from './dbService';
 import { duckDBService } from './duckdbService';
 import { MetricDefinition, MetricPackage, MetricChart, ChartConfig } from '../types';
 
@@ -848,7 +849,6 @@ SELECT '需要手动设置' as status;`;
     };
 
     // 导入 dbService 并保存
-    const { dbService } = await import('./dbService');
     await dbService.saveQuery(savedQuery);
 
     return savedQuery.id;

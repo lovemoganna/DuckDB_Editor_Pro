@@ -239,14 +239,20 @@ export const SqlEditorProfilingView: React.FC<SqlEditorProfilingViewProps> = ({ 
         setError('No profiling data returned');
       }
     } catch (e: any) {
-      setError(e.message || 'Profiling failed. Make sure the query is valid and executable.');
+      let msg = e.message || 'Profiling failed. Make sure the query is valid and executable.';
+      // Clean up the internal EXPLAIN prefix from the error message to avoid confusing the user
+      msg = msg.replace(/EXPLAIN\s*\(ANALYZE,\s*FORMAT\s*JSON\)\s*/gi, '');
+      setError(msg);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    runProfiling();
+    const timer = setTimeout(() => {
+      runProfiling();
+    }, 500);
+    return () => clearTimeout(timer);
   }, [sql]);
 
   const flattenedOperators = useMemo(() => {

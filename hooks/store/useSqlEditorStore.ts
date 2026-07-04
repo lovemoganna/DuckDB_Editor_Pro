@@ -30,7 +30,7 @@ import type { SqlTab, QueryHistoryItem, SavedQuery, ColumnInfo } from '../../typ
 // tabsSlice
 // ============================================================
 
-const DEFAULT_CODE = "-- Type your SQL here or use AI to generate it\nSELECT * FROM memory._sys_audit_log ORDER BY log_time DESC;";
+const DEFAULT_CODE = "-- Welcome to DuckDB! Try running this generator query (no tables required):\nSELECT \n    i AS id,\n    'User_' || i AS username,\n    CASE WHEN i % 2 = 0 THEN 'Active' ELSE 'Inactive' END AS status,\n    round(random() * 100, 2) AS score\nFROM range(1, 6) t(i);";
 
 function createDefaultTab(): SqlTab {
   return {
@@ -450,7 +450,7 @@ export const useSqlEditorStore = create<Store>()(
       // Persist only the slices that matter across reloads.
       // Schema, toasts, modals, AI loading flags are ephemeral.
       partialize: (state) => ({
-        tabs: state.tabs,
+        tabs: state.tabs.map(t => ({ ...t, result: null, loading: false })),
         activeTabId: state.activeTabId,
         editorHeightPercent: state.editorHeightPercent,
         selectedSqlType: state.selectedSqlType,

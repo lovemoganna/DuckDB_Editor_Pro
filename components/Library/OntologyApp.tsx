@@ -10,6 +10,7 @@ import { OntologyPanel } from './OntologyPanel';
 
 interface OntologyAppProps {
   isOpen: boolean;
+  isActive?: boolean;
   onClose: () => void;
   onInsertToEditor?: (sql: string) => void;
   onTablesReady?: () => void;
@@ -17,6 +18,7 @@ interface OntologyAppProps {
 
 export const OntologyApp: React.FC<OntologyAppProps> = ({
   isOpen,
+  isActive,
   onClose,
   onInsertToEditor,
   onTablesReady,
@@ -26,6 +28,7 @@ export const OntologyApp: React.FC<OntologyAppProps> = ({
   return (
     <div className="flex h-full w-full overflow-hidden">
       <OntologyPanel
+        isActive={isActive}
         onInsert={onInsertToEditor}
         onTablesReady={onTablesReady}
       />

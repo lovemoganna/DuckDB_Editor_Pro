@@ -217,7 +217,7 @@ async function loadDynamicGraphData(mapping: any, storeState?: any): Promise<Gra
 
 // ==================== Component ====================
 
-const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyState?: any }> = ({ onRefreshRef, ontologyState }) => {
+const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyState?: any; isActive?: boolean }> = ({ onRefreshRef, ontologyState, isActive }) => {
   const store = useOntologyStore();
   const state = ontologyState ?? store.state;
   const mapping = state.mapping;
@@ -236,6 +236,14 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
   const linkElsRef = useRef<d3.Selection<SVGPathElement, GraphLink, SVGGElement, unknown> | null>(null);
   const labelElsRef = useRef<d3.Selection<SVGTextElement, GraphNode, SVGGElement, unknown> | null>(null);
   const allNodeGroupsRef = useRef<d3.Selection<SVGGElement, GraphNode, SVGGElement, unknown> | null>(null);
+
+  // Stable ref to latest state — avoids adding `state` object to useCallback deps
+  // which would cause refreshGraph identity to change on every parent re-render
+  const stateRef = useRef(state);
+  useEffect(() => { stateRef.current = state; }, [state]);
+
+  // Debounce timer to coalesce rapid refreshGraph calls during seed switching
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [graphData, setGraphData] = useState<GraphData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -276,41 +284,53 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
 
   const refreshGraph = useCallback(async () => {
-    console.log('[D3GraphView] refreshGraph called, mapping:', mapping);
+    // Read latest state from ref — keeps this callback identity stable
+    const currentState = stateRef.current;
+    const currentMapping = currentState.mapping;
+    if (currentState.initting || currentState.initState !== 'ready' || isActive === false) return;
+    console.log('[D3GraphView] refreshGraph called');
     setLoading(true);
     setD3Ready(false);
-    const hasLoadedState =
-      (state.objectTypes?.length ?? 0) > 0 ||
-      (state.objects?.length ?? 0) > 0 ||
-      (state.linkTypes?.length ?? 0) > 0 ||
-      (state.links?.length ?? 0) > 0 ||
-      (state.actions?.length ?? 0) > 0;
-    const layoutDims = containerRef.current
-      ? { svgW: containerRef.current.clientWidth, svgH: containerRef.current.clientHeight }
-      : undefined;
-    const data = hasLoadedState
-      ? (buildGraphDataFromState(state, mapping, undefined, layoutDims) as GraphData | null)
-      : await loadDynamicGraphData(mapping, state);
-    if (!data) {
-      console.log('[D3GraphView] loadDynamicGraphData returned null');
-      setLoading(false);
-      return;
-    }
-    // Also store rawLinks so the D3 useEffect can pass them to computeInitialPositions
-    if (data._rawLinks) {
-      rawLinksRef.current = data._rawLinks;
-    } else {
-      try {
-      const rawLinks = await duckDBService.query(`SELECT * FROM ${mapping.linkTable} ORDER BY id`);
-      rawLinksRef.current = rawLinks || [];
-      } catch {
-        rawLinksRef.current = [];
+    try {
+      const hasLoadedState =
+        (currentState.objectTypes?.length ?? 0) > 0 ||
+        (currentState.objects?.length ?? 0) > 0 ||
+        (currentState.linkTypes?.length ?? 0) > 0 ||
+        (currentState.links?.length ?? 0) > 0 ||
+        (currentState.actions?.length ?? 0) > 0;
+      const layoutDims = containerRef.current
+        ? { svgW: containerRef.current.clientWidth, svgH: containerRef.current.clientHeight }
+        : undefined;
+      const data = hasLoadedState
+        ? (buildGraphDataFromState(currentState, currentMapping, undefined, layoutDims) as GraphData | null)
+        : await loadDynamicGraphData(currentMapping, currentState);
+      if (!data) {
+        console.log('[D3GraphView] loadDynamicGraphData returned null');
+        setLoading(false);
+        return;
       }
+      // Also store rawLinks so the D3 useEffect can pass them to computeInitialPositions
+      if (data._rawLinks) {
+        rawLinksRef.current = data._rawLinks;
+      } else {
+        try {
+          const rawLinks = await duckDBService.query(`SELECT * FROM ${currentMapping.linkTable} ORDER BY id`);
+          rawLinksRef.current = rawLinks || [];
+        } catch {
+          rawLinksRef.current = [];
+        }
+      }
+      setFullGraphData(data);
+      setFocusedNodeId(prev => {
+        const exists = prev && data.nodes.some(n => n.id === prev);
+        return exists ? prev : pickDefaultFocusNode(data);
+      });
+    } catch (err) {
+      console.error('[D3GraphView] Error in refreshGraph:', err);
+    } finally {
+      setLoading(false);
     }
-    setFullGraphData(data);
-    setFocusedNodeId(prev => prev || pickDefaultFocusNode(data));
-    setLoading(false);
-  }, [mapping, state]);
+  }, [isActive]);
 
   useEffect(() => {
     if (!fullGraphData) {
@@ -413,12 +433,26 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
     }
   }, []);
 
-  // Load data when DuckDB tables are ready
+  // Load data when DuckDB tables are ready — debounced to prevent cascading
+  // re-renders during seed switching (SET_INITTING→SET_DATA→SET_ACTIVE_TAB)
   useEffect(() => {
-    if (state.initState === 'ready') {
+    if (state.initState === 'ready' && !state.initting) {
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+      refreshTimerRef.current = setTimeout(() => {
+        refreshGraph();
+      }, 80);
+    }
+    return () => {
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+    };
+  }, [state.initState, state.initting, state.activeTemplateId, refreshGraph]);
+
+  // Trigger refresh when tab becomes active (container is visible and has dimensions)
+  useEffect(() => {
+    if (isActive) {
       refreshGraph();
     }
-  }, [refreshGraph, state.initState]);
+  }, [isActive, refreshGraph]);
 
   // ==================== D3 Rendering ====================
   useEffect(() => {
@@ -517,6 +551,7 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
     //  a) Empty graph (bail silently)
     //  b) All nodes at origin (0,0) — wait for force simulation to spread them
     //  c) Single node — center it without zoom
+    let fitAllRetryCount = 0;
     (window as any).__d3FitAll = () => {
       const ns = graphDataRef.current?.nodes || [];
       if (ns.length === 0) return;
@@ -525,7 +560,10 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
       const valid = ns.filter(n => n.x != null && !isNaN(n.x!) && n.x !== 0);
       if (valid.length === 0) {
         // Nodes haven't spread yet — force sim still running; retry after settling window
-        setTimeout(() => { (window as any).__d3FitAll?.(); }, 600);
+        if (fitAllRetryCount < 10) {
+          fitAllRetryCount++;
+          setTimeout(() => { (window as any).__d3FitAll?.(); }, 600);
+        }
         return;
       }
 

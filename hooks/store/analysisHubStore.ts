@@ -26,6 +26,7 @@ import {
   AbstractionGenerationRequest,
   AbstractionGenerationResult,
 } from '../../types/abstraction';
+import { ontologyAiService } from '../../services/ontologyAiService';
 import {
   DEFAULT_FILTERS,
 } from '../../types/abstraction';
@@ -337,7 +338,6 @@ export const useAnalysisHubStore = create<AnalysisHubStore>()(
     generate: async (request) => {
       set({ isGenerating: true, aiError: null, aiRequest: request });
       try {
-        const { ontologyAiService } = await import('../../services/ontologyAiService');
         const result = await ontologyAiService.generateAbstractionSQL(request);
         set({ aiResult: result, isGenerating: false });
       } catch (e: any) {

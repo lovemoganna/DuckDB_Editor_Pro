@@ -5,6 +5,7 @@
 import React from 'react';
 import { Table, Plus, Database, Search } from 'lucide-react';
 import { useAnalysisHubStore } from '../../hooks/store/analysisHubStore';
+import { SAMPLE_ABSTRACTION_TABLES } from '../../utils/abstractionSeedData';
 
 interface AbstractionEmptyStateProps {
   onFillSamples: () => void;
@@ -25,7 +26,6 @@ export const AbstractionEmptyState: React.FC<AbstractionEmptyStateProps> = ({
 
   // 真实填充示例数据
   const handleFillSamples = async () => {
-    const { SAMPLE_ABSTRACTION_TABLES } = await import('../../utils/abstractionSeedData');
     for (const sample of SAMPLE_ABSTRACTION_TABLES) {
       try {
         await addTable(sample);

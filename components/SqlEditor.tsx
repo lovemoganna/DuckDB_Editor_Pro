@@ -37,7 +37,7 @@ import { format } from 'sql-formatter';
 import { ChartDashboard } from './ChartDashboard';
 import { ChartBuilder } from './ChartBuilder';
 import { SkillAssistant } from './SkillAssistant';
-import { SqlEditorHistory } from './SqlEditor/SqlEditorHistory';
+import { SqlEditorHistory, SqlEditorTabs, SqlEditorToolbar, SaveQueryModal, MaterializeModal } from './SqlEditor/index';
 import { SqlEditorHelpPanel } from './SqlEditor/SqlEditorHelpPanel';
 import { SqlEditorResultTable } from './SqlEditor/SqlEditorResultTable';
 import { SqlEditorExplainView } from './SqlEditor/SqlEditorExplainView';
@@ -82,7 +82,7 @@ const CHEATSHEET = [
     { label: 'Regex Match', code: "SELECT * FROM t WHERE regexp_matches(col, 'pattern');", cat: 'Func' },
 ];
 
-const DEFAULT_CODE = "-- Type your SQL here or use AI to generate it\nSELECT * FROM memory._sys_audit_log ORDER BY log_time DESC;";
+const DEFAULT_CODE = "-- Welcome to DuckDB! Try running this generator query (no tables required):\nSELECT \n    i AS id,\n    'User_' || i AS username,\n    CASE WHEN i % 2 = 0 THEN 'Active' ELSE 'Inactive' END AS status,\n    round(random() * 100, 2) AS score\nFROM range(1, 6) t(i);";
 
 const MONOKAI_COLORS = [
     'rgba(249, 38, 114, 0.8)', // Pink
@@ -286,6 +286,14 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
 
     useEffect(() => {
         loadData();
+
+        const handleSchemaChange = () => {
+            refreshSchema();
+        };
+        window.addEventListener('duckdb-schema-changed', handleSchemaChange);
+        return () => {
+            window.removeEventListener('duckdb-schema-changed', handleSchemaChange);
+        };
     }, []);
 
     const loadData = async () => {
@@ -310,6 +318,42 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
             }
         }
     }, [initialCode]);
+
+    const historyDraftRef = useRef<string | null>(null);
+    const currentHistoryIndexRef = useRef<number>(-1);
+
+    useEffect(() => {
+        historyDraftRef.current = null;
+        currentHistoryIndexRef.current = -1;
+    }, [activeTabId]);
+
+    const handleNavigateHistory = useCallback((direction: 'up' | 'down'): boolean => {
+        const uniqueHistory = Array.from(new Set(history.map(h => h.sql)));
+        if (uniqueHistory.length === 0) return false;
+
+        let newIndex = currentHistoryIndexRef.current;
+        if (direction === 'up') {
+            if (newIndex === -1) {
+                historyDraftRef.current = activeTab?.code ?? '';
+            }
+            if (newIndex < uniqueHistory.length - 1) {
+                newIndex++;
+            } else {
+                return false;
+            }
+        } else {
+            if (newIndex > -1) {
+                newIndex--;
+            } else {
+                return false;
+            }
+        }
+
+        currentHistoryIndexRef.current = newIndex;
+        const newCode = newIndex === -1 ? (historyDraftRef.current ?? '') : uniqueHistory[newIndex];
+        updateActiveTab({ code: newCode });
+        return true;
+    }, [history, activeTab?.code, updateActiveTab]);
 
     // Handle pending chart config from Metrics - auto-run SQL
     useEffect(() => {
@@ -739,95 +783,17 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
                     <span>{toast.message}</span>
                 </div>
             )}
-            {/* 保存查询模态框 */}
-            {showSaveModal && (
-                <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm animate-[fadeIn_0.2s]">
-                    <div className="bg-monokai-sidebar border border-monokai-accent rounded-xl shadow-2xl w-[400px] overflow-hidden animate-[slideIn_0.25s_ease-out]">
-                        {/* 头部 */}
-                        <div className="flex items-center justify-between px-5 py-4 bg-monokai-bg border-b border-monokai-accent">
-                            <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-lg bg-monokai-green/20 flex items-center justify-center">
-                                    <Save className="w-4 h-4 text-monokai-green" />
-                                </div>
-                                <h3 className="text-base font-bold text-monokai-fg">保存查询</h3>
-                            </div>
-                            <button
-                                onClick={() => setShowSaveModal(false)}
-                                className="w-7 h-7 rounded-lg hover:bg-monokai-accent flex items-center justify-center text-monokai-comment hover:text-monokai-fg transition-colors"
-                            >
-                                <X size={16} />
-                            </button>
-                        </div>
-
-                        {/* 内容 */}
-                        <div className="p-5 space-y-4">
-                            {/* 查询名称输入 */}
-                            <div>
-                                <label className="block text-xs font-medium text-monokai-comment mb-2">查询名称</label>
-                                <input
-                                    autoFocus
-                                    value={saveQueryName}
-                                    onChange={e => setSaveQueryName(e.target.value)}
-                                    placeholder="输入查询名称..."
-                                    className="w-full bg-monokai-bg border border-monokai-accent rounded-lg px-3 py-2.5 text-sm text-monokai-fg placeholder-monokai-comment/50 outline-none focus:border-monokai-green/50 focus:ring-1 focus:ring-monokai-green/20 transition-all"
-                                />
-                            </div>
-
-                            {/* 固定到仪表板选项 */}
-                            <div className="p-4 bg-monokai-bg/50 border border-monokai-accent/50 rounded-lg">
-                                <label className="flex items-center justify-between cursor-pointer">
-                                    <div className="flex items-center gap-3">
-                                        <input
-                                            type="checkbox"
-                                            checked={saveAsWidget}
-                                            onChange={e => setSaveAsWidget(e.target.checked)}
-                                            className="w-4 h-4 rounded border-monokai-accent bg-monokai-bg text-monokai-green focus:ring-monokai-green/30"
-                                        />
-                                        <div>
-                                            <span className="text-sm font-medium text-monokai-fg">固定到仪表板</span>
-                                            <p className="text-[10px] text-monokai-comment mt-0.5">将此查询添加为小部件显示</p>
-                                        </div>
-                                    </div>
-                                </label>
-
-                                {/* Widget 类型选择 */}
-                                {saveAsWidget && (
-                                    <div className="mt-4 pl-7">
-                                        <label className="block text-xs text-monokai-comment mb-2">小部件类型</label>
-                                        <select
-                                            value={widgetType}
-                                            onChange={(e: any) => setWidgetType(e.target.value)}
-                                            className="w-full bg-monokai-bg border border-monokai-accent rounded-lg px-3 py-2 text-sm text-monokai-fg outline-none focus:border-monokai-green/50"
-                                        >
-                                            <option value="table">迷你表格</option>
-                                            <option value="value">单值显示</option>
-                                            <option value="chart">图表</option>
-                                        </select>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* 底部按钮 */}
-                        <div className="flex justify-end gap-3 px-5 py-4 bg-monokai-bg border-t border-monokai-accent">
-                            <button
-                                onClick={() => setShowSaveModal(false)}
-                                className="px-4 py-2 text-sm font-medium text-monokai-comment hover:text-monokai-fg hover:bg-monokai-accent rounded-lg transition-colors"
-                            >
-                                取消
-                            </button>
-                            <button
-                                onClick={handleSaveQuery}
-                                disabled={!saveQueryName.trim()}
-                                className="px-5 py-2 bg-monokai-green text-monokai-bg font-bold rounded-lg text-sm hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-2"
-                            >
-                                <Save size={14} />
-                                保存查询
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <SaveQueryModal
+                isOpen={showSaveModal}
+                onClose={() => setShowSaveModal(false)}
+                saveQueryName={saveQueryName}
+                setSaveQueryName={setSaveQueryName}
+                saveAsWidget={saveAsWidget}
+                setSaveAsWidget={setSaveAsWidget}
+                widgetType={widgetType}
+                setWidgetType={setWidgetType}
+                onSave={handleSaveQuery}
+            />
             {/* AI 解释弹窗 */}
             {showAiExplanation && (
                 <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm animate-[fadeIn_0.2s]">
@@ -920,76 +886,14 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
                     </div>
                 </div>
             )}
-            {/* 物化模态框 */}
-            {showMaterializeModal && (
-                <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm animate-[fadeIn_0.2s]">
-                    <div className="bg-monokai-sidebar border border-monokai-accent rounded-xl shadow-2xl w-[400px] overflow-hidden animate-[slideIn_0.25s_ease-out]">
-                        {/* 头部 */}
-                        <div className="flex items-center justify-between px-5 py-4 bg-monokai-bg border-b border-monokai-accent">
-                            <div className="flex items-center gap-3">
-                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${materializeType === 'TABLE' ? 'bg-monokai-blue/20' : 'bg-monokai-purple/20'}`}>
-                                    <Database className={`w-4 h-4 ${materializeType === 'TABLE' ? 'text-monokai-blue' : 'text-monokai-purple'}`} />
-                                </div>
-                                <div>
-                                    <h3 className="text-base font-bold text-monokai-fg">创建 {materializeType === 'TABLE' ? '表' : '视图'}</h3>
-                                    <p className="text-[10px] text-monokai-comment">将查询结果持久化存储</p>
-                                </div>
-                            </div>
-                            <button
-                                onClick={() => setShowMaterializeModal(false)}
-                                className="w-7 h-7 rounded-lg hover:bg-monokai-accent flex items-center justify-center text-monokai-comment hover:text-monokai-fg transition-colors"
-                            >
-                                <X size={16} />
-                            </button>
-                        </div>
-
-                        {/* 内容 */}
-                        <div className="p-5 space-y-4">
-                            <div>
-                                <label className="block text-xs font-medium text-monokai-comment mb-2">
-                                    {materializeType === 'TABLE' ? '表名称' : '视图名称'}
-                                </label>
-                                <input
-                                    autoFocus
-                                    value={materializeName}
-                                    onChange={e => setMaterializeName(e.target.value)}
-                                    placeholder={`输入${materializeType === 'TABLE' ? '表' : '视图'}名称...`}
-                                    className="w-full bg-monokai-bg border border-monokai-accent rounded-lg px-3 py-2.5 text-sm text-monokai-fg placeholder-monokai-comment/50 outline-none focus:border-monokai-purple/50 focus:ring-1 focus:ring-monokai-purple/20 transition-all"
-                                />
-                            </div>
-
-                            {/* SQL 预览 */}
-                            <div className="p-3 bg-monokai-bg/50 border border-monokai-accent/50 rounded-lg">
-                                <div className="flex items-center gap-2 mb-2">
-                                    <Code className="w-3 h-3 text-monokai-comment" />
-                                    <span className="text-[10px] font-medium text-monokai-comment">SQL 预览</span>
-                                </div>
-                                <pre className="text-[10px] text-monokai-fg/70 font-mono truncate">
-                                    CREATE {materializeType} "{materializeName || 'name'}" AS ...
-                                </pre>
-                            </div>
-                        </div>
-
-                        {/* 底部按钮 */}
-                        <div className="flex justify-end gap-3 px-5 py-4 bg-monokai-bg border-t border-monokai-accent">
-                            <button
-                                onClick={() => setShowMaterializeModal(false)}
-                                className="px-4 py-2 text-sm font-medium text-monokai-comment hover:text-monokai-fg hover:bg-monokai-accent rounded-lg transition-colors"
-                            >
-                                取消
-                            </button>
-                            <button
-                                onClick={handleMaterialize}
-                                disabled={!materializeName.trim()}
-                                className="px-5 py-2 bg-monokai-purple text-monokai-bg font-bold rounded-lg text-sm hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-2"
-                            >
-                                <Database size={14} />
-                                创建 {materializeType === 'TABLE' ? '表' : '视图'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <MaterializeModal
+                isOpen={showMaterializeModal}
+                onClose={() => setShowMaterializeModal(false)}
+                materializeType={materializeType}
+                materializeName={materializeName}
+                setMaterializeName={setMaterializeName}
+                onConfirm={handleMaterialize}
+            />
 
 
             <div className="flex flex-1 min-h-0 gap-4">
@@ -1001,254 +905,56 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
                         ref={editorContainerRef}
                     >
                         {/* Tabs */}
-                        <div className="flex items-end bg-monokai-surface pt-2 px-2 gap-1 overflow-x-auto scrollbar-hide border-b border-monokai-accent">
-                            {tabs.map(tab => {
-                                const isActive = activeTabId === tab.id;
-                                return (
-                                    <div
-                                        key={tab.id}
-                                        className={`group relative flex items-center gap-2 px-4 py-2 text-xs cursor-pointer min-w-[140px] max-w-[200px] select-none transition-all rounded-t-md border-t border-l border-r ${isActive ? 'bg-monokai-bg border-monokai-accent z-10 text-monokai-fg font-bold' : 'bg-monokai-sidebar border-transparent text-monokai-comment hover:bg-monokai-accent'}`}
-                                        onClick={() => setActiveTabId(tab.id)}
-                                        onDoubleClick={() => handleTitleDoubleClick(tab)}
-                                    >
-                                        <div className={`w-2 h-2 rounded-full ${isActive ? 'bg-monokai-green' : 'bg-monokai-comment/30'}`}></div>
-                                        {editingTitleId === tab.id ? (
-                                            <input autoFocus value={tempTitle} onChange={e => setTempTitle(e.target.value)} onBlur={saveTitle} onKeyDown={e => e.key === 'Enter' && saveTitle()} className="bg-transparent text-monokai-fg outline-none w-full" />
-                                        ) : (
-                                            <span className="truncate flex-1">{tab.title}</span>
-                                        )}
-                                        <button onClick={(e) => closeTab(tab.id, e)} className="opacity-0 group-hover:opacity-100 hover:text-monokai-pink font-bold ml-1">×</button>
-                                        {isActive && <div className="absolute bottom-[-1px] left-0 right-0 h-1 bg-monokai-bg z-20"></div>}
-                                    </div>
-                                )
-                            })}
-                            <button onClick={createNewTab} className="px-3 py-1.5 text-monokai-comment hover:text-monokai-fg font-bold text-lg opacity-50 hover:opacity-100 transition-opacity h-[29px] flex items-end">+</button>
-                        </div>
+                        <SqlEditorTabs
+                            tabs={tabs}
+                            activeTabId={activeTabId}
+                            editingTitleId={editingTitleId}
+                            tempTitle={tempTitle}
+                            onTabClick={setActiveTabId}
+                            onTabDoubleClick={handleTitleDoubleClick}
+                            onCloseTab={closeTab}
+                            onCreateTab={createNewTab}
+                            onTitleChange={e => setTempTitle(e.target.value)}
+                            onTitleSave={saveTitle}
+                            onTitleKeyDown={e => e.key === 'Enter' && saveTitle()}
+                        />
 
-                        {/* Toolbar - 第一行：SQL编辑控制 */}
-                        <div className="flex justify-between items-center p-2 bg-monokai-bg border-b border-monokai-accent z-50 gap-2 flex-wrap overflow-visible">
-                            <div className="flex gap-2 items-center flex-wrap overflow-visible">
-                                {/* 执行控制组 */}
-                                <div className="flex items-center gap-1.5 bg-monokai-surface/40 p-1 rounded border border-monokai-accent/15">
-                                    <button onClick={() => execute(false)} disabled={activeTab.loading} className={`px-4 py-1.5 bg-monokai-green text-monokai-bg font-bold rounded text-xs hover:opacity-90 disabled:opacity-50 transition-all hover:scale-[1.02] active:scale-95 flex items-center gap-2 ${activeTab.loading ? 'animate-pulse' : ''}`}>
-                                        <Play size={12} /> 运行
-                                    </button>
-                                    {lastClearedContent && (
-                                        <button
-                                            onClick={handleUndoClear}
-                                            className="flex items-center gap-1.5 px-2.5 py-1.5 bg-monokai-blue/10 border border-monokai-blue/40 hover:bg-monokai-blue/20 text-monokai-blue text-xs font-semibold rounded transition-colors"
-                                            title="撤销上一次清除（恢复 SQL + AI 输入）"
-                                        >
-                                            <RotateCcw className="w-3.5 h-3.5" /> 撤销
-                                        </button>
-                                    )}
-                                </div>
-
-                                <div className="w-[1px] h-4 bg-monokai-accent/20 mx-1"></div>
-
-                                {/* SQL 辅助组 */}
-                                <div className="flex items-center gap-1.5">
-                                    <div className="relative">
-                                        <button
-                                            onClick={() => setShowSnippetsMenu(!showSnippetsMenu)}
-                                            className="px-3 py-1.5 bg-monokai-yellow/10 border border-monokai-yellow/30 text-monokai-yellow hover:bg-monokai-yellow/20 text-xs font-bold rounded flex items-center gap-1.5 transition-colors"
-                                        >
-                                            <Code size={12} /> 片段 <ChevronDown size={10} />
-                                        </button>
-                                        {showSnippetsMenu && (
-                                            <div className="absolute top-full left-0 mt-1 bg-monokai-sidebar border border-monokai-accent rounded shadow-xl z-50 min-w-[240px] max-h-80 overflow-y-auto custom-scrollbar">
-                                                {Object.entries(SNIPPET_GROUPS).map(([groupName, snippets]) => (
-                                                    <div key={groupName} className="border-b border-monokai-accent/20">
-                                                        <button
-                                                            className="w-full flex items-center justify-between px-3 py-2 text-[10px] font-bold uppercase tracking-wider bg-monokai-bg/80 hover:bg-monokai-yellow/10 transition-colors"
-                                                            onClick={() => setExpandedSnippetCategory(expandedSnippetCategory === groupName ? null : groupName)}
-                                                        >
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="flex items-center">{SNIPPET_CATEGORY_META[groupName]?.icon || <FileText className="w-4 h-4" />}</span>
-                                                                <span className={SNIPPET_CATEGORY_META[groupName]?.color || 'text-monokai-yellow/70'}>{groupName}</span>
-                                                                <span className="text-monokai-comment/50 text-[9px] normal-case tracking-normal">
-                                                                    ({Object.keys(snippets).length})
-                                                                </span>
-                                                            </div>
-                                                            <ChevronDown
-                                                                size={10}
-                                                                className={`transition-transform ${expandedSnippetCategory === groupName ? 'rotate-180' : ''}`}
-                                                            />
-                                                        </button>
-                                                        {expandedSnippetCategory === groupName && SNIPPET_CATEGORY_META[groupName]?.description && (
-                                                            <div className="px-3 py-1 text-[9px] text-monokai-comment/60 bg-monokai-bg/40">
-                                                                {SNIPPET_CATEGORY_META[groupName].description}
-                                                            </div>
-                                                        )}
-                                                        {expandedSnippetCategory === groupName && (
-                                                            <div className="max-h-48 overflow-y-auto custom-scrollbar">
-                                                                {Object.entries(snippets).map(([label, snippet]) => (
-                                                                    <div
-                                                                        key={label}
-                                                                        className="relative"
-                                                                        onMouseEnter={() => setHoveredSnippet({ label, sql: snippet })}
-                                                                        onMouseLeave={() => setHoveredSnippet(null)}
-                                                                    >
-                                                                        <button
-                                                                            className="w-full text-left px-4 py-2 text-xs text-monokai-fg hover:bg-monokai-yellow/10 hover:text-monokai-yellow transition-colors flex items-center gap-2"
-                                                                            onClick={() => { insertText(snippet); setShowSnippetsMenu(false); }}
-                                                                        >
-                                                                            <Code className="w-3 h-3 text-monokai-yellow/40 shrink-0" />
-                                                                            {label}
-                                                                        </button>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                ))}
-                                                <div className="px-3 py-2 text-[9px] text-monokai-comment/60 bg-monokai-bg/60 border-t border-monokai-accent/30 sticky bottom-0">
-                                                    💡 悬停片段可预览 SQL • 点击插入编辑器
-                                                </div>
-                                            </div>
-                                        )}
-                                        {showSnippetsMenu && <div className="fixed inset-0 z-40" onClick={() => setShowSnippetsMenu(false)} />}
-                                    </div>
-
-                                    <button onClick={formatSql} className="text-xs text-monokai-yellow/90 hover:text-monokai-yellow hover:bg-monokai-yellow/5 border border-transparent hover:border-monokai-yellow/20 px-2.5 py-1.5 rounded transition-all flex items-center gap-1.5"><Type size={12} /> 格式化</button>
-                                    <button onClick={() => setShowSaveModal(true)} className="text-xs text-monokai-orange/90 hover:text-monokai-orange hover:bg-monokai-orange/5 border border-transparent hover:border-monokai-orange/20 px-2.5 py-1.5 rounded transition-all flex items-center gap-1.5"><Save size={12} /> 保存</button>
-
-                                    <div className="relative">
-                                        <button onClick={() => setShowMaterializeMenu(!showMaterializeMenu)} className="px-2.5 py-1.5 text-xs border border-monokai-purple/30 text-monokai-purple hover:bg-monokai-purple hover:text-monokai-bg hover:border-monokai-purple rounded transition-all flex items-center gap-1.5">
-                                            <Save size={12} /> 物化 <ChevronDown size={10} />
-                                        </button>
-                                        {showMaterializeMenu && (
-                                            <div className="absolute top-full right-0 mt-1 bg-monokai-sidebar border border-monokai-accent rounded shadow-xl z-50 min-w-[150px]">
-                                                <button onClick={() => openMaterializeModal('TABLE')} className="w-full text-left px-4 py-2 text-xs text-monokai-fg hover:bg-monokai-accent hover:text-monokai-blue transition-colors">存为表</button>
-                                                <button onClick={() => openMaterializeModal('VIEW')} className="w-full text-left px-4 py-2 text-xs text-monokai-fg hover:bg-monokai-accent hover:text-monokai-blue transition-colors">存为视图</button>
-                                            </div>
-                                        )}
-                                        {showMaterializeMenu && <div className="fixed inset-0 z-40" onClick={() => setShowMaterializeMenu(false)} />}
-                                    </div>
-
-                                    <button
-                                        onClick={handleClear}
-                                        className="text-xs text-monokai-pink/90 hover:text-monokai-pink hover:bg-monokai-pink/5 border border-transparent hover:border-monokai-pink/20 px-2.5 py-1.5 rounded transition-all flex items-center gap-1.5"
-                                        title="一键清空 SQL 编辑器与 AI 输入框（Ctrl+Z 可撤销）"
-                                    >
-                                        <Trash2 size={12} /> 清除
-                                    </button>
-                                </div>
-
-                                <div className="w-[1px] h-4 bg-monokai-accent/20 mx-1"></div>
-
-                                {/* 智能视图组 */}
-                                <div className="flex items-center gap-1.5">
-                                    <button 
-                                        onClick={() => setShowSkillAssistant(true)}
-                                        className="px-3 py-1.5 bg-monokai-purple/10 border border-monokai-purple/30 text-monokai-purple hover:bg-monokai-purple/20 text-xs font-bold rounded flex items-center gap-1.5 transition-colors"
-                                    >
-                                        <Sparkles size={12} /> AI 技能
-                                    </button>
-
-                                    <button
-                                        onClick={() => setShowLivePreview(!showLivePreview)}
-                                        className={`text-xs px-2.5 py-1.5 rounded font-bold transition-all border ${showLivePreview ? 'bg-monokai-purple/20 border-monokai-purple/50 text-monokai-purple' : 'text-monokai-comment border-monokai-border hover:border-monokai-comment hover:text-monokai-fg'} flex items-center gap-1.5`}
-                                        title={showLivePreview ? '隐藏格式化预览' : '开启格式化预览'}
-                                    >
-                                        {showLivePreview ? <Eye size={12} /> : <EyeOff size={12} />}
-                                        预览
-                                    </button>
-
-                                    <button
-                                        onClick={onToggleZen}
-                                        className={`text-xs px-2.5 py-1.5 rounded font-bold transition-all border ${isZenMode ? 'bg-monokai-pink text-monokai-fg border-monokai-pink' : 'text-monokai-comment border-monokai-border hover:border-monokai-comment hover:text-monokai-fg'} flex items-center gap-1.5`}
-                                        title="Toggle Zen Mode"
-                                    >
-                                        {isZenMode ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
-                                        {isZenMode ? '退出' : '禅模式'}
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Toolbar - 第二行：AI能力 */}
-                        <div className="flex justify-between items-center p-2 bg-monokai-bg border-b border-monokai-accent z-40 gap-2 flex-wrap overflow-visible">
-                            <div className="flex gap-2 items-center flex-wrap overflow-visible">
-                                {/* 模式选择 */}
-                                <span className="text-[10px] text-monokai-comment/60 uppercase tracking-wider shrink-0">模式</span>
-                                <select
-                                    value={selectedSqlType}
-                                    onChange={(e) => setSelectedSqlType(e.target.value)}
-                                    className="bg-monokai-bg border border-monokai-accent rounded px-2 py-1 text-xs text-monokai-fg outline-none focus:border-monokai-purple"
-                                >
-                                    <option value="select">SELECT</option>
-                                    <option value="join">JOIN</option>
-                                    <option value="aggregate">聚合</option>
-                                    <option value="transform">转换</option>
-                                    <option value="performance">执行</option>
-                                    <option value="utilities">工具</option>
-                                </select>
-
-                                {/* AI 智能填充 */}
-                                {(() => {
-                                    const tab = tabs.find(t => t.id === activeTabId);
-                                    const tableMatch = tab?.code.match(/(?:FROM|INTO|UPDATE|TABLE)\s+"?([a-zA-Z0-9_.]+)"?/i);
-                                    const detectedTable = tableMatch?.[1];
-                                    return (
-                                        <button
-                                            onClick={handleAIFill}
-                                            className="flex items-center gap-1.5 px-2 py-1 bg-monokai-green/10 border border-monokai-green/40 hover:bg-monokai-green/20 text-monokai-green text-xs font-medium rounded transition-colors"
-                                            title={detectedTable ? `基于表 ${detectedTable} 的上下文智能填充 SQL` : '基于当前表/列上下文智能填充 SQL（先在 Schema 中选择表）'}
-                                        >
-                                            <Sparkles className="w-3.5 h-3.5" />
-                                            AI
-                                            {detectedTable && (
-                                                <span className="text-[10px] bg-monokai-green/20 text-monokai-green/80 px-1 py-0.5 rounded font-mono">
-                                                    {detectedTable}
-                                                </span>
-                                            )}
-                                        </button>
-                                    );
-                                })()}
-
-                                {/* 自然语言生成 */}
-                                <button
-                                    onClick={() => handleAiContinueOptimize('explain')}
-                                    disabled={!activeTab.code.trim()}
-                                    className="px-3 py-1.5 border border-monokai-purple text-monokai-purple font-bold rounded text-xs hover:bg-monokai-purple hover:text-monokai-fg disabled:opacity-40 transition-colors flex items-center gap-1.5 shrink-0"
-                                    title="AI 解释当前 SQL 的作用和计算逻辑"
-                                >
-                                    <Zap size={12} /> 解释
-                                </button>
-                                <div className="flex items-center gap-1 bg-monokai-bg px-3 py-2 rounded border border-monokai-accent focus-within:border-monokai-purple/60 transition-colors flex-1 min-w-0">
-                                    <span className="text-[10px] text-monokai-purple/70 font-bold uppercase tracking-wider shrink-0 whitespace-nowrap">自然语言</span>
-                                    <input
-                                        type="text"
-                                        value={aiPrompt}
-                                        onChange={(e) => setAiPrompt(e.target.value)}
-                                        onKeyDown={(e) => e.key === 'Enter' && !isAiLoading && handleAiGenerate()}
-                                        placeholder="描述需求，AI 生成 SQL..."
-                                        className="bg-transparent border-none focus:ring-0 text-monokai-blue placeholder-monokai-comment/60 outline-none font-mono text-xs flex-1 min-w-[370px]"
-                                    />
-                                    {aiPrompt && (
-                                        <button
-                                            onClick={() => setAiPrompt('')}
-                                            className="text-monokai-comment hover:text-monokai-pink transition-colors shrink-0"
-                                            title="清除输入"
-                                        >
-                                            <X className="w-3 h-3" />
-                                        </button>
-                                    )}
-                                    <button
-                                        onClick={handleAiGenerate}
-                                        disabled={isAiLoading || !aiPrompt.trim()}
-                                        className="px-2 py-0.5 bg-monokai-purple/20 border border-monokai-purple text-monokai-purple text-xs font-bold rounded hover:bg-monokai-purple hover:text-monokai-fg transition-all disabled:opacity-40 shrink-0 flex items-center gap-1"
-                                    >
-                                        {isAiLoading ? (
-                                            <Loader2 className="w-3 h-3 animate-spin" />
-                                        ) : (
-                                            <Wand2 className="w-3 h-3" />
-                                        )}
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
+                        {/* Toolbar */}
+                        <SqlEditorToolbar
+                            activeTab={activeTab}
+                            isZenMode={isZenMode}
+                            showSnippetsMenu={showSnippetsMenu}
+                            expandedSnippetCategory={expandedSnippetCategory}
+                            hoveredSnippet={hoveredSnippet}
+                            showMaterializeMenu={showMaterializeMenu}
+                            showLivePreview={showLivePreview}
+                            isAiLoading={isAiLoading}
+                            aiPrompt={aiPrompt}
+                            selectedSqlType={selectedSqlType}
+                            lastClearedContent={lastClearedContent}
+                            onUndoClear={handleUndoClear}
+                            onExecute={(overrideSql) => execute(false, overrideSql)}
+                            onCancel={cancelExecution}
+                            onToggleSnippets={() => setShowSnippetsMenu(!showSnippetsMenu)}
+                            onSnippetCategoryToggle={setExpandedSnippetCategory}
+                            onSnippetHover={setHoveredSnippet}
+                            onSnippetInsert={insertText}
+                            onSnippetsMenuToggle={() => setShowSnippetsMenu(!showSnippetsMenu)}
+                            onShowSkillAssistant={() => setShowSkillAssistant(true)}
+                            onToggleMaterializeMenu={() => setShowMaterializeMenu(!showMaterializeMenu)}
+                            onOpenMaterializeModal={openMaterializeModal}
+                            onFormatSql={formatSql}
+                            onSaveModal={() => setShowSaveModal(true)}
+                            onClear={handleClear}
+                            onToggleZen={onToggleZen}
+                            onToggleLivePreview={() => setShowLivePreview(!showLivePreview)}
+                            onAiPromptChange={e => setAiPrompt(e.target.value)}
+                            onAiPromptClear={() => setAiPrompt('')}
+                            onAiGenerate={handleAiGenerate}
+                            onSqlTypeChange={e => setSelectedSqlType(e.target.value)}
+                            onAIFill={handleAIFill}
+                            onAiExplain={() => handleAiContinueOptimize('explain')}
+                        />
 
                         {/* Code Editor */}
                         <div className="relative flex-1 overflow-auto bg-monokai-bg" onKeyDown={handleKeyDown} tabIndex={0}>
@@ -1274,6 +980,7 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
                                 </div>
                             )}
                             <CodeMirror
+                                key={`${activeTabId}-${Object.keys(schemaTree).join(',')}`}
                                 value={activeTab.code}
                                 height="100%"
                                 theme={monokai}
@@ -1286,6 +993,7 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
                                     ...useSqlEditorExtensions({
                                         onExecute: onRun,
                                         onCancel: cancelExecution,
+                                        onNavigateHistory: handleNavigateHistory,
                                     }),
                                     EditorView.lineWrapping,
                                     EditorView.theme({

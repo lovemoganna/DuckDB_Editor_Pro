@@ -521,6 +521,7 @@ export function useOntologyStore() {
       await duckDBService.loadOntologyTemplate(seed);
       dispatchAction({ type: 'SET_ACTIVE_TEMPLATE', templateId });
       await loadData();
+      dispatchAction({ type: 'SET_ACTIVE_TAB', tab: 'graph' });
     } catch (e: any) {
       console.error('Switch template failed:', e);
       dispatchAction({ type: 'SET_ERROR', error: e.message });
