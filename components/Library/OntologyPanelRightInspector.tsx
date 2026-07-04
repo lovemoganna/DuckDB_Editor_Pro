@@ -4,6 +4,7 @@ import { useOntologyStore } from '../../hooks/useOntologyStore';
 import type { EditMode, FormState } from './OntologyPanel.types';
 import { normalizeDateToString } from './OntologyPanel.types';
 import { ToastNotification } from '../ui/ToastNotification';
+import { ontologyAiService } from '../../services/ontologyAiService';
 
 interface RightInspectorProps {
   mode: EditMode;
@@ -45,7 +46,6 @@ const RightInspector: React.FC<RightInspectorProps> = ({ mode, target, onClose, 
 
   const aiFillField = useCallback(async (field: string, currentMode: EditMode) => {
     try {
-      const { ontologyAiService } = await import('../../services/ontologyAiService');
       const label = titleMap[currentMode];
       const prompt = `为 "${label}" 实体推荐一个合适的 ${field === 'name' ? '名称' : '描述'}`;
       const result = await ontologyAiService.generateObjectModel(prompt);

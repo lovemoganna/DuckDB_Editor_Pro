@@ -67,12 +67,17 @@ export interface UseSqlExecutionReturn {
  * Mirrors the original logic in SqlEditor.tsx (lines 423-432).
  */
 function classifyOperation(sql: string): string {
-  const upper = sql.trim().toUpperCase();
+  // Strip single-line comments
+  let cleanSql = sql.replace(/--.*$/gm, '');
+  // Strip multi-line comments
+  cleanSql = cleanSql.replace(/\/\*[\s\S]*?\*\//g, '');
+
+  const upper = cleanSql.trim().toUpperCase();
   if (upper.startsWith('INSERT')) return 'INSERT';
   if (upper.startsWith('UPDATE')) return 'UPDATE';
   if (upper.startsWith('DELETE')) return 'DELETE';
   if (upper.startsWith('CREATE')) return 'CREATE';
-  if (upper.startsWith('DROP')) return 'DELETE';
+  if (upper.startsWith('DROP')) return 'DROP';
   if (upper.startsWith('ALTER')) return 'ALTER';
   if (upper.startsWith('PIVOT')) return 'QUERY';
   return 'QUERY';

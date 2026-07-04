@@ -19,6 +19,7 @@ import { getAllSkills, skillRegistry } from './skillRegistry';
 import { intentAnalyzer } from './skill/intentAnalyzer';
 import { parameterExtractor } from './skill/parameterExtractor';
 import { getSkillStats, getSkillHistory } from './skill/skillHistoryStorage';
+import { skillExecutor } from './skillExecutor';
 
 /** Type guard for ColumnInfo arrays */
 function isColumnInfoArray(val: unknown): val is ColumnInfo[] {
@@ -220,8 +221,6 @@ class SkillRouter {
 
     // Track execution in session
     this.addToSessionMemory(skillId);
-
-    const { skillExecutor } = await import('./skillExecutor');
     const inputs = await parameterExtractor.extract(userRequest, skillId, context);
 
     // Thread streaming callback from context if present
@@ -247,7 +246,6 @@ class SkillRouter {
    * Execute skill chain
    */
   private async executeSkillChain(chain: SkillChain, context: SkillExecutionContext, simulateOnly: boolean): Promise<SkillResult> {
-    const { skillExecutor } = await import('./skillExecutor');
     let finalSql = '';
     let explanations: string[] = [];
     let currentContext = { ...context };

@@ -12,6 +12,7 @@
 
 import { AISkill, SkillExecutionContext, SkillResult, SkillInvokeRequest } from '../types';
 import { getSkill } from './skillRegistry';
+import { aiService } from './aiService';
 import { OFFICIAL_HANDBOOK_SKILLS } from './skills/definitions/official-skills';
 import { ensureInitialized, getGenerator } from './skills/generators';
 import {
@@ -84,7 +85,6 @@ async function generateWithAI(
   onChunk?: (text: string) => void,
   cancelToken?: CancelToken
 ): Promise<SkillResult> {
-  const { aiService } = await import('./aiService');
   const startTime = Date.now();
 
   try {

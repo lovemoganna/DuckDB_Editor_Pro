@@ -131,8 +131,8 @@ export function buildGraphDataFromState(state: any, mapping: any, selectedTables
   const typeNames = objectTypes.map((t: any) => t.name);
 
   const typeHubNodes = nodes.filter(n => n.group === 'typeHub');
-  const svgW = layoutDims?.svgW ?? 800;
-  const svgH = layoutDims?.svgH ?? 600;
+  const svgW = (layoutDims?.svgW && layoutDims.svgW > 0) ? layoutDims.svgW : 800;
+  const svgH = (layoutDims?.svgH && layoutDims.svgH > 0) ? layoutDims.svgH : 600;
   computeInitialPositions(nodes, typeHubNodes, svgW, svgH, filteredLinks);
 
   return { nodes, links: graphLinks, typeMap, linkTypeMap, typeNames, _rawLinks: filteredLinks };

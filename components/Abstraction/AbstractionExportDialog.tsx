@@ -18,6 +18,7 @@ import {
   downloadAsFile,
   exportToClipboard,
   importFromClipboard,
+  importFromFile,
 } from '../../utils/abstractionImportExport';
 
 interface AbstractionExportDialogProps {
@@ -124,7 +125,6 @@ export const AbstractionExportDialog: React.FC<AbstractionExportDialogProps> = (
     setIsImporting(true);
     setResult(null);
 
-    const { importFromFile } = await import('../../utils/abstractionImportExport');
     try {
       const importResult = await importFromFile(file, { skipExisting: true });
       if (importResult.success) {

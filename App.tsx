@@ -655,7 +655,7 @@ const App: React.FC = () => {
               </div>
             </div></ErrorBoundary>
             <ErrorBoundary section="Ontology"><div className={activeTab === Tab.ONTOLOGY ? 'flex flex-1 w-full h-full overflow-hidden' : 'hidden'}>
-              <OntologyApp isOpen={true} onClose={() => setActiveTab(Tab.DASHBOARD)} onInsertToEditor={(sql) => { setPendingSql(sql); setActiveTab(Tab.SQL); }} onTablesReady={() => refreshTables()} />
+              <OntologyApp isOpen={true} isActive={activeTab === Tab.ONTOLOGY} onClose={() => setActiveTab(Tab.DASHBOARD)} onInsertToEditor={(sql) => { setPendingSql(sql); setActiveTab(Tab.SQL); }} onTablesReady={() => refreshTables()} />
             </div></ErrorBoundary>
           </div>
         </div>

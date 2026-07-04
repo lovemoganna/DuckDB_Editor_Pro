@@ -23,6 +23,7 @@ import { EditorView } from '@codemirror/view';
 import { monokai } from '@uiw/codemirror-theme-monokai';
 
 import { useOntologyStore, ontologyActions, ONTOLOGY_SEED_INFOS } from '../../hooks/useOntologyStore';
+import { ontologyAiService } from '../../services/ontologyAiService';
 import {
   ONTOLOGY_TEMPLATE_CATEGORIES,
   TEMPLATE_CATEGORY_ORDER,
@@ -433,7 +434,6 @@ const TemplatePanel: React.FC<{
               <button
                 key={seed.id}
                 onClick={() => {
-                  if (isActive) return;
                   switchTemplate(seed.id);
                 }}
                 disabled={state.initting}
@@ -965,7 +965,6 @@ const RightInspector: React.FC<{
   // AI 填充：调用时使用显式参数而非闭包捕获的旧值，确保 form 状态同步到 UI
   const aiFillField = useCallback(async (field: string, currentMode: EditMode) => {
     try {
-      const { ontologyAiService } = await import('../../services/ontologyAiService');
       const modeLabel = titleMap[currentMode];
       const prompt = `为 "${modeLabel}" 实体推荐一个合适的 ${field === 'name' ? '名称' : '描述'}`;
       const result = await ontologyAiService.generateObjectModel(prompt);
@@ -1149,7 +1148,8 @@ const RightInspector: React.FC<{
 export const OntologyPanel: React.FC<{
   onInsert?: (sql: string) => void;
   onTablesReady?: () => void;
-}> = ({ onInsert, onTablesReady }) => {
+  isActive?: boolean;
+}> = ({ onInsert, onTablesReady, isActive }) => {
   const { state: rawState, dispatch, refresh, initOntology, reseedOntology, batchImportModelingResult, setPendingCommand,
     deleteObjectType, deleteObject, deleteLinkType, deleteLink, deleteAction, switchTemplate, activeTemplateId } = useOntologyStore();
   const state = rawState ?? {
@@ -1382,7 +1382,7 @@ export const OntologyPanel: React.FC<{
 
               {/* CENTER CANVAS */}
               <div className="flex-1 relative overflow-hidden bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-monokai-sidebar/30 via-monokai-bg to-monokai-bg">
-                {activeTab === 'graph' && <D3GraphView onRefreshRef={fn => d3GraphRefreshRef.current = fn} ontologyState={state} />}
+                {activeTab === 'graph' && <D3GraphView onRefreshRef={fn => d3GraphRefreshRef.current = fn} ontologyState={state} isActive={isActive} />}
                 {activeTab === 'data' && <OntologyDataView ontologyState={state} />}
                 {activeTab === 'canvas' && <OntologyCanvas onInsert={onInsert} ontologyState={state} />}
               </div>

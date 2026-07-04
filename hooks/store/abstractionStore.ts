@@ -20,6 +20,7 @@ import {
   AISession,
   AISessionMessage,
 } from '../../types/abstraction';
+import { ontologyAiService } from '../../services/ontologyAiService';
 import {
   getAllAbstractionTables,
   saveAbstractionTable,
@@ -300,8 +301,6 @@ export const useAbstractionStore = create<AbstractionStore>()(
     aiRequest: null,
 
     generate: async (request) => {
-      const { ontologyAiService } = await import('../../services/ontologyAiService');
-
       set({ isGenerating: true, aiError: null, aiRequest: request });
 
       try {
@@ -518,7 +517,6 @@ export const useAbstractionStore = create<AbstractionStore>()(
 
     sendMessage: async (request) => {
       const { activeSessionId, sessions } = get();
-      const { ontologyAiService } = await import('../../services/ontologyAiService');
 
       // 确保有活跃会话
       let sessionId = activeSessionId;

@@ -243,9 +243,13 @@ class DuckDBService {
 
     const statements = splitSqlStatements(sql);
     let lastResult: any[] = [];
+    let schemaChanged = false;
     for (const stmt of statements) {
       if (!stmt.trim()) continue;
       const result = await this.conn.query(stmt);
+      if (/^\s*(CREATE|DROP|ALTER|COPY|IMPORT|INSERT\s+INTO)/i.test(stmt)) {
+        schemaChanged = true;
+      }
       try {
         lastResult = result.toArray().map((row) => {
           const raw = row.toJSON();
@@ -283,6 +287,11 @@ class DuckDBService {
         // Drop/Create statements might not return rows
         lastResult = [];
       }
+    }
+    if (schemaChanged) {
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('duckdb-schema-changed'));
+      }, 50);
     }
     return lastResult;
   }
@@ -353,6 +362,12 @@ class DuckDBService {
 
     try {
       const result = await this.conn.query(sql);
+      const isSchemaChange = type === 'IMPORT' || type === 'CREATE' || type === 'DROP' || type === 'ALTER' || /^\s*(CREATE|DROP|ALTER|COPY|IMPORT|INSERT\s+INTO)/i.test(sql);
+      if (isSchemaChange) {
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('duckdb-schema-changed'));
+        }, 50);
+      }
       let rows: any[] = [];
       try {
         rows = result.toArray().map(r => r.toJSON());
@@ -470,6 +485,10 @@ class DuckDBService {
     // Audit
     const auditSql = `INSERT INTO memory._sys_audit_log (id, operation_type, target_table, details, affected_rows, sql_statement) VALUES (nextval('memory._sys_audit_seq'), 'IMPORT', '${tableName}', 'Imported file ${file.name}', 0, '${sql.replace(/'/g, "''")}');`;
     await this.conn.query(auditSql);
+
+    setTimeout(() => {
+      window.dispatchEvent(new CustomEvent('duckdb-schema-changed'));
+    }, 50);
   }
 
   async importText(text: string, tableName: string, options?: ImportOptions): Promise<void> {
@@ -498,6 +517,10 @@ class DuckDBService {
     // Audit
     const auditSql = `INSERT INTO memory._sys_audit_log (id, operation_type, target_table, details, affected_rows, sql_statement) VALUES (nextval('memory._sys_audit_seq'), 'IMPORT', '${tableName}', 'Imported from clipboard', 0, '${sql.replace(/'/g, "''")}');`;
     await this.conn.query(auditSql);
+
+    setTimeout(() => {
+      window.dispatchEvent(new CustomEvent('duckdb-schema-changed'));
+    }, 50);
   }
 
   async exportDatabase(): Promise<Blob> {

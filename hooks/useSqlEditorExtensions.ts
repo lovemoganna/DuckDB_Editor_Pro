@@ -59,6 +59,8 @@ export interface UseSqlEditorExtensionsOptions {
   onExecute?: () => void;
   /** Called when Ctrl/Cmd+. is pressed (cancel). */
   onCancel?: () => void;
+  /** Navigate query history. */
+  onNavigateHistory?: (direction: 'up' | 'down') => boolean;
 }
 
 const SQL_KEYWORDS = [
@@ -132,98 +134,25 @@ const DUCKDB_FUNCTIONS = [
   }
 ];
 
-function keywordCompletion(context: CompletionContext): CompletionResult | null {
-  const word = context.matchBefore(/\w*/);
-  if (!word || (word.from === word.to && !context.explicit)) return null;
-
-  const options = [
-    ...SQL_KEYWORDS.map(kw => ({
-      label: kw,
-      type: 'keyword',
-      boost: 1,
-    })),
-    ...DUCKDB_FUNCTIONS.map(fn => ({
-      label: fn.label,
-      type: fn.type,
-      detail: fn.detail,
-      info: fn.info,
-      boost: 2,
-    }))
-  ];
-
-  return {
-    from: word.from,
-    options,
-    validFor: /^\w*$/,
-  };
+function getTableAliases(sqlText: string): Record<string, string> {
+  const aliases: Record<string, string> = {};
+  const aliasRegex = /(?:from|join)\s+([a-zA-Z0-9_.]+)(?:\s+as)?\s+([a-zA-Z0-9_]+)/gi;
+  const sqlKeywords = new Set([
+    'as', 'join', 'left', 'right', 'inner', 'outer', 'cross', 'natural', 'full',
+    'where', 'group', 'order', 'limit', 'on', 'using', 'union', 'select', 'and', 'or', 'set'
+  ]);
+  let match;
+  while ((match = aliasRegex.exec(sqlText)) !== null) {
+    const table = match[1];
+    const alias = match[2];
+    if (!sqlKeywords.has(alias.toLowerCase())) {
+      aliases[alias.toLowerCase()] = table;
+    }
+  }
+  return aliases;
 }
 
-function buildSchemaCompletion(schemaTree: Record<string, { name: string; type: string }[]>) {
-  return function schemaCompletion(context: CompletionContext): CompletionResult | null {
-    // Match potential table.column path matching characters
-    const pathMatch = context.matchBefore(/[\w.]+/);
-    if (!pathMatch) return null;
 
-    const text = pathMatch.text;
-    const dotIndex = text.lastIndexOf('.');
-
-    if (dotIndex !== -1) {
-      // Dotted completion e.g. "table_name." or "table_name.col"
-      const tableName = text.substring(0, dotIndex);
-      const partialCol = text.substring(dotIndex + 1);
-
-      // Support matching exact name or schema-prefixed name (e.g. memory.table_name)
-      let matchedTableKey = tableName;
-      if (!schemaTree[matchedTableKey]) {
-        const keys = Object.keys(schemaTree);
-        const found = keys.find(k => k.endsWith(tableName) || tableName.endsWith(k));
-        if (found) {
-          matchedTableKey = found;
-        }
-      }
-
-      const cols = schemaTree[matchedTableKey];
-      if (cols) {
-        return {
-          from: pathMatch.from + dotIndex + 1,
-          options: cols.map(col => ({
-            label: col.name ?? String(col),
-            type: 'property',
-            detail: `column (${col.type ?? '?'})`,
-            boost: 5, // High priority boost for matching table columns
-          })),
-          validFor: /^\w*$/,
-        };
-      }
-    }
-
-    // Default completion (no dot yet) - complete tables and all fields
-    const word = context.matchBefore(/\w*/);
-    if (!word || (word.from === word.to && !context.explicit)) return null;
-
-    const options: { label: string; type: string; detail: string; boost?: number }[] = [];
-
-    // Add table names with higher boost
-    for (const tableName of Object.keys(schemaTree)) {
-      options.push({ label: tableName, type: 'class', detail: 'table', boost: 3 });
-    }
-
-    // Add general columns with lower boost to avoid cluttering main table suggestions
-    for (const [table, cols] of Object.entries(schemaTree)) {
-      for (const col of cols) {
-        const colName = col.name ?? String(col);
-        options.push({
-          label: colName,
-          type: 'property',
-          detail: `${table}.${colName} (${col.type ?? '?'})`,
-          boost: 1,
-        });
-      }
-    }
-
-    return { from: word.from, options, validFor: /^\w*$/ };
-  };
-}
 
 function buildSqlLinter(schemaTree: Record<string, { name: string; type: string }[]>) {
   return (view: any): Diagnostic[] => {
@@ -281,6 +210,9 @@ function buildSqlLinter(schemaTree: Record<string, { name: string; type: string 
       }
     }
 
+    // Resolve table aliases for dotted identifier validation
+    const aliases = getTableAliases(docText);
+
     // 3. Validate explicit dotted identifiers (table_name.column_name)
     const columnRegex = /([a-zA-Z0-9_]+)\.([a-zA-Z0-9_]+)/gi;
     while ((match = columnRegex.exec(docText)) !== null) {
@@ -290,10 +222,18 @@ function buildSqlLinter(schemaTree: Record<string, { name: string; type: string 
       const start = match.index;
       const end = start + fullMatch.length;
 
-      // Find if tableName exists in schema (support schema-prefixed keys)
+      // Resolve alias to real table
+      const resolvedTable = aliases[tableName.toLowerCase()] || tableName;
+
+      // If the resolved table is a CTE or temp table, do not validate columns (no-op/skip to avoid false positives)
+      if (cteNames.has(resolvedTable.toLowerCase())) {
+        continue;
+      }
+
+      // Find if resolvedTable exists in schema (support schema-prefixed keys)
       const exactTableKey = Object.keys(schemaTree).find(k => 
-        k.toLowerCase() === tableName.toLowerCase() || 
-        k.toLowerCase().endsWith('.' + tableName.toLowerCase())
+        k.toLowerCase() === resolvedTable.toLowerCase() || 
+        k.toLowerCase().endsWith('.' + resolvedTable.toLowerCase())
       );
 
       if (exactTableKey) {
@@ -355,23 +295,178 @@ export function useSqlEditorExtensions(options: UseSqlEditorExtensionsOptions = 
         } as KeyBinding]
       : [];
 
+    // Convert schemaTree (Record<string, ColumnInfo[]>) to Record<string, string[]> for native SQL config
+    const formattedSchema: Record<string, string[]> = {};
+    for (const [table, cols] of Object.entries(schemaTree)) {
+      formattedSchema[table] = cols.map(c => c.name ?? String(c));
+    }
+
+    const historyKeys = options.onNavigateHistory
+      ? ([
+          {
+            key: 'ArrowUp',
+            run: (view: EditorView) => {
+              const { selection, doc } = view.state;
+              const cursor = selection.main.head;
+              const text = doc.toString();
+              const firstNewline = text.indexOf('\n');
+              if (firstNewline === -1 || cursor <= firstNewline) {
+                const success = options.onNavigateHistory?.('up');
+                if (success) {
+                  setTimeout(() => {
+                    view.dispatch({
+                      selection: { anchor: view.state.doc.length, head: view.state.doc.length }
+                    });
+                  }, 10);
+                  return true;
+                }
+              }
+              return false;
+            }
+          },
+          {
+            key: 'ArrowDown',
+            run: (view: EditorView) => {
+              const { selection, doc } = view.state;
+              const cursor = selection.main.head;
+              const text = doc.toString();
+              const lastNewline = text.lastIndexOf('\n');
+              if (lastNewline === -1 || cursor > lastNewline) {
+                const success = options.onNavigateHistory?.('down');
+                if (success) return true;
+              }
+              return false;
+            }
+          },
+          {
+            key: 'Alt-p',
+            run: (view: EditorView) => {
+              const { selection, doc } = view.state;
+              const cursor = selection.main.head;
+              const text = doc.toString();
+              const firstNewline = text.indexOf('\n');
+              if (firstNewline === -1 || cursor <= firstNewline) {
+                const success = options.onNavigateHistory?.('up');
+                if (success) {
+                  setTimeout(() => {
+                    view.dispatch({
+                      selection: { anchor: view.state.doc.length, head: view.state.doc.length }
+                    });
+                  }, 10);
+                  return true;
+                }
+              }
+              return false;
+            }
+          },
+          {
+            key: 'Alt-n',
+            run: (view: EditorView) => {
+              const { selection, doc } = view.state;
+              const cursor = selection.main.head;
+              const text = doc.toString();
+              const lastNewline = text.lastIndexOf('\n');
+              if (lastNewline === -1 || cursor > lastNewline) {
+                const success = options.onNavigateHistory?.('down');
+                if (success) return true;
+              }
+              return false;
+            }
+          }
+        ] as KeyBinding[])
+      : [];
+
+    const emacsKeys: KeyBinding[] = [
+      {
+        key: 'Alt-a',
+        run: (view: EditorView) => {
+          const line = view.state.doc.lineAt(view.state.selection.main.head);
+          view.dispatch({ selection: { anchor: line.from, head: line.from }, scrollIntoView: true });
+          return true;
+        }
+      },
+      {
+        key: 'Alt-e',
+        run: (view: EditorView) => {
+          const line = view.state.doc.lineAt(view.state.selection.main.head);
+          view.dispatch({ selection: { anchor: line.to, head: line.to }, scrollIntoView: true });
+          return true;
+        }
+      },
+      {
+        key: 'Alt-f',
+        run: (view: EditorView) => {
+          const pos = view.state.selection.main.head;
+          if (pos < view.state.doc.length) {
+            view.dispatch({ selection: { anchor: pos + 1, head: pos + 1 }, scrollIntoView: true });
+            return true;
+          }
+          return false;
+        }
+      },
+      {
+        key: 'Alt-b',
+        run: (view: EditorView) => {
+          const pos = view.state.selection.main.head;
+          if (pos > 0) {
+            view.dispatch({ selection: { anchor: pos - 1, head: pos - 1 }, scrollIntoView: true });
+            return true;
+          }
+          return false;
+        }
+      },
+      {
+        key: 'Alt-d',
+        run: (view: EditorView) => {
+          const pos = view.state.selection.main.head;
+          if (pos < view.state.doc.length) {
+            view.dispatch({ changes: { from: pos, to: pos + 1 }, scrollIntoView: true });
+            return true;
+          }
+          return false;
+        }
+      },
+      {
+        key: 'Alt-k',
+        run: (view: EditorView) => {
+          const pos = view.state.selection.main.head;
+          const line = view.state.doc.lineAt(pos);
+          if (pos < line.to) {
+            view.dispatch({ changes: { from: pos, to: line.to }, scrollIntoView: true });
+            return true;
+          } else if (pos === line.to && pos < view.state.doc.length) {
+            view.dispatch({ changes: { from: pos, to: pos + 1 }, scrollIntoView: true });
+            return true;
+          }
+          return false;
+        }
+      }
+    ];
+
     return [
-      sql({ dialect: DUCKDB_DIALECT }),
+      sql({
+        dialect: DUCKDB_DIALECT,
+        schema: formattedSchema
+      }),
       syntaxHighlighting(customMonokaiHighlight),
       history(),
       autocompletion({
-        override: [
-          keywordCompletion,
-          buildSchemaCompletion(schemaTree),
-        ],
         defaultKeymap: true,
         activateOnTyping: true,
         icons: false,
       }),
       linter(buildSqlLinter(schemaTree), { delay: 500 }),
-      keymap.of([...executeKey, ...cancelKey, ...defaultKeymap, ...historyKeymap, indentWithTab]),
+      keymap.of([
+        ...historyKeys,
+        ...emacsKeys,
+        ...executeKey,
+        ...cancelKey,
+        ...defaultKeymap,
+        ...historyKeymap,
+        indentWithTab
+      ]),
     ];
-  }, [schemaTree, options.onExecute, options.onCancel]);
+  }, [schemaTree, options.onExecute, options.onCancel, options.onNavigateHistory]);
 
   return extensions;
 }

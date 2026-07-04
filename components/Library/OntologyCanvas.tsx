@@ -6,7 +6,6 @@ import ReactFlow, {
   useNodesState,
   useEdgesState,
   addEdge,
-  Panel,
   MarkerType,
   Connection,
   Edge,
@@ -17,7 +16,7 @@ import dagre from 'dagre';
 import {
   Plus, X, Play, RefreshCw, ZoomIn, ZoomOut, Maximize2,
   Trash2, Sparkles, HelpCircle, ChevronRight, ChevronDown, Check, Info, FileText,
-  Undo2, Redo2
+  Undo2, Redo2, Layers, CheckSquare, Square, Settings, Database, PlaySquare
 } from 'lucide-react';
 import { duckDBService } from '../../services/duckdbService';
 import { ontologyAiService, MECELayer, MeceCanvasLayoutPlan } from '../../services/ontologyAiService';
@@ -32,12 +31,41 @@ import {
   getNodeColor
 } from './CustomCanvasNodes';
 
+import { useCanvasHistory } from './useCanvasHistory';
+import { useCanvasPersistence } from './useCanvasPersistence';
+import { CanvasHelpModal } from './CanvasHelpModal';
+import { CanvasObjectPicker } from './CanvasObjectPicker';
+
 const nodeTypes = {
   Source: SourceNode,
   Transform: TransformNode,
   Control: ControlNode,
   Sink: SinkNode,
   groupSpace: GroupSpaceNode
+};
+
+// Helper: Trace upstream physical tables for schema lookup
+const getUpstreamTables = (nodeId: string, nodes: Node[], edges: Edge[]): string[] => {
+  const tables: string[] = [];
+  const visited = new Set<string>();
+
+  const traverse = (currentId: string) => {
+    if (visited.has(currentId)) return;
+    visited.add(currentId);
+
+    const node = nodes.find(n => n.id === currentId);
+    if (!node) return;
+
+    if (node.type === 'Source' && node.data.tableName) {
+      tables.push(node.data.tableName);
+    }
+
+    const incoming = edges.filter(e => e.target === currentId);
+    incoming.forEach(e => traverse(e.source));
+  };
+
+  traverse(nodeId);
+  return tables;
 };
 
 export const OntologyCanvas: React.FC<{
@@ -47,17 +75,20 @@ export const OntologyCanvas: React.FC<{
 }> = ({ onInsert, onClose, ontologyState }) => {
   const store = useOntologyStore();
   const storeState = ontologyState ?? store.state;
-  const { refresh } = store;
   const { objects = [], objectTypes = [] } = storeState ?? {};
 
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
-  const [loading, setLoading] = useState(true);
   const [activeLayer, setActiveLayer] = useState<MECELayer>('foundation');
   const [showHelp, setShowHelp] = useState(false);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [showSqlPanel, setShowSqlPanel] = useState(true);
   const [isAIFilling, setIsAIFilling] = useState(false);
+  
+  // Custom schema state for active node parameters
+  const [availableColumns, setAvailableColumns] = useState<string[]>([]);
+  const [executingSink, setExecutingSink] = useState(false);
+  const [showLayers, setShowLayers] = useState(false); // Collapsed by default to avoid clutter
 
   // Object picker modal states
   const [showObjectPicker, setShowObjectPicker] = useState(false);
@@ -67,256 +98,68 @@ export const OntologyCanvas: React.FC<{
   const [reactFlowInstance, setReactFlowInstance] = useState<any>(null);
 
   // ── Undo/Redo Engine ──
-  const [history, setHistory] = useState<{ nodes: Node[]; edges: Edge[] }[]>([]);
-  const [historyIndex, setHistoryIndex] = useState<number>(-1);
-  const isTransitioningRef = useRef(false);
+  const {
+    canUndo,
+    canRedo,
+    pushHistory,
+    initHistory,
+    undo: handleUndo,
+    redo: handleRedo
+  } = useCanvasHistory(nodes, edges, setNodes, setEdges);
 
-  const pushHistory = useCallback((newNodes: Node[], newEdges: Edge[]) => {
-    if (isTransitioningRef.current) return;
-    setHistory(prev => {
-      const nextHistory = prev.slice(0, historyIndex + 1);
-      const updated = [...nextHistory, { nodes: newNodes, edges: newEdges }];
-      if (updated.length > 50) {
-        updated.shift();
-      }
-      return updated;
+  // ── Persistence Engine ──
+  const handleDeleteNode = useCallback((nodeId: string) => {
+    let nextNodes: Node[] = [];
+    let nextEdges: Edge[] = [];
+    setNodes(nds => {
+      nextNodes = nds.filter(n => n.id !== nodeId);
+      return nextNodes;
     });
-    setHistoryIndex(prev => {
-      const nextIndex = prev + 1;
-      return nextIndex > 49 ? 49 : nextIndex;
+    setEdges(eds => {
+      nextEdges = eds.filter(e => e.source !== nodeId && e.target !== nodeId);
+      return nextEdges;
     });
-  }, [historyIndex]);
+    setSelectedNode(curr => curr?.id === nodeId ? null : curr);
+    pushHistory(nextNodes, nextEdges);
+  }, [setNodes, setEdges, pushHistory]);
 
-  const handleUndo = useCallback(() => {
-    if (historyIndex > 0) {
-      isTransitioningRef.current = true;
-      const prevIndex = historyIndex - 1;
-      const targetState = history[prevIndex];
-      setNodes(targetState.nodes);
-      setEdges(targetState.edges);
-      setHistoryIndex(prevIndex);
-      setTimeout(() => {
-        isTransitioningRef.current = false;
-      }, 50);
-    }
-  }, [history, historyIndex, setNodes, setEdges]);
-
-  const handleRedo = useCallback(() => {
-    if (historyIndex < history.length - 1) {
-      isTransitioningRef.current = true;
-      const nextIndex = historyIndex + 1;
-      const targetState = history[nextIndex];
-      setNodes(targetState.nodes);
-      setEdges(targetState.edges);
-      setHistoryIndex(nextIndex);
-      setTimeout(() => {
-        isTransitioningRef.current = false;
-      }, 50);
-    }
-  }, [history, historyIndex, setNodes, setEdges]);
-
-  // Global Ctrl+Z / Ctrl+Y key listener
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const activeElement = document.activeElement;
-      if (
-        activeElement &&
-        (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')
-      ) {
-        return;
-      }
-
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
-        e.preventDefault();
-        handleUndo();
-      } else if (
-        (e.ctrlKey || e.metaKey) &&
-        (e.key.toLowerCase() === 'y' || (e.shiftKey && e.key.toLowerCase() === 'z'))
-      ) {
-        e.preventDefault();
-        handleRedo();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleUndo, handleRedo]);
+  const { loading } = useCanvasPersistence(
+    nodes,
+    edges,
+    setNodes,
+    setEdges,
+    activeLayer,
+    initHistory,
+    handleDeleteNode
+  );
 
   const onNodeDragStop = useCallback(() => {
     pushHistory(nodes, edges);
   }, [nodes, edges, pushHistory]);
 
-  // ── Database Loader ──
-  const loadCanvas = useCallback(async () => {
-    try {
-      await duckDBService.query('CREATE TABLE IF NOT EXISTS life_canvas_state (id VARCHAR PRIMARY KEY, space_id VARCHAR, object_id INTEGER, title VARCHAR, color VARCHAR, x DECIMAL, y DECIMAL, width DECIMAL, height DECIMAL, node_type VARCHAR, metadata JSON)');
-      await duckDBService.query('CREATE TABLE IF NOT EXISTS life_canvas_edge (id VARCHAR PRIMARY KEY, source_id VARCHAR, target_id VARCHAR)');
-
-      const rows = await duckDBService.query('SELECT * FROM life_canvas_state');
-      const edgeRows = await duckDBService.query('SELECT * FROM life_canvas_edge');
-
-      const loadedNodes: Node[] = [];
-      
-      // Load groups/spaces first
-      (rows as any[]).forEach(row => {
-        if (row.space_id && row.id === row.space_id) {
-          loadedNodes.push({
-            id: row.id,
-            type: 'groupSpace',
-            position: { x: Number(row.x), y: Number(row.y) },
-            style: { width: Number(row.width) || 300, height: Number(row.height) || 300 },
-            data: {
-              title: row.title || '分组空间',
-              color: row.color || '#a78bfa',
-              onDelete: (id: string) => handleDeleteNode(id)
-            }
-          });
-        }
-      });
-
-      // Load items
-      (rows as any[]).forEach(row => {
-        if (row.id !== row.space_id) {
-          const absoluteX = Number(row.x);
-          const absoluteY = Number(row.y);
-          
-          let parentId = row.space_id || undefined;
-          let relX = absoluteX;
-          let relY = absoluteY;
-
-          // Convert absolute coordinates back to relative for react-flow if inside group
-          if (parentId) {
-            const parent = loadedNodes.find(n => n.id === parentId);
-            if (parent) {
-              relX = absoluteX - parent.position.x;
-              relY = absoluteY - parent.position.y;
-            } else {
-              parentId = undefined; // Parent space does not exist
-            }
-          }
-
-          loadedNodes.push({
-            id: row.id,
-            type: row.node_type || 'Source',
-            position: { x: relX, y: relY },
-            parentId,
-            extent: parentId ? 'parent' : undefined,
-            data: {
-              objectId: row.object_id,
-              name: row.title || '节点',
-              tableName: row.title || 'unknown_table',
-              sqlFragment: row.metadata ? JSON.parse(row.metadata).sqlFragment : '',
-              metadata: row.metadata ? JSON.parse(row.metadata) : {},
-              onDelete: (id: string) => handleDeleteNode(id)
-            }
-          });
-        }
-      });
-
-      const loadedEdges: Edge[] = (edgeRows as any[]).map(e => ({
-        id: e.id,
-        source: e.source_id,
-        target: e.target_id,
-        animated: true,
-        style: { stroke: '#64748b', strokeWidth: 2 },
-        markerEnd: { type: MarkerType.ArrowClosed, color: '#64748b' }
-      }));
-
-      setNodes(loadedNodes);
-      setEdges(loadedEdges);
-      setHistory([{ nodes: loadedNodes, edges: loadedEdges }]);
-      setHistoryIndex(0);
-    } catch (e) {
-      console.error('[Canvas Loader] Loading failed:', e);
-    } finally {
-      setLoading(false);
-    }
-  }, [setNodes, setEdges, setHistory, setHistoryIndex]);
-
+  // Load physical table columns for parameterization
   useEffect(() => {
-    loadCanvas();
-  }, [loadCanvas]);
+    if (!selectedNode) {
+      setAvailableColumns([]);
+      return;
+    }
 
-  // ── Database Saver ──
-  const saveCanvas = useCallback(async () => {
-    if (loading) return;
-    try {
-      await duckDBService.query('BEGIN TRANSACTION');
-      await duckDBService.query('DELETE FROM life_canvas_state');
-      await duckDBService.query('DELETE FROM life_canvas_edge');
-
-      for (const node of nodes) {
-        if (node.type === 'groupSpace') {
-          // Saving Group
-          await duckDBService.query(
-            `INSERT INTO life_canvas_state VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, NULL, NULL)`,
-            [
-              node.id,
-              node.id,
-              node.data.title,
-              node.data.color,
-              node.position.x,
-              node.position.y,
-              node.style?.width || 300,
-              node.style?.height || 300
-            ]
-          );
-        } else {
-          // Saving node. Compute absolute coordinate from parent if inside group
-          let absX = node.position.x;
-          let absY = node.position.y;
-          if (node.parentId) {
-            const parent = nodes.find(n => n.id === node.parentId);
-            if (parent) {
-              absX += parent.position.x;
-              absY += parent.position.y;
-            }
-          }
-
-          const metaStr = JSON.stringify({
-            sqlFragment: node.data.sqlFragment || '',
-            tableName: node.data.tableName || '',
-            layerTag: activeLayer
-          });
-
-          await duckDBService.query(
-            `INSERT INTO life_canvas_state VALUES (?, ?, ?, ?, NULL, ?, ?, NULL, NULL, ?, ?)`,
-            [
-              node.id,
-              node.parentId || null,
-              node.data.objectId || 0,
-              node.data.name,
-              absX,
-              absY,
-              node.type,
-              metaStr
-            ]
-          );
+    const loadColumns = async () => {
+      const upstream = getUpstreamTables(selectedNode.id, nodes, edges);
+      const cols = new Set<string>();
+      for (const table of upstream) {
+        try {
+          const schema = await duckDBService.getTableSchema(table);
+          schema.forEach((col: any) => cols.add(col.name));
+        } catch (e) {
+          console.error(e);
         }
       }
+      setAvailableColumns(Array.from(cols));
+    };
 
-      for (const edge of edges) {
-        await duckDBService.query(
-          `INSERT INTO life_canvas_edge VALUES (?, ?, ?)`,
-          [edge.id, edge.source, edge.target]
-        );
-      }
-      await duckDBService.query('COMMIT');
-    } catch (e) {
-      console.error('[Canvas Saver] Auto-save failed, rolling back:', e);
-      try {
-        await duckDBService.query('ROLLBACK');
-      } catch (rollbackErr) {
-        console.error('[Canvas Saver] Transaction rollback failed:', rollbackErr);
-      }
-    }
-  }, [nodes, edges, loading, activeLayer]);
-
-  // Debounced auto-save on nodes/edges changes
-  useEffect(() => {
-    const timer = setTimeout(saveCanvas, 2000);
-    return () => clearTimeout(timer);
-  }, [nodes, edges, saveCanvas]);
+    loadColumns();
+  }, [selectedNode, nodes, edges]);
 
   // ── SQL Compiler Integration ──
   const compileResult = useMemo(() => {
@@ -359,21 +202,6 @@ export const OntologyCanvas: React.FC<{
     });
   }, [nodes, setEdges, pushHistory]);
 
-  const handleDeleteNode = useCallback((nodeId: string) => {
-    let nextNodes: Node[] = [];
-    let nextEdges: Edge[] = [];
-    setNodes(nds => {
-      nextNodes = nds.filter(n => n.id !== nodeId);
-      return nextNodes;
-    });
-    setEdges(eds => {
-      nextEdges = eds.filter(e => e.source !== nodeId && e.target !== nodeId);
-      return nextEdges;
-    });
-    setSelectedNode(curr => curr?.id === nodeId ? null : curr);
-    pushHistory(nextNodes, nextEdges);
-  }, [setNodes, setEdges, pushHistory]);
-
   const addGroupSpace = useCallback(() => {
     const spaceColors = ['#a78bfa', '#38bdf8', '#4ade80', '#fb923c', '#f472b6', '#a3e635', '#fbbf24', '#60a5fa'];
     const id = `group-${Date.now()}`;
@@ -385,7 +213,7 @@ export const OntologyCanvas: React.FC<{
       data: {
         title: `分组空间 #${nodes.filter(n => n.type === 'groupSpace').length + 1}`,
         color: spaceColors[nodes.filter(n => n.type === 'groupSpace').length % spaceColors.length],
-        onDelete: (id: string) => handleDeleteNode(id)
+        onDelete: handleDeleteNode
       }
     };
     setNodes(nds => {
@@ -404,7 +232,6 @@ export const OntologyCanvas: React.FC<{
     const obj = objects.find(o => o.id === objectId);
     if (!obj) return;
     const id = `node-${Date.now()}`;
-    const color = getNodeColor(pickerNodeType);
     const newNode: Node = {
       id,
       type: pickerNodeType,
@@ -420,7 +247,7 @@ export const OntologyCanvas: React.FC<{
           : pickerNodeType === 'Control'
           ? `WHERE 1=1`
           : `SELECT * FROM previous_cte`,
-        onDelete: (id: string) => handleDeleteNode(id)
+        onDelete: handleDeleteNode
       }
     };
     setNodes(nds => {
@@ -430,6 +257,102 @@ export const OntologyCanvas: React.FC<{
     });
     setShowObjectPicker(false);
   }, [pickerNodeType, objects, edges, setNodes, handleDeleteNode, pushHistory]);
+
+  // ── Auto Quick Pipeline Instantiation ──
+  const handleQuickPipeline = useCallback((tableId: number) => {
+    const obj = objects.find(o => o.id === tableId);
+    if (!obj) return;
+    
+    const time = Date.now();
+    const idSource = `node-source-${time}`;
+    const idTransform = `node-transform-${time}`;
+    const idFilter = `node-filter-${time}`;
+    const idSink = `node-sink-${time}`;
+
+    const newNodes: Node[] = [
+      {
+        id: idSource,
+        type: 'Source',
+        position: { x: 50, y: 180 },
+        data: {
+          objectId: tableId,
+          name: obj.name,
+          tableName: obj.name,
+          sqlFragment: `SELECT * FROM "${obj.name}"`,
+          onDelete: handleDeleteNode
+        }
+      },
+      {
+        id: idTransform,
+        type: 'Transform',
+        position: { x: 280, y: 180 },
+        data: {
+          objectId: tableId,
+          name: `${obj.name}_选择列`,
+          sqlFragment: `SELECT * FROM previous_cte`,
+          metadata: { selectedColumns: [], isCustom: false },
+          onDelete: handleDeleteNode
+        }
+      },
+      {
+        id: idFilter,
+        type: 'Control',
+        position: { x: 510, y: 180 },
+        data: {
+          objectId: tableId,
+          name: `${obj.name}_数据筛选`,
+          sqlFragment: `WHERE 1=1`,
+          metadata: { filterColumn: '', filterOperator: '=', filterValue: '', isCustom: false },
+          onDelete: handleDeleteNode
+        }
+      },
+      {
+        id: idSink,
+        type: 'Sink',
+        position: { x: 740, y: 180 },
+        data: {
+          objectId: tableId,
+          name: `${obj.name}_保存表`,
+          tableName: `${obj.name}_output`,
+          sqlFragment: ``,
+          metadata: { sinkTableName: `${obj.name}_output` },
+          onDelete: handleDeleteNode
+        }
+      }
+    ];
+
+    const newEdges: Edge[] = [
+      {
+        id: `edge-1-${time}`,
+        source: idSource,
+        target: idTransform,
+        animated: true,
+        style: { stroke: '#38bdf8', strokeWidth: 2 },
+        markerEnd: { type: MarkerType.ArrowClosed, color: '#38bdf8' }
+      },
+      {
+        id: `edge-2-${time}`,
+        source: idTransform,
+        target: idFilter,
+        animated: true,
+        style: { stroke: '#fb923c', strokeWidth: 2 },
+        markerEnd: { type: MarkerType.ArrowClosed, color: '#fb923c' }
+      },
+      {
+        id: `edge-3-${time}`,
+        source: idFilter,
+        target: idSink,
+        animated: true,
+        style: { stroke: '#4ade80', strokeWidth: 2 },
+        markerEnd: { type: MarkerType.ArrowClosed, color: '#4ade80' }
+      }
+    ];
+
+    setNodes(newNodes);
+    setEdges(newEdges);
+    pushHistory(newNodes, newEdges);
+    setShowObjectPicker(false);
+  }, [objects, setNodes, setEdges, pushHistory, handleDeleteNode]);
 
   // ── Auto Layout (Dagre LR) ──
   const handleAutoLayout = useCallback(() => {
@@ -503,7 +426,7 @@ export const OntologyCanvas: React.FC<{
           data: {
             title: sp.name || `空间 ${si + 1}`,
             color: sp.color || spaceColors[si % spaceColors.length],
-            onDelete: (id: string) => handleDeleteNode(id)
+            onDelete: handleDeleteNode
           }
         });
       });
@@ -535,7 +458,7 @@ export const OntologyCanvas: React.FC<{
               layerTag: activeLayer,
               tableName: aiItem.metadata?.tableName || aiItem.objectName
             },
-            onDelete: (id: string) => handleDeleteNode(id)
+            onDelete: handleDeleteNode
           }
         });
       });
@@ -585,7 +508,6 @@ export const OntologyCanvas: React.FC<{
             [field]: value
           }
         };
-        // Update local reference to keep form synced
         setSelectedNode(updated);
         return updated;
       }
@@ -611,6 +533,89 @@ export const OntologyCanvas: React.FC<{
     }));
   };
 
+  // Update visual parameters for column picker (Transform Node)
+  const handleUpdateTransformColumns = (col: string, selected: boolean) => {
+    if (!selectedNode) return;
+    const currentMeta = selectedNode.data.metadata || {};
+    const cols: string[] = currentMeta.selectedColumns || [];
+    const nextCols = selected ? [...cols, col] : cols.filter(c => c !== col);
+    
+    const nextMeta = { ...currentMeta, selectedColumns: nextCols };
+    const sqlFragment = nextMeta.isCustom
+      ? selectedNode.data.sqlFragment
+      : `SELECT ${nextCols.length > 0 ? nextCols.map(c => `"${c}"`).join(', ') : '*'} FROM previous_cte`;
+
+    setNodes(nds => nds.map(n => {
+      if (n.id === selectedNode.id) {
+        const updated = {
+          ...n,
+          data: {
+            ...n.data,
+            sqlFragment,
+            metadata: nextMeta
+          }
+        };
+        setSelectedNode(updated);
+        return updated;
+      }
+      return n;
+    }));
+  };
+
+  // Update visual parameters for filter (Filter/Control Node)
+  const handleUpdateFilterConfig = (key: 'filterColumn' | 'filterOperator' | 'filterValue' | 'isCustom', value: any) => {
+    if (!selectedNode) return;
+    const nextMeta = {
+      ...(selectedNode.data.metadata || { filterColumn: '', filterOperator: '=', filterValue: '', isCustom: false }),
+      [key]: value
+    };
+
+    let sqlFragment = selectedNode.data.sqlFragment;
+    if (!nextMeta.isCustom) {
+      if (nextMeta.filterColumn) {
+        const valStr = isNaN(Number(nextMeta.filterValue)) ? `'${nextMeta.filterValue}'` : nextMeta.filterValue;
+        sqlFragment = `WHERE "${nextMeta.filterColumn}" ${nextMeta.filterOperator} ${valStr}`;
+      } else {
+        sqlFragment = `WHERE 1=1`;
+      }
+    }
+
+    setNodes(nds => nds.map(n => {
+      if (n.id === selectedNode.id) {
+        const updated = {
+          ...n,
+          data: {
+            ...n.data,
+            sqlFragment,
+            metadata: nextMeta
+          }
+        };
+        setSelectedNode(updated);
+        return updated;
+      }
+      return n;
+    }));
+  };
+
+  // Execute CTE query in DuckDB to actually build physical tables (Sink Node)
+  const handleRunSinkPipeline = async () => {
+    if (!selectedNode) return;
+    const name = selectedNode.data.tableName || selectedNode.data.metadata?.sinkTableName;
+    if (!name) {
+      alert('请先在右侧配置目标表名！');
+      return;
+    }
+    setExecutingSink(true);
+    try {
+      await duckDBService.query(`CREATE OR REPLACE TABLE "${name}" AS (${compiledSql})`);
+      alert(`🎉 管道执行成功！物理表 "${name}" 已成功创建并写入数据！`);
+    } catch (e: any) {
+      alert(`执行失败: ${e.message}`);
+    } finally {
+      setExecutingSink(false);
+    }
+  };
+
   return (
     <div className="h-full w-full flex bg-[#0c0c12] relative text-slate-200" ref={reactFlowWrapper}>
       
@@ -622,24 +627,28 @@ export const OntologyCanvas: React.FC<{
           {/* Add actions */}
           <div className="flex items-center gap-1.5 px-1.5">
             <button onClick={() => openObjectPicker('Source')}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-monokai-purple/10 border border-monokai-purple/20 text-monokai-purple hover:bg-monokai-purple/20 transition-all">
-              <Plus className="w-3.5 h-3.5" /> Source
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-monokai-purple/10 border border-monokai-purple/20 text-monokai-purple hover:bg-monokai-purple/20 transition-all"
+              title="关联一张物理数据库表">
+              <Plus className="w-3.5 h-3.5" /> 导入数据源 (Source)
             </button>
             <button onClick={() => openObjectPicker('Transform')}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-monokai-cyan/10 border border-monokai-cyan/20 text-monokai-cyan hover:bg-monokai-cyan/20 transition-all">
-              <Plus className="w-3.5 h-3.5" /> Transform
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-monokai-cyan/10 border border-monokai-cyan/20 text-monokai-cyan hover:bg-monokai-cyan/20 transition-all"
+              title="增加列选择或数据转换节点">
+              <Plus className="w-3.5 h-3.5" /> 选择列 (Transform)
             </button>
             <button onClick={() => openObjectPicker('Control')}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-monokai-orange/10 border border-monokai-orange/20 text-monokai-orange hover:bg-monokai-orange/20 transition-all">
-              <Plus className="w-3.5 h-3.5" /> Filter
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-monokai-orange/10 border border-monokai-orange/20 text-monokai-orange hover:bg-monokai-orange/20 transition-all"
+              title="增加数据过滤规则">
+              <Plus className="w-3.5 h-3.5" /> 过滤条件 (Filter)
             </button>
             <button onClick={() => openObjectPicker('Sink')}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-monokai-green/10 border border-monokai-green/20 text-monokai-green hover:bg-monokai-green/20 transition-all">
-              <Plus className="w-3.5 h-3.5" /> Sink
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-monokai-green/10 border border-monokai-green/20 text-monokai-green hover:bg-monokai-green/20 transition-all"
+              title="设置导出或最终数据落表节点">
+              <Plus className="w-3.5 h-3.5" /> 数据落表 (Sink)
             </button>
             <button onClick={addGroupSpace}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 transition-all">
-              <Plus className="w-3.5 h-3.5" /> Group Space
+              <Plus className="w-3.5 h-3.5" /> 逻辑分组
             </button>
           </div>
 
@@ -654,46 +663,59 @@ export const OntologyCanvas: React.FC<{
           <div className="w-px h-6 bg-slate-800" />
 
           {/* Undo */}
-          <button onClick={handleUndo} disabled={historyIndex <= 0} title="撤销 (Ctrl+Z)"
+          <button onClick={handleUndo} disabled={!canUndo} title="撤销 (Ctrl+Z)"
             className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-[#171723] hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none transition-all">
             <Undo2 className="w-4 h-4" />
           </button>
 
           {/* Redo */}
-          <button onClick={handleRedo} disabled={historyIndex >= history.length - 1} title="重做 (Ctrl+Y)"
+          <button onClick={handleRedo} disabled={!canRedo} title="重做 (Ctrl+Y)"
             className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-[#171723] hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none transition-all">
             <Redo2 className="w-4 h-4" />
           </button>
         </div>
 
-        {/* MECE Layer Segment Controls */}
-        <div className="flex items-center gap-1 p-1 bg-[#171723]/95 backdrop-blur-xl border border-monokai-accent/15 rounded-2xl shadow-2xl pointer-events-auto">
-          {(['foundation', 'relations', 'methodology', 'patterns', 'domains'] as MECELayer[]).map(layer => {
-            const isActive = activeLayer === layer;
-            const label = { foundation: '基础', relations: '关系', methodology: '方法论', patterns: '模式', domains: '领域' }[layer];
-            return (
-              <button
-                key={layer}
-                onClick={() => setActiveLayer(layer)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                  isActive
-                    ? 'bg-monokai-purple/20 text-monokai-purple shadow'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800/55'
-                }`}
-              >
-                {label}
-              </button>
-            );
-          })}
-          
-          <div className="w-px h-6 bg-slate-800 mx-1" />
-
-          {/* AI fill under layer */}
-          <button onClick={handleMeceFill} disabled={isAIFilling}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-monokai-purple/20 border border-monokai-purple/30 text-monokai-purple hover:bg-monokai-purple/30 disabled:opacity-50 transition-all">
-            <Sparkles className="w-3.5 h-3.5" />
-            {isAIFilling ? '构建中...' : 'AI 填充'}
+        {/* Collapsible MECE layers - simplified UX */}
+        <div className="flex items-center gap-2 pointer-events-auto">
+          <button
+            onClick={() => setShowLayers(prev => !prev)}
+            className={`px-3 py-1.5 border rounded-2xl flex items-center gap-1.5 text-xs font-bold bg-[#171723]/95 backdrop-blur-xl transition-all shadow-2xl ${
+              showLayers ? 'border-monokai-purple/55 text-monokai-purple' : 'border-slate-800 text-slate-400'
+            }`}
+          >
+            <Layers className="w-3.5 h-3.5" />
+            AI MECE 分层设计 {showLayers ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
           </button>
+
+          {showLayers && (
+            <div className="flex items-center gap-1 p-1 bg-[#171723]/95 backdrop-blur-xl border border-monokai-accent/15 rounded-2xl shadow-2xl pointer-events-auto">
+              {(['foundation', 'relations', 'methodology', 'patterns', 'domains'] as MECELayer[]).map(layer => {
+                const isActive = activeLayer === layer;
+                const label = { foundation: '基础', relations: '关系', methodology: '方法论', patterns: '模式', domains: '领域' }[layer];
+                return (
+                  <button
+                    key={layer}
+                    onClick={() => setActiveLayer(layer)}
+                    className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all ${
+                      isActive
+                        ? 'bg-monokai-purple/20 text-monokai-purple'
+                        : 'text-slate-400 hover:text-white hover:bg-slate-800/55'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+              
+              <div className="w-px h-5 bg-slate-800 mx-1" />
+
+              <button onClick={handleMeceFill} disabled={isAIFilling}
+                className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold bg-monokai-purple/20 border border-monokai-purple/30 text-monokai-purple hover:bg-monokai-purple/30 disabled:opacity-50 transition-all">
+                <Sparkles className="w-3 h-3" />
+                {isAIFilling ? 'AI 生成中...' : '生成'}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Action Panel Utilities */}
@@ -787,71 +809,233 @@ export const OntologyCanvas: React.FC<{
 
       {/* ── Floating Node Inspector Overlay Panel (Left Center) ── */}
       {selectedNode && (
-        <div className="absolute top-24 left-4 w-72 bg-[#12121e]/98 border border-monokai-accent/15 rounded-2xl shadow-2xl flex flex-col overflow-hidden z-40 backdrop-blur-2xl max-h-[75vh]">
+        <div className="absolute top-24 left-4 w-76 bg-[#12121e]/98 border border-monokai-accent/15 rounded-2xl shadow-2xl flex flex-col overflow-hidden z-40 backdrop-blur-2xl max-h-[75vh]">
           <div className="flex items-center justify-between px-4 py-3 border-b border-monokai-accent/10 bg-monokai-sidebar/35">
-            <span className="text-xs font-bold text-slate-200">属性配置 & 检查</span>
+            <div className="flex items-center gap-1.5">
+              <Settings className="w-4 h-4 text-monokai-cyan" />
+              <span className="text-xs font-bold text-slate-200">可视化属性配置</span>
+            </div>
             <button onClick={() => setSelectedNode(null)} className="p-1 rounded text-slate-400 hover:text-white">
               <X className="w-3.5 h-3.5" />
             </button>
           </div>
           
-          <div className="p-4 space-y-4 overflow-y-auto custom-scrollbar">
-            {selectedNode.type === 'groupSpace' ? (
-              // Group Inspector Form
+          <div className="p-4 space-y-4 overflow-y-auto custom-scrollbar text-xs">
+            
+            {/* Generic Name Config */}
+            <div>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">节点标识名称</label>
+              <input
+                type="text"
+                value={selectedNode.type === 'groupSpace' ? (selectedNode.data.title || '') : (selectedNode.data.name || '')}
+                onChange={(e) => selectedNode.type === 'groupSpace' ? handleUpdateNodeGroupTitle(e.target.value) : handleUpdateNodeData('name', e.target.value)}
+                className="w-full px-3 py-2 bg-black/35 border border-slate-700 rounded-lg text-xs outline-none focus:border-monokai-cyan/50 text-white"
+              />
+            </div>
+
+            {/* Parameterized View: Source Node */}
+            {selectedNode.type === 'Source' && (
               <div className="space-y-3">
                 <div>
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-monokai-purple">空间名称</label>
-                  <input
-                    type="text"
-                    value={selectedNode.data.title || ''}
-                    onChange={(e) => handleUpdateNodeGroupTitle(e.target.value)}
-                    className="w-full mt-1.5 px-3 py-2 bg-black/35 border border-slate-700 rounded-lg text-xs outline-none focus:border-monokai-purple/50 text-white"
-                  />
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-monokai-purple block mb-1">物理数据表</label>
+                  <select
+                    value={selectedNode.data.tableName || ''}
+                    onChange={(e) => {
+                      const name = e.target.value;
+                      handleUpdateNodeData('tableName', name);
+                      handleUpdateNodeData('name', name);
+                      handleUpdateNodeData('sqlFragment', `SELECT * FROM "${name}"`);
+                    }}
+                    className="w-full px-3 py-2 bg-black/35 border border-slate-700 rounded-lg text-xs text-white outline-none focus:border-monokai-purple/50 cursor-pointer"
+                  >
+                    <option value="" disabled>-- 选择物理数据库表 --</option>
+                    {objects.map(obj => (
+                      <option key={obj.id} value={obj.name}>{obj.name}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
-            ) : (
-              // Node Inspector Form
-              <div className="space-y-3">
-                <div>
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-monokai-cyan">节点名称</label>
-                  <input
-                    type="text"
-                    value={selectedNode.data.name || ''}
-                    onChange={(e) => handleUpdateNodeData('name', e.target.value)}
-                    className="w-full mt-1.5 px-3 py-2 bg-black/35 border border-slate-700 rounded-lg text-xs outline-none focus:border-monokai-cyan/50 text-white"
-                  />
+            )}
+
+            {/* Parameterized View: Transform Node */}
+            {selectedNode.type === 'Transform' && (
+              <div className="space-y-3 border-t border-slate-800 pt-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase text-monokai-cyan">列过滤器 (Column Filter)</span>
+                  <label className="flex items-center gap-1.5 text-[10px] text-slate-400 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={selectedNode.data.metadata?.isCustom || false}
+                      onChange={(e) => {
+                        const custom = e.target.checked;
+                        handleUpdateNodeData('metadata', {
+                          ...(selectedNode.data.metadata || {}),
+                          isCustom: custom
+                        });
+                      }}
+                      className="rounded border-slate-700 text-monokai-cyan focus:ring-0 bg-transparent"
+                    />
+                    自定义 SQL
+                  </label>
                 </div>
 
-                {selectedNode.type === 'Source' && (
+                {!selectedNode.data.metadata?.isCustom ? (
                   <div>
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-monokai-purple">对应物理表</label>
-                    <input
-                      type="text"
-                      value={selectedNode.data.tableName || ''}
-                      onChange={(e) => handleUpdateNodeData('tableName', e.target.value)}
-                      className="w-full mt-1.5 px-3 py-2 bg-black/35 border border-slate-700 rounded-lg text-xs outline-none focus:border-monokai-purple/50 text-white"
-                    />
+                    <span className="text-[10px] text-slate-400 block mb-1.5">勾选保留的字段 (默认全选)：</span>
+                    <div className="max-h-[160px] overflow-y-auto border border-slate-800 bg-black/20 rounded-lg p-2 space-y-1">
+                      {availableColumns.length === 0 ? (
+                        <div className="text-[10px] text-slate-500 italic p-1">连线物理表源以获取字段</div>
+                      ) : (
+                        availableColumns.map(col => {
+                          const isChecked = (selectedNode.data.metadata?.selectedColumns || []).includes(col);
+                          return (
+                            <button
+                              key={col}
+                              onClick={() => handleUpdateTransformColumns(col, !isChecked)}
+                              className="w-full flex items-center gap-2 py-1 px-1.5 rounded hover:bg-slate-800/50 text-left text-[11px]"
+                            >
+                              {isChecked ? (
+                                <CheckSquare className="w-3.5 h-3.5 text-monokai-cyan" />
+                              ) : (
+                                <Square className="w-3.5 h-3.5 text-slate-600" />
+                              )}
+                              <span className={isChecked ? 'text-monokai-fg font-bold' : 'text-slate-400'}>{col}</span>
+                            </button>
+                          );
+                        })
+                      )}
+                    </div>
                   </div>
-                )}
-
-                {(selectedNode.type === 'Transform' || selectedNode.type === 'Control' || selectedNode.type === 'Sink') && (
+                ) : (
                   <div>
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-monokai-yellow">SQL 片段 (Fragment)</label>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-monokai-yellow block mb-1">自定义 SELECT 语句</label>
                     <textarea
                       value={selectedNode.data.sqlFragment || ''}
                       onChange={(e) => handleUpdateNodeData('sqlFragment', e.target.value)}
                       rows={5}
-                      className="w-full mt-1.5 px-3 py-2 bg-black/35 border border-slate-700 rounded-lg text-xs font-mono outline-none focus:border-monokai-yellow/50 text-white resize-none"
-                      placeholder={selectedNode.type === 'Control' ? '例如: WHERE age > 18' : 'SELECT * FROM previous_cte'}
+                      className="w-full px-3 py-2 bg-black/35 border border-slate-700 rounded-lg text-xs font-mono outline-none focus:border-monokai-yellow/50 text-white resize-none"
+                      placeholder="SELECT col1, col2 FROM previous_cte"
                     />
                   </div>
                 )}
               </div>
             )}
 
+            {/* Parameterized View: Filter Node */}
+            {selectedNode.type === 'Control' && (
+              <div className="space-y-3 border-t border-slate-800 pt-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase text-monokai-orange">筛选器规则 (WHERE Clause)</span>
+                  <label className="flex items-center gap-1.5 text-[10px] text-slate-400 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={selectedNode.data.metadata?.isCustom || false}
+                      onChange={(e) => handleUpdateFilterConfig('isCustom', e.target.checked)}
+                      className="rounded border-slate-700 text-monokai-orange focus:ring-0 bg-transparent"
+                    />
+                    自定义 SQL
+                  </label>
+                </div>
+
+                {!selectedNode.data.metadata?.isCustom ? (
+                  <div className="space-y-2.5">
+                    <div>
+                      <label className="text-[9px] text-slate-400 block mb-1">筛选字段</label>
+                      <select
+                        value={selectedNode.data.metadata?.filterColumn || ''}
+                        onChange={(e) => handleUpdateFilterConfig('filterColumn', e.target.value)}
+                        className="w-full px-3 py-1.5 bg-black/35 border border-slate-700 rounded-lg text-[11px] text-white outline-none cursor-pointer focus:border-monokai-orange/50"
+                      >
+                        <option value="">-- 选择字段 --</option>
+                        {availableColumns.map(col => (
+                          <option key={col} value={col}>{col}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-[9px] text-slate-400 block mb-1">比较符号</label>
+                      <select
+                        value={selectedNode.data.metadata?.filterOperator || '='}
+                        onChange={(e) => handleUpdateFilterConfig('filterOperator', e.target.value)}
+                        className="w-full px-3 py-1.5 bg-black/35 border border-slate-700 rounded-lg text-[11px] text-white outline-none cursor-pointer focus:border-monokai-orange/50"
+                      >
+                        <option value="=">等于 (=)</option>
+                        <option value="!=">不等于 (!=)</option>
+                        <option value=">">大于 (&gt;)</option>
+                        <option value="<">小于 (&lt;)</option>
+                        <option value=">=">大于等于 (&gt;=)</option>
+                        <option value="<=">小于等于 (&lt;=)</option>
+                        <option value="LIKE">包含 (LIKE)</option>
+                        <option value="IS NULL">为空 (IS NULL)</option>
+                        <option value="IS NOT NULL">不为空 (IS NOT NULL)</option>
+                      </select>
+                    </div>
+
+                    {selectedNode.data.metadata?.filterOperator !== 'IS NULL' && selectedNode.data.metadata?.filterOperator !== 'IS NOT NULL' && (
+                      <div>
+                        <label className="text-[9px] text-slate-400 block mb-1">目标值 (文本请直接输入)</label>
+                        <input
+                          type="text"
+                          value={selectedNode.data.metadata?.filterValue || ''}
+                          onChange={(e) => handleUpdateFilterConfig('filterValue', e.target.value)}
+                          placeholder="数值或文本，如：18 或 Active"
+                          className="w-full px-3 py-1.5 bg-black/35 border border-slate-700 rounded-lg text-[11px] text-white outline-none focus:border-monokai-orange/50"
+                        />
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-monokai-yellow block mb-1">条件逻辑片段</label>
+                    <textarea
+                      value={selectedNode.data.sqlFragment || ''}
+                      onChange={(e) => handleUpdateNodeData('sqlFragment', e.target.value)}
+                      rows={4}
+                      className="w-full px-3 py-2 bg-black/35 border border-slate-700 rounded-lg text-xs font-mono outline-none focus:border-monokai-yellow/50 text-white resize-none"
+                      placeholder="WHERE age > 18 AND status = 'active'"
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Parameterized View: Sink Node */}
+            {selectedNode.type === 'Sink' && (
+              <div className="space-y-4 border-t border-slate-800 pt-3">
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-monokai-green block mb-1">持久化保存到 DuckDB 表</label>
+                  <input
+                    type="text"
+                    value={selectedNode.data.tableName || selectedNode.data.metadata?.sinkTableName || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      handleUpdateNodeData('tableName', val);
+                      handleUpdateNodeData('metadata', {
+                        ...(selectedNode.data.metadata || {}),
+                        sinkTableName: val
+                      });
+                    }}
+                    placeholder="输入要保存的目标物理表名"
+                    className="w-full px-3 py-2 bg-black/35 border border-slate-700 rounded-lg text-xs outline-none focus:border-monokai-green/50 text-white"
+                  />
+                </div>
+
+                <button
+                  onClick={handleRunSinkPipeline}
+                  disabled={executingSink}
+                  className="w-full py-2.5 flex items-center justify-center gap-2 bg-monokai-green text-slate-900 hover:bg-monokai-green/90 rounded-xl font-bold transition-all shadow-lg text-xs cursor-pointer disabled:opacity-50"
+                >
+                  <PlaySquare className="w-4 h-4" />
+                  {executingSink ? '正在物理建表...' : '⚡ 执行并创建表 (Run & Create Table)'}
+                </button>
+              </div>
+            )}
+
+            {/* General Delete Action */}
             <button
               onClick={() => handleDeleteNode(selectedNode.id)}
-              className="w-full py-2 flex items-center justify-center gap-1.5 bg-monokai-pink/15 text-monokai-pink hover:bg-monokai-pink/25 border border-monokai-pink/20 rounded-xl text-xs font-bold transition-all"
+              className="w-full py-2.5 flex items-center justify-center gap-1.5 bg-monokai-pink/15 text-monokai-pink hover:bg-monokai-pink/25 border border-monokai-pink/20 rounded-xl text-xs font-bold transition-all"
             >
               <Trash2 className="w-3.5 h-3.5" /> 移除节点
             </button>
@@ -860,92 +1044,21 @@ export const OntologyCanvas: React.FC<{
       )}
 
       {/* ── Object Picker Dialog Modal ── */}
-      {showObjectPicker && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 backdrop-blur-sm" onClick={() => setShowObjectPicker(false)}>
-          <div className="w-[420px] bg-[#12121e] border border-monokai-accent/20 rounded-2xl shadow-2xl overflow-hidden pointer-events-auto" onClick={e => e.stopPropagation()}>
-            <div className="px-5 py-4 border-b border-monokai-accent/10 flex items-center justify-between bg-monokai-sidebar/35">
-              <div>
-                <span className="text-sm font-bold text-slate-200">关联物理对象到画布</span>
-                <p className="text-[10px] text-slate-400 mt-1">选择一个数据库或本体对象绑定到新建的 {pickerNodeType} 节点</p>
-              </div>
-              <button onClick={() => setShowObjectPicker(false)} className="p-1 rounded text-slate-400 hover:text-white">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            
-            <div className="max-h-[360px] overflow-y-auto p-4 space-y-2 custom-scrollbar">
-              {objects.length === 0 ? (
-                <div className="text-center py-8 text-xs text-slate-500">
-                  物理本体库为空，请先在“实体库”中创建对象。
-                </div>
-              ) : (
-                objects.map(obj => (
-                  <button
-                    key={obj.id}
-                    onClick={() => handleSelectObject(obj.id)}
-                    className="w-full px-4 py-3 rounded-xl bg-slate-800/35 border border-slate-700/60 hover:bg-slate-700/50 hover:border-slate-600 transition-all text-left flex items-center justify-between"
-                  >
-                    <div>
-                      <span className="text-xs font-bold text-slate-200 block">{obj.name}</span>
-                      <span className="text-[9px] text-monokai-purple/80 bg-monokai-purple/10 px-1.5 py-0.5 rounded mt-1.5 inline-block">
-                        {objectTypes.find(ot => ot.id === obj.object_type_id)?.name || '未定义类型'}
-                      </span>
-                    </div>
-                    <Plus className="w-4 h-4 text-monokai-cyan" />
-                  </button>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      <CanvasObjectPicker
+        show={showObjectPicker}
+        onClose={() => setShowObjectPicker(false)}
+        pickerNodeType={pickerNodeType}
+        objects={objects}
+        objectTypes={objectTypes}
+        onSelectObject={handleSelectObject}
+        onSelectPipeline={handleQuickPipeline}
+      />
 
       {/* ── Custom Help Overlay Modal ── */}
-      {showHelp && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm" onClick={() => setShowHelp(false)}>
-          <div className="w-[500px] bg-[#12121e] border border-monokai-accent/20 rounded-2xl shadow-2xl p-6 overflow-hidden pointer-events-auto" onClick={e => e.stopPropagation()}>
-            <div className="flex justify-between items-center mb-4 pb-2 border-b border-monokai-accent/10">
-              <span className="text-sm font-bold text-slate-200">💡 画布重构版操作指南</span>
-              <button onClick={() => setShowHelp(false)} className="p-1 rounded text-slate-400 hover:text-white"><X className="w-4.5 h-4.5" /></button>
-            </div>
-            
-            <div className="space-y-4 text-xs text-slate-300 leading-relaxed overflow-y-auto max-h-[60vh] custom-scrollbar pr-1">
-              <p>
-                重构后的<strong>高阶画布</strong>基于 <strong>React Flow</strong> 实现。这是一个高度优化的无环向导图（DAG）生成器，用于可视化构建数据提取、转换和输出的 SQL 流水线。
-              </p>
-              
-              <div className="space-y-2">
-                <h4 className="font-bold text-monokai-cyan">1. 画布控制</h4>
-                <ul className="list-disc list-inside space-y-1 pl-2 text-slate-400">
-                  <li><strong>拖拽画布</strong>：在空白处按住鼠标左键并拖拽以平移视口。</li>
-                  <li><strong>缩放视口</strong>：使用鼠标滚轮或双指在触摸板上缩放，或使用左下角缩放面板。</li>
-                  <li><strong>选择节点</strong>：单击选择节点，将激活属性编辑框；双击可直接定位到重要属性。</li>
-                </ul>
-              </div>
-
-              <div className="space-y-2">
-                <h4 className="font-bold text-monokai-purple">2. 构建 DAG 管道</h4>
-                <ul className="list-disc list-inside space-y-1 pl-2 text-slate-400">
-                  <li><strong>增加节点</strong>：在顶部工具栏点击 Source/Transform/Filter/Sink，从弹出窗中选择物理对象即可实例化入场。</li>
-                  <li><strong>连接线</strong>：鼠标移到源节点右侧的圆形手写点（Handle）上拖出一条线，连接到目标节点的左侧即可创建依赖。</li>
-                  <li><strong>分组空间</strong>：新建 Group Space 框，可将任意节点拖入其中进行逻辑嵌套（联动移动）。</li>
-                </ul>
-              </div>
-
-              <div className="space-y-2">
-                <h4 className="font-bold text-monokai-green">3. 实时 SQL 翻译机制</h4>
-                <p className="text-slate-400 pl-2">
-                  任何节点、连线关系发生变动时，右下角的 SQL 编译预览看板都将实时生成 CTE (With 语法) 对齐的关系代码，支持一键直接载入 SQL 主编辑器执行。
-                </p>
-              </div>
-            </div>
-            
-            <button onClick={() => setShowHelp(false)} className="mt-6 w-full py-2.5 bg-monokai-purple text-slate-900 rounded-xl font-bold hover:bg-monokai-purple/90 transition-all text-xs flex items-center justify-center gap-1.5">
-              <Check className="w-4 h-4" /> 我明白了
-            </button>
-          </div>
-        </div>
-      )}
+      <CanvasHelpModal
+        show={showHelp}
+        onClose={() => setShowHelp(false)}
+      />
 
     </div>
   );
