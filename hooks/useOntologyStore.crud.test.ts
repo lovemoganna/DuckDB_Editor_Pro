@@ -162,7 +162,12 @@ describe('ObjectType CRUD', () => {
   it('createObjectType throws on INSERT failure', async () => {
     resetAll();
     queueLoad();
-    _query.mockRejectedValueOnce(new Error('DB error'));
+    _query.mockImplementation((sql: string) => {
+      if (sql && sql.includes('INSERT INTO')) {
+        return Promise.reject(new Error('DB error'));
+      }
+      return Promise.resolve([]);
+    });
 
     const { useOntologyStore } = await import('./useOntologyStore');
     const { result } = renderHook(() => useOntologyStore());

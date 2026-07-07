@@ -287,7 +287,14 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
     // Read latest state from ref — keeps this callback identity stable
     const currentState = stateRef.current;
     const currentMapping = currentState.mapping;
-    if (currentState.initting || currentState.initState !== 'ready' || isActive === false) return;
+    if (currentState.initting) {
+      setLoading(true);
+      return;
+    }
+    if (currentState.initState !== 'ready' || isActive === false) {
+      setLoading(false);
+      return;
+    }
     console.log('[D3GraphView] refreshGraph called');
     setLoading(true);
     setD3Ready(false);

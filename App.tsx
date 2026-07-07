@@ -56,7 +56,7 @@ const App: React.FC = () => {
   const [loadingData, setLoadingData] = useState(false);
   const [pagination, setPagination] = useState({ limit: 50, offset: 0, total: 0 });
   const [schema, setSchema] = useState<ColumnInfo[]>([]);
-  const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'ASC' | 'DESC' } | null>(null);
+  const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'ASC' | 'DESC' }[]>([]);
   const [filterQuery, setFilterQuery] = useState('');
   const [selectedRows, setSelectedRows] = useState<Set<any>>(new Set());
   const [profileData, setProfileData] = useState<any[]>([]);
@@ -147,8 +147,9 @@ const App: React.FC = () => {
       setTableColumns(schemaInfo.map((c: any) => c.name));
 
       let query = `SELECT * FROM "${tableName}" ${whereClause}`;
-      if (currentSort) {
-        query += ` ORDER BY "${currentSort.key}" ${currentSort.direction}`;
+      if (currentSort && currentSort.length > 0) {
+        const orderStr = currentSort.map(s => `"${s.key}" ${s.direction}`).join(', ');
+        query += ` ORDER BY ${orderStr}`;
       } else {
         const pk = schemaInfo.find((c: any) => c.pk);
         if (pk) query += ` ORDER BY "${pk.name}" ASC`;
@@ -179,12 +180,12 @@ const App: React.FC = () => {
     setCurrentTable(name);
     setActiveTab(Tab.DATA);
     setPagination(prev => ({ ...prev, offset: 0 }));
-    setSortConfig(null);
+    setSortConfig([]);
     setFilterQuery('');
     setIsRenaming(false);
     setDataViewMode('grid');
     setHiddenColumns(new Set());
-    await fetchTableData(name, 0, pagination.limit, null, '');
+    await fetchTableData(name, 0, pagination.limit, [], '');
     setSelectedColStats(null);
   };
 
@@ -193,10 +194,35 @@ const App: React.FC = () => {
     if (currentTable) fetchTableData(currentTable, newOffset, pagination.limit);
   };
 
-  const handleSort = (key: string) => {
-    let direction: 'ASC' | 'DESC' = 'ASC';
-    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'ASC') direction = 'DESC';
-    const newSort = { key, direction };
+  const handleSort = (key: string, shiftKey?: boolean) => {
+    let newSort: { key: string; direction: 'ASC' | 'DESC' }[] = [];
+    const existingIdx = sortConfig.findIndex(s => s.key === key);
+
+    if (shiftKey) {
+      if (existingIdx > -1) {
+        const current = sortConfig[existingIdx];
+        if (current.direction === 'ASC') {
+          newSort = [...sortConfig];
+          newSort[existingIdx] = { key, direction: 'DESC' };
+        } else {
+          newSort = sortConfig.filter(s => s.key !== key);
+        }
+      } else {
+        newSort = [...sortConfig, { key, direction: 'ASC' }];
+      }
+    } else {
+      if (existingIdx > -1 && sortConfig.length === 1) {
+        const current = sortConfig[existingIdx];
+        if (current.direction === 'ASC') {
+          newSort = [{ key, direction: 'DESC' }];
+        } else {
+          newSort = [];
+        }
+      } else {
+        newSort = [{ key, direction: 'ASC' }];
+      }
+    }
+
     setSortConfig(newSort);
     if (currentTable) fetchTableData(currentTable, 0, pagination.limit, newSort);
   };
