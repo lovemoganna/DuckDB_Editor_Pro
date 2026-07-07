@@ -18,7 +18,7 @@
  *   OntologyPanel + D3GraphView + OntologyCanvas + OntologyInsightsPanel (视图)
  */
 
-import { useState, useCallback, useEffect, useRef, useMemo, useReducer } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useMemo, useReducer } from 'react';
 import { duckDBService } from '../services/duckdbService';
 import { OntologyDraftPayload } from '../services/ontologyAiService';
 
@@ -198,6 +198,8 @@ export interface OntologyStoreState {
     linkTable: string;
     linkTypeTable: string;
     actionTable: string;
+    introspectionTable: string;
+    insightTable: string;
     objectFields: Record<string, string>;
     linkFields: Record<string, string>;
   };
@@ -390,6 +392,8 @@ const initState: OntologyStoreState = {
     linkTable: 'life_link',
     linkTypeTable: 'life_link_type',
     actionTable: 'life_action',
+    introspectionTable: 'life_introspection',
+    insightTable: 'life_insight',
     objectFields: {
       id: 'id',
       name: 'name',
@@ -428,7 +432,7 @@ const normalizeDate = (dateStr: string): string => {
 // Store Hook
 // ============================================================
 
-export function useOntologyStore() {
+function useOntologyStoreInternal() {
   const [state, dispatch] = useReducer(reducer, initState);
   const dispatchAction = dispatch;
   const refreshCountRef = useRef(0);
@@ -461,14 +465,18 @@ export function useOntologyStore() {
       ]);
 
       // Load introspection/insight if tables exist
+      const introTable = stateRef.current.mapping.introspectionTable || 'life_introspection';
+      const insTable = stateRef.current.mapping.insightTable || 'life_insight';
       let introspections: LifeIntrospection[] = [];
       let insights: LifeInsight[] = [];
       try {
-        if (tables.includes('life_introspection')) {
-          introspections = await duckDBService.getOntologyIntrospections() as LifeIntrospection[];
+        if (tables.includes(introTable)) {
+          const rows = await duckDBService.query(`SELECT * FROM ${introTable} ORDER BY id`);
+          introspections = rows.map(r => ({ ...r, created_at: normalizeDate(r.created_at) })) as LifeIntrospection[];
         }
-        if (tables.includes('life_insight')) {
-          insights = await duckDBService.getOntologyInsights() as LifeInsight[];
+        if (tables.includes(insTable)) {
+          const rows = await duckDBService.query(`SELECT * FROM ${insTable} ORDER BY id`);
+          insights = rows.map(r => ({ ...r, created_at: normalizeDate(r.created_at) })) as LifeInsight[];
         }
       } catch {}
 
@@ -787,24 +795,54 @@ export function useOntologyStore() {
     if (refreshTables) await refresh();
   }, [refresh]);
 
-  // ── Add introspection / insight ──
-  const addIntrospection = useCallback(async (objectId: number, question: string, answer: string) => {
-    await duckDBService.addIntrospection(objectId, question, answer);
-    const data = await duckDBService.getOntologyIntrospections() as LifeIntrospection[];
-    dispatchAction({ type: 'SET_INTROSPECTIONS', introspections: data });
-  }, []);
+  // ── Add/Edit/Delete introspection / insight ──
+  const createIntrospection = useCallback(async (objectId: number, question: string, answer: string) => {
+    if (state.mapping.introspectionTable === 'life_introspection') {
+      await duckDBService.addIntrospection(objectId, question, answer);
+    } else {
+      const maxId = state.introspections.length ? Math.max(...state.introspections.map(i => i.id)) : 0;
+      await duckDBService.query(
+        `INSERT INTO ${state.mapping.introspectionTable} (id, object_id, question, answer, created_at) VALUES (${maxId + 1}, ${objectId}, ${duckDBService.escapeLiteral(question)}, ${duckDBService.escapeLiteral(answer)}, CURRENT_DATE)`
+      );
+    }
+    await refresh();
+  }, [state.introspections, refresh, state.mapping]);
 
-  const addInsight = useCallback(async (objectId: number, insight: string, tag: string) => {
-    await duckDBService.addInsight(objectId, insight, tag);
-    const data = await duckDBService.getOntologyInsights() as LifeInsight[];
-    dispatchAction({ type: 'SET_INSIGHTS', insights: data });
-  }, []);
+  const updateIntrospection = useCallback(async (id: number, objectId: number, question: string, answer: string) => {
+    await duckDBService.query(
+      `UPDATE ${state.mapping.introspectionTable} SET object_id=${objectId}, question=${duckDBService.escapeLiteral(question)}, answer=${duckDBService.escapeLiteral(answer)} WHERE id=${id}`
+    );
+    await refresh();
+  }, [refresh, state.mapping]);
+
+  const deleteIntrospection = useCallback(async (id: number) => {
+    await duckDBService.query(`DELETE FROM ${state.mapping.introspectionTable} WHERE id=${id}`);
+    await refresh();
+  }, [refresh, state.mapping]);
+
+  const createInsight = useCallback(async (objectId: number, insight: string, tag: string) => {
+    if (state.mapping.insightTable === 'life_insight') {
+      await duckDBService.addInsight(objectId, insight, tag);
+    } else {
+      const maxId = state.insights.length ? Math.max(...state.insights.map(i => i.id)) : 0;
+      await duckDBService.query(
+        `INSERT INTO ${state.mapping.insightTable} (id, object_id, insight, tag, created_at) VALUES (${maxId + 1}, ${objectId}, ${duckDBService.escapeLiteral(insight)}, ${duckDBService.escapeLiteral(tag)}, CURRENT_DATE)`
+      );
+    }
+    await refresh();
+  }, [state.insights, refresh, state.mapping]);
+
+  const updateInsight = useCallback(async (id: number, objectId: number, insight: string, tag: string) => {
+    await duckDBService.query(
+      `UPDATE ${state.mapping.insightTable} SET object_id=${objectId}, insight=${duckDBService.escapeLiteral(insight)}, tag=${duckDBService.escapeLiteral(tag)} WHERE id=${id}`
+    );
+    await refresh();
+  }, [refresh, state.mapping]);
 
   const deleteInsight = useCallback(async (id: number) => {
-    await duckDBService.query(`DELETE FROM life_insight WHERE id = ${id}`);
-    const data = await duckDBService.getOntologyInsights() as LifeInsight[];
-    dispatchAction({ type: 'SET_INSIGHTS', insights: data });
-  }, []);
+    await duckDBService.query(`DELETE FROM ${state.mapping.insightTable} WHERE id=${id}`);
+    await refresh();
+  }, [refresh, state.mapping]);
 
   // ── Derived: lookup maps ──
   const objectTypeMap = useMemo(() => {
@@ -867,9 +905,14 @@ export function useOntologyStore() {
     executeSQL,
 
     // Introspection/Insight
-    addIntrospection,
-    addInsight,
+    createIntrospection,
+    updateIntrospection,
+    deleteIntrospection,
+    createInsight,
+    updateInsight,
     deleteInsight,
+    addIntrospection: createIntrospection,
+    addInsight: createInsight,
 
     // Canvas helpers
     pendingCommand: state.pendingCommand,
@@ -882,6 +925,25 @@ export function useOntologyStore() {
     pushCanvasSnapshot: (snapshot: CanvasSnapshot) => dispatch({ type: 'PUSH_CANVAS_SNAPSHOT', snapshot }),
     popCanvasSnapshot: () => dispatch({ type: 'POP_CANVAS_SNAPSHOT' }),
   };
+}
+
+// Context creation for shared store state
+import { createContext, useContext } from 'react';
+
+const OntologyStoreContext = createContext<ReturnType<typeof useOntologyStoreInternal> | null>(null);
+
+export function OntologyStoreProvider({ children }: { children: React.ReactNode }) {
+  const store = useOntologyStoreInternal();
+  return React.createElement(OntologyStoreContext.Provider, { value: store }, children);
+}
+
+export function useOntologyStore() {
+  const ctx = useContext(OntologyStoreContext);
+  if (!ctx) {
+    // Return mock / independent store state if not wrapped (for testing or backwards compatibility)
+    return useOntologyStoreInternal();
+  }
+  return ctx;
 }
 
 // ============================================================

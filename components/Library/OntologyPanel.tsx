@@ -22,7 +22,7 @@ import { sql as sqlLang } from '@codemirror/lang-sql';
 import { EditorView } from '@codemirror/view';
 import { monokai } from '@uiw/codemirror-theme-monokai';
 
-import { useOntologyStore, ontologyActions, ONTOLOGY_SEED_INFOS } from '../../hooks/useOntologyStore';
+import { useOntologyStore, ontologyActions, ONTOLOGY_SEED_INFOS, OntologyStoreProvider } from '../../hooks/useOntologyStore';
 import { ontologyAiService } from '../../services/ontologyAiService';
 import {
   ONTOLOGY_TEMPLATE_CATEGORIES,
@@ -85,7 +85,7 @@ const LiveClock: React.FC = () => {
 const VIEW_TABS: { id: ViewTab; label: string; icon: React.ElementType }[] = [
   { id: 'graph', label: '知识图谱', icon: Network },
   { id: 'data',  label: '数据视图', icon: Database },
-  { id: 'canvas', label: '高阶画布', icon: LayoutGrid },
+  { id: 'canvas', label: '实体画布', icon: LayoutGrid },
 ];
 
 // ============================================================
@@ -1145,7 +1145,7 @@ const RightInspector: React.FC<{
 // Main Application Component
 // ============================================================
 
-export const OntologyPanel: React.FC<{
+const OntologyPanelContent: React.FC<{
   onInsert?: (sql: string) => void;
   onTablesReady?: () => void;
   isActive?: boolean;
@@ -1331,7 +1331,7 @@ export const OntologyPanel: React.FC<{
             <div className="flex h-full w-full overflow-hidden">
               
               {/* LEFT NAV PANEL */}
-              {drawerOpen && activeTab !== 'canvas' && (
+              {drawerOpen && (
                 <div style={{ width: leftWidth }} className="flex-shrink-0 flex flex-col border-r border-monokai-accent/10 bg-monokai-bg/80 backdrop-blur-xl relative z-10 shadow-2xl">
                   {/* Resizer Handle Left */}
                   <div onMouseDown={startResizingLeft} onTouchStart={startResizingLeft}
@@ -1481,6 +1481,14 @@ export const OntologyPanel: React.FC<{
       )}
     </div>
   );
+};
+
+export const OntologyPanel: React.FC<{
+  onInsert?: (sql: string) => void;
+  onTablesReady?: () => void;
+  isActive?: boolean;
+}> = (props) => {
+  return React.createElement(OntologyStoreProvider, null, React.createElement(OntologyPanelContent, props));
 };
 
 export default OntologyPanel;
