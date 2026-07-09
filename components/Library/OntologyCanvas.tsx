@@ -422,22 +422,25 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
         target: String(link.target_object_id),
         label: linkName,
         animated: isSelected || isActive,
+        type: 'default', // ReactFlow bezier curves
         style: {
           stroke: isActive
             ? (isUpstreamLink ? '#10b981' : '#06b6d4')
-            : (isSelected ? '#06b6d4' : '#71717a'),
+            : (isSelected ? '#06b6d4' : '#52525b'),
           strokeWidth: isSelected || isActive ? 2.5 : 1.5,
         },
         labelStyle: {
-          fill: isActive ? '#06b6d4' : '#a1a1aa',
-          fontWeight: 700,
-          fontSize: 9,
+          fill: isActive ? '#06b6d4' : '#e4e4e7', // High contrast text (zinc-200)
+          fontWeight: 650,
+          fontSize: 10,
           fontFamily: 'monospace',
         },
         labelBgStyle: {
-          fill: '#12131a',
-          fillOpacity: 0.85,
-        }
+          fill: '#0c0d12', // Matches canvas background perfectly
+          fillOpacity: 1.0, // Masks the line cleanly underneath
+        },
+        labelBgPadding: [8, 5],
+        labelBgBorderRadius: 4,
       };
     }).filter(e => {
       if (isFocusMode && activePathNodesAndLinks) {

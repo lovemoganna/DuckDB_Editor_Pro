@@ -5,7 +5,13 @@ const dagreGraph = new dagre.graphlib.Graph();
 dagreGraph.setDefaultEdgeLabel(() => ({}));
 
 export const getLayoutedElements = (nodes: Node[], edges: Edge[], direction = 'LR') => {
-  dagreGraph.setGraph({ rankdir: direction });
+  dagreGraph.setGraph({
+    rankdir: direction,
+    nodesep: 80,   // Spacing between nodes in the same rank/column (prevents vertical overlaps)
+    ranksep: 200,  // Spacing between ranks/columns (leaves plenty of horizontal room for edge labels)
+    marginx: 50,
+    marginy: 50
+  });
 
   // Reset graph components on each layout run
   dagreGraph.nodes().forEach(n => dagreGraph.removeNode(n));
