@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   Sparkles, Search, X, Maximize2, RefreshCw, ZoomOut, ZoomIn,
-  RotateCcw, RotateCw, Zap, Lock, Unlock, GitCommit
+  RotateCcw, RotateCw, Zap, Lock, Unlock, GitCommit, ChevronDown
 } from 'lucide-react';
 
 interface OntologyCanvasHeaderProps {
