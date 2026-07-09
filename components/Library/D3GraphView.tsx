@@ -264,6 +264,7 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [scopeMode, setScopeMode] = useState<ScopeMode>('all');
+  const [clickToFocus, setClickToFocus] = useState(true);
   const [showWeakLinks, setShowWeakLinks] = useState(false);
   const [activeRelationTypes, setActiveRelationTypes] = useState<Set<number>>(new Set());
   const [fullGraphData, setFullGraphData] = useState<GraphData | null>(null);
@@ -282,6 +283,130 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
   // 4. Hover Tooltip State — rich card shown on node hover
   const [hoveredNode, setHoveredNode] = useState<GraphNode | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
+
+  const activeHighlightIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    activeHighlightIdRef.current = selectedNode?.id || focusedNodeId;
+  }, [selectedNode, focusedNodeId]);
+
+  const clickToFocusRef = useRef(clickToFocus);
+  useEffect(() => { clickToFocusRef.current = clickToFocus; }, [clickToFocus]);
+
+  const applyHighlightStyles = useCallback((activeId: string | null) => {
+    if (!svgRef.current || !graphDataRef.current) return;
+    const svg = d3.select(svgRef.current);
+    
+    // Reset all selection classes first
+    svg.selectAll('.nv-node')
+       .classed('nv-highlight-node', false)
+       .classed('nv-selected-pulse', false)
+       .classed('nv-connected-node', false);
+    svg.selectAll('.nv-node-label')
+       .classed('nv-label-selected', false)
+       .classed('nv-connected-label', false);
+
+    if (!activeId) {
+      svg.selectAll('.nv-node, .nv-link-instance, .nv-link-typeinst, .nv-link-action, .nv-node-label, .nv-linktype-label')
+         .classed('nv-dim', false)
+         .classed('nv-dim-label', false)
+         .classed('nv-connected-node', false)
+         .classed('nv-connected-label', false);
+      svg.selectAll('.nv-link-instance, .nv-link-typeinst, .nv-link-action')
+         .style('stroke', null)
+         .style('stroke-width', null)
+         .style('opacity', null)
+         .attr('marker-end', (l: any) => {
+           if (l._linkTypeId !== undefined) return `url(#arrow-linktype-${l._linkTypeId})`;
+           const nodesMap = new Map(nodesRef.current.map(n => [n.id, n]));
+           const src = getSourceNode(l as any, nodesMap as any);
+           const tgt = getTargetNode(l as any, nodesMap as any);
+           if (src?.group === 'typeHub' || tgt?.group === 'typeHub') return null;
+           return 'url(#arrow-lavender)';
+         });
+      svg.selectAll('.nv-linktype-label')
+         .style('opacity', scopeMode === 'all' ? '0' : '0.82');
+      return;
+    }
+
+    const connectedIds = new Set<string>();
+    connectedIds.add(activeId);
+    
+    graphDataRef.current.links.forEach(l => {
+      const sId = typeof l.source === 'object' ? (l.source as any).id : l.source;
+      const tId = typeof l.target === 'object' ? (l.target as any).id : l.target;
+      if (sId === activeId) connectedIds.add(tId);
+      if (tId === activeId) connectedIds.add(sId);
+    });
+
+    // 1. Nodes highlighting & dimming
+    svg.selectAll('.nv-node')
+       .classed('nv-dim', (d: any) => !connectedIds.has(d.id))
+       .classed('nv-highlight-node', (d: any) => d.id === activeId)
+       .classed('nv-connected-node', (d: any) => d.id !== activeId && connectedIds.has(d.id))
+       .classed('nv-selected-pulse', (d: any) => d.id === activeId);
+       
+    svg.selectAll('.nv-node-label')
+       .classed('nv-dim-label', (d: any) => !connectedIds.has(d.id))
+       .classed('nv-connected-label', (d: any) => d.id !== activeId && connectedIds.has(d.id))
+       .classed('nv-label-selected', (d: any) => d.id === activeId);
+    
+    // 2. Links highlighting & dimming
+    const nodesMap = new Map(nodesRef.current.map(n => [n.id, n]));
+    svg.selectAll('.nv-link-instance, .nv-link-typeinst, .nv-link-action')
+      .classed('nv-dim', (l: any) => {
+        const sId = typeof l.source === 'object' ? (l.source as any).id : l.source;
+        const tId = typeof l.target === 'object' ? (l.target as any).id : l.target;
+        return sId !== activeId && tId !== activeId;
+      })
+      .style('stroke', (l: any) => {
+        const sId = typeof l.source === 'object' ? (l.source as any).id : l.source;
+        const tId = typeof l.target === 'object' ? (l.target as any).id : l.target;
+        if (sId === activeId || tId === activeId) return '#66d9ef';
+        return l.color;
+      })
+      .style('stroke-width', (l: any) => {
+        const sId = typeof l.source === 'object' ? (l.source as any).id : l.source;
+        const tId = typeof l.target === 'object' ? (l.target as any).id : l.target;
+        if (sId === activeId || tId === activeId) return '3px';
+        const w = Math.max(0.3, Math.min(1.0, l.weight ?? 0.5));
+        return `${(1 + (w - 0.3) * 2.0).toFixed(2)}px`;
+      })
+      .style('opacity', (l: any) => {
+        const sId = typeof l.source === 'object' ? (l.source as any).id : l.source;
+        const tId = typeof l.target === 'object' ? (l.target as any).id : l.target;
+        if (sId === activeId || tId === activeId) return '1.0';
+        return '0.08';
+      })
+      .attr('marker-end', (l: any) => {
+        const sId = typeof l.source === 'object' ? (l.source as any).id : l.source;
+        const tId = typeof l.target === 'object' ? (l.target as any).id : l.target;
+        if (sId === activeId || tId === activeId) {
+          return 'url(#arrow-highlight)';
+        }
+        if (l._linkTypeId !== undefined) return `url(#arrow-linktype-${l._linkTypeId})`;
+        const src = getSourceNode(l as any, nodesMap as any);
+        const tgt = getTargetNode(l as any, nodesMap as any);
+        if (src?.group === 'typeHub' || tgt?.group === 'typeHub') return null;
+        return 'url(#arrow-lavender)';
+      });
+      
+    svg.selectAll('.nv-linktype-label')
+      .classed('nv-dim-label', (l: any) => {
+        const sId = typeof l.source === 'object' ? (l.source as any).id : l.source;
+        const tId = typeof l.target === 'object' ? (l.target as any).id : l.target;
+        return sId !== activeId && tId !== activeId;
+      })
+      .style('opacity', (l: any) => {
+        const sId = typeof l.source === 'object' ? (l.source as any).id : l.source;
+        const tId = typeof l.target === 'object' ? (l.target as any).id : l.target;
+        return sId === activeId || tId === activeId ? '1.0' : '0.0';
+      });
+  }, [scopeMode]);
+
+  const applyHighlightStylesRef = useRef(applyHighlightStyles);
+  useEffect(() => {
+    applyHighlightStylesRef.current = applyHighlightStyles;
+  }, [applyHighlightStyles]);
 
   const refreshGraph = useCallback(async () => {
     // Read latest state from ref — keeps this callback identity stable
@@ -486,10 +611,20 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
 
       /* Node: clean, no persistent glow */
       .nv-node { cursor: move; }
-      /* Hover: restrained glow — soft drop-shadow only on TypeHub/Instance */
-      .nv-node:hover { filter: drop-shadow(0 2px 6px rgba(0,0,0,0.5)) !important; }
-      .nv-typehub:hover { filter: drop-shadow(0 3px 8px rgba(0,0,0,0.5)) !important; }
-      .nv-instance:hover { filter: drop-shadow(0 2px 6px rgba(0,0,0,0.4)) !important; }
+      /* Hover: SVG-safe hover highlight using stroke instead of group drop-shadow to avoid browser rendering bugs */
+      .nv-node:hover circle {
+        stroke: #66d9ef !important;
+        stroke-width: 2.5px !important;
+        stroke-opacity: 1.0 !important;
+      }
+      .nv-typehub:hover circle {
+        stroke: #66d9ef !important;
+        stroke-width: 3.5px !important;
+      }
+      .nv-action:hover circle {
+        stroke: #66d9ef !important;
+        stroke-width: 2.0px !important;
+      }
 
       /* Labels */
       .nv-node-label {
@@ -506,21 +641,36 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
         text-shadow: 0 0 3px #000;
       }
 
-      /* Search/select: highlight without heavy glow */
-      .nv-highlight-node { filter: drop-shadow(0 2px 8px rgba(0,0,0,0.6)) !important; }
-      .nv-dim { opacity: 0.08 !important; }
-      .nv-dim-label { opacity: 0 !important; }
+      /* Search/select: highlight without heavy glow (SVG-safe) */
+      .nv-highlight-node circle {
+        stroke: #FFD166 !important;
+        stroke-width: 3px !important;
+        stroke-opacity: 1.0 !important;
+      }
+      .nv-dim { opacity: 0.28 !important; transition: opacity 0.25s ease !important; }
+      .nv-dim-label { opacity: 0.22 !important; transition: opacity 0.25s ease !important; }
+      .nv-node, .nv-links path, .nv-node-label, .nv-linktype-label {
+        transition: opacity 0.25s ease, stroke-width 0.25s ease, stroke 0.25s ease, filter 0.25s ease;
+      }
+      .nv-is-dragging .nv-dim { opacity: 0.65 !important; }
+      .nv-is-dragging .nv-dim-label { opacity: 0.5 !important; }
       .nv-label-selected { fill: #FFD166 !important; font-size: 13px !important; font-weight: bold !important; }
       .nv-label-match { fill: #4CC9F0 !important; }
       .nv-hidden { display: none !important; }
       .nv-svg { overflow: visible; }
 
-      /* Selected node: gentle pulse (reduced from 18px glow to 8px) */
-      .nv-selected-pulse { animation: nv-pulse-subtle 2s ease-out infinite; }
-      @keyframes nv-pulse-subtle {
-        0%   { filter: drop-shadow(0 0 4px #FFD166); opacity: 0.85; }
-        50%  { filter: drop-shadow(0 0 10px #FFD166); opacity: 1; }
-        100% { filter: drop-shadow(0 0 4px #FFD166); opacity: 0.85; }
+      /* Connected nodes style */
+      .nv-connected-node circle { stroke: #66d9ef !important; stroke-width: 2.5px !important; opacity: 1.0 !important; }
+      .nv-connected-label { fill: #66d9ef !important; font-size: 11px !important; font-weight: bold !important; opacity: 1.0 !important; }
+
+      /* Selected node: gentle pulse on the stroke (no group drop-shadow to avoid Chromium layout bugs) */
+      .nv-selected-pulse circle {
+        animation: nv-pulse-stroke 2s infinite ease-in-out;
+      }
+      @keyframes nv-pulse-stroke {
+        0%   { stroke-width: 1.5px; stroke-opacity: 0.6; }
+        50%  { stroke-width: 4.5px; stroke-opacity: 1.0; stroke: #FFD166; }
+        100% { stroke-width: 1.5px; stroke-opacity: 0.6; }
       }
 
       /* Hub node: subtle warm pulse to indicate the graph's focal point */
@@ -716,7 +866,7 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
 
     // Links
     const linkGroup = g.append('g').attr('class', 'nv-links');
-    const defs = g.append('defs');
+    const defs = svg.append('defs').style('display', 'none');
     const mkArrow = (id: string, color: string, opacity = 1) =>
       defs.append('marker')
         .attr('id', id).attr('markerWidth', 6).attr('markerHeight', 4)
@@ -726,6 +876,7 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
         .attr('fill', color)
         .attr('opacity', opacity);
     mkArrow('arrow-lavender', '#FF9CF7');
+    mkArrow('arrow-highlight', '#66d9ef');
     Array.from(new Map(
       renderLinks
         .filter(link => link._linkTypeId !== undefined)
@@ -788,6 +939,7 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
         if (src?.group === 'typeHub' || tgt?.group === 'typeHub') return 'nv-link-typeinst';
         return 'nv-link-action';
       })
+      .style('fill', 'none')
       .style('stroke', (d: GraphLink) => d.color)
       .style('stroke-dasharray', (d: GraphLink) => {
         if (d._linkTypeId === undefined) return null;
@@ -829,44 +981,7 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
 
     linkElsRef.current = linkEls;
 
-    let enforceInterval = setInterval(() => {
-      const currentHighlightId = (window as any).__currentNodeId || (window as any).__focusedNodeId;
-      
-      d3.selectAll<SVGPathElement, GraphLink>('.nv-link-instance, .nv-link-typeinst, .nv-link-action')
-        .style('stroke', (d: GraphLink) => {
-          if (currentHighlightId) {
-            const s = typeof d.source === 'object' ? (d.source as GraphNode).id : d.source;
-            const t = typeof d.target === 'object' ? (d.target as GraphNode).id : d.target;
-            if (s === currentHighlightId || t === currentHighlightId) {
-              return '#66d9ef';
-            }
-          }
-          return d.color;
-        })
-        .style('stroke-dasharray', (d: GraphLink) => {
-          if (d._linkTypeId === undefined) return null;
-          return LINKTYPE_DASH[(d._linkTypeId - 1) % LINKTYPE_DASH.length];
-        })
-        .style('opacity', (d: GraphLink) => {
-          if (currentHighlightId) {
-            const s = typeof d.source === 'object' ? (d.source as GraphNode).id : d.source;
-            const t = typeof d.target === 'object' ? (d.target as GraphNode).id : d.target;
-            if (s === currentHighlightId || t === currentHighlightId) return '1.0';
-            return '0.08';
-          }
-          const w = Math.max(0.3, Math.min(1.0, d.weight ?? 0.5));
-          return (0.45 + (w - 0.3) * 0.79).toFixed(2);
-        })
-        .style('stroke-width', (d: GraphLink) => {
-          if (currentHighlightId) {
-            const s = typeof d.source === 'object' ? (d.source as GraphNode).id : d.source;
-            const t = typeof d.target === 'object' ? (d.target as GraphNode).id : d.target;
-            if (s === currentHighlightId || t === currentHighlightId) return '3px';
-          }
-          const w = Math.max(0.3, Math.min(1.0, d.weight ?? 0.5));
-          return `${(1 + (w - 0.3) * 2.0).toFixed(2)}px`;
-        });
-    }, 1500);
+    // Removed 1.5s setInterval style enforcement
 
     // Viewport culling: skip rendering updates for nodes far outside visible area.
     // With many nodes, this reduces DOM operations significantly.
@@ -895,6 +1010,7 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
       event.sourceEvent.stopPropagation();
       if (!event.active) sim.alphaTarget(0.3).restart();
       d.fx = d.x; d.fy = d.y;
+      svg.classed('nv-is-dragging', true);
     };
     const dragged = (event: d3.D3DragEvent<SVGGElement, GraphNode, GraphNode>, d: GraphNode) => {
       event.sourceEvent.stopPropagation();
@@ -903,6 +1019,7 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
     const dragended = (event: d3.D3DragEvent<SVGGElement, GraphNode, GraphNode>, _d: GraphNode) => {
       event.sourceEvent.stopPropagation();
       if (!event.active) sim.alphaTarget(0);
+      svg.classed('nv-is-dragging', false);
     };
 
     // Type Hub nodes
@@ -1007,11 +1124,7 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
         ? 'nv-node-label nv-typehub-label'
         : 'nv-node-label')
       .text((d: GraphNode) => {
-        // typeHub: show description as VALUE label; instance/action: show name
-        if (d.group === 'typeHub') {
-          const label = d.description || d.label;
-          return label.length > LABEL_MAX ? label.slice(0, LABEL_MAX) + '…' : label;
-        }
+        // Always show name (label) on the node; description is for tooltip/hover only
         return d.label.length > LABEL_MAX ? d.label.slice(0, LABEL_MAX) + '…' : d.label;
       })
       .style('font-size', (d: GraphNode) => d._focusLevel === 0 ? '15px' : d.group === 'typeHub' ? '12px' : d._focusLevel === 1 ? '11px' : '9px')
@@ -1141,20 +1254,19 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
       }
     });
     allNodeGroups.on('mouseout', () => {
-      d3.selectAll<SVGTextElement, GraphLink>('.nv-linktype-label').style('opacity', scopeMode === 'all' ? '0' : '0.82');
-      d3.selectAll<SVGPathElement, GraphLink>('.nv-link-instance')
-        .style('opacity', (l: GraphLink) => {
-          if (!showWeakLinks && l.weight !== undefined && l.weight < weightThreshold) return '0';
-          const w = Math.max(0.3, Math.min(1.0, l.weight ?? 0.5));
-          return (0.45 + (w - 0.3) * 0.79).toFixed(2);
-        });
       setHoveredNode(null);
+      // Restore selections if any, otherwise reset to default
+      applyHighlightStylesRef.current(activeHighlightIdRef.current);
     });
     allNodeGroups.on('click', (event: MouseEvent, d: GraphNode) => {
       event.stopPropagation();
       setSelectedNode(d);
       showNodeInfo(d, data);
       (window as any).__currentNodeId = d.id;
+      if (clickToFocusRef.current) {
+        setFocusedNodeId(d.id);
+        setScopeMode('focus');
+      }
     });
     allNodeGroups.on('dblclick', (event: MouseEvent, d: GraphNode) => {
       event.stopPropagation();
@@ -1173,11 +1285,18 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
       setSelectedNode(null);
       setFocusedNodeId(null);
       setHoveredNode(null);
+      if (clickToFocusRef.current) {
+        setScopeMode('all');
+      }
       (window as any).__currentNodeId = null;
       (window as any).__focusedNodeId = null;
     });
 
     setD3Ready(true);
+
+    // Highlight existing selection on mount/update
+    const activeHighlightId = selectedNode?.id || focusedNodeId;
+    applyHighlightStyles(activeHighlightId);
 
     // P1-Fix: Fallback fitAll — ensures labels/edges are visible even if the
     // simulation's onEnd callback never fires (e.g. simulation killed before cooling down).
@@ -1191,11 +1310,11 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
       svg.attr('width', w).attr('height', h);
       simulationRef.current.force('center', d3.forceCenter(w / 2, h / 2));
       simulationRef.current.alpha(0.1).restart();
+      (window as any).__d3FitAll?.();
     });
     ro.observe(containerRef.current);
 
     return () => {
-      clearInterval(enforceInterval);
       clearTimeout(fitAllTimer);
       ro.disconnect();
       simulationRef.current?.stop();
@@ -1232,102 +1351,15 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
     sim.alpha(0.3).restart();
   }, [chargeStrength, linkDistance, collisionRadius]);
 
+  // Moved applyHighlightStyles up
+
   // Highlight Mode Visual Updates (Selection & Focus)
   useEffect(() => {
-    if (!svgRef.current || !graphData) return;
-    const svg = d3.select(svgRef.current);
-    
     const activeHighlightId = selectedNode?.id || focusedNodeId;
     (window as any).__currentNodeId = selectedNode?.id || null;
     (window as any).__focusedNodeId = focusedNodeId;
-    
-    // Reset all selection classes first
-    svg.selectAll('.nv-node')
-       .classed('nv-highlight-node', false)
-       .classed('nv-selected-pulse', false);
-    svg.selectAll('.nv-node-label')
-       .classed('nv-label-selected', false);
-
-    if (!activeHighlightId) {
-      svg.selectAll('.nv-node, .nv-link-instance, .nv-link-typeinst, .nv-link-action, .nv-node-label, .nv-linktype-label')
-         .classed('nv-dim', false)
-         .classed('nv-dim-label', false);
-      svg.selectAll('.nv-link-instance, .nv-link-typeinst, .nv-link-action')
-         .style('stroke', null)
-         .style('stroke-width', null)
-         .style('opacity', null);
-      svg.selectAll('.nv-linktype-label')
-         .style('opacity', scopeMode === 'all' ? '0' : '0.82');
-      return;
-    }
-
-    const connectedIds = new Set<string>();
-    connectedIds.add(activeHighlightId);
-    
-    graphData.links.forEach(l => {
-      const sId = typeof l.source === 'object' ? (l.source as any).id : l.source;
-      const tId = typeof l.target === 'object' ? (l.target as any).id : l.target;
-      if (sId === activeHighlightId) connectedIds.add(tId);
-      if (tId === activeHighlightId) connectedIds.add(sId);
-    });
-
-    // 1. Nodes highlighting & dimming
-    svg.selectAll('.nv-node')
-       .classed('nv-dim', (d: any) => !connectedIds.has(d.id))
-       .classed('nv-highlight-node', (d: any) => d.id === activeHighlightId)
-       .classed('nv-selected-pulse', (d: any) => d.id === activeHighlightId);
-       
-    svg.selectAll('.nv-node-label')
-       .classed('nv-dim-label', (d: any) => !connectedIds.has(d.id))
-       .classed('nv-label-selected', (d: any) => d.id === activeHighlightId);
-    
-    // 2. Links highlighting & dimming
-    svg.selectAll('.nv-link-instance, .nv-link-typeinst, .nv-link-action')
-      .classed('nv-dim', (l: any) => {
-        const sId = typeof l.source === 'object' ? (l.source as any).id : l.source;
-        const tId = typeof l.target === 'object' ? (l.target as any).id : l.target;
-        return sId !== activeHighlightId && tId !== activeHighlightId;
-      })
-      .style('stroke', (l: any) => {
-        const sId = typeof l.source === 'object' ? (l.source as any).id : l.source;
-        const tId = typeof l.target === 'object' ? (l.target as any).id : l.target;
-        if (sId === activeHighlightId || tId === activeHighlightId) {
-          // Highlight with high-contrast tech color
-          return '#66d9ef';
-        }
-        return l.color;
-      })
-      .style('stroke-width', (l: any) => {
-        const sId = typeof l.source === 'object' ? (l.source as any).id : l.source;
-        const tId = typeof l.target === 'object' ? (l.target as any).id : l.target;
-        if (sId === activeHighlightId || tId === activeHighlightId) {
-          return '3px';
-        }
-        const w = Math.max(0.3, Math.min(1.0, l.weight ?? 0.5));
-        return `${(1 + (w - 0.3) * 2.0).toFixed(2)}px`;
-      })
-      .style('opacity', (l: any) => {
-        const sId = typeof l.source === 'object' ? (l.source as any).id : l.source;
-        const tId = typeof l.target === 'object' ? (l.target as any).id : l.target;
-        if (sId === activeHighlightId || tId === activeHighlightId) {
-          return '1.0';
-        }
-        return '0.08';
-      });
-      
-    svg.selectAll('.nv-linktype-label')
-      .classed('nv-dim-label', (l: any) => {
-        const sId = typeof l.source === 'object' ? (l.source as any).id : l.source;
-        const tId = typeof l.target === 'object' ? (l.target as any).id : l.target;
-        return sId !== activeHighlightId && tId !== activeHighlightId;
-      })
-      .style('opacity', (l: any) => {
-        const sId = typeof l.source === 'object' ? (l.source as any).id : l.source;
-        const tId = typeof l.target === 'object' ? (l.target as any).id : l.target;
-        return sId === activeHighlightId || tId === activeHighlightId ? '1.0' : '0.0';
-      });
-
-  }, [focusedNodeId, selectedNode, graphData, scopeMode]);
+    applyHighlightStyles(activeHighlightId);
+  }, [focusedNodeId, selectedNode, graphData, applyHighlightStyles]);
 
   // Weight Threshold Filter — update link display when threshold changes
   useEffect(() => {
@@ -1403,72 +1435,7 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
     }
   }
 
-  function highlightSelectedNode(
-    nodeId: string, nodes: GraphNode[],
-    linkEls: d3.Selection<SVGPathElement, GraphLink, SVGGElement, unknown>,
-    labelEls: d3.Selection<SVGTextElement, GraphNode, SVGGElement, unknown>,
-    allNodeGroups: d3.Selection<SVGGElement, GraphNode, SVGGElement, unknown>
-  ) {
-    // Restore weight-mapped styles before applying selection highlight
-    linkEls.style('opacity', (d: GraphLink) => {
-      const w = Math.max(0.3, Math.min(1.0, d.weight ?? 0.5));
-      return (0.45 + (w - 0.3) * 0.79).toFixed(2);
-    }).style('stroke-width', (d: GraphLink) => {
-      const w = Math.max(0.3, Math.min(1.0, d.weight ?? 0.5));
-      return `${(1 + (w - 0.3) * 5.0).toFixed(2)}px`;
-    });
-
-    allNodeGroups.classed('nv-highlight-node', (d: GraphNode) => d.id === nodeId);
-    allNodeGroups.classed('nv-selected-pulse', (d: GraphNode) => d.id === nodeId);
-    labelEls.classed('nv-label-selected', (d: GraphNode) => d.id === nodeId);
-
-    linkEls
-      .style('opacity', (l: GraphLink) => {
-        const s = typeof l.source === 'object' ? (l.source as GraphNode).id : l.source;
-        const t = typeof l.target === 'object' ? (l.target as GraphNode).id : l.target;
-        return s === nodeId || t === nodeId ? 1 : 0.25;
-      })
-      .style('stroke-width', (l: GraphLink) => {
-        const s = typeof l.source === 'object' ? (l.source as GraphNode).id : l.source;
-        const t = typeof l.target === 'object' ? (l.target as GraphNode).id : l.target;
-        if (s !== nodeId && t !== nodeId) {
-          const w = Math.max(0.3, Math.min(1.0, l.weight ?? 0.5));
-          return `${(1 + (w - 0.3) * 5.0).toFixed(2)}px`;
-        }
-        const w = Math.max(0.3, Math.min(1.0, l.weight ?? 0.5));
-        const baseW = 1 + (w - 0.3) * 5.0;
-        return `${(baseW * 1.6).toFixed(2)}px`;
-      });
-  }
-
-  function resetHighlights(
-    nodes: GraphNode[],
-    linkEls: d3.Selection<SVGPathElement, GraphLink, SVGGElement, unknown>,
-    labelEls: d3.Selection<SVGTextElement, GraphNode, SVGGElement, unknown>,
-    allNodeGroups: d3.Selection<SVGGElement, GraphNode, SVGGElement, unknown>
-  ) {
-    // Restore weight-mapped styles for instance links
-    linkEls.filter((d: GraphLink) => d._linkTypeId !== undefined)
-      .style('opacity', (d: GraphLink) => {
-        const w = Math.max(0.3, Math.min(1.0, d.weight ?? 0.5));
-        return (0.45 + (w - 0.3) * 0.79).toFixed(2);
-      })
-      .style('stroke-width', (d: GraphLink) => {
-        const w = Math.max(0.3, Math.min(1.0, d.weight ?? 0.5));
-        return `${(1 + (w - 0.3) * 5.0).toFixed(2)}px`;
-      })
-      .style('stroke-dasharray', (d: GraphLink) => {
-        if (d._linkTypeId === undefined) return null;
-        return LINKTYPE_DASH[(d._linkTypeId - 1) % LINKTYPE_DASH.length];
-      });
-    d3.selectAll<SVGPathElement, GraphLink>('.nv-link-typeinst')
-      .style('opacity', 0.42).style('stroke-width', '1px');
-    d3.selectAll<SVGPathElement, GraphLink>('.nv-link-action')
-      .style('opacity', 0.78).style('stroke-width', '1.6px');
-    labelEls.style('fill', 'white').style('font-size', null).style('font-weight', null).classed('nv-label-selected', false);
-    allNodeGroups.classed('nv-highlight-node', false).classed('nv-selected-pulse', false);
-    setInfoContent('');
-  }
+  // Redundant helper functions highlightedSelectedNode and resetHighlights removed
 
   function showNodeInfo(d: GraphNode, data: GraphData) {
     const groupLabels: Record<string, string> = {
@@ -1717,7 +1684,7 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
       ref={containerRef}
       style={{
         width: '100%', height: '100%',
-        background: 'radial-gradient(circle at center, #2d2a23 0%, #1e1b16 60%, #0f0e0b 100%)',
+        background: '#0c0d12',
         position: 'relative', overflow: 'hidden',
       }}
     >
@@ -1752,7 +1719,6 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
                 n.setAttribute('data-node-id', String(next.id));
               });
               setSelectedNode(next);
-              highlightSelectedNode(next.id, nodesRef.current, lg, lb, ag);
               showNodeInfo(next, graphDataRef.current);
               setFocusedNodeId(next.id);
             }
@@ -1771,7 +1737,6 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
           if (e.key === 'Escape') {
             setSelectedNode(null);
             setFocusedNodeId(null);
-            resetHighlights(nodesRef.current, lg, lb, ag);
           }
         }}
       />
@@ -2017,10 +1982,36 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
               刷新数据
             </button>
             {focusedNodeId && (
-              <button onClick={() => setFocusedNodeId(null)} style={{ ...btnStyle, flex: 1, background: '#E76F51', borderColor: '#E76F51' }}>
+              <button onClick={() => { setFocusedNodeId(null); setScopeMode('all'); }} style={{ ...btnStyle, flex: 1, background: '#E76F51', borderColor: '#E76F51', color: '#fff' }}>
                 ✕ 退出降噪聚焦
               </button>
             )}
+          </div>
+          <div style={{ display: 'flex', gap: 5, marginTop: 5 }}>
+            <button
+              onClick={() => {
+                const nextVal = !clickToFocus;
+                setClickToFocus(nextVal);
+                if (!nextVal) {
+                  setScopeMode('all');
+                  setFocusedNodeId(null);
+                } else if (selectedNode) {
+                  setFocusedNodeId(selectedNode.id);
+                  setScopeMode('focus');
+                }
+              }}
+              style={{
+                ...btnStyle,
+                width: '100%',
+                borderColor: clickToFocus ? '#FFD166' : 'rgba(245,239,224,0.15)',
+                color: clickToFocus ? '#FFD166' : '#888',
+                background: clickToFocus ? 'rgba(255,209,102,0.08)' : btnStyle.background,
+                fontSize: 10,
+                padding: '5px 8px',
+              }}
+            >
+              🎯 点击节点自动降噪聚焦: {clickToFocus ? '已开启' : '已关闭'}
+            </button>
           </div>
 
           {/* Quick Clear */}

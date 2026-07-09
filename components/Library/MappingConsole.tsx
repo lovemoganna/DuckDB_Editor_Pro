@@ -92,7 +92,7 @@ export const MappingConsole: React.FC = () => {
   return (
     <div className="space-y-6 p-4 bg-black/20 rounded-xl border border-monokai-accent/10">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-xs font-black text-monokai-cyan uppercase tracking-widest flex items-center gap-2">
+        <h3 className="text-xs font-bold text-monokai-cyan uppercase tracking-widest flex items-center gap-2">
           <Database className="w-3 h-3" />
           Mapping Console 映射中心
         </h3>
@@ -108,7 +108,7 @@ export const MappingConsole: React.FC = () => {
 
       {showImporter && (
         <div className="mb-6 p-4 bg-monokai-cyan/5 border border-monokai-cyan/20 rounded-xl animate-in fade-in zoom-in-95">
-          <div className="flex items-center justify-between mb-3 text-[10px] uppercase font-black tracking-widest text-monokai-cyan">
+          <div className="flex items-center justify-between mb-3 text-[11px] uppercase font-black tracking-widest text-monokai-cyan">
              <span>Data Bridge 通用导入器</span>
              <span className="text-monokai-comment font-normal normal-case italic">Excel, CSV, JSON...</span>
           </div>
@@ -124,14 +124,14 @@ export const MappingConsole: React.FC = () => {
         {/* Objects Table */}
         <div className="space-y-2 p-3 bg-monokai-sidebar/20 rounded-lg border border-monokai-accent/5">
           <div className="flex items-center justify-between">
-            <label className="text-[10px] text-monokai-comment font-bold uppercase flex items-center gap-1.5">
+            <label className="text-xs text-monokai-comment font-bold uppercase flex items-center gap-1.5">
               <Layers className="w-3.5 h-3.5 text-monokai-purple" />
               对象表 (Objects Table)
             </label>
             {state.mapping.objectTable && (
               <button
                 onClick={() => toggleExpand('objectTable')}
-                className="text-[10px] text-monokai-cyan hover:underline flex items-center gap-0.5"
+                className="text-[11px] text-monokai-cyan hover:underline flex items-center gap-0.5"
               >
                 {expandedMapping.objectTable ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
                 高级列映射
@@ -149,19 +149,19 @@ export const MappingConsole: React.FC = () => {
 
           {expandedMapping.objectTable && state.mapping.objectTable && (
             <div className="pt-2.5 mt-2.5 border-t border-monokai-accent/5 space-y-2.5 animate-in slide-in-from-top-1 duration-200">
-              <p className="text-[9px] text-monokai-comment italic">指定数据源的物理列以映射到 Ontology 核心对象模型：</p>
+              <p className="text-[11px] text-monokai-comment italic">指定数据源的物理列以映射到 Ontology 核心对象模型：</p>
               {OBJECT_FIELDS.map(f => {
                 const cols = tableCols[state.mapping.objectTable] || [];
                 const mappedVal = state.mapping.objectFields?.[f.key] || '';
                 return (
                   <div key={f.key} className="grid grid-cols-5 items-center gap-2">
-                    <span className="col-span-2 text-[10px] text-monokai-fg/80 truncate" title={f.label}>
+                    <span className="col-span-2 text-[11px] text-monokai-fg/80 truncate" title={f.label}>
                       {f.label} {f.required && <span className="text-monokai-red">*</span>}
                     </span>
                     <select
                       value={mappedVal}
                       onChange={(e) => updateColumnMapping('objectFields', f.key, e.target.value)}
-                      className="col-span-3 bg-monokai-bg/60 border border-monokai-accent/15 rounded px-2 py-1 text-[11px] text-monokai-fg outline-none focus:border-monokai-cyan"
+                      className="col-span-3 bg-monokai-bg/60 border border-monokai-accent/15 rounded px-2 py-1 text-xs text-monokai-fg outline-none focus:border-monokai-cyan"
                     >
                       <option value="">-- 默认 --</option>
                       {cols.map(c => <option key={c} value={c}>{c}</option>)}
@@ -176,14 +176,14 @@ export const MappingConsole: React.FC = () => {
         {/* Links Table */}
         <div className="space-y-2 p-3 bg-monokai-sidebar/20 rounded-lg border border-monokai-accent/5">
           <div className="flex items-center justify-between">
-            <label className="text-[10px] text-monokai-comment font-bold uppercase flex items-center gap-1.5">
+            <label className="text-xs text-monokai-comment font-bold uppercase flex items-center gap-1.5">
               <Link2 className="w-3.5 h-3.5 text-monokai-yellow" />
               关系表 (Links Table)
             </label>
             {state.mapping.linkTable && (
               <button
                 onClick={() => toggleExpand('linkTable')}
-                className="text-[10px] text-monokai-cyan hover:underline flex items-center gap-0.5"
+                className="text-[11px] text-monokai-cyan hover:underline flex items-center gap-0.5"
               >
                 {expandedMapping.linkTable ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
                 高级列映射
@@ -201,19 +201,19 @@ export const MappingConsole: React.FC = () => {
 
           {expandedMapping.linkTable && state.mapping.linkTable && (
             <div className="pt-2.5 mt-2.5 border-t border-monokai-accent/5 space-y-2.5 animate-in slide-in-from-top-1 duration-200">
-              <p className="text-[9px] text-monokai-comment italic">指定数据源的物理列以映射到 Ontology 关系模型：</p>
+              <p className="text-[11px] text-monokai-comment italic">指定数据源的物理列以映射到 Ontology 关系模型：</p>
               {LINK_FIELDS.map(f => {
                 const cols = tableCols[state.mapping.linkTable] || [];
                 const mappedVal = state.mapping.linkFields?.[f.key] || '';
                 return (
                   <div key={f.key} className="grid grid-cols-5 items-center gap-2">
-                    <span className="col-span-2 text-[10px] text-monokai-fg/80 truncate" title={f.label}>
+                    <span className="col-span-2 text-[11px] text-monokai-fg/80 truncate" title={f.label}>
                       {f.label} {f.required && <span className="text-monokai-red">*</span>}
                     </span>
                     <select
                       value={mappedVal}
                       onChange={(e) => updateColumnMapping('linkFields', f.key, e.target.value)}
-                      className="col-span-3 bg-monokai-bg/60 border border-monokai-accent/15 rounded px-2 py-1 text-[11px] text-monokai-fg outline-none focus:border-monokai-cyan"
+                      className="col-span-3 bg-monokai-bg/60 border border-monokai-accent/15 rounded px-2 py-1 text-xs text-monokai-fg outline-none focus:border-monokai-cyan"
                     >
                       <option value="">-- 默认 --</option>
                       {cols.map(c => <option key={c} value={c}>{c}</option>)}
@@ -232,11 +232,11 @@ export const MappingConsole: React.FC = () => {
             { label: '关系类型表', key: 'linkTypeTable' },
           ].map((item) => (
             <div key={item.key} className="space-y-1">
-              <label className="text-[9px] text-monokai-comment font-bold uppercase">{item.label}</label>
+              <label className="text-[11px] text-monokai-comment font-bold uppercase">{item.label}</label>
               <select
                 value={state.mapping[item.key as keyof typeof state.mapping] as string}
                 onChange={(e) => updateMapping(item.key, e.target.value)}
-                className="w-full bg-monokai-sidebar/40 border border-monokai-accent/15 rounded px-2.5 py-1.5 text-[11px] text-monokai-fg outline-none focus:border-monokai-cyan transition-colors"
+                className="w-full bg-monokai-sidebar/40 border border-monokai-accent/15 rounded px-2.5 py-1.5 text-xs text-monokai-fg outline-none focus:border-monokai-cyan transition-colors"
               >
                 <option value="">-- 选择表 --</option>
                 {tables.map(t => <option key={t} value={t}>{t}</option>)}
@@ -257,7 +257,7 @@ export const MappingConsole: React.FC = () => {
       </div>
 
       <div className="p-3 bg-monokai-bg/40 rounded-lg border border-monokai-accent/5">
-        <p className="text-[10px] text-monokai-comment leading-normal italic">
+        <p className="text-[11px] text-monokai-comment leading-normal italic">
           提示：若导入的临时表列名不匹配，可展开高级列映射，手动指定物理列映射。
         </p>
       </div>

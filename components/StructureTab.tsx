@@ -69,7 +69,7 @@ const SchemaGraph: React.FC<{ fullSchemaTree: Record<string, ColumnInfo[]> }> = 
     return (
         <div className="overflow-auto h-full bg-[#1e1f1c] relative p-10 rounded border border-monokai-accent/30 shadow-inner">
             <svg width="100%" height="1500" className="absolute top-0 left-0 pointer-events-none">
-                <defs>
+                <defs style={{ display: 'none' }}>
                     <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
                         <polygon points="0 0, 10 3.5, 0 7" fill="#66d9ef" />
                     </marker>

@@ -1,23 +1,16 @@
 /**
- * 本体论数据模型 - "我的人生"版本
+ * 本体论数据模型 - 本体建模教育版 (Palantir 本体论版 - 精简版)
  *
- * 本教程统一使用的基础数据模型
- * 业务场景：个人生活管理 / 自我认知
- *
- * 该模型包含 8 张核心表，贯穿所有 SQL 教学示例：
- * - life_object_type:     对象类型（生活维度、人物、目标）
- * - life_object:          对象实例（心态、工作、家庭、身体）
- * - life_link_type:      链接类型（影响、养活、锚定、支撑）
- * - life_link:           对象链接（关系实例，连接两个对象）
- * - life_action:          行动（尚未执行的操作，关联到对象）
- * - life_introspection:   反思记录（问题与回答）
- * - life_insight:         洞察（闪念与标签）
- * - life_canvas_state:    Canvas 布局状态（画布空间与项目位置）
- *
- * 使用说明：
- * 1. 先执行建表语句创建 8 张表
- * 2. 再执行 INSERT 语句插入种子数据
- * 3. 之后所有 SQL 示例均可基于此数据模型运行
+ * 该模型包含 9 张核心表，基于 Palantir Foundry 的本体设计思想：
+ * - life_object_type:     对象类型（核心元、控制元）
+ * - life_object:          对象实例（对象类型、链接类型、行动类型、属性、逻辑函数、对象接口）
+ * - life_link_type:      链接类型（从属于、定义关联、作用于、驱动计算、实现接口）
+ * - life_link:           对象链接（关系链接拓扑）
+ * - life_action:          行动（属性回写、函数计算、数据同步）
+ * - life_introspection:   反思记录（探讨双向操作孪生、多态接口复用等）
+ * - life_insight:         洞察（业务操作系统、单源真实性总结）
+ * - life_canvas_state:    Canvas 布局状态
+ * - life_canvas_edge:     Canvas 画布连线
  */
 
 // ============================================
@@ -25,14 +18,10 @@
 // ============================================
 
 export const ONTOLOGY_CREATE_TABLES = `-- ═══════════════════════════════════════
--- 本体论教学数据模型 - "我的人生"
--- 业务场景：个人生活管理 / 自我认知
--- 
--- 核心思想：Object（对象）+ Link（关系）+ Action（行动）
+-- 本体论教学数据模型 - Palantir 本体模型精简版
 -- ═══════════════════════════════════════
 
 -- ① 对象类型表
--- 定义生活中的实体分类
 CREATE TABLE life_object_type (
     id INTEGER PRIMARY KEY,
     name VARCHAR NOT NULL,
@@ -40,7 +29,6 @@ CREATE TABLE life_object_type (
 );
 
 -- ② 对象实例表
--- 生活中的具体实体
 CREATE TABLE life_object (
     id INTEGER PRIMARY KEY,
     object_type_id INTEGER REFERENCES life_object_type(id),
@@ -50,7 +38,6 @@ CREATE TABLE life_object (
 );
 
 -- ③ 链接类型表
--- 定义实体之间的关系类型
 CREATE TABLE life_link_type (
     id INTEGER PRIMARY KEY,
     name VARCHAR NOT NULL,
@@ -58,7 +45,6 @@ CREATE TABLE life_link_type (
 );
 
 -- ④ 对象链接表
--- 具体的实体关系
 CREATE TABLE life_link (
     id INTEGER PRIMARY KEY,
     link_type_id INTEGER REFERENCES life_link_type(id),
@@ -68,7 +54,6 @@ CREATE TABLE life_link (
 );
 
 -- ⑤ 行动表
--- 尚未执行的操作
 CREATE TABLE life_action (
     id INTEGER PRIMARY KEY,
     object_id INTEGER REFERENCES life_object(id),
@@ -121,56 +106,67 @@ CREATE TABLE life_canvas_edge (
 
 export const ONTOLOGY_SEED_DATA = `-- ═══════════════════════════════════════
 -- 种子数据
--- 说明：以下数据模拟"我的人生"本体论
+-- 说明：以下数据模拟 Palantir 本体建模自身的核心定义
 -- ═══════════════════════════════════════
 
--- 对象类型（3 种类型）
+-- 对象类型（2 种类型）
 INSERT INTO life_object_type VALUES
-    (1, 'Aspect', '生活维度'),
-    (2, 'Person', '人物'),
-    (3, 'Goal', '目标');
+    (1, '核心元', '实体与关系'),
+    (2, '控制元', '运算与操作');
 
--- 对象实例（4 个核心对象）
-INSERT INTO life_object (id, object_type_id, name, properties) VALUES
-    (1, 1, '心态', '{"state": "焦虑", "goal": "内心平静"}'),
-    (2, 1, '工作', '{"role": "工程师", "struggle": "沟通与办公室政治"}'),
-    (3, 1, '家庭', '{"priority": "最高"}'),
-    (4, 1, '身体', '{"state": "还行", "goal": "健康"}');
+-- 对象实例（6 个核心元对象）
+INSERT INTO life_object (id, object_type_id, name, properties, annotations) VALUES
+    (1, 1, '对象类型', '{"数据源表": "主物理表", "主键字段": "标识键", "启用共享": true}', '数字孪生体'),
+    (2, 1, '链接类型', '{"关联映射": "外键联合表", "对应基数": "多对多"}', '关联关系'),
+    (3, 2, '行动类型', '{"回写模式": "同步事务回写", "授权范围": "操作员组"}', '回写操作'),
+    (4, 1, '属性', '{"字段类型": "字符型", "主键约束": false, "敏感评级": "普通"}', '特征字段'),
+    (5, 2, '逻辑函数', '{"执行环境": "计算引擎节点", "输入参数": "属性集合"}', '指标运算'),
+    (6, 1, '对象接口', '{"共享特征": ["标识码", "修改时间"], "多态继承": true}', '多态复用');
 
--- 链接类型（4 种关系类型）
+-- 链接类型（5 种关系类型）
 INSERT INTO life_link_type VALUES
-    (1, '影响', 'A 作用于 B'),
-    (2, '养活', 'A 为 B 提供物质基础'),
-    (3, '锚定', 'A 为 B 提供精神支撑'),
-    (4, '支撑', 'A 为 B 提供基础条件');
+    (1, '从属于', '包含归属'),
+    (2, '定义关联', '声明关系'),
+    (3, '作用于', '修改目标'),
+    (4, '驱动计算', '重算特征'),
+    (5, '实现接口', '协议遵从');
 
--- 对象链接（4 条关系实例）
+-- 对象链接（5 条关系实例）
 INSERT INTO life_link VALUES
-    (1, 1, 1, 2, 0.9),   -- 心态 -> 影响 -> 工作
-    (2, 2, 2, 3, 1.0),   -- 工作 -> 养活 -> 家庭
-    (3, 3, 3, 1, 0.8),   -- 家庭 -> 锚定 -> 心态
-    (4, 4, 4, 1, 0.7);   -- 身体 -> 支撑 -> 心态
+    (1, 1, 4, 1, 1.0),   -- 属性 -> 从属于 -> 对象类型
+    (2, 2, 2, 1, 0.95),  -- 链接类型 -> 定义关联 -> 对象类型
+    (3, 3, 3, 1, 0.9),   -- 行动类型 -> 作用于 -> 对象类型
+    (4, 4, 5, 4, 0.8),   -- 逻辑函数 -> 驱动计算 -> 属性
+    (5, 5, 1, 6, 0.85);  -- 对象类型 -> 实现接口 -> 对象接口
 
--- 行动实例（将行动关联 to 具体的本体对象）
+-- 行动实例（建模维护行动）
 INSERT INTO life_action VALUES
-    (1, 4, '早睡早起', '调整作息，保持充足睡眠', 'pending', '2024-12-31');
+    (1, 3, '属性回写', '更新属性值', 'executed', '2026-07-08'),
+    (2, 5, '函数计算', '重算指标', 'in_progress', '2026-07-10'),
+    (3, 1, '数据同步', '同步源表', 'pending', '2026-07-15');
 
--- 反思记录（introspection 层）
+-- 反思记录
 INSERT INTO life_introspection VALUES
-    (1, 1, '为什么最近总是焦虑？', '因为工作沟通不顺畅，把情绪带到了生活中。', CURRENT_DATE);
+    (1, 1, 'Palantir本体论与传统数据仓库的本质区别是什么？', '传统数据仓库仅仅提供静态只读表格。而Palantir本体论是一个集成了“对象、链接、行动和逻辑函数”的双向可操作性数字孪生。它直接充当企业的“操作系统”，允许在实体对象上发生决策并安全回写修改底层数据源。', '2026-07-08'),
+    (2, 6, '对象接口如何在复杂本体数据集成中发挥多态复用价值？', '当面临来自不同业务部门的异构表结构时，对象接口声明了一套公共特征协议，使得这些异构表的对象类型可以实现该接口。这使得下游分析逻辑只需面向接口开发，免除由于底层架构变更导致的大量修改。', '2026-07-08'),
+    (3, 3, '如何设计安全的行动回写机制？', '结合底层数据源的权限设计，定义参数校验规则与条件逻辑，保证在事务内发生，避免并发冲突。', '2026-07-08');
 
--- 洞察（insight 层）
+-- 洞察
 INSERT INTO life_insight VALUES
-    (1, 2, '沟通是工程师最大的软技能壁垒', '职场真相', CURRENT_DATE);
+    (1, 1, '将业务逻辑沉淀在本体层面（如把逻辑函数直接与对象属性绑定），可以打破“应用层烟囱式”的开发困局，使得核心业务指标对于整个平台和全部上层决策流保持单源真实性。', '集成架构', '2026-07-08'),
+    (2, 4, '链接类型 (Link Types) 并非简单的物理主外键，它不仅定义了物理维度的关联，还限制了决策沿拓扑链条蔓延的逻辑通路。', '模型拓扑', '2026-07-08'),
+    (3, 3, '行动回写的实时反馈能力是让数据产生“生产力”的关键。从单纯的数据提取到业务状态回写，实现了从“看见数据”到“驱动变革”的范式飞跃。', '核心洞察', '2026-07-08');
 
 -- Canvas 画布状态
 INSERT INTO life_canvas_state (id, space_id, object_id, title, color, x, y, width, height) VALUES
-    ('space-1', 'space-1', NULL, '个人生活', '#a78bfa', 100, 100, 320, 350),
-    ('item-1',  'space-1', 1,     NULL,              NULL,  20,  50,  280, 100),
-    ('item-4',  'space-1', 4,     NULL,              NULL,  20,  180, 280, 100),
-    ('space-2', 'space-2', NULL, '外部事务',         '#38bdf8', 480, 100, 320, 350),
-    ('item-2',  'space-2', 2,     NULL,              NULL,  20,  50,  280, 100),
-    ('item-3',  'space-2', 3,     NULL,              NULL,  20,  180, 280, 100);`
+    ('space-class', 'space-class', NULL, '关系拓扑', '#a78bfa', 100, 100, 320, 480),
+    ('item-c1',      'space-class', 1,    NULL,   NULL,      20,  50,  280, 100),
+    ('item-c2',      'space-class', 2,    NULL,   NULL,      20,  180, 280, 100),
+    ('item-c3',      'space-class', 3,    NULL,   NULL,      20,  310, 280, 100),
+    ('space-inst',  'space-inst',  NULL, '控制逻辑', '#38bdf8', 480, 100, 320, 480),
+    ('item-i4',      'space-inst',  4,    NULL,   NULL,      20,  50,  280, 100),
+    ('item-i5',      'space-inst',  5,    NULL,   NULL,      20,  180, 280, 100),
+    ('item-i6',      'space-inst',  6,    NULL,   NULL,      20,  310, 280, 100);`;
 
 // ============================================
 // 2b. 种子数据（JavaScript 数组 - 运行时使用）
@@ -192,16 +188,15 @@ export const ONTOLOGY_CREATE_STATEMENTS: string[] = [
 
 /** 种子数据 INSERT 语句数组 — 与 ONTOLOGY_SEED_DATA 内容一致 */
 export const ONTOLOGY_SEED_STATEMENTS: string[] = [
-  `INSERT INTO life_object_type VALUES (1, 'Aspect', '生活维度'), (2, 'Person', '人物'), (3, 'Goal', '目标') ON CONFLICT (id) DO NOTHING`,
-  `INSERT INTO life_object (id, object_type_id, name, properties) VALUES (1, 1, '心态', '{"state": "焦虑", "goal": "内心平静"}'), (2, 1, '工作', '{"role": "工程师", "struggle": "沟通与办公室政治"}'), (3, 1, '家庭', '{"priority": "最高"}'), (4, 1, '身体', '{"state": "还行", "goal": "健康"}') ON CONFLICT (id) DO NOTHING`,
-  `INSERT INTO life_object (id, object_type_id, name, properties) VALUES (5, 2, '父母', '{"relationship": "直系亲属", "emotional_anchor": true, "contact_freq": "每月"}'), (6, 2, '配偶', '{"relationship": "伴侣", "emotional_anchor": true, "contact_freq": "每天"}'), (7, 2, '同事小王', '{"relationship": "同事", "support_level": "高", "contact_freq": "工作日"}'), (8, 2, '老友老李', '{"relationship": "挚友", "emotional_anchor": true, "contact_freq": "每周"}') ON CONFLICT (id) DO NOTHING`,
-  `INSERT INTO life_object (id, object_type_id, name, properties) VALUES (9, 3, '副业变现', '{"deadline": "2025-12-31", "progress": 20, "priority": "高"}'), (10, 3, '读完50本书', '{"deadline": "2025-12-31", "progress": 38, "priority": "中"}'), (11, 3, '跑完半马', '{"deadline": "2025-06-01", "progress": 60, "priority": "高"}'), (12, 3, '掌握日语N3', '{"deadline": "2025-12-31", "progress": 45, "priority": "低"}') ON CONFLICT (id) DO NOTHING`,
-  `INSERT INTO life_link_type VALUES (1, '影响', 'A 作用于 B'), (2, '养活', 'A 为 B 提供物质基础'), (3, '锚定', 'A 为 B 提供精神支撑'), (4, '支撑', 'A 为 B 提供基础条件'), (5, '依恋', 'A 深度依赖 B'), (6, '协助', 'A 帮助 B 完成任务') ON CONFLICT (id) DO NOTHING`,
-  `INSERT INTO life_link VALUES (1, 1, 1, 2, 0.9), (2, 2, 2, 3, 1.0), (3, 3, 3, 1, 0.8), (4, 4, 4, 1, 0.7), (5, 1, 6, 1, 0.95), (6, 3, 5, 1, 0.85), (7, 5, 5, 6, 1.0), (8, 6, 7, 2, 0.6), (9, 1, 8, 1, 0.7), (10, 3, 8, 1, 0.75), (11, 4, 4, 11, 0.9), (12, 2, 2, 9, 0.8), (13, 1, 1, 10, 0.5) ON CONFLICT (id) DO NOTHING`,
-  `INSERT INTO life_action VALUES (1, 4, '早睡早起', '调整作息，保持充足睡眠', 'pending', '2024-12-31'), (2, 9, '搭建 MVP', '完成副业项目第一个可演示版本', 'pending', '2025-06-01'), (3, 11, '月跑量80公里', '本月跑步总里程目标', 'pending', '2025-05-01') ON CONFLICT (id) DO NOTHING`,
-  `INSERT INTO life_introspection (id, object_id, question, answer, created_at) VALUES (1, 1, '为什么最近总是焦虑？', '因为工作沟通不顺畅，把情绪带到了生活中。', CURRENT_DATE), (2, 2, '工作对我意味着什么？', '既是收入来源，也是自我价值实现的途径。', CURRENT_DATE) ON CONFLICT (id) DO NOTHING`,
-  `INSERT INTO life_insight (id, object_id, insight, tag, created_at) VALUES (1, 2, '沟通是工程师最大的软技能壁垒', '职场真相', CURRENT_DATE), (2, 6, '家庭是情绪的稳定器，再忙也要留时间', '家庭优先级', CURRENT_DATE), (3, 8, '老友不需要常常联系，但关键时刻一定在', '友情', CURRENT_DATE) ON CONFLICT (id) DO NOTHING`,
-  `INSERT INTO life_canvas_state (id, space_id, object_id, title, color, x, y, width, height) VALUES ('space-1', 'space-1', NULL, '个人生活', '#a78bfa', 100, 100, 320, 350), ('item-1', 'space-1', 1, NULL, NULL, 20, 50, 280, 100), ('item-4', 'space-1', 4, NULL, NULL, 20, 180, 280, 100), ('space-2', 'space-2', NULL, '外部事务', '#38bdf8', 480, 100, 320, 350), ('item-2', 'space-2', 2, NULL, NULL, 20, 50, 280, 100), ('item-3', 'space-2', 3, NULL, NULL, 20, 180, 280, 100) ON CONFLICT (id) DO NOTHING`,
+  `INSERT INTO life_object_type VALUES (1, '核心元', '实体与关系'), (2, '控制元', '运算与操作') ON CONFLICT (id) DO NOTHING`,
+  `INSERT INTO life_object (id, object_type_id, name, properties, annotations) VALUES (1, 1, '对象类型', '{"数据源表": "主物理表", "主键字段": "标识键", "启用共享": true}', '数字孪生体'), (2, 1, '链接类型', '{"关联映射": "外键联合表", "对应基数": "多对多"}', '关联关系'), (3, 2, '行动类型', '{"回写模式": "同步事务回写", "授权范围": "操作员组"}', '回写操作') ON CONFLICT (id) DO NOTHING`,
+  `INSERT INTO life_object (id, object_type_id, name, properties, annotations) VALUES (4, 1, '属性', '{"字段类型": "字符型", "主键约束": false, "敏感评级": "普通"}', '特征字段'), (5, 2, '逻辑函数', '{"执行环境": "计算引擎节点", "输入参数": "属性集合"}', '指标运算'), (6, 1, '对象接口', '{"共享特征": ["标识码", "修改时间"], "多态继承": true}', '多态复用') ON CONFLICT (id) DO NOTHING`,
+  `INSERT INTO life_link_type VALUES (1, '从属于', '包含归属'), (2, '定义关联', '声明关系'), (3, '作用于', '修改目标'), (4, '驱动计算', '重算特征'), (5, '实现接口', '协议遵从') ON CONFLICT (id) DO NOTHING`,
+  `INSERT INTO life_link VALUES (1, 1, 4, 1, 1.0), (2, 2, 2, 1, 0.95), (3, 3, 3, 1, 0.9), (4, 4, 5, 4, 0.8), (5, 5, 1, 6, 0.85) ON CONFLICT (id) DO NOTHING`,
+  `INSERT INTO life_action VALUES (1, 3, '属性回写', '更新属性值', 'executed', '2026-07-08'), (2, 5, '函数计算', '重算指标', 'in_progress', '2026-07-10'), (3, 1, '数据同步', '同步源表', 'pending', '2026-07-15') ON CONFLICT (id) DO NOTHING`,
+  `INSERT INTO life_introspection (id, object_id, question, answer, created_at) VALUES (1, 1, '本体与数仓区别？', '本体是双向可操作孪生，数仓仅只读表格。', '2026-07-08'), (2, 6, '接口多态价值？', '声明公共协议，异构表复用接口，下游面向接口开发。', '2026-07-08'), (3, 3, '回写安全机制？', '参数校验加事务隔离，防止并发冲突。', '2026-07-08') ON CONFLICT (id) DO NOTHING`,
+  `INSERT INTO life_insight (id, object_id, insight, tag, created_at) VALUES (1, 1, '将业务逻辑沉淀在本体层面（如把逻辑函数直接与对象属性绑定），可以打破“应用层烟囱式”的开发困局，使得核心业务指标对于整个平台和全部上层决策流保持单源真实性。', '集成架构', '2026-07-08'), (2, 4, '链接类型并非简单的物理主外键，它不仅定义了物理维度的关联，还限制了决策沿拓扑链条蔓延的逻辑通路。', '模型拓扑', '2026-07-08'), (3, 3, '行动回写的实时反馈能力是让数据产生“生产力”的关键。从单纯的数据提取到业务状态回写，实现了从“看见数据”到“驱动变革”的范式飞跃。', '核心洞察', '2026-07-08') ON CONFLICT (id) DO NOTHING`,
+  `INSERT INTO life_canvas_state (id, space_id, object_id, title, color, x, y, width, height) VALUES ('space-class', 'space-class', NULL, '关系拓扑', '#a78bfa', 100, 100, 320, 480), ('item-c1', 'space-class', 1, NULL, NULL, 20, 50, 280, 100), ('item-c2', 'space-class', 2, NULL, NULL, 20, 180, 280, 100), ('item-c3', 'space-class', 3, NULL, NULL, 20, 310, 280, 100), ('space-inst', 'space-inst', NULL, '控制逻辑', '#38bdf8', 480, 100, 320, 480), ('item-i4', 'space-inst', 4, NULL, NULL, 20, 50, 280, 100), ('item-i5', 'space-inst', 5, NULL, NULL, 20, 180, 280, 100), ('item-i6', 'space-inst', 6, NULL, NULL, 20, 310, 280, 100) ON CONFLICT (id) DO NOTHING`,
 ];
 
 // ============================================
@@ -218,56 +213,56 @@ export const ONTOLOGY_INIT_SCRIPT = [
 // ============================================
 
 export const ONTOLOGY_MODEL_INFO = {
-  name: '"我的人生"本体论数据模型',
-  description: '基于 Object + Link + Action 的个人生活知识图谱',
-  businessScenario: '个人生活管理 / 自我认知',
+  name: 'Palantir本体论元本体模型',
+  description: '基于 对象-关系-行动-函数 的操作数字孪生本体模型',
+  businessScenario: '业务数字孪生 / 双向回写操作系统',
   tables: [
     {
       name: 'life_object_type',
-      description: '对象类型 - 生活维度、人物、目标',
-      rowCount: 3,
+      description: '对象类型 - 核心元、控制元',
+      rowCount: 2,
       fields: ['id', 'name', 'description']
     },
     {
       name: 'life_object',
-      description: '对象实例 - 心态、工作、家庭、身体',
-      rowCount: 4,
+      description: '对象实例 - 对象类型、链接类型、行动类型等具体定义',
+      rowCount: 6,
       fields: ['id', 'object_type_id', 'name', 'properties', 'annotations']
     },
     {
       name: 'life_link_type',
-      description: '链接类型 - 影响、养活、锚定、支撑',
-      rowCount: 4,
+      description: '链接类型 - 从属于、定义关联、作用于、驱动计算、实现接口',
+      rowCount: 5,
       fields: ['id', 'name', 'description']
     },
     {
       name: 'life_link',
-      description: '对象链接 - 关系实例',
-      rowCount: 4,
+      description: '对象链接 - 本体各核心定义之间的关系拓扑连线',
+      rowCount: 5,
       fields: ['id', 'link_type_id', 'source_object_id', 'target_object_id', 'weight']
     },
     {
       name: 'life_action',
-      description: '行动 - 尚未执行的操作',
-      rowCount: 1,
+      description: '建模行动 - 属性回写、函数计算、数据同步',
+      rowCount: 3,
       fields: ['id', 'object_id', 'name', 'description', 'status', 'execute_at']
     },
     {
       name: 'life_introspection',
-      description: '反思记录 - 问题与回答',
-      rowCount: 1,
+      description: '建模反思 - 操作系统孪生与多态接口设计反思',
+      rowCount: 3,
       fields: ['id', 'object_id', 'question', 'answer', 'created_at']
     },
     {
       name: 'life_insight',
-      description: '洞察 - 闪念与标签',
-      rowCount: 1,
+      description: '建模洞察 - 指标单源真实性与链接传递规则经验提炼',
+      rowCount: 3,
       fields: ['id', 'object_id', 'insight', 'tag', 'created_at']
     },
     {
       name: 'life_canvas_state',
-      description: 'Canvas 布局 - 画布空间与项目位置',
-      rowCount: 6,
+      description: 'Canvas 布局 - 数字孪生建模拓扑分区配置',
+      rowCount: 8,
       fields: ['id', 'space_id', 'object_id', 'title', 'color', 'x', 'y', 'width', 'height']
     }
   ],
@@ -287,7 +282,7 @@ export const ONTOLOGY_RELATIONSHIPS = [
   { from: 'life_object_type', to: 'life_object', type: '1:N', description: '一个类型可包含多个对象实例' },
   { from: 'life_object', to: 'life_link', type: '1:N', description: '一个对象可作为多个链接的源或目标' },
   { from: 'life_link_type', to: 'life_link', type: '1:N', description: '一种链接类型可包含多条关系实例' },
-  { from: 'life_object', to: 'life_action', type: '1:N', description: '一个对象可关联多条行动' },
+  { from: 'life_object', to: 'life_action', type: '1:N', description: '一个对象可关联多条行动建议' },
   { from: 'life_object', to: 'life_introspection', type: '1:N', description: '一个对象可有多条反思记录' },
   { from: 'life_object', to: 'life_insight', type: '1:N', description: '一个对象可有多条洞察' },
 ];
@@ -301,9 +296,9 @@ export const ONTOLOGY_EXAMPLE_QUERIES = {
   basic: {
     description: '基础检索 - 查询所有数据表内容',
     queries: [
-      `-- 查询所有对象
+      `-- 查询所有本体定义对象
 SELECT * FROM life_object;`,
-      `-- 查询所有对象及其类型
+      `-- 查询所有对象及其归属的元定义类型
 SELECT lo.*, lot.name AS type_name
 FROM life_object lo
 JOIN life_object_type lot ON lo.object_type_id = lot.id;`,
@@ -315,66 +310,66 @@ SELECT * FROM life_link_type;`
   filter: {
     description: '条件过滤 - 按类型、状态筛选对象',
     queries: [
-      `-- 查询所有生活维度对象
+      `-- 查询所有主干核心实体类型定义
 SELECT lo.*, lot.name AS type_name
 FROM life_object lo
 JOIN life_object_type lot ON lo.object_type_id = lot.id
-WHERE lot.name = 'Aspect';`,
-      `-- 查询状态为"焦虑"的对象
+WHERE lot.name = '核心元';`,
+      `-- 查询启用了多态或共享的对象属性
 SELECT name, properties
 FROM life_object
-WHERE properties['state']::VARCHAR = '焦虑';`,
-      `-- 查询所有待执行行动
+WHERE properties['启用共享']::BOOLEAN = true OR properties['多态继承']::BOOLEAN = true;`,
+      `-- 查询所有待执行的同步及运算指令
 SELECT * FROM life_action WHERE status = 'pending';`
     ]
   },
   // 关联查询
   join: {
-    description: '多表关联 - 查询对象之间的关系统一',
+    description: '多表关联 - 查询语义关联关系',
     queries: [
-      `-- 查询所有关系网络
+      `-- 查询完整数字孪生本体拓扑关系网
 SELECT 
-    src.name AS A端,
-    lt.name AS 关系,
-    tgt.name AS B端,
-    ll.weight AS 强度
+    src.name AS 来源实体,
+    lt.name AS 关联方式,
+    tgt.name AS 目标实体,
+    ll.weight AS 关联强弱
 FROM life_link ll
 JOIN life_link_type lt ON ll.link_type_id = lt.id
 JOIN life_object src ON ll.source_object_id = src.id
 JOIN life_object tgt ON ll.target_object_id = tgt.id;`,
-      `-- 查询"影响"关系
+      `-- 查询接口的多态实现与继承关系 (实现接口)
 SELECT 
-    src.name AS 发起方,
-    tgt.name AS 被影响方,
-    ll.weight AS 影响强度
+    src.name AS 物理对象,
+    tgt.name AS 多态接口,
+    ll.weight AS 映射系数
 FROM life_link ll
 JOIN life_link_type lt ON ll.link_type_id = lt.id
 JOIN life_object src ON ll.source_object_id = src.id
 JOIN life_object tgt ON ll.target_object_id = tgt.id
-WHERE lt.name = '影响';`
+WHERE lt.name LIKE '%接口%';`
     ]
   },
   // 聚合查询
   aggregation: {
-    description: '聚合统计 - 按类型统计对象和关系数量',
+    description: '聚合统计 - 统计各类及关系链接数量',
     queries: [
-      `-- 按类型统计对象数量
-SELECT lot.name AS 类型, COUNT(lo.id) AS 对象数
+      `-- 统计各类别的实例分布数量
+SELECT lot.name AS 元类型, COUNT(lo.id) AS 对象数
 FROM life_object_type lot
 LEFT JOIN life_object lo ON lot.id = lo.object_type_id
 GROUP BY lot.name;`,
-      `-- 统计每种关系类型的链接数量
-SELECT lt.name AS 关系类型, COUNT(ll.id) AS 关系数, AVG(ll.weight) AS 平均强度
+      `-- 统计每类链接关系在整体拓扑中的频次与权重
+SELECT lt.name AS 链接关系, COUNT(ll.id) AS 连线数, AVG(ll.weight) AS 平均权重
 FROM life_link_type lt
 LEFT JOIN life_link ll ON lt.id = ll.link_type_id
 GROUP BY lt.name;`,
-      `-- 分析关系强度分布
+      `-- 分析连线重要度等级分布
 SELECT 
     CASE 
-        WHEN ll.weight >= 0.9 THEN '核心关系'
-        WHEN ll.weight >= 0.7 THEN '重要关系'
-        ELSE '一般关系'
-    END AS 关系等级,
+        WHEN ll.weight >= 0.9 THEN '直接依赖语义'
+        WHEN ll.weight >= 0.7 THEN '普通调用语义'
+        ELSE '辅助逻辑关系'
+    END AS 依赖级别,
     COUNT(*) AS 数量
 FROM life_link ll
 GROUP BY 1;`
@@ -382,18 +377,18 @@ GROUP BY 1;`
   },
   // JSON 属性查询
   json: {
-    description: 'JSON 属性查询 - 提取对象的状态和目标',
+    description: 'JSON 属性查询 - 提取特定字段与约束属性',
     queries: [
-      `-- 查询所有对象的名称和状态
+      `-- 提取不同实体对应的回写模式或数据源映射表
 SELECT 
-    name AS 对象,
-    properties['state']::VARCHAR AS 当前状态,
-    properties['goal']::VARCHAR AS 目标状态
+    name AS 本体概念,
+    properties['数据源表']::VARCHAR AS 映射物理表,
+    properties['回写模式']::VARCHAR AS 运作回写机制
 FROM life_object;`,
-      `-- 查询有"目标"属性的对象
-SELECT name, properties['goal']::VARCHAR AS 目标
+      `-- 查询指定了共享接口特征集的对象定义
+SELECT name, properties['共享特征'] AS 接口约定集
 FROM life_object
-WHERE properties['goal'] IS NOT NULL;`
+WHERE properties['共享特征'] IS NOT NULL;`
     ]
   }
 };

@@ -218,18 +218,18 @@ const SqlPreview: React.FC<{ sql: string; maxHeight?: string }> = ({ sql, maxHei
 // ── Status badge pill ──────────────────────────────────────────
 const StatusBadge: React.FC<{ result?: ExecutionResult }> = ({ result }) => {
   if (result?.loading) return (
-    <span className="inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full bg-monokai-yellow/12 text-monokai-yellow border border-monokai-yellow/20 font-medium">
+    <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-monokai-yellow/12 text-monokai-yellow border border-monokai-yellow/20 font-medium">
       <Loader2 className="w-2.5 h-2.5 animate-spin" /> 运行中
     </span>
   );
   if (result?.error) return (
-    <span className="inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full bg-monokai-red/10 text-monokai-red border border-monokai-red/20 font-medium">
-      <span className="w-1 h-1 rounded-full bg-monokai-red inline-block" /> 失败
+    <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-monokai-red/10 text-monokai-red border border-monokai-red/20 font-medium">
+      <span className="w-1.5 h-1.5 rounded-full bg-monokai-red inline-block" /> 失败
     </span>
   );
   if (result?.data !== undefined) return (
-    <span className="inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full bg-monokai-green/10 text-monokai-green border border-monokai-green/20 font-medium">
-      <span className="w-1 h-1 rounded-full bg-monokai-green inline-block" />
+    <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-monokai-green/10 text-monokai-green border border-monokai-green/20 font-medium">
+      <span className="w-1.5 h-1.5 rounded-full bg-monokai-green inline-block" />
       {result.executionTime ? `${result.executionTime.toFixed(0)}ms` : '完成'}
     </span>
   );
@@ -314,13 +314,13 @@ const TemplateCard: React.FC<{
           <div className="min-w-0 flex-1">
             {/* Title row: label + inline status */}
             <div className="flex items-center gap-1.5 flex-wrap">
-              <span className={`${expanded ? 'text-[11px]' : 'text-xs'} font-medium leading-tight ${isFirst && !hasError && !hasData ? 'text-monokai-purple' : 'text-monokai-fg'}`}>
+              <span className={`text-xs font-medium leading-tight ${isFirst && !hasError && !hasData ? 'text-monokai-purple' : 'text-monokai-fg'}`}>
                 {tpl.label}
               </span>
               <StatusBadge result={result} />
             </div>
             {/* Description */}
-            <p className={`${expanded ? 'text-[10px]' : 'text-[11px]'} text-monokai-comment/60 leading-normal mt-0.5 pr-2 line-clamp-2`}>
+            <p className="text-[11px] text-monokai-comment/60 leading-normal mt-0.5 pr-2 line-clamp-2">
               {tpl.description}
             </p>
           </div>
@@ -343,7 +343,7 @@ const TemplateCard: React.FC<{
               type="button"
               onClick={(e) => { e.stopPropagation(); onExecute(tpl.id, tpl.sql, tpl.refreshTables); }}
               disabled={isLoading}
-              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-semibold transition-all ${execBtnClass}`}>
+              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-semibold transition-all ${execBtnClass}`}>
               {isLoading
                 ? <Loader2 className="w-2.5 h-2.5 animate-spin" />
                 : <Play className="w-2.5 h-2.5" />
@@ -355,7 +355,7 @@ const TemplateCard: React.FC<{
               <button
                 type="button"
                 onClick={(e) => { e.stopPropagation(); onInsert(tpl.sql); }}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-medium bg-monokai-blue/10 text-monokai-blue border border-monokai-blue/20 hover:bg-monokai-blue/20 transition-all">
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium bg-monokai-blue/10 text-monokai-blue border border-monokai-blue/20 hover:bg-monokai-blue/20 transition-all">
                 <ArrowRight className="w-2.5 h-2.5" /> 复制
               </button>
             )}
@@ -422,8 +422,8 @@ const TemplatePanel: React.FC<{
       {/* ── Template Switcher ── */}
       <div className="mb-4 p-2 rounded-xl bg-monokai-sidebar/20 border border-monokai-accent/5 space-y-2">
         <div className="flex items-center justify-between px-1">
-          <span className="text-[10px] font-bold text-monokai-comment uppercase tracking-wider">切换本体种子</span>
-          <span className="text-[9px] text-monokai-cyan font-mono bg-monokai-cyan/10 px-1.5 py-0.5 rounded border border-monokai-cyan/20">
+          <span className="text-xs font-bold text-monokai-comment uppercase tracking-wider">切换本体种子</span>
+          <span className="text-[10px] text-monokai-cyan font-mono bg-monokai-cyan/10 px-1.5 py-0.5 rounded border border-monokai-cyan/20">
             {ONTOLOGY_SEED_INFOS.find(s => s.id === activeTemplateId)?.category || 'Personal'}
           </span>
         </div>
@@ -443,19 +443,19 @@ const TemplatePanel: React.FC<{
                     : 'border-monokai-border/40 bg-monokai-sidebar/10 text-monokai-comment hover:border-monokai-border/80 hover:bg-monokai-sidebar/30'
                 }`}
               >
-                <span className="text-sm shrink-0 mt-0.5">{seed.icon}</span>
+                <span className="text-xs shrink-0 mt-0.5">{seed.icon}</span>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between">
-                    <span className={`text-[10px] font-bold truncate ${isActive ? 'text-monokai-cyan' : 'text-monokai-fg'}`}>
+                    <span className={`text-xs font-bold truncate ${isActive ? 'text-monokai-cyan' : 'text-monokai-fg'}`}>
                       {seed.name}
                     </span>
                     {isActive && (
-                      <span className="text-[8px] bg-monokai-cyan/20 text-monokai-cyan px-1 rounded font-mono uppercase font-bold shrink-0">
+                      <span className="text-[10px] bg-monokai-cyan/20 text-monokai-cyan px-1 rounded font-mono uppercase font-bold shrink-0">
                         当前
                       </span>
                     )}
                   </div>
-                  <p className="text-[9px] text-monokai-comment/70 mt-0.5 leading-normal line-clamp-1">
+                  <p className="text-[11px] text-monokai-comment/70 mt-0.5 leading-normal line-clamp-1">
                     {seed.description}
                   </p>
                 </div>
@@ -479,13 +479,13 @@ const TemplatePanel: React.FC<{
             <div className="flex-1 min-w-0">
               {/* Title row */}
               <div className="flex items-center gap-2 mb-1">
-                <h3 className="text-sm font-semibold text-monokai-fg">知识图谱尚未初始化</h3>
-                <span className="init-badge bg-monokai-orange/10 text-monokai-orange border border-monokai-orange/20 font-mono">
+                <h3 className="text-xs font-semibold text-monokai-fg">知识图谱尚未初始化</h3>
+                <span className="init-badge bg-monokai-orange/10 text-monokai-orange border border-monokai-orange/20 font-mono text-[10px]">
                   0 表
                 </span>
               </div>
               {/* Subtitle */}
-              <p className="text-xs text-monokai-comment/70 mb-2.5">
+              <p className="text-[11px] text-monokai-comment/70 mb-2.5">
                 一键创建 7 张本体论表，导入教学种子数据
               </p>
               {/* CTA */}
@@ -586,7 +586,7 @@ const MECESectionDivider: React.FC<{ label: string; color: string }> = ({ label,
   return (
     <div className="flex items-center gap-2 mb-3 mt-1">
       <div className={`w-1 h-2.5 rounded-full ${colorMap[color] || colorMap.purple}`} />
-      <span className={`text-[10px] font-bold uppercase tracking-widest ${colorMap[color] || colorMap.purple} opacity-60`}>{label}</span>
+      <span className={`text-xs font-bold uppercase tracking-widest ${colorMap[color] || colorMap.purple} opacity-60`}>{label}</span>
       <div className="flex-1 h-px bg-gradient-to-r from-monokai-border/30 to-transparent" />
     </div>
   );
@@ -784,8 +784,8 @@ const CRUDList: React.FC<{
                 <div key={obj.id} className="flex items-center justify-between px-2 py-2.5 rounded-lg hover:bg-monokai-sidebar/60 group transition-colors cursor-pointer" onClick={() => onInspect('object', obj)}>
                   <div className="flex items-center gap-3 min-w-0 flex-1">
                     <div className="w-1.5 h-1.5 rounded-full bg-monokai-blue shrink-0 shadow-[0_0_8px_rgba(102,217,239,0.8)]" />
-                    <span className="text-sm text-monokai-fg truncate">{obj.name}</span>
-                    <span className="text-xs px-2 py-0.5 bg-monokai-purple/10 text-monokai-purple/80 rounded shrink-0">{store.objectTypeMap[obj.object_type_id]?.name || '?'}</span>
+                    <span className="text-xs text-monokai-fg truncate">{obj.name}</span>
+                    <span className="text-[11px] px-2 py-0.5 bg-monokai-purple/10 text-monokai-purple/80 rounded shrink-0">{store.objectTypeMap[obj.object_type_id]?.name || '?'}</span>
                   </div>
                   <div className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity ml-2 block">
                     <button onClick={(e) => { e.stopPropagation(); onRequestDelete('object', obj.id, obj.name); }} className="p-1.5 rounded-lg text-monokai-comment hover:text-monokai-orange hover:bg-monokai-orange/10"><Trash2 className="w-4 h-4" /></button>
@@ -802,11 +802,11 @@ const CRUDList: React.FC<{
               {filteredLinks.map(link => (
                 <div key={link.id} className="flex items-center justify-between px-2 py-2.5 rounded-lg hover:bg-monokai-sidebar/60 group transition-colors cursor-pointer" onClick={() => onInspect('link', link)}>
                   <div className="flex items-center gap-2 min-w-0 flex-1 flex-wrap">
-                    <span className="text-xs text-monokai-purple truncate max-w-[80px]">{store.objectNameMap[link.source_object_id]}</span>
+                    <span className="text-[11px] text-monokai-purple truncate max-w-[80px]">{store.objectNameMap[link.source_object_id]}</span>
                     <ChevronRight className="w-3 h-3 text-monokai-comment shrink-0" />
                     <span className="text-[11px] px-1.5 py-0.5 bg-monokai-green/10 text-monokai-green rounded shrink-0">{store.linkTypeMap[link.link_type_id]?.name}</span>
                     <ChevronRight className="w-3 h-3 text-monokai-comment shrink-0" />
-                    <span className="text-xs text-monokai-blue truncate max-w-[80px]">{store.objectNameMap[link.target_object_id]}</span>
+                    <span className="text-[11px] text-monokai-blue truncate max-w-[80px]">{store.objectNameMap[link.target_object_id]}</span>
                   </div>
                   <div className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity shrink-0 ml-2">
                     <button onClick={(e) => { e.stopPropagation(); onRequestDelete('link', link.id, `关系 #${link.id}`); }} className="p-1.5 rounded-lg text-monokai-comment hover:text-monokai-orange hover:bg-monokai-orange/10"><Trash2 className="w-4 h-4" /></button>
@@ -832,12 +832,12 @@ const CRUDList: React.FC<{
               expanded={expanded.introspections} onToggle={() => setExpanded(p => ({...p, introspections: !p.introspections}))}
               onAdd={() => {}}>
               {state.introspections.length === 0 ? (
-                <p className="text-xs text-monokai-comment p-2">暂无沉思记录</p>
+                <p className="text-[11px] text-monokai-comment p-2">暂无沉思记录</p>
               ) : (
                 state.introspections.map(intro => (
                   <div key={intro.id} className="px-2 py-2.5 rounded-lg hover:bg-monokai-sidebar/60 transition-colors">
-                    <div className="text-sm font-medium text-monokai-fg">{intro.question || '无标题'}</div>
-                    {intro.answer && <div className="text-xs text-monokai-comment mt-1 line-clamp-2">{intro.answer}</div>}
+                    <div className="text-xs font-medium text-monokai-fg">{intro.question || '无标题'}</div>
+                    {intro.answer && <div className="text-[11px] text-monokai-comment mt-1 line-clamp-2">{intro.answer}</div>}
                   </div>
                 ))
               )}
@@ -847,13 +847,13 @@ const CRUDList: React.FC<{
               expanded={expanded.insights} onToggle={() => setExpanded(p => ({...p, insights: !p.insights}))}
               onAdd={() => {}}>
               {state.insights.length === 0 ? (
-                <p className="text-xs text-monokai-comment p-2">暂无洞察记录</p>
+                <p className="text-[11px] text-monokai-comment p-2">暂无洞察记录</p>
               ) : (
                 state.insights.map(insight => (
                   <div key={insight.id} className="px-2 py-2.5 rounded-lg hover:bg-monokai-sidebar/60 transition-colors">
-                    <div className="text-sm font-medium text-monokai-fg">{insight.content || '无标题'}</div>
+                    <div className="text-xs font-medium text-monokai-fg">{insight.content || '无标题'}</div>
                     {insight.category && (
-                      <span className="inline-block mt-1 text-[10px] px-1.5 py-0.5 rounded-full bg-monokai-pink/10 text-monokai-pink">{insight.category}</span>
+                      <span className="inline-block mt-1 text-[11px] px-1.5 py-0.5 rounded-full bg-monokai-pink/10 text-monokai-pink">{insight.category}</span>
                     )}
                   </div>
                 ))
@@ -881,15 +881,15 @@ const CRUDSection: React.FC<{ title: string; icon: React.ElementType; color: str
       <div className="flex items-center justify-between group cursor-pointer" onClick={onToggle}>
         <div className="flex items-center gap-3">
           <Icon className={`w-4 h-4 ${colorClasses[color]}`} />
-          <h4 className="text-sm font-semibold text-monokai-fg tracking-wide">{title}</h4>
-          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${badgeClasses[color]}`}>{count}</span>
+          <h4 className="text-xs font-semibold text-monokai-fg tracking-wide">{title}</h4>
+          <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${badgeClasses[color]}`}>{count}</span>
         </div>
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
           <button onClick={e => { e.stopPropagation(); onAdd(); }} className="p-1.5 rounded-lg text-monokai-comment hover:text-monokai-fg hover:bg-black/20"><Plus className="w-4 h-4" /></button>
           {expanded ? <ChevronDown className="w-4 h-4 text-monokai-comment ml-1" /> : <ChevronRight className="w-4 h-4 text-monokai-comment ml-1" />}
         </div>
       </div>
-      {expanded && <div className="pl-2 space-y-1">{children || <p className="text-xs text-monokai-comment p-2">暂无记录</p>}</div>}
+      {expanded && <div className="pl-2 space-y-1">{children || <p className="text-[11px] text-monokai-comment p-2">暂无记录</p>}</div>}
     </div>
   );
 };
@@ -897,8 +897,8 @@ const CRUDSection: React.FC<{ title: string; icon: React.ElementType; color: str
 const CRUDRow: React.FC<{ name: string; desc: string; onEdit: () => void; onDelete: () => void }> = ({ name, desc, onEdit, onDelete }) => (
   <div className="flex items-center justify-between px-2 py-2.5 rounded-lg hover:bg-monokai-sidebar/60 group transition-colors cursor-pointer" onClick={onEdit}>
     <div className="min-w-0 flex-1">
-      <div className="text-sm font-medium text-monokai-fg truncate">{name}</div>
-      {desc && <div className="text-xs text-monokai-comment truncate mt-0.5">{desc}</div>}
+      <div className="text-xs font-medium text-monokai-fg truncate">{name}</div>
+      {desc && <div className="text-[11px] text-monokai-comment truncate mt-0.5">{desc}</div>}
     </div>
     <div className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity ml-2 flex gap-1">
       <button onClick={(e) => { e.stopPropagation(); onDelete(); }} className="p-1.5 rounded-lg text-monokai-comment hover:text-monokai-orange hover:bg-monokai-orange/10"><Trash2 className="w-4 h-4" /></button>
@@ -1381,7 +1381,7 @@ const OntologyPanelContent: React.FC<{
               )}
 
               {/* CENTER CANVAS */}
-              <div className="flex-1 relative overflow-hidden bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-monokai-sidebar/30 via-monokai-bg to-monokai-bg">
+              <div className="flex-1 relative overflow-hidden bg-[#0c0d12]">
                 {activeTab === 'graph' && <D3GraphView onRefreshRef={fn => d3GraphRefreshRef.current = fn} ontologyState={state} isActive={isActive} />}
                 {activeTab === 'data' && <OntologyDataView ontologyState={state} />}
                 {activeTab === 'canvas' && <OntologyCanvas onInsert={onInsert} ontologyState={state} />}

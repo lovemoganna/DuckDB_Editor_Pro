@@ -1701,6 +1701,35 @@ class DuckDBService {
     }
   }
 
+  async getOntologyCanvasState(): Promise<any[]> {
+    return this.query('SELECT * FROM life_canvas_state');
+  }
+
+  async saveOntologyCanvasState(id: string, spaceId: string | null, objectId: number | null, title: string, color: string, x: number, y: number, width: number, height: number, nodeType: string, metadata: any): Promise<void> {
+    const spaceVal = spaceId ? `'${spaceId.replace(/'/g, "''")}'` : 'NULL';
+    const objVal = objectId != null ? objectId : 'NULL';
+    const metadataVal = metadata ? `'${JSON.stringify(metadata).replace(/'/g, "''")}'` : "'{}'";
+    await this.query(`
+      INSERT INTO life_canvas_state (id, space_id, object_id, title, color, x, y, width, height, node_type, metadata)
+      VALUES ('${id}', ${spaceVal}, ${objVal}, '${title.replace(/'/g, "''")}', '${color.replace(/'/g, "''")}', ${x}, ${y}, ${width}, ${height}, '${nodeType}', ${metadataVal})
+      ON CONFLICT (id) DO UPDATE SET
+        space_id = EXCLUDED.space_id,
+        object_id = EXCLUDED.object_id,
+        title = EXCLUDED.title,
+        color = EXCLUDED.color,
+        x = EXCLUDED.x,
+        y = EXCLUDED.y,
+        width = EXCLUDED.width,
+        height = EXCLUDED.height,
+        node_type = EXCLUDED.node_type,
+        metadata = EXCLUDED.metadata
+    `);
+  }
+
+  async deleteOntologyCanvasState(id: string): Promise<void> {
+    await this.query(`DELETE FROM life_canvas_state WHERE id = '${id}'`);
+  }
+
   // Real-time Update methods
   async updateOntologyObject(id: number, updates: { name?: string, properties?: any }): Promise<void> {
     let sets = [];

@@ -109,3 +109,10 @@ export const VIEW_MODE_LABELS: Record<CanvasViewMode, string> = {
   'two-hop': '两跳局部',
   path:    '路径追踪',
 };
+
+export interface Position {
+  x: number;
+  y: number;
+}
+
+export type SavedPositions = Record<number, Position>;

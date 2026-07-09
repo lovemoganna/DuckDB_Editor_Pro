@@ -30,31 +30,7 @@ interface Props {
 // Background
 // ============================================================
 
-const ConstellationBG: React.FC = () => (
-  <svg className="absolute inset-0 w-full h-full opacity-[0.07]" xmlns="http://www.w3.org/2000/svg">
-    <defs>
-      <pattern id="cstl" x="0" y="0" width="60" height="60" patternUnits="userSpaceOnUse">
-        <circle cx="5" cy="5" r="1" fill="#8be9fd" />
-        <circle cx="30" cy="12" r="0.8" fill="#bd93f9" />
-        <circle cx="55" cy="3" r="1.2" fill="#50fa7b" />
-        <circle cx="10" cy="35" r="0.7" fill="#ff79c6" />
-        <circle cx="45" cy="30" r="1" fill="#8be9fd" />
-        <circle cx="58" cy="50" r="0.9" fill="#bd93f9" />
-        <circle cx="20" cy="55" r="1.1" fill="#f1fa8c" />
-        <line x1="5" y1="5" x2="30" y2="12" stroke="#8be9fd" strokeWidth="0.3" strokeOpacity="0.4" />
-        <line x1="30" y1="12" x2="55" y2="3" stroke="#bd93f9" strokeWidth="0.3" strokeOpacity="0.4" />
-        <line x1="45" y1="30" x2="58" y2="50" stroke="#8be9fd" strokeWidth="0.3" strokeOpacity="0.4" />
-        <line x1="10" y1="35" x2="45" y2="30" stroke="#ff79c6" strokeWidth="0.3" strokeOpacity="0.4" />
-      </pattern>
-      <radialGradient id="bgGlow" cx="50%" cy="30%" r="60%">
-        <stop offset="0%" stopColor="#bd93f9" stopOpacity="0.08" />
-        <stop offset="100%" stopColor="#8be9fd" stopOpacity="0" />
-      </radialGradient>
-    </defs>
-    <rect width="100%" height="100%" fill="url(#cstl)" />
-    <rect width="100%" height="100%" fill="url(#bgGlow)" />
-  </svg>
-);
+const ConstellationBG: React.FC = () => null;
 
 // ============================================================
 // Step Indicator
@@ -512,15 +488,12 @@ export const OntologyModelingWizard: React.FC<Props> = ({ onClose, onImport }) =
       <div
         className={`
           relative w-full max-w-2xl max-h-[85vh] flex flex-col rounded-2xl overflow-hidden
-          border border-monokai-purple/20
-          shadow-[0_0_60px_rgba(189,147,249,0.15),0_25rem_3rem_rgba(0,0,0,0.5)]
+          border border-zinc-800 bg-[#0c0d12] shadow-2xl
           transition-all duration-500
           ${mounted ? 'translate-y-0 scale-100' : 'translate-y-4 scale-[0.98]'}
         `}
-        style={{ background: 'linear-gradient(160deg, #0d0d1a 0%, #1a1040 40%, #0d1a2e 100%)' }}
         onClick={e => e.stopPropagation()}
       >
-        <ConstellationBG />
 
         {/* Top accent */}
         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-monokai-purple/70 to-transparent pointer-events-none z-10" />
@@ -530,10 +503,9 @@ export const OntologyModelingWizard: React.FC<Props> = ({ onClose, onImport }) =
           {/* Icon + Title */}
           <div className="flex items-center gap-2.5">
             <div className="relative w-7 h-7 shrink-0">
-              <div className="w-full h-full rounded-lg bg-monokai-purple/20 flex items-center justify-center border border-monokai-purple/30">
+              <div className="w-full h-full rounded-lg bg-zinc-800/50 flex items-center justify-center border border-zinc-700/60">
                 <Wand2 className="w-3.5 h-3.5 text-monokai-purple" />
               </div>
-              <div className="absolute inset-0 rounded-lg shadow-[0_0_12px_rgba(189,147,249,0.45)] animate-pulse" style={{ animationDuration: '3s' }} />
             </div>
             <div>
               <h2 className="text-sm font-bold text-monokai-fg leading-tight">AI 本体建模助手</h2>

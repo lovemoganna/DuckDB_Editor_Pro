@@ -231,7 +231,7 @@ const SchemaGraphView: React.FC<SchemaGraphViewProps> = ({
     simulationRef.current = sim;
 
     // Arrow marker
-    const defs = g.append('defs');
+    const defs = svg.append('defs').style('display', 'none');
     defs.append('marker')
       .attr('id', 'sg-arrow')
       .attr('markerWidth', 8).attr('markerHeight', 6)
