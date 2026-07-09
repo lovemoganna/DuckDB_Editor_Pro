@@ -102,19 +102,6 @@ export const OntologyCanvasHeader: React.FC<OntologyCanvasHeaderProps> = ({
           <button onClick={handleRedo} disabled={redoDisabled} title="重做布局操作 (Ctrl+Y)" className="p-1.5 rounded-[2px] hover:bg-slate-800 text-slate-400 hover:text-slate-100 disabled:opacity-30 disabled:hover:bg-transparent transition-colors">
             <RotateCw className="w-3.5 h-3.5" />
           </button>
-          <div className="w-px h-4 bg-slate-800 mx-1" />
-          <button
-            onClick={() => setIsFocusMode(prev => !prev)}
-            title={isFocusMode ? "关闭聚焦模式" : "开启聚焦模式（仅显示选中节点及其上下游）"}
-            className={`p-1.5 rounded-[2px] transition-colors flex items-center gap-1 text-[10px] font-bold ${
-              isFocusMode
-                ? 'bg-monokai-cyan/20 border border-monokai-cyan/45 text-monokai-cyan'
-                : 'hover:bg-slate-850 text-slate-400 hover:text-slate-100'
-            }`}
-          >
-            <Zap className="w-3.5 h-3.5" />
-            <span>{isFocusMode ? '已聚焦' : '聚焦'}</span>
-          </button>
         </div>
       </div>
     </div>
