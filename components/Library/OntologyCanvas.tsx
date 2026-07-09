@@ -31,6 +31,7 @@ import {
   resolveCollisions,
   OntologyCanvasHeader,
   OntologyNode,
+  OntologyEdge,
   getLayoutedElements
 } from './OntologyCanvas/index';
 
@@ -77,6 +78,10 @@ const DarkStyle = () => (
 
 const nodeTypes = {
   ontology: OntologyNode,
+};
+
+const edgeTypes = {
+  ontology: OntologyEdge,
 };
 
 interface OntologyCanvasInnerProps {
@@ -407,6 +412,42 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
     setNodes(rfNodes);
   }, [objects, nodePositions, objectTypes, lockedNodeIds, highlightedNodeId, rfZoom, expandedNodeIds, activePathNodesAndLinks, isFocusMode, handleLockNodeToggle, setNodes]);
 
+  // Calculate parallel link curvature offsets to prevent overlapping paths
+  const linkOffsets = useMemo(() => {
+    const counts: { [key: string]: number } = {};
+    const offsets: { [key: number]: number } = {};
+    const sortedLinks = [...links].sort((a, b) => a.id - b.id);
+    
+    sortedLinks.forEach((link: any) => {
+      const s = Math.min(link.source_object_id, link.target_object_id);
+      const t = Math.max(link.source_object_id, link.target_object_id);
+      const key = `${s}-${t}`;
+      
+      if (counts[key] === undefined) {
+        counts[key] = 0;
+      }
+      
+      const index = counts[key];
+      counts[key]++;
+      
+      let offset = 0;
+      if (index === 0) {
+        offset = 0;
+      } else if (index === 1) {
+        offset = 35;
+      } else if (index === 2) {
+        offset = -35;
+      } else {
+        const sign = index % 2 === 1 ? 1 : -1;
+        const multiplier = Math.floor((index + 1) / 2);
+        offset = sign * multiplier * 35;
+      }
+      offsets[link.id] = offset;
+    });
+    
+    return offsets;
+  }, [links]);
+
   // Synchronize store links to ReactFlow edges
   useEffect(() => {
     const rfEdges = links.map((link: any) => {
@@ -415,6 +456,7 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
       const isDownstreamLink = activePathNodesAndLinks?.downstreamLinks.has(link.id);
       const linkName = linkTypes.find((t: any) => t.id === link.link_type_id)?.name || '关联';
       const isActive = isUpstreamLink || isDownstreamLink;
+      const curveOffset = linkOffsets[link.id] ?? 0;
 
       return {
         id: String(link.id),
@@ -422,25 +464,12 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
         target: String(link.target_object_id),
         label: linkName,
         animated: isSelected || isActive,
-        type: 'default', // ReactFlow bezier curves
-        style: {
-          stroke: isActive
-            ? (isUpstreamLink ? '#10b981' : '#06b6d4')
-            : (isSelected ? '#06b6d4' : '#52525b'),
-          strokeWidth: isSelected || isActive ? 2.5 : 1.5,
-        },
-        labelStyle: {
-          fill: isActive ? '#06b6d4' : '#e4e4e7', // High contrast text (zinc-200)
-          fontWeight: 650,
-          fontSize: 10,
-          fontFamily: 'monospace',
-        },
-        labelBgStyle: {
-          fill: '#0c0d12', // Matches canvas background perfectly
-          fillOpacity: 1.0, // Masks the line cleanly underneath
-        },
-        labelBgPadding: [8, 5],
-        labelBgBorderRadius: 4,
+        type: 'ontology', // Custom premium curved edge
+        data: {
+          curveOffset,
+          isActive,
+          isUpstreamLink,
+        }
       };
     }).filter(e => {
       if (isFocusMode && activePathNodesAndLinks) {
@@ -449,7 +478,7 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
       return true;
     });
     setEdges(rfEdges);
-  }, [links, selectedNodeId, activePathNodesAndLinks, linkTypes, isFocusMode, setEdges]);
+  }, [links, selectedNodeId, activePathNodesAndLinks, linkTypes, isFocusMode, linkOffsets, setEdges]);
 
   // Dragging node ends: save position back to store
   const onNodeDragStop = useCallback((event: any, node: any) => {
@@ -590,6 +619,7 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
           onNodeMouseLeave={onNodeMouseLeave}
           onDoubleClick={handlePaneDoubleClick}
           nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
           fitView
           fitViewOptions={{ padding: 0.3 }}
           className="bg-[#0c0d12]"
