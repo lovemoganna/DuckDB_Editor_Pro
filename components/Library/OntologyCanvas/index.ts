@@ -1,5 +1,5 @@
 export { OntologyCanvasHeader } from './OntologyCanvasHeader';
 export { OntologyNode } from './OntologyNode';
-export { getLayoutedElements } from './OntologyLayout';
+export { getLayoutedElements, getCircularLayout, getGridLayout } from './OntologyLayout';
 export * from './OntologyCanvas.helpers';
 

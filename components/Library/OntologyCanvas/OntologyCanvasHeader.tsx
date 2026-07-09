@@ -22,7 +22,7 @@ interface OntologyCanvasHeaderProps {
   setIsFocusMode: React.Dispatch<React.SetStateAction<boolean>>;
   handleLockAll: () => void;
   handleUnlockAll: () => void;
-  handleAutoAlign: () => void;
+  handleAutoAlign: (type: 'LR' | 'TB' | 'circle' | 'grid') => void;
 }
 
 export const OntologyCanvasHeader: React.FC<OntologyCanvasHeaderProps> = ({
@@ -45,6 +45,8 @@ export const OntologyCanvasHeader: React.FC<OntologyCanvasHeaderProps> = ({
   handleUnlockAll,
   handleAutoAlign,
 }) => {
+  const [showLayoutMenu, setShowLayoutMenu] = React.useState(false);
+
   return (
     <div className="absolute top-4 left-4 right-4 z-10 flex flex-wrap gap-3 items-center justify-between pointer-events-none">
       {/* Title Badge */}
@@ -136,9 +138,54 @@ export const OntologyCanvasHeader: React.FC<OntologyCanvasHeaderProps> = ({
             <Unlock className="w-3.5 h-3.5" />
           </button>
           <div className="w-px h-4 bg-slate-800 mx-1" />
-          <button onClick={handleAutoAlign} title="一键网格力学排列" className="p-1.5 rounded-[2px] bg-monokai-blue/10 border border-monokai-blue/20 text-monokai-blue hover:bg-monokai-blue/20 transition-all text-xs font-semibold flex items-center gap-1 px-2.5">
-            <GitCommit className="w-3.5 h-3.5" /> 自动排版
-          </button>
+          
+          <div
+            className="relative"
+            onMouseLeave={() => setShowLayoutMenu(false)}
+          >
+            <button
+              onClick={() => setShowLayoutMenu(prev => !prev)}
+              title="选择自动对齐排列算法"
+              className="p-1.5 rounded-[2px] bg-monokai-blue/10 border border-monokai-blue/20 text-monokai-blue hover:bg-monokai-blue/20 transition-all text-xs font-semibold flex items-center gap-1 px-2.5"
+            >
+              <GitCommit className="w-3.5 h-3.5" />
+              <span>自动排版</span>
+              <ChevronDown className="w-3 h-3 text-monokai-blue" />
+            </button>
+
+            {showLayoutMenu && (
+              <div className="absolute right-0 top-full mt-1.5 bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-[2px] overflow-hidden shadow-2xl z-50 py-1 w-36">
+                <button
+                  onClick={() => { handleAutoAlign('LR'); setShowLayoutMenu(false); }}
+                  className="w-full text-left px-3.5 py-2 text-[10px] font-bold text-slate-350 hover:text-slate-100 hover:bg-[#1a1c27] flex items-center gap-2 transition-all border-b border-zinc-900"
+                >
+                  <GitCommit className="w-3 h-3 text-monokai-cyan" />
+                  <span>层级流向 (左→右)</span>
+                </button>
+                <button
+                  onClick={() => { handleAutoAlign('TB'); setShowLayoutMenu(false); }}
+                  className="w-full text-left px-3.5 py-2 text-[10px] font-bold text-slate-350 hover:text-slate-100 hover:bg-[#1a1c27] flex items-center gap-2 transition-all border-b border-zinc-900"
+                >
+                  <GitCommit className="w-3 h-3 text-monokai-cyan rotate-90" />
+                  <span>层级流向 (上→下)</span>
+                </button>
+                <button
+                  onClick={() => { handleAutoAlign('circle'); setShowLayoutMenu(false); }}
+                  className="w-full text-left px-3.5 py-2 text-[10px] font-bold text-slate-350 hover:text-slate-100 hover:bg-[#1a1c27] flex items-center gap-2 transition-all border-b border-zinc-900"
+                >
+                  <RefreshCw className="w-3 h-3 text-monokai-green animate-spin-slow" />
+                  <span>环形聚类</span>
+                </button>
+                <button
+                  onClick={() => { handleAutoAlign('grid'); setShowLayoutMenu(false); }}
+                  className="w-full text-left px-3.5 py-2 text-[10px] font-bold text-slate-350 hover:text-slate-100 hover:bg-[#1a1c27] flex items-center gap-2 transition-all"
+                >
+                  <Maximize2 className="w-3 h-3 text-monokai-pink" />
+                  <span>网格矩阵</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

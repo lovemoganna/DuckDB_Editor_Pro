@@ -31,7 +31,9 @@ import {
   resolveCollisions,
   OntologyCanvasHeader,
   OntologyNode,
-  getLayoutedElements
+  getLayoutedElements,
+  getCircularLayout,
+  getGridLayout
 } from './OntologyCanvas/index';
 
 // Custom style injection for dark theme controls
@@ -354,9 +356,21 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
-  const handleAutoAlign = useCallback(() => {
+  const handleAutoAlign = useCallback((type: 'LR' | 'TB' | 'circle' | 'grid') => {
     pushToHistory(nodePositions);
-    const { nodes: layoutedNodes } = getLayoutedElements(nodes, edges, 'LR');
+    let layoutedNodes: Node[] = [];
+    
+    if (type === 'LR' || type === 'TB') {
+      const result = getLayoutedElements(nodes, edges, type);
+      layoutedNodes = result.nodes;
+    } else if (type === 'circle') {
+      const result = getCircularLayout(nodes);
+      layoutedNodes = result.nodes;
+    } else if (type === 'grid') {
+      const result = getGridLayout(nodes);
+      layoutedNodes = result.nodes;
+    }
+
     const updated = { ...nodePositions };
     layoutedNodes.forEach((node) => {
       updated[Number(node.id)] = node.position;
