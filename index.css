@@ -1474,3 +1474,15 @@ body.is-resizing .resizable-width-indicator {
     background-color: rgba(30, 31, 28, 0.95) !important;
   }
 }
+
+@keyframes dash {
+  to {
+    stroke-dashoffset: -20;
+  }
+}
+
+/* Canvas relation link particle flowing animation */
+.animate-dash-flow {
+  animation: dash 0.8s linear infinite;
+}
+

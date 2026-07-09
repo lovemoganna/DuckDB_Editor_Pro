@@ -360,5 +360,49 @@ export const SQL_CATEGORY_HELP: Record<string, SqlCategoryHelp> = {
             { name: '表结构元数据', description: 'SELECT * FROM duckdb_columns WHERE table_name = ...' },
             { name: '扩展包检查', description: 'SELECT name, loaded, installed FROM duckdb_extensions()' }
         ]
+    },
+    'external': {
+        title: '外部数据与文件',
+        description: '无需导入建表，直接在 SQL 中读写在线/本地 CSV, Parquet, JSON, Excel 等外部文件。',
+        scenarios: [
+            '零建表直接查询 HTTP/HTTPS 上的 Parquet 或 CSV 数据',
+            '模糊匹配读取本地目录下的一批 CSV 文件',
+            '将查询结果直接高速导出保存为 Parquet 或 CSV 物理文件',
+            'Attach 附加并跨库联合查询 SQLite / PostgreSQL 数据源'
+        ],
+        commonErrors: [
+            '本地文件绝对路径写错或反斜杠未转义',
+            '网络 URL 链接未用单引号/双引号包裹导致语法报错',
+            '读取大型网络文件时忘记用 WHERE 过滤多余数据导致流量浪费',
+            '复制/导出目标文件夹没有写权限或文件名重复'
+        ],
+        aiHints: [
+            '描述网络文件 URL 并指定其格式（如 "S3上的CSV文件"）',
+            '说明通配符模式（如 "读取目录下所有的 json 文件"）',
+            '询问如何将查询出的虚拟表另存/拷贝为本地 Parquet 文件'
+        ],
+        quickStart: [
+            '1. 获取文件的绝对路径或网络 HTTPS URL 链接',
+            '2. 将其用单引号包裹并直接放在 FROM 后面',
+            '3. 执行查询，DuckDB 会自动匹配最佳文件驱动（ CSV/Parquet 自动探测）',
+            '4. 使用 EXCLUDE 或 REPLACE 精炼字段',
+            '5. 对满意的查询结合 COPY 语句一键导出物理文件'
+        ],
+        bestPractices: [
+            '优先使用 Parquet 格式读写，支持投影与过滤器下推，网络查询速度最快',
+            '对大量零碎小文件使用 Glob 语法（如 `*.csv`）进行分片多线程联合读取',
+            '结合 ATTACH 语法临时装载 SQLite 等其他外部文件进行混合关联'
+        ],
+        duckdbSpecific: [
+            'SELECT * FROM \'https://example.com/data.parquet\' — 查询网络在线 Parquet',
+            'SELECT * FROM read_csv_auto(\'c:/data/*.csv\') — 通配符读取本地多 CSV 文件',
+            'COPY (SELECT * FROM my_table) TO \'output.parquet\' (FORMAT PARQUET) — 快速导出 Parquet',
+            'ATTACH \'sqlite.db\' AS my_lite (TYPE SQLITE) — 附加外部 SQLite 数据库'
+        ],
+        exampleFlows: [
+            { name: '在线Parquet直读', description: 'SELECT * FROM \'http://domain/file.parquet\' LIMIT 10' },
+            { name: '多文件联合分析', description: 'SELECT col1, SUM(col2) FROM \'path/*.csv\' GROUP BY 1' },
+            { name: '跨库临时关联', description: 'ATTACH \'db.sqlite\' AS sqlite; SELECT * FROM sqlite.users;' }
+        ]
     }
 };

@@ -1,0 +1,61 @@
+{
+  "_meta": {
+    "name": "本体 Lv.5：运作反思",
+    "description": "第五级：引入反思记录与洞察，探讨 Palantir 双向回写操作系统与传统数据仓库的本质区别，以及接口对多源数据绑定的多态价值",
+    "version": "1.0.0",
+    "author": "system",
+    "created_at": "2026-07-08",
+    "scenario": "palantir-ontology-mini",
+    "complexity": "hard",
+    "entity_counts": {
+      "object_types": 2,
+      "objects": 6,
+      "link_types": 5,
+      "links": 5,
+      "actions": 3,
+      "introspections": 3,
+      "insights": 3
+    }
+  },
+  "objectTypes": [
+    { "id": 1, "name": "核心元", "description": "代表物理世界实体或关系的核心本体类型定义" },
+    { "id": 2, "name": "控制元", "description": "用于修改或计算本体属性的控制和逻辑类型定义" }
+  ],
+  "objects": [
+    { "id": 1, "object_type_id": 1, "name": "对象类型", "properties": "{\"数据源表\": \"主物理表\", \"主键字段\": \"标识键\", \"启用共享\": true}", "annotations": "代表现实世界实体的数字孪生定义" },
+    { "id": 2, "object_type_id": 1, "name": "链接类型", "properties": "{\"关联映射\": \"外键联合表\", \"对应基数\": \"多对多\"}", "annotations": "定义对象类型之间的关联关系" },
+    { "id": 3, "object_type_id": 2, "name": "行动类型", "properties": "{\"回写模式\": \"同步事务回写\", \"授权范围\": \"操作员组\"}", "annotations": "定义可在对象上执行的操作与回写逻辑" },
+    { "id": 4, "object_type_id": 1, "name": "属性", "properties": "{\"字段类型\": \"字符型\", \"主键约束\": false, \"敏感评级\": \"普通\"}", "annotations": "对象类型中所包含的属性特征定义" },
+    { "id": 5, "object_type_id": 2, "name": "逻辑函数", "properties": "{\"执行环境\": \"计算引擎节点\", \"输入参数\": \"属性集合\"}", "annotations": "在对象和关系网之上运行的指标计算逻辑" },
+    { "id": 6, "object_type_id": 1, "name": "对象接口", "properties": "{\"共享特征\": [\"标识码\", \"修改时间\"], \"多态继承\": true}", "annotations": "支持跨多个对象类型复用的共享概念定义" }
+  ],
+  "linkTypes": [
+    { "id": 1, "name": "从属于", "description": "表示基础特征附属于实体的包含关系" },
+    { "id": 2, "name": "定义关联", "description": "声明两个实体之间的关联关系" },
+    { "id": 3, "name": "作用于", "description": "指示行动修改或作用的目标" },
+    { "id": 4, "name": "驱动计算", "description": "表示计算逻辑重算特征" },
+    { "id": 5, "name": "实现接口", "description": "声明对象符合接口协议" }
+  ],
+  "links": [
+    { "id": 1, "link_type_id": 1, "source_object_id": 4, "target_object_id": 1, "weight": 1.0 },
+    { "id": 2, "link_type_id": 2, "source_object_id": 2, "target_object_id": 1, "weight": 0.95 },
+    { "id": 3, "link_type_id": 3, "source_object_id": 3, "target_object_id": 1, "weight": 0.9 },
+    { "id": 4, "link_type_id": 4, "source_object_id": 5, "target_object_id": 4, "weight": 0.8 },
+    { "id": 5, "link_type_id": 5, "source_object_id": 1, "target_object_id": 6, "weight": 0.85 }
+  ],
+  "actions": [
+    { "id": 1, "object_id": 3, "name": "属性回写", "description": "用户触发行动类型，更新对应对象类型表的属性字段值", "status": "executed", "execute_at": "2026-07-08" },
+    { "id": 2, "object_id": 5, "name": "函数计算", "description": "触发逻辑函数重新计算派生核心指标，并联动更新相关属性", "status": "in_progress", "execute_at": "2026-07-10" },
+    { "id": 3, "object_id": 1, "name": "数据同步", "description": "将物理表底层的变更数据实时同步至本体层级对应的对象实例", "status": "pending", "execute_at": "2026-07-15" }
+  ],
+  "introspections": [
+    { "id": 1, "object_id": 1, "question": "Palantir本体论与传统数据仓库的本质区别是什么？", "answer": "传统数据仓库仅仅提供静态只读表格。而Palantir本体论是一个集成了\"对象、链接、行动和逻辑函数\"的双向可操作性数字孪生。它直接充当企业的\"操作系统\"，允许在实体对象上发生决策并安全回写修改底层数据源。", "created_at": "2026-07-08" },
+    { "id": 2, "object_id": 6, "question": "对象接口如何在复杂本体数据集成中发挥多态复用价值？", "answer": "当面临来自不同业务部门的异构表结构时，对象接口声明了一套公共特征协议，使得这些异构表的对象类型可以实现该接口。这使得下游分析逻辑只需面向接口开发，免除由于底层架构变更导致的大量修改。", "created_at": "2026-07-08" },
+    { "id": 3, "object_id": 3, "question": "如何设计安全的行动回写机制？", "answer": "结合底层数据源的权限设计，定义参数校验规则与条件逻辑，保证在事务内发生，避免并发冲突。", "created_at": "2026-07-08" }
+  ],
+  "insights": [
+    { "id": 1, "object_id": 1, "insight": "将业务逻辑沉淀在本体层面（如把逻辑函数直接与对象属性绑定），可以打破\"应用层烟囱式\"的开发困局，使得核心业务指标对于整个平台和全部上层决策流保持单源真实性。", "tag": "集成架构", "created_at": "2026-07-08" },
+    { "id": 2, "object_id": 4, "insight": "链接类型并非简单的物理主外键，它不仅定义了物理维度的关联，还限制了决策沿拓扑链条蔓延的逻辑通路。", "tag": "模型拓扑", "created_at": "2026-07-08" },
+    { "id": 3, "object_id": 3, "insight": "行动回写的实时反馈能力是让数据产生\"生产力\"的关键。从单纯的数据提取到业务状态回写，实现了从\"看见数据\"到\"驱动变革\"的范式飞跃。", "tag": "核心洞察", "created_at": "2026-07-08" }
+  ]
+}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Play, Code, ChevronDown, Sparkles, Save, Type, Trash2, Minimize2, Maximize2,
-  Eye, EyeOff, ChevronLeft, Loader2, Wand2, Database, FileText, X, Copy, Check, Keyboard, FolderOpen, Table, HardDrive, Edit3, BarChart2, Activity, Clock, Plus, Settings, Upload, Square, Download, Cpu
+  Eye, EyeOff, ChevronLeft, Loader2, Wand2, Database, FileText, X, Copy, Check, Keyboard, FolderOpen, Table, HardDrive, Edit3, BarChart2, Activity, Clock, Plus, Settings, Upload, Square, Download, Cpu, Sidebar
 } from 'lucide-react';
 import { SqlTab } from '../../types';
 import { SNIPPET_GROUPS, SNIPPET_CATEGORY_META } from '../../data/sqlEditorData';
@@ -78,7 +78,7 @@ export const SqlEditorToolbar: React.FC<SqlEditorToolbarProps> = ({
   const detectedTable = tableMatch?.[1];
 
   // Local Dropdown and Modal States
-  const [activeDropdown, setActiveDropdown] = useState<'save' | 'snippets' | 'layout' | 'diagnostics' | 'edit' | 'history' | 'ai' | 'datasource' | 'export' | null>(null);
+  const [activeDropdown, setActiveDropdown] = useState<'files' | 'export' | 'templates' | 'history' | 'system' | null>(null);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -272,6 +272,19 @@ export const SqlEditorToolbar: React.FC<SqlEditorToolbarProps> = ({
       <div className="flex items-center justify-between p-2 gap-3 border-b border-monokai-accent/25 flex-wrap md:flex-nowrap bg-monokai-bg">
         {/* Left Side: Run & Undo & DB Connections */}
         <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
+          {/* Sidebar Toggle Button */}
+          <button
+            onClick={onToggleZen}
+            className={`p-1.5 rounded-xs transition-all flex items-center justify-center cursor-pointer border ${
+              !isZenMode
+                ? 'bg-monokai-accent/10 border-monokai-accent/20 text-monokai-accent hover:bg-monokai-accent hover:text-monokai-bg'
+                : 'bg-monokai-surface border-monokai-border text-monokai-comment hover:text-monokai-accent hover:border-monokai-accent/40'
+            }`}
+            title={isZenMode ? "展开侧边栏 (禅模式关)" : "收起侧边栏 (禅模式开)"}
+          >
+            <Sidebar size={11} />
+          </button>
+
           {/* Play/Stop Button */}
           {activeTab.loading ? (
             <button
@@ -378,79 +391,29 @@ export const SqlEditorToolbar: React.FC<SqlEditorToolbarProps> = ({
       </div>
 
       {/* ──────────────────────────────────────────────────────────── */}
-      {/* ROW 2: LOWER DECK (Grouped Dropdowns, Results Export, Execution Stats) */}
+      {/* ROW 2: LOWER DECK (Consolidated Dropdowns) */}
       {/* ──────────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between p-1.5 px-2 bg-monokai-surface/10 gap-2 flex-wrap md:flex-nowrap">
-        {/* Left Side: 6 Grouped Dropdowns */}
+      <div className="flex items-center justify-between p-1.5 px-2 bg-monokai-surface/20 gap-2 flex-wrap md:flex-nowrap border-t border-monokai-accent/10">
+        {/* Left Side: Consolidated Dropdowns */}
         <div className="flex items-center gap-1.5 flex-wrap z-50">
           
-          {/* Group 1: 数据源 (Data & Connections) */}
+          {/* Dropdown 1: 数据与文件 (Files & Data) */}
           <div className="relative">
             <button
-              onClick={() => toggleDropdown('datasource')}
-              className={`px-2 py-1 border text-[11px] font-bold rounded-xs flex items-center gap-1 transition-all cursor-pointer ${
-                activeDropdown === 'datasource' 
+              onClick={() => toggleDropdown('files')}
+              className={`px-2.5 py-1 border text-[11px] font-bold rounded-xs flex items-center gap-1.5 transition-all cursor-pointer ${
+                activeDropdown === 'files' 
                   ? 'bg-monokai-green text-monokai-bg border-monokai-green' 
-                  : 'bg-monokai-surface/40 border-monokai-accent/40 hover:border-monokai-green hover:text-monokai-green text-monokai-fg'
+                  : 'bg-monokai-surface/30 border-monokai-accent/20 hover:border-monokai-green hover:text-monokai-green text-monokai-fg'
               }`}
             >
-              <Database size={10} />
-              数据源
-              <ChevronDown size={8} className={`transition-transform duration-200 ${activeDropdown === 'datasource' ? 'rotate-180' : ''}`} />
+              <FolderOpen size={10} />
+              数据与文件
+              <ChevronDown size={8} className={`transition-transform duration-200 ${activeDropdown === 'files' ? 'rotate-180' : ''}`} />
             </button>
 
-            {activeDropdown === 'datasource' && (
-              <div className="absolute top-full left-0 mt-1 bg-monokai-sidebar/95 backdrop-blur-md border border-monokai-accent rounded-xs shadow-xl z-55 min-w-[170px] p-1 animate-in fade-in slide-in-from-top-1 duration-150 border-t-monokai-green/50">
-                <button 
-                  onClick={() => { setShowImportModal(true); setActiveDropdown(null); }}
-                  className="w-full text-left px-2.5 py-1.5 text-xs text-monokai-fg hover:bg-monokai-green/10 hover:text-monokai-green rounded-xs transition-colors flex items-center gap-2"
-                >
-                  <Upload size={11} className="text-monokai-green" />
-                  导入外部数据
-                </button>
-                <button 
-                  onClick={() => { setShowCreateModal(true); setActiveDropdown(null); }}
-                  className="w-full text-left px-2.5 py-1.5 text-xs text-monokai-fg hover:bg-monokai-blue/10 hover:text-monokai-blue rounded-xs transition-colors flex items-center gap-2"
-                >
-                  <Plus size={11} className="text-monokai-blue" />
-                  新建空数据表
-                </button>
-                <button 
-                  onClick={() => { setShowDuplicateModal(true); setActiveDropdown(null); }}
-                  className="w-full text-left px-2.5 py-1.5 text-xs text-monokai-fg hover:bg-monokai-purple/10 hover:text-monokai-purple rounded-xs transition-colors flex items-center gap-2"
-                >
-                  <Copy size={11} className="text-monokai-purple" />
-                  复制克隆已有表
-                </button>
-                <div className="border-t border-monokai-accent/20 my-1"></div>
-                <button 
-                  onClick={() => { setShowSettingsModal(true); setActiveDropdown(null); }}
-                  className="w-full text-left px-2.5 py-1.5 text-xs text-monokai-fg hover:bg-monokai-yellow/10 hover:text-monokai-yellow rounded-xs transition-colors flex items-center gap-2"
-                >
-                  <Settings size={11} className="text-monokai-yellow" />
-                  系统运行偏好
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Group 2: 存储与导出 (Save & Export) */}
-          <div className="relative">
-            <button
-              onClick={() => toggleDropdown('save')}
-              className={`px-2 py-1 border text-[11px] font-bold rounded-xs flex items-center gap-1 transition-all cursor-pointer ${
-                activeDropdown === 'save' 
-                  ? 'bg-monokai-orange text-monokai-bg border-monokai-orange' 
-                  : 'bg-monokai-surface/40 border-monokai-accent/40 hover:border-monokai-orange hover:text-monokai-orange text-monokai-fg'
-              }`}
-            >
-              <Save size={10} />
-              存储/导出
-              <ChevronDown size={8} className={`transition-transform duration-200 ${activeDropdown === 'save' ? 'rotate-180' : ''}`} />
-            </button>
-
-            {activeDropdown === 'save' && (
-              <div className="absolute top-full left-0 mt-1 bg-monokai-sidebar/95 backdrop-blur-md border border-monokai-accent rounded-xs shadow-xl z-55 min-w-[190px] p-1 animate-in fade-in slide-in-from-top-1 duration-150 border-t-monokai-orange/50">
+            {activeDropdown === 'files' && (
+              <div className="absolute top-full left-0 mt-1 bg-monokai-sidebar/95 backdrop-blur-md border border-monokai-accent/30 rounded-xs shadow-xl z-55 min-w-[180px] p-1 animate-in fade-in slide-in-from-top-1 duration-150 border-t-monokai-green/50">
                 <div className="px-2.5 py-0.5 text-[9px] text-monokai-comment uppercase font-bold tracking-wider mb-1">标签与视图管理</div>
                 <button 
                   onClick={handleNewTab}
@@ -485,9 +448,50 @@ export const SqlEditorToolbar: React.FC<SqlEditorToolbarProps> = ({
                 </button>
 
                 <div className="border-t border-monokai-accent/20 my-1"></div>
-                
-                {/* Result Exporters Integrated Directly */}
-                <div className="px-2.5 py-0.5 text-[9px] text-monokai-comment uppercase font-bold tracking-wider mb-1">快速导出结果</div>
+                <div className="px-2.5 py-0.5 text-[9px] text-monokai-comment uppercase font-bold tracking-wider mb-1">数据库表操作</div>
+                <button 
+                  onClick={() => { setShowImportModal(true); setActiveDropdown(null); }}
+                  className="w-full text-left px-2.5 py-1.5 text-xs text-monokai-fg hover:bg-monokai-green/10 hover:text-monokai-green rounded-xs transition-colors flex items-center gap-2"
+                >
+                  <Upload size={11} className="text-monokai-green" />
+                  导入外部数据
+                </button>
+                <button 
+                  onClick={() => { setShowCreateModal(true); setActiveDropdown(null); }}
+                  className="w-full text-left px-2.5 py-1.5 text-xs text-monokai-fg hover:bg-monokai-blue/10 hover:text-monokai-blue rounded-xs transition-colors flex items-center gap-2"
+                >
+                  <Plus size={11} className="text-monokai-blue" />
+                  新建空数据表
+                </button>
+                <button 
+                  onClick={() => { setShowDuplicateModal(true); setActiveDropdown(null); }}
+                  className="w-full text-left px-2.5 py-1.5 text-xs text-monokai-fg hover:bg-monokai-purple/10 hover:text-monokai-purple rounded-xs transition-colors flex items-center gap-2"
+                >
+                  <Copy size={11} className="text-monokai-purple" />
+                  复制克隆已有表
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Dropdown 2: 数据导出 (Export) */}
+          <div className="relative">
+            <button
+              onClick={() => toggleDropdown('export')}
+              className={`px-2.5 py-1 border text-[11px] font-bold rounded-xs flex items-center gap-1.5 transition-all cursor-pointer ${
+                activeDropdown === 'export' 
+                  ? 'bg-monokai-orange text-monokai-bg border-monokai-orange' 
+                  : 'bg-monokai-surface/30 border-monokai-accent/20 hover:border-monokai-orange hover:text-monokai-orange text-monokai-fg'
+              }`}
+            >
+              <Download size={10} />
+              数据导出
+              <ChevronDown size={8} className={`transition-transform duration-200 ${activeDropdown === 'export' ? 'rotate-180' : ''}`} />
+            </button>
+
+            {activeDropdown === 'export' && (
+              <div className="absolute top-full left-0 mt-1 bg-monokai-sidebar/95 backdrop-blur-md border border-monokai-accent/30 rounded-xs shadow-xl z-55 min-w-[170px] p-1 animate-in fade-in slide-in-from-top-1 duration-150 border-t-monokai-orange/50">
+                <div className="px-2.5 py-0.5 text-[9px] text-monokai-comment uppercase font-bold tracking-wider mb-1">结果导出格式</div>
                 <button
                   onClick={() => handleExport('csv')}
                   disabled={!activeTab.result || activeTab.result.rows.length === 0}
@@ -524,28 +528,78 @@ export const SqlEditorToolbar: React.FC<SqlEditorToolbarProps> = ({
             )}
           </div>
 
-          {/* Group 3: SQL 工具 (SQL Helper) */}
+          {/* Dropdown 3: 智能与模板 (Smart & Templates) */}
           <div className="relative">
             <button
-              onClick={() => toggleDropdown('snippets')}
-              className={`px-2 py-1 border text-[11px] font-bold rounded-xs flex items-center gap-1 transition-all cursor-pointer ${
-                activeDropdown === 'snippets' 
-                  ? 'bg-monokai-yellow text-monokai-bg border-monokai-yellow' 
-                  : 'bg-monokai-surface/40 border-monokai-accent/40 hover:border-monokai-yellow hover:text-monokai-yellow text-monokai-fg'
+              onClick={() => toggleDropdown('templates')}
+              className={`px-2.5 py-1 border text-[11px] font-bold rounded-xs flex items-center gap-1.5 transition-all cursor-pointer ${
+                activeDropdown === 'templates' 
+                  ? 'bg-monokai-purple text-monokai-bg border-monokai-purple' 
+                  : 'bg-monokai-surface/30 border-monokai-accent/20 hover:border-monokai-purple hover:text-monokai-purple text-monokai-fg'
               }`}
             >
-              <Code size={10} />
-              SQL 助手
-              <ChevronDown size={8} className={`transition-transform duration-200 ${activeDropdown === 'snippets' ? 'rotate-180' : ''}`} />
+              <Sparkles size={10} />
+              智能与模板
+              <ChevronDown size={8} className={`transition-transform duration-200 ${activeDropdown === 'templates' ? 'rotate-180' : ''}`} />
             </button>
 
-            {activeDropdown === 'snippets' && (
-              <div className="absolute top-full left-0 mt-1 bg-monokai-sidebar/95 backdrop-blur-md border border-monokai-accent rounded-xs shadow-xl z-55 min-w-[210px] max-h-[320px] overflow-y-auto custom-scrollbar p-1 animate-in fade-in slide-in-from-top-1 duration-150 border-t-monokai-yellow/50">
+            {activeDropdown === 'templates' && (
+              <div className="absolute top-full left-0 mt-1 bg-monokai-sidebar/95 backdrop-blur-md border border-monokai-accent/30 rounded-xs shadow-xl z-55 min-w-[210px] max-h-[350px] overflow-y-auto custom-scrollbar p-1 animate-in fade-in slide-in-from-top-1 duration-150 border-t-monokai-purple/50">
+                <div className="px-2.5 py-0.5 text-[9px] text-monokai-comment uppercase font-bold tracking-wider mb-1">AI 辅助工具</div>
+                <div className="px-2 py-1">
+                  <select
+                    value={selectedSqlType}
+                    onChange={onSqlTypeChange}
+                    className="w-full bg-monokai-bg border border-monokai-accent/40 rounded-xs px-2 py-1 text-xs text-monokai-fg outline-none focus:border-monokai-purple transition-all cursor-pointer h-7"
+                  >
+                    <option value="select">SELECT 模版</option>
+                    <option value="join">JOIN 关联</option>
+                    <option value="aggregate">聚合统计</option>
+                    <option value="transform">数据清洗转换</option>
+                    <option value="performance">性能执行分析</option>
+                    <option value="utilities">辅助工具方法</option>
+                  </select>
+                </div>
+
+                <button
+                  onClick={() => { onAIFill(); setActiveDropdown(null); }}
+                  className="w-full flex items-center justify-between text-left px-2.5 py-1.5 text-xs text-monokai-fg hover:bg-monokai-green/10 hover:text-monokai-green rounded-xs transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <Sparkles size={11} className="text-monokai-green" />
+                    <span>智能填充模版</span>
+                  </div>
+                  {detectedTable && (
+                    <span className="text-[8px] bg-monokai-green/20 text-monokai-green px-1 py-0.5 rounded font-mono truncate max-w-[80px]">
+                      {detectedTable}
+                    </span>
+                  )}
+                </button>
+
+                <button
+                  onClick={() => { onAiExplain(); setActiveDropdown(null); }}
+                  disabled={!activeTab.code.trim()}
+                  className="w-full flex items-center gap-2 text-left px-2.5 py-1.5 text-xs text-monokai-fg hover:bg-monokai-purple/10 hover:text-monokai-purple disabled:opacity-40 rounded-xs transition-colors"
+                >
+                  <Sparkles size={11} className="text-monokai-purple" />
+                  <span>AI 智能解释 SQL</span>
+                </button>
+
+                <button
+                  onClick={() => { onShowSkillAssistant(); setActiveDropdown(null); }}
+                  className="w-full flex items-center gap-2 text-left px-2.5 py-1.5 text-xs text-monokai-fg hover:bg-monokai-purple/10 hover:text-monokai-purple rounded-xs transition-colors font-bold"
+                >
+                  <Sparkles size={11} className="text-monokai-purple animate-pulse" />
+                  <span>AI 数据处理技能</span>
+                </button>
+
+                <div className="border-t border-monokai-accent/20 my-1"></div>
+                <div className="px-2.5 py-0.5 text-[9px] text-monokai-comment uppercase font-bold tracking-wider mb-1">SQL 语法排版</div>
                 <button
                   onClick={() => { onFormatSql(); setActiveDropdown(null); }}
                   className="w-full text-left px-2.5 py-1.5 text-xs text-monokai-fg hover:bg-monokai-yellow/10 hover:text-monokai-yellow rounded-xs transition-colors flex items-center justify-between"
                 >
-                  <div className="flex items-center gap-2 font-bold font-sans">
+                  <div className="flex items-center gap-2 font-bold">
                     <Type size={11} className="text-monokai-yellow" />
                     <span>格式化 SQL</span>
                   </div>
@@ -585,7 +639,7 @@ export const SqlEditorToolbar: React.FC<SqlEditorToolbarProps> = ({
                     >
                       <div className="flex items-center gap-2">
                         <span className="shrink-0">{SNIPPET_CATEGORY_META[groupName]?.icon || <FileText className="w-3 h-3" />}</span>
-                        <span className="truncate max-w-[110px] font-sans">{groupName}</span>
+                        <span className="truncate max-w-[110px]">{groupName}</span>
                         <span className="text-monokai-comment/50 text-[8px]">({Object.keys(snippets).length})</span>
                       </div>
                       <ChevronDown
@@ -602,7 +656,7 @@ export const SqlEditorToolbar: React.FC<SqlEditorToolbarProps> = ({
                             onClick={() => { onSnippetInsert(snippet); setActiveDropdown(null); }}
                           >
                             <Code className="w-3 h-3 text-monokai-yellow/40 shrink-0" />
-                            <span className="truncate font-sans">{label}</span>
+                            <span className="truncate">{label}</span>
                           </button>
                         ))}
                       </div>
@@ -613,94 +667,14 @@ export const SqlEditorToolbar: React.FC<SqlEditorToolbarProps> = ({
             )}
           </div>
 
-          {/* Group 4: 视图与诊断 (Diagnostics & View) */}
-          <div className="relative">
-            <button
-              onClick={() => toggleDropdown('layout')}
-              className={`px-2 py-1 border text-[11px] font-bold rounded-xs flex items-center gap-1 transition-all cursor-pointer ${
-                activeDropdown === 'layout' 
-                  ? 'bg-monokai-blue text-monokai-bg border-monokai-blue' 
-                  : 'bg-monokai-surface/40 border-monokai-accent/40 hover:border-monokai-blue hover:text-monokai-blue text-monokai-fg'
-              }`}
-            >
-              <Activity size={10} />
-              视图诊断
-              <ChevronDown size={8} className={`transition-transform duration-200 ${activeDropdown === 'layout' ? 'rotate-180' : ''}`} />
-            </button>
-
-            {activeDropdown === 'layout' && (
-              <div className="absolute top-full left-0 mt-1 bg-monokai-sidebar/95 backdrop-blur-md border border-monokai-accent rounded-xs shadow-xl z-55 min-w-[180px] p-1 animate-in fade-in slide-in-from-top-1 duration-150 border-t-monokai-blue/50">
-                <div className="px-2.5 py-0.5 text-[9px] text-monokai-comment uppercase font-bold tracking-wider mb-1">结果面板视图</div>
-                <button
-                  onClick={() => { updateActiveTab({ viewMode: 'table' }); setActiveDropdown(null); }}
-                  className={`w-full text-left px-2.5 py-1.5 text-xs rounded-xs transition-colors flex items-center gap-2 ${
-                    activeTab.viewMode === 'table' ? 'bg-monokai-accent/15 text-monokai-accent font-bold' : 'text-monokai-fg hover:bg-monokai-accent/10 hover:text-monokai-accent'
-                  }`}
-                >
-                  <Table size={11} />
-                  数据结果表
-                </button>
-                <button
-                  onClick={() => { updateActiveTab({ viewMode: 'chart' }); setActiveDropdown(null); }}
-                  disabled={!activeTab.result || activeTab.result.rows.length === 0}
-                  className={`w-full text-left px-2.5 py-1.5 text-xs rounded-xs transition-colors flex items-center gap-2 disabled:opacity-30 ${
-                    activeTab.viewMode === 'chart' ? 'bg-monokai-pink/15 text-monokai-pink font-bold' : 'text-monokai-fg hover:bg-monokai-pink/10 hover:text-monokai-pink'
-                  }`}
-                >
-                  <BarChart2 size={11} />
-                  可视化图表
-                </button>
-                <button
-                  onClick={() => { updateActiveTab({ viewMode: 'explain' }); setActiveDropdown(null); }}
-                  className={`w-full text-left px-2.5 py-1.5 text-xs rounded-xs transition-colors flex items-center gap-2 ${
-                    activeTab.viewMode === 'explain' ? 'bg-monokai-purple/15 text-monokai-purple font-bold' : 'text-monokai-fg hover:bg-monokai-purple/10 hover:text-monokai-purple'
-                  }`}
-                >
-                  <Activity size={11} />
-                  诊断执行计划
-                </button>
-                <button
-                  onClick={() => { updateActiveTab({ viewMode: 'profiling' }); setActiveDropdown(null); }}
-                  className={`w-full text-left px-2.5 py-1.5 text-xs rounded-xs transition-colors flex items-center gap-2 ${
-                    activeTab.viewMode === 'profiling' ? 'bg-monokai-green/15 text-monokai-green font-bold' : 'text-monokai-fg hover:bg-monokai-green/10 hover:text-monokai-green'
-                  }`}
-                >
-                  <Activity size={11} />
-                  性能剖析视图
-                </button>
-
-                <div className="border-t border-monokai-accent/20 my-1"></div>
-
-                <button
-                  onClick={() => { onToggleZen(); setActiveDropdown(null); }}
-                  className={`w-full text-left px-2.5 py-1.5 text-xs rounded-xs transition-colors flex items-center justify-between ${
-                    isZenMode 
-                      ? 'bg-monokai-pink/10 text-monokai-pink font-bold' 
-                      : 'text-monokai-fg hover:bg-monokai-pink/10 hover:text-monokai-pink'
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    {isZenMode ? <Minimize2 size={11} /> : <Maximize2 size={11} />}
-                    <span>极简禅模式</span>
-                  </div>
-                  {isZenMode ? (
-                    <span className="text-[8px] bg-monokai-pink/20 text-monokai-pink px-1 py-0.5 rounded-xs">开启</span>
-                  ) : (
-                    <span className="text-[8px] text-monokai-comment/40">关闭</span>
-                  )}
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Group 5: 历史与树 (History & Schema) */}
+          {/* Dropdown 4: 执行历史 (History) */}
           <div className="relative">
             <button
               onClick={() => toggleDropdown('history')}
-              className={`px-2 py-1 border text-[11px] font-bold rounded-xs flex items-center gap-1 transition-all cursor-pointer ${
+              className={`px-2.5 py-1 border text-[11px] font-bold rounded-xs flex items-center gap-1.5 transition-all cursor-pointer ${
                 activeDropdown === 'history' 
                   ? 'bg-monokai-yellow text-monokai-bg border-monokai-yellow' 
-                  : 'bg-monokai-surface/40 border-monokai-accent/40 hover:border-monokai-yellow hover:text-monokai-yellow text-monokai-fg'
+                  : 'bg-monokai-surface/30 border-monokai-accent/20 hover:border-monokai-yellow hover:text-monokai-yellow text-monokai-fg'
               }`}
             >
               <Clock size={10} />
@@ -709,7 +683,7 @@ export const SqlEditorToolbar: React.FC<SqlEditorToolbarProps> = ({
             </button>
 
             {activeDropdown === 'history' && (
-              <div className="absolute top-full left-0 mt-1 bg-monokai-sidebar/95 backdrop-blur-md border border-monokai-accent rounded-xs shadow-xl z-55 min-w-[210px] max-h-[350px] overflow-y-auto custom-scrollbar p-1 animate-in fade-in slide-in-from-top-1 duration-150 border-t-monokai-yellow/50">
+              <div className="absolute top-full left-0 mt-1 bg-monokai-sidebar/95 backdrop-blur-md border border-monokai-accent/30 rounded-xs shadow-xl z-55 min-w-[210px] max-h-[350px] overflow-y-auto custom-scrollbar p-1 animate-in fade-in slide-in-from-top-1 duration-150 border-t-monokai-yellow/50">
                 <div className="px-2.5 py-1 text-[9px] text-monokai-comment uppercase font-bold tracking-wider">最近执行语句</div>
                 {storeHistory.length === 0 ? (
                   <div className="px-2.5 py-1.5 text-xs text-monokai-comment/50 italic">暂无执行历史</div>
@@ -727,7 +701,7 @@ export const SqlEditorToolbar: React.FC<SqlEditorToolbarProps> = ({
                 )}
 
                 <div className="border-t border-monokai-accent/20 my-1"></div>
-                <div className="px-2.5 py-1 text-[9px] text-monokai-comment uppercase font-bold tracking-wider">管理面板面板</div>
+                <div className="px-2.5 py-1 text-[9px] text-monokai-comment uppercase font-bold tracking-wider">管理面板</div>
                 <button 
                   onClick={() => handleOpenSidebarTab('history')}
                   className="w-full text-left px-2.5 py-1.5 text-xs text-monokai-fg hover:bg-monokai-yellow/10 hover:text-monokai-yellow rounded-xs transition-colors flex items-center gap-2"
@@ -746,29 +720,45 @@ export const SqlEditorToolbar: React.FC<SqlEditorToolbarProps> = ({
             )}
           </div>
 
-          {/* Group 6: 编辑工具 (Edit Utils) */}
+          {/* Dropdown 5: 系统设置 (System Settings) */}
           <div className="relative">
             <button
-              onClick={() => toggleDropdown('edit')}
-              className={`px-2 py-1 border text-[11px] font-bold rounded-xs flex items-center gap-1 transition-all cursor-pointer ${
-                activeDropdown === 'edit'
-                  ? 'bg-monokai-purple text-monokai-bg border-monokai-purple'
-                  : 'bg-monokai-surface/40 border-monokai-accent/40 hover:border-monokai-purple hover:text-monokai-purple text-monokai-fg'
+              onClick={() => toggleDropdown('system')}
+              className={`px-2.5 py-1 border text-[11px] font-bold rounded-xs flex items-center gap-1.5 transition-all cursor-pointer ${
+                activeDropdown === 'system' 
+                  ? 'bg-monokai-blue text-monokai-bg border-monokai-blue' 
+                  : 'bg-monokai-surface/30 border-monokai-accent/20 hover:border-monokai-blue hover:text-monokai-blue text-monokai-fg'
               }`}
             >
-              <Edit3 size={10} />
-              编辑
-              <ChevronDown size={8} className={`transition-transform duration-200 ${activeDropdown === 'edit' ? 'rotate-180' : ''}`} />
+              <Settings size={10} />
+              系统设置
+              <ChevronDown size={8} className={`transition-transform duration-200 ${activeDropdown === 'system' ? 'rotate-180' : ''}`} />
             </button>
 
-            {activeDropdown === 'edit' && (
-              <div className="absolute top-full left-0 mt-1 bg-monokai-sidebar/95 backdrop-blur-md border border-monokai-accent rounded-xs shadow-xl z-55 min-w-[180px] p-1 animate-in fade-in slide-in-from-top-1 duration-150 border-t-monokai-purple/50">
+            {activeDropdown === 'system' && (
+              <div className="absolute top-full left-0 mt-1 bg-monokai-sidebar/95 backdrop-blur-md border border-monokai-accent/30 rounded-xs shadow-xl z-55 min-w-[180px] p-1 animate-in fade-in slide-in-from-top-1 duration-150 border-t-monokai-blue/50">
+                <div className="px-2.5 py-0.5 text-[9px] text-monokai-comment uppercase font-bold tracking-wider mb-1">系统与视图</div>
                 <button
-                  onClick={handleCopySql}
-                  className="w-full text-left px-2.5 py-1.5 text-xs text-monokai-fg hover:bg-monokai-green/10 hover:text-monokai-green rounded-xs transition-colors flex items-center gap-2"
+                  onClick={() => { onToggleZen(); setActiveDropdown(null); }}
+                  className={`w-full text-left px-2.5 py-1.5 text-xs rounded-xs transition-colors flex items-center justify-between ${
+                    isZenMode 
+                      ? 'bg-monokai-pink/10 text-monokai-pink font-bold' 
+                      : 'text-monokai-fg hover:bg-monokai-pink/10 hover:text-monokai-pink'
+                  }`}
                 >
-                  {copied ? <Check size={11} className="text-monokai-green animate-bounce" /> : <Copy size={11} />}
-                  <span>{copied ? '已复制！' : '复制全部 SQL'}</span>
+                  <div className="flex items-center gap-2">
+                    {isZenMode ? <Minimize2 size={11} /> : <Maximize2 size={11} />}
+                    <span>极简禅模式</span>
+                  </div>
+                  {isZenMode && <span className="text-[8px] bg-monokai-pink/20 text-monokai-pink px-1 py-0.5 rounded-xs">开</span>}
+                </button>
+
+                <button 
+                  onClick={() => { setShowSettingsModal(true); setActiveDropdown(null); }}
+                  className="w-full text-left px-2.5 py-1.5 text-xs text-monokai-fg hover:bg-monokai-yellow/10 hover:text-monokai-yellow rounded-xs transition-colors flex items-center gap-2"
+                >
+                  <Settings size={11} className="text-monokai-yellow" />
+                  <span>系统运行偏好</span>
                 </button>
 
                 <button
@@ -780,6 +770,15 @@ export const SqlEditorToolbar: React.FC<SqlEditorToolbarProps> = ({
                 </button>
 
                 <div className="border-t border-monokai-accent/20 my-1"></div>
+                <div className="px-2.5 py-0.5 text-[9px] text-monokai-comment uppercase font-bold tracking-wider mb-1">编辑器操作</div>
+                
+                <button
+                  onClick={handleCopySql}
+                  className="w-full text-left px-2.5 py-1.5 text-xs text-monokai-fg hover:bg-monokai-green/10 hover:text-monokai-green rounded-xs transition-colors flex items-center gap-2"
+                >
+                  {copied ? <Check size={11} className="text-monokai-green animate-bounce" /> : <Copy size={11} />}
+                  <span>{copied ? '已复制！' : '复制全部 SQL'}</span>
+                </button>
 
                 <button
                   onClick={() => { onClear(); setActiveDropdown(null); }}
@@ -794,106 +793,7 @@ export const SqlEditorToolbar: React.FC<SqlEditorToolbarProps> = ({
               </div>
             )}
           </div>
-
-          {/* Group 7: AI 助手 (AI Specialty Tools) */}
-          <div className="relative">
-            <button
-              onClick={() => toggleDropdown('ai')}
-              className={`px-2 py-1 border text-[11px] font-bold rounded-xs flex items-center gap-1 transition-all cursor-pointer ${
-                activeDropdown === 'ai'
-                  ? 'bg-monokai-purple text-monokai-bg border-monokai-purple'
-                  : 'bg-monokai-purple/10 border-monokai-purple/30 text-monokai-purple hover:bg-monokai-purple hover:text-monokai-bg'
-              }`}
-            >
-              <Sparkles size={10} />
-              AI 智能
-              <span className="text-[8px] bg-monokai-purple/20 px-1 py-0.5 rounded text-monokai-purple font-mono scale-90 border border-monokai-purple/30 uppercase tracking-tight shrink-0 hidden sm:inline-block">
-                {getSqlTypeLabel(selectedSqlType)}
-              </span>
-              <ChevronDown size={8} className={`transition-transform duration-200 ${activeDropdown === 'ai' ? 'rotate-180' : ''}`} />
-            </button>
-
-            {activeDropdown === 'ai' && (
-              <div className="absolute top-full left-0 mt-1 bg-monokai-sidebar/95 backdrop-blur-md border border-monokai-accent rounded-xs shadow-xl z-55 min-w-[200px] p-2.5 animate-in fade-in slide-in-from-top-1 duration-150 flex flex-col gap-2 border-t-monokai-purple/50">
-                <div>
-                  <div className="text-[9px] text-monokai-comment uppercase font-bold tracking-wider mb-1">AI 模式选择</div>
-                  <select
-                    value={selectedSqlType}
-                    onChange={onSqlTypeChange}
-                    className="w-full bg-monokai-bg border border-monokai-accent rounded-xs px-2 py-1 text-xs text-monokai-fg outline-none focus:border-monokai-purple transition-all cursor-pointer h-7"
-                  >
-                    <option value="select">SELECT 模版</option>
-                    <option value="join">JOIN 关联</option>
-                    <option value="aggregate">聚合统计</option>
-                    <option value="transform">数据清洗转换</option>
-                    <option value="performance">性能执行分析</option>
-                    <option value="utilities">辅助工具方法</option>
-                  </select>
-                </div>
-
-                <div className="border-t border-monokai-accent/20 my-0.5"></div>
-
-                <button
-                  onClick={() => { onAIFill(); setActiveDropdown(null); }}
-                  className="w-full flex items-center justify-between text-left px-2 py-1.5 text-xs text-monokai-fg hover:bg-monokai-green/10 hover:text-monokai-green rounded-xs transition-colors"
-                  title={detectedTable ? `基于当前表 ${detectedTable} 进行智能查询模版填充` : '基于上下文生成模版填充'}
-                >
-                  <div className="flex items-center gap-2">
-                    <Sparkles size={11} className="text-monokai-green" />
-                    <span>智能填充模版</span>
-                  </div>
-                  {detectedTable && (
-                    <span className="text-[8px] bg-monokai-green/20 text-monokai-green px-1 py-0.5 rounded font-mono truncate max-w-[80px]">
-                      {detectedTable}
-                    </span>
-                  )}
-                </button>
-
-                <button
-                  onClick={() => { onAiExplain(); setActiveDropdown(null); }}
-                  disabled={!activeTab.code.trim()}
-                  className="w-full flex items-center gap-2 text-left px-2 py-1.5 text-xs text-monokai-fg hover:bg-monokai-purple/10 hover:text-monokai-purple disabled:opacity-40 rounded-xs transition-colors"
-                  title="AI 全方位解释当前 SQL 的运行机制与结构"
-                >
-                  <Sparkles size={11} className="text-monokai-purple" />
-                  <span>智能解释 SQL</span>
-                </button>
-
-                <button
-                  onClick={() => { onShowSkillAssistant(); setActiveDropdown(null); }}
-                  className="w-full flex items-center gap-2 text-left px-2 py-1.5 text-xs text-monokai-fg hover:bg-monokai-purple/10 hover:text-monokai-purple rounded-xs transition-colors font-bold"
-                  title="管理和运行特定的 AI SQL 数据处理技能"
-                >
-                  <Sparkles size={11} className="text-monokai-purple animate-pulse" />
-                  <span>AI 数据处理技能</span>
-                </button>
-              </div>
-            )}
-          </div>
         </div>
-
-        {/* Right Side: Micro-Widgets for Execution Statistics */}
-        {activeTab.result && !activeTab.result.error && (
-          <div className="flex items-center gap-2.5 px-3 py-1 bg-monokai-surface/30 border border-monokai-accent/10 rounded-sm text-[10px] text-monokai-comment font-mono shrink-0 ml-auto flex-wrap">
-            <div className="flex items-center gap-1.5">
-              <span className="text-monokai-blue font-bold">⏱️</span>
-              <span>执行耗时:</span>
-              <span className="text-monokai-blue font-bold">{activeTab.result.executionTime.toFixed(1)}ms</span>
-            </div>
-            <div className="w-[1px] h-3 bg-monokai-accent/20"></div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-monokai-green font-bold">📊</span>
-              <span>返回行数:</span>
-              <span className="text-monokai-green font-bold">{activeTab.result.rows.length.toLocaleString()}</span>
-            </div>
-            <div className="w-[1px] h-3 bg-monokai-accent/20"></div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-monokai-yellow font-bold">💾</span>
-              <span>估算内存:</span>
-              <span className="text-monokai-yellow font-bold">{getEstMemory()}</span>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* ──────────────────────────────────────────────────────────── */}

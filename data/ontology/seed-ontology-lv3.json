@@ -1,0 +1,49 @@
+{
+  "_meta": {
+    "name": "本体 Lv.3：属性与接口",
+    "description": "第三级：引入属性定义明细与对象接口，使用 JSON 属性表示回写模式和数据映射配置",
+    "version": "1.0.0",
+    "author": "system",
+    "created_at": "2026-07-08",
+    "scenario": "palantir-ontology-mini",
+    "complexity": "medium",
+    "entity_counts": {
+      "object_types": 2,
+      "objects": 6,
+      "link_types": 5,
+      "links": 5,
+      "actions": 0,
+      "introspections": 0,
+      "insights": 0
+    }
+  },
+  "objectTypes": [
+    { "id": 1, "name": "核心元", "description": "代表物理世界实体或关系的核心本体类型定义" },
+    { "id": 2, "name": "控制元", "description": "用于修改或计算本体属性的控制和逻辑类型定义" }
+  ],
+  "objects": [
+    { "id": 1, "object_type_id": 1, "name": "对象类型", "properties": "{\"数据源表\": \"主物理表\", \"主键字段\": \"标识键\", \"启用共享\": true}", "annotations": "代表现实世界实体的数字孪生定义" },
+    { "id": 2, "object_type_id": 1, "name": "链接类型", "properties": "{\"关联映射\": \"外键联合表\", \"对应基数\": \"多对多\"}", "annotations": "定义对象类型之间的关联关系" },
+    { "id": 3, "object_type_id": 2, "name": "行动类型", "properties": "{\"回写模式\": \"同步事务回写\", \"授权范围\": \"操作员组\"}", "annotations": "定义可在对象上执行的操作与回写逻辑" },
+    { "id": 4, "object_type_id": 1, "name": "属性", "properties": "{\"字段类型\": \"字符型\", \"主键约束\": false, \"敏感评级\": \"普通\"}", "annotations": "对象类型中所包含的属性特征定义" },
+    { "id": 5, "object_type_id": 2, "name": "逻辑函数", "properties": "{\"执行环境\": \"计算引擎节点\", \"输入参数\": \"属性集合\"}", "annotations": "在对象和关系网之上运行的指标计算逻辑" },
+    { "id": 6, "object_type_id": 1, "name": "对象接口", "properties": "{\"共享特征\": [\"标识码\", \"修改时间\"], \"多态继承\": true}", "annotations": "支持跨多个对象类型复用的共享概念定义" }
+  ],
+  "linkTypes": [
+    { "id": 1, "name": "从属于", "description": "表示基础特征附属于实体的包含关系" },
+    { "id": 2, "name": "定义关联", "description": "声明两个实体之间的关联关系" },
+    { "id": 3, "name": "作用于", "description": "指示行动修改或作用的目标" },
+    { "id": 4, "name": "驱动计算", "description": "表示计算逻辑重算特征" },
+    { "id": 5, "name": "实现接口", "description": "声明对象符合接口协议" }
+  ],
+  "links": [
+    { "id": 1, "link_type_id": 1, "source_object_id": 4, "target_object_id": 1, "weight": 1.0 },
+    { "id": 2, "link_type_id": 2, "source_object_id": 2, "target_object_id": 1, "weight": 0.95 },
+    { "id": 3, "link_type_id": 3, "source_object_id": 3, "target_object_id": 1, "weight": 0.9 },
+    { "id": 4, "link_type_id": 4, "source_object_id": 5, "target_object_id": 4, "weight": 0.8 },
+    { "id": 5, "link_type_id": 5, "source_object_id": 1, "target_object_id": 6, "weight": 0.85 }
+  ],
+  "actions": [],
+  "introspections": [],
+  "insights": []
+}

@@ -457,7 +457,7 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, onTryCo
   // 字体大小状态
   const [fontSize, setFontSize] = useState<number>(() => {
     const saved = localStorage.getItem('duckdb_learn_fontsize');
-    return saved ? parseInt(saved, 10) : 10;
+    return saved ? parseInt(saved, 10) : 14;
   });
 
   // 字体大小变化处理
@@ -901,143 +901,152 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, onTryCo
           </div>
 
           {/* 右侧：操作按钮组 */}
-          <div className="flex items-center gap-0.5 -mr-2">
-            {/* 全部执行 SQL - 始终显示 */}
-            <button
-              onClick={handleExecuteAllSql}
-              disabled={executingAll}
-              className={`flex justify-center items-center gap-1 px-2 py-1.5 rounded-md text-[11px] font-medium transition-all whitespace-nowrap ${executingAll
-                ? 'bg-monokai-purple/30 text-monokai-purple'
-                : 'bg-monokai-green/20 text-monokai-green hover:bg-monokai-green/30'
-                }`}
-              title="执行本页所有 SQL 代码"
-            >
-              {executingAll ? (
-                <span className="w-3.5 h-3.5 border-2 border-monokai-purple border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <Play className="w-3.5 h-3.5" />
+          <div className="flex flex-wrap items-center gap-3 -mr-2">
+            {/* 文档配置组 */}
+            <div className="flex items-center gap-1.5 bg-[#2a2b36] p-1 rounded-lg border border-monokai-accent/20">
+              {/* 字号调节 */}
+              <div className="flex justify-center items-center gap-0.5 px-1 py-0.5">
+                <button
+                  onClick={() => handleFontSizeChange(fontSize - 2)}
+                  disabled={fontSize <= 12}
+                  className="w-5 h-5 rounded text-[10px] font-bold bg-monokai-accent/30 hover:bg-monokai-accent/50 text-monokai-fg flex items-center justify-center transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                  title="减小字号"
+                >
+                  A-
+                </button>
+                <span className="text-[10px] text-monokai-fg w-5 text-center leading-none">{fontSize}</span>
+                <button
+                  onClick={() => handleFontSizeChange(fontSize + 2)}
+                  disabled={fontSize >= 24}
+                  className="w-5 h-5 rounded text-[10px] font-bold bg-monokai-accent/30 hover:bg-monokai-accent/50 text-monokai-fg flex items-center justify-center transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                  title="增大字号"
+                >
+                  A+
+                </button>
+                <button
+                  onClick={() => handleFontSizeChange(16)}
+                  className="ml-1.5 text-[9px] text-monokai-fg/70 hover:text-monokai-blue transition-colors px-1 py-0.5 rounded hover:bg-monokai-accent/30 whitespace-nowrap"
+                  title="重置为默认"
+                >
+                  默认
+                </button>
+              </div>
+
+              {/* 收藏当前教程 */}
+              {tutorialId && (
+                <button
+                  onClick={handleToggleFavorite}
+                  className={`flex justify-center items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium transition-all whitespace-nowrap ${isFavorited
+                    ? 'bg-monokai-pink/30 text-monokai-pink'
+                    : 'bg-monokai-pink/10 text-monokai-pink hover:bg-monokai-pink/20'
+                    }`}
+                  title={isFavorited ? '取消收藏' : '添加收藏'}
+                >
+                  <Heart className={`w-3 h-3 ${isFavorited ? 'fill-current' : ''}`} />
+                  <span className="hidden sm:inline">{isFavorited ? '已收藏' : '收藏'}</span>
+                </button>
               )}
-              <span className="hidden sm:inline">{executingAll ? `执行中 ${executedCount}/${sqlCodeCount}` : '执行'}</span>
-            </button>
+            </div>
 
-            {/* 复制全部代码 - 始终显示 */}
-            <button
-              onClick={handleCopyAllSql}
-              disabled={copiedAll}
-              className={`flex justify-center items-center gap-1 px-2 py-1.5 rounded-md text-[11px] font-medium transition-all whitespace-nowrap ${copiedAll
-                ? 'bg-monokai-green/30 text-monokai-green'
-                : 'bg-monokai-blue/20 text-monokai-blue hover:bg-monokai-blue/30'
-                }`}
-              title="复制本页所有 SQL 代码"
-            >
-              {copiedAll ? (
-                <Check className="w-3.5 h-3.5" />
-              ) : (
-                <Copy className="w-3.5 h-3.5" />
-              )}
-              <span className="hidden sm:inline">{copiedAll ? '已复制' : '复制'}</span>
-            </button>
-
-            {/* 清空表 - 始终显示 */}
-            <button
-              onClick={handleClearAllTables}
-              disabled={clearingTables}
-              className={`flex justify-center items-center gap-1 px-2 py-1.5 rounded-md text-[11px] font-medium transition-all whitespace-nowrap ${clearingTables
-                ? 'bg-monokai-pink/30 text-monokai-pink'
-                : 'bg-monokai-pink/20 text-monokai-pink hover:bg-monokai-pink/30'
-                }`}
-              title="清空所有数据表"
-            >
-              {clearingTables ? (
-                <span className="w-3.5 h-3.5 border-2 border-monokai-pink border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <Trash2 className="w-3.5 h-3.5" />
-              )}
-              <span className="hidden sm:inline">{clearingTables ? '清空中...' : '清空表'}</span>
-            </button>
-
-            {/* 笔记按钮 */}
-            <button
-              onClick={() => setShowNotesSidebar(true)}
-              className="flex justify-center items-center gap-1 px-2 py-1.5 rounded-md text-[11px] font-medium bg-monokai-yellow/20 text-monokai-yellow hover:bg-monokai-yellow/30 transition-all whitespace-nowrap"
-              title="查看学习笔记"
-            >
-              <StickyNote className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">笔记</span>
-            </button>
-
-            {/* 字号调节 - 放在笔记下面 */}
-            <div className="flex justify-center items-center gap-0.5 bg-monokai-accent/20 rounded-md px-1 py-1">
+            {/* SQL 核心操作组 */}
+            <div className="flex items-center gap-1 bg-[#2a2b36] p-1 rounded-lg border border-monokai-accent/20">
+              {/* 全部执行 SQL */}
               <button
-                onClick={() => handleFontSizeChange(fontSize - 2)}
-                disabled={fontSize <= 12}
-                className="w-5 h-5 rounded text-[10px] font-bold bg-monokai-accent/30 hover:bg-monokai-accent/50 text-monokai-fg flex items-center justify-center transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                title="减小字号"
+                onClick={handleExecuteAllSql}
+                disabled={executingAll}
+                className={`flex justify-center items-center gap-1 px-2 py-1.5 rounded-md text-[10px] font-medium transition-all whitespace-nowrap ${executingAll
+                  ? 'bg-monokai-purple/30 text-monokai-purple'
+                  : 'bg-monokai-green/20 text-monokai-green hover:bg-monokai-green/30'
+                  }`}
+                title="执行本页所有 SQL 代码"
               >
-                A
+                {executingAll ? (
+                  <span className="w-3 h-3 border-2 border-monokai-purple border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Play className="w-3 h-3" />
+                )}
+                <span>{executingAll ? `执行中 ${executedCount}/${sqlCodeCount}` : '全部执行'}</span>
               </button>
-              <span className="text-[10px] text-monokai-fg w-5 text-center leading-none">{fontSize}</span>
+
+              {/* 复制全部代码 */}
               <button
-                onClick={() => handleFontSizeChange(fontSize + 2)}
-                disabled={fontSize >= 24}
-                className="w-6 h-5 rounded text-sm font-bold bg-monokai-accent/30 hover:bg-monokai-accent/50 text-monokai-fg flex items-center justify-center transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                title="增大字号"
+                onClick={handleCopyAllSql}
+                disabled={copiedAll}
+                className={`flex justify-center items-center gap-1 px-2 py-1.5 rounded-md text-[10px] font-medium transition-all whitespace-nowrap ${copiedAll
+                  ? 'bg-monokai-green/30 text-monokai-green'
+                  : 'bg-monokai-blue/20 text-monokai-blue hover:bg-monokai-blue/30'
+                  }`}
+                title="复制本页所有 SQL 代码"
               >
-                A
+                {copiedAll ? (
+                  <Check className="w-3 h-3" />
+                ) : (
+                  <Copy className="w-3 h-3" />
+                )}
+                <span>{copiedAll ? '已复制' : '复制代码'}</span>
               </button>
+
+              {/* 清空表 */}
               <button
-                onClick={() => handleFontSizeChange(16)}
-                className="ml-0.5 text-[10px] text-monokai-fg hover:text-monokai-blue transition-colors px-1 py-0.5 rounded hover:bg-monokai-accent/30 whitespace-nowrap"
-                title="重置为默认"
+                onClick={handleClearAllTables}
+                disabled={clearingTables}
+                className={`flex justify-center items-center gap-1 px-2 py-1.5 rounded-md text-[10px] font-medium transition-all whitespace-nowrap ${clearingTables
+                  ? 'bg-monokai-pink/30 text-monokai-pink'
+                  : 'bg-monokai-pink/10 text-monokai-pink hover:bg-monokai-pink/20'
+                  }`}
+                title="清空所有数据表"
               >
-                默认
+                {clearingTables ? (
+                  <span className="w-3 h-3 border-2 border-monokai-pink border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Trash2 className="w-3 h-3" />
+                )}
+                <span>清空表</span>
               </button>
             </div>
 
-            {/* 收藏按钮 */}
-            {tutorialId && (
+            {/* 个人学习辅助组 */}
+            <div className="flex items-center gap-1 bg-[#2a2b36] p-1 rounded-lg border border-monokai-accent/20">
+              {/* 笔记按钮 */}
               <button
-                onClick={handleToggleFavorite}
-                className={`flex justify-center items-center gap-1 px-2 py-1.5 rounded-md text-[11px] font-medium transition-all whitespace-nowrap ${isFavorited
-                  ? 'bg-monokai-pink/30 text-monokai-pink'
-                  : 'bg-monokai-pink/20 text-monokai-pink hover:bg-monokai-pink/30'
-                  }`}
-                title={isFavorited ? '取消收藏' : '添加收藏'}
+                onClick={() => setShowNotesSidebar(true)}
+                className="flex justify-center items-center gap-1 px-2 py-1.5 rounded-md text-[10px] font-medium bg-monokai-yellow/10 text-monokai-yellow hover:bg-monokai-yellow/20 transition-all whitespace-nowrap"
+                title="查看学习笔记"
               >
-                <Heart className={`w-3.5 h-3.5 ${isFavorited ? 'fill-current' : ''}`} />
-                <span className="hidden sm:inline">{isFavorited ? '已收藏' : '收藏'}</span>
+                <StickyNote className="w-3 h-3" />
+                <span>笔记</span>
               </button>
-            )}
 
-            {/* 代码片段按钮 */}
-            <button
-              onClick={() => setShowCodeSnippetsSidebar(true)}
-              className="flex justify-center items-center gap-1 px-2 py-1.5 rounded-md text-[11px] font-medium bg-monokai-purple/20 text-monokai-purple hover:bg-monokai-purple/30 transition-all whitespace-nowrap"
-              title="我的代码片段"
-            >
-              <Code className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">片段</span>
-            </button>
+              {/* 代码片段按钮 */}
+              <button
+                onClick={() => setShowCodeSnippetsSidebar(true)}
+                className="flex justify-center items-center gap-1 px-2 py-1.5 rounded-md text-[10px] font-medium bg-monokai-purple/10 text-monokai-purple hover:bg-monokai-purple/20 transition-all whitespace-nowrap"
+                title="我的代码片段"
+              >
+                <Code className="w-3 h-3" />
+                <span>片段</span>
+              </button>
 
-            {/* 我的收藏列表按钮 */}
-            <button
-              onClick={() => setShowFavoritesSidebar(true)}
-              className="flex justify-center items-center gap-1 px-2 py-1.5 rounded-md text-[11px] font-medium bg-monokai-pink/20 text-monokai-pink hover:bg-monokai-pink/30 transition-all whitespace-nowrap"
-              title="查看我的收藏"
-            >
-              <HeartHandshake className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">收藏</span>
-            </button>
+              {/* 我的收藏列表按钮 */}
+              <button
+                onClick={() => setShowFavoritesSidebar(true)}
+                className="flex justify-center items-center gap-1 px-2 py-1.5 rounded-md text-[10px] font-medium bg-monokai-pink/10 text-monokai-pink hover:bg-monokai-pink/20 transition-all whitespace-nowrap"
+                title="查看我的收藏"
+              >
+                <HeartHandshake className="w-3 h-3" />
+                <span>收藏</span>
+              </button>
 
-            {/* 数据管理按钮 */}
-            <button
-              onClick={() => setShowDataManagementSidebar(true)}
-              className="flex justify-center items-center gap-1 px-2 py-1.5 rounded-md text-[11px] font-medium bg-monokai-green/20 text-monokai-green hover:bg-monokai-green/30 transition-all whitespace-nowrap"
-              title="数据管理"
-            >
-              <Database className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">数据</span>
-            </button>
+              {/* 数据管理按钮 */}
+              <button
+                onClick={() => setShowDataManagementSidebar(true)}
+                className="flex justify-center items-center gap-1 px-2 py-1.5 rounded-md text-[10px] font-medium bg-monokai-green/10 text-monokai-green hover:bg-monokai-green/20 transition-all whitespace-nowrap"
+                title="数据管理"
+              >
+                <Database className="w-3 h-3" />
+                <span>数据</span>
+              </button>
+            </div>
           </div>
         </div>
         <article className="markdown-body w-full max-w-[1800px] mx-auto pb-20" style={{ fontSize: `${fontSize}px` }}>
@@ -1236,15 +1245,15 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, onTryCo
                             extensions={[
                               sql(),
                               EditorView.theme({
-                                "&": { fontSize: "10px" },
-                                ".cm-content": { fontSize: "10px" },
-                                ".cm-line": { fontSize: "10px" }
+                                "&": { fontSize: `${Math.max(11, fontSize - 2)}px` },
+                                ".cm-content": { fontSize: `${Math.max(11, fontSize - 2)}px` },
+                                ".cm-line": { fontSize: `${Math.max(11, fontSize - 2)}px` }
                               })
                             ]}
                             theme={monokai}
                             editable={false}
                             basicSetup={{ lineNumbers: false, foldGutter: false, highlightActiveLine: false }}
-                            className="text-[10px]"
+                            style={{ fontSize: `${Math.max(11, fontSize - 2)}px` }}
                           />
                           {/* Result Area */}
                           {(result) && (
@@ -1276,15 +1285,15 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, onTryCo
                               language === 'xml' ? xml() :
                               [],
                             EditorView.theme({
-                              "&": { fontSize: "10px" },
-                              ".cm-content": { fontSize: "10px" },
-                              ".cm-line": { fontSize: "10px" }
+                              "&": { fontSize: `${Math.max(11, fontSize - 2)}px` },
+                              ".cm-content": { fontSize: `${Math.max(11, fontSize - 2)}px` },
+                              ".cm-line": { fontSize: `${Math.max(11, fontSize - 2)}px` }
                             })
                           ]}
                           theme={dracula}
                           editable={false}
                           basicSetup={{ lineNumbers: false, foldGutter: false, highlightActiveLine: false }}
-                          className="text-[10px]"
+                          style={{ fontSize: `${Math.max(11, fontSize - 2)}px` }}
                         />
                       )}
                     </div>
@@ -1444,7 +1453,7 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, onTryCo
 
         {/* 底部悬浮工具栏：上一章/下一章/回到顶部 */}
         {toc.length > 0 && (
-          <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2.5 bg-[#21222c]/95 backdrop-blur-sm border border-monokai-accent/50 rounded-full shadow-xl z-40 transition-all duration-300 ${showBackToTop ? 'translate-y-0 opacity-100' : 'translate-y-20 opacity-0 pointer-events-none'}`}>
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2.5 bg-[#21222c]/95 backdrop-blur-sm border border-monokai-accent/50 rounded-full shadow-xl z-40 transition-all duration-300 translate-y-0 opacity-100">
             {/* 上一章 */}
             <button
               onClick={scrollToPrevChapter}

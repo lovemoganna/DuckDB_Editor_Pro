@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { TutorialMetadata, TutorialSection, tutorials, categoryMap } from '../../data/tutorials';
+import { ChevronRight } from 'lucide-react';
 
 interface NavigationPanelProps {
   selectedTutorial: TutorialMetadata | null;
@@ -106,13 +107,14 @@ const TutorialNavItem: React.FC<{
         {/* 展开/收起按钮 */}
         {hasSections && (
           <span
-            className="w-3"
+            className="w-4 h-4 flex items-center justify-center text-monokai-comment group-hover:text-monokai-blue cursor-pointer transition-transform duration-200"
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
               onToggleExpand();
             }}
           >
+            <ChevronRight className={`w-3.5 h-3.5 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`} />
           </span>
         )}
       </button>

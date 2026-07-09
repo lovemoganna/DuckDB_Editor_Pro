@@ -11,9 +11,10 @@ interface DashboardGridProps {
     dashboard: Dashboard;
     refreshTrigger: number;
     onLayoutChange: (layout: any[]) => void;
+    onRemoveWidget: (itemId: string) => void;
 }
 
-export const DashboardGrid: React.FC<DashboardGridProps> = ({ dashboard, refreshTrigger, onLayoutChange }) => {
+export const DashboardGrid: React.FC<DashboardGridProps> = ({ dashboard, refreshTrigger, onLayoutChange, onRemoveWidget }) => {
     const [width, setWidth] = useState(1200);
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -66,6 +67,7 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ dashboard, refresh
                             <DashboardWidget
                                 savedQueryId={item.savedQueryId}
                                 refreshTrigger={refreshTrigger}
+                                onRemove={() => onRemoveWidget(item.i)}
                             />
                         </div>
                     ))}

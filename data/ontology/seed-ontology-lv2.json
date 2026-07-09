@@ -1,0 +1,46 @@
+{
+  "_meta": {
+    "name": "本体 Lv.2：关联与调用",
+    "description": "第二级：引入关系类型与连线，描述对象、链接、行动和逻辑函数之间的相互调用和作用拓扑",
+    "version": "1.0.0",
+    "author": "system",
+    "created_at": "2026-07-08",
+    "scenario": "palantir-ontology-mini",
+    "complexity": "medium",
+    "entity_counts": {
+      "object_types": 2,
+      "objects": 5,
+      "link_types": 4,
+      "links": 4,
+      "actions": 0,
+      "introspections": 0,
+      "insights": 0
+    }
+  },
+  "objectTypes": [
+    { "id": 1, "name": "核心元", "description": "代表物理世界实体或关系的核心本体类型定义" },
+    { "id": 2, "name": "控制元", "description": "用于修改或计算本体属性的控制和逻辑类型定义" }
+  ],
+  "objects": [
+    { "id": 1, "object_type_id": 1, "name": "对象类型", "properties": "{}", "annotations": "代表现实世界实体的数字孪生定义" },
+    { "id": 2, "object_type_id": 1, "name": "链接类型", "properties": "{}", "annotations": "定义对象类型之间的关联关系" },
+    { "id": 3, "object_type_id": 2, "name": "行动类型", "properties": "{}", "annotations": "定义可在对象上执行的操作与回写逻辑" },
+    { "id": 4, "object_type_id": 1, "name": "属性", "properties": "{}", "annotations": "对象类型中所包含的属性特征定义" },
+    { "id": 5, "object_type_id": 2, "name": "逻辑函数", "properties": "{}", "annotations": "在对象和关系网之上运行的指标计算逻辑" }
+  ],
+  "linkTypes": [
+    { "id": 1, "name": "从属于", "description": "表示基础特征附属于实体的包含关系" },
+    { "id": 2, "name": "定义关联", "description": "声明两个实体之间的关联关系" },
+    { "id": 3, "name": "作用于", "description": "指示行动修改或作用的目标" },
+    { "id": 4, "name": "驱动计算", "description": "表示计算逻辑重算特征" }
+  ],
+  "links": [
+    { "id": 1, "link_type_id": 1, "source_object_id": 4, "target_object_id": 1, "weight": 1.0 },
+    { "id": 2, "link_type_id": 2, "source_object_id": 2, "target_object_id": 1, "weight": 0.95 },
+    { "id": 3, "link_type_id": 3, "source_object_id": 3, "target_object_id": 1, "weight": 0.9 },
+    { "id": 4, "link_type_id": 4, "source_object_id": 5, "target_object_id": 4, "weight": 0.8 }
+  ],
+  "actions": [],
+  "introspections": [],
+  "insights": []
+}

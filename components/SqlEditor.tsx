@@ -653,7 +653,13 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
     // --- Sidebar Helpers ---
     const insertText = (text: string) => {
         const tab = getActiveTab();
-        if (tab) updateActiveTab({ code: tab.code + text });
+        if (!tab) return;
+        const currentCode = tab.code;
+        const offset = cursorOffsetRef.current ?? currentCode.length;
+        const before = currentCode.slice(0, offset);
+        const after = currentCode.slice(offset);
+        updateActiveTab({ code: before + text + after });
+        cursorOffsetRef.current = offset + text.length;
     };
 
     const toggleTableExpand = (table: string) => {
@@ -897,7 +903,81 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
 
 
             <div className="flex flex-1 min-h-0 gap-4">
-                <div className="flex flex-col gap-0 flex-1 min-w-0">
+                {/* Sidebar (Schema/History) */}
+                {
+                    !isZenMode && (
+                        <div className="w-64 bg-monokai-bg border-r border-monokai-accent/60 flex flex-col shrink-0 overflow-hidden relative group/sidebar animate-in slide-in-from-left duration-200">
+                            {/* Tab Navigation */}
+                            <div className="flex gap-0.5 p-1 bg-monokai-surface/50 border-b border-monokai-accent/40">
+                                {([
+                                    { key: 'schema', icon: <Database size={10} />, label: 'Schema' },
+                                    { key: 'history', icon: <Clock size={10} />, label: 'History' },
+                                    { key: 'saved', icon: <Save size={10} />, label: 'Saved' },
+                                    { key: 'help', icon: <HelpCircle size={10} />, label: 'Help' },
+                                ] as const).map(({ key, icon, label }) => (
+                                    <button
+                                        key={key}
+                                        onClick={() => setActiveSidebarTab(key)}
+                                        className={`flex-1 flex flex-col items-center gap-0.5 py-1.5 text-[9px] font-bold rounded transition-all ${activeSidebarTab === key
+                                                ? 'bg-monokai-bg text-monokai-accent shadow-sm'
+                                                : 'text-monokai-comment/50 hover:text-monokai-comment hover:bg-monokai-bg/60'
+                                            }`}
+                                    >
+                                        {icon}
+                                        <span>{label}</span>
+                                    </button>
+                                ))}
+                            </div>
+
+                            {/* Content Area */}
+                            <div className="flex-1 overflow-hidden flex flex-col">
+                                {activeSidebarTab === 'schema' && (
+                                    <div className="h-full"><TableTree tables={Object.keys(schemaTree)} onInsert={insertText} /></div>
+                                )}
+                                {activeSidebarTab === 'history' && (
+                                    <SqlEditorHistory
+                                        activeSidebarTab={activeSidebarTab}
+                                        history={history}
+                                        savedQueries={savedQueries}
+                                        historyFilter={historyFilter}
+                                        onHistoryFilterChange={e => setHistoryFilter(e.target.value)}
+                                        onClearHistory={clearHistory}
+                                        onHistoryItemClick={(sql) => insertText(sql)}
+                                        onSavedQueryClick={(sql) => updateActiveTab({ code: sql })}
+                                        onDeleteSavedQuery={deleteSavedQuery}
+                                    />
+                                )}
+                                {activeSidebarTab === 'help' && (
+                                    <SqlEditorHelpPanel
+                                        selectedSqlType={selectedSqlType}
+                                        onSelectedSqlTypeChange={setSelectedSqlType}
+                                        onInsertSnippet={insertText}
+                                    />
+                                )}
+                            </div>
+
+                            {/* Collapsible toggle handle */}
+                            <button
+                                onClick={onToggleZen}
+                                className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 w-4.5 h-12 bg-monokai-sidebar border border-monokai-accent/40 rounded-r hover:bg-monokai-surface hover:text-monokai-purple flex items-center justify-center text-monokai-comment transition-all z-50 shadow-lg cursor-pointer hover:w-6 group-hover/sidebar:opacity-100 opacity-0"
+                                title="Collapse Sidebar"
+                            >
+                                <ChevronLeft size={10} className="relative -left-0.5" />
+                            </button>
+                        </div>
+                    )
+                }
+
+                <div className="flex flex-col gap-0 flex-1 min-w-0 relative group/editor">
+                    {isZenMode && (
+                        <button
+                            onClick={onToggleZen}
+                            className="absolute left-0 top-1/2 -translate-y-1/2 w-4.5 h-12 bg-monokai-sidebar border border-l-0 border-monokai-accent/45 rounded-r hover:bg-monokai-surface hover:text-monokai-purple flex items-center justify-center text-monokai-comment transition-all z-55 shadow-lg cursor-pointer hover:w-6 opacity-45 hover:opacity-100"
+                            title="Expand Sidebar"
+                        >
+                            <ChevronRight size={10} className="relative" />
+                        </button>
+                    )}
                     {/* Editor Area with Tabs */}
                     <div
                         className="flex flex-col gap-0 min-h-[100px] border border-monokai-accent rounded-t-lg bg-monokai-bg overflow-hidden shadow-2xl relative"
@@ -997,19 +1077,19 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
                                     }),
                                     EditorView.lineWrapping,
                                     EditorView.theme({
-                                        "&": { backgroundColor: "#272822", color: "#f8f8f2", fontFamily: "'Victor Mono', 'Noto Sans SC', monospace", fontSize: "10px" },
-                                        ".cm-gutters": { backgroundColor: "#272822", color: "#75715e", border: "none", fontSize: "10px" },
+                                        "&": { backgroundColor: "#272822", color: "#f8f8f2", fontFamily: "'Victor Mono', 'Noto Sans SC', monospace", fontSize: "12px" },
+                                        ".cm-gutters": { backgroundColor: "#272822", color: "#75715e", border: "none", fontSize: "12px" },
                                         ".cm-activeLine": { backgroundColor: "rgba(73, 72, 62, .15)" },
                                         ".cm-activeLineGutter": { backgroundColor: "rgba(73, 72, 62, .15)" },
-                                        ".cm-content": { fontFamily: "'Victor Mono', 'Noto Sans SC', monospace", fontSize: "10px" },
-                                        ".cm-line": { fontFamily: "'Victor Mono', 'Noto Sans SC', monospace", fontSize: "10px" },
-                                        ".cm-tooltip-autocomplete": { fontFamily: "'Victor Mono', 'Noto Sans SC', monospace", fontSize: "10px" },
-                                        ".cm-completionLabel": { fontFamily: "'Victor Mono', 'Noto Sans SC', monospace", fontSize: "10px" },
-                                        ".cm-completionDetail": { fontFamily: "'Victor Mono', 'Noto Sans SC', monospace", fontSize: "10px", color: "#75715e" }
+                                        ".cm-content": { fontFamily: "'Victor Mono', 'Noto Sans SC', monospace", fontSize: "12px" },
+                                        ".cm-line": { fontFamily: "'Victor Mono', 'Noto Sans SC', monospace", fontSize: "12px" },
+                                        ".cm-tooltip-autocomplete": { fontFamily: "'Victor Mono', 'Noto Sans SC', monospace", fontSize: "12px" },
+                                        ".cm-completionLabel": { fontFamily: "'Victor Mono', 'Noto Sans SC', monospace", fontSize: "12px" },
+                                        ".cm-completionDetail": { fontFamily: "'Victor Mono', 'Noto Sans SC', monospace", fontSize: "12px", color: "#75715e" }
                                     }, { dark: true })
                                 ]}
                                 onChange={(value) => updateActiveTab({ code: value })}
-                                className="h-full text-[10px]"
+                                className="h-full text-xs"
                                 basicSetup={{
                                     lineNumbers: true,
                                     foldGutter: true,
@@ -1292,60 +1372,6 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
                         )
                     }
                 </div >
-                {/* Sidebar (Schema/History) */}
-                {
-                    !isZenMode && (
-                        <div className="w-64 bg-monokai-bg border-l border-monokai-accent/60 flex flex-col shrink-0 overflow-hidden">
-                            {/* Tab Navigation */}
-                            <div className="flex gap-0.5 p-1 bg-monokai-surface/50 border-b border-monokai-accent/40">
-                                {([
-                                    { key: 'schema', icon: <Database size={10} />, label: 'Schema' },
-                                    { key: 'history', icon: <Clock size={10} />, label: 'History' },
-                                    { key: 'saved', icon: <Save size={10} />, label: 'Saved' },
-                                    { key: 'help', icon: <HelpCircle size={10} />, label: 'Help' },
-                                ] as const).map(({ key, icon, label }) => (
-                                    <button
-                                        key={key}
-                                        onClick={() => setActiveSidebarTab(key)}
-                                        className={`flex-1 flex flex-col items-center gap-0.5 py-1.5 text-[9px] font-bold rounded transition-all ${activeSidebarTab === key
-                                                ? 'bg-monokai-bg text-monokai-accent shadow-sm'
-                                                : 'text-monokai-comment/50 hover:text-monokai-comment hover:bg-monokai-bg/60'
-                                            }`}
-                                    >
-                                        {icon}
-                                        <span>{label}</span>
-                                    </button>
-                                ))}
-                            </div>
-
-                            {/* Content Area */}
-                            <div className="flex-1 overflow-hidden flex flex-col">
-                                {activeSidebarTab === 'schema' && (
-                                    <div className="h-full"><TableTree tables={Object.keys(schemaTree)} onInsert={insertText} /></div>
-                                )}
-                                {activeSidebarTab === 'history' && (
-                                    <SqlEditorHistory
-                                        activeSidebarTab={activeSidebarTab}
-                                        history={history}
-                                        savedQueries={savedQueries}
-                                        historyFilter={historyFilter}
-                                        onHistoryFilterChange={e => setHistoryFilter(e.target.value)}
-                                        onClearHistory={clearHistory}
-                                        onHistoryItemClick={(sql) => insertText(sql)}
-                                        onSavedQueryClick={(sql) => updateActiveTab({ code: sql })}
-                                        onDeleteSavedQuery={deleteSavedQuery}
-                                    />
-                                )}
-                                {activeSidebarTab === 'help' && (
-                                    <SqlEditorHelpPanel
-                                        selectedSqlType={selectedSqlType}
-                                        onSelectedSqlTypeChange={setSelectedSqlType}
-                                    />
-                                )}
-                            </div>
-                        </div>
-                    )
-                }
             </div>
         </div>
     );

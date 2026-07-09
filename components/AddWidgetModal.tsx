@@ -44,7 +44,7 @@ export const AddWidgetModal: React.FC<AddWidgetModalProps> = ({ onClose, onAdd }
     // Handle metric chart generation
     const handleMetricSelect = async (metric: MetricDefinition) => {
         if (!selectedPackage || selectedPackage.sourceTables.length === 0) {
-            alert('请先选择数据源表');
+            alert('Please select a source table first');
             return;
         }
 
@@ -67,7 +67,7 @@ export const AddWidgetModal: React.FC<AddWidgetModalProps> = ({ onClose, onAdd }
             onClose();
         } catch (error) {
             console.error('Failed to generate chart from metric:', error);
-            alert('生成图表失败: ' + (error as Error).message);
+            alert('Failed to generate chart: ' + (error as Error).message);
         } finally {
             setIsGenerating(false);
         }
@@ -97,7 +97,7 @@ export const AddWidgetModal: React.FC<AddWidgetModalProps> = ({ onClose, onAdd }
                         }`}
                     >
                         <Table size={16} />
-                        已有查询
+                        Saved Queries
                     </button>
                     <button
                         onClick={() => setActiveTab('metrics')}
@@ -108,7 +108,7 @@ export const AddWidgetModal: React.FC<AddWidgetModalProps> = ({ onClose, onAdd }
                         }`}
                     >
                         <Package size={16} />
-                        从指标创建
+                        From Metrics
                     </button>
                 </div>
 
@@ -169,16 +169,16 @@ export const AddWidgetModal: React.FC<AddWidgetModalProps> = ({ onClose, onAdd }
                             {packages.length === 0 ? (
                                 <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
                                     <Package size={48} className="text-monokai-accent mb-4" />
-                                    <p className="text-monokai-comment">暂无指标包</p>
+                                    <p className="text-monokai-comment">No metric packages</p>
                                     <p className="text-xs text-monokai-comment mt-2">
-                                        请先在 Metrics 页面创建指标包
+                                        Create metric packages in the Metrics page first
                                     </p>
                                 </div>
                             ) : (
                                 <>
                                     {/* Package List */}
                                     <div className="p-4 border-b border-monokai-accent">
-                                        <div className="text-xs text-monokai-comment mb-2">选择指标包:</div>
+                                        <div className="text-xs text-monokai-comment mb-2">Select package:</div>
                                         <div className="flex flex-wrap gap-2">
                                             {packages.map(pkg => (
                                                 <button
@@ -202,11 +202,11 @@ export const AddWidgetModal: React.FC<AddWidgetModalProps> = ({ onClose, onAdd }
                                     <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
                                         {!selectedPackage ? (
                                             <div className="text-center p-8 text-monokai-comment">
-                                                请先选择一个指标包
+                                                Select a metric package first
                                             </div>
                                         ) : selectedPackage.metrics.length === 0 ? (
                                             <div className="text-center p-8 text-monokai-comment">
-                                                该指标包暂无指标
+                                                This package has no metrics
                                             </div>
                                         ) : (
                                             <div className="grid grid-cols-1 gap-2">
@@ -227,7 +227,7 @@ export const AddWidgetModal: React.FC<AddWidgetModalProps> = ({ onClose, onAdd }
                                                             <div>
                                                                 <div className="font-bold text-monokai-fg">{metric.name}</div>
                                                                 <div className="text-xs text-monokai-comment flex gap-2">
-                                                                    <span>{metric.category || '未分类'}</span>
+                                                                    <span>{metric.category || 'Uncategorized'}</span>
                                                                     {metric.unit && <span>- {metric.unit}</span>}
                                                                 </div>
                                                             </div>
@@ -237,7 +237,7 @@ export const AddWidgetModal: React.FC<AddWidgetModalProps> = ({ onClose, onAdd }
                                                                 <Loader2 size={14} className="animate-spin text-monokai-purple" />
                                                             ) : (
                                                                 <>
-                                                                    <span className="text-xs text-monokai-purple">创建图表</span>
+                                                                    <span className="text-xs text-monokai-purple">Create Chart</span>
                                                                     <ChevronRight size={14} className="text-monokai-purple" />
                                                                 </>
                                                             )}
@@ -253,7 +253,7 @@ export const AddWidgetModal: React.FC<AddWidgetModalProps> = ({ onClose, onAdd }
                             {isGenerating && (
                                 <div className="p-4 border-t border-monokai-accent bg-monokai-bg flex items-center justify-center gap-2">
                                     <Loader2 size={16} className="animate-spin text-monokai-purple" />
-                                    <span className="text-sm text-monokai-purple">正在生成图表...</span>
+                                    <span className="text-sm text-monokai-purple">Generating chart...</span>
                                 </div>
                             )}
                         </div>

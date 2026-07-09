@@ -22,38 +22,26 @@ import React, { useState, useCallback, useEffect, useRef, useMemo, useReducer } 
 import { duckDBService } from '../services/duckdbService';
 import { OntologyDraftPayload } from '../services/ontologyAiService';
 
-import seedEcommerce from '../data/ontology/seed-ecommerce.json';
-import seedHealthTracker from '../data/ontology/seed-health-tracker.json';
-import seedMyLife from '../data/ontology/seed-my-life.json';
-import seedProductCatalog from '../data/ontology/seed-product-catalog.json';
-import seedProjectTracker from '../data/ontology/seed-project-tracker.json';
-import seedRiskInvestigation from '../data/ontology/seed-risk-investigation.json';
-import seedStressTest from '../data/ontology/seed-stress-test.json';
-import seedTaskTracker from '../data/ontology/seed-task-tracker.json';
-import seedWorkflow from '../data/ontology/seed-workflow.json';
+import seedOntologyLv1 from '../data/ontology/seed-ontology-lv1.json';
+import seedOntologyLv2 from '../data/ontology/seed-ontology-lv2.json';
+import seedOntologyLv3 from '../data/ontology/seed-ontology-lv3.json';
+import seedOntologyLv4 from '../data/ontology/seed-ontology-lv4.json';
+import seedOntologyLv5 from '../data/ontology/seed-ontology-lv5.json';
 
 export const ONTOLOGY_SEEDS: Record<string, any> = {
-  'my-life': seedMyLife,
-  'ecommerce': seedEcommerce,
-  'health-tracker': seedHealthTracker,
-  'product-catalog': seedProductCatalog,
-  'project-tracker': seedProjectTracker,
-  'risk-investigation': seedRiskInvestigation,
-  'stress-test': seedStressTest,
-  'task-tracker': seedTaskTracker,
-  'workflow': seedWorkflow
+  'ontology-lv1': seedOntologyLv1,
+  'ontology-lv2': seedOntologyLv2,
+  'ontology-lv3': seedOntologyLv3,
+  'ontology-lv4': seedOntologyLv4,
+  'ontology-lv5': seedOntologyLv5,
 };
 
 export const ONTOLOGY_SEED_INFOS = [
-  { id: 'my-life', name: '我的人生 (个人生活与自我认知)', category: 'Personal', icon: '🧠', description: '关于个人心态、工作、家庭、身体相互关系与反思的个人成长图谱' },
-  { id: 'ecommerce', name: '电商运营知识图谱', category: 'Analysis', icon: '🛒', description: '模拟电商企业的产品销售、渠道投放、核心指标监控与用户细分' },
-  { id: 'health-tracker', name: '健康与体质追踪图谱', category: 'Personal', icon: '💪', description: '身体各项指标（如体重、体脂）到健康习惯和目标的驱动图谱' },
-  { id: 'product-catalog', name: '商品类目关系拓扑', category: 'Knowledge', icon: '📦', description: '商品的细分分类与多级标签的父子关系及依赖度' },
-  { id: 'project-tracker', name: '项目里程碑与关联图谱', category: 'Productivity', icon: '🏗️', description: '从史诗任务 (Epic) 拆解到用户故事与 Sprint 节奏的敏捷管理系统' },
-  { id: 'risk-investigation', name: '金融风控审计图谱', category: 'Analysis', icon: '🔍', description: '风控反洗钱审计：商户、涉事交易与防封控策略的关联排查' },
-  { id: 'task-tracker', name: 'GTD任务流转本体', category: 'Productivity', icon: '🔁', description: '基于收集、处理、执行、回顾理论的个人事务流转图谱' },
-  { id: 'workflow', name: '审批流与业务协作拓扑', category: 'Productivity', icon: '⚙️', description: '企业工作流节点、角色权限和资源流转的协同网络' },
-  { id: 'stress-test', name: '图谱压力测试模型 (多节点)', category: 'Analysis', icon: '⚡', description: '包含 50+ 个节点和 100+ 条连线的大规模图谱渲染测试模型' }
+  { id: 'ontology-lv1', name: '本体 Lv.1：概念与对象', category: 'Ontology', icon: '🌱', description: '学习如何定义核心概念类型（Class）和具体的实例（Instance），是本体建模的基石' },
+  { id: 'ontology-lv2', name: '本体 Lv.2：语义关联', category: 'Ontology', icon: '🌿', description: '引入“关系类型”与“对象连线”，学习如何在概念与实例之间编织语义关联网络' },
+  { id: 'ontology-lv3', name: '本体 Lv.3：属性特征化', category: 'Ontology', icon: '🌳', description: '使用 JSON 属性细化描述类与实例的特征约束，增强本体的多态性' },
+  { id: 'ontology-lv4', name: '本体 Lv.4：演变与行动', category: 'Ontology', icon: '⚙️', description: '引入“行动”表，模拟在实际应用中如何推进本体模型迭代与更新的运维流' },
+  { id: 'ontology-lv5', name: '本体 Lv.5：方法论反思', category: 'Ontology', icon: '🧠', description: '引入“反思”与“洞察”，深入探讨本体设计的深层逻辑、局限性及逻辑推理应用' }
 ];
 
 // ============================================================
@@ -115,6 +103,13 @@ export interface LifeInsight {
 
 /** MECE 层级枚举 */
 export type MECELayer = 'foundation' | 'relations' | 'methodology' | 'patterns' | 'domains';
+
+export interface Position {
+  x: number;
+  y: number;
+}
+
+export type SavedPositions = Record<number, Position>;
 
 /** 画布快照 — 用于清除前备份和 Ctrl+Z 撤销 */
 export interface CanvasSnapshot {
@@ -208,6 +203,8 @@ export interface OntologyStoreState {
   canvasActiveLayer: MECELayer;
   canvasAiFillLoading: boolean;
   canvasSnapshots: CanvasSnapshot[];
+  canvasPositions: SavedPositions;
+  canvasLockedNodeIds: Set<number>;
 }
 
 // ============================================================
@@ -236,7 +233,9 @@ export type OntologyAction =
   | { type: 'SET_CANVAS_LAYER'; layer: MECELayer }
   | { type: 'SET_CANVAS_AI_FILL_LOADING'; value: boolean }
   | { type: 'PUSH_CANVAS_SNAPSHOT'; snapshot: CanvasSnapshot }
-  | { type: 'POP_CANVAS_SNAPSHOT' };
+  | { type: 'POP_CANVAS_SNAPSHOT' }
+  | { type: 'SET_CANVAS_POSITIONS'; positions: SavedPositions }
+  | { type: 'SET_CANVAS_LOCKED_NODES'; lockedNodeIds: Set<number> };
 
 // ============================================================
 // Reducer
@@ -351,6 +350,18 @@ function reducer(state: OntologyStoreState, action: OntologyAction): OntologySto
       };
     }
 
+    case 'SET_CANVAS_POSITIONS':
+      return {
+        ...state,
+        canvasPositions: action.positions,
+      };
+
+    case 'SET_CANVAS_LOCKED_NODES':
+      return {
+        ...state,
+        canvasLockedNodeIds: action.lockedNodeIds,
+      };
+
     default:
       return state;
   }
@@ -363,7 +374,7 @@ function reducer(state: OntologyStoreState, action: OntologyAction): OntologySto
 const initState: OntologyStoreState = {
   initState: 'loading',
   initting: false,
-  activeTemplateId: 'my-life',
+  activeTemplateId: 'ontology-lv1',
   objectTypes: [],
   objects: [],
   linkTypes: [],
@@ -412,6 +423,8 @@ const initState: OntologyStoreState = {
   canvasActiveLayer: 'foundation',
   canvasAiFillLoading: false,
   canvasSnapshots: [],
+  canvasPositions: {},
+  canvasLockedNodeIds: new Set(),
 };
 
 // ============================================================
@@ -480,10 +493,43 @@ function useOntologyStoreInternal() {
         }
       } catch {}
 
+      // Ensure canvas layout table exists
+      try {
+        await duckDBService.query(`
+          CREATE TABLE IF NOT EXISTS _sys_ontology_canvas_layout (
+            node_type VARCHAR,
+            node_id INTEGER,
+            x DOUBLE,
+            y DOUBLE,
+            is_locked BOOLEAN DEFAULT FALSE,
+            PRIMARY KEY (node_type, node_id)
+          )
+        `);
+      } catch (e) {
+        console.warn('Initialize layout table failed', e);
+      }
+
+      let canvasPositions: SavedPositions = {};
+      let canvasLockedNodeIds: Set<number> = new Set();
+      try {
+        const layoutRows = await duckDBService.query("SELECT * FROM _sys_ontology_canvas_layout WHERE node_type = 'object'");
+        layoutRows.forEach((r: any) => {
+          canvasPositions[Number(r.node_id)] = { x: Number(r.x), y: Number(r.y) };
+          if (r.is_locked || r.is_locked === 'true' || r.is_locked === 1) {
+            canvasLockedNodeIds.add(Number(r.node_id));
+          }
+        });
+      } catch (e) {
+        console.warn('Failed to load canvas positions from DuckDB:', e);
+      }
+
       dispatchAction({
         type: 'SET_DATA',
         objectTypes: objectTypes as any, objects: objects as any, linkTypes: linkTypes as any, links: links as any, actions: actions as any, introspections: introspections as any, insights: insights as any,
       });
+
+      dispatchAction({ type: 'SET_CANVAS_POSITIONS', positions: canvasPositions });
+      dispatchAction({ type: 'SET_CANVAS_LOCKED_NODES', lockedNodeIds: canvasLockedNodeIds });
     } catch (e: any) {
       if (e.message?.includes('does not exist') || e.message?.includes('Catalog Error')) {
         dispatchAction({ type: 'SET_INIT_STATE', state: 'no-tables' });
@@ -924,6 +970,135 @@ function useOntologyStoreInternal() {
     setCanvasAiFillLoading: (value: boolean) => dispatch({ type: 'SET_CANVAS_AI_FILL_LOADING', value }),
     pushCanvasSnapshot: (snapshot: CanvasSnapshot) => dispatch({ type: 'PUSH_CANVAS_SNAPSHOT', snapshot }),
     popCanvasSnapshot: () => dispatch({ type: 'POP_CANVAS_SNAPSHOT' }),
+    canvasPositions: state.canvasPositions,
+    canvasLockedNodeIds: state.canvasLockedNodeIds,
+    updateCanvasPosition: useCallback(async (nodeId: number, x: number, y: number) => {
+      const nextPositions = { ...stateRef.current.canvasPositions, [nodeId]: { x, y } };
+      dispatch({ type: 'SET_CANVAS_POSITIONS', positions: nextPositions });
+      try {
+        const isLocked = stateRef.current.canvasLockedNodeIds.has(nodeId);
+        await duckDBService.saveOntologyCanvasState(
+          `object_${nodeId}`,
+          null,
+          nodeId,
+          `object_${nodeId}`,
+          '',
+          x,
+          y,
+          0,
+          0,
+          'object',
+          { is_locked: isLocked }
+        );
+      } catch (err) {
+        console.error('Failed to save node position to DuckDB', err);
+      }
+    }, []),
+    updateCanvasPositions: useCallback(async (positions: SavedPositions) => {
+      const nextPositions = { ...stateRef.current.canvasPositions, ...positions };
+      dispatch({ type: 'SET_CANVAS_POSITIONS', positions: nextPositions });
+      try {
+        for (const [nodeIdStr, pos] of Object.entries(positions)) {
+          const nodeId = Number(nodeIdStr);
+          const isLocked = stateRef.current.canvasLockedNodeIds.has(nodeId);
+          await duckDBService.saveOntologyCanvasState(
+            `object_${nodeId}`,
+            null,
+            nodeId,
+            `object_${nodeId}`,
+            '',
+            pos.x,
+            pos.y,
+            0,
+            0,
+            'object',
+            { is_locked: isLocked }
+          );
+        }
+      } catch (err) {
+        console.error('Failed to batch save node positions to DuckDB', err);
+      }
+    }, []),
+    toggleLockNode: useCallback(async (nodeId: number) => {
+      const nextLocked = new Set(stateRef.current.canvasLockedNodeIds);
+      if (nextLocked.has(nodeId)) {
+        nextLocked.delete(nodeId);
+      } else {
+        nextLocked.add(nodeId);
+      }
+      dispatch({ type: 'SET_CANVAS_LOCKED_NODES', lockedNodeIds: nextLocked });
+      
+      const pos = stateRef.current.canvasPositions[nodeId];
+      if (pos) {
+        try {
+          await duckDBService.saveOntologyCanvasState(
+            `object_${nodeId}`,
+            null,
+            nodeId,
+            `object_${nodeId}`,
+            '',
+            pos.x,
+            pos.y,
+            0,
+            0,
+            'object',
+            { is_locked: nextLocked.has(nodeId) }
+          );
+        } catch (err) {
+          console.error('Failed to save lock state to DuckDB', err);
+        }
+      }
+    }, []),
+    lockAllNodes: useCallback(async () => {
+      const allIds = new Set<number>(stateRef.current.objects.map((o: any) => o.id));
+      dispatch({ type: 'SET_CANVAS_LOCKED_NODES', lockedNodeIds: allIds });
+      
+      try {
+        for (const o of stateRef.current.objects) {
+          const pos = stateRef.current.canvasPositions[o.id] || { x: 100, y: 100 };
+          await duckDBService.saveOntologyCanvasState(
+            `object_${o.id}`,
+            null,
+            o.id,
+            `object_${o.id}`,
+            '',
+            pos.x,
+            pos.y,
+            0,
+            0,
+            'object',
+            { is_locked: true }
+          );
+        }
+      } catch (err) {
+        console.error('Failed to lock all nodes in DuckDB', err);
+      }
+    }, []),
+    unlockAllNodes: useCallback(async () => {
+      const empty = new Set<number>();
+      dispatch({ type: 'SET_CANVAS_LOCKED_NODES', lockedNodeIds: empty });
+      
+      try {
+        for (const o of stateRef.current.objects) {
+          const pos = stateRef.current.canvasPositions[o.id] || { x: 100, y: 100 };
+          await duckDBService.saveOntologyCanvasState(
+            `object_${o.id}`,
+            null,
+            o.id,
+            `object_${o.id}`,
+            '',
+            pos.x,
+            pos.y,
+            0,
+            0,
+            'object',
+            { is_locked: false }
+          );
+        }
+      } catch (err) {
+        console.error('Failed to unlock all nodes in DuckDB', err);
+      }
+    }, []),
   };
 }
 
