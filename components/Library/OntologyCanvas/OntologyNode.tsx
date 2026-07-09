@@ -76,8 +76,8 @@ export const OntologyNode: React.FC<OntologyNodeProps> = ({ id, data, selected }
   return (
     <div
       style={{
-        width: isCompact ? '160px' : '220px',
-        minHeight: isCompact ? '42px' : (isExpanded ? '145px' : '82px'),
+        width: '220px',
+        minHeight: isExpanded ? '145px' : '82px',
         transition: 'opacity 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease, min-height 0.2s ease',
         ...cardDisplayStyle
       }}

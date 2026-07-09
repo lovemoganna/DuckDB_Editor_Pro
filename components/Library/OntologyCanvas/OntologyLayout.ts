@@ -18,10 +18,9 @@ export const getLayoutedElements = (nodes: Node[], edges: Edge[], direction = 'L
   dagreGraph.edges().forEach(e => dagreGraph.removeEdge(e.v, e.w));
 
   nodes.forEach((node) => {
-    const isCompact = node.data?.isCompact;
     const isExpanded = node.data?.isExpanded;
-    const width = isCompact ? 160 : 220;
-    const height = isCompact ? 42 : (isExpanded ? 145 : 82);
+    const width = 220;
+    const height = isExpanded ? 145 : 82;
     dagreGraph.setNode(node.id, { width, height });
   });
 
@@ -39,10 +38,9 @@ export const getLayoutedElements = (nodes: Node[], edges: Edge[], direction = 'L
     const nodeWithPosition = dagreGraph.node(node.id);
     if (!nodeWithPosition) return node;
 
-    const isCompact = node.data?.isCompact;
     const isExpanded = node.data?.isExpanded;
-    const width = isCompact ? 160 : 220;
-    const height = isCompact ? 42 : (isExpanded ? 145 : 82);
+    const width = 220;
+    const height = isExpanded ? 145 : 82;
 
     return {
       ...node,
