@@ -119,6 +119,10 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
   const reactFlowInstance = useReactFlow();
   const { x: rfX, y: rfY, zoom: rfZoom } = useViewport();
 
+  // ReactFlow Nodes and Edges States
+  const [nodes, setNodes, onNodesChange] = useNodesState([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+
   // Selected, Dragging & Hover States
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
@@ -394,9 +398,7 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
     }
   };
 
-  // Force Layout auto sorting (Dagre hierarchical layout algorithm)
-  const [nodes, setNodes, onNodesChange] = useNodesState([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+
 
   const handleAutoAlign = useCallback(() => {
     pushToHistory(nodePositions);
