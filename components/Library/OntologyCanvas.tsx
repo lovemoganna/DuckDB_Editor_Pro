@@ -144,6 +144,9 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
   const [layoutDir, setLayoutDir] = useState<string>('LR'); // Layout direction: 'LR' (Left-to-Right) or 'TB' (Top-to-Bottom)
   const [parallelOffset, setParallelOffset] = useState<number>(35); // Curve offset for parallel edges
   const [snapToGrid, setSnapToGrid] = useState<boolean>(true); // Snap node dragging coordinates to grid snip size
+  const [showGrid, setShowGrid] = useState<boolean>(true); // Toggle background dots grid on/off
+  const [showMiniMap, setShowMiniMap] = useState<boolean>(true); // Toggle bottom-right minimap on/off
+  const [animateEdges, setAnimateEdges] = useState<boolean>(true); // Toggle connection lines flow animation
   const [showSpacingPanel, setShowSpacingPanel] = useState<boolean>(false);
 
   // Undo/Redo History Stacks
@@ -430,6 +433,33 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
     reactFlowInstance.setViewport({ x: 100, y: 100, zoom: 0.9 }, { duration: 300 });
   }, [reactFlowInstance]);
 
+  const handleForceResetLayout = useCallback(() => {
+    pushToHistory(nodePositions);
+    const mockNodes = objects.map((obj: any) => ({
+      id: String(obj.id),
+      position: { x: 100, y: 100 },
+      data: {
+        isExpanded: expandedNodeIds.has(obj.id)
+      }
+    }));
+    const mockEdges = links.map((link: any) => ({
+      id: String(link.id),
+      source: String(link.source_object_id),
+      target: String(link.target_object_id)
+    }));
+
+    const { nodes: layoutedNodes } = getLayoutedElements(mockNodes, mockEdges, layoutDir, nodesep, ranksep);
+    const updated: SavedPositions = {};
+    layoutedNodes.forEach((node) => {
+      updated[Number(node.id)] = node.position;
+    });
+    updateCanvasPositions(updated);
+
+    setTimeout(() => {
+      reactFlowInstance.fitView({ padding: 0.35, duration: 400 });
+    }, 100);
+  }, [objects, links, nodePositions, layoutDir, nodesep, ranksep, expandedNodeIds, updateCanvasPositions, pushToHistory, reactFlowInstance]);
+
   // Synchronize store nodes to ReactFlow nodes
   useEffect(() => {
     const rfNodes = objects.map((obj: any) => {
@@ -514,7 +544,7 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
         source: String(link.source_object_id),
         target: String(link.target_object_id),
         label: linkName,
-        animated: isSelected || isActive,
+        animated: animateEdges && (isSelected || isActive),
         type: 'ontology', // Custom premium curved edge
         data: {
           curveOffset,
@@ -529,7 +559,7 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
       return true;
     });
     setEdges(rfEdges);
-  }, [links, selectedNodeId, activePathNodesAndLinks, linkTypes, isFocusMode, linkOffsets, setEdges]);
+  }, [links, selectedNodeId, activePathNodesAndLinks, linkTypes, isFocusMode, linkOffsets, animateEdges, setEdges]);
 
   // Dragging node ends: save position back to store
   const onNodeDragStop = useCallback((event: any, node: any) => {
@@ -676,20 +706,22 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
           fitViewOptions={{ padding: 0.3 }}
           className="bg-[#0c0d12]"
         >
-          <Background color="#27272a" gap={16} size={1} />
-          <MiniMap
-            nodeColor={(node) => {
-              const typeId = node.data?.obj?.object_type_id;
-              if (typeId === undefined) return '#3e3f4c';
-              const style = getTypeStyles(typeId);
-              if (style.text.includes('cyan')) return '#06b6d4';
-              if (style.text.includes('green')) return '#10b981';
-              if (style.text.includes('pink')) return '#f43f5e';
-              return '#a855f7';
-            }}
-            maskColor="rgba(0, 0, 0, 0.6)"
-            style={{ right: 10, bottom: 10 }}
-          />
+          {showGrid && <Background color="#27272a" gap={16} size={1} />}
+          {showMiniMap && (
+            <MiniMap
+              nodeColor={(node) => {
+                const typeId = node.data?.obj?.object_type_id;
+                if (typeId === undefined) return '#3e3f4c';
+                const style = getTypeStyles(typeId);
+                if (style.text.includes('cyan')) return '#06b6d4';
+                if (style.text.includes('green')) return '#10b981';
+                if (style.text.includes('pink')) return '#f43f5e';
+                return '#a855f7';
+              }}
+              maskColor="rgba(0, 0, 0, 0.6)"
+              style={{ right: 10, bottom: 10 }}
+            />
+          )}
           <Controls showInteractive={false} style={{ left: 10, bottom: 10 }} />
         </ReactFlow>
 
@@ -722,6 +754,9 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
                     setLayoutDir('LR');
                     setParallelOffset(35);
                     setSnapToGrid(true);
+                    setShowGrid(true);
+                    setShowMiniMap(true);
+                    setAnimateEdges(true);
                     handleAutoAlign(130, 200, 'LR');
                   }}
                   className="text-[10px] text-zinc-500 hover:text-zinc-300 cursor-pointer transition-all"
@@ -837,6 +872,57 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
                   <div className="w-7 h-4 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-zinc-400 after:border-zinc-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-monokai-green peer-checked:after:bg-zinc-900 peer-checked:after:border-transparent"></div>
                 </label>
               </div>
+
+              {/* Background dots grid */}
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-zinc-400">背景网格点阵</span>
+                <label className="relative inline-flex items-center cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={showGrid}
+                    onChange={(e) => setShowGrid(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-7 h-4 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-zinc-400 after:border-zinc-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-monokai-green peer-checked:after:bg-zinc-900 peer-checked:after:border-transparent"></div>
+                </label>
+              </div>
+
+              {/* MiniMap toggle */}
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-zinc-400">鹰眼小地图</span>
+                <label className="relative inline-flex items-center cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={showMiniMap}
+                    onChange={(e) => setShowMiniMap(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-7 h-4 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-zinc-400 after:border-zinc-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-monokai-green peer-checked:after:bg-zinc-900 peer-checked:after:border-transparent"></div>
+                </label>
+              </div>
+
+              {/* Edge animations toggle */}
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-zinc-400">连线流向动画</span>
+                <label className="relative inline-flex items-center cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={animateEdges}
+                    onChange={(e) => setAnimateEdges(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-7 h-4 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-zinc-400 after:border-zinc-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-monokai-green peer-checked:after:bg-zinc-900 peer-checked:after:border-transparent"></div>
+                </label>
+              </div>
+
+              {/* Force Reset Layout button */}
+              <button
+                onClick={handleForceResetLayout}
+                className="mt-1 w-full py-1.5 rounded bg-amber-500/10 border border-amber-500/20 text-amber-500 hover:bg-amber-500/20 active:scale-98 transition-all text-xs font-semibold flex items-center justify-center gap-1.5"
+                title="清除所有拖拽的偏移坐标，重新计算Dagre自动布局"
+              >
+                <span>重置全局网格排版</span>
+              </button>
 
               <div className="text-[9px] text-zinc-500 border-t border-zinc-900 pt-2 leading-relaxed">
                 * 拖动滑块或切换参数将实时响应重算排版，不影响手动锁定的节点。
