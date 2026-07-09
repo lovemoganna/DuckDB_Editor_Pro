@@ -138,9 +138,12 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
   const [expandedNodeIds, setExpandedNodeIds] = useState<Set<number>>(new Set());
   const [isFocusMode, setIsFocusMode] = useState<boolean>(false);
 
-  // Dynamic Auto-Align Layout spacing settings
-  const [nodesep, setNodesep] = useState<number>(80);
+  // Dynamic Auto-Align Layout configuration settings
+  const [nodesep, setNodesep] = useState<number>(130); // Default vertical spacing set to 130px
   const [ranksep, setRanksep] = useState<number>(200);
+  const [layoutDir, setLayoutDir] = useState<string>('LR'); // Layout direction: 'LR' (Left-to-Right) or 'TB' (Top-to-Bottom)
+  const [parallelOffset, setParallelOffset] = useState<number>(35); // Curve offset for parallel edges
+  const [snapToGrid, setSnapToGrid] = useState<boolean>(true); // Snap node dragging coordinates to grid snip size
   const [showSpacingPanel, setShowSpacingPanel] = useState<boolean>(false);
 
   // Undo/Redo History Stacks
@@ -406,17 +409,18 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
 
 
 
-  const handleAutoAlign = useCallback((customNodesep?: number, customRanksep?: number) => {
+  const handleAutoAlign = useCallback((customNodesep?: number, customRanksep?: number, customDir?: string) => {
     pushToHistory(nodePositions);
     const ns = customNodesep ?? nodesep;
     const rs = customRanksep ?? ranksep;
-    const { nodes: layoutedNodes } = getLayoutedElements(nodes, edges, 'LR', ns, rs);
+    const dir = customDir ?? layoutDir;
+    const { nodes: layoutedNodes } = getLayoutedElements(nodes, edges, dir, ns, rs);
     const updated = { ...nodePositions };
     layoutedNodes.forEach((node) => {
       updated[Number(node.id)] = node.position;
     });
     updateCanvasPositions(updated);
-  }, [nodes, edges, nodePositions, nodesep, ranksep, updateCanvasPositions, pushToHistory]);
+  }, [nodes, edges, nodePositions, nodesep, ranksep, layoutDir, updateCanvasPositions, pushToHistory]);
 
   const handleFitView = useCallback(() => {
     reactFlowInstance.fitView({ duration: 300 });
@@ -481,19 +485,19 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
       if (index === 0) {
         offset = 0;
       } else if (index === 1) {
-        offset = 35;
+        offset = parallelOffset;
       } else if (index === 2) {
-        offset = -35;
+        offset = -parallelOffset;
       } else {
         const sign = index % 2 === 1 ? 1 : -1;
         const multiplier = Math.floor((index + 1) / 2);
-        offset = sign * multiplier * 35;
+        offset = sign * multiplier * parallelOffset;
       }
       offsets[link.id] = offset;
     });
     
     return offsets;
-  }, [links]);
+  }, [links, parallelOffset]);
 
   // Synchronize store links to ReactFlow edges
   useEffect(() => {
@@ -532,12 +536,13 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
     const nodeId = Number(node.id);
     if (!lockedNodeIds.has(nodeId)) {
       pushToHistory(nodePositions);
+      const grid = snapToGrid ? GRID_SIZE : 1;
       saveNodePosition(nodeId, {
-        x: Math.round(node.position.x / GRID_SIZE) * GRID_SIZE,
-        y: Math.round(node.position.y / GRID_SIZE) * GRID_SIZE,
+        x: Math.round(node.position.x / grid) * grid,
+        y: Math.round(node.position.y / grid) * grid,
       });
     }
-  }, [lockedNodeIds, nodePositions, pushToHistory, saveNodePosition]);
+  }, [lockedNodeIds, nodePositions, snapToGrid, pushToHistory, saveNodePosition]);
 
   // Click edge to delete
   const onEdgeClick = useCallback((event: React.MouseEvent, edge: Edge) => {
@@ -689,7 +694,7 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
         </ReactFlow>
 
         {/* Dynamic Spacing Control Panel */}
-        <div className="absolute left-3 bottom-16 z-10 flex flex-col items-start gap-2">
+        <div className="absolute left-3 top-3 z-10 flex flex-col items-start gap-2">
           <button
             onClick={() => setShowSpacingPanel(!showSpacingPanel)}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded border text-xs font-semibold shadow-lg backdrop-blur-md transition-all select-none ${
@@ -697,29 +702,65 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
                 ? 'bg-monokai-blue/20 border-monokai-blue/50 text-monokai-blue'
                 : 'bg-zinc-900/90 border-zinc-800/80 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
             }`}
-            title="手动调整节点布局间距"
+            title="手动调整画布排版设置"
           >
             <Settings className="w-3.5 h-3.5" />
-            <span>间距微调</span>
+            <span>排版微调</span>
           </button>
 
           {showSpacingPanel && (
-            <div className="flex flex-col gap-3.5 p-4 rounded bg-zinc-950/95 border border-zinc-800/90 shadow-2xl backdrop-blur-md w-60 animate-in fade-in slide-in-from-bottom-2 duration-200">
+            <div className="flex flex-col gap-3.5 p-4 rounded bg-zinc-950/95 border border-zinc-800/90 shadow-2xl backdrop-blur-md w-64 animate-in fade-in slide-in-from-top-2 duration-200">
               <div className="flex items-center justify-between border-b border-zinc-900 pb-2">
                 <span className="text-xs font-bold text-slate-100 flex items-center gap-1.5">
                   <Settings className="w-3.5 h-3.5 text-monokai-yellow" />
-                  间距微调器
+                  排版微调面板
                 </span>
                 <span 
                   onClick={() => {
-                    setNodesep(80);
+                    setNodesep(130);
                     setRanksep(200);
-                    handleAutoAlign(80, 200);
+                    setLayoutDir('LR');
+                    setParallelOffset(35);
+                    setSnapToGrid(true);
+                    handleAutoAlign(130, 200, 'LR');
                   }}
                   className="text-[10px] text-zinc-500 hover:text-zinc-300 cursor-pointer transition-all"
                 >
                   恢复默认
                 </span>
+              </div>
+
+              {/* Layout Direction */}
+              <div className="flex flex-col gap-1.5">
+                <span className="text-xs text-zinc-400">排列方向</span>
+                <div className="grid grid-cols-2 gap-2 text-[10px]">
+                  <button
+                    onClick={() => {
+                      setLayoutDir('LR');
+                      handleAutoAlign(nodesep, ranksep, 'LR');
+                    }}
+                    className={`py-1 rounded border transition-all ${
+                      layoutDir === 'LR'
+                        ? 'bg-monokai-blue/15 border-monokai-blue/40 text-monokai-blue font-bold'
+                        : 'bg-zinc-900/40 border-zinc-850 text-zinc-500 hover:text-zinc-300'
+                    }`}
+                  >
+                    水平排列 (L-R)
+                  </button>
+                  <button
+                    onClick={() => {
+                      setLayoutDir('TB');
+                      handleAutoAlign(nodesep, ranksep, 'TB');
+                    }}
+                    className={`py-1 rounded border transition-all ${
+                      layoutDir === 'TB'
+                        ? 'bg-monokai-blue/15 border-monokai-blue/40 text-monokai-blue font-bold'
+                        : 'bg-zinc-900/40 border-zinc-850 text-zinc-500 hover:text-zinc-300'
+                    }`}
+                  >
+                    垂直排列 (T-B)
+                  </button>
+                </div>
               </div>
 
               {/* Horizontal Spacing */}
@@ -752,7 +793,7 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
                 <input
                   type="range"
                   min="40"
-                  max="180"
+                  max="220"
                   step="5"
                   value={nodesep}
                   onChange={(e) => {
@@ -763,9 +804,42 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
                   className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-monokai-green focus:outline-none"
                 />
               </div>
-              
-              <div className="text-[10px] text-zinc-500 border-t border-zinc-900 pt-2 leading-relaxed">
-                * 拖动滑块将实时进行 Left-to-Right 自动排版重算，不影响手动锁定的节点。
+
+              {/* Connection Curve offset */}
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-zinc-400">连线弧度</span>
+                  <span className="text-monokai-orange font-mono font-bold">{parallelOffset}px</span>
+                </div>
+                <input
+                  type="range"
+                  min="15"
+                  max="70"
+                  step="5"
+                  value={parallelOffset}
+                  onChange={(e) => {
+                    setParallelOffset(Number(e.target.value));
+                  }}
+                  className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-monokai-orange focus:outline-none"
+                />
+              </div>
+
+              {/* Grid Snapping */}
+              <div className="flex items-center justify-between border-t border-zinc-900 pt-2.5">
+                <span className="text-xs text-zinc-400">网格吸附对齐</span>
+                <label className="relative inline-flex items-center cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={snapToGrid}
+                    onChange={(e) => setSnapToGrid(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-7 h-4 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-zinc-400 after:border-zinc-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-monokai-green peer-checked:after:bg-zinc-900 peer-checked:after:border-transparent"></div>
+                </label>
+              </div>
+
+              <div className="text-[9px] text-zinc-500 border-t border-zinc-900 pt-2 leading-relaxed">
+                * 拖动滑块或切换参数将实时响应重算排版，不影响手动锁定的节点。
               </div>
             </div>
           )}
