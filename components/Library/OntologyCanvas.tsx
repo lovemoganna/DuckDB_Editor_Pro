@@ -135,9 +135,13 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
   const nodePositions = canvasPositions;
   const lockedNodeIds = canvasLockedNodeIds;
 
-  // Expanded nodes for properties
   const [expandedNodeIds, setExpandedNodeIds] = useState<Set<number>>(new Set());
   const [isFocusMode, setIsFocusMode] = useState<boolean>(false);
+
+  // Dynamic Auto-Align Layout spacing settings
+  const [nodesep, setNodesep] = useState<number>(80);
+  const [ranksep, setRanksep] = useState<number>(200);
+  const [showSpacingPanel, setShowSpacingPanel] = useState<boolean>(false);
 
   // Undo/Redo History Stacks
   const undoStackRef = useRef<SavedPositions[]>([]);
@@ -283,7 +287,7 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
           target: String(link.target_object_id)
         }));
 
-        const { nodes: layoutedNodes } = getLayoutedElements(mockNodes, mockEdges, 'LR');
+        const { nodes: layoutedNodes } = getLayoutedElements(mockNodes, mockEdges, 'LR', nodesep, ranksep);
         layoutedNodes.forEach((node) => {
           updated[Number(node.id)] = node.position;
         });
@@ -291,7 +295,7 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
 
       updateCanvasPositions(updated);
     }
-  }, [objects, links, nodePositions, updateCanvasPositions, expandedNodeIds]);
+  }, [objects, links, nodePositions, updateCanvasPositions, expandedNodeIds, nodesep, ranksep]);
 
   // Automatically center view on mount/first render once nodes are ready
   useEffect(() => {
@@ -402,15 +406,17 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
 
 
 
-  const handleAutoAlign = useCallback(() => {
+  const handleAutoAlign = useCallback((customNodesep?: number, customRanksep?: number) => {
     pushToHistory(nodePositions);
-    const { nodes: layoutedNodes } = getLayoutedElements(nodes, edges, 'LR');
+    const ns = customNodesep ?? nodesep;
+    const rs = customRanksep ?? ranksep;
+    const { nodes: layoutedNodes } = getLayoutedElements(nodes, edges, 'LR', ns, rs);
     const updated = { ...nodePositions };
     layoutedNodes.forEach((node) => {
       updated[Number(node.id)] = node.position;
     });
     updateCanvasPositions(updated);
-  }, [nodes, edges, nodePositions, updateCanvasPositions, pushToHistory]);
+  }, [nodes, edges, nodePositions, nodesep, ranksep, updateCanvasPositions, pushToHistory]);
 
   const handleFitView = useCallback(() => {
     reactFlowInstance.fitView({ duration: 300 });
@@ -681,6 +687,89 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
           />
           <Controls showInteractive={false} style={{ left: 10, bottom: 10 }} />
         </ReactFlow>
+
+        {/* Dynamic Spacing Control Panel */}
+        <div className="absolute left-3 bottom-16 z-10 flex flex-col items-start gap-2">
+          <button
+            onClick={() => setShowSpacingPanel(!showSpacingPanel)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded border text-xs font-semibold shadow-lg backdrop-blur-md transition-all select-none ${
+              showSpacingPanel
+                ? 'bg-monokai-blue/20 border-monokai-blue/50 text-monokai-blue'
+                : 'bg-zinc-900/90 border-zinc-800/80 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
+            }`}
+            title="手动调整节点布局间距"
+          >
+            <Settings className="w-3.5 h-3.5" />
+            <span>间距微调</span>
+          </button>
+
+          {showSpacingPanel && (
+            <div className="flex flex-col gap-3.5 p-4 rounded bg-zinc-950/95 border border-zinc-800/90 shadow-2xl backdrop-blur-md w-60 animate-in fade-in slide-in-from-bottom-2 duration-200">
+              <div className="flex items-center justify-between border-b border-zinc-900 pb-2">
+                <span className="text-xs font-bold text-slate-100 flex items-center gap-1.5">
+                  <Settings className="w-3.5 h-3.5 text-monokai-yellow" />
+                  间距微调器
+                </span>
+                <span 
+                  onClick={() => {
+                    setNodesep(80);
+                    setRanksep(200);
+                    handleAutoAlign(80, 200);
+                  }}
+                  className="text-[10px] text-zinc-500 hover:text-zinc-300 cursor-pointer transition-all"
+                >
+                  恢复默认
+                </span>
+              </div>
+
+              {/* Horizontal Spacing */}
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-zinc-400">列间距 (水平)</span>
+                  <span className="text-monokai-blue font-mono font-bold">{ranksep}px</span>
+                </div>
+                <input
+                  type="range"
+                  min="100"
+                  max="350"
+                  step="10"
+                  value={ranksep}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    setRanksep(val);
+                    handleAutoAlign(nodesep, val);
+                  }}
+                  className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-monokai-blue focus:outline-none"
+                />
+              </div>
+
+              {/* Vertical Spacing */}
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-zinc-400">行间距 (垂直)</span>
+                  <span className="text-monokai-green font-mono font-bold">{nodesep}px</span>
+                </div>
+                <input
+                  type="range"
+                  min="40"
+                  max="180"
+                  step="5"
+                  value={nodesep}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    setNodesep(val);
+                    handleAutoAlign(val, ranksep);
+                  }}
+                  className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-monokai-green focus:outline-none"
+                />
+              </div>
+              
+              <div className="text-[10px] text-zinc-500 border-t border-zinc-900 pt-2 leading-relaxed">
+                * 拖动滑块将实时进行 Left-to-Right 自动排版重算，不影响手动锁定的节点。
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Local Right Details Panel */}
