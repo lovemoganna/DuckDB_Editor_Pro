@@ -40,7 +40,11 @@ export const resolveCollisions = (
   if (!droppedPos) return currentPositions;
 
   const isExpanded = (id: number) => expandedNodeIds?.has(id) ?? false;
-  const cardW = 250; // card width 220 + 30 margin
+  const getWidth = (id: number) => 220;
+  const getHeight = (id: number) => isExpanded(id) ? 145 : 82;
+
+  const marginX = 30; // Horizontal gap between cards
+  const marginY = 30; // Vertical gap between cards
 
   let hasCollision = true;
   let attempts = 0;
@@ -48,7 +52,8 @@ export const resolveCollisions = (
 
   while (hasCollision && attempts < maxAttempts) {
     hasCollision = false;
-    const droppedH = isExpanded(droppedId) ? 175 : 110;
+    const Aw = getWidth(droppedId) + marginX;
+    const Ah = getHeight(droppedId) + marginY;
 
     for (const idStr of Object.keys(updated)) {
       const id = parseInt(idStr, 10);
@@ -57,20 +62,26 @@ export const resolveCollisions = (
       const otherPos = updated[id];
       if (!otherPos) continue;
 
-      const dx = droppedPos.x - otherPos.x;
-      const dy = droppedPos.y - otherPos.y;
+      const Bw = getWidth(id) + marginX;
+      const Bh = getHeight(id) + marginY;
 
-      const otherH = isExpanded(id) ? 175 : 110;
-      const collisionH = (droppedH + otherH) / 2;
+      // AABB Bounding Box overlap check
+      const overlapX = droppedPos.x < otherPos.x + Bw && droppedPos.x + Aw > otherPos.x;
+      const overlapY = droppedPos.y < otherPos.y + Bh && droppedPos.y + Ah > otherPos.y;
 
-      if (Math.abs(dx) < cardW && Math.abs(dy) < collisionH) {
+      if (overlapX && overlapY) {
         hasCollision = true;
-        if (Math.abs(dx) < Math.abs(dy)) {
-          const pushY = dy >= 0 ? collisionH : -collisionH;
-          droppedPos.y = Math.round((otherPos.y + pushY) / GRID_SIZE) * GRID_SIZE;
+        
+        // Calculate displacement along the axis of minimum penetration
+        const overlapWidth = Math.min(droppedPos.x + Aw - otherPos.x, otherPos.x + Bw - droppedPos.x);
+        const overlapHeight = Math.min(droppedPos.y + Ah - otherPos.y, otherPos.y + Bh - droppedPos.y);
+
+        if (overlapWidth < overlapHeight) {
+          const pushX = droppedPos.x >= otherPos.x ? overlapWidth : -overlapWidth;
+          droppedPos.x = Math.round((droppedPos.x + pushX) / GRID_SIZE) * GRID_SIZE;
         } else {
-          const pushX = dx >= 0 ? cardW : -cardW;
-          droppedPos.x = Math.round((otherPos.x + pushX) / GRID_SIZE) * GRID_SIZE;
+          const pushY = droppedPos.y >= otherPos.y ? overlapHeight : -overlapHeight;
+          droppedPos.y = Math.round((droppedPos.y + pushY) / GRID_SIZE) * GRID_SIZE;
         }
         attempts++;
         break;
