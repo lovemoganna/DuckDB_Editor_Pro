@@ -73,6 +73,9 @@ const DarkStyle = () => (
       stroke: #06b6d4 !important;
       stroke-width: 2.5px !important;
     }
+    .react-flow__viewport {
+      transition: none !important;
+    }
   `}</style>
 );
 
