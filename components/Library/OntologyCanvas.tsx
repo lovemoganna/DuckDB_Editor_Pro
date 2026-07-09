@@ -31,9 +31,7 @@ import {
   resolveCollisions,
   OntologyCanvasHeader,
   OntologyNode,
-  getLayoutedElements,
-  getCircularLayout,
-  getGridLayout
+  getLayoutedElements
 } from './OntologyCanvas/index';
 
 // Custom style injection for dark theme controls
@@ -356,21 +354,9 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
-  const handleAutoAlign = useCallback((type: 'LR' | 'TB' | 'circle' | 'grid') => {
+  const handleAutoAlign = useCallback(() => {
     pushToHistory(nodePositions);
-    let layoutedNodes: Node[] = [];
-    
-    if (type === 'LR' || type === 'TB') {
-      const result = getLayoutedElements(nodes, edges, type);
-      layoutedNodes = result.nodes;
-    } else if (type === 'circle') {
-      const result = getCircularLayout(nodes);
-      layoutedNodes = result.nodes;
-    } else if (type === 'grid') {
-      const result = getGridLayout(nodes);
-      layoutedNodes = result.nodes;
-    }
-
+    const { nodes: layoutedNodes } = getLayoutedElements(nodes, edges, 'LR');
     const updated = { ...nodePositions };
     layoutedNodes.forEach((node) => {
       updated[Number(node.id)] = node.position;
@@ -516,6 +502,11 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
     setIsSidebarOpen(true);
   }, []);
 
+  const onPaneClick = useCallback((event: React.MouseEvent) => {
+    setSelectedNodeId(null);
+    setIsSidebarOpen(false);
+  }, []);
+
   const onNodeMouseEnter = useCallback((event: React.MouseEvent, node: Node) => {
     setHoveredNodeId(Number(node.id));
   }, []);
@@ -591,6 +582,7 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
           onEdgeClick={onEdgeClick}
           onConnect={onConnect}
           onNodeClick={onNodeClick}
+          onPaneClick={onPaneClick}
           onNodeMouseEnter={onNodeMouseEnter}
           onNodeMouseLeave={onNodeMouseLeave}
           onDoubleClick={handlePaneDoubleClick}
