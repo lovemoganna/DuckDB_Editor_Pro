@@ -13,6 +13,7 @@ interface OntologyNodeProps {
     isExpanded: boolean;
     activePathNodesAndLinks: any;
     isFocusMode: boolean;
+    isReadOnly?: boolean;
     onLockToggle: (id: number) => void;
     onEditOpen: (node: any) => void;
     onDelete: (id: number) => void;
@@ -34,6 +35,7 @@ export const OntologyNode: React.FC<OntologyNodeProps> = ({ id, data, selected }
     isExpanded,
     activePathNodesAndLinks,
     isFocusMode,
+    isReadOnly = false,
     onLockToggle,
     onEditOpen,
     onDelete,
@@ -129,33 +131,35 @@ export const OntologyNode: React.FC<OntologyNodeProps> = ({ id, data, selected }
       ) : (
         <>
           {/* Card Hover Action Bar */}
-          <div className="absolute -top-7 right-0 bg-zinc-950/90 border border-zinc-800 rounded px-1.5 py-0.5 flex gap-1 shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-20 pointer-events-auto">
-            <button
-              onClick={(e) => { e.stopPropagation(); onLockToggle(obj.id); }}
-              className="p-1 rounded text-slate-400 hover:text-amber-500 transition-colors"
-              title={isLocked ? "解锁节点" : "锁定节点"}
-            >
-              {isLocked ? (
-                <Lock className="w-3 h-3 text-amber-500" />
-              ) : (
-                <Unlock className="w-3 h-3" />
-              )}
-            </button>
-            <button
-              onClick={(e) => { e.stopPropagation(); onEditOpen(obj); }}
-              className="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-monokai-cyan transition-colors"
-              title="编辑设置"
-            >
-              <Settings className="w-3 h-3" />
-            </button>
-            <button
-              onClick={(e) => { e.stopPropagation(); onDelete(obj.id); }}
-              className="p-1 hover:bg-monokai-pink/10 rounded text-slate-400 hover:text-monokai-pink transition-colors"
-              title="删除节点"
-            >
-              <Trash2 className="w-3 h-3" />
-            </button>
-          </div>
+          {!isReadOnly && (
+            <div className="absolute -top-7 right-0 bg-zinc-950/90 border border-zinc-800 rounded px-1.5 py-0.5 flex gap-1 shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-20 pointer-events-auto">
+              <button
+                onClick={(e) => { e.stopPropagation(); onLockToggle(obj.id); }}
+                className="p-1 rounded text-slate-400 hover:text-amber-500 transition-colors"
+                title={isLocked ? "解锁节点" : "锁定节点"}
+              >
+                {isLocked ? (
+                  <Lock className="w-3 h-3 text-amber-500" />
+                ) : (
+                  <Unlock className="w-3 h-3" />
+                )}
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); onEditOpen(obj); }}
+                className="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-monokai-cyan transition-colors"
+                title="编辑设置"
+              >
+                <Settings className="w-3 h-3" />
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); onDelete(obj.id); }}
+                className="p-1 hover:bg-monokai-pink/10 rounded text-slate-400 hover:text-monokai-pink transition-colors"
+                title="删除节点"
+              >
+                <Trash2 className="w-3 h-3" />
+              </button>
+            </div>
+          )}
 
           <div className="flex items-start justify-between gap-2 w-full overflow-hidden mt-1">
             <div className="flex items-center gap-1.5 truncate w-[80%]">

@@ -147,6 +147,8 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
   const [showGrid, setShowGrid] = useState<boolean>(true); // Toggle background dots grid on/off
   const [showMiniMap, setShowMiniMap] = useState<boolean>(true); // Toggle bottom-right minimap on/off
   const [animateEdges, setAnimateEdges] = useState<boolean>(true); // Toggle connection lines flow animation
+  const [enableDbClickCreate, setEnableDbClickCreate] = useState<boolean>(true); // Toggle double click to create node
+  const [isReadOnly, setIsReadOnly] = useState<boolean>(false); // Toggle read-only mode
   const [showSpacingPanel, setShowSpacingPanel] = useState<boolean>(false);
 
   // Undo/Redo History Stacks
@@ -476,6 +478,7 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
           isExpanded: expandedNodeIds.has(obj.id),
           activePathNodesAndLinks,
           isFocusMode,
+          isReadOnly,
           onLockToggle: handleLockNodeToggle,
           onEditOpen: handleOpenEditNode,
           onDelete: handleDeleteNode,
@@ -491,7 +494,7 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
       };
     });
     setNodes(rfNodes);
-  }, [objects, nodePositions, objectTypes, lockedNodeIds, highlightedNodeId, expandedNodeIds, activePathNodesAndLinks, isFocusMode, handleLockNodeToggle, setNodes]);
+  }, [objects, nodePositions, objectTypes, lockedNodeIds, highlightedNodeId, expandedNodeIds, activePathNodesAndLinks, isFocusMode, isReadOnly, handleLockNodeToggle, setNodes]);
 
   // Calculate parallel link curvature offsets to prevent overlapping paths
   const linkOffsets = useMemo(() => {
@@ -699,7 +702,9 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
           onPaneClick={onPaneClick}
           onNodeMouseEnter={onNodeMouseEnter}
           onNodeMouseLeave={onNodeMouseLeave}
-          onDoubleClick={handlePaneDoubleClick}
+          onDoubleClick={!isReadOnly && enableDbClickCreate ? handlePaneDoubleClick : undefined}
+          nodesDraggable={!isReadOnly}
+          nodesConnectable={!isReadOnly}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
           fitView
@@ -757,6 +762,9 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
                     setShowGrid(true);
                     setShowMiniMap(true);
                     setAnimateEdges(true);
+                    setIsFocusMode(false);
+                    setEnableDbClickCreate(true);
+                    setIsReadOnly(false);
                     handleAutoAlign(130, 200, 'LR');
                   }}
                   className="text-[10px] text-zinc-500 hover:text-zinc-300 cursor-pointer transition-all"
@@ -859,8 +867,27 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
                 />
               </div>
 
+              {/* Interactive Toggles Header */}
+              <div className="text-[10px] font-bold text-zinc-550 border-t border-zinc-900 pt-2.5 mb-0.5 uppercase tracking-wider">
+                画布交互与状态
+              </div>
+
+              {/* Focus Mode */}
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-zinc-400" title="开启后仅显示选中节点及其关联的前后代节点">聚焦模式 (Focus)</span>
+                <label className="relative inline-flex items-center cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={isFocusMode}
+                    onChange={(e) => setIsFocusMode(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-7 h-4 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-zinc-400 after:border-zinc-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-monokai-green peer-checked:after:bg-zinc-900 peer-checked:after:border-transparent"></div>
+                </label>
+              </div>
+
               {/* Grid Snapping */}
-              <div className="flex items-center justify-between border-t border-zinc-900 pt-2.5">
+              <div className="flex items-center justify-between">
                 <span className="text-xs text-zinc-400">网格吸附对齐</span>
                 <label className="relative inline-flex items-center cursor-pointer select-none">
                   <input
@@ -915,10 +942,39 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
                 </label>
               </div>
 
+              {/* Double-Click Create Node */}
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-zinc-400">双击新建节点</span>
+                <label className="relative inline-flex items-center cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={enableDbClickCreate}
+                    onChange={(e) => setEnableDbClickCreate(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-7 h-4 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-zinc-400 after:border-zinc-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-monokai-green peer-checked:after:bg-zinc-900 peer-checked:after:border-transparent"></div>
+                </label>
+              </div>
+
+              {/* Read Only toggle */}
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-zinc-400 font-semibold text-amber-500">只读画布模式</span>
+                <label className="relative inline-flex items-center cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={isReadOnly}
+                    onChange={(e) => setIsReadOnly(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-7 h-4 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-zinc-400 after:border-zinc-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-monokai-orange peer-checked:after:bg-zinc-900 peer-checked:after:border-transparent"></div>
+                </label>
+              </div>
+
               {/* Force Reset Layout button */}
               <button
+                disabled={isReadOnly}
                 onClick={handleForceResetLayout}
-                className="mt-1 w-full py-1.5 rounded bg-amber-500/10 border border-amber-500/20 text-amber-500 hover:bg-amber-500/20 active:scale-98 transition-all text-xs font-semibold flex items-center justify-center gap-1.5"
+                className="mt-1 w-full py-1.5 rounded bg-amber-500/10 border border-amber-500/20 text-amber-500 hover:bg-amber-500/20 active:scale-98 disabled:opacity-30 disabled:pointer-events-none transition-all text-xs font-semibold flex items-center justify-center gap-1.5"
                 title="清除所有拖拽的偏移坐标，重新计算Dagre自动布局"
               >
                 <span>重置全局网格排版</span>
