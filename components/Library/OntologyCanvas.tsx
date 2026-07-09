@@ -274,7 +274,6 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
           id: String(obj.id),
           position: updated[obj.id],
           data: {
-            isCompact: rfZoom < 0.65,
             isExpanded: expandedNodeIds.has(obj.id)
           }
         }));
@@ -292,7 +291,7 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
 
       updateCanvasPositions(updated);
     }
-  }, [objects, links, nodePositions, updateCanvasPositions, rfZoom, expandedNodeIds]);
+  }, [objects, links, nodePositions, updateCanvasPositions, expandedNodeIds]);
 
   // Automatically center view on mount/first render once nodes are ready
   useEffect(() => {
@@ -434,8 +433,6 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
           type: objectTypes.find((t: any) => t.id === obj.object_type_id),
           isLocked: lockedNodeIds.has(obj.id),
           isHighlighted: highlightedNodeId === obj.id,
-          isCompact: rfZoom < 0.65,
-          isDetailed: rfZoom >= 0.95,
           isExpanded: expandedNodeIds.has(obj.id),
           activePathNodesAndLinks,
           isFocusMode,
@@ -454,7 +451,7 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
       };
     });
     setNodes(rfNodes);
-  }, [objects, nodePositions, objectTypes, lockedNodeIds, highlightedNodeId, rfZoom, expandedNodeIds, activePathNodesAndLinks, isFocusMode, handleLockNodeToggle, setNodes]);
+  }, [objects, nodePositions, objectTypes, lockedNodeIds, highlightedNodeId, expandedNodeIds, activePathNodesAndLinks, isFocusMode, handleLockNodeToggle, setNodes]);
 
   // Calculate parallel link curvature offsets to prevent overlapping paths
   const linkOffsets = useMemo(() => {

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Handle, Position } from 'reactflow';
+import { Handle, Position, useViewport } from 'reactflow';
 import { Lock, Unlock, Settings, Trash2, Database, Plus } from 'lucide-react';
 import { getTypeStyles } from './OntologyCanvas.helpers';
 
@@ -10,8 +10,6 @@ interface OntologyNodeProps {
     type: any;
     isLocked: boolean;
     isHighlighted: boolean;
-    isCompact: boolean;
-    isDetailed: boolean;
     isExpanded: boolean;
     activePathNodesAndLinks: any;
     isFocusMode: boolean;
@@ -24,13 +22,15 @@ interface OntologyNodeProps {
 }
 
 export const OntologyNode: React.FC<OntologyNodeProps> = ({ id, data, selected }) => {
+  const { zoom } = useViewport();
+  const isCompact = zoom < 0.65;
+  const isDetailed = zoom >= 0.95;
+
   const {
     obj,
     type,
     isLocked,
     isHighlighted,
-    isCompact,
-    isDetailed,
     isExpanded,
     activePathNodesAndLinks,
     isFocusMode,
@@ -78,10 +78,11 @@ export const OntologyNode: React.FC<OntologyNodeProps> = ({ id, data, selected }
       style={{
         width: '220px',
         minHeight: isExpanded ? '145px' : '82px',
+        overflow: 'hidden',
         transition: 'opacity 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease, min-height 0.2s ease',
         ...cardDisplayStyle
       }}
-      className={`relative rounded bg-zinc-900/95 border px-3.5 py-3 flex flex-col justify-between select-none ${isLocked ? 'border-amber-500/40 border-dashed bg-[#121110]/95' : 'border-zinc-800/90'} group ${cardOpacity} ${borderHighlight} ${isHighlighted ? 'ring-2 ring-monokai-blue border-transparent' : ''}`}
+      className={`relative rounded bg-zinc-900/95 border px-3.5 py-3 flex flex-col justify-between select-none overflow-hidden ${isLocked ? 'border-amber-500/40 border-dashed bg-[#121110]/95' : 'border-zinc-800/90'} group ${cardOpacity} ${borderHighlight} ${isHighlighted ? 'ring-2 ring-monokai-blue border-transparent' : ''}`}
     >
       {/* Target & Source Handles - Glowing small green dots */}
       <Handle
