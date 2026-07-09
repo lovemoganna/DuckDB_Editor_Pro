@@ -4,11 +4,17 @@ import { Node, Edge } from 'reactflow';
 const dagreGraph = new dagre.graphlib.Graph();
 dagreGraph.setDefaultEdgeLabel(() => ({}));
 
-export const getLayoutedElements = (nodes: Node[], edges: Edge[], direction = 'LR') => {
+export const getLayoutedElements = (
+  nodes: Node[],
+  edges: Edge[],
+  direction = 'LR',
+  nodesep = 80,
+  ranksep = 200
+) => {
   dagreGraph.setGraph({
     rankdir: direction,
-    nodesep: 80,   // Spacing between nodes in the same rank/column (prevents vertical overlaps)
-    ranksep: 200,  // Spacing between ranks/columns (leaves plenty of horizontal room for edge labels)
+    nodesep: nodesep,   // Dynamically configured spacing between nodes in the same rank
+    ranksep: ranksep,   // Dynamically configured spacing between columns
     marginx: 50,
     marginy: 50
   });
