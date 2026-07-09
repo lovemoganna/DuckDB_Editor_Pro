@@ -46,20 +46,7 @@ export const OntologyCanvasHeader: React.FC<OntologyCanvasHeaderProps> = ({
   handleAutoAlign,
 }) => {
   return (
-    <div className="absolute top-4 left-4 right-4 z-10 flex flex-wrap gap-3 items-center justify-between pointer-events-none">
-      {/* Title Badge */}
-      <div className="bg-zinc-950/80 backdrop-blur-md px-4 py-2.5 rounded-[2px] border border-zinc-800/80 flex items-center gap-3 shadow-2xl pointer-events-auto">
-        <div className="w-8 h-8 rounded-[2px] bg-monokai-blue/10 flex items-center justify-center border border-monokai-blue/20">
-          <Sparkles className="w-4 h-4 text-monokai-blue animate-pulse" />
-        </div>
-        <div>
-          <h1 className="text-xs font-bold text-slate-100 flex items-center gap-1.5 leading-none">
-            互动本体画布
-          </h1>
-          <p className="text-[10px] text-slate-500 mt-1">双击空白处建节点 | 拽锚点连线建关系</p>
-        </div>
-      </div>
-
+    <div className="absolute top-4 left-4 right-4 z-10 flex flex-wrap gap-3 items-center justify-end pointer-events-none">
       {/* Searching & Controls */}
       <div className="flex items-center gap-2 pointer-events-auto">
         {/* Quick Search */}
@@ -127,17 +114,6 @@ export const OntologyCanvasHeader: React.FC<OntologyCanvasHeaderProps> = ({
           >
             <Zap className="w-3.5 h-3.5" />
             <span>{isFocusMode ? '已聚焦' : '聚焦'}</span>
-          </button>
-          <div className="w-px h-4 bg-slate-800 mx-1" />
-          <button onClick={handleLockAll} title="锁定全部节点位置" className="p-1.5 rounded-[2px] hover:bg-slate-850 text-slate-400 hover:text-amber-500 transition-colors">
-            <Lock className="w-3.5 h-3.5" />
-          </button>
-          <button onClick={handleUnlockAll} title="解锁全部节点位置" className="p-1.5 rounded-[2px] hover:bg-slate-850 text-slate-400 hover:text-green-500 transition-colors">
-            <Unlock className="w-3.5 h-3.5" />
-          </button>
-          <div className="w-px h-4 bg-slate-800 mx-1" />
-          <button onClick={handleAutoAlign} title="一键网格力学排列" className="p-1.5 rounded-[2px] bg-monokai-blue/10 border border-monokai-blue/20 text-monokai-blue hover:bg-monokai-blue/20 transition-all text-xs font-semibold flex items-center gap-1 px-2.5">
-            <GitCommit className="w-3.5 h-3.5" /> 自动排版
           </button>
         </div>
       </div>
