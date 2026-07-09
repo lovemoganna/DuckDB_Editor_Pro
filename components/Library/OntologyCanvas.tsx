@@ -238,12 +238,17 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
     };
   }, [hoveredNodeId, selectedNodeId, links]);
 
-  // Load and construct node positions if missing
+  const [isInitialLayoutDone, setIsInitialLayoutDone] = useState<boolean>(false);
+
+  // Load and construct node positions if missing, applying Dagre auto layout on first load
   useEffect(() => {
+    if (objects.length === 0) return;
+
     const updated = { ...nodePositions };
     let missingCount = 0;
     objects.forEach((obj: any) => {
       if (!updated[obj.id] || isNaN(updated[obj.id].x) || isNaN(updated[obj.id].y)) {
+        // Spiral fallback coordinate mapping to give temporary coordinates
         const angle = missingCount * 0.6;
         const radius = 120 + Math.floor(missingCount / 3) * 60;
         updated[obj.id] = {
@@ -255,9 +260,43 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
     });
 
     if (missingCount > 0) {
+      const isInitialLoad = Object.keys(nodePositions).length === 0;
+
+      if (isInitialLoad) {
+        const mockNodes = objects.map((obj: any) => ({
+          id: String(obj.id),
+          position: updated[obj.id],
+          data: {
+            isCompact: rfZoom < 0.65,
+            isExpanded: expandedNodeIds.has(obj.id)
+          }
+        }));
+        const mockEdges = links.map((link: any) => ({
+          id: String(link.id),
+          source: String(link.source_object_id),
+          target: String(link.target_object_id)
+        }));
+
+        const { nodes: layoutedNodes } = getLayoutedElements(mockNodes, mockEdges, 'LR');
+        layoutedNodes.forEach((node) => {
+          updated[Number(node.id)] = node.position;
+        });
+      }
+
       updateCanvasPositions(updated);
     }
-  }, [objects, nodePositions, updateCanvasPositions]);
+  }, [objects, links, nodePositions, updateCanvasPositions, rfZoom, expandedNodeIds]);
+
+  // Automatically center view on mount/first render once nodes are ready
+  useEffect(() => {
+    if (objects.length > 0 && nodes.length > 0 && !isInitialLayoutDone) {
+      const timer = setTimeout(() => {
+        reactFlowInstance.fitView({ padding: 0.35, duration: 400 });
+        setIsInitialLayoutDone(true);
+      }, 150);
+      return () => clearTimeout(timer);
+    }
+  }, [objects, nodes, isInitialLayoutDone, reactFlowInstance]);
 
   // Save specific node position helper
   const saveNodePosition = useCallback((id: number, pos: Position) => {
