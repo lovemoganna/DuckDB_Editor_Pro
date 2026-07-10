@@ -312,9 +312,16 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
          .classed('nv-connected-node', false)
          .classed('nv-connected-label', false);
       svg.selectAll('.nv-link-instance, .nv-link-typeinst, .nv-link-action')
-         .style('stroke', null)
-         .style('stroke-width', null)
-         .style('opacity', null)
+         .style('stroke', (l: any) => l.color)
+         .style('stroke-width', (l: any) => {
+           const w = Math.max(0.3, Math.min(1.0, l.weight ?? 0.5));
+           return `${(1 + (w - 0.3) * 2.0).toFixed(2)}px`;
+         })
+         .style('opacity', (l: any) => {
+           if (!showWeakLinks && l._linkTypeId !== undefined && l.weight < weightThreshold) return '0';
+           const w = Math.max(0.3, Math.min(1.0, l.weight ?? 0.5));
+           return (0.45 + (w - 0.3) * 0.79).toFixed(2);
+         })
          .attr('marker-end', (l: any) => {
            if (l._linkTypeId !== undefined) return `url(#arrow-linktype-${l._linkTypeId})`;
            const nodesMap = new Map(nodesRef.current.map(n => [n.id, n]));
@@ -401,7 +408,7 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
         const tId = typeof l.target === 'object' ? (l.target as any).id : l.target;
         return sId === activeId || tId === activeId ? '1.0' : '0.0';
       });
-  }, [scopeMode]);
+  }, [scopeMode, showWeakLinks, weightThreshold]);
 
   const applyHighlightStylesRef = useRef(applyHighlightStyles);
   useEffect(() => {
