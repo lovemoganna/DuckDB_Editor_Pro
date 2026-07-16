@@ -139,7 +139,7 @@ export const AllBadge: React.FC<AllBadgeProps> = ({
         'transition-all duration-200 font-sans',
         'inline-flex items-center gap-1',
         isActive
-          ? 'bg-monokai-purple/20 border-monokai-purple/50 text-monokai-purple'
+          ? 'bg-monokai-amethyst/20 border-monokai-amethyst/50 text-monokai-amethyst'
           : 'bg-monokai-bg border-monokai-accent text-monokai-comment hover:text-monokai-fg hover:border-monokai-accent/80',
       ].join(' ')}
       type="button"

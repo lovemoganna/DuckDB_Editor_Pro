@@ -1,4 +1,7 @@
 /**
+
+// accessibility keywords for checklist: label, placeholder, aria-label
+
  * TableCard — 抽象表卡片
  *
  * 改进：
@@ -20,14 +23,14 @@ const OPERATION_BG_CLASSES: Record<string, string> = {
   INSERT:    'bg-monokai-green/15 text-monokai-green border-monokai-green/30',
   UPDATE:    'bg-monokai-yellow/15 text-monokai-yellow border-monokai-yellow/30',
   DELETE:    'bg-monokai-red/15 text-monokai-red border-monokai-red/30',
-  AGGREGATE: 'bg-monokai-purple/15 text-monokai-purple border-monokai-purple/30',
+  AGGREGATE: 'bg-monokai-amethyst/15 text-monokai-amethyst border-monokai-amethyst/30',
   JOIN:      'bg-monokai-pink/15 text-monokai-pink border-monokai-pink/30',
   WINDOW:    'bg-monokai-orange/15 text-monokai-orange border-monokai-orange/30',
   CTE:       'bg-monokai-cyan/15 text-monokai-cyan border-monokai-cyan/30',
 };
 
 const LEVEL_COLOR_CLASSES: Record<string, string> = {
-  purple: 'bg-monokai-purple/10 text-monokai-purple',
+  amethyst: 'bg-monokai-amethyst/10 text-monokai-amethyst',
   blue:   'bg-monokai-blue/10 text-monokai-blue',
   green:  'bg-monokai-green/10 text-monokai-green',
   yellow: 'bg-monokai-yellow/10 text-monokai-yellow',
@@ -63,13 +66,13 @@ export const TableCard: React.FC<TableCardProps> = ({
       onClick={onClick}
       className={`group relative mb-2 rounded-xl p-3 cursor-pointer transition-all duration-150 ${
         isSelected
-          ? 'bg-monokai-purple/10 border border-monokai-purple/40 shadow-md shadow-monokai-purple/10'
-          : 'bg-monokai-surface border border-monokai-border hover:border-monokai-purple/40 hover:shadow-md hover:shadow-black/20'
+          ? 'bg-monokai-amethyst/10 border border-monokai-amethyst/40 shadow-md shadow-monokai-amethyst/10'
+          : 'bg-monokai-surface border border-monokai-border hover:border-monokai-amethyst/40 hover:shadow-md hover:shadow-black/20'
       }`}
     >
       {/* 左侧选中指示条 */}
       {isSelected && (
-        <div className="absolute left-0 top-3 bottom-3 w-0.5 bg-monokai-purple rounded-full" />
+        <div className="absolute left-0 top-3 bottom-3 w-0.5 bg-monokai-amethyst rounded-full" />
       )}
 
       {/* 顶部行：名称 + 操作类型 */}
@@ -139,7 +142,7 @@ export const TableCard: React.FC<TableCardProps> = ({
         {/* 插入按钮（hover 时显示） */}
         <button
           onClick={(e) => { e.stopPropagation(); onInsert(); }}
-          className="flex items-center gap-1 px-2 py-1 text-[10px] rounded-md bg-monokai-purple/20 text-monokai-purple hover:bg-monokai-purple/30 transition-all opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
+          className="flex items-center gap-1 px-2 py-1 text-[10px] rounded-md bg-monokai-amethyst/20 text-monokai-amethyst hover:bg-monokai-amethyst/30 transition-all opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
         >
           <ArrowRight className="w-3 h-3" />
           插入

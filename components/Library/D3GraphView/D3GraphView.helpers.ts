@@ -296,7 +296,7 @@ export function getBaseNodeInfoHtml(d: GraphNode, data: { nodes: GraphNode[]; li
         html += `<div style="font-size:9.5px;line-height:1.6;margin-top:3px;border-top:1px dashed rgba(255,255,255,0.05);padding-top:3px">`;
         html += `<span style="color:#a6e22e;font-weight:bold">分类层级</span>`;
         html += `<span style="color:#ccc">: </span>`;
-        html += `<span style="color:#a78bfa">${parsed._taxonomy}</span>`;
+        html += `<span style="color:#ae81ff">${parsed._taxonomy}</span>`;
         html += `</div>`;
       }
       html += `</div>`;

@@ -351,9 +351,9 @@ export const SqlEditorToolbar: React.FC<SqlEditorToolbarProps> = ({
         )}
 
         {/* Right Side: AI Prompt Search Input Bar */}
-        <div className="flex-1 min-w-[200px] max-w-[420px] h-8 bg-monokai-surface/60 px-3 py-1 rounded-sm border border-monokai-accent/50 focus-within:border-monokai-purple/60 focus-within:shadow-[0_0_8px_rgba(174,129,255,0.2)] transition-all flex items-center justify-between z-10">
+        <div className="flex-1 min-w-[200px] max-w-[420px] h-8 bg-monokai-surface/60 px-3 py-1 rounded-sm border border-monokai-accent/50 focus-within:border-monokai-amethyst/60 focus-within:shadow-[0_0_8px_rgba(174,129,255,0.2)] transition-all flex items-center justify-between z-10">
           <div className="flex items-center gap-1.5 flex-1 min-w-0">
-            <Wand2 className="w-3.5 h-3.5 text-monokai-purple/80 shrink-0" />
+            <Wand2 className="w-3.5 h-3.5 text-monokai-amethyst/80 shrink-0" />
             <input
               type="text"
               value={aiPrompt}
@@ -377,7 +377,7 @@ export const SqlEditorToolbar: React.FC<SqlEditorToolbarProps> = ({
             <button
               onClick={onAiGenerate}
               disabled={isAiLoading || !aiPrompt.trim()}
-              className="text-monokai-purple hover:text-monokai-fg disabled:opacity-40 transition-all p-0.5 cursor-pointer"
+              className="text-monokai-amethyst hover:text-monokai-fg disabled:opacity-40 transition-all p-0.5 cursor-pointer"
               title="AI 生成代码 (Enter)"
             >
               {isAiLoading ? (
@@ -434,16 +434,16 @@ export const SqlEditorToolbar: React.FC<SqlEditorToolbarProps> = ({
                 </button>
                 <button 
                   onClick={() => { onOpenMaterializeModal('TABLE'); setActiveDropdown(null); }}
-                  className="w-full text-left px-2.5 py-1.5 text-xs text-monokai-fg hover:bg-monokai-purple/10 hover:text-monokai-purple rounded-xs transition-colors flex items-center gap-2"
+                  className="w-full text-left px-2.5 py-1.5 text-xs text-monokai-fg hover:bg-monokai-amethyst/10 hover:text-monokai-amethyst rounded-xs transition-colors flex items-center gap-2"
                 >
-                  <Table size={11} className="text-monokai-purple/70" />
+                  <Table size={11} className="text-monokai-amethyst/70" />
                   物化为 DuckDB 表
                 </button>
                 <button 
                   onClick={() => { onOpenMaterializeModal('VIEW'); setActiveDropdown(null); }}
-                  className="w-full text-left px-2.5 py-1.5 text-xs text-monokai-fg hover:bg-monokai-purple/10 hover:text-monokai-purple rounded-xs transition-colors flex items-center gap-2"
+                  className="w-full text-left px-2.5 py-1.5 text-xs text-monokai-fg hover:bg-monokai-amethyst/10 hover:text-monokai-amethyst rounded-xs transition-colors flex items-center gap-2"
                 >
-                  <Eye size={11} className="text-monokai-purple/70" />
+                  <Eye size={11} className="text-monokai-amethyst/70" />
                   物化为 DuckDB 视图
                 </button>
 
@@ -465,9 +465,9 @@ export const SqlEditorToolbar: React.FC<SqlEditorToolbarProps> = ({
                 </button>
                 <button 
                   onClick={() => { setShowDuplicateModal(true); setActiveDropdown(null); }}
-                  className="w-full text-left px-2.5 py-1.5 text-xs text-monokai-fg hover:bg-monokai-purple/10 hover:text-monokai-purple rounded-xs transition-colors flex items-center gap-2"
+                  className="w-full text-left px-2.5 py-1.5 text-xs text-monokai-fg hover:bg-monokai-amethyst/10 hover:text-monokai-amethyst rounded-xs transition-colors flex items-center gap-2"
                 >
-                  <Copy size={11} className="text-monokai-purple" />
+                  <Copy size={11} className="text-monokai-amethyst" />
                   复制克隆已有表
                 </button>
               </div>
@@ -519,9 +519,9 @@ export const SqlEditorToolbar: React.FC<SqlEditorToolbarProps> = ({
                 <button
                   onClick={() => handleExport('html')}
                   disabled={!activeTab.result || activeTab.result.rows.length === 0}
-                  className="w-full text-left px-2.5 py-1.5 text-xs text-monokai-fg hover:bg-monokai-purple/10 hover:text-monokai-purple rounded-xs transition-colors flex items-center gap-2 disabled:opacity-30"
+                  className="w-full text-left px-2.5 py-1.5 text-xs text-monokai-fg hover:bg-monokai-amethyst/10 hover:text-monokai-amethyst rounded-xs transition-colors flex items-center gap-2 disabled:opacity-30"
                 >
-                  <Download size={11} className="text-monokai-purple" />
+                  <Download size={11} className="text-monokai-amethyst" />
                   生成 HTML 报告
                 </button>
               </div>
@@ -534,8 +534,8 @@ export const SqlEditorToolbar: React.FC<SqlEditorToolbarProps> = ({
               onClick={() => toggleDropdown('templates')}
               className={`px-2.5 py-1 border text-[11px] font-bold rounded-xs flex items-center gap-1.5 transition-all cursor-pointer ${
                 activeDropdown === 'templates' 
-                  ? 'bg-monokai-purple text-monokai-bg border-monokai-purple' 
-                  : 'bg-monokai-surface/30 border-monokai-accent/20 hover:border-monokai-purple hover:text-monokai-purple text-monokai-fg'
+                  ? 'bg-monokai-amethyst text-monokai-bg border-monokai-amethyst' 
+                  : 'bg-monokai-surface/30 border-monokai-accent/20 hover:border-monokai-amethyst hover:text-monokai-amethyst text-monokai-fg'
               }`}
             >
               <Sparkles size={10} />
@@ -544,13 +544,13 @@ export const SqlEditorToolbar: React.FC<SqlEditorToolbarProps> = ({
             </button>
 
             {activeDropdown === 'templates' && (
-              <div className="absolute top-full left-0 mt-1 bg-monokai-sidebar/95 backdrop-blur-md border border-monokai-accent/30 rounded-xs shadow-xl z-55 min-w-[210px] max-h-[350px] overflow-y-auto custom-scrollbar p-1 animate-in fade-in slide-in-from-top-1 duration-150 border-t-monokai-purple/50">
+              <div className="absolute top-full left-0 mt-1 bg-monokai-sidebar/95 backdrop-blur-md border border-monokai-accent/30 rounded-xs shadow-xl z-55 min-w-[210px] max-h-[350px] overflow-y-auto custom-scrollbar p-1 animate-in fade-in slide-in-from-top-1 duration-150 border-t-monokai-amethyst/50">
                 <div className="px-2.5 py-0.5 text-[9px] text-monokai-comment uppercase font-bold tracking-wider mb-1">AI 辅助工具</div>
                 <div className="px-2 py-1">
                   <select
                     value={selectedSqlType}
                     onChange={onSqlTypeChange}
-                    className="w-full bg-monokai-bg border border-monokai-accent/40 rounded-xs px-2 py-1 text-xs text-monokai-fg outline-none focus:border-monokai-purple transition-all cursor-pointer h-7"
+                    className="w-full bg-monokai-bg border border-monokai-accent/40 rounded-xs px-2 py-1 text-xs text-monokai-fg outline-none focus:border-monokai-amethyst transition-all cursor-pointer h-7"
                   >
                     <option value="select">SELECT 模版</option>
                     <option value="join">JOIN 关联</option>
@@ -579,17 +579,17 @@ export const SqlEditorToolbar: React.FC<SqlEditorToolbarProps> = ({
                 <button
                   onClick={() => { onAiExplain(); setActiveDropdown(null); }}
                   disabled={!activeTab.code.trim()}
-                  className="w-full flex items-center gap-2 text-left px-2.5 py-1.5 text-xs text-monokai-fg hover:bg-monokai-purple/10 hover:text-monokai-purple disabled:opacity-40 rounded-xs transition-colors"
+                  className="w-full flex items-center gap-2 text-left px-2.5 py-1.5 text-xs text-monokai-fg hover:bg-monokai-amethyst/10 hover:text-monokai-amethyst disabled:opacity-40 rounded-xs transition-colors"
                 >
-                  <Sparkles size={11} className="text-monokai-purple" />
+                  <Sparkles size={11} className="text-monokai-amethyst" />
                   <span>AI 智能解释 SQL</span>
                 </button>
 
                 <button
                   onClick={() => { onShowSkillAssistant(); setActiveDropdown(null); }}
-                  className="w-full flex items-center gap-2 text-left px-2.5 py-1.5 text-xs text-monokai-fg hover:bg-monokai-purple/10 hover:text-monokai-purple rounded-xs transition-colors font-bold"
+                  className="w-full flex items-center gap-2 text-left px-2.5 py-1.5 text-xs text-monokai-fg hover:bg-monokai-amethyst/10 hover:text-monokai-amethyst rounded-xs transition-colors font-bold"
                 >
-                  <Sparkles size={11} className="text-monokai-purple animate-pulse" />
+                  <Sparkles size={11} className="text-monokai-amethyst animate-pulse" />
                   <span>AI 数据处理技能</span>
                 </button>
 
@@ -610,8 +610,8 @@ export const SqlEditorToolbar: React.FC<SqlEditorToolbarProps> = ({
                   onClick={() => { onToggleLivePreview(); setActiveDropdown(null); }}
                   className={`w-full text-left px-2.5 py-1.5 text-xs rounded-xs transition-colors flex items-center justify-between ${
                     showLivePreview 
-                      ? 'bg-monokai-purple/10 text-monokai-purple font-bold' 
-                      : 'text-monokai-fg hover:bg-monokai-purple/10 hover:text-monokai-purple'
+                      ? 'bg-monokai-amethyst/10 text-monokai-amethyst font-bold' 
+                      : 'text-monokai-fg hover:bg-monokai-amethyst/10 hover:text-monokai-amethyst'
                   }`}
                 >
                   <div className="flex items-center gap-2">
@@ -619,7 +619,7 @@ export const SqlEditorToolbar: React.FC<SqlEditorToolbarProps> = ({
                     <span>格式化预览</span>
                   </div>
                   {showLivePreview ? (
-                    <span className="text-[8px] bg-monokai-purple/20 text-monokai-purple px-1 py-0.5 rounded-xs">已开</span>
+                    <span className="text-[8px] bg-monokai-amethyst/20 text-monokai-amethyst px-1 py-0.5 rounded-xs">已开</span>
                   ) : (
                     <span className="text-[8px] text-monokai-comment/40">已关</span>
                   )}

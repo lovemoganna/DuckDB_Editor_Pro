@@ -25,10 +25,12 @@ import { NotesSidebar } from './NotesSidebar';
 import { FavoritesSidebar } from './FavoritesSidebar';
 import { CodeSnippetsSidebar } from './CodeSnippetsSidebar';
 import { DataManagementSidebar } from './DataManagementSidebar';
+import { SchemaSidebar } from './SchemaSidebar';
+import { ErrorBoundary } from '../ErrorBoundary';
 import { saveNote, Note } from '../../services/learnNotesStorage';
 import { addFavorite, removeFavoriteByTutorialId, isFavorite } from '../../services/favoritesStorage';
 import { saveSnippet, isSnippetExists, CodeSnippet, generateSnippetId } from '../../services/codeSnippetsStorage';
-import { Copy, Check, StickyNote, Code, Heart, HeartHandshake, Database, Play, X, Trash2, FileText, Library, Clock, BarChart2, Download, Upload, AlertTriangle, ChevronRight } from 'lucide-react';
+import { Copy, Check, StickyNote, Code, Heart, HeartHandshake, Database, Play, X, Trash2, FileText, Library, Clock, BarChart2, Download, Upload, AlertTriangle, ChevronRight, Table } from 'lucide-react';
 
 // 初始化 mermaid
 mermaid.initialize({
@@ -65,6 +67,38 @@ const Mermaid = ({ chart }: { chart: string }) => {
   return (
     <div className="mermaid-wrapper my-6 flex justify-center bg-[#282a36] p-4 rounded-lg overflow-x-auto border border-monokai-accent/30" dangerouslySetInnerHTML={{ __html: svg }} />
   );
+};
+
+// SQL 安全防护：确保查询限制数量
+const ensureQueryLimit = (sql: string): string => {
+  const trimmed = sql.trim();
+  // 检查是否为 select 语句
+  if (/^\s*select\b/i.test(trimmed)) {
+    // 检查是否包含 limit 限制
+    if (!/\blimit\s+\d+/i.test(trimmed)) {
+      if (trimmed.endsWith(';')) {
+        return trimmed.slice(0, -1) + ' LIMIT 100;';
+      }
+      return trimmed + ' LIMIT 100';
+    }
+  }
+  return sql;
+};
+
+// SQL 安全防护：带超时执行
+const executeWithTimeout = async (queryFn: () => Promise<any>, timeoutMs: number = 10000): Promise<any> => {
+  let timeoutId: any;
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error(`查询超时（限制 ${timeoutMs / 1000} 秒），请检查是否存在死循环或数据量过大。`));
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([queryFn(), timeoutPromise]);
+  } finally {
+    clearTimeout(timeoutId);
+  }
 };
 
 export interface TocItem {
@@ -219,11 +253,19 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, onTryCo
   const contentRef = useRef<HTMLDivElement>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
 
-  // 预处理内容：处理可能与 Markdown 语法冲突的字符
+  // 预处理内容：处理可能与 Markdown 语法冲突的字符，同时做 XSS 消毒过滤
   const processedContent = useMemo(() => {
     if (!content) return '';
     
-    console.log('=== MarkdownViewer 原始 content ===', JSON.stringify(content));
+    // HTML/XSS 安全消毒过滤
+    const sanitized = content
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '') // 过滤 script 标签
+      .replace(/\bon[a-z]+\s*=\s*(['"])[^\1]*?\1/gi, '') // 过滤 onload, onerror, onclick 等内联事件
+      .replace(/\bon[a-z]+\s*=\s*[^\s>]+/gi, '')
+      .replace(/href\s*=\s*(['"])javascript:[^\1]*?\1/gi, 'href="#"') // 过滤 javascript: 伪协议链接
+      .replace(/href\s*=\s*javascript:[^\s>]+/gi, 'href="#"');
+
+    console.log('=== MarkdownViewer 原始 content ===', JSON.stringify(sanitized));
 
     // 使用特殊标记符号（SOH字符，不会出现在正常文本中）
     const SUB_START = '\x01SUB_START\x01';
@@ -232,7 +274,7 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, onTryCo
     const SUP_END = '\x01SUP_END\x01';
 
     // 分割内容为代码块和非代码块部分，分别处理
-    const parts = content.split(/(```[\s\S]*?```)/g);
+    const parts = sanitized.split(/(```[\s\S]*?```)/g);
     
     // 检查原始内容是否包含 SUB_START 或 SUBEND（调试用）
     if (content.includes('SUB_START') || content.includes('SUBEND')) {
@@ -264,8 +306,25 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, onTryCo
     return result;
   }, [content]);
 
+  // 统一的右侧边栏状态，防止多个侧边栏同时开启重叠
+  const [activeSidebar, setActiveSidebar] = useState<'notes' | 'favorites' | 'snippets' | 'data' | 'schema' | null>(null);
+
+  const showNotesSidebar = activeSidebar === 'notes';
+  const setShowNotesSidebar = (show: boolean) => setActiveSidebar(show ? 'notes' : null);
+
+  const showFavoritesSidebar = activeSidebar === 'favorites';
+  const setShowFavoritesSidebar = (show: boolean) => setActiveSidebar(show ? 'favorites' : null);
+
+  const showCodeSnippetsSidebar = activeSidebar === 'snippets';
+  const setShowCodeSnippetsSidebar = (show: boolean) => setActiveSidebar(show ? 'snippets' : null);
+
+  const showDataManagementSidebar = activeSidebar === 'data';
+  const setShowDataManagementSidebar = (show: boolean) => setActiveSidebar(show ? 'data' : null);
+
+  const showSchemaSidebar = activeSidebar === 'schema';
+  const setShowSchemaSidebar = (show: boolean) => setActiveSidebar(show ? 'schema' : null);
+
   // 笔记相关状态
-  const [showNotesSidebar, setShowNotesSidebar] = useState(false);
   const [selectedText, setSelectedText] = useState('');
   const [showNotePopup, setShowNotePopup] = useState(false);
   const [notePopupPos, setNotePopupPos] = useState({ x: 0, y: 0 });
@@ -273,20 +332,15 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, onTryCo
   const [isSavingNote, setIsSavingNote] = useState(false);
 
   // 收藏相关状态
-  const [showFavoritesSidebar, setShowFavoritesSidebar] = useState(false);
   const [isFavorited, setIsFavorited] = useState(false);
 
   // 代码片段收藏相关状态
-  const [showCodeSnippetsSidebar, setShowCodeSnippetsSidebar] = useState(false);
   const [snippetToSave, setSnippetToSave] = useState<{ code: string; codeId: string } | null>(null);
   const [snippetDescription, setSnippetDescription] = useState('');
   const [snippetTags, setSnippetTags] = useState('');
   const [isSavingSnippet, setIsSavingSnippet] = useState(false);
   const [savedSnippets, setSavedSnippets] = useState<Set<string>>(new Set());
   const [snippetPopupPos, setSnippetPopupPos] = useState({ x: 0, y: 0 });
-
-  // 数据管理侧边栏状态
-  const [showDataManagementSidebar, setShowDataManagementSidebar] = useState(false);
 
   // 检查代码是否已收藏
   const checkSnippetSaved = useCallback(async (code: string) => {
@@ -562,7 +616,8 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, onTryCo
 
       const startTime = performance.now();
       try {
-        const res = await duckDBService.query(code);
+        const safeCode = ensureQueryLimit(code);
+        const res = await executeWithTimeout(() => duckDBService.query(safeCode), 10000);
         const endTime = performance.now();
         successCount++;
 
@@ -676,8 +731,9 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, onTryCo
 
     const startTime = performance.now();
     try {
-      // Simple client-side execution
-      const res = await duckDBService.query(code);
+      // 自动限制 SELECT 语句输出行数，并且设置超时（10秒）
+      const safeCode = ensureQueryLimit(code);
+      const res = await executeWithTimeout(() => duckDBService.query(safeCode), 10000);
       const endTime = performance.now();
       setExecutionResults(prev => ({
         ...prev,
@@ -955,13 +1011,13 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, onTryCo
                 onClick={handleExecuteAllSql}
                 disabled={executingAll}
                 className={`flex justify-center items-center gap-1 px-2 py-1.5 rounded-md text-[10px] font-medium transition-all whitespace-nowrap ${executingAll
-                  ? 'bg-monokai-purple/30 text-monokai-purple'
+                  ? 'bg-monokai-amethyst/30 text-monokai-amethyst'
                   : 'bg-monokai-green/20 text-monokai-green hover:bg-monokai-green/30'
                   }`}
                 title="执行本页所有 SQL 代码"
               >
                 {executingAll ? (
-                  <span className="w-3 h-3 border-2 border-monokai-purple border-t-transparent rounded-full animate-spin" />
+                  <span className="w-3 h-3 border-2 border-monokai-amethyst border-t-transparent rounded-full animate-spin" />
                 ) : (
                   <Play className="w-3 h-3" />
                 )}
@@ -1020,7 +1076,7 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, onTryCo
               {/* 代码片段按钮 */}
               <button
                 onClick={() => setShowCodeSnippetsSidebar(true)}
-                className="flex justify-center items-center gap-1 px-2 py-1.5 rounded-md text-[10px] font-medium bg-monokai-purple/10 text-monokai-purple hover:bg-monokai-purple/20 transition-all whitespace-nowrap"
+                className="flex justify-center items-center gap-1 px-2 py-1.5 rounded-md text-[10px] font-medium bg-monokai-amethyst/10 text-monokai-amethyst hover:bg-monokai-amethyst/20 transition-all whitespace-nowrap"
                 title="我的代码片段"
               >
                 <Code className="w-3 h-3" />
@@ -1046,11 +1102,22 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, onTryCo
                 <Database className="w-3 h-3" />
                 <span>数据</span>
               </button>
+
+              {/* 表结构（结构）按钮 */}
+              <button
+                onClick={() => setShowSchemaSidebar(true)}
+                className="flex justify-center items-center gap-1 px-2 py-1.5 rounded-md text-[10px] font-medium bg-monokai-blue/10 text-monokai-blue hover:bg-monokai-blue/20 transition-all whitespace-nowrap"
+                title="查看数据库结构"
+              >
+                <Table className="w-3.5 h-3.5" />
+                <span>结构</span>
+              </button>
             </div>
           </div>
         </div>
         <article className="markdown-body w-full max-w-[1800px] mx-auto pb-20" style={{ fontSize: `${fontSize}px` }}>
-          <ReactMarkdown
+          <ErrorBoundary>
+            <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             components={{
               // 处理文本节点：将占位符转换回HTML标签
@@ -1127,7 +1194,7 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, onTryCo
 
               p: ({ children }) => <div className="text-monokai-fg leading-relaxed mb-4">{children}</div>,
               ul: ({ children }) => <ul className="list-disc list-inside space-y-1 mb-4 text-monokai-fg ml-4 marker:text-monokai-pink">{children}</ul>,
-              ol: ({ children }) => <ol className="list-decimal list-inside space-y-1 mb-4 text-monokai-fg ml-4 marker:text-monokai-purple">{children}</ol>,
+              ol: ({ children }) => <ol className="list-decimal list-inside space-y-1 mb-4 text-monokai-fg ml-4 marker:text-monokai-amethyst">{children}</ol>,
               li: ({ children }) => <li className="pl-1 inline-block">{children}</li>,
               blockquote: ({ children }) => <blockquote className="border-l-4 border-monokai-yellow pl-4 py-1 my-4 bg-monokai-yellow/10 rounded-r text-monokai-fg italic">{children}</blockquote>,
 
@@ -1417,7 +1484,7 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, onTryCo
               },
               a: ({ node, href, children, ...props }: any) => (
                 <a
-                  className="text-monokai-blue hover:text-monokai-purple hover:underline transition-colors cursor-pointer"
+                  className="text-monokai-blue hover:text-monokai-amethyst hover:underline transition-colors cursor-pointer"
                   href={href}
                   onClick={(e) => href && handleLinkClick(e, href)}
                   target={href?.startsWith('http') ? "_blank" : undefined}
@@ -1436,6 +1503,7 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, onTryCo
           >
             {processedContent}
           </ReactMarkdown>
+          </ErrorBoundary>
         </article>
 
         {/* 回到顶部按钮 */}
@@ -1601,6 +1669,12 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, onTryCo
         }}
       />
 
+      {/* 数据库结构侧边栏 */}
+      <SchemaSidebar
+        isOpen={showSchemaSidebar}
+        onClose={() => setShowSchemaSidebar(false)}
+      />
+
       {/* 添加笔记弹窗 */}
       {showNotePopup && selectedText && tutorialId && (
         <div
@@ -1632,7 +1706,7 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, onTryCo
           </div>
 
           {/* 选中的文本 */}
-          <div className="text-xs text-monokai-comment mb-3 p-2.5 bg-monokai-bg/60 rounded-lg border-l-2 border-monokai-purple/60 italic leading-relaxed">
+          <div className="text-xs text-monokai-comment mb-3 p-2.5 bg-monokai-bg/60 rounded-lg border-l-2 border-monokai-amethyst/60 italic leading-relaxed">
             "{selectedText.length > 80 ? selectedText.substring(0, 80) + '...' : selectedText}"
           </div>
 

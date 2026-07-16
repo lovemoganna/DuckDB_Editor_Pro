@@ -574,7 +574,7 @@ export const DQLPanel: React.FC<DQLPanelProps> = ({
                   {item.category === '过滤' && <Filter className="w-4 h-4 text-monokai-green" />}
                   {item.category === '关联' && <Table className="w-4 h-4 text-monokai-cyan" />}
                   {item.category === '聚合' && <Calculator className="w-4 h-4 text-monokai-yellow" />}
-                  {item.category === '子查询' && <GitBranch className="w-4 h-4 text-monokai-purple" />}
+                  {item.category === '子查询' && <GitBranch className="w-4 h-4 text-monokai-amethyst" />}
                   {item.category === '高级' && <FunctionSquare className="w-4 h-4 text-monokai-pink" />}
                   {item.category === '集合' && <Table className="w-4 h-4 text-monokai-orange" />}
                   {item.category === 'DuckDB' && <Database className="w-4 h-4 text-monokai-green" />}

@@ -22,7 +22,7 @@ const OPERATION_TAG_CLASSES: Record<string, string> = {
   INSERT:    'bg-monokai-green/15 text-monokai-green border-monokai-green/30',
   UPDATE:    'bg-monokai-yellow/15 text-monokai-yellow border-monokai-yellow/30',
   DELETE:    'bg-monokai-red/15 text-monokai-red border-monokai-red/30',
-  AGGREGATE: 'bg-monokai-purple/15 text-monokai-purple border-monokai-purple/30',
+  AGGREGATE: 'bg-monokai-amethyst/15 text-monokai-amethyst border-monokai-amethyst/30',
   JOIN:      'bg-monokai-pink/15 text-monokai-pink border-monokai-pink/30',
   WINDOW:    'bg-monokai-orange/15 text-monokai-orange border-monokai-orange/30',
   CTE:       'bg-monokai-cyan/15 text-monokai-cyan border-monokai-cyan/30',
@@ -49,7 +49,7 @@ function renderPipeTable(content: string) {
   return (
     <table className="w-full text-xs border-collapse">
       <thead>
-        <tr className="bg-monokai-purple/10 text-monokai-purple">
+        <tr className="bg-monokai-amethyst/10 text-monokai-amethyst">
           {rows[0].map((cell, i) => (
             <th key={i} className="px-3 py-1.5 text-left font-semibold border-b border-monokai-border text-[11px]">
               {cell}
@@ -83,7 +83,7 @@ function renderMarkdownTable(content: string) {
   return (
     <table className="w-full text-xs border-collapse">
       <thead>
-        <tr className="bg-monokai-purple/10 text-monokai-purple">
+        <tr className="bg-monokai-amethyst/10 text-monokai-amethyst">
           {rows[0].map((cell, i) => (
             <th key={i} className="px-3 py-1.5 text-left font-semibold border-b border-monokai-border text-[11px]">
               {cell}
@@ -181,7 +181,7 @@ export const TableDetail: React.FC<TableDetailProps> = ({ onInsert }) => {
             </button>
             <button
               onClick={() => onInsert && onInsert(table.sqlConfig.template)}
-              className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg bg-gradient-to-r from-monokai-purple/20 to-monokai-blue/20 text-monokai-purple border border-monokai-purple/30 hover:from-monokai-purple/30 hover:to-monokai-blue/30 transition-all"
+              className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg bg-gradient-to-r from-monokai-amethyst/20 to-monokai-blue/20 text-monokai-amethyst border border-monokai-amethyst/30 hover:from-monokai-amethyst/30 hover:to-monokai-blue/30 transition-all"
             >
               <ArrowRight className="w-3.5 h-3.5" />
               插入
@@ -263,12 +263,12 @@ export const TableDetail: React.FC<TableDetailProps> = ({ onInsert }) => {
               {table.sqlConfig.parameters.map((param, idx) => (
                 <div key={idx} className="flex items-start gap-3 px-3 py-2.5 bg-monokai-bg rounded-lg border border-monokai-border">
                   <div className="flex items-center gap-2 min-w-[100px] flex-shrink-0">
-                    <code className="text-xs font-mono text-monokai-purple">{param.name}</code>
+                    <code className="text-xs font-mono text-monokai-amethyst">{param.name}</code>
                     <span className={`px-1.5 py-0.5 text-[10px] font-medium rounded border flex-shrink-0 ${
                       param.type === 'table' ? 'bg-monokai-blue/15 text-monokai-blue border-monokai-blue/30' :
                       param.type === 'column' ? 'bg-monokai-green/15 text-monokai-green border-monokai-green/30' :
                       param.type === 'number' ? 'bg-monokai-orange/15 text-monokai-orange border-monokai-orange/30' :
-                      param.type === 'date' ? 'bg-monokai-purple/15 text-monokai-purple border-monokai-purple/30' :
+                      param.type === 'date' ? 'bg-monokai-amethyst/15 text-monokai-amethyst border-monokai-amethyst/30' :
                       'bg-monokai-fg/10 text-monokai-fg border-monokai-fg/20'
                     }`}>
                       {param.type}

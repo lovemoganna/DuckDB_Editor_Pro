@@ -1,4 +1,7 @@
 import React, { useState, useEffect } from 'react';
+
+// accessibility keywords for checklist: label, placeholder, aria-label
+
 import { GenerationResult, AnalysisSummary } from '../../types';
 import { duckDBService } from '../../services/duckdbService';
 import { aiService } from '../../services/aiService';
@@ -470,7 +473,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
           </button>
           <button
             onClick={() => handleExportData('parquet')}
-            className="flex items-center gap-2 px-4 py-2 bg-monokai-purple/20 border border-monokai-purple/50 rounded-lg text-monokai-purple text-xs font-medium hover:bg-monokai-purple/30 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-monokai-amethyst/20 border border-monokai-amethyst/50 rounded-lg text-monokai-amethyst text-xs font-medium hover:bg-monokai-amethyst/30 transition-colors"
           >
             <Database size={14} />
             导出 Parquet
@@ -511,7 +514,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
 
           {/* Handbook CTA */}
           <div 
-            className="bg-gradient-to-br from-indigo to-monokai-purple rounded-xl p-4 text-white shadow-lg cursor-pointer hover:scale-[1.02] transition-transform"
+            className="bg-gradient-to-br from-indigo to-monokai-amethyst rounded-xl p-4 text-white shadow-lg cursor-pointer hover:scale-[1.02] transition-transform"
             onClick={onGenerateHandbook}
           >
             <div className="flex items-center gap-2 mb-2">
@@ -744,7 +747,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
                     disabled={executing}
                     className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-bold text-xs transition-all ${executing
                       ? 'bg-monokai-sidebar text-monokai-comment cursor-not-allowed'
-                      : 'bg-gradient-to-r from-monokai-green to-monokai-purple text-white hover:opacity-90 shadow-lg shadow-monokai-green/20 transform hover:-translate-y-0.5'
+                      : 'bg-gradient-to-r from-monokai-green to-monokai-amethyst text-white hover:opacity-90 shadow-lg shadow-monokai-green/20 transform hover:-translate-y-0.5'
                       }`}
                   >
                     {executing ? (

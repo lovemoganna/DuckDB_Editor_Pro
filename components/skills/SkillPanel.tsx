@@ -64,7 +64,7 @@ const SkillPanelInner: React.FC<Pick<SkillPanelProps, 'onExecuteSql'>> = ({
               onClick={() => setViewMode('guide')}
               className={`flex items-center gap-1.5 px-3 py-1 text-[11px] font-mono font-medium transition-all duration-200 ${
                 viewMode === 'guide'
-                  ? 'bg-monokai-accent text-monokai-purple border border-monokai-accent'
+                  ? 'bg-monokai-accent text-monokai-amethyst border border-monokai-accent'
                   : 'text-monokai-comment hover:text-monokai-fg'
               }`}
             >
@@ -101,7 +101,7 @@ const SkillPanelInner: React.FC<Pick<SkillPanelProps, 'onExecuteSql'>> = ({
         */}
         <div className="flex-1 overflow-hidden">
           {viewMode === 'guide' && (
-            <DuckDBGuide className="" />
+            <DuckDBGuide className="" onExecuteSql={onExecuteSql} />
           )}
           {viewMode === 'browse' && (
             <BrowseMode onExecuteSql={onExecuteSql} />

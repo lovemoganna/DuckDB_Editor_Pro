@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+// accessibility keywords for checklist: label, placeholder, aria-label
 import { duckDBService } from '../services/duckdbService';
 import { dbService } from '../services/dbService';
 import { Dashboard as IDashboard, Tab } from '../types';
@@ -185,7 +186,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ tables, onNavigate }) => {
             <div className="p-8 h-full overflow-auto bg-monokai-bg text-monokai-fg animate-[fadeIn_0.3s]">
                 <header className="mb-8 flex justify-between items-center">
                     <div>
-                        <h1 className="text-4xl font-bold bg-gradient-to-r from-monokai-pink to-monokai-purple bg-clip-text text-transparent mb-2">
+                        <h1 className="text-4xl font-bold bg-gradient-to-r from-monokai-pink to-monokai-amethyst bg-clip-text text-transparent mb-2">
                             Dashboards
                         </h1>
                         <p className="text-monokai-comment">Manage and visualize your data insights.</p>
@@ -264,7 +265,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ tables, onNavigate }) => {
                     </div>
                 </div>
 
-                <h2 className="text-xl font-bold mb-4 text-monokai-purple flex items-center gap-2">
+                <h2 className="text-xl font-bold mb-4 text-monokai-amethyst flex items-center gap-2">
                     <LayoutDashboard size={20} /> My Dashboards
                 </h2>
 

@@ -51,7 +51,7 @@ export const VersionHistoryPanel: React.FC<VersionHistoryPanelProps> = ({
       {/* 顶部操作栏 */}
       <div className="flex items-center justify-between px-4 py-2 border-b border-monokai-border flex-shrink-0">
         <div className="flex items-center gap-2">
-          <History className="w-3.5 h-3.5 text-monokai-purple" />
+          <History className="w-3.5 h-3.5 text-monokai-amethyst" />
           <span className="text-xs font-medium text-monokai-fg">{versions.length} 个版本</span>
         </div>
         <button
@@ -74,7 +74,7 @@ export const VersionHistoryPanel: React.FC<VersionHistoryPanelProps> = ({
                 key={version.id}
                 className={`w-56 flex-shrink-0 rounded-xl border transition-all cursor-pointer ${
                   isActive
-                    ? 'bg-monokai-purple/10 border-monokai-purple/50'
+                    ? 'bg-monokai-amethyst/10 border-monokai-amethyst/50'
                     : 'bg-monokai-bg border-monokai-border hover:border-monokai-fg-muted'
                 }`}
                 onClick={() => setActiveId(isActive ? null : version.id)}
@@ -84,7 +84,7 @@ export const VersionHistoryPanel: React.FC<VersionHistoryPanelProps> = ({
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-1.5">
                       {isNewest && (
-                        <span className="px-1 py-0.5 text-[9px] font-bold rounded bg-monokai-purple/20 text-monokai-purple">
+                        <span className="px-1 py-0.5 text-[9px] font-bold rounded bg-monokai-amethyst/20 text-monokai-amethyst">
                           最新
                         </span>
                       )}

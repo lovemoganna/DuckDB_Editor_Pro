@@ -74,7 +74,7 @@ export const AbstractionPanel: React.FC<AbstractionPanelProps> = ({
         {/* 左侧：Logo + Tab */}
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-monokai-purple to-monokai-blue flex items-center justify-center">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-monokai-amethyst to-monokai-blue flex items-center justify-center">
               <Layers className="w-4 h-4 text-white" />
             </div>
             <span className="text-sm font-semibold text-monokai-fg tracking-tight">数据抽象</span>
@@ -85,7 +85,7 @@ export const AbstractionPanel: React.FC<AbstractionPanelProps> = ({
               onClick={() => setActiveMainTab('library')}
               className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-all duration-150 ${
                 activeMainTab === 'library'
-                  ? 'bg-monokai-purple/15 text-monokai-purple font-medium'
+                  ? 'bg-monokai-amethyst/15 text-monokai-amethyst font-medium'
                   : 'text-monokai-fg-muted hover:text-monokai-fg hover:bg-monokai-bg'
               }`}
             >
@@ -96,7 +96,7 @@ export const AbstractionPanel: React.FC<AbstractionPanelProps> = ({
               onClick={() => setActiveMainTab('lab')}
               className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-all duration-150 ${
                 activeMainTab === 'lab'
-                  ? 'bg-monokai-purple/15 text-monokai-purple font-medium'
+                  ? 'bg-monokai-amethyst/15 text-monokai-amethyst font-medium'
                   : 'text-monokai-fg-muted hover:text-monokai-fg hover:bg-monokai-bg'
               }`}
             >

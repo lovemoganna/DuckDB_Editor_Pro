@@ -565,7 +565,7 @@ const SchemaGenerator: React.FC<SchemaGeneratorProps> = ({ onExecuteSql, onRefre
                   </div>
                   {/* Active Rules Badge */}
                   <div className="ml-auto flex gap-1">
-                    <span className="px-1.5 py-0.5 bg-monokai-purple/20 text-monokai-purple text-[9px] rounded font-bold border border-monokai-purple/30">PII</span>
+                    <span className="px-1.5 py-0.5 bg-monokai-amethyst/20 text-monokai-amethyst text-[9px] rounded font-bold border border-monokai-amethyst/30">PII</span>
                     <span className="px-1.5 py-0.5 bg-monokai-green/20 text-monokai-green text-[9px] rounded font-bold border border-monokai-green/30">Contract</span>
                   </div>
                 </div>

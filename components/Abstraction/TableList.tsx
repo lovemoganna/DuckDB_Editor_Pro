@@ -50,7 +50,7 @@ export const TableList: React.FC<TableListProps> = ({ onInsert }) => {
             placeholder="搜索模板..."
             value={filters.searchQuery}
             onChange={(e) => updateFilters({ searchQuery: e.target.value })}
-            className="w-full pl-8 pr-8 py-2 text-sm bg-monokai-surface border border-monokai-border rounded-lg text-monokai-fg placeholder-monokai-fg-muted/60 focus:outline-none focus:border-monokai-purple transition-colors"
+            className="w-full pl-8 pr-8 py-2 text-sm bg-monokai-surface border border-monokai-border rounded-lg text-monokai-fg placeholder-monokai-fg-muted/60 focus:outline-none focus:border-monokai-amethyst transition-colors"
           />
           {filters.searchQuery && (
             <button
@@ -64,7 +64,7 @@ export const TableList: React.FC<TableListProps> = ({ onInsert }) => {
 
         <button
           onClick={() => openAddForm()}
-          className="w-full flex items-center justify-center gap-1.5 py-2 text-sm font-medium bg-gradient-to-r from-monokai-purple/20 to-monokai-blue/20 text-monokai-purple border border-monokai-purple/30 rounded-lg hover:from-monokai-purple/30 hover:to-monokai-blue/30 transition-all"
+          className="w-full flex items-center justify-center gap-1.5 py-2 text-sm font-medium bg-gradient-to-r from-monokai-amethyst/20 to-monokai-blue/20 text-monokai-amethyst border border-monokai-amethyst/30 rounded-lg hover:from-monokai-amethyst/30 hover:to-monokai-blue/30 transition-all"
         >
           <Plus className="w-4 h-4" />
           新增模板
@@ -78,7 +78,7 @@ export const TableList: React.FC<TableListProps> = ({ onInsert }) => {
           <div className="flex items-center justify-between mb-1">
             <span className="text-[10px] font-semibold text-monokai-fg-muted uppercase tracking-wider">领域</span>
             {(filters.domain !== 'all' || filters.isFavorite) && (
-              <button onClick={resetFilters} className="text-[10px] text-monokai-purple hover:underline">
+              <button onClick={resetFilters} className="text-[10px] text-monokai-amethyst hover:underline">
                 重置
               </button>
             )}
@@ -88,7 +88,7 @@ export const TableList: React.FC<TableListProps> = ({ onInsert }) => {
               onClick={() => updateFilters({ domain: 'all', isFavorite: false })}
               className={`px-2 py-0.5 text-[10px] rounded-full transition-colors ${
                 filters.domain === 'all' && !filters.isFavorite
-                  ? 'bg-monokai-purple/20 text-monokai-purple border border-monokai-purple/40'
+                  ? 'bg-monokai-amethyst/20 text-monokai-amethyst border border-monokai-amethyst/40'
                   : 'bg-monokai-surface text-monokai-fg-muted border border-monokai-border hover:border-monokai-fg-muted'
               }`}
             >
@@ -100,7 +100,7 @@ export const TableList: React.FC<TableListProps> = ({ onInsert }) => {
                 onClick={() => updateFilters({ domain: d, isFavorite: false })}
                 className={`px-2 py-0.5 text-[10px] rounded-full transition-colors ${
                   filters.domain === d
-                    ? 'bg-monokai-purple/20 text-monokai-purple border border-monokai-purple/40'
+                    ? 'bg-monokai-amethyst/20 text-monokai-amethyst border border-monokai-amethyst/40'
                     : 'bg-monokai-surface text-monokai-fg-muted border border-monokai-border hover:border-monokai-fg-muted'
                 }`}
               >
@@ -129,7 +129,7 @@ export const TableList: React.FC<TableListProps> = ({ onInsert }) => {
               onClick={() => updateFilters({ operation: 'all' })}
               className={`px-2 py-0.5 text-[10px] rounded-full transition-colors ${
                 filters.operation === 'all'
-                  ? 'bg-monokai-purple/20 text-monokai-purple border border-monokai-purple/40'
+                  ? 'bg-monokai-amethyst/20 text-monokai-amethyst border border-monokai-amethyst/40'
                   : 'bg-monokai-surface text-monokai-fg-muted border border-monokai-border hover:border-monokai-fg-muted'
               }`}
             >

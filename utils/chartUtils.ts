@@ -5,7 +5,7 @@ export const MONOKAI_COLORS = [
     'rgba(166, 226, 46, 0.8)', // Green
     'rgba(102, 217, 239, 0.8)', // Blue
     'rgba(253, 151, 31, 0.8)', // Orange
-    'rgba(174, 129, 255, 0.8)', // Purple
+    'rgba(174, 129, 255, 0.8)', // Amethyst
     'rgba(230, 219, 116, 0.8)', // Yellow
 ];
 

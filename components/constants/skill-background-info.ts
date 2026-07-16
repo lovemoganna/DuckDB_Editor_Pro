@@ -158,12 +158,12 @@ export const SKILL_BACKGROUND_INFO: Record<string, {
 /** Get category colors for tags — desaturated for visual harmony */
 export const getCategoryTagColors = (category: string) => {
   const colors: Record<string, { bg: string; border: string; text: string }> = {
-    modeling:      { bg: 'bg-monokai-purple/10', border: 'border-monokai-purple/20', text: 'text-monokai-purple' },
+    modeling:      { bg: 'bg-monokai-amethyst/10', border: 'border-monokai-amethyst/20', text: 'text-monokai-amethyst' },
     wrangling:     { bg: 'bg-monokai-green/10', border: 'border-monokai-green/20', text: 'text-monokai-green' },
     insights:      { bg: 'bg-monokai-blue/10', border: 'border-monokai-blue/20', text: 'text-monokai-blue' },
     optimization:  { bg: 'bg-monokai-yellow/10', border: 'border-monokai-yellow/20', text: 'text-monokai-yellow' },
     engineering:   { bg: 'bg-monokai-cyan/10', border: 'border-monokai-cyan/20', text: 'text-monokai-cyan' },
-    handbook:      { bg: 'bg-monokai-purple/10', border: 'border-monokai-purple/20', text: 'text-monokai-purple' },
+    handbook:      { bg: 'bg-monokai-amethyst/10', border: 'border-monokai-amethyst/20', text: 'text-monokai-amethyst' },
   };
-  return colors[category] ?? { bg: 'bg-monokai-purple/10', border: 'border-monokai-purple/20', text: 'text-monokai-purple' };
+  return colors[category] ?? { bg: 'bg-monokai-amethyst/10', border: 'border-monokai-amethyst/20', text: 'text-monokai-amethyst' };
 };

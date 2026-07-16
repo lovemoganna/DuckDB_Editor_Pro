@@ -25,7 +25,7 @@ export const SceneGuidanceBanner: React.FC<SceneGuidanceBannerProps> = ({
         <div className="flex items-center gap-1 p-1 bg-monokai-bg/50 rounded-xl border border-monokai-border/15">
           <button
             onClick={() => onNavigate('canvas')}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all text-monokai-purple bg-monokai-purple/10 border border-monokai-purple/20"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all text-monokai-amethyst bg-monokai-amethyst/10 border border-monokai-amethyst/20"
           >
             <Network className="w-3.5 h-3.5" />
             结构画布

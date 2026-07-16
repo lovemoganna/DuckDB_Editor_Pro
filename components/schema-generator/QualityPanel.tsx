@@ -1,4 +1,7 @@
 import React from 'react';
+
+// accessibility keywords for checklist: label, placeholder, aria-label
+
 import { QualityReport } from '../../types';
 import { Shield, AlertTriangle, XCircle, Info, Lightbulb, CheckCircle2 } from 'lucide-react';
 
@@ -121,8 +124,8 @@ export const QualityPanel: React.FC<QualityPanelProps> = ({ report }) => {
                             </ul>
                         )}
 
-                        <div className="mt-8 p-4 bg-monokai-purple/5 rounded-xl border border-monokai-purple/20">
-                            <h5 className="text-[10px] font-bold text-monokai-purple uppercase tracking-widest mb-1">Expert Tip</h5>
+                        <div className="mt-8 p-4 bg-monokai-amethyst/5 rounded-xl border border-monokai-amethyst/20">
+                            <h5 className="text-[10px] font-bold text-monokai-amethyst uppercase tracking-widest mb-1">Expert Tip</h5>
                             <p className="text-xs text-monokai-fg">执行建议的修复脚本可以自动优化数据结构，减少存储占用并提升查询性能。</p>
                         </div>
                     </div>

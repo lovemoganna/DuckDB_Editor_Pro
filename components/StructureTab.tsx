@@ -138,7 +138,7 @@ export const StructureTab: React.FC<StructureTabProps> = ({
             <div className="p-4 border-b border-monokai-accent flex justify-between items-center shrink-0 z-10 bg-monokai-bg/80 backdrop-blur-sm">
                 <div className="flex items-center gap-4">
                     <h2 className="text-xl font-bold text-monokai-fg flex gap-2 items-center">
-                        <Ruler className="w-5 h-5 text-monokai-purple" /> Schema Architecture
+                        <Ruler className="w-5 h-5 text-monokai-amethyst" /> Schema Architecture
                     </h2>
                     <div className="flex bg-monokai-sidebar rounded p-0.5 border border-monokai-accent">
                         <button onClick={() => onSetStructureViewMode('list')} className={`px-3 py-1 text-xs font-bold rounded transition-colors ${structureViewMode === 'list' ? 'bg-monokai-accent text-white' : 'text-monokai-comment hover:text-white'}`}>List View</button>
@@ -304,7 +304,7 @@ export const StructureTab: React.FC<StructureTabProps> = ({
                                     </div>
                                     <button
                                         onClick={onHandleAddColumn}
-                                        className="w-full bg-monokai-purple hover:bg-monokai-pink text-white font-bold text-sm py-2 px-4 rounded-lg shadow transition-colors"
+                                        className="w-full bg-monokai-amethyst hover:bg-monokai-pink text-white font-bold text-sm py-2 px-4 rounded-lg shadow transition-colors"
                                     >
                                         Add Column
                                     </button>

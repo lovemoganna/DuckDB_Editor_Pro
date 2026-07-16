@@ -74,12 +74,12 @@ const SessionListItem: React.FC<{
     <div
       className={`group flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-all text-xs ${
         isActive
-          ? 'bg-monokai-purple/20 border border-monokai-purple/40'
+          ? 'bg-monokai-amethyst/20 border border-monokai-amethyst/40'
           : 'hover:bg-monokai-bg/60 border border-transparent'
       }`}
       onClick={!editing ? onSelect : undefined}
     >
-      <MessageSquare className={`w-3.5 h-3.5 flex-shrink-0 ${isActive ? 'text-monokai-purple' : 'text-monokai-fg-muted/60'}`} />
+      <MessageSquare className={`w-3.5 h-3.5 flex-shrink-0 ${isActive ? 'text-monokai-amethyst' : 'text-monokai-fg-muted/60'}`} />
 
       <div className="flex-1 min-w-0">
         {editing ? (
@@ -89,7 +89,7 @@ const SessionListItem: React.FC<{
             onChange={e => setEditName(e.target.value)}
             onBlur={handleRename}
             onKeyDown={e => { if (e.key === 'Enter') handleRename(); if (e.key === 'Escape') { setEditName(session.name); setEditing(false); } }}
-            className="w-full bg-monokai-bg border border-monokai-purple/50 rounded px-1.5 py-0.5 text-xs text-monokai-fg outline-none"
+            className="w-full bg-monokai-bg border border-monokai-amethyst/50 rounded px-1.5 py-0.5 text-xs text-monokai-fg outline-none"
             onClick={e => e.stopPropagation()}
           />
         ) : (
@@ -171,9 +171,9 @@ const MessageBubble: React.FC<{
               {new Date(message.timestamp).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
             </span>
           </div>
-          <div className="bg-gradient-to-r from-monokai-purple/20 to-monokai-blue/20 border border-monokai-purple/30 rounded-xl rounded-tr-sm px-3 py-2.5">
+          <div className="bg-gradient-to-r from-monokai-amethyst/20 to-monokai-blue/20 border border-monokai-amethyst/30 rounded-xl rounded-tr-sm px-3 py-2.5">
             <p className="text-xs text-monokai-fg leading-relaxed">
-              <span className="font-semibold text-monokai-purple">{request?.operation && OPERATION_CONFIG[request.operation]?.label}</span>
+              <span className="font-semibold text-monokai-amethyst">{request?.operation && OPERATION_CONFIG[request.operation]?.label}</span>
               {request?.concept && <> · {request.concept}</>}
               {request?.property && <><br/><span className="text-monokai-fg-muted">维度：{request.property}</span></>}
               {request?.relation && <><br/><span className="text-monokai-fg-muted">关联：{request.relation}</span></>}
@@ -181,7 +181,7 @@ const MessageBubble: React.FC<{
             </p>
           </div>
         </div>
-        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-monokai-purple to-monokai-blue flex items-center justify-center flex-shrink-0 mt-5">
+        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-monokai-amethyst to-monokai-blue flex items-center justify-center flex-shrink-0 mt-5">
           <span className="text-[9px] text-white font-bold">U</span>
         </div>
       </div>
@@ -192,7 +192,7 @@ const MessageBubble: React.FC<{
   return (
     <div className="flex gap-2 justify-start">
       <div className="w-6 h-6 rounded-full bg-monokai-bg border border-monokai-border flex items-center justify-center flex-shrink-0 mt-5">
-        <Sparkles className="w-3 h-3 text-monokai-purple" />
+        <Sparkles className="w-3 h-3 text-monokai-amethyst" />
       </div>
       <div className="max-w-[85%]">
         <div className="flex items-center gap-1.5 mb-1">
@@ -205,7 +205,7 @@ const MessageBubble: React.FC<{
         {isPending ? (
           <div className="bg-monokai-bg border border-monokai-border rounded-xl rounded-tl-sm px-3 py-3">
             <div className="flex items-center gap-2">
-              <RefreshCw className="w-3.5 h-3.5 text-monokai-purple animate-spin" />
+              <RefreshCw className="w-3.5 h-3.5 text-monokai-amethyst animate-spin" />
               <span className="text-xs text-monokai-fg-muted">AI 思考中...</span>
             </div>
           </div>
@@ -219,8 +219,8 @@ const MessageBubble: React.FC<{
         ) : result ? (
           <div className="space-y-2">
             {result.explanation && (
-              <div className="bg-monokai-purple/10 border border-monokai-purple/30 rounded-xl rounded-tl-sm px-3 py-2">
-                <p className="text-xs text-monokai-purple leading-relaxed">{result.explanation}</p>
+              <div className="bg-monokai-amethyst/10 border border-monokai-amethyst/30 rounded-xl rounded-tl-sm px-3 py-2">
+                <p className="text-xs text-monokai-amethyst leading-relaxed">{result.explanation}</p>
               </div>
             )}
             <div className="bg-monokai-bg border border-monokai-border rounded-xl rounded-tl-sm overflow-hidden">
@@ -245,7 +245,7 @@ const MessageBubble: React.FC<{
               </button>
               <button
                 onClick={onSaveTemplate}
-                className="flex items-center justify-center gap-1 px-2 py-1.5 text-[11px] rounded-lg bg-monokai-purple/15 border border-monokai-purple/40 text-monokai-purple hover:bg-monokai-purple/25 transition-colors"
+                className="flex items-center justify-center gap-1 px-2 py-1.5 text-[11px] rounded-lg bg-monokai-amethyst/15 border border-monokai-amethyst/40 text-monokai-amethyst hover:bg-monokai-amethyst/25 transition-colors"
               >
                 <Wand2 className="w-3 h-3" />
                 保存
@@ -300,34 +300,34 @@ const InputForm: React.FC<{
       value={concept}
       onChange={e => onConceptChange(e.target.value)}
       placeholder="分析概念 *"
-      className="w-full px-3 py-1.5 text-xs bg-monokai-bg border border-monokai-border rounded-lg text-monokai-fg placeholder-monokai-fg-muted/50 focus:outline-none focus:border-monokai-purple transition-colors"
+      className="w-full px-3 py-1.5 text-xs bg-monokai-bg border border-monokai-border rounded-lg text-monokai-fg placeholder-monokai-fg-muted/50 focus:outline-none focus:border-monokai-amethyst transition-colors"
     />
     <input
       type="text"
       value={property}
       onChange={e => onPropertyChange(e.target.value)}
       placeholder="分析维度（可选）"
-      className="w-full px-3 py-1.5 text-xs bg-monokai-bg border border-monokai-border rounded-lg text-monokai-fg placeholder-monokai-fg-muted/50 focus:outline-none focus:border-monokai-purple transition-colors"
+      className="w-full px-3 py-1.5 text-xs bg-monokai-bg border border-monokai-border rounded-lg text-monokai-fg placeholder-monokai-fg-muted/50 focus:outline-none focus:border-monokai-amethyst transition-colors"
     />
     <input
       type="text"
       value={relation}
       onChange={e => onRelationChange(e.target.value)}
       placeholder="关联关系（可选）"
-      className="w-full px-3 py-1.5 text-xs bg-monokai-bg border border-monokai-border rounded-lg text-monokai-fg placeholder-monokai-fg-muted/50 focus:outline-none focus:border-monokai-purple transition-colors"
+      className="w-full px-3 py-1.5 text-xs bg-monokai-bg border border-monokai-border rounded-lg text-monokai-fg placeholder-monokai-fg-muted/50 focus:outline-none focus:border-monokai-amethyst transition-colors"
     />
     <textarea
       value={context}
       onChange={e => onContextChange(e.target.value)}
       placeholder="业务背景（可选）"
       rows={1}
-      className="w-full px-3 py-1.5 text-xs bg-monokai-bg border border-monokai-border rounded-lg text-monokai-fg placeholder-monokai-fg-muted/50 focus:outline-none focus:border-monokai-purple transition-colors resize-none"
+      className="w-full px-3 py-1.5 text-xs bg-monokai-bg border border-monokai-border rounded-lg text-monokai-fg placeholder-monokai-fg-muted/50 focus:outline-none focus:border-monokai-amethyst transition-colors resize-none"
     />
 
     <button
       onClick={onGenerate}
       disabled={isGenerating || !concept.trim()}
-      className="w-full flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-gradient-to-r from-monokai-purple to-monokai-blue text-white hover:opacity-90 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+      className="w-full flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-gradient-to-r from-monokai-amethyst to-monokai-blue text-white hover:opacity-90 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
     >
       {isGenerating ? (
         <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> 生成中...</>
@@ -433,7 +433,7 @@ export const AbstractionChatSession: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2.5 border-b border-monokai-border bg-monokai-bg">
         <div className="flex items-center gap-2">
-          <div className="w-5 h-5 rounded-md bg-gradient-to-br from-monokai-purple to-monokai-blue flex items-center justify-center">
+          <div className="w-5 h-5 rounded-md bg-gradient-to-br from-monokai-amethyst to-monokai-blue flex items-center justify-center">
             <Sparkles className="w-3 h-3 text-white" />
           </div>
           <span className="text-xs font-semibold text-monokai-fg">AI 会话</span>
@@ -451,7 +451,7 @@ export const AbstractionChatSession: React.FC = () => {
           </button>
           <button
             onClick={handleNewSession}
-            className="p-1 rounded-md hover:bg-monokai-bg text-monokai-fg-muted hover:text-monokai-purple transition-colors"
+            className="p-1 rounded-md hover:bg-monokai-bg text-monokai-fg-muted hover:text-monokai-amethyst transition-colors"
             title="新建会话"
           >
             <Plus className="w-3.5 h-3.5" />
@@ -475,7 +475,7 @@ export const AbstractionChatSession: React.FC = () => {
             <div className="p-2">
               <button
                 onClick={handleNewSession}
-                className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 text-[11px] rounded-lg bg-monokai-purple/20 border border-monokai-purple/40 text-monokai-purple hover:bg-monokai-purple/30 transition-colors"
+                className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 text-[11px] rounded-lg bg-monokai-amethyst/20 border border-monokai-amethyst/40 text-monokai-amethyst hover:bg-monokai-amethyst/30 transition-colors"
               >
                 <Plus className="w-3 h-3" />
                 新建会话
@@ -507,8 +507,8 @@ export const AbstractionChatSession: React.FC = () => {
           {!activeSession ? (
             /* Empty state — prompt to create or select session */
             <div className="flex-1 flex flex-col items-center justify-center gap-4 px-6">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-monokai-purple/20 to-monokai-blue/20 border border-monokai-purple/30 flex items-center justify-center">
-                <Sparkles className="w-6 h-6 text-monokai-purple" />
+              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-monokai-amethyst/20 to-monokai-blue/20 border border-monokai-amethyst/30 flex items-center justify-center">
+                <Sparkles className="w-6 h-6 text-monokai-amethyst" />
               </div>
               <div className="text-center">
                 <p className="text-sm font-semibold text-monokai-fg mb-1">开启持续会话</p>
@@ -518,7 +518,7 @@ export const AbstractionChatSession: React.FC = () => {
               </div>
               <button
                 onClick={handleNewSession}
-                className="flex items-center gap-2 px-4 py-2 text-xs rounded-lg bg-gradient-to-r from-monokai-purple to-monokai-blue text-white font-semibold hover:opacity-90 transition-opacity shadow-lg"
+                className="flex items-center gap-2 px-4 py-2 text-xs rounded-lg bg-gradient-to-r from-monokai-amethyst to-monokai-blue text-white font-semibold hover:opacity-90 transition-opacity shadow-lg"
               >
                 <Plus className="w-3.5 h-3.5" />
                 创建第一个会话
@@ -533,8 +533,8 @@ export const AbstractionChatSession: React.FC = () => {
               >
                 {messages.length === 0 && (
                   <div className="flex flex-col items-center justify-center h-full gap-3 text-center">
-                    <div className="w-10 h-10 rounded-full bg-monokai-purple/10 border border-monokai-purple/20 flex items-center justify-center">
-                      <Sparkles className="w-5 h-5 text-monokai-purple" />
+                    <div className="w-10 h-10 rounded-full bg-monokai-amethyst/10 border border-monokai-amethyst/20 flex items-center justify-center">
+                      <Sparkles className="w-5 h-5 text-monokai-amethyst" />
                     </div>
                     <p className="text-xs text-monokai-fg-muted/50 max-w-[200px]">
                       输入你的分析概念，AI 将生成 SQL 模板

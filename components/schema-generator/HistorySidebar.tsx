@@ -85,7 +85,7 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
                   <div className="flex gap-2">
                     <button
                       onClick={() => onLoadAnalysis(analysis)}
-                      className="flex-1 bg-monokai-purple text-white px-3 py-2 rounded text-sm hover:opacity-90 transition-colors"
+                      className="flex-1 bg-monokai-amethyst text-white px-3 py-2 rounded text-sm hover:opacity-90 transition-colors"
                     >
                       加载分析
                     </button>

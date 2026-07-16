@@ -77,7 +77,7 @@ export const BrowseMode: React.FC<BrowseModeProps> = ({ onExecuteSql }) => {
                   <div className="flex items-center justify-center h-full">
                     <div className="flex flex-col items-center gap-3">
                       <div className="w-8 h-8 rounded-lg border border-[#3e3d32] flex items-center justify-center">
-                        <Sparkles className="w-4 h-4 text-monokai-purple animate-pulse" />
+                        <Sparkles className="w-4 h-4 text-monokai-amethyst animate-pulse" />
                       </div>
                       <span className="text-xs text-monokai-comment">加载执行单元...</span>
                     </div>
@@ -97,8 +97,8 @@ export const BrowseMode: React.FC<BrowseModeProps> = ({ onExecuteSql }) => {
               <div className="h-full flex flex-col items-center justify-center p-8">
                 {/* Empty state illustration */}
                 <div className="relative mb-6">
-                  <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-monokai-purple/10 to-monokai-pink/10 border border-monokai-purple/20 flex items-center justify-center">
-                    <Sparkles className="w-10 h-10 text-monokai-purple opacity-60" />
+                  <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-monokai-amethyst/10 to-monokai-pink/10 border border-monokai-amethyst/20 flex items-center justify-center">
+                    <Sparkles className="w-10 h-10 text-monokai-amethyst opacity-60" />
                   </div>
                   <div className="absolute -bottom-2 -right-2 w-8 h-8 rounded-lg bg-[#272822] border border-[#3e3d32] flex items-center justify-center">
                     <Zap className="w-4 h-4 text-monokai-yellow" />
@@ -161,7 +161,7 @@ export const BrowseMode: React.FC<BrowseModeProps> = ({ onExecuteSql }) => {
                       <span>READY_FOR_EXECUTION</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-monokai-purple">&gt;</span>
+                      <span className="text-monokai-amethyst">&gt;</span>
                       <span className="text-monokai-comment">选择技能并配置参数...</span>
                     </div>
                   </div>

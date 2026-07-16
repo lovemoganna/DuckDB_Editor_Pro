@@ -147,8 +147,8 @@ export const SkillList: React.FC<SkillListProps> = ({
       <div className="px-4 pt-4 pb-3 border-b border-[#3e3d32]">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-monokai-purple/20 to-monokai-pink/20 border border-monokai-purple/30 flex items-center justify-center">
-              <Sparkles className="w-4 h-4 text-monokai-purple" />
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-monokai-amethyst/20 to-monokai-pink/20 border border-monokai-amethyst/30 flex items-center justify-center">
+              <Sparkles className="w-4 h-4 text-monokai-amethyst" />
             </div>
             <div>
               <h2 className="text-sm font-bold text-monokai-fg leading-tight">AI Skills</h2>
@@ -176,7 +176,7 @@ export const SkillList: React.FC<SkillListProps> = ({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="搜索技能..."
-            className="w-full pl-9 pr-8 py-2 text-xs bg-[#272822] border border-[#3e3d32] text-monokai-fg placeholder-monokai-comment/40 rounded-lg focus:outline-none focus:border-monokai-purple/60 focus:bg-[#272822] transition-all"
+            className="w-full pl-9 pr-8 py-2 text-xs bg-[#272822] border border-[#3e3d32] text-monokai-fg placeholder-monokai-comment/40 rounded-lg focus:outline-none focus:border-monokai-amethyst/60 focus:bg-[#272822] transition-all"
           />
           {searchQuery && (
             <button
@@ -196,7 +196,7 @@ export const SkillList: React.FC<SkillListProps> = ({
               onClick={() => setShowSortMenu(!showSortMenu)}
               className={`flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] rounded transition-all ${
                 sortMode !== 'default'
-                  ? 'bg-monokai-purple/15 border border-monokai-purple/40 text-monokai-purple'
+                  ? 'bg-monokai-amethyst/15 border border-monokai-amethyst/40 text-monokai-amethyst'
                   : 'bg-[#272822] border border-[#3e3d32] text-monokai-comment hover:border-[#49483e]'
               }`}
             >
@@ -218,7 +218,7 @@ export const SkillList: React.FC<SkillListProps> = ({
                     onClick={() => { setSortMode(mode); setShowSortMenu(false); }}
                     className={`w-full flex items-center gap-2 px-3 py-1.5 text-[10px] transition-colors ${
                       sortMode === mode
-                        ? 'bg-monokai-purple/20 text-monokai-purple'
+                        ? 'bg-monokai-amethyst/20 text-monokai-amethyst'
                         : 'text-monokai-comment hover:bg-[#3e3d32] hover:text-monokai-fg'
                     }`}
                   >
@@ -434,7 +434,7 @@ export const SkillList: React.FC<SkillListProps> = ({
             {filterTags.length > 0 && (
               <button
                 onClick={() => setFilterTags([])}
-                className="mt-3 px-3 py-1.5 text-xs bg-monokai-purple/15 border border-monokai-purple/40 text-monokai-purple rounded hover:bg-monokai-purple/25 transition-colors"
+                className="mt-3 px-3 py-1.5 text-xs bg-monokai-amethyst/15 border border-monokai-amethyst/40 text-monokai-amethyst rounded hover:bg-monokai-amethyst/25 transition-colors"
               >
                 清除筛选
               </button>

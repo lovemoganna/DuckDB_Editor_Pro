@@ -9,7 +9,7 @@
 
 import type { GraphData, GraphNode } from './D3GraphView.types';
 
-export type ScopeMode = 'focus' | 'two-hop' | 'all';
+export type ScopeMode = 'focus' | 'two-hop' | 'detail' | 'all';
 
 export const getLinkNodeId = (endpoint: string | GraphNode): string =>
   typeof endpoint === 'object' ? endpoint.id : String(endpoint);
@@ -60,30 +60,68 @@ export function buildReadableSubgraph(
   weightThreshold: number,
   showWeakLinks: boolean,
   activeRelationTypes: Set<number>,
+  collapsedNodes: Set<string> = new Set()
 ): GraphData {
-  if (scopeMode === 'all' || !focusNodeId) {
-    const visibleLinks = data.links.filter(link => {
+  // Compute hidden nodes due to collapse/folding
+  const hiddenNodeIds = new Set<string>();
+  const collapsedList = Array.from(collapsedNodes);
+  if (collapsedList.length > 0) {
+    const queue = [...collapsedList];
+    const visited = new Set<string>(collapsedList);
+    while (queue.length > 0) {
+      const parentId = queue.shift()!;
+      data.links.forEach(link => {
+        const source = getLinkNodeId(link.source);
+        const target = getLinkNodeId(link.target);
+        
+        // 1. TypeHub -> Instance (source is obj/instance, target is typeHub)
+        if (target === parentId && link._isTypeInstLink) {
+          if (!visited.has(source)) {
+            hiddenNodeIds.add(source);
+            visited.add(source);
+            queue.push(source);
+          }
+        }
+        // 2. Instance -> Action (source is obj/instance, target is action)
+        if (source === parentId && target.startsWith('action::')) {
+          if (!visited.has(target)) {
+            hiddenNodeIds.add(target);
+            visited.add(target);
+            queue.push(target);
+          }
+        }
+      });
+    }
+  }
+
+  // Pre-filter original data by removing hidden collapsed nodes
+  const filteredData = {
+    ...data,
+    nodes: data.nodes.filter(n => !hiddenNodeIds.has(n.id)),
+    links: data.links.filter(l => {
+      const s = getLinkNodeId(l.source);
+      const t = getLinkNodeId(l.target);
+      return !hiddenNodeIds.has(s) && !hiddenNodeIds.has(t);
+    })
+  };
+
+  if (scopeMode === 'all' || !focusNodeId || hiddenNodeIds.has(focusNodeId)) {
+    const visibleLinks = filteredData.links.filter(link => {
       if (link._linkTypeId !== undefined) {
         if (!showWeakLinks && link.weight < weightThreshold) return false;
         if (activeRelationTypes.size > 0 && !activeRelationTypes.has(link._linkTypeId)) return false;
       }
       return true;
     });
-    const linkedNodeIds = new Set<string>();
-    visibleLinks.forEach(link => {
-      linkedNodeIds.add(getLinkNodeId(link.source));
-      linkedNodeIds.add(getLinkNodeId(link.target));
-    });
     return {
-      ...data,
-      nodes: data.nodes
-        .filter(n => linkedNodeIds.has(n.id) || n.group === 'typeHub')
-        .map(n => ({ ...n, _focusLevel: n.id === focusNodeId ? 0 : 1 })),
+      ...filteredData,
+      nodes: filteredData.nodes
+        .map(n => ({ ...n, _focusLevel: n.id === focusNodeId ? 0 : n.group === 'typeHub' ? 1 : 2 })),
       links: visibleLinks,
     };
   }
 
-  const semanticLinks = data.links.filter(link => {
+  const semanticLinks = filteredData.links.filter(link => {
     if (link._linkTypeId === undefined) return false;
     if (!showWeakLinks && link.weight < weightThreshold) return false;
     if (activeRelationTypes.size > 0 && !activeRelationTypes.has(link._linkTypeId)) return false;
@@ -100,7 +138,7 @@ export function buildReadableSubgraph(
     if (source === focusNodeId) firstHop.add(target);
     if (target === focusNodeId) firstHop.add(source);
   });
-  firstHop.forEach(id => visibleNodeIds.add(id));
+  if (scopeMode !== 'detail') firstHop.forEach(id => visibleNodeIds.add(id));
 
   if (scopeMode === 'two-hop') {
     semanticLinks.forEach(link => {
@@ -113,7 +151,7 @@ export function buildReadableSubgraph(
     });
   }
 
-  const focusLinks = data.links.filter(link => {
+  const focusLinks = filteredData.links.filter(link => {
     const source = getLinkNodeId(link.source);
     const target = getLinkNodeId(link.target);
     if (link._linkTypeId !== undefined) {
@@ -131,8 +169,8 @@ export function buildReadableSubgraph(
   });
 
   return {
-    ...data,
-    nodes: data.nodes
+    ...filteredData,
+    nodes: filteredData.nodes
       .filter(node => visibleNodeIds.has(node.id))
       .map(node => ({
         ...node,

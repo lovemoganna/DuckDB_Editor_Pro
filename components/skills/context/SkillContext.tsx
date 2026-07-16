@@ -8,7 +8,7 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import { AISkill, IntentAnalysis, SkillResult, ThinkingStep } from '../../../types';
 import { SkillExecutionContext } from '../../../types';
-import { analyzeIntent } from '../../../services/skillRouter';
+import { analyzeIntent, executeFromIntent } from '../../../services/skillRouter';
 import { executeSkill } from '../../../services/skillExecutor';
 
 // ============================================================
@@ -90,6 +90,7 @@ export interface SkillContextValue {
   // Handlers
   handleAnalyze: (nlInput: string, context: SkillExecutionContext) => Promise<void>;
   handleExecute: (skill: AISkill, inputs: Record<string, unknown>, context: SkillExecutionContext) => Promise<void>;
+  handleExecuteFromIntent: (nlInput: string, context: SkillExecutionContext) => Promise<void>;
 }
 
 const SkillContext = createContext<SkillContextValue | null>(null);
@@ -226,6 +227,66 @@ export const SkillProvider: React.FC<{ children: React.ReactNode; currentTable?:
     }
   }, []);
 
+  // Execute from intent handler (One-Click Generate)
+  const handleExecuteFromIntent = useCallback(async (
+    input: string,
+    context: SkillExecutionContext
+  ) => {
+    if (!input.trim()) return;
+    setIsExecuting(true);
+    setExecutionResult(null);
+    setStreamingSql('');
+    cancelRef.current = { cancelled: false };
+
+    setThinkingSteps([
+      { phase: 'intent', label: '分析意图', status: 'running' }
+    ]);
+
+    try {
+      // 1. Analyze intent (to show recommended skills / steps)
+      const analysis = await analyzeIntent(input, context);
+      if (cancelRef.current.cancelled) return;
+
+      setIntentAnalysis(analysis);
+      setSuggestedSkills(analysis.requiredSkills.map(id => ({ id } as AISkill)).filter(Boolean));
+
+      setThinkingSteps(prev => [
+        { phase: 'intent', label: '分析意图', status: 'done' },
+        { phase: 'skill_select', label: '选择技能', status: 'done' },
+        { phase: 'sql_generate', label: '生成 SQL', status: 'running' }
+      ]);
+
+      // 2. Execute skill from intent
+      const result = await executeFromIntent(input, {
+        ...context,
+        _onChunk: (text: string) => {
+          setStreamingSql(prev => prev + text);
+        },
+        cancelToken: cancelRef.current,
+      } as any, false);
+
+      if (!cancelRef.current.cancelled) {
+        setExecutionResult(result);
+      }
+    } catch (err) {
+      if (!cancelRef.current.cancelled) {
+        setExecutionResult({
+          success: false,
+          error: err instanceof Error ? err.message : 'Execution failed',
+        });
+      }
+    } finally {
+      if (!cancelRef.current.cancelled) {
+        setThinkingSteps(prev =>
+          prev.map(s =>
+            s.phase === 'sql_generate' ? { ...s, status: 'done' as const } : s
+          )
+        );
+        setIsExecuting(false);
+      }
+    }
+  }, []);
+
   const toggleCategory = useCallback((cat: string) => {
     setExpandedCategories(prev => {
       const next = new Set(prev);
@@ -261,6 +322,7 @@ export const SkillProvider: React.FC<{ children: React.ReactNode; currentTable?:
     showImportModal, setShowImportModal,
     handleAnalyze,
     handleExecute,
+    handleExecuteFromIntent,
   };
 
   return <SkillContext.Provider value={value}>{children}</SkillContext.Provider>;

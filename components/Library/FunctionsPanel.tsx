@@ -590,7 +590,7 @@ export const FunctionsPanel: React.FC<FunctionsPanelProps> = ({
                   {item.category === '日期' && <Calendar className="w-4 h-4 text-monokai-yellow" />}
                   {item.category === '空值' && <Ban className="w-4 h-4 text-monokai-red" />}
                   {item.category === '转换' && <RefreshCw className="w-4 h-4 text-monokai-cyan" />}
-                  {item.category === '条件' && <GitBranch className="w-4 h-4 text-monokai-purple" />}
+                  {item.category === '条件' && <GitBranch className="w-4 h-4 text-monokai-amethyst" />}
                   {item.category === 'JSON' && <Braces className="w-4 h-4 text-monokai-orange" />}
                   {item.category === '数组' && <ListOrdered className="w-4 h-4 text-monokai-pink" />}
                   {item.category === '序列' && <Hash className="w-4 h-4 text-monokai-green" />}

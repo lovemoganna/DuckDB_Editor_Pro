@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { X, PanelRightDashed } from 'lucide-react';
+import { X, PanelRightDashed, ChevronRight, ChevronDown, Link2, Target } from 'lucide-react';
 import { useOntologyStore } from '../../hooks/useOntologyStore';
 import type { EditMode, FormState } from './OntologyPanel.types';
 import { normalizeDateToString } from './OntologyPanel.types';
@@ -11,9 +11,10 @@ interface RightInspectorProps {
   target: any;
   onClose: () => void;
   onSave?: () => void;
+  onInspect?: (mode: EditMode, target: any) => void;
 }
 
-const RightInspector: React.FC<RightInspectorProps> = ({ mode, target, onClose, onSave }) => {
+const RightInspector: React.FC<RightInspectorProps> = ({ mode, target, onClose, onSave, onInspect }) => {
   const { state, ...storeActions } = useOntologyStore();
   const objectTypes = state.objectTypes;
   const linkTypes = state.linkTypes;
@@ -22,26 +23,81 @@ const RightInspector: React.FC<RightInspectorProps> = ({ mode, target, onClose, 
     name: '', desc: '', objectTypeId: 1, properties: '',
     linkTypeId: 1, sourceId: null, targetId: null, weight: 0.5,
     status: 'pending', executeAt: '',
+    objectId: null, question: '', answer: '', insight: '', tag: '',
   });
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [isAdjacencyExpanded, setIsAdjacencyExpanded] = useState(true); // default expanded for ease of access
+
+  // Find connected links and neighbor nodes (Only relevant when editing an existing object node)
+  const adjacencyList = React.useMemo(() => {
+    if (mode !== 'object' || !target || !target.id) return [];
+    
+    return state.links.filter((l: any) => l.source_object_id === target.id || l.target_object_id === target.id).map((l: any) => {
+      const isSource = l.source_object_id === target.id;
+      const neighborId = isSource ? l.target_object_id : l.source_object_id;
+      const neighborNode = state.objects.find((o: any) => o.id === neighborId);
+      const linkTypeName = (state.linkTypes || []).find((lt: any) => lt.id === l.link_type_id)?.name || '关联';
+      
+      return {
+        linkId: l.id,
+        direction: isSource ? 'outgoing' : 'incoming',
+        relation: linkTypeName,
+        neighbor: neighborNode,
+        weight: l.weight
+      };
+    }).filter((item: any) => item.neighbor != null);
+  }, [mode, target, state.links, state.objects, state.linkTypes]);
+
+  const isJsonInvalid = React.useMemo(() => {
+    if (mode !== 'object') return false;
+    const val = (form.properties || '').trim();
+    if (!val) return false;
+    try {
+      JSON.parse(val);
+      return false;
+    } catch (e) {
+      return true;
+    }
+  }, [form.properties, mode]);
 
   useEffect(() => {
-    if (!target) {
-      setForm({ name: '', desc: '', objectTypeId: objectTypes[0]?.id || 1, properties: '', linkTypeId: linkTypes[0]?.id || 1, sourceId: null, targetId: null, weight: 0.5, status: 'pending', executeAt: '' });
+    if (!target || !target.id) {
+      setForm({
+        name: target?.name || '',
+        desc: target?.description || '',
+        objectTypeId: target?.object_type_id || objectTypes[0]?.id || 1,
+        properties: target?.properties || '',
+        linkTypeId: target?.link_type_id || linkTypes[0]?.id || 1,
+        sourceId: target?.source_object_id || null,
+        targetId: target?.target_object_id || null,
+        weight: target?.weight ?? 0.5,
+        status: target?.status || 'pending',
+        executeAt: target?.execute_at ? normalizeDateToString(target.execute_at) : '',
+        objectId: target?.object_id || objects[0]?.id || null,
+        question: target?.question || '',
+        answer: target?.answer || '',
+        insight: target?.insight || '',
+        tag: target?.tag || ''
+      });
       return;
     }
     if (mode === 'objectType' || mode === 'linkType')
-      setForm({ name: target.name, desc: target.description || '', objectTypeId: objectTypes[0]?.id || 1, properties: '', linkTypeId: linkTypes[0]?.id || 1, sourceId: null, targetId: null, weight: 0.5, status: 'pending', executeAt: '' });
+      setForm({ name: target.name, desc: target.description || '', objectTypeId: objectTypes[0]?.id || 1, properties: '', linkTypeId: linkTypes[0]?.id || 1, sourceId: null, targetId: null, weight: 0.5, status: 'pending', executeAt: '', objectId: null, question: '', answer: '', insight: '', tag: '' });
     else if (mode === 'object')
-      setForm({ name: target.name, desc: '', objectTypeId: target.object_type_id, properties: target.properties || '', linkTypeId: linkTypes[0]?.id || 1, sourceId: null, targetId: null, weight: 0.5, status: 'pending', executeAt: '' });
+      setForm({ name: target.name, desc: '', objectTypeId: target.object_type_id, properties: target.properties || '', linkTypeId: linkTypes[0]?.id || 1, sourceId: null, targetId: null, weight: 0.5, status: 'pending', executeAt: '', objectId: null, question: '', answer: '', insight: '', tag: '' });
     else if (mode === 'link')
-      setForm({ name: '', desc: '', objectTypeId: objectTypes[0]?.id || 1, properties: '', linkTypeId: target.link_type_id, sourceId: target.source_object_id, targetId: target.target_object_id, weight: target.weight ?? 0.5, status: 'pending', executeAt: '' });
+      setForm({ name: '', desc: '', objectTypeId: objectTypes[0]?.id || 1, properties: '', linkTypeId: target.link_type_id, sourceId: target.source_object_id, targetId: target.target_object_id, weight: target.weight ?? 0.5, status: 'pending', executeAt: '', objectId: null, question: '', answer: '', insight: '', tag: '' });
     else if (mode === 'action')
-      setForm({ name: target.name, desc: target.description || '', objectTypeId: objectTypes[0]?.id || 1, properties: '', linkTypeId: linkTypes[0]?.id || 1, sourceId: null, targetId: null, weight: 0.5, status: target.status || 'pending', executeAt: normalizeDateToString(target.execute_at) });
-  }, [mode, target, objectTypes, linkTypes]);
+      setForm({ name: target.name, desc: target.description || '', objectTypeId: objectTypes[0]?.id || 1, properties: '', linkTypeId: linkTypes[0]?.id || 1, sourceId: null, targetId: null, weight: 0.5, status: target.status || 'pending', executeAt: normalizeDateToString(target.execute_at), objectId: null, question: '', answer: '', insight: '', tag: '' });
+    else if (mode === 'introspection')
+      setForm({ name: '', desc: '', objectTypeId: objectTypes[0]?.id || 1, properties: '', linkTypeId: linkTypes[0]?.id || 1, sourceId: null, targetId: null, weight: 0.5, status: 'pending', executeAt: '', objectId: target.object_id, question: target.question || '', answer: target.answer || '', insight: '', tag: '' });
+    else if (mode === 'insight')
+      setForm({ name: '', desc: '', objectTypeId: objectTypes[0]?.id || 1, properties: '', linkTypeId: linkTypes[0]?.id || 1, sourceId: null, targetId: null, weight: 0.5, status: 'pending', executeAt: '', objectId: target.object_id, question: '', answer: '', insight: target.insight || '', tag: target.tag || '' });
+  }, [mode, target, objectTypes, linkTypes, objects]);
 
   const titleMap: Record<string, string> = {
-    objectType: '节点类型 (Schema)', object: '超级节点属性', linkType: '拓扑类型', link: '依赖与连线', action: '执行行动'
+    objectType: '节点类型 (Schema)', object: '超级节点属性', linkType: '拓扑类型', link: '依赖与连线', action: '执行行动',
+    introspection: '引导反思', insight: '洞察记录'
   };
 
   const aiFillField = useCallback(async (field: string, currentMode: EditMode) => {
@@ -79,6 +135,16 @@ const RightInspector: React.FC<RightInspectorProps> = ({ mode, target, onClose, 
         const normalizedDate = normalizeDateToString(form.executeAt);
         if (target) await storeActions.updateAction(target.id, form.name, form.desc, form.status, normalizedDate || undefined);
         else await storeActions.createAction(form.name, 0, form.desc, form.status, normalizedDate || undefined);
+      } else if (mode === 'introspection') {
+        if (!form.question.trim()) { setToast({ message: '反思问题不能为空', type: 'error' }); return; }
+        if (!form.objectId) { setToast({ message: '请选择关联的对象', type: 'error' }); return; }
+        if (target) await storeActions.updateIntrospection(target.id, form.objectId, form.question, form.answer);
+        else await storeActions.createIntrospection(form.objectId, form.question, form.answer);
+      } else if (mode === 'insight') {
+        if (!form.insight.trim()) { setToast({ message: '洞察内容不能为空', type: 'error' }); return; }
+        if (!form.objectId) { setToast({ message: '请选择关联的对象', type: 'error' }); return; }
+        if (target) await storeActions.updateInsight(target.id, form.objectId, form.insight, form.tag);
+        else await storeActions.createInsight(form.objectId, form.insight, form.tag);
       }
       await storeActions.refresh();
       onClose();
@@ -93,9 +159,9 @@ const RightInspector: React.FC<RightInspectorProps> = ({ mode, target, onClose, 
         <div>
           <h3 className="text-base font-bold text-monokai-fg flex items-center gap-2">
             <PanelRightDashed className="w-5 h-5 text-monokai-cyan drop-shadow-[0_0_6px_rgba(102,217,239,0.5)]" />
-            {target ? '属性检视器' : '新建实体'}
+            {target && target.id ? '属性检视器' : '新建实体'}
           </h3>
-          <p className="text-xs text-monokai-comment mt-1 font-mono">{titleMap[mode]} {target ? `#${target.id}` : ''}</p>
+          <p className="text-xs text-monokai-comment mt-1 font-mono">{titleMap[mode]} {target && target.id ? `#${target.id}` : ''}</p>
         </div>
         <button onClick={onClose} className="p-2 rounded-xl text-monokai-comment hover:text-monokai-fg hover:bg-monokai-accent/10 transition-all">
           <X className="w-5 h-5" />
@@ -103,12 +169,12 @@ const RightInspector: React.FC<RightInspectorProps> = ({ mode, target, onClose, 
       </div>
 
       <div className="flex-1 p-6 space-y-5 overflow-y-auto custom-scrollbar">
-        {mode !== 'link' && (
+        {mode !== 'link' && mode !== 'introspection' && mode !== 'insight' && (
           <div className="space-y-2">
             <div className="flex items-center justify-between mb-1">
               <label className="text-xs font-semibold text-monokai-cyan tracking-wide">名称 Identifier</label>
               <button onClick={() => aiFillField('name', mode)}
-                className="text-[10px] px-2.5 py-1 rounded-full bg-monokai-purple/10 text-monokai-purple hover:bg-monokai-purple/20 border border-monokai-purple/20 transition-all">
+                className="text-[10px] px-2.5 py-1 rounded-full bg-monokai-amethyst/10 text-monokai-amethyst hover:bg-monokai-amethyst/20 border border-monokai-amethyst/20 transition-all">
                 AI 填充
               </button>
             </div>
@@ -122,7 +188,7 @@ const RightInspector: React.FC<RightInspectorProps> = ({ mode, target, onClose, 
             <div className="flex items-center justify-between mb-1">
               <label className="text-xs font-semibold text-monokai-cyan tracking-wide">描述 Description</label>
               <button onClick={() => aiFillField('desc', mode)}
-                className="text-[10px] px-2.5 py-1 rounded-full bg-monokai-purple/10 text-monokai-purple hover:bg-monokai-purple/20 border border-monokai-purple/20 transition-all">
+                className="text-[10px] px-2.5 py-1 rounded-full bg-monokai-amethyst/10 text-monokai-amethyst hover:bg-monokai-amethyst/20 border border-monokai-amethyst/20 transition-all">
                 AI 填充
               </button>
             </div>
@@ -162,8 +228,13 @@ const RightInspector: React.FC<RightInspectorProps> = ({ mode, target, onClose, 
               </select>
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-semibold text-monokai-cyan tracking-wide">JSON 附加属性 Metadata</label>
-              <div className="json-block">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-monokai-cyan tracking-wide">JSON 附加属性 Metadata</label>
+                {isJsonInvalid && (
+                  <span className="text-[10px] text-monokai-red font-medium">× 无效的 JSON 格式</span>
+                )}
+              </div>
+              <div className={`json-block ${isJsonInvalid ? 'border-monokai-red/50 bg-monokai-red/5' : ''}`}>
                 <textarea value={form.properties} onChange={e => setForm(f => ({ ...f, properties: e.target.value }))} placeholder="{}" rows={5}
                   className="w-full text-sm font-mono bg-transparent border-none text-monokai-blue placeholder-monokai-comment/40 rounded focus:outline-none resize-none leading-relaxed" />
               </div>
@@ -209,6 +280,111 @@ const RightInspector: React.FC<RightInspectorProps> = ({ mode, target, onClose, 
             </div>
           </>
         )}
+
+        {mode === 'introspection' && (
+          <>
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-monokai-accent">关联对象 Target Object</label>
+              <select value={form.objectId ?? ''} onChange={e => setForm(f => ({ ...f, objectId: Number(e.target.value) }))}
+                className="w-full px-4 py-3 text-sm bg-monokai-sidebar/20 border border-monokai-border/40 text-monokai-fg rounded-lg focus:outline-none focus:border-monokai-cyan/50 transition-all appearance-none cursor-pointer">
+                <option value="">选取节点...</option>
+                {objects.map(o => <option key={o.id} value={o.id} className="bg-monokai-bg">{o.name}</option>)}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-monokai-accent">反思问题 Question</label>
+              <input type="text" value={form.question} onChange={e => setForm(f => ({ ...f, question: e.target.value }))}
+                placeholder="例如: 该模型是否能被进一步简化？" className="w-full px-4 py-3 text-sm bg-monokai-sidebar/20 border border-monokai-border/30 text-monokai-fg rounded-lg focus:outline-none transition-all search-glow" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-monokai-accent">沉思回答 Answer</label>
+              <textarea value={form.answer} onChange={e => setForm(f => ({ ...f, answer: e.target.value }))}
+                placeholder="记录深层思考与答案..." rows={5}
+                className="w-full px-4 py-3 text-sm bg-monokai-sidebar/20 border border-monokai-border/30 text-monokai-fg rounded-lg focus:outline-none transition-all resize-none search-glow" />
+            </div>
+          </>
+        )}
+
+        {mode === 'insight' && (
+          <>
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-monokai-accent">关联对象 Target Object</label>
+              <select value={form.objectId ?? ''} onChange={e => setForm(f => ({ ...f, objectId: Number(e.target.value) }))}
+                className="w-full px-4 py-3 text-sm bg-monokai-sidebar/20 border border-monokai-border/40 text-monokai-fg rounded-lg focus:outline-none focus:border-monokai-cyan/50 transition-all appearance-none cursor-pointer">
+                <option value="">选取节点...</option>
+                {objects.map(o => <option key={o.id} value={o.id} className="bg-monokai-bg">{o.name}</option>)}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-monokai-accent">洞察内容 Insight</label>
+              <textarea value={form.insight} onChange={e => setForm(f => ({ ...f, insight: e.target.value }))}
+                placeholder="记录发现的核心洞察..." rows={5}
+                className="w-full px-4 py-3 text-sm bg-monokai-sidebar/20 border border-monokai-border/30 text-monokai-fg rounded-lg focus:outline-none transition-all resize-none search-glow" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-monokai-accent">标签/分类 Tag</label>
+              <input type="text" value={form.tag} onChange={e => setForm(f => ({ ...f, tag: e.target.value }))}
+                placeholder="例如: Optimization, Warning" className="w-full px-4 py-3 text-sm bg-monokai-sidebar/20 border border-monokai-border/30 text-monokai-fg rounded-lg focus:outline-none transition-all search-glow" />
+            </div>
+          </>
+        )}
+
+        {mode === 'object' && target && target.id && adjacencyList.length > 0 && (
+          <div className="pt-4 border-t border-monokai-border/20 space-y-3">
+            <button
+              type="button"
+              onClick={() => setIsAdjacencyExpanded(!isAdjacencyExpanded)}
+              className="w-full flex items-center justify-between text-xs font-semibold text-monokai-cyan tracking-wide hover:text-white transition-colors"
+            >
+              <span className="flex items-center gap-1.5">
+                <Link2 className="w-3.5 h-3.5 text-monokai-cyan" />
+                关联实体与穿梭探索 ({adjacencyList.length})
+              </span>
+              {isAdjacencyExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+            </button>
+
+            {isAdjacencyExpanded && (
+              <div className="space-y-2 max-h-[220px] overflow-y-auto custom-scrollbar pr-1">
+                {adjacencyList.map((item: any, idx: number) => (
+                  <div
+                    key={idx}
+                    className="flex items-center justify-between p-2.5 rounded-lg bg-monokai-sidebar/20 border border-monokai-border/10 hover:border-monokai-cyan/30 hover:bg-monokai-sidebar/40 group transition-all cursor-pointer"
+                    onClick={() => {
+                      if (onInspect) {
+                        onInspect('object', item.neighbor);
+                      }
+                      if ((window as any).__d3FocusNode) {
+                        (window as any).__d3FocusNode(item.neighbor.id, 'instance');
+                      }
+                    }}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${
+                          item.direction === 'outgoing' ? 'bg-monokai-cyan/10 text-monokai-cyan border border-monokai-cyan/20' : 'bg-monokai-amethyst/10 text-monokai-amethyst border border-monokai-amethyst/20'
+                        }`}>
+                          {item.direction === 'outgoing' ? '→ 出度' : '← 入度'}
+                        </span>
+                        <span className="text-[10px] font-bold text-monokai-green bg-monokai-green/10 px-1.5 py-0.5 rounded border border-monokai-green/20">
+                          {item.relation}
+                        </span>
+                        <span className="text-xs text-monokai-fg truncate font-semibold">
+                          {item.neighbor.name}
+                        </span>
+                      </div>
+                      <div className="text-[10px] text-monokai-comment/60 truncate mt-1">
+                        类型: {state.objectTypes.find((ot: any) => ot.id === item.neighbor.object_type_id)?.name || '未知'} · 权重: {item.weight}
+                      </div>
+                    </div>
+                    <div className="opacity-0 group-hover:opacity-100 transition-opacity pl-2">
+                      <Target className="w-3.5 h-3.5 text-monokai-cyan" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="p-4 flex gap-3 justify-between" style={{ borderTop: '1px solid rgba(102,217,239,0.08)' }}>
@@ -217,8 +393,9 @@ const RightInspector: React.FC<RightInspectorProps> = ({ mode, target, onClose, 
           <span className="truncate">取消</span>
         </button>
         <button onClick={handleSave}
-          className="px-6 py-2.5 text-sm font-bold rounded-lg text-monokai-bg transition-all flex items-center justify-center min-w-0 border border-transparent"
-          style={{ background: 'linear-gradient(135deg, #66d9ef, #38bdf8)', boxShadow: '0 0 16px rgba(102,217,239,0.3), 0 4px 12px rgba(0,0,0,0.3)' }}>
+          disabled={isJsonInvalid}
+          className="px-6 py-2.5 text-sm font-bold rounded-lg text-monokai-bg transition-all flex items-center justify-center min-w-0 border border-transparent disabled:opacity-40 disabled:cursor-not-allowed"
+          style={{ background: isJsonInvalid ? '#444' : 'linear-gradient(135deg, #66d9ef, #38bdf8)', boxShadow: isJsonInvalid ? 'none' : '0 0 16px rgba(102,217,239,0.3), 0 4px 12px rgba(0,0,0,0.3)' }}>
           <span className="truncate">保存配置</span>
         </button>
       </div>

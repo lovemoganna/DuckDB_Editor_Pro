@@ -1,6 +1,6 @@
 // Shared types for OntologyPanel
 
-export type EditMode = 'none' | 'objectType' | 'object' | 'linkType' | 'link' | 'action';
+export type EditMode = 'none' | 'objectType' | 'object' | 'linkType' | 'link' | 'action' | 'introspection' | 'insight';
 
 export interface FormState {
   name: string;
@@ -13,6 +13,12 @@ export interface FormState {
   weight: number;
   status: string;
   executeAt: string;
+  // Introspection & Insight
+  objectId: number | null;
+  question: string;
+  answer: string;
+  insight: string;
+  tag: string;
 }
 
 export function normalizeDateToString(raw: any): string {

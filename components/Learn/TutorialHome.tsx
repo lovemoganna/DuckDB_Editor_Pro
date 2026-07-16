@@ -190,7 +190,7 @@ export const TutorialHome: React.FC<TutorialHomeProps> = ({ onSelectTutorial }) 
     switch (difficulty) {
       case 'Beginner': return { bg: 'bg-monokai-green/20', text: 'text-monokai-green', dot: 'bg-monokai-green' };
       case 'Intermediate': return { bg: 'bg-monokai-orange/20', text: 'text-monokai-orange', dot: 'bg-monokai-orange' };
-      case 'Advanced': return { bg: 'bg-monokai-purple/20', text: 'text-monokai-purple', dot: 'bg-monokai-purple' };
+      case 'Advanced': return { bg: 'bg-monokai-amethyst/20', text: 'text-monokai-amethyst', dot: 'bg-monokai-amethyst' };
       default: return { bg: 'bg-monokai-blue/20', text: 'text-monokai-blue', dot: 'bg-monokai-blue' };
     }
   };
@@ -207,7 +207,7 @@ export const TutorialHome: React.FC<TutorialHomeProps> = ({ onSelectTutorial }) 
   return (
     <div className="h-full overflow-y-auto bg-monokai-bg">
       {/* 顶部欢迎区 */}
-      <div className="bg-gradient-to-r from-monokai-blue/10 via-monokai-purple/5 to-transparent border-b border-monokai-accent/30 p-6">
+      <div className="bg-gradient-to-r from-monokai-blue/10 via-monokai-amethyst/5 to-transparent border-b border-monokai-accent/30 p-6">
         <div className="flex items-start justify-between gap-6">
           {/* 左侧：标题 + 推荐 */}
           <div className="flex-1">
@@ -248,7 +248,7 @@ export const TutorialHome: React.FC<TutorialHomeProps> = ({ onSelectTutorial }) 
                 <div className="text-[10px] text-monokai-comment uppercase">完成</div>
               </div>
               <div className="bg-monokai-bg/50 rounded-lg p-3 text-center border border-monokai-accent/30 min-w-[70px]">
-                <div className="text-xl font-bold text-monokai-purple">{stats.beginner}</div>
+                <div className="text-xl font-bold text-monokai-amethyst">{stats.beginner}</div>
                 <div className="text-[10px] text-monokai-comment uppercase">入门</div>
               </div>
             </div>
@@ -262,8 +262,8 @@ export const TutorialHome: React.FC<TutorialHomeProps> = ({ onSelectTutorial }) 
             disabled={isGeneratingRecommend}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
               aiRecommendation
-                ? 'bg-gradient-to-r from-monokai-purple/20 to-monokai-pink/20 border border-monokai-purple/40 text-monokai-fg hover:from-monokai-purple/30 hover:to-monokai-pink/30'
-                : 'bg-monokai-purple/20 border border-monokai-purple/30 text-monokai-purple hover:bg-monokai-purple/30'
+                ? 'bg-gradient-to-r from-monokai-amethyst/20 to-monokai-pink/20 border border-monokai-amethyst/40 text-monokai-fg hover:from-monokai-amethyst/30 hover:to-monokai-pink/30'
+                : 'bg-monokai-amethyst/20 border border-monokai-amethyst/30 text-monokai-amethyst hover:bg-monokai-amethyst/30'
             }`}
           >
             {isGeneratingRecommend ? (
@@ -479,15 +479,15 @@ export const TutorialHome: React.FC<TutorialHomeProps> = ({ onSelectTutorial }) 
           />
 
           {/* 推荐卡片 */}
-          <div className="relative w-full max-w-md mx-4 bg-[#21222c] border border-monokai-purple/40 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-300">
+          <div className="relative w-full max-w-md mx-4 bg-[#21222c] border border-monokai-amethyst/40 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-300">
             {/* 装饰性渐变背景 */}
-            <div className="absolute inset-0 bg-gradient-to-br from-monokai-purple/10 via-transparent to-monokai-pink/10 pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-br from-monokai-amethyst/10 via-transparent to-monokai-pink/10 pointer-events-none" />
 
             {/* 头部 */}
             <div className="relative p-5 border-b border-monokai-accent/30">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-monokai-purple to-monokai-pink flex items-center justify-center shadow-lg shadow-monokai-purple/25">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-monokai-amethyst to-monokai-pink flex items-center justify-center shadow-lg shadow-monokai-amethyst/25">
                     <Sparkles className="w-5 h-5 text-white" />
                   </div>
                   <div>
@@ -524,7 +524,7 @@ export const TutorialHome: React.FC<TutorialHomeProps> = ({ onSelectTutorial }) 
                   </span>
                 )}
                 {aiRecommendation.type === 'explore' && (
-                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-monokai-purple/20 text-monokai-purple text-xs rounded-md">
+                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-monokai-amethyst/20 text-monokai-amethyst text-xs rounded-md">
                     <Zap className="w-3 h-3" /> 探索新知
                   </span>
                 )}
@@ -539,13 +539,13 @@ export const TutorialHome: React.FC<TutorialHomeProps> = ({ onSelectTutorial }) 
                   onSelectTutorial(aiRecommendation.tutorial);
                   closeAIRecommend();
                 }}
-                className="w-full p-4 bg-monokai-bg/60 border border-monokai-accent/40 rounded-xl text-left hover:border-monokai-purple/50 hover:bg-monokai-bg/80 transition-all group"
+                className="w-full p-4 bg-monokai-bg/60 border border-monokai-accent/40 rounded-xl text-left hover:border-monokai-amethyst/50 hover:bg-monokai-bg/80 transition-all group"
               >
                 <div className="flex items-start justify-between mb-2">
-                  <h4 className="text-sm font-bold text-monokai-fg group-hover:text-monokai-purple transition-colors">
+                  <h4 className="text-sm font-bold text-monokai-fg group-hover:text-monokai-amethyst transition-colors">
                     {aiRecommendation.tutorial.title}
                   </h4>
-                  <ArrowRight className="w-4 h-4 text-monokai-purple opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-2" />
+                  <ArrowRight className="w-4 h-4 text-monokai-amethyst opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-2" />
                 </div>
                 <p className="text-[11px] text-monokai-comment line-clamp-2 mb-3">
                   {aiRecommendation.tutorial.description}
@@ -554,7 +554,7 @@ export const TutorialHome: React.FC<TutorialHomeProps> = ({ onSelectTutorial }) 
                   <span className={`text-[10px] px-1.5 py-0.5 rounded ${
                     aiRecommendation.tutorial.difficulty === 'Beginner' ? 'bg-monokai-green/20 text-monokai-green' :
                     aiRecommendation.tutorial.difficulty === 'Intermediate' ? 'bg-monokai-orange/20 text-monokai-orange' :
-                    aiRecommendation.tutorial.difficulty === 'Advanced' ? 'bg-monokai-purple/20 text-monokai-purple' :
+                    aiRecommendation.tutorial.difficulty === 'Advanced' ? 'bg-monokai-amethyst/20 text-monokai-amethyst' :
                     'bg-monokai-blue/20 text-monokai-blue'
                   }`}>
                     {aiRecommendation.tutorial.difficulty === 'Beginner' ? '入门' :

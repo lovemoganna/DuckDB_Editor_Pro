@@ -258,7 +258,7 @@ export const ChartBuilder: React.FC<ChartBuilderProps> = ({ columns, data, initi
                                     disabled={metricPackages.length === 0}
                                     className={`flex-1 px-3 py-2 text-xs font-bold transition-colors flex items-center justify-center gap-1 ${
                                         createMode === 'metric'
-                                            ? 'bg-monokai-purple/20 text-monokai-purple'
+                                            ? 'bg-monokai-amethyst/20 text-monokai-amethyst'
                                             : 'text-monokai-comment hover:text-monokai-fg hover:bg-monokai-bg/50 disabled:opacity-40 disabled:cursor-not-allowed'
                                     }`}
                                 >
@@ -270,7 +270,7 @@ export const ChartBuilder: React.FC<ChartBuilderProps> = ({ columns, data, initi
 
                         {/* ── 指标模式 ── */}
                         {createMode === 'metric' && (
-                            <div className="flex flex-col gap-3 p-3 bg-monokai-bg rounded-lg border border-monokai-purple/30">
+                            <div className="flex flex-col gap-3 p-3 bg-monokai-bg rounded-lg border border-monokai-amethyst/30">
                                 {metricPackages.length === 0 ? (
                                     <p className="text-center text-monokai-comment text-xs py-3">
                                         暂无指标包，请先在"指标管理"中创建
@@ -312,9 +312,9 @@ export const ChartBuilder: React.FC<ChartBuilderProps> = ({ columns, data, initi
                                         )}
 
                                         {selectedMetric && (
-                                            <div className="p-2.5 bg-monokai-purple/10 border border-monokai-purple/30 rounded text-xs flex flex-col gap-1">
+                                            <div className="p-2.5 bg-monokai-amethyst/10 border border-monokai-amethyst/30 rounded text-xs flex flex-col gap-1">
                                                 <div className="flex items-center justify-between">
-                                                    <span className="text-monokai-purple font-bold">{selectedMetric.name}</span>
+                                                    <span className="text-monokai-amethyst font-bold">{selectedMetric.name}</span>
                                                     {isLoadingMetric && (
                                                         <span className="flex items-center gap-1 text-monokai-accent text-xs">
                                                             <Loader2 size={11} className="animate-spin" />
@@ -415,7 +415,7 @@ export const ChartBuilder: React.FC<ChartBuilderProps> = ({ columns, data, initi
                                         <select
                                             value={config.groupBy || ''}
                                             onChange={e => setConfig({ ...config, groupBy: e.target.value || undefined })}
-                                            className={selectClass + ' focus:border-monokai-purple'}
+                                            className={selectClass + ' focus:border-monokai-amethyst'}
                                         >
                                             <option value="">None</option>
                                             {availableColumns.map(c => <option key={c} value={c}>{c}</option>)}
@@ -484,19 +484,19 @@ export const ChartBuilder: React.FC<ChartBuilderProps> = ({ columns, data, initi
                                                 }
                                             })}
                                             className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${
-                                                config.drillDownConfig?.enabled ? 'bg-monokai-purple border-monokai-purple' : 'border-monokai-comment group-hover:border-monokai-purple'
+                                                config.drillDownConfig?.enabled ? 'bg-monokai-amethyst border-monokai-amethyst' : 'border-monokai-comment group-hover:border-monokai-amethyst'
                                             }`}
                                         >
                                             {config.drillDownConfig?.enabled && <Check size={10} className="text-monokai-bg" />}
                                         </div>
-                                        <span className={`text-xs font-bold flex items-center gap-1.5 transition-colors ${config.drillDownConfig?.enabled ? 'text-monokai-purple' : 'text-monokai-comment group-hover:text-monokai-purple'}`}>
+                                        <span className={`text-xs font-bold flex items-center gap-1.5 transition-colors ${config.drillDownConfig?.enabled ? 'text-monokai-amethyst' : 'text-monokai-comment group-hover:text-monokai-amethyst'}`}>
                                             <MousePointerClick size={11} />
                                             交互下钻 (Drill Down)
                                         </span>
                                     </label>
 
                                     {config.drillDownConfig?.enabled && (
-                                        <div className="flex flex-col gap-2.5 pl-6 border-l border-monokai-purple/30">
+                                        <div className="flex flex-col gap-2.5 pl-6 border-l border-monokai-amethyst/30">
                                             <div>
                                                 <label className="block text-xs text-monokai-comment mb-1">下钻依据列</label>
                                                 <select

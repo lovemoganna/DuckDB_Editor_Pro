@@ -37,18 +37,18 @@ export const SectionCard: React.FC<SectionCardProps> = ({
 }) => {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div>
+    <div className="w-full">
       <button
         onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between px-1 py-1.5 text-left"
+        className="w-full flex items-center justify-center gap-1 px-1 py-1.5 text-center hover:bg-monokai-sidebar/20 transition-all"
       >
-        <span className="text-[10px] text-monokai-comment">{label}</span>
+        <span className="text-[10px] text-monokai-comment font-semibold tracking-wider">{label}</span>
         <ChevronRight
-          className={`w-3 h-3 text-monokai-muted ${open ? 'rotate-90' : ''}`}
+          className={`w-3 h-3 text-monokai-muted transition-transform duration-200 ${open ? 'rotate-90' : ''}`}
         />
       </button>
       {open && (
-        <div className="px-1 pb-2 space-y-1.5">
+        <div className="px-1 pb-2 space-y-1.5 w-full flex flex-col items-center justify-center text-center">
           {children}
         </div>
       )}
@@ -174,7 +174,17 @@ interface GraphControlsPanelProps {
   linkDistance: number;
   chargeStrength: number;
   collisionRadius: number;
-  onPhysicsChange: (p: { linkDistance?: number; chargeStrength?: number; collisionRadius?: number }) => void;
+  velocityDecay: number;
+  gravityStrength: number;
+  linkStrength: number;
+  onPhysicsChange: (p: {
+    linkDistance?: number;
+    chargeStrength?: number;
+    collisionRadius?: number;
+    velocityDecay?: number;
+    gravityStrength?: number;
+    linkStrength?: number;
+  }) => void;
   onResetPhysics: () => void;
   searchTerm: string;
   onSearchChange: (v: string) => void;
@@ -205,7 +215,7 @@ export const GraphControlsPanel: React.FC<GraphControlsPanelProps> = ({
   filterNodeImportance, filterNodeKeyword, filterLinkTypes, graphData,
   onFilterChange, onResetFilters,
   pathHighlightSource, pathHighlightTarget, onClearPath,
-  linkDistance, chargeStrength, collisionRadius, onPhysicsChange, onResetPhysics,
+  linkDistance, chargeStrength, collisionRadius, velocityDecay, gravityStrength, linkStrength, onPhysicsChange, onResetPhysics,
   searchTerm, onSearchChange, searchHighlightedRef, onNavigateSearch,
   onViewRawData, onDownloadCSV, onDownloadExcel, onExportDuckDB, onExportPNG, onExportSVG, onExportJSON,
 }) => {
@@ -219,32 +229,34 @@ export const GraphControlsPanel: React.FC<GraphControlsPanelProps> = ({
 
   return (
     <div
-      className="absolute top-3 left-3 z-[1000] graph-control-card p-2.5 min-w-[220px]"
+      className="absolute top-3 left-3 z-[1000] graph-control-card p-2.5 w-[380px] min-w-[380px]"
       style={{ maxHeight: 'calc(100vh - 120px)', overflowY: 'auto' }}
     >
       {/* ── Header row ── */}
-      <div className="flex items-center justify-between mb-3 px-1">
-        <div className="flex items-center gap-1.5">
-          <Settings className="w-3.5 h-3.5 text-monokai-muted" />
-          <span className="text-[11px] text-monokai-fg">图谱控制</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={onToggleHelp}
-            className="ctrl-btn"
-            title="使用说明"
-          >
-            <HelpCircle className="w-3 h-3" />
-          </button>
-          <button onClick={onClose} className="ctrl-btn">
-            关闭
-          </button>
+      <div className="flex flex-col gap-1.5 mb-3 border-b border-monokai-border/20 pb-2 flex-shrink-0">
+        <div className="flex items-center gap-1.5 justify-between">
+          <div className="flex items-center gap-1.5">
+            <Settings className="w-3.5 h-3.5 text-monokai-muted" />
+            <span className="text-[11px] font-bold uppercase tracking-wider text-monokai-fg">图谱控制面板</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={onToggleHelp}
+              className="ctrl-btn text-[10px] py-0.5 px-2"
+              title="使用说明"
+            >
+              <HelpCircle className="w-3 h-3" /> 使用指南
+            </button>
+            <button onClick={onClose} className="ctrl-btn text-[10px] py-0.5 px-2 text-monokai-pink">
+              关闭
+            </button>
+          </div>
         </div>
       </div>
 
       {/* ── Help ── */}
       {showHelp && (
-        <div className="px-2 py-2 text-[10px] text-monokai-comment leading-[1.9] mb-2 rounded border border-monokai-muted/20 bg-monokai-muted/5">
+        <div className="px-2 py-2 text-[10px] text-monokai-comment leading-[1.9] mb-2 rounded border border-monokai-muted/20 bg-monokai-muted/5 text-center">
           拖动节点 &rarr; 移动并固定位置<br />
           滚轮 &rarr; 缩放 &nbsp;&nbsp; 双击 &rarr; 释放固定<br />
           右键节点 &rarr; 折叠 / 展开 &nbsp;&nbsp; Alt+S 搜索
@@ -487,16 +499,21 @@ export const GraphControlsPanel: React.FC<GraphControlsPanelProps> = ({
       <SectionCard label="力场" defaultOpen={false}>
         <div className="space-y-1">
           {[
-            { label: '向心力', val: linkDistance, min: 20, max: 300, key: 'linkDistance' as const },
-            { label: '排斥力', val: chargeStrength, min: -1000, max: -10, key: 'chargeStrength' as const },
-            { label: '防拥挤', val: collisionRadius, min: 0, max: 80, key: 'collisionRadius' as const },
-          ].map(({ label, val, min, max, key }) => (
+            { label: '向心力', val: linkDistance, min: 20, max: 300, step: 1, key: 'linkDistance' as const },
+            { label: '排斥力', val: chargeStrength, min: -1000, max: -10, step: 1, key: 'chargeStrength' as const },
+            { label: '防拥挤', val: collisionRadius, min: 0, max: 80, step: 1, key: 'collisionRadius' as const },
+            { label: '引力阻尼', val: velocityDecay, min: 0.1, max: 0.9, step: 0.05, key: 'velocityDecay' as const },
+            { label: '重力收拢', val: gravityStrength, min: 0.0, max: 0.5, step: 0.05, key: 'gravityStrength' as const },
+            { label: '连接刚度', val: linkStrength, min: 0.05, max: 1.0, step: 0.05, key: 'linkStrength' as const },
+          ].map(({ label, val, min, max, step, key }) => (
             <div key={key} className="flex items-center gap-2">
-              <span className="text-[10px] text-monokai-muted w-9 shrink-0">{label}</span>
-              <input type="range" min={min} max={max} value={val}
+              <span className="text-[10px] text-monokai-muted w-12 shrink-0 text-left">{label}</span>
+              <input type="range" min={min} max={max} step={step} value={val}
                 onChange={e => onPhysicsChange({ [key]: Number(e.target.value) })}
                 className="monokai-slider flex-1" style={{ accentColor: C.muted }} />
-              <span className="text-[9px] font-mono text-monokai-muted/80 w-8 text-right">{val}</span>
+              <span className="text-[9px] font-mono text-monokai-muted/80 w-8 text-right">
+                {typeof val === 'number' && val % 1 !== 0 ? val.toFixed(2) : val}
+              </span>
             </div>
           ))}
         </div>

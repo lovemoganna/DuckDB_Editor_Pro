@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 
 import { useOntologyStore } from '../../hooks/useOntologyStore';
+import { duckDBService } from '../../services/duckdbService';
 import {
   Position,
   SavedPositions,
@@ -32,8 +33,13 @@ import {
   OntologyCanvasHeader,
   OntologyNode,
   OntologyEdge,
-  getLayoutedElements
+  ONTOLOGY_LAYOUTS,
+  downloadOntologyGraph,
+  getLayoutedElements,
+  getOrthogonalRouteForEdge,
+  sideToHandleId,
 } from './OntologyCanvas/index';
+import type { OntologyLayoutMode } from './OntologyCanvas/index';
 
 // Custom style injection for dark theme controls
 const DarkStyle = () => (
@@ -138,11 +144,16 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
   const [expandedNodeIds, setExpandedNodeIds] = useState<Set<number>>(new Set());
   const [isFocusMode, setIsFocusMode] = useState<boolean>(false);
 
+  // DuckDB Table Import States & Callback
+  const [showImportModal, setShowImportModal] = useState<boolean>(false);
+  const [dbTables, setDbTables] = useState<string[]>([]);
+  const [importing, setImporting] = useState<boolean>(false);
+
   // Dynamic Auto-Align Layout configuration settings
   const [nodesep, setNodesep] = useState<number>(130); // Default vertical spacing set to 130px
   const [ranksep, setRanksep] = useState<number>(200);
-  const [layoutDir, setLayoutDir] = useState<string>('LR'); // Layout direction: 'LR' (Left-to-Right) or 'TB' (Top-to-Bottom)
-  const [parallelOffset, setParallelOffset] = useState<number>(35); // Curve offset for parallel edges
+  const [layoutMode, setLayoutMode] = useState<OntologyLayoutMode>('hierarchical');
+  const [parallelOffset, setParallelOffset] = useState<number>(35); // Stable lanes for parallel orthogonal edges
   const [snapToGrid, setSnapToGrid] = useState<boolean>(true); // Snap node dragging coordinates to grid snip size
   const [showGrid, setShowGrid] = useState<boolean>(true); // Toggle background dots grid on/off
   const [showMiniMap, setShowMiniMap] = useState<boolean>(true); // Toggle bottom-right minimap on/off
@@ -295,7 +306,7 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
           target: String(link.target_object_id)
         }));
 
-        const { nodes: layoutedNodes } = getLayoutedElements(mockNodes, mockEdges, 'LR', nodesep, ranksep);
+        const { nodes: layoutedNodes } = getLayoutedElements(mockNodes, mockEdges, 'hierarchical', nodesep, ranksep);
         layoutedNodes.forEach((node) => {
           updated[Number(node.id)] = node.position;
         });
@@ -327,11 +338,11 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
   const handleSearchFocus = (nodeId: number) => {
     setSelectedNodeId(nodeId);
     setHighlightedNodeId(nodeId);
-    reactFlowInstance.setCenter(
-      nodePositions[nodeId]?.x || 0,
-      nodePositions[nodeId]?.y || 0,
-      { zoom: 1, duration: 400 }
-    );
+    const nodeX = nodePositions[nodeId]?.x;
+    const nodeY = nodePositions[nodeId]?.y;
+    if (nodeX !== undefined && nodeY !== undefined && !isNaN(nodeX) && !isNaN(nodeY)) {
+      reactFlowInstance.setCenter(nodeX, nodeY, { zoom: 1, duration: 400 });
+    }
     setIsSidebarOpen(true);
     setTimeout(() => setHighlightedNodeId(null), 2000);
   };
@@ -414,18 +425,25 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
 
 
 
-  const handleAutoAlign = useCallback((customNodesep?: number, customRanksep?: number, customDir?: string) => {
+  const handleAutoAlign = useCallback((customNodesep?: number, customRanksep?: number, customMode?: OntologyLayoutMode) => {
     pushToHistory(nodePositions);
     const ns = customNodesep ?? nodesep;
     const rs = customRanksep ?? ranksep;
-    const dir = customDir ?? layoutDir;
-    const { nodes: layoutedNodes } = getLayoutedElements(nodes, edges, dir, ns, rs);
+    const mode = customMode ?? layoutMode;
+    const layoutEdges = links.map((link: any) => ({
+      id: String(link.id),
+      source: String(link.source_object_id),
+      target: String(link.target_object_id),
+    }));
+    const { nodes: layoutedNodes } = getLayoutedElements(nodes, layoutEdges, mode, ns, rs);
     const updated = { ...nodePositions };
     layoutedNodes.forEach((node) => {
       updated[Number(node.id)] = node.position;
     });
+    setLayoutMode(mode);
     updateCanvasPositions(updated);
-  }, [nodes, edges, nodePositions, nodesep, ranksep, layoutDir, updateCanvasPositions, pushToHistory]);
+    window.setTimeout(() => reactFlowInstance.fitView({ padding: 0.24, duration: 320 }), 80);
+  }, [nodes, links, nodePositions, nodesep, ranksep, layoutMode, updateCanvasPositions, pushToHistory, reactFlowInstance]);
 
   const handleFitView = useCallback(() => {
     reactFlowInstance.fitView({ duration: 300 });
@@ -450,7 +468,7 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
       target: String(link.target_object_id)
     }));
 
-    const { nodes: layoutedNodes } = getLayoutedElements(mockNodes, mockEdges, layoutDir, nodesep, ranksep);
+    const { nodes: layoutedNodes } = getLayoutedElements(mockNodes, mockEdges, layoutMode, nodesep, ranksep);
     const updated: SavedPositions = {};
     layoutedNodes.forEach((node) => {
       updated[Number(node.id)] = node.position;
@@ -460,7 +478,7 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
     setTimeout(() => {
       reactFlowInstance.fitView({ padding: 0.35, duration: 400 });
     }, 100);
-  }, [objects, links, nodePositions, layoutDir, nodesep, ranksep, expandedNodeIds, updateCanvasPositions, pushToHistory, reactFlowInstance]);
+  }, [objects, links, nodePositions, layoutMode, nodesep, ranksep, expandedNodeIds, updateCanvasPositions, pushToHistory, reactFlowInstance]);
 
   // Synchronize store nodes to ReactFlow nodes
   useEffect(() => {
@@ -496,7 +514,7 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
     setNodes(rfNodes);
   }, [objects, nodePositions, objectTypes, lockedNodeIds, highlightedNodeId, expandedNodeIds, activePathNodesAndLinks, isFocusMode, isReadOnly, handleLockNodeToggle, setNodes]);
 
-  // Calculate parallel link curvature offsets to prevent overlapping paths
+  // Deterministic lane offsets keep parallel orthogonal paths from stacking.
   const linkOffsets = useMemo(() => {
     const counts: { [key: string]: number } = {};
     const offsets: { [key: number]: number } = {};
@@ -540,17 +558,25 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
       const isDownstreamLink = activePathNodesAndLinks?.downstreamLinks.has(link.id);
       const linkName = linkTypes.find((t: any) => t.id === link.link_type_id)?.name || '关联';
       const isActive = isUpstreamLink || isDownstreamLink;
-      const curveOffset = linkOffsets[link.id] ?? 0;
-
-      return {
+      const laneOffset = linkOffsets[link.id] ?? 0;
+      const baseEdge: Edge = {
         id: String(link.id),
         source: String(link.source_object_id),
         target: String(link.target_object_id),
+      };
+      const route = getOrthogonalRouteForEdge(nodes, baseEdge, layoutMode, laneOffset);
+
+      return {
+        ...baseEdge,
+        sourceHandle: route ? sideToHandleId(route.sourceSide, 'source') : undefined,
+        targetHandle: route ? sideToHandleId(route.targetSide, 'target') : undefined,
         label: linkName,
         animated: animateEdges && (isSelected || isActive),
-        type: 'ontology', // Custom premium curved edge
+        type: 'ontology',
         data: {
-          curveOffset,
+          routing: 'orthogonal',
+          routePoints: route?.points,
+          laneOffset,
           isActive,
           isUpstreamLink,
         }
@@ -562,7 +588,7 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
       return true;
     });
     setEdges(rfEdges);
-  }, [links, selectedNodeId, activePathNodesAndLinks, linkTypes, isFocusMode, linkOffsets, animateEdges, setEdges]);
+  }, [links, nodes, layoutMode, selectedNodeId, activePathNodesAndLinks, linkTypes, isFocusMode, linkOffsets, animateEdges, setEdges]);
 
   // Dragging node ends: save position back to store
   const onNodeDragStop = useCallback((event: any, node: any) => {
@@ -661,6 +687,154 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
     }
   };
 
+  const handleExport = useCallback(async (format: 'png' | 'jpeg' | 'svg') => {
+    try {
+      // React Flow's measured width/height can change when zoom-driven compact
+      // or detail rendering changes. Export uses only stable model dimensions
+      // and graph positions, never those viewport-induced measurements.
+      const graphNodes = reactFlowInstance.getNodes().map((node) => ({
+        ...node,
+        width: undefined,
+        height: undefined,
+        positionAbsolute: undefined,
+      }));
+      const graphEdges: Edge[] = links.map((link: any) => ({
+        id: String(link.id),
+        source: String(link.source_object_id),
+        target: String(link.target_object_id),
+        label: linkTypes.find((type: any) => type.id === link.link_type_id)?.name || '关联',
+        data: { laneOffset: linkOffsets[link.id] ?? 0 },
+      }));
+      await downloadOntologyGraph(graphNodes, graphEdges, layoutMode, format);
+    } catch (err: any) {
+      alert(`导出失败: ${err.message}`);
+    }
+  }, [reactFlowInstance, links, linkTypes, linkOffsets, layoutMode]);
+
+  const handleOpenImportModal = useCallback(async () => {
+    setImporting(true);
+    try {
+      const tablesList = await duckDBService.getTables();
+      const filtered = tablesList.filter((t) => 
+        !t.startsWith('_sys_') && 
+        !['life_object', 'life_object_type', 'life_link', 'life_link_type', 'life_action', 'life_introspection', 'life_insight'].includes(t)
+      );
+      setDbTables(filtered);
+      setShowImportModal(true);
+    } catch (e: any) {
+      alert(`无法读取物理数据表: ${e.message}`);
+    } finally {
+      setImporting(false);
+    }
+  }, []);
+
+  const handleImportSelectTable = useCallback(async (tableName: string) => {
+    setShowImportModal(false);
+    try {
+      const columns = await duckDBService.getTableSchema(tableName);
+      
+      const typeName = tableName.toUpperCase();
+      let typeId = objectTypes.find((t: any) => t.name.toUpperCase() === typeName)?.id;
+      
+      if (!typeId) {
+        const newTypeId = Math.floor(Date.now() / 1000) + Math.floor(Math.random() * 100);
+        await store.createObjectType(typeName, `从 DuckDB 物理数据表 ${tableName} 导入的实体类型`);
+        await store.loadData();
+        typeId = newTypeId;
+      }
+
+      const propsObj: Record<string, any> = {};
+      columns.forEach((col: any) => {
+        const isNum = col.type.includes('INT') || col.type.includes('DOUBLE') || col.type.includes('FLOAT') || col.type.includes('DECIMAL');
+        const isBool = col.type.includes('BOOL');
+        propsObj[col.name] = isNum ? 0 : isBool ? false : "";
+      });
+
+      const latestTypes = store.state.objectTypes;
+      const createdType = latestTypes.find((t: any) => t.name.toUpperCase() === typeName);
+      const finalTypeId = createdType ? createdType.id : typeId;
+
+      await store.createObject(tableName, finalTypeId, JSON.stringify(propsObj));
+      await store.loadData();
+
+      setTimeout(() => {
+        handleAutoAlign();
+      }, 100);
+      
+    } catch (err: any) {
+      alert(`导入物理表失败: ${err.message}`);
+    }
+  }, [objectTypes, store, handleAutoAlign]);
+
+  const handleGenerateDDL = useCallback(() => {
+    if (!onInsert) {
+      alert("未连接 SQL 编辑器，无法插入 DDL 语句");
+      return;
+    }
+    
+    let sql = `-- =========================================================\n`;
+    sql += `-- Generated from Ontology Entity Canvas\n`;
+    sql += `-- Created At: ${new Date().toISOString()}\n`;
+    sql += `-- =========================================================\n\n`;
+
+    objectTypes.forEach((t: any) => {
+      const typeObjects = objects.filter((o: any) => o.object_type_id === t.id);
+      
+      const columns = new Map<string, string>();
+      columns.set("id", "INTEGER PRIMARY KEY");
+      
+      typeObjects.forEach((obj: any) => {
+        try {
+          const parsed = typeof obj.properties === 'string' ? JSON.parse(obj.properties || '{}') : (obj.properties || {});
+          Object.entries(parsed).forEach(([k, val]) => {
+            if (k === 'id') return;
+            let typeStr = "VARCHAR";
+            if (typeof val === 'number') {
+              typeStr = Number.isInteger(val) ? "INTEGER" : "DOUBLE";
+            } else if (typeof val === 'boolean') {
+              typeStr = "BOOLEAN";
+            }
+            columns.set(k, typeStr);
+          });
+        } catch (e) {}
+      });
+
+      sql += `-- Table representing entity type: ${t.name} (${t.description || ''})\n`;
+      sql += `CREATE TABLE IF NOT EXISTS ${t.name.toLowerCase()} (\n`;
+      const colDefs = Array.from(columns.entries()).map(([name, type]) => `  ${name} ${type}`);
+      sql += colDefs.join(",\n");
+      sql += `\n);\n\n`;
+
+      if (typeObjects.length > 0) {
+        sql += `-- Seed data for ${t.name}\n`;
+        typeObjects.forEach((obj: any) => {
+          try {
+            const parsed = typeof obj.properties === 'string' ? JSON.parse(obj.properties || '{}') : (obj.properties || {});
+            const keys = ["id", "name", ...Object.keys(parsed).filter(k => k !== 'id')];
+            
+            const values = keys.map((k) => {
+              if (k === 'id') return obj.id;
+              if (k === 'name') return `'${obj.name.replace(/'/g, "''")}'`;
+              const val = parsed[k];
+              if (val === null || val === undefined) return "NULL";
+              if (typeof val === 'boolean') return val ? "TRUE" : "FALSE";
+              if (typeof val === 'number') return val;
+              return `'${String(val).replace(/'/g, "''")}'`;
+            });
+
+            sql += `INSERT INTO ${t.name.toLowerCase()} (${keys.join(', ')}) VALUES (${values.join(', ')});\n`;
+          } catch (e) {
+            sql += `INSERT INTO ${t.name.toLowerCase()} (id, name) VALUES (${obj.id}, '${obj.name.replace(/'/g, "''")}');\n`;
+          }
+        });
+        sql += `\n`;
+      }
+    });
+
+    onInsert(sql);
+    alert("SQL DDL 与 Seed 脚本已成功复制并插入底部的 SQL 编辑器选项卡！");
+  }, [objects, objectTypes, onInsert]);
+
   return (
     <div className="flex flex-col h-full w-full bg-[#0c0d12] select-none text-slate-300 relative overflow-hidden font-sans">
       <DarkStyle />
@@ -674,7 +848,9 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
         zoom={rfZoom}
         setZoom={(newZoomVal) => {
           const targetZoom = typeof newZoomVal === 'function' ? newZoomVal(rfZoom) : newZoomVal;
-          reactFlowInstance.zoomTo(targetZoom, { duration: 250 });
+          if (isNaN(targetZoom) || !isFinite(targetZoom)) return;
+          const clampedZoom = Math.max(0.1, Math.min(4.0, targetZoom));
+          reactFlowInstance.zoomTo(clampedZoom, { duration: 250 });
         }}
         handleFitView={handleFitView}
         handleResetZoom={handleResetZoom}
@@ -687,6 +863,9 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
         handleLockAll={handleLockAll}
         handleUnlockAll={handleUnlockAll}
         handleAutoAlign={handleAutoAlign}
+        onExport={handleExport}
+        onGenerateDDL={handleGenerateDDL}
+        onImportTable={handleOpenImportModal}
       />
 
       <div ref={canvasRef} className="flex-1 relative outline-none focus:outline-none">
@@ -707,6 +886,8 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
           nodesConnectable={!isReadOnly}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
+          minZoom={0.1}
+          maxZoom={4.0}
           fitView
           fitViewOptions={{ padding: 0.3 }}
           className="bg-[#0c0d12]"
@@ -746,7 +927,7 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
           </button>
 
           {showSpacingPanel && (
-            <div className="flex flex-col gap-3.5 p-4 rounded bg-zinc-950/95 border border-zinc-800/90 shadow-2xl backdrop-blur-md w-64 animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className="flex flex-col gap-3.5 p-4 rounded bg-zinc-950/95 border border-zinc-800/90 shadow-2xl backdrop-blur-md w-72 animate-in fade-in slide-in-from-top-2 duration-200">
               <div className="flex items-center justify-between border-b border-zinc-900 pb-2">
                 <span className="text-xs font-bold text-slate-100 flex items-center gap-1.5">
                   <Settings className="w-3.5 h-3.5 text-monokai-yellow" />
@@ -756,7 +937,7 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
                   onClick={() => {
                     setNodesep(130);
                     setRanksep(200);
-                    setLayoutDir('LR');
+                    setLayoutMode('hierarchical');
                     setParallelOffset(35);
                     setSnapToGrid(true);
                     setShowGrid(true);
@@ -765,7 +946,7 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
                     setIsFocusMode(false);
                     setEnableDbClickCreate(true);
                     setIsReadOnly(false);
-                    handleAutoAlign(130, 200, 'LR');
+                    handleAutoAlign(130, 200, 'hierarchical');
                   }}
                   className="text-[10px] text-zinc-500 hover:text-zinc-300 cursor-pointer transition-all"
                 >
@@ -773,43 +954,34 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
                 </span>
               </div>
 
-              {/* Layout Direction */}
+              {/* Layout algorithms */}
               <div className="flex flex-col gap-1.5">
-                <span className="text-xs text-zinc-400">排列方向</span>
+                <span className="text-xs text-zinc-400">布局方式</span>
                 <div className="grid grid-cols-2 gap-2 text-[10px]">
-                  <button
-                    onClick={() => {
-                      setLayoutDir('LR');
-                      handleAutoAlign(nodesep, ranksep, 'LR');
-                    }}
-                    className={`py-1 rounded border transition-all ${
-                      layoutDir === 'LR'
-                        ? 'bg-monokai-blue/15 border-monokai-blue/40 text-monokai-blue font-bold'
-                        : 'bg-zinc-900/40 border-zinc-850 text-zinc-500 hover:text-zinc-300'
-                    }`}
-                  >
-                    水平排列 (L-R)
-                  </button>
-                  <button
-                    onClick={() => {
-                      setLayoutDir('TB');
-                      handleAutoAlign(nodesep, ranksep, 'TB');
-                    }}
-                    className={`py-1 rounded border transition-all ${
-                      layoutDir === 'TB'
-                        ? 'bg-monokai-blue/15 border-monokai-blue/40 text-monokai-blue font-bold'
-                        : 'bg-zinc-900/40 border-zinc-850 text-zinc-500 hover:text-zinc-300'
-                    }`}
-                  >
-                    垂直排列 (T-B)
-                  </button>
+                  {ONTOLOGY_LAYOUTS.map((layout) => (
+                    <button
+                      key={layout.id}
+                      type="button"
+                      data-testid={`ontology-layout-${layout.id}`}
+                      title={layout.description}
+                      onClick={() => handleAutoAlign(nodesep, ranksep, layout.id)}
+                      className={`py-1.5 px-2 rounded border transition-all text-left ${
+                        layoutMode === layout.id
+                          ? 'bg-monokai-blue/15 border-monokai-blue/40 text-monokai-blue font-bold'
+                          : 'bg-zinc-900/40 border-zinc-850 text-zinc-500 hover:text-zinc-300'
+                      }`}
+                    >
+                      <span className="block">{layout.label}布局</span>
+                      <span className="block mt-0.5 text-[8px] font-normal opacity-70 truncate">{layout.description}</span>
+                    </button>
+                  ))}
                 </div>
               </div>
 
               {/* Horizontal Spacing */}
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-zinc-400">列间距 (水平)</span>
+                  <span className="text-zinc-400">层级间距</span>
                   <span className="text-monokai-blue font-mono font-bold">{ranksep}px</span>
                 </div>
                 <input
@@ -830,7 +1002,7 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
               {/* Vertical Spacing */}
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-zinc-400">行间距 (垂直)</span>
+                  <span className="text-zinc-400">同层节点间距</span>
                   <span className="text-monokai-green font-mono font-bold">{nodesep}px</span>
                 </div>
                 <input
@@ -848,10 +1020,10 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
                 />
               </div>
 
-              {/* Connection Curve offset */}
+              {/* Parallel orthogonal lane offset */}
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-zinc-400">连线弧度</span>
+                  <span className="text-zinc-400">并行线间距</span>
                   <span className="text-monokai-orange font-mono font-bold">{parallelOffset}px</span>
                 </div>
                 <input
@@ -1278,6 +1450,47 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* MODAL: Import DuckDB Physical Table */}
+      {showImportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="w-80 bg-[#12131a] border border-slate-800 rounded-[2px] p-5 shadow-2xl space-y-4">
+            <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
+              <Database className="w-4 h-4 text-monokai-green" /> 导入物理表为实体节点
+            </h3>
+            <p className="text-[10px] text-zinc-400">
+              选择底层 DuckDB 数据库中的真实物理表，自动推导列属性并实例化为画布节点：
+            </p>
+
+            <div className="max-h-48 overflow-y-auto custom-scrollbar border border-zinc-800 rounded bg-[#0c0c12] p-1.5 space-y-1">
+              {dbTables.length === 0 ? (
+                <div className="text-[10px] text-zinc-600 text-center py-4">无可用物理数据表</div>
+              ) : (
+                dbTables.map((tbl) => (
+                  <button
+                    key={tbl}
+                    onClick={() => handleImportSelectTable(tbl)}
+                    className="w-full text-left px-2.5 py-1.5 rounded-[2px] text-xs text-slate-300 hover:bg-slate-800 hover:text-white transition-colors flex items-center justify-between group"
+                  >
+                    <span className="font-mono">{tbl}</span>
+                    <span className="text-[9px] text-monokai-green opacity-0 group-hover:opacity-100 transition-opacity">导入 →</span>
+                  </button>
+                ))
+              )}
+            </div>
+
+            <div className="flex justify-end pt-2 text-xs font-semibold">
+              <button
+                type="button"
+                onClick={() => setShowImportModal(false)}
+                className="px-4 py-2 rounded-[2px] text-slate-400 hover:bg-slate-800 transition-colors"
+              >
+                关闭
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

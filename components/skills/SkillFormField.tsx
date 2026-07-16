@@ -96,7 +96,7 @@ export const SkillFormField: React.FC<SkillFormFieldProps> = ({
           type="button"
           onMouseEnter={() => setShowTooltip(true)}
           onMouseLeave={() => setShowTooltip(false)}
-          className="ml-auto text-monokai-comment hover:text-monokai-purple transition-colors"
+          className="ml-auto text-monokai-comment hover:text-monokai-amethyst transition-colors"
         >
           <HelpCircle className="w-3.5 h-3.5" />
         </button>
@@ -106,22 +106,22 @@ export const SkillFormField: React.FC<SkillFormFieldProps> = ({
 
   // Enhanced tooltip content
   const tooltipEl = showTooltip && hasHint && (
-    <div className="absolute left-0 top-full mt-1 z-50 w-64 p-3 bg-[#272822] border border-monokai-purple/30 rounded-lg shadow-xl text-xs">
+    <div className="absolute left-0 top-full mt-1 z-50 w-64 p-3 bg-[#272822] border border-monokai-amethyst/30 rounded-lg shadow-xl text-xs">
       {field.description && (
         <div className="mb-3 text-monokai-fg">
-          <div className="text-[9px] text-monokai-purple uppercase mb-1.5 font-bold tracking-wider">说明</div>
+          <div className="text-[9px] text-monokai-amethyst uppercase mb-1.5 font-bold tracking-wider">说明</div>
           <div className="text-[11px] leading-relaxed">{field.description}</div>
         </div>
       )}
       {typeHint.hint && (
         <div className="mb-3 text-monokai-comment">
-          <div className="text-[9px] text-monokai-purple uppercase mb-1.5 font-bold tracking-wider">提示</div>
+          <div className="text-[9px] text-monokai-amethyst uppercase mb-1.5 font-bold tracking-wider">提示</div>
           <div className="text-[11px]">{typeHint.hint}</div>
         </div>
       )}
       {typeHint.example && (
         <div className="mb-3 text-monokai-green">
-          <div className="text-[9px] text-monokai-purple uppercase mb-1.5 font-bold tracking-wider">示例</div>
+          <div className="text-[9px] text-monokai-amethyst uppercase mb-1.5 font-bold tracking-wider">示例</div>
           <code className="text-[11px] font-mono bg-[#1e1f1c] px-2 py-1 rounded inline-block">{typeHint.example}</code>
         </div>
       )}

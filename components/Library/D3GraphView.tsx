@@ -20,7 +20,7 @@ import { RefreshCw, Sparkles, Loader2, HelpCircle, Trash2, AlertTriangle } from 
 import { duckDBService } from '../../services/duckdbService';
 import { ontologyAiService } from '../../services/ontologyAiService';
 import { encodeCSV, downloadExcel } from '../../utils/exportUtils';
-import { useOntologyStore } from '../../hooks/useOntologyStore';
+import { ontologyActions, useOntologyStore } from '../../hooks/useOntologyStore';
 import { CanvasHelpPanel } from '../skills/CanvasHelpPanel';
 import { ToastNotification } from '../ui/ToastNotification';
 import {
@@ -29,7 +29,7 @@ import {
   computeEdgeGroupOffsets,
 } from './D3GraphView/D3GraphView.data';
 import { getSourceNode, getTargetNode } from './D3GraphView/D3GraphView.helpers';
-import { computeInitialPositions } from './D3GraphView/D3GraphView.layout';
+import { computeInitialPositions, applyDagreLayout, applyConcentricLayout, applyStarburstLayout, applyDandelionLayout, applySpokeLayout, applyGridLayout, applyGroupedCircularLayout, applyVerticalTreeLayout, applyHorizontalTreeLayout } from './D3GraphView/D3GraphView.layout';
 import { LINKTYPE_COLORS, LINKTYPE_DASH } from './D3GraphView/D3GraphView.types';
 import {
   ScopeMode,
@@ -112,9 +112,15 @@ async function loadDynamicGraphData(mapping: any, storeState?: any): Promise<Gra
     }
 
     const typeMap: Record<number, any> = {};
-    objectTypes.forEach((t: any) => { typeMap[t.id] = t; });
+    objectTypes.forEach((t: any) => {
+      const tId = Number(t.id);
+      typeMap[tId] = { ...t, id: tId };
+    });
     const linkTypeMap: Record<number, any> = {};
-    linkTypes.forEach((lt: any) => { linkTypeMap[lt.id] = lt; });
+    linkTypes.forEach((lt: any) => {
+      const ltId = Number(lt.id);
+      linkTypeMap[ltId] = { ...lt, id: ltId };
+    });
 
     const parseProps = (raw: any): { count: number; raw: string } => {
       if (!raw) return { count: 0, raw: '' };
@@ -139,8 +145,9 @@ async function loadDynamicGraphData(mapping: any, storeState?: any): Promise<Gra
 
     const objectsByType: Record<number, any[]> = {};
     objects.forEach((o: any) => {
-      if (!objectsByType[o.object_type_id]) objectsByType[o.object_type_id] = [];
-      objectsByType[o.object_type_id].push(o);
+      const typeId = Number(o.object_type_id);
+      if (!objectsByType[typeId]) objectsByType[typeId] = [];
+      objectsByType[typeId].push(o);
     });
 
     const nodes: GraphNode[] = [];
@@ -154,13 +161,14 @@ async function loadDynamicGraphData(mapping: any, storeState?: any): Promise<Gra
     }
 
     objectTypes.forEach((type: any) => {
-      const instList = objectsByType[type.id] || [];
+      const typeId = Number(type.id);
+      const instList = objectsByType[typeId] || [];
       const hasInstances = instList.length > 0;
-      const color = TYPE_COLORS_WARM[(type.id - 1) % TYPE_COLORS_WARM.length];
+      const color = TYPE_COLORS_WARM[(typeId - 1) % TYPE_COLORS_WARM.length];
       const layoutPos = layoutNodes[`__type__${type.name}`];
       nodes.push({
-        id: `type::${type.id}`, label: type.name, group: 'typeHub', color, size: hasInstances ? 28 : 18,
-        description: type.description || '', _typeId: type.id, _instanceCount: instList.length,
+        id: `type::${typeId}`, label: type.name, group: 'typeHub', color, size: hasInstances ? 28 : 18,
+        description: type.description || '', _typeId: typeId, _instanceCount: instList.length,
         x: layoutPos?.x, y: layoutPos?.y,
         // Mark empty typeHubs so the renderer can style them differently
         _hasInstances: hasInstances,
@@ -168,35 +176,50 @@ async function loadDynamicGraphData(mapping: any, storeState?: any): Promise<Gra
     });
 
     objects.forEach((obj: any) => {
-      const type = typeMap[obj.object_type_id];
-      const color = type ? TYPE_COLORS_COOL[(obj.object_type_id - 1) % TYPE_COLORS_COOL.length] : '#888';
+      const objId = Number(obj.id);
+      const typeId = Number(obj.object_type_id);
+      const type = typeMap[typeId];
+      const color = type ? TYPE_COLORS_COOL[(typeId - 1) % TYPE_COLORS_COOL.length] : '#888';
       const { count: propCount, raw: propRaw } = parseProps(obj.properties);
       const layoutPos = layoutNodes[obj.name];
       nodes.push({
-        id: `obj::${obj.id}`, label: obj.name, group: 'instance', color, size: 11,
-        description: propRaw, _objId: obj.id, _typeId: obj.object_type_id,
+        id: `obj::${objId}`, label: obj.name, group: 'instance', color, size: 11,
+        description: propRaw, _objId: objId, _typeId: typeId,
         _propsCount: propCount, _propsRaw: propRaw,
         x: layoutPos?.x, y: layoutPos?.y,
       });
 
       if (type) {
-        links.push({ source: `obj::${obj.id}`, target: `type::${obj.object_type_id}`, color: 'rgba(255,255,255,0.45)', weight: 0.15, _isTypeInstLink: true });
+        links.push({ source: `obj::${objId}`, target: `type::${typeId}`, color: 'rgba(255,255,255,0.45)', weight: 0.15, _isTypeInstLink: true });
       }
     });
 
     rawLinks.forEach((link: any) => {
-      const ltColor = LINKTYPE_COLORS[(link.link_type_id - 1) % LINKTYPE_COLORS.length];
+      const linkTypeId = Number(link.link_type_id);
+      const srcId = Number(link.source_object_id);
+      const tgtId = Number(link.target_object_id);
+      const ltColor = LINKTYPE_COLORS[(linkTypeId - 1) % LINKTYPE_COLORS.length];
       links.push({
-        source: `obj::${link.source_object_id}`, target: `obj::${link.target_object_id}`,
+        source: `obj::${srcId}`, target: `obj::${tgtId}`,
         color: ltColor, weight: Number(link.weight) || 0.5,
-        _linkTypeId: link.link_type_id, _linkTypeName: linkTypeMap[link.link_type_id]?.name,
+        _linkTypeId: linkTypeId, _linkTypeName: linkTypeMap[linkTypeId]?.name,
       });
     });
 
     actions.forEach((act: any) => {
+      const actId = Number(act.id);
+      const objId = Number(act.object_id);
       const statusColor = act.status === 'done' ? '#4CAF50' : '#FF9800';
-      nodes.push({ id: `action::${act.id}`, label: act.name, group: 'action', color: statusColor, size: 6, description: act.description || '' });
-      links.push({ source: `obj::${act.object_id}`, target: `action::${act.id}`, color: '#FF9CF7', weight: 0.2 });
+      nodes.push({
+        id: `action::${actId}`,
+        label: act.name,
+        group: 'action',
+        color: statusColor,
+        size: 6,
+        description: act.description || '',
+        _objId: objId,
+      });
+      links.push({ source: `obj::${objId}`, target: `action::${actId}`, color: '#FF9CF7', weight: 0.2 });
     });
 
     const typeNames = objectTypes.map((t: any) => t.name);
@@ -217,7 +240,7 @@ async function loadDynamicGraphData(mapping: any, storeState?: any): Promise<Gra
 
 // ==================== Component ====================
 
-const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyState?: any; isActive?: boolean }> = ({ onRefreshRef, ontologyState, isActive }) => {
+const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyState?: any; isActive?: boolean; onInspect?: (mode: any, target: any) => void }> = ({ onRefreshRef, ontologyState, isActive, onInspect }) => {
   const store = useOntologyStore();
   const state = ontologyState ?? store.state;
   const mapping = state.mapping;
@@ -227,6 +250,8 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
   const simulationRef = useRef<d3.Simulation<GraphNode, GraphLink> | null>(null);
   const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
   const collapsedRef = useRef<Set<string>>(new Set());
+  const [collapsedNodes, setCollapsedNodes] = useState<Set<string>>(new Set());
+  const [layoutMode, setLayoutMode] = useState<'force' | 'dagre' | 'concentric' | 'starburst' | 'dandelion' | 'spoke' | 'grid' | 'groupedCircular' | 'verticalTree' | 'horizontalTree'>('verticalTree');
   const searchHighlightedRef = useRef<string[]>([]);
   const graphDataRef = useRef<GraphData | null>(null);
   const nodesRef = useRef<GraphNode[]>([]);
@@ -244,6 +269,7 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
 
   // Debounce timer to coalesce rapid refreshGraph calls during seed switching
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const blankCanvasResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [graphData, setGraphData] = useState<GraphData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -262,6 +288,7 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
   const [aiFillTopic, setAiFillTopic] = useState('');
   const [showHelp, setShowHelp] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; node: GraphNode } | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [scopeMode, setScopeMode] = useState<ScopeMode>('all');
   const [clickToFocus, setClickToFocus] = useState(true);
@@ -270,9 +297,12 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
   const [fullGraphData, setFullGraphData] = useState<GraphData | null>(null);
 
   // 1. D3 Physics Controls State — tuned for compact semantic layout
-  const [chargeStrength, setChargeStrength] = useState(-180);
-  const [linkDistance, setLinkDistance] = useState(150);
-  const [collisionRadius, setCollisionRadius] = useState(14);
+  const [chargeStrength, setChargeStrength] = useState(-240);
+  const [linkDistance, setLinkDistance] = useState(100);
+  const [collisionRadius, setCollisionRadius] = useState(20);
+  const [velocityDecay, setVelocityDecay] = useState(0.4);
+  const [gravityStrength, setGravityStrength] = useState(0.2);
+  const [linkStrength, setLinkStrength] = useState(0.5);
 
   // 2. Progressive Exploration (Focus Mode) State
   const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null);
@@ -280,14 +310,22 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
   // 3. Link Weight Filter — hides weak relations (weight < threshold) by default
   const [weightThreshold, setWeightThreshold] = useState(0.65);
 
+  // Synchronize local searchTerm with global ontology search state (e.g. Wiki selections)
+  useEffect(() => {
+    if (state?.search !== undefined) {
+      setSearchTerm(state.search);
+    }
+  }, [state?.search]);
+
   // 4. Hover Tooltip State — rich card shown on node hover
   const [hoveredNode, setHoveredNode] = useState<GraphNode | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
+  const hoveredNodeIdRef = useRef<string | null>(null);
 
   const activeHighlightIdRef = useRef<string | null>(null);
   useEffect(() => {
-    activeHighlightIdRef.current = selectedNode?.id || focusedNodeId;
-  }, [selectedNode, focusedNodeId]);
+    activeHighlightIdRef.current = selectedNode?.id || (scopeMode !== 'all' ? focusedNodeId : null);
+  }, [selectedNode, focusedNodeId, scopeMode]);
 
   const clickToFocusRef = useRef(clickToFocus);
   useEffect(() => { clickToFocusRef.current = clickToFocus; }, [clickToFocus]);
@@ -328,7 +366,7 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
            const src = getSourceNode(l as any, nodesMap as any);
            const tgt = getTargetNode(l as any, nodesMap as any);
            if (src?.group === 'typeHub' || tgt?.group === 'typeHub') return null;
-           return 'url(#arrow-lavender)';
+           return 'url(#arrow-amethyst)';
          });
       svg.selectAll('.nv-linktype-label')
          .style('opacity', scopeMode === 'all' ? '0' : '0.82');
@@ -394,7 +432,7 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
         const src = getSourceNode(l as any, nodesMap as any);
         const tgt = getTargetNode(l as any, nodesMap as any);
         if (src?.group === 'typeHub' || tgt?.group === 'typeHub') return null;
-        return 'url(#arrow-lavender)';
+        return 'url(#arrow-amethyst)';
       });
       
     svg.selectAll('.nv-linktype-label')
@@ -414,6 +452,39 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
   useEffect(() => {
     applyHighlightStylesRef.current = applyHighlightStyles;
   }, [applyHighlightStyles]);
+
+  const resetBlankCanvasState = useCallback(() => {
+    setSelectedNode(null);
+    setFocusedNodeId(null);
+    setHoveredNode(null);
+    setContextMenu(null);
+    setScopeMode('all');
+    setCollapsedNodes(new Set());
+    setSearchTerm('');
+    store.dispatch?.(ontologyActions.setSearch(''));
+
+    hoveredNodeIdRef.current = null;
+    activeHighlightIdRef.current = null;
+    searchHighlightedRef.current = [];
+    (window as any).__currentNodeId = null;
+    (window as any).__focusedNodeId = null;
+    applyHighlightStylesRef.current(null);
+
+    if (blankCanvasResetTimerRef.current) {
+      clearTimeout(blankCanvasResetTimerRef.current);
+    }
+    blankCanvasResetTimerRef.current = setTimeout(() => {
+      blankCanvasResetTimerRef.current = null;
+      (window as any).__d3FitAll?.();
+    }, 50);
+  }, [store.dispatch]);
+
+  useEffect(() => () => {
+    if (blankCanvasResetTimerRef.current) {
+      clearTimeout(blankCanvasResetTimerRef.current);
+      blankCanvasResetTimerRef.current = null;
+    }
+  }, []);
 
   const refreshGraph = useCallback(async () => {
     // Read latest state from ref — keeps this callback identity stable
@@ -462,7 +533,7 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
       setFullGraphData(data);
       setFocusedNodeId(prev => {
         const exists = prev && data.nodes.some(n => n.id === prev);
-        return exists ? prev : pickDefaultFocusNode(data);
+        return exists ? prev : null;
       });
     } catch (err) {
       console.error('[D3GraphView] Error in refreshGraph:', err);
@@ -479,15 +550,16 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
     }
     const next = buildReadableSubgraph(
       fullGraphData,
-      focusedNodeId || pickDefaultFocusNode(fullGraphData),
+      focusedNodeId,
       scopeMode,
       weightThreshold,
       showWeakLinks,
       activeRelationTypes,
+      collapsedNodes,
     );
     setGraphData(next);
     graphDataRef.current = next;
-  }, [fullGraphData, focusedNodeId, scopeMode, weightThreshold, showWeakLinks, activeRelationTypes]);
+  }, [fullGraphData, focusedNodeId, scopeMode, weightThreshold, showWeakLinks, activeRelationTypes, collapsedNodes]);
 
   // Expose refreshGraph via callback prop so parent can trigger graph reload after CRUD
   useEffect(() => {
@@ -545,7 +617,7 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
 
   function mapColor(color: string): string {
     const map: Record<string, string> = {
-      purple: '#a78bfa', blue: '#4CC9F0', green: '#4ade80',
+      amethyst: '#ae81ff', blue: '#4CC9F0', green: '#4ade80',
       orange: '#fb923c', yellow: '#fbbf24', cyan: '#67e8f9', red: '#f87171',
     };
     return map[color] || '#94a3b8';
@@ -571,6 +643,33 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
       setToast({ message: '清空数据失败: ' + (err instanceof Error ? err.message : String(err)), type: 'error' });
     }
   }, []);
+
+  const handleContextMenuDelete = useCallback(async (node: GraphNode) => {
+    const parts = node.id.split('::');
+    const prefix = parts[0];
+    const idVal = Number(parts[1]);
+    if (isNaN(idVal)) return;
+
+    try {
+      if (prefix === 'type') {
+        await store.deleteObjectType(idVal);
+        setToast({ message: `成功删除类型 "${node.label}"`, type: 'success' });
+      } else if (prefix === 'obj') {
+        await store.deleteObject(idVal);
+        setToast({ message: `成功删除实例 "${node.label}"`, type: 'success' });
+      } else if (prefix === 'action') {
+        await store.deleteAction(idVal);
+        setToast({ message: `成功删除行动 "${node.label}"`, type: 'success' });
+      }
+      setContextMenu(null);
+      if (selectedNode?.id === node.id) setSelectedNode(null);
+      if (focusedNodeId === node.id) setFocusedNodeId(null);
+      await refreshGraph();
+    } catch (err) {
+      console.error('删除节点失败:', err);
+      setToast({ message: '删除失败: ' + (err instanceof Error ? err.message : String(err)), type: 'error' });
+    }
+  }, [store, selectedNode, focusedNodeId, refreshGraph]);
 
   // Load data when DuckDB tables are ready — debounced to prevent cascading
   // re-renders during seed switching (SET_INITTING→SET_DATA→SET_ACTIVE_TAB)
@@ -690,18 +789,37 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
 
       /* Icons */
       .nv-icon-typehub { fill: rgba(255,255,255,0.18); stroke: rgba(255,255,255,0.5); stroke-width: 1px; pointer-events: none; }
-      .nv-icon-instance { fill: none; stroke: rgba(255,255,255,0.4); stroke-width: 1px; pointer-events: none; }
+      .nv-icon-instance { fill: none; stroke: rgba(255,255,255,0.85); stroke-width: 1.2px; pointer-events: none; }
       .nv-icon-action   { fill: rgba(255,255,255,0.25); stroke: rgba(255,255,255,0.6); stroke-width: 0.8px; pointer-events: none; }
       .nv-icon-linktype { fill: none; stroke: rgba(0,0,0,0.55); stroke-width: 1.2px; pointer-events: none; }
+
+      /* Collapsed nodes style: dashed yellow/orange stroke */
+      .nv-node-collapsed circle {
+        stroke: #FFD166 !important;
+        stroke-width: 3.5px !important;
+        stroke-dasharray: 4 2.5 !important;
+        opacity: 0.95 !important;
+      }
+      .nv-node-collapsed:hover circle {
+        stroke: #FFD166 !important;
+        stroke-width: 4.5px !important;
+      }
     `;
     document.head.appendChild(styleEl);
 
     const g = svg.append('g').attr('class', 'nv-graph');
+    const getNodeLabelBaseFontSize = (node: GraphNode) =>
+      node._focusLevel === 0 ? 15 : node.group === 'typeHub' ? 12 : node._focusLevel === 1 ? 11 : 9;
+    let updateNodeLabelsForZoom: (zoomScale: number) => void = () => {};
 
     // Zoom
     const zoom = d3.zoom<SVGSVGElement, unknown>()
       .scaleExtent([0.05, 20])
-      .on('zoom', e => { g.attr('transform', e.transform); currentTransformRef.current = e.transform; });
+      .on('zoom', e => {
+        g.attr('transform', e.transform);
+        currentTransformRef.current = e.transform;
+        updateNodeLabelsForZoom(e.transform.k);
+      });
     svg.call(zoom).on('dblclick.zoom', null);
     zoomRef.current = zoom;
     svg.attr('style', 'display:block;cursor:grab;');
@@ -784,12 +902,46 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
         .call(zoom.transform as any, d3.zoomIdentity.translate(tx, ty).scale(Math.max(0.3, scale)));
     };
 
+    (window as any).__d3FocusNode = (nodeId: number, nodeGroup?: string) => {
+      const ns = simulationRef.current?.nodes() || [];
+      const node = ns.find(n => n.id === nodeId && (!nodeGroup || n.group === nodeGroup));
+      if (!node || node.x == null || isNaN(node.x) || node.y == null || isNaN(node.y)) return;
+
+      const W = containerRef.current?.clientWidth ?? 800;
+      const H = containerRef.current?.clientHeight ?? 600;
+      const scale = 1.8;
+      const tx = W / 2 - node.x * scale;
+      const ty = H / 2 - node.y * scale;
+
+      svg.transition().duration(600)
+        .call(zoom.transform as any, d3.zoomIdentity.translate(tx, ty).scale(scale));
+
+      setSelectedNode(node);
+      showNodeInfo(node, graphDataRef.current || { nodes: ns, links: [] });
+      (window as any).__currentNodeId = node.id;
+
+      // Pulse visual effect on node circle
+      const match = d3.selectAll<SVGGElement, GraphNode>('.nv-node')
+        .filter((d: GraphNode) => d.id === nodeId && (!nodeGroup || d.group === nodeGroup));
+
+      if (!match.empty()) {
+        match.select('circle')
+          .transition()
+          .duration(150)
+          .attr('r', (d: GraphNode) => getVisualRadius(d) * 1.8)
+          .transition()
+          .duration(300)
+          .attr('r', (d: GraphNode) => getVisualRadius(d));
+      }
+    };
+
     if (!graphDataRef.current) {
       setD3Ready(true);
       return () => {
         const el = document.getElementById(styleId);
         if (el) el.remove();
         delete (window as any).__d3FitAll;
+        delete (window as any).__d3FocusNode;
       };
     }
 
@@ -828,9 +980,68 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
     });
     nodesRef.current = nodes;
 
-    // Re-compute initial positions with actual canvas dimensions
     const typeHubNodes = nodes.filter(n => n.group === 'typeHub');
-    computeInitialPositions(nodes, typeHubNodes, W, H, rawLinksRef.current);
+    if (layoutMode === 'dagre') {
+      applyDagreLayout(nodes, renderLinks, W, H);
+      nodes.forEach(n => {
+        n.fx = n.x;
+        n.fy = n.y;
+      });
+    } else if (layoutMode === 'verticalTree') {
+      applyVerticalTreeLayout(nodes, W, H);
+      nodes.forEach(n => {
+        n.fx = n.x;
+        n.fy = n.y;
+      });
+    } else if (layoutMode === 'horizontalTree') {
+      applyHorizontalTreeLayout(nodes, W, H);
+      nodes.forEach(n => {
+        n.fx = n.x;
+        n.fy = n.y;
+      });
+    } else if (layoutMode === 'concentric') {
+      applyConcentricLayout(nodes, W, H);
+      nodes.forEach(n => {
+        n.fx = n.x;
+        n.fy = n.y;
+      });
+    } else if (layoutMode === 'starburst') {
+      applyStarburstLayout(nodes, renderLinks, W, H);
+      nodes.forEach(n => {
+        n.fx = n.x;
+        n.fy = n.y;
+      });
+    } else if (layoutMode === 'dandelion') {
+      applyDandelionLayout(nodes, renderLinks, W, H);
+      nodes.forEach(n => {
+        n.fx = n.x;
+        n.fy = n.y;
+      });
+    } else if (layoutMode === 'spoke') {
+      applySpokeLayout(nodes, renderLinks, W, H, focusedNodeId);
+      nodes.forEach(n => {
+        n.fx = n.x;
+        n.fy = n.y;
+      });
+    } else if (layoutMode === 'grid') {
+      applyGridLayout(nodes, W, H);
+      nodes.forEach(n => {
+        n.fx = n.x;
+        n.fy = n.y;
+      });
+    } else if (layoutMode === 'groupedCircular') {
+      applyGroupedCircularLayout(nodes, W, H);
+      nodes.forEach(n => {
+        n.fx = n.x;
+        n.fy = n.y;
+      });
+    } else {
+      nodes.forEach(n => {
+        n.fx = null;
+        n.fy = null;
+      });
+      computeInitialPositions(nodes, typeHubNodes, W, H, rawLinksRef.current);
+    }
 
     // Compute degree centrality to identify the hub node (used by fitAll and rendering)
     const degreeMap: Record<string, number> = {};
@@ -841,6 +1052,7 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
       if (degreeMap[s] !== undefined) degreeMap[s]++;
       if (degreeMap[t] !== undefined) degreeMap[t]++;
     });
+    nodes.forEach(n => { (n as any)._degree = degreeMap[n.id] || 0; });
     let hubNodeId = '';
     let hubDegree = -1;
     nodes.forEach(n => {
@@ -853,27 +1065,37 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
 
     // Force Simulation
     const nodeCount = nodes.length;
-    const decay = nodeCount > 150 ? 0.08 : nodeCount > 80 ? 0.06 : 0.04;
+    const decay = nodeCount > 200 ? 0.12 : nodeCount > 150 ? 0.09 : nodeCount > 80 ? 0.06 : 0.04;
     const sim = d3.forceSimulation<GraphNode, GraphLink>(nodes)
+      .velocityDecay(velocityDecay)
       .alpha(0.8)
       .alphaDecay(decay)
       .force('link', d3.forceLink<GraphNode, GraphLink>(renderLinks).id(d => d.id).distance(d => {
         const src = getSourceNode(d as any, nodeMap as any);
         const tgt = getTargetNode(d as any, nodeMap as any);
-        if (d._linkTypeId !== undefined) return linkDistance * 1.45;
-        if (src?.group === 'typeHub' || tgt?.group === 'typeHub') return linkDistance * 2.15;
+        if (src?.group === 'action' || tgt?.group === 'action') return 40;
+        if (d._linkTypeId !== undefined) return linkDistance * 1.15;
+        if (src?.group === 'typeHub' || tgt?.group === 'typeHub') return linkDistance * 1.2;
         return linkDistance;
-      }).strength(0.4))
+      }).strength(d => {
+        const src = getSourceNode(d as any, nodeMap as any);
+        const tgt = getTargetNode(d as any, nodeMap as any);
+        if (src?.group === 'action' || tgt?.group === 'action') return 1.0;
+        return linkStrength;
+      }))
       .force('charge', d3.forceManyBody().strength(chargeStrength))
       .force('center', d3.forceCenter(W / 2, H / 2))
-      .force('collision', d3.forceCollide<GraphNode>().radius(d => (d.size || 10) + collisionRadius))
-      .force('x', d3.forceX(W / 2).strength(0.15))
-      .force('y', d3.forceY(H / 2).strength(0.15));
+      .force('collision', d3.forceCollide<GraphNode>().radius(d => {
+        if (d.group === 'action') return (d.size || 6) + collisionRadius;
+        return (d.size || 10) + collisionRadius;
+      }))
+      .force('x', d3.forceX(W / 2).strength(gravityStrength))
+      .force('y', d3.forceY(H / 2).strength(gravityStrength));
     simulationRef.current = sim;
 
     // Links
     const linkGroup = g.append('g').attr('class', 'nv-links');
-    const defs = svg.append('defs').style('display', 'none');
+    const defs = svg.append('defs');
     const mkArrow = (id: string, color: string, opacity = 1) =>
       defs.append('marker')
         .attr('id', id).attr('markerWidth', 6).attr('markerHeight', 4)
@@ -882,7 +1104,7 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
         .attr('points', '0 0, 6 2, 0 4')
         .attr('fill', color)
         .attr('opacity', opacity);
-    mkArrow('arrow-lavender', '#FF9CF7');
+    mkArrow('arrow-amethyst', '#FF9CF7');
     mkArrow('arrow-highlight', '#66d9ef');
     Array.from(new Map(
       renderLinks
@@ -897,6 +1119,63 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
       if (node.group === 'typeHub') return (node.size || 28) * (level === 0 ? 1.25 : 1);
       if (node.group === 'action') return Math.max(7, (node.size || 10) * multiplier);
       return Math.max(8, (node.size || 11) * multiplier);
+    };
+
+    const getNodeIconPath = (d: GraphNode) => {
+      if (d.group === 'typeHub') return ICON_HEXAGON;
+      if (d.group === 'action') return ICON_BOLT;
+      const typeName = (d._typeName || '').toLowerCase();
+      const label = (d.label || '').toLowerCase();
+      
+      if (typeName.includes('host') || typeName.includes('主机') || label.includes('host') || label.includes('192.168.')) {
+        return 'M -6,-4 H 6 V 2 H -6 Z M -8,4 H 8 M -2,2 L -4,4 H 4 L 2,2';
+      }
+      if (typeName.includes('server') || typeName.includes('服务器') || typeName.includes('dns') || typeName.includes('web')) {
+        return 'M -6,-5 H 6 V -2 H -6 Z M -6,-1 H 6 V 2 H -6 Z M -6,3 H 6 V 6 H -6 Z M -3,-3.5 H -2 M -3,0.5 H -2 M -3,4.5 H -2';
+      }
+      if (typeName.includes('db') || typeName.includes('database') || typeName.includes('数据库') || typeName.includes('duckdb')) {
+        return 'M -6,-3 C -6,-5 6,-5 6,-3 C 6,-1 -6,-1 -6,-3 M -6,-3 V 3 C -6,5 6,5 6,3 V -3';
+      }
+      if (typeName.includes('port') || typeName.includes('端口') || typeName.includes('service') || typeName.includes('服务')) {
+        return 'M -3,-6 H 3 V -2 H -3 Z M -4,-2 H 4 V 3 C 4,5 -4,5 -4,3 Z M 0,4 V 8';
+      }
+      if (typeName.includes('network') || typeName.includes('网络') || typeName.includes('subnet') || typeName.includes('网段')) {
+        return 'M -6,2 A 3,3 0 0 1 -3,-2 A 4,4 0 0 1 3,-2 A 3,3 0 0 1 6,2 Z';
+      }
+      if (typeName.includes('share') || typeName.includes('共享') || typeName.includes('folder') || typeName.includes('文件夹')) {
+        return 'M -7,-5 H -2 L 0,-3 H 7 V 5 H -7 Z';
+      }
+      return ICON_BOX;
+    };
+
+    const getNodeFill = (d: GraphNode) => {
+      const typeName = (d._typeName || '').toLowerCase();
+      const label = (d.label || '').toLowerCase();
+      
+      if (d.group === 'typeHub') return d.color || '#ae81ff';
+      if (d.group === 'action') return '#3b82f6';
+      
+      // Host / Device
+      if (typeName.includes('host') || typeName.includes('主机') || label.includes('host') || label.includes('192.168.')) {
+        return '#ffffff';
+      }
+      // Port / Service
+      if (typeName.includes('port') || typeName.includes('端口') || typeName.includes('service') || typeName.includes('服务')) {
+        const isRisky = label.includes('21') || label.includes('22') || label.includes('445') || label.includes('3389') || label.includes('danger') || label.includes('risk') || label.includes('ftp') || label.includes('smb');
+        return isRisky ? '#ef4444' : '#3b82f6';
+      }
+      // Share / Folder
+      if (typeName.includes('share') || typeName.includes('共享') || typeName.includes('folder')) {
+        return '#f97316';
+      }
+      return d.color || '#a070d0';
+    };
+
+    const getNodeStroke = (d: GraphNode) => {
+      if (scopeMode !== 'all' && d.id === focusedNodeId) return '#FFD166';
+      const fill = getNodeFill(d);
+      if (fill === '#ffffff') return 'rgba(255,255,255,0.7)';
+      return d3.rgb(fill).brighter(0.4).toString();
     };
 
     const getNodeRadius = (node?: GraphNode) => {
@@ -947,7 +1226,10 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
         return 'nv-link-action';
       })
       .style('fill', 'none')
-      .style('stroke', (d: GraphLink) => d.color)
+      .style('stroke', (d: GraphLink) => {
+        if (d._isTypeInstLink) return 'rgba(255,255,255,0.15)';
+        return 'rgba(255, 209, 102, 0.45)';
+      })
       .style('stroke-dasharray', (d: GraphLink) => {
         if (d._linkTypeId === undefined) return null;
         return LINKTYPE_DASH[(d._linkTypeId - 1) % LINKTYPE_DASH.length];
@@ -974,7 +1256,7 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
         const src = getSourceNode(d as any, nodeMap as any);
         const tgt = getTargetNode(d as any, nodeMap as any);
         if (src?.group === 'typeHub' || tgt?.group === 'typeHub') return null;
-        return 'url(#arrow-lavender)';
+        return 'url(#arrow-amethyst)';
       })
       .attr('d', (d: GraphLink) => getTrimmedCurve(d).path)
       .each(function(d: GraphLink) {
@@ -1003,10 +1285,8 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
       });
     };
 
-    // Throttle tick to ~30fps to avoid blocking the main thread with large graphs
-    const TICK_THROTTLE_MS = 33;
-    let lastTickTime = 0;
-    let pendingTick = false;
+    // requestAnimationFrame (rAF) throttling to match monitor refresh rate (VSync)
+    let rafId: number | null = null;
 
     const nodeContainer = g.append('g').attr('class', 'nv-nodes');
     const instanceNodes = nodes.filter(d => d.group === 'instance');
@@ -1033,7 +1313,7 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
     const typeHubG = nodeContainer.selectAll<SVGGElement, GraphNode>('.nv-typehub')
       .data(typeHubNodes)
       .enter().append('g')
-      .attr('class', 'nv-typehub nv-node')
+      .attr('class', (d: GraphNode) => `nv-typehub nv-node${collapsedNodes.has(d.id) ? ' nv-node-collapsed' : ''}`)
       .style('cursor', 'move')
       .call(d3.drag<SVGGElement, GraphNode>().on('start', dragstarted).on('drag', dragged).on('end', dragended));
     typeHubG.append('circle').attr('r', (d: GraphNode) => getVisualRadius(d) + 6)
@@ -1042,9 +1322,9 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
       .style('opacity', (d: GraphNode) => d._hasInstances !== false ? 0.35 : 0.15)
       .style('pointer-events', 'none');
     typeHubG.append('circle').attr('r', (d: GraphNode) => getVisualRadius(d))
-      .style('fill', (d: GraphNode) => d.color)
-      .style('stroke', 'rgba(255,255,255,0.6)').style('stroke-width', 2)
-      .style('opacity', (d: GraphNode) => d._hasInstances !== false ? 0.78 : 0.35)
+      .style('fill', (d: GraphNode) => getNodeFill(d))
+      .style('stroke', (d: GraphNode) => getNodeStroke(d)).style('stroke-width', 2)
+      .style('opacity', 0.9)
       .style('pointer-events', 'all');
     typeHubG.append('path').attr('d', ICON_HEXAGON).attr('class', 'nv-icon-typehub')
       .attr('transform', 'scale(1.6) translate(0, 1)')
@@ -1055,18 +1335,22 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
       .data(instanceNodes)
       .enter().append('g')
       .attr('class', (d: GraphNode) =>
-        `nv-instance nv-node${d.id === hubNodeId ? ' nv-hub-node' : ''}${d.id === focusedNodeId ? ' nv-focus-node' : ''}`
+        `nv-instance nv-node${d.id === hubNodeId ? ' nv-hub-node' : ''}${scopeMode !== 'all' && d.id === focusedNodeId ? ' nv-focus-node' : ''}${collapsedNodes.has(d.id) ? ' nv-node-collapsed' : ''}`
       )
       .style('cursor', 'pointer')
       .call(d3.drag<SVGGElement, GraphNode>().on('start', dragstarted).on('drag', dragged).on('end', dragended));
     instanceG.append('circle').attr('r', (d: GraphNode) => getVisualRadius(d))
-      .style('fill', (d: GraphNode) => d.color)
-      .style('stroke', (d: GraphNode) => d.id === focusedNodeId ? '#FFD166' : 'rgba(255,255,255,0.55)')
-      .style('stroke-width', (d: GraphNode) => d.id === focusedNodeId ? 3 : 1.5)
-      .style('opacity', (d: GraphNode) => d._focusLevel === 0 ? 0.95 : d._focusLevel === 1 ? 0.78 : 0.52)
+      .style('fill', (d: GraphNode) => getNodeFill(d))
+      .style('stroke', (d: GraphNode) => getNodeStroke(d))
+      .style('stroke-width', (d: GraphNode) => scopeMode !== 'all' && d.id === focusedNodeId ? 3 : 1.5)
+      .style('opacity', 0.95)
       .style('pointer-events', 'all');
-    instanceG.append('path').attr('d', ICON_BOX).attr('class', 'nv-icon-instance')
-      .attr('transform', 'scale(1.0) translate(0, 1)');
+    instanceG.append('path').attr('d', getNodeIconPath).attr('class', 'nv-icon-instance')
+      .attr('transform', 'scale(0.9) translate(0, 0)')
+      .style('stroke', (d: GraphNode) => {
+        const fill = getNodeFill(d);
+        return fill === '#ffffff' ? '#0c0d12' : 'rgba(255,255,255,0.85)';
+      });
 
     // Property-count badge
     instanceG.each(function(d: GraphNode) {
@@ -1132,9 +1416,10 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
         : 'nv-node-label')
       .text((d: GraphNode) => {
         // Always show name (label) on the node; description is for tooltip/hover only
-        return d.label.length > LABEL_MAX ? d.label.slice(0, LABEL_MAX) + '…' : d.label;
+        const title = String(d.label || d.description || d.id);
+        return title.length > LABEL_MAX ? title.slice(0, LABEL_MAX) + '…' : title;
       })
-      .style('font-size', (d: GraphNode) => d._focusLevel === 0 ? '15px' : d.group === 'typeHub' ? '12px' : d._focusLevel === 1 ? '11px' : '9px')
+      .style('font-size', (d: GraphNode) => `${getNodeLabelBaseFontSize(d)}px`)
       .style('fill', 'white').style('font-weight', 'bold');
     // typeHub tooltip shows name (KEY); others show label
     labelEls.each(function(d: GraphNode) {
@@ -1144,6 +1429,16 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
       d3.select(this).append('title').text(tooltip);
     });
     labelElsRef.current = labelEls;
+    updateNodeLabelsForZoom = (zoomScale: number) => {
+      const safeScale = Math.max(0.05, zoomScale || 1);
+      labelEls
+        .style('display', null)
+        .style('font-size', (d: GraphNode) => `${getNodeLabelBaseFontSize(d) / safeScale}px`)
+        .style('stroke-width', `${0.5 / safeScale}px`)
+        .attr('x', (d: GraphNode) => (d.x || 0) + getVisualRadius(d) + 7 / safeScale)
+        .attr('y', (d: GraphNode) => (d.y || 0) + 4 / safeScale);
+    };
+    updateNodeLabelsForZoom(currentTransformRef.current.k);
 
     // Link type labels on edges: show description (VALUE), tooltip shows name + weight (KEY)
     const linkLabelGroup = g.append('g').attr('class', 'nv-link-labels');
@@ -1171,23 +1466,100 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
           .text(`关系: ${name}\n强度: ${Number(d.weight).toFixed(2)}`);
       });
 
-    // TICK — throttled to ~30fps to avoid frame drops on large graphs
+    // TICK — throttled using requestAnimationFrame to match layout updates with VSync
     const tickThrottled = () => {
-      const now = performance.now();
-      if (now - lastTickTime < TICK_THROTTLE_MS) {
-        pendingTick = true;
-        return;
-      }
-      lastTickTime = now;
-      pendingTick = false;
+      if (rafId !== null) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
 
+        // Radial fan constraint for actions
+        const parentToChildren: Record<string, GraphNode[]> = {};
+        nodes.forEach(n => {
+          if (n.group === 'action' && n._objId) {
+            const parentKey = `obj::${n._objId}`;
+            if (!parentToChildren[parentKey]) parentToChildren[parentKey] = [];
+            parentToChildren[parentKey].push(n);
+          }
+        });
+        Object.entries(parentToChildren).forEach(([parentKey, children]) => {
+          const parent = nodes.find(p => p.id === parentKey);
+          if (!parent || parent.x == null || parent.y == null) return;
+          const count = children.length;
+          const dist = 48;
+          children.sort((a, b) => a.id.localeCompare(b.id)).forEach((child, idx) => {
+            const angle = (idx * 2 * Math.PI) / count;
+            child.x = parent.x! + dist * Math.cos(angle);
+            child.y = parent.y! + dist * Math.sin(angle);
+            child.vx = 0;
+            child.vy = 0;
+          });
+        });
+
+        const visibleNodes = getVisibleNodes(nodes, currentTransformRef.current, W, H);
+        const visibleNodeIds = new Set(visibleNodes.map(n => n.id));
+
+        // LOD zoom thresholds
+        const k = currentTransformRef.current.k;
+        const hideLabels = k < 0.15;
+        const hideActions = k < 0.15;
+
+        linkEls
+          .style('display', (d: GraphLink) => {
+            const sId = typeof d.source === 'object' ? (d.source as GraphNode).id : d.source;
+            const tId = typeof d.target === 'object' ? (d.target as GraphNode).id : d.target;
+            return (visibleNodeIds.has(String(sId)) || visibleNodeIds.has(String(tId))) ? null : 'none';
+          })
+          .attr('d', (d: GraphLink) => getTrimmedCurve(d).path);
+        typeHubG.attr('transform', (d: GraphNode) => `translate(${d.x || 0},${d.y || 0})`);
+        instanceG.attr('transform', (d: GraphNode) => `translate(${d.x || 0},${d.y || 0})`);
+        actionG
+          .style('display', (d: GraphNode) => hideActions ? 'none' : null)
+          .attr('transform', (d: GraphNode) => `translate(${d.x || 0},${d.y || 0})`);
+        updateNodeLabelsForZoom(k);
+        linkLabelEls
+          .style('display', () => hideLabels ? 'none' : null)
+          .attr('x', (d: GraphLink) => getTrimmedCurve(d).labelX)
+          .attr('y', (d: GraphLink) => getTrimmedCurve(d).labelY);
+      });
+    };
+
+    // Attach simulation event handlers
+    sim.on('tick.throttled', tickThrottled);
+    sim.on('end.throttled', () => {
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
+      
+      // Radial fan constraint for actions
+      const parentToChildren: Record<string, GraphNode[]> = {};
+      nodes.forEach(n => {
+        if (n.group === 'action' && n._objId) {
+          const parentKey = `obj::${n._objId}`;
+          if (!parentToChildren[parentKey]) parentToChildren[parentKey] = [];
+          parentToChildren[parentKey].push(n);
+        }
+      });
+      Object.entries(parentToChildren).forEach(([parentKey, children]) => {
+        const parent = nodes.find(p => p.id === parentKey);
+        if (!parent || parent.x == null || parent.y == null) return;
+        const count = children.length;
+        const dist = 48;
+        children.sort((a, b) => a.id.localeCompare(b.id)).forEach((child, idx) => {
+          const angle = (idx * 2 * Math.PI) / count;
+          child.x = parent.x! + dist * Math.cos(angle);
+          child.y = parent.y! + dist * Math.sin(angle);
+          child.vx = 0;
+          child.vy = 0;
+        });
+      });
+
+      // Perform one final sync tick to guarantee drawing positions match settled sim coordinates
       const visibleNodes = getVisibleNodes(nodes, currentTransformRef.current, W, H);
       const visibleNodeIds = new Set(visibleNodes.map(n => n.id));
-
-      // LOD zoom thresholds
       const k = currentTransformRef.current.k;
-      const hideLabels = k < 0.6;
-      const hideActions = k < 0.35;
+      const hideLabels = k < 0.15;
+      const hideActions = k < 0.15;
 
       linkEls
         .style('display', (d: GraphLink) => {
@@ -1201,24 +1573,11 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
       actionG
         .style('display', (d: GraphNode) => hideActions ? 'none' : null)
         .attr('transform', (d: GraphNode) => `translate(${d.x || 0},${d.y || 0})`);
-      labelEls
-        .style('display', (d: GraphNode) => (hideLabels && d.group !== 'typeHub') ? 'none' : null)
-        .attr('x', (d: GraphNode) => (d.x || 0) + getVisualRadius(d) + 7)
-        .attr('y', (d: GraphNode) => (d.y || 0) + 4);
+      updateNodeLabelsForZoom(k);
       linkLabelEls
         .style('display', () => hideLabels ? 'none' : null)
         .attr('x', (d: GraphLink) => getTrimmedCurve(d).labelX)
         .attr('y', (d: GraphLink) => getTrimmedCurve(d).labelY);
-    };
-
-    // Flush any pending tick when simulation pauses
-    sim.on('tick.throttled', tickThrottled);
-    sim.on('end.throttled', () => {
-      if (pendingTick) {
-        pendingTick = false;
-        lastTickTime = 0;
-        tickThrottled();
-      }
     });
 
     // Trigger fit-all AFTER simulation settles — not at a fixed timeout.
@@ -1253,6 +1612,7 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
         setTooltipPos({ x: event.clientX - svgRect.left, y: event.clientY - svgRect.top });
       }
       setHoveredNode(d);
+      hoveredNodeIdRef.current = d.id;
     });
     allNodeGroups.on('mousemove', (event: MouseEvent) => {
       const svgRect = svgRef.current?.getBoundingClientRect();
@@ -1262,6 +1622,7 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
     });
     allNodeGroups.on('mouseout', () => {
       setHoveredNode(null);
+      hoveredNodeIdRef.current = null;
       // Restore selections if any, otherwise reset to default
       applyHighlightStylesRef.current(activeHighlightIdRef.current);
     });
@@ -1270,7 +1631,9 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
       setSelectedNode(d);
       showNodeInfo(d, data);
       (window as any).__currentNodeId = d.id;
-      if (clickToFocusRef.current) {
+      if (d.group === 'instance' || d.group === 'typeHub') {
+        toggleNodeCollapse(d.id);
+      } else if (clickToFocusRef.current) {
         setFocusedNodeId(d.id);
         setScopeMode('focus');
       }
@@ -1283,26 +1646,52 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
       const scale = 2.0;
       svg.transition().duration(500)
         .call(zoom.transform as any, d3.zoomIdentity.translate(W / 2 - (d.x || 0) * scale, H / 2 - (d.y || 0) * scale).scale(scale));
+      
+      if (onInspect) {
+        if (d.group === 'instance') {
+          const rawObj = state.objects.find((o: any) => o.id === d.id);
+          if (rawObj) onInspect('object', rawObj);
+        } else if (d.group === 'typeHub') {
+          const rawType = state.objectTypes.find((ot: any) => ot.id === d.id);
+          if (rawType) onInspect('objectType', rawType);
+        } else if (d.group === 'linkType') {
+          const rawLinkType = (state.linkTypes || []).find((lt: any) => lt.id === d.id);
+          if (rawLinkType) onInspect('linkType', rawLinkType);
+        } else if (d.group === 'action') {
+          const rawAction = state.actions.find((a: any) => a.id === d.id);
+          if (rawAction) onInspect('action', rawAction);
+        }
+      }
     });
     allNodeGroups.on('contextmenu', (event: MouseEvent, d: GraphNode) => {
       event.preventDefault();
-      toggleNodeCollapse(d.id, nodes, renderLinks, allNodeGroups, labelEls, linkEls, collapsedRef.current);
-    });
-    svg.on('click', () => {
-      setSelectedNode(null);
-      setFocusedNodeId(null);
-      setHoveredNode(null);
-      if (clickToFocusRef.current) {
-        setScopeMode('all');
+      event.stopPropagation();
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (rect) {
+        setContextMenu({
+          x: event.clientX - rect.left,
+          y: event.clientY - rect.top,
+          node: d,
+        });
       }
-      (window as any).__currentNodeId = null;
-      (window as any).__focusedNodeId = null;
+    });
+    const resetIfBlankCanvas = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | SVGElement;
+      if (target.closest('.nv-node')) return;
+      resetBlankCanvasState();
+    };
+    svg.on('click.reset', resetIfBlankCanvas);
+    svg.on('dblclick.reset', (event: MouseEvent) => {
+      const target = event.target as HTMLElement | SVGElement;
+      if (target.closest('.nv-node')) return;
+      event.preventDefault();
+      resetBlankCanvasState();
     });
 
     setD3Ready(true);
 
     // Highlight existing selection on mount/update
-    const activeHighlightId = selectedNode?.id || focusedNodeId;
+    const activeHighlightId = selectedNode?.id || (scopeMode !== 'all' ? focusedNodeId : null);
     applyHighlightStyles(activeHighlightId);
 
     // P1-Fix: Fallback fitAll — ensures labels/edges are visible even if the
@@ -1325,19 +1714,24 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
       clearTimeout(fitAllTimer);
       ro.disconnect();
       simulationRef.current?.stop();
+      if (rafId !== null) cancelAnimationFrame(rafId);
       const el = document.getElementById(styleId);
       if (el) el.remove();
       delete (window as any).__d3FitAll;
+      delete (window as any).__d3FocusNode;
       delete (window as any).__currentNodeId;
       delete (window as any).__hubNodeId;
     };
-  }, [graphData, state.objectTypes.length, state.objects.length, state.initState]);
+  }, [graphData, state.objectTypes.length, state.objects.length, state.initState, layoutMode, resetBlankCanvasState]);
 
   // Dynamic Simulation Physics Updates
   useEffect(() => {
     if (!simulationRef.current) return;
     const sim = simulationRef.current;
     
+    // Update velocity decay
+    sim.velocityDecay(velocityDecay);
+
     // Update forces
     const chargeForce = sim.force('charge') as d3.ForceManyBody<GraphNode> | undefined;
     if (chargeForce) chargeForce.strength(chargeStrength);
@@ -1347,26 +1741,33 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
 
     const linkForce = sim.force('link') as d3.ForceLink<GraphNode, GraphLink> | undefined;
     if (linkForce) {
+      linkForce.strength(linkStrength);
       linkForce.distance(d => {
         const s = d as any;
-        if (s._linkTypeId !== undefined) return linkDistance * 1.5;
-        if (s.source?.group === 'typeHub' || s.target?.group === 'typeHub') return linkDistance * 2.25;
+        if (s._linkTypeId !== undefined) return linkDistance * 1.15;
+        if (s.source?.group === 'typeHub' || s.target?.group === 'typeHub') return linkDistance * 1.2;
         return linkDistance;
       });
     }
 
+    const xForce = sim.force('x') as d3.ForceX<GraphNode> | undefined;
+    if (xForce) xForce.strength(gravityStrength);
+
+    const yForce = sim.force('y') as d3.ForceY<GraphNode> | undefined;
+    if (yForce) yForce.strength(gravityStrength);
+
     sim.alpha(0.3).restart();
-  }, [chargeStrength, linkDistance, collisionRadius]);
+  }, [chargeStrength, linkDistance, collisionRadius, velocityDecay, gravityStrength, linkStrength]);
 
   // Moved applyHighlightStyles up
 
   // Highlight Mode Visual Updates (Selection & Focus)
   useEffect(() => {
-    const activeHighlightId = selectedNode?.id || focusedNodeId;
+    const activeHighlightId = selectedNode?.id || (scopeMode !== 'all' ? focusedNodeId : null);
     (window as any).__currentNodeId = selectedNode?.id || null;
     (window as any).__focusedNodeId = focusedNodeId;
     applyHighlightStyles(activeHighlightId);
-  }, [focusedNodeId, selectedNode, graphData, applyHighlightStyles]);
+  }, [focusedNodeId, selectedNode, scopeMode, graphData, applyHighlightStyles]);
 
   // Weight Threshold Filter — update link display when threshold changes
   useEffect(() => {
@@ -1384,62 +1785,20 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
   // ==================== Helpers ====================
 
   function toggleNodeCollapse(
-    nodeId: string, nodes: GraphNode[], links: GraphLink[],
-    allNodeGroups: d3.Selection<SVGGElement, GraphNode, SVGGElement, unknown>,
-    labelEls: d3.Selection<SVGTextElement, GraphNode, SVGGElement, unknown>,
-    linkEls: d3.Selection<SVGPathElement, GraphLink, SVGGElement, unknown>,
-    collapsed: Set<string>
+    nodeId: string, _nodes?: GraphNode[], _links?: GraphLink[],
+    _allNodeGroups?: any, _labelEls?: any, _linkEls?: any,
+    _collapsed?: Set<string>
   ) {
-    const getConnNodes = (id: string) => {
-      const conn: string[] = [];
-      links.forEach(l => {
-        const s = typeof l.source === 'object' ? (l.source as GraphNode).id : l.source;
-        const t = typeof l.target === 'object' ? (l.target as GraphNode).id : l.target;
-        if (s === id) conn.push(t);
-        if (t === id) conn.push(s);
-      });
-      return conn;
-    };
-
-    if (collapsed.has(nodeId)) {
-      collapsed.delete(nodeId);
-      const toShow = new Set<string>();
-      const queue = getConnNodes(nodeId);
-      while (queue.length) {
-        const cur = queue.shift()!;
-        if (toShow.has(cur) || cur === nodeId) continue;
-        toShow.add(cur);
-        getConnNodes(cur).forEach(n => { if (!collapsed.has(n)) queue.push(n); });
+    setCollapsedNodes(prev => {
+      const next = new Set(prev);
+      if (next.has(nodeId)) {
+        next.delete(nodeId);
+      } else {
+        next.add(nodeId);
       }
-      toShow.forEach(id => {
-        allNodeGroups.filter((d: GraphNode) => d.id === id).style('display', null);
-        labelEls.filter((d: GraphNode) => d.id === id).style('display', null);
-        linkEls.filter((l: GraphLink) => {
-          const s = typeof l.source === 'object' ? (l.source as GraphNode).id : l.source;
-          const t = typeof l.target === 'object' ? (l.target as GraphNode).id : l.target;
-          return s === id || t === id;
-        }).style('display', null);
-      });
-    } else {
-      collapsed.add(nodeId);
-      const toHide = new Set<string>();
-      const queue = getConnNodes(nodeId);
-      while (queue.length) {
-        const cur = queue.shift()!;
-        if (toHide.has(cur) || cur === nodeId) continue;
-        toHide.add(cur);
-        getConnNodes(cur).forEach(n => { if (!collapsed.has(n)) queue.push(n); });
-      }
-      toHide.forEach(id => {
-        allNodeGroups.filter((d: GraphNode) => d.id === id).style('display', 'none');
-        labelEls.filter((d: GraphNode) => d.id === id).style('display', 'none');
-        linkEls.filter((l: GraphLink) => {
-          const s = typeof l.source === 'object' ? (l.source as GraphNode).id : l.source;
-          const t = typeof l.target === 'object' ? (l.target as GraphNode).id : l.target;
-          return s === id || t === id;
-        }).style('display', 'none');
-      });
-    }
+      collapsedRef.current = next;
+      return next;
+    });
   }
 
   // Redundant helper functions highlightedSelectedNode and resetHighlights removed
@@ -1507,6 +1866,7 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
   useEffect(() => {
     if (!svgRef.current) return;
     if (!graphData || graphData.nodes.length === 0) return;
+    const svg = d3.select(svgRef.current);
     const isActive = searchTerm.trim().length > 0;
     const terms = searchTerm.toLowerCase().split(/\s+/).filter(Boolean);
     const nodes = graphData.nodes;
@@ -1520,13 +1880,15 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
     searchHighlightedRef.current = matched;
     setSearchIndex(-1);
 
-    d3.selectAll<SVGGElement, GraphNode>('g.nv-node')
+    svg.selectAll<SVGGElement, GraphNode>('g.nv-node')
       .classed('nv-dim', (d: GraphNode) => isActive && !matched.includes(d.id));
-    d3.selectAll<SVGTextElement, GraphNode>('.nv-node-label')
+    svg.selectAll<SVGGElement, GraphNode>('g.nv-node circle')
+      .classed('nv-pulse-glow', (d: GraphNode) => matched.includes(d.id) && isActive);
+    svg.selectAll<SVGTextElement, GraphNode>('.nv-node-label')
       .classed('nv-dim-label', (d: GraphNode) => isActive && !matched.includes(d.id))
       .classed('nv-label-match', (d: GraphNode) => matched.includes(d.id) && isActive)
       .style('fill', (d: GraphNode) => matched.includes(d.id) && isActive ? '#00BFFF' : 'white');
-    d3.selectAll<SVGPathElement, GraphLink>('.nv-link-instance')
+    svg.selectAll<SVGPathElement, GraphLink>('.nv-link-instance')
       .style('opacity', (l: GraphLink) => {
         if (!isActive) {
           const w = Math.max(0.3, Math.min(1.0, l.weight ?? 0.5));
@@ -1536,6 +1898,37 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
         const t = typeof l.target === 'object' ? (l.target as GraphNode).id : l.target;
         return matched.includes(s) || matched.includes(t) ? 1 : 0.08;
       });
+
+    // Auto-center and fit matched nodes in the viewport
+    if (isActive && matched.length > 0 && zoomRef.current && svgRef.current) {
+      const simulationNodes = simulationRef.current?.nodes() || [];
+      const matchedSimNodes = simulationNodes.filter(n => matched.includes(n.id) && n.x != null && !isNaN(n.x) && n.y != null && !isNaN(n.y));
+      if (matchedSimNodes.length > 0) {
+        const xs = matchedSimNodes.map(n => n.x!);
+        const ys = matchedSimNodes.map(n => n.y!);
+        const minX = Math.min(...xs), maxX = Math.max(...xs);
+        const minY = Math.min(...ys), maxY = Math.max(...ys);
+        const bw = maxX - minX || 1, bh = maxY - minY || 1;
+        const W = containerRef.current?.clientWidth ?? 800;
+        const H = containerRef.current?.clientHeight ?? 600;
+        
+        let tx, ty, scale;
+        if (matchedSimNodes.length === 1) {
+          scale = 1.3;
+          tx = W / 2 - matchedSimNodes[0].x! * scale;
+          ty = H / 2 - matchedSimNodes[0].y! * scale;
+        } else {
+          scale = Math.min(W / (bw + 120), H / (bh + 120), 1.3);
+          if (scale < 0.2) scale = 0.2;
+          const cx = (minX + maxX) / 2;
+          const cy = (minY + maxY) / 2;
+          tx = W / 2 - cx * scale;
+          ty = H / 2 - cy * scale;
+        }
+        d3.select(svgRef.current).transition().duration(600)
+          .call(zoomRef.current!.transform as any, d3.zoomIdentity.translate(tx, ty).scale(scale));
+      }
+    }
   }, [searchTerm, graphData]);
 
   const navigateSearch = (dir: 1 | -1) => {
@@ -1677,12 +2070,34 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
   // ==================== Styles ====================
   // Monokai-inspired palette for D3 overlay panels
   const panelBase: React.CSSProperties = {
-    background: 'rgba(39,40,34,0.92)', border: '1px solid rgba(245,239,224,0.12)', borderRadius: 8,
-    fontSize: 12, fontFamily: 'Arial,sans-serif', color: '#f8f8f2',
+    background: 'rgba(18, 19, 26, 0.78)',
+    backdropFilter: 'blur(16px)',
+    WebkitBackdropFilter: 'blur(16px)',
+    border: '1px solid rgba(255, 255, 255, 0.08)',
+    borderRadius: '12px',
+    fontSize: 12,
+    fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    color: '#e2e8f0',
+    textAlign: 'center',
+    boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.45)',
+  };
+  const controlPanelBase: React.CSSProperties = {
+    ...panelBase,
+    textAlign: 'left',
   };
   const btnStyle: React.CSSProperties = {
-    background: 'rgba(39,40,34,0.88)', color: '#f8f8f2', border: '1px solid rgba(245,239,224,0.12)',
-    padding: '3px 8px', borderRadius: 6, cursor: 'pointer', fontSize: 11,
+    background: 'rgba(255, 255, 255, 0.04)',
+    color: '#f8f8f2',
+    border: '1px solid rgba(255, 255, 255, 0.1)',
+    padding: '5px 12px',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: 11,
+    textAlign: 'center',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
   };
   const panelBtnStyle: React.CSSProperties = { ...btnStyle };
 
@@ -1691,7 +2106,7 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
       ref={containerRef}
       style={{
         width: '100%', height: '100%',
-        background: '#0c0d12',
+        background: 'radial-gradient(circle at center, #131b31 0%, #060913 100%)',
         position: 'relative', overflow: 'hidden',
       }}
     >
@@ -1809,7 +2224,14 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
               ].map(item => (
                 <button
                   key={item.id}
-                  onClick={() => setScopeMode(item.id)}
+                  onClick={() => {
+                    if (item.id === 'all') {
+                      setFocusedNodeId(null);
+                    } else if (!focusedNodeId && fullGraphData) {
+                      setFocusedNodeId(pickDefaultFocusNode(fullGraphData));
+                    }
+                    setScopeMode(item.id);
+                  }}
                   style={{
                     ...btnStyle,
                     borderColor: scopeMode === item.id ? '#FFD166' : 'rgba(245,239,224,0.12)',
@@ -1899,12 +2321,12 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
                   onKeyDown={e => { if (e.key === 'Enter') handleAIFill(); if (e.key === 'Escape') setShowAIFillInput(false); }}
                   placeholder="输入图谱主题，如：电商订单领域"
                   style={{
-                    padding: '6px 12px', borderRadius: 8, border: '1px solid #a78bfa',
+                    padding: '6px 12px', borderRadius: 8, border: '1px solid #ae81ff',
                     background: 'rgba(0,0,0,0.4)', color: '#fff', fontSize: 12, width: 260,
                     outline: 'none',
                   }}
                 />
-                <button onClick={handleAIFill} disabled={isAiFilling} style={{ ...btnStyle, padding: '6px 14px', borderColor: '#a78bfa', color: '#a78bfa' }}>
+                <button onClick={handleAIFill} disabled={isAiFilling} style={{ ...btnStyle, padding: '6px 14px', borderColor: '#ae81ff', color: '#ae81ff' }}>
                   {isAiFilling ? <Loader2 className="inline w-3.5 h-3.5 animate-spin" style={{ verticalAlign: 'middle' }} /> : <Sparkles className="inline w-3.5 h-3.5" style={{ verticalAlign: 'middle' }} />}
                 </button>
                 <button onClick={() => setShowAIFillInput(false)} style={{ ...btnStyle, padding: '6px 10px' }}>✕</button>
@@ -1912,7 +2334,7 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
             )}
 
             <div style={{ display: 'flex', gap: 10, justifyContent: 'center', pointerEvents: 'all' }}>
-              <button onClick={handleAIFill} disabled={isAiFilling} style={{ ...btnStyle, padding: '6px 16px', fontSize: 12, borderColor: '#a78bfa', color: '#a78bfa' }}>
+              <button onClick={handleAIFill} disabled={isAiFilling} style={{ ...btnStyle, padding: '6px 16px', fontSize: 12, borderColor: '#ae81ff', color: '#ae81ff' }}>
                 {isAiFilling ? <><Loader2 className="inline w-3.5 h-3.5 mr-1 animate-spin" style={{ verticalAlign: 'middle' }} /> AI 构思中...</> : <><Sparkles className="inline w-3.5 h-3.5 mr-1" style={{ verticalAlign: 'middle' }} /> AI 图谱生成</>}
               </button>
               <button onClick={refreshGraph} style={{ ...btnStyle, padding: '6px 16px', fontSize: 12 }}>
@@ -1932,28 +2354,31 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
 
       {/* ==================== LEFT: Controls ==================== */}
       {showControls && graphData && (
-        <div style={{ position: 'absolute', top: 10, left: 10, zIndex: 1000, ...panelBase, padding: 10, minWidth: 280 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <strong style={{ fontSize: 13 }}>控制面板</strong>
+        <div style={{ position: 'absolute', top: 10, left: 10, zIndex: 1000, ...controlPanelBase, padding: 12, width: 360, minWidth: 360, display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6, marginBottom: 8, borderBottom: '1px solid rgba(245,239,224,0.12)', paddingBottom: 8, width: '100%' }}>
+            <strong style={{ fontSize: 13, textAlign: 'left' }}>图谱控制面板</strong>
             <div style={{ display: 'flex', gap: 6 }}>
-              <button onClick={() => setShowHelp(!showHelp)} title="使用指南" style={{ ...panelBtnStyle, padding: '3px 8px', borderColor: showHelp ? 'rgba(99,102,241,0.5)' : undefined, color: showHelp ? '#a5b4fc' : undefined }}>
-                <HelpCircle className="inline w-3.5 h-3.5" style={{ verticalAlign: 'middle' }} />
+              <button onClick={() => setShowHelp(!showHelp)} title="使用指南" style={{ ...panelBtnStyle, padding: '3px 8px', borderColor: showHelp ? 'rgba(99,102,241,0.5)' : undefined, color: showHelp ? '#a5b4fc' : undefined, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <HelpCircle className="inline w-3.5 h-3.5 mr-1" style={{ verticalAlign: 'middle' }} />
+                使用指南
               </button>
-              <button onClick={() => setShowControls(false)} style={panelBtnStyle}>隐藏</button>
+              <button onClick={() => setShowControls(false)} style={{ ...panelBtnStyle, color: '#f92672', textAlign: 'center', justifyContent: 'center' }}>隐藏</button>
             </div>
           </div>
-          <div style={{ fontSize: 11, color: '#ccc', lineHeight: 1.7 }}>
-            <div>• 拖动节点 → 移动并钉住位置</div>
-            <div>• 滚轮 / 双指 → 缩放视图</div>
-            <div>• 双击节点 → 释放固定 + 聚焦</div>
-            <div>• 右键节点 → 折叠 / 展开</div>
-            <div style={{ marginTop: 8, color: '#888', fontSize: 10 }}>
-              <strong>快捷键:</strong> Alt+C/I/L/S | Escape
+          {showHelp && (
+            <div style={{ fontSize: 11, color: '#ccc', lineHeight: 1.7, textAlign: 'left', background: 'rgba(255,255,255,0.03)', padding: '8px 12px', borderRadius: 4, marginBottom: 8, width: '100%' }}>
+              <div>• 拖动节点 → 移动并钉住位置</div>
+              <div>• 滚轮 / 双指 → 缩放视图</div>
+              <div>• 双击节点 → 释放固定 + 聚焦</div>
+              <div>• 右键节点 → 折叠 / 展开</div>
+              <div style={{ marginTop: 6, color: '#888', fontSize: 10, borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 4 }}>
+                <strong>快捷键:</strong> Alt+C/I/L/S | Escape
+              </div>
             </div>
-          </div>
+          )}
           {/* AI Fill Topic Input (when controls panel is open) */}
           {showAIFillInput && (
-            <div style={{ marginTop: 8, display: 'flex', gap: 6 }}>
+            <div style={{ marginTop: 8, display: 'flex', gap: 6, width: '100%', justifyContent: 'flex-start' }}>
               <input
                 autoFocus
                 value={aiFillTopic}
@@ -1962,39 +2387,39 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
                 placeholder="输入图谱主题，回车确认"
                 style={{
                   flex: 1, padding: '5px 10px', borderRadius: 6,
-                  border: '1px solid #a78bfa', background: 'rgba(0,0,0,0.4)',
-                  color: '#fff', fontSize: 11, outline: 'none',
+                  border: '1px solid #ae81ff', background: 'rgba(0,0,0,0.4)',
+                  color: '#fff', fontSize: 11, outline: 'none', textAlign: 'left'
                 }}
               />
-              <button onClick={handleAIFill} disabled={isAiFilling} style={{ ...btnStyle, padding: '5px 10px', borderColor: '#a78bfa', color: '#a78bfa' }}>
+              <button onClick={handleAIFill} disabled={isAiFilling} style={{ ...btnStyle, padding: '5px 10px', borderColor: '#ae81ff', color: '#ae81ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {isAiFilling ? <Loader2 className="inline w-3 h-3 animate-spin" style={{ verticalAlign: 'middle' }} /> : <Sparkles className="inline w-3 h-3" style={{ verticalAlign: 'middle' }} />}
               </button>
               <button onClick={() => setShowAIFillInput(false)} style={{ ...btnStyle, padding: '5px 8px' }}>✕</button>
             </div>
           )}
 
-          <div style={{ display: 'flex', gap: 5, marginTop: 10, flexWrap: 'wrap' }}>
-            <button onClick={fitAll} style={{ ...btnStyle, flex: 1, borderColor: '#4CAF50', color: '#4CAF50' }}>Fit All</button>
-            <button onClick={resetLayout} style={{ ...btnStyle, flex: 1, borderColor: '#F9A825', color: '#F9A825' }}>重置布局</button>
-            <button onClick={zoomIn} style={{ ...btnStyle, flex: 1 }}>放大</button>
-            <button onClick={zoomOut} style={{ ...btnStyle, flex: 1 }}>缩小</button>
+          <div style={{ display: 'flex', gap: 5, marginTop: 10, flexWrap: 'wrap', width: '100%', justifyContent: 'flex-start' }}>
+            <button onClick={fitAll} style={{ ...btnStyle, flex: 1, borderColor: '#4CAF50', color: '#4CAF50', textAlign: 'center', justifyContent: 'center' }}>Fit All</button>
+            <button onClick={resetLayout} style={{ ...btnStyle, flex: 1, borderColor: '#F9A825', color: '#F9A825', textAlign: 'center', justifyContent: 'center' }}>重置布局</button>
+            <button onClick={zoomIn} style={{ ...btnStyle, flex: 1, textAlign: 'center', justifyContent: 'center' }}>放大</button>
+            <button onClick={zoomOut} style={{ ...btnStyle, flex: 1, textAlign: 'center', justifyContent: 'center' }}>缩小</button>
           </div>
-          <div style={{ display: 'flex', gap: 5, marginTop: 5 }}>
-            <button onClick={() => { setShowAIFillInput(true); }} style={{ ...btnStyle, flex: 1, borderColor: '#a78bfa', color: '#a78bfa' }}>
+          <div style={{ display: 'flex', gap: 5, marginTop: 5, width: '100%', justifyContent: 'flex-start' }}>
+            <button onClick={() => { setShowAIFillInput(true); }} style={{ ...btnStyle, flex: 1, borderColor: '#ae81ff', color: '#ae81ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Sparkles className="inline w-3.5 h-3.5 mr-1" style={{ verticalAlign: 'middle' }} />
               AI 图谱生成
             </button>
-            <button onClick={refreshGraph} style={{ ...btnStyle, flex: 1 }}>
+            <button onClick={refreshGraph} style={{ ...btnStyle, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <RefreshCw className="inline w-3.5 h-3.5 mr-1" style={{ verticalAlign: 'middle' }} />
               刷新数据
             </button>
             {focusedNodeId && (
-              <button onClick={() => { setFocusedNodeId(null); setScopeMode('all'); }} style={{ ...btnStyle, flex: 1, background: '#E76F51', borderColor: '#E76F51', color: '#fff' }}>
+              <button onClick={() => { setFocusedNodeId(null); setScopeMode('all'); }} style={{ ...btnStyle, flex: 1, background: '#E76F51', borderColor: '#E76F51', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 ✕ 退出降噪聚焦
               </button>
             )}
           </div>
-          <div style={{ display: 'flex', gap: 5, marginTop: 5 }}>
+          <div style={{ display: 'flex', gap: 5, marginTop: 5, width: '100%', justifyContent: 'flex-start' }}>
             <button
               onClick={() => {
                 const nextVal = !clickToFocus;
@@ -2015,96 +2440,141 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
                 background: clickToFocus ? 'rgba(255,209,102,0.08)' : btnStyle.background,
                 fontSize: 10,
                 padding: '5px 8px',
+                textAlign: 'left',
+                justifyContent: 'flex-start',
+                display: 'flex',
+                alignItems: 'center'
               }}
             >
               🎯 点击节点自动降噪聚焦: {clickToFocus ? '已开启' : '已关闭'}
             </button>
           </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 5, width: '100%', alignItems: 'stretch' }}>
+            <span style={{ fontSize: 10, color: '#888', marginBottom: 2 }}>📐 选择拓扑布局</span>
+            <select
+              value={layoutMode}
+              onChange={e => setLayoutMode(e.target.value as any)}
+              style={{
+                width: '100%',
+                padding: '6px 8px',
+                borderRadius: '6px',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
+                background: 'rgba(39, 40, 34, 0.88)',
+                color: '#66d9ef',
+                fontSize: 11,
+                outline: 'none',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="verticalTree">纵向层级树状 (Vertical Tree)</option>
+              <option value="horizontalTree">横向层级树状 (Horizontal Tree)</option>
+              <option value="dandelion">蒲公英径向 (Dandelion)</option>
+              <option value="dagre">层级分层 (Dagre)</option>
+              <option value="spoke">辐射骨架 (Spoke)</option>
+              <option value="concentric">同心圆径向 (Radial)</option>
+              <option value="starburst">星系辐射 (Starburst)</option>
+              <option value="grid">网格排列 (Grid)</option>
+              <option value="groupedCircular">分组环形 (Grouped Circular)</option>
+              <option value="force">有机力导向 (Force)</option>
+            </select>
+          </div>
 
           {/* Quick Clear */}
           {showClearConfirm ? (
-            <div style={{ marginTop: 8, padding: 8, border: '1px solid #ef4444', borderRadius: 6, background: 'rgba(239,68,68,0.08)' }}>
-              <div style={{ fontSize: 11, color: '#f87171', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <div style={{ marginTop: 8, padding: 8, border: '1px solid #ef4444', borderRadius: 6, background: 'rgba(239,68,68,0.08)', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}>
+              <div style={{ fontSize: 11, color: '#f87171', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'flex-start', textAlign: 'left' }}>
                 <AlertTriangle className="inline w-3.5 h-3.5" />
                 确认清空所有本体论数据？
               </div>
-              <div style={{ display: 'flex', gap: 5 }}>
-                <button onClick={handleQuickClear} style={{ ...btnStyle, flex: 1, background: '#ef4444', borderColor: '#ef4444', color: '#fff', fontSize: 10, padding: '5px 8px' }}>
+              <div style={{ display: 'flex', gap: 5, width: '100%', justifyContent: 'flex-start' }}>
+                <button onClick={handleQuickClear} style={{ ...btnStyle, flex: 1, background: '#ef4444', borderColor: '#ef4444', color: '#fff', fontSize: 10, padding: '5px 8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <Trash2 className="inline w-3 h-3 mr-1" />
                   确认清空
                 </button>
-                <button onClick={() => setShowClearConfirm(false)} style={{ ...btnStyle, flex: 1, fontSize: 10, padding: '5px 8px' }}>
+                <button onClick={() => setShowClearConfirm(false)} style={{ ...btnStyle, flex: 1, fontSize: 10, padding: '5px 8px', textAlign: 'center', justifyContent: 'center' }}>
                   取消
                 </button>
               </div>
             </div>
           ) : (
-            <button onClick={() => setShowClearConfirm(true)} style={{ ...btnStyle, marginTop: 5, width: '100%', borderColor: '#ef4444', color: '#f87171', fontSize: 10 }}>
+            <button onClick={() => setShowClearConfirm(true)} style={{ ...btnStyle, marginTop: 5, width: '100%', borderColor: '#ef4444', color: '#f87171', fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Trash2 className="inline w-3 h-3 mr-1" />
               快捷清空
             </button>
           )}
           
           {/* Physics Engine Controls */}
-          <div style={{ marginTop: 10, borderTop: '1px solid #333', paddingTop: 8 }}>
-            <strong style={{ fontSize: 11 }}>物理力场调节</strong>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
-              <label style={{ display: 'flex', alignItems: 'center', fontSize: 10, gap: 8 }}>
-                <span style={{ width: 50, color: '#888' }}>向心力</span>
+          <div style={{ marginTop: 10, borderTop: '1px solid #333', paddingTop: 8, width: '100%', textAlign: 'left' }}>
+            <strong style={{ fontSize: 11, display: 'block', textAlign: 'left', marginBottom: 6 }}>物理力场调节</strong>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8, width: '100%', alignItems: 'stretch' }}>
+              <label style={{ display: 'flex', alignItems: 'center', fontSize: 10, gap: 8, width: '100%', justifyContent: 'flex-start' }}>
+                <span style={{ width: 60, color: '#888', textAlign: 'left' }}>向心力</span>
                 <input type="range" min="20" max="300" value={linkDistance} onChange={e => setLinkDistance(Number(e.target.value))} style={{ flex: 1, accentColor: '#FFD166', height: 4 }} />
               </label>
-              <label style={{ display: 'flex', alignItems: 'center', fontSize: 10, gap: 8 }}>
-                <span style={{ width: 50, color: '#888' }}>排斥力</span>
+              <label style={{ display: 'flex', alignItems: 'center', fontSize: 10, gap: 8, width: '100%', justifyContent: 'flex-start' }}>
+                <span style={{ width: 60, color: '#888', textAlign: 'left' }}>排斥力</span>
                 <input type="range" min="-1000" max="-10" value={chargeStrength} onChange={e => setChargeStrength(Number(e.target.value))} style={{ flex: 1, accentColor: '#4CC9F0', height: 4 }} />
               </label>
-              <label style={{ display: 'flex', alignItems: 'center', fontSize: 10, gap: 8 }}>
-                <span style={{ width: 50, color: '#888' }}>防拥挤</span>
+              <label style={{ display: 'flex', alignItems: 'center', fontSize: 10, gap: 8, width: '100%', justifyContent: 'flex-start' }}>
+                <span style={{ width: 60, color: '#888', textAlign: 'left' }}>防拥挤</span>
                 <input type="range" min="0" max="50" value={collisionRadius} onChange={e => setCollisionRadius(Number(e.target.value))} style={{ flex: 1, accentColor: '#FF9CF7', height: 4 }} />
               </label>
-              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                <button onClick={() => { setLinkDistance(100); setChargeStrength(-80); setCollisionRadius(4); }} style={{ ...btnStyle, fontSize: 9, padding: '2px 6px', opacity: 0.8 }}>复位力场</button>
+              <label style={{ display: 'flex', alignItems: 'center', fontSize: 10, gap: 8, width: '100%', justifyContent: 'flex-start' }}>
+                <span style={{ width: 60, color: '#888', textAlign: 'left' }}>引力阻尼</span>
+                <input type="range" min="0.1" max="0.9" step="0.05" value={velocityDecay} onChange={e => setVelocityDecay(Number(e.target.value))} style={{ flex: 1, accentColor: '#A6E22E', height: 4 }} />
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', fontSize: 10, gap: 8, width: '100%', justifyContent: 'flex-start' }}>
+                <span style={{ width: 60, color: '#888', textAlign: 'left' }}>重力收拢</span>
+                <input type="range" min="0.0" max="0.5" step="0.05" value={gravityStrength} onChange={e => setGravityStrength(Number(e.target.value))} style={{ flex: 1, accentColor: '#AE81FF', height: 4 }} />
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', fontSize: 10, gap: 8, width: '100%', justifyContent: 'flex-start' }}>
+                <span style={{ width: 60, color: '#888', textAlign: 'left' }}>连接刚度</span>
+                <input type="range" min="0.05" max="1.0" step="0.05" value={linkStrength} onChange={e => setLinkStrength(Number(e.target.value))} style={{ flex: 1, accentColor: '#F92672', height: 4 }} />
+              </label>
+              <div style={{ display: 'flex', justifyContent: 'flex-start', width: '100%' }}>
+                <button onClick={() => { setLinkDistance(150); setChargeStrength(-180); setCollisionRadius(14); setVelocityDecay(0.4); setGravityStrength(0.15); setLinkStrength(0.4); }} style={{ ...btnStyle, fontSize: 9, padding: '2px 6px', opacity: 0.8, textAlign: 'center', justifyContent: 'center' }}>复位力场</button>
               </div>
             </div>
           </div>
 
           {/* Link Weight Filter */}
-          <div style={{ marginTop: 10, borderTop: '1px solid #333', paddingTop: 8 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-              <strong style={{ fontSize: 11 }}>关系强度过滤</strong>
-              <span style={{ fontSize: 10, color: '#FFD166' }}>
-                {weightThreshold === 0 ? '显示全部' : `隐藏 weight &lt; ${weightThreshold}`}
+          <div style={{ marginTop: 10, borderTop: '1px solid #333', paddingTop: 8, width: '100%', textAlign: 'left' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2, marginBottom: 6 }}>
+              <strong style={{ fontSize: 11, textAlign: 'left' }}>关系强度过滤</strong>
+              <span style={{ fontSize: 10, color: '#FFD166', textAlign: 'left' }}>
+                {weightThreshold === 0 ? '显示全部' : `隐藏 weight < ${weightThreshold}`}
               </span>
             </div>
-            <label style={{ display: 'flex', alignItems: 'center', fontSize: 10, gap: 8 }}>
-              <span style={{ width: 36, color: '#888' }}>过滤阈值</span>
+            <label style={{ display: 'flex', alignItems: 'center', fontSize: 10, gap: 8, width: '100%', justifyContent: 'flex-start' }}>
+              <span style={{ width: 60, color: '#888', textAlign: 'left' }}>过滤阈值</span>
               <input
                 type="range" min="0" max="0.9" step="0.05"
                 value={weightThreshold}
                 onChange={e => setWeightThreshold(Number(e.target.value))}
                 style={{ flex: 1, accentColor: '#FFD166', height: 4 }}
               />
-              <span style={{ width: 24, color: '#ccc', fontSize: 10, textAlign: 'right' }}>{weightThreshold.toFixed(1)}</span>
+              <span style={{ width: 24, color: '#ccc', fontSize: 10, textAlign: 'left' }}>{weightThreshold.toFixed(1)}</span>
             </label>
-            <div style={{ display: 'flex', gap: 4, marginTop: 6 }}>
+            <div style={{ display: 'flex', gap: 4, marginTop: 6, width: '100%', justifyContent: 'flex-start' }}>
               <button
                 onClick={() => setWeightThreshold(0)}
-                style={{ ...btnStyle, flex: 1, fontSize: 9, padding: '3px 6px', borderColor: weightThreshold === 0 ? '#FFD166' : undefined, color: weightThreshold === 0 ? '#FFD166' : undefined }}
+                style={{ ...btnStyle, flex: 1, fontSize: 9, padding: '3px 6px', borderColor: weightThreshold === 0 ? '#FFD166' : undefined, color: weightThreshold === 0 ? '#FFD166' : undefined, textAlign: 'center', justifyContent: 'center' }}
               >全部</button>
               <button
                 onClick={() => setWeightThreshold(0.5)}
-                style={{ ...btnStyle, flex: 1, fontSize: 9, padding: '3px 6px', borderColor: weightThreshold === 0.5 ? '#FFD166' : undefined, color: weightThreshold === 0.5 ? '#FFD166' : undefined }}
+                style={{ ...btnStyle, flex: 1, fontSize: 9, padding: '3px 6px', borderColor: weightThreshold === 0.5 ? '#FFD166' : undefined, color: weightThreshold === 0.5 ? '#FFD166' : undefined, textAlign: 'center', justifyContent: 'center' }}
               >强关系 (0.5)</button>
               <button
                 onClick={() => setWeightThreshold(0.7)}
-                style={{ ...btnStyle, flex: 1, fontSize: 9, padding: '3px 6px', borderColor: weightThreshold === 0.7 ? '#FFD166' : undefined, color: weightThreshold === 0.7 ? '#FFD166' : undefined }}
+                style={{ ...btnStyle, flex: 1, fontSize: 9, padding: '3px 6px', borderColor: weightThreshold === 0.7 ? '#FFD166' : undefined, color: weightThreshold === 0.7 ? '#FFD166' : undefined, textAlign: 'center', justifyContent: 'center' }}
               >核心 (0.7)</button>
             </div>
           </div>
 
           {/* Search */}
-          <div style={{ marginTop: 10, borderTop: '1px solid #333', paddingTop: 8 }}>
-            <strong style={{ fontSize: 11 }}>搜索拓扑图</strong>
-            <div style={{ display: 'flex', alignItems: 'center', marginTop: 5 }}>
+          <div style={{ marginTop: 10, borderTop: '1px solid #333', paddingTop: 8, width: '100%', textAlign: 'left' }}>
+            <strong style={{ fontSize: 11, display: 'block', textAlign: 'left', marginBottom: 6 }}>搜索拓扑图</strong>
+            <div style={{ display: 'flex', alignItems: 'center', marginTop: 5, width: '100%', justifyContent: 'flex-start' }}>
               <input
                 id="nv-search-input"
                 type="text"
@@ -2118,30 +2588,31 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
                 style={{
                   flex: 1, padding: '4px 8px', border: '1px solid rgba(245,239,224,0.15)', borderRadius: 6,
                   background: 'rgba(39,40,34,0.88)', color: '#f8f8f2', fontSize: 11, outline: 'none',
+                  textAlign: 'left'
                 }}
               />
               {searchTerm && <button onClick={() => setSearchTerm('')} style={{ ...btnStyle, marginLeft: 4 }}>✕</button>}
             </div>
             {searchHighlightedRef.current.length > 0 && (
-              <div style={{ marginTop: 4, display: 'flex', gap: 4 }}>
-                <button onClick={() => navigateSearch(-1)} style={{ ...btnStyle, flex: 1 }}>◀ 上一个</button>
-                <button onClick={() => navigateSearch(1)} style={{ ...btnStyle, flex: 1 }}>下一个 ▶</button>
+              <div style={{ marginTop: 4, display: 'flex', gap: 4, width: '100%', justifyContent: 'flex-start' }}>
+                <button onClick={() => navigateSearch(-1)} style={{ ...btnStyle, flex: 1, textAlign: 'center', justifyContent: 'center' }}>◀ 上一个</button>
+                <button onClick={() => navigateSearch(1)} style={{ ...btnStyle, flex: 1, textAlign: 'center', justifyContent: 'center' }}>下一个 ▶</button>
               </div>
             )}
             {searchHighlightedRef.current.length > 0 && (
-              <div style={{ marginTop: 3, fontSize: 10, color: '#00BFFF' }}>
+              <div style={{ marginTop: 3, fontSize: 10, color: '#00BFFF', textAlign: 'left' }}>
                 找到 {searchHighlightedRef.current.length} 条结果
               </div>
             )}
           </div>
-          <div style={{ marginTop: 10, display: 'flex', gap: 5, flexDirection: 'column' }}>
-            <button onClick={() => setShowScanModal(true)} style={{ ...btnStyle, borderColor: '#FFD166', width: '100%', textAlign: 'center' }}>
+          <div style={{ marginTop: 10, display: 'flex', gap: 5, flexDirection: 'column', width: '100%', alignItems: 'stretch' }}>
+            <button onClick={() => setShowScanModal(true)} style={{ ...btnStyle, borderColor: '#FFD166', width: '100%', textAlign: 'center', justifyContent: 'center' }}>
               查看原始数据
             </button>
-            <button onClick={downloadCSV} style={{ ...btnStyle, borderColor: '#4CAF50', width: '100%', textAlign: 'center' }}>
+            <button onClick={downloadCSV} style={{ ...btnStyle, borderColor: '#4CAF50', width: '100%', textAlign: 'center', justifyContent: 'center' }}>
               下载 CSV
             </button>
-            <button onClick={downloadExcelFile} style={{ ...btnStyle, borderColor: 'rgba(166,226,46,0.4)', width: '100%', textAlign: 'center', color: '#50fa7b', background: 'rgba(39,40,34,0.88)' }}>
+            <button onClick={downloadExcelFile} style={{ ...btnStyle, borderColor: 'rgba(166,226,46,0.4)', width: '100%', textAlign: 'center', color: '#50fa7b', background: 'rgba(39,40,34,0.88)', justifyContent: 'center' }}>
               下载 Excel
             </button>
           </div>
@@ -2251,7 +2722,7 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
                   <marker id="leg-arrow-gray" markerWidth="6" markerHeight="4" refX="6" refY="2" orient="auto">
                     <polygon points="0 0, 6 2, 0 4" fill="rgba(255,255,255,0.55)" />
                   </marker>
-                  <marker id="leg-arrow-lavender" markerWidth="6" markerHeight="4" refX="6" refY="2" orient="auto">
+                  <marker id="leg-arrow-amethyst" markerWidth="6" markerHeight="4" refX="6" refY="2" orient="auto">
                     <polygon points="0 0, 6 2, 0 4" fill="#FF9CF7" />
                   </marker>
                 </defs>
@@ -2268,11 +2739,11 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
             <div style={{ display: 'flex', alignItems: 'center', marginTop: 4 }}>
               <svg width="36" height="10" style={{ marginRight: 5 }}>
                 <defs>
-                  <marker id="leg-arrow-lavender" markerWidth="6" markerHeight="4" refX="6" refY="2" orient="auto">
+                  <marker id="leg-arrow-amethyst" markerWidth="6" markerHeight="4" refX="6" refY="2" orient="auto">
                     <polygon points="0 0, 6 2, 0 4" fill="#FF9CF7" />
                   </marker>
                 </defs>
-                <line x1="0" y1="5" x2="26" y2="5" stroke="#FF9CF7" strokeWidth="1" markerEnd="url(#leg-arrow-lavender)" />
+                <line x1="0" y1="5" x2="26" y2="5" stroke="#FF9CF7" strokeWidth="1" markerEnd="url(#leg-arrow-amethyst)" />
               </svg>
               <span style={{ fontSize: 11, color: '#ccc' }}>行动连线</span>
             </div>
@@ -2367,7 +2838,108 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
         </div>
       )}
 
-      <style>{`@keyframes nv-pulse { from { width: 20%; } to { width: 80%; } }`}</style>
+      <style>{`
+        @keyframes nv-pulse { from { width: 20%; } to { width: 80%; } }
+        
+        .nv-dim {
+          opacity: 0.12 !important;
+          transition: opacity 0.4s ease-in-out;
+        }
+        .nv-dim-label {
+          opacity: 0.12 !important;
+          transition: opacity 0.4s ease-in-out;
+        }
+        .nv-node circle, .nv-node-label, .nv-link-instance {
+          transition: opacity 0.3s ease, stroke-width 0.3s ease, stroke 0.3s ease;
+        }
+        
+        @keyframes nv-glowing-pulse {
+          0% {
+            stroke: #00BFFF;
+            stroke-width: 2px;
+            filter: drop-shadow(0 0 2px rgba(0, 191, 255, 0.6));
+          }
+          50% {
+            stroke: #66d9ef;
+            stroke-width: 4px;
+            filter: drop-shadow(0 0 8px rgba(102, 217, 239, 0.95));
+          }
+          100% {
+            stroke: #00BFFF;
+            stroke-width: 2px;
+            filter: drop-shadow(0 0 2px rgba(0, 191, 255, 0.6));
+          }
+        }
+        .nv-pulse-glow {
+          animation: nv-glowing-pulse 1.6s infinite alternate ease-in-out !important;
+        }
+
+        /* Automatic button/input hover effects for all panels inside the D3 container */
+        div[style*="position: absolute"] button,
+        div[style*="position: 'absolute'"] button {
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        }
+        div[style*="position: absolute"] button:hover:not(:disabled),
+        div[style*="position: 'absolute'"] button:hover:not(:disabled) {
+          background: rgba(255, 255, 255, 0.08) !important;
+          border-color: rgba(255, 255, 255, 0.25) !important;
+          transform: translateY(-1px);
+        }
+        div[style*="position: absolute"] button:active:not(:disabled),
+        div[style*="position: 'absolute'"] button:active:not(:disabled) {
+          transform: translateY(0);
+        }
+        div[style*="position: absolute"] input,
+        div[style*="position: absolute"] select {
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        }
+        div[style*="position: absolute"] input:focus,
+        div[style*="position: absolute"] select:focus {
+          border-color: rgba(255, 255, 255, 0.3) !important;
+          box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.05);
+        }
+
+        .nv-context-menu {
+          position: absolute;
+          z-index: 2100;
+          background: rgba(18, 19, 26, 0.95);
+          backdrop-filter: blur(12px);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 8px;
+          padding: 4px;
+          box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+          min-width: 140px;
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+        }
+        .nv-context-menu-item {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 6px 12px;
+          font-size: 11px;
+          color: #e2e8f0;
+          cursor: pointer;
+          border-radius: 6px;
+          transition: all 0.15s ease;
+          background: transparent;
+          border: none;
+          text-align: left;
+          width: 100%;
+        }
+        .nv-context-menu-item:hover {
+          background: rgba(255, 255, 255, 0.06);
+          color: #ffffff;
+        }
+        .nv-context-menu-item.danger {
+          color: #f87171;
+        }
+        .nv-context-menu-item.danger:hover {
+          background: rgba(239, 68, 68, 0.15);
+          color: #fca5a5;
+        }
+      `}</style>
 
       {showHelp && (
         <CanvasHelpPanel
@@ -2517,6 +3089,48 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
               </>
             );
           })()}
+        </div>
+      )}
+
+      {contextMenu && (
+        <div
+          className="nv-context-menu"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+          onClick={e => e.stopPropagation()}
+        >
+          <button
+            className="nv-context-menu-item"
+            onClick={() => {
+              setSelectedNode(contextMenu.node);
+              showNodeInfo(contextMenu.node, graphDataRef.current);
+              setFocusedNodeId(contextMenu.node.id);
+              setScopeMode('focus');
+              setContextMenu(null);
+            }}
+          >
+            🎯 聚焦与查看详情
+          </button>
+          <button
+            className="nv-context-menu-item"
+            onClick={() => {
+              toggleNodeCollapse(contextMenu.node.id, nodesRef.current, graphDataRef.current?.links || [], allNodeGroupsRef.current as any, labelElsRef.current as any, linkElsRef.current as any, collapsedRef.current);
+              setContextMenu(null);
+            }}
+          >
+            🔄 折叠 / 展开关系
+          </button>
+          <button
+            className="nv-context-menu-item danger"
+            onClick={() => {
+              if (confirm(`确定要删除此节点 "${contextMenu.node.label}" 吗？该操作同时会删除相关的连线与数据。`)) {
+                handleContextMenuDelete(contextMenu.node);
+              } else {
+                setContextMenu(null);
+              }
+            }}
+          >
+            🗑️ 删除该节点
+          </button>
         </div>
       )}
 

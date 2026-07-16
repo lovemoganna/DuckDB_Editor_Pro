@@ -51,7 +51,7 @@ const CANVAS_HELP: HelpSection[] = [
   {
     title: '最佳实践',
     icon: <Wand2 className="w-3.5 h-3.5" />,
-    color: '#a78bfa',
+    color: '#ae81ff',
     items: [
       '先用 AI 一键填充生成基础拓扑，再手动微调',
       'Transform 节点应至少有一个输入边、一个输出边',
@@ -90,7 +90,7 @@ const GRAPH_HELP: HelpSection[] = [
   {
     title: '最佳实践',
     icon: <Wand2 className="w-3.5 h-3.5" />,
-    color: '#a78bfa',
+    color: '#ae81ff',
     items: [
       '先在 MECE 基础层构建对象，再在图谱中观察关系',
       'AI 图谱生成后，先 Fit All 查看全貌再精细操作',
@@ -144,10 +144,10 @@ export const CANVAS_MECE_LAYER_DESIGN: Record<MECELayer, MECELayerDesign> = {
     label: 'Foundation',
     labelZh: '基础层',
     description: '定义对象类型（Object Type）和实例（Object Instance），是本体论的根基。',
-    color: '#a78bfa',
-    textClass: 'text-[#a78bfa]',
-    bgClass: 'bg-[#a78bfa]/[8%]',
-    borderClass: 'border-[#a78bfa]/[20%]',
+    color: '#ae81ff',
+    textClass: 'text-[#ae81ff]',
+    bgClass: 'bg-[#ae81ff]/[8%]',
+    borderClass: 'border-[#ae81ff]/[20%]',
     icon: 'Database',
     applicableScenario: '设计数据表结构、定义概念维度、批量导入实体',
     commonMistakes: [
@@ -362,7 +362,7 @@ export const CanvasHelpPanel: React.FC<CanvasHelpPanelProps> = ({ config, onClos
               border: '1px solid', cursor: 'pointer', transition: 'all 0.2s',
               background: activeTab === 'prompts' ? 'rgba(167,139,250,0.2)' : 'transparent',
               borderColor: activeTab === 'prompts' ? 'rgba(167,139,250,0.5)' : 'rgba(255,255,255,0.1)',
-              color: activeTab === 'prompts' ? '#c4b5fd' : '#64748b',
+              color: activeTab === 'prompts' ? '#bda2ff' : '#64748b',
             }}
           >
             AI 提示词
@@ -462,7 +462,7 @@ export const CanvasHelpPanel: React.FC<CanvasHelpPanelProps> = ({ config, onClos
                   <div style={{ paddingLeft: 10, marginBottom: 8, fontSize: 11, color: '#94a3b8', lineHeight: 1.6 }}>
                     {design.commonMistakes.map((m, i) => <div key={i} style={{ marginBottom: 3 }}>• {m}</div>)}
                   </div>
-                  <div style={{ padding: '8px 10px', borderRadius: 8, background: 'rgba(0,0,0,0.2)', fontSize: 11, color: '#a78bfa', lineHeight: 1.6 }}>
+                  <div style={{ padding: '8px 10px', borderRadius: 8, background: 'rgba(0,0,0,0.2)', fontSize: 11, color: '#ae81ff', lineHeight: 1.6 }}>
                     示例：{CANVAS_MECE_PROMPTS.example(layer)}
                   </div>
                 </div>
@@ -474,7 +474,7 @@ export const CanvasHelpPanel: React.FC<CanvasHelpPanelProps> = ({ config, onClos
             {config.type === 'canvas' ? (
               <>
                 <div>
-                  <div style={{ fontSize: 10, color: '#a78bfa', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
+                  <div style={{ fontSize: 10, color: '#ae81ff', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
                     AI 一键填充提示词
                   </div>
                   <div style={{ padding: '10px 12px', background: 'rgba(0,0,0,0.3)', borderRadius: 10, border: '1px solid rgba(167,139,250,0.15)', fontSize: 11, color: '#94a3b8', lineHeight: 1.7 }}>
@@ -497,7 +497,7 @@ export const CanvasHelpPanel: React.FC<CanvasHelpPanelProps> = ({ config, onClos
             ) : (
               <>
                 <div>
-                  <div style={{ fontSize: 10, color: '#a78bfa', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
+                  <div style={{ fontSize: 10, color: '#ae81ff', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
                     AI 图谱生成提示词
                   </div>
                   <div style={{ padding: '10px 12px', background: 'rgba(0,0,0,0.3)', borderRadius: 10, border: '1px solid rgba(167,139,250,0.15)', fontSize: 11, color: '#94a3b8', lineHeight: 1.7 }}>

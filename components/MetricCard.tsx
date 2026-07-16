@@ -186,7 +186,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({
           <h3 className="text-base font-bold text-monokai-fg flex items-center gap-2">
             <span className="text-monokai-pink">{metric.name}</span>
             {metric.category && (
-              <span className="px-2 py-0.5 bg-monokai-purple/30 rounded text-xs text-monokai-purple">
+              <span className="px-2 py-0.5 bg-monokai-amethyst/30 rounded text-xs text-monokai-amethyst">
                 {metric.category}
               </span>
             )}
@@ -219,7 +219,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({
             )}
             {/* Version indicator */}
             {metric.version && metric.version > 0 && (
-              <span className="flex items-center gap-1 px-2 py-0.5 bg-monokai-purple/20 rounded text-xs text-monokai-purple" title={`版本: v${metric.version}`}>
+              <span className="flex items-center gap-1 px-2 py-0.5 bg-monokai-amethyst/20 rounded text-xs text-monokai-amethyst" title={`版本: v${metric.version}`}>
                 v{metric.version}
               </span>
             )}
@@ -259,13 +259,13 @@ export const MetricCard: React.FC<MetricCardProps> = ({
               disabled={isGeneratingChart}
               className={`p-1.5 hover:bg-monokai-accent rounded transition-colors disabled:opacity-50 ${
                 hasChart 
-                  ? 'text-monokai-purple hover:text-monokai-purple' 
-                  : 'text-monokai-comment hover:text-monokai-purple'
+                  ? 'text-monokai-amethyst hover:text-monokai-amethyst' 
+                  : 'text-monokai-comment hover:text-monokai-amethyst'
               }`}
               title={hasChart ? "已生成图表" : "生成图表"}
             >
               {isGeneratingChart ? (
-                <div className="w-3.5 h-3.5 border-2 border-monokai-purple border-t-transparent rounded-full animate-spin" />
+                <div className="w-3.5 h-3.5 border-2 border-monokai-amethyst border-t-transparent rounded-full animate-spin" />
               ) : (
                 <BarChart2 size={14} />
               )}

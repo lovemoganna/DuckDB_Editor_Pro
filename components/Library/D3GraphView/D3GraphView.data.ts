@@ -102,6 +102,7 @@ export function buildGraphDataFromState(state: any, mapping: any, selectedTables
       description: propRaw, _objId: obj.id, _typeId: obj.object_type_id,
       _typeColor: typeColor, _instanceColor: instanceColor,
       _propsCount: propCount, _propsRaw: propRaw,
+      _typeName: type?.name || '',
     });
 
     if (type) {
@@ -173,65 +174,81 @@ export async function loadDynamicGraphData(mapping: any, selectedTables?: string
     );
 
     const typeMap: Record<number, any> = {};
-    objectTypes.forEach((t: any) => { typeMap[t.id] = t; });
+    objectTypes.forEach((t: any) => {
+      const tId = Number(t.id);
+      typeMap[tId] = { ...t, id: tId };
+    });
     const linkTypeMap: Record<number, any> = {};
-    linkTypes.forEach((lt: any) => { linkTypeMap[lt.id] = lt; });
+    linkTypes.forEach((lt: any) => {
+      const ltId = Number(lt.id);
+      linkTypeMap[ltId] = { ...lt, id: ltId };
+    });
 
     const objectsByType: Record<number, any[]> = {};
     filteredObjects.forEach((o: any) => {
-      if (!objectsByType[o.object_type_id]) objectsByType[o.object_type_id] = [];
-      objectsByType[o.object_type_id].push(o);
+      const typeId = Number(o.object_type_id);
+      if (!objectsByType[typeId]) objectsByType[typeId] = [];
+      objectsByType[typeId].push(o);
     });
 
     const nodes: GraphNode[] = [];
     const links: GraphLink[] = [];
 
     objectTypes.forEach((type: any) => {
-      const instList = objectsByType[type.id] || [];
+      const typeId = Number(type.id);
+      const instList = objectsByType[typeId] || [];
       const hasInstances = instList.length > 0;
-      const color = TYPE_COLORS_WARM[(type.id - 1) % TYPE_COLORS_WARM.length];
+      const color = TYPE_COLORS_WARM[(typeId - 1) % TYPE_COLORS_WARM.length];
       nodes.push({
-        id: `type::${type.id}`, label: type.name, group: 'typeHub', color, size: hasInstances ? 28 : 18,
-        description: type.description || '', _typeId: type.id, _instanceCount: instList.length,
+        id: `type::${typeId}`, label: type.name, group: 'typeHub', color, size: hasInstances ? 28 : 18,
+        description: type.description || '', _typeId: typeId, _instanceCount: instList.length,
         _hasInstances: hasInstances,
       });
     });
 
     filteredObjects.forEach((obj: any) => {
-      const type = typeMap[obj.object_type_id];
-      const idx = (obj.object_type_id - 1) % TYPE_COLORS_WARM.length;
+      const objId = Number(obj.id);
+      const typeId = Number(obj.object_type_id);
+      const type = typeMap[typeId];
+      const idx = (typeId - 1) % TYPE_COLORS_WARM.length;
       const typeColor = type ? TYPE_COLORS_WARM[idx] : '#c77dff';
       const instanceColor = type ? TYPE_COLORS_INSTANCE[idx] : '#a070d0';
       const { count: propCount, raw: propRaw } = parseProps(obj.properties);
       nodes.push({
-        id: `obj::${obj.id}`, label: obj.name, group: 'instance', color: instanceColor, size: 11,
-        description: propRaw, _objId: obj.id, _typeId: obj.object_type_id,
+        id: `obj::${objId}`, label: obj.name, group: 'instance', color: instanceColor, size: 11,
+        description: propRaw, _objId: objId, _typeId: typeId,
         _typeColor: typeColor, _instanceColor: instanceColor,
         _propsCount: propCount, _propsRaw: propRaw,
+        _typeName: type?.name || '',
       });
 
       if (type) {
-        links.push({ source: `obj::${obj.id}`, target: `type::${obj.object_type_id}`, color: typeColor, weight: 0.15, _isTypeInstLink: true });
+        links.push({ source: `obj::${objId}`, target: `type::${typeId}`, color: typeColor, weight: 0.15, _isTypeInstLink: true });
       }
     });
 
     filteredLinks.forEach((link: any) => {
-      const ltColor = LINKTYPE_COLORS[(link.link_type_id - 1) % LINKTYPE_COLORS.length];
+      const linkTypeId = Number(link.link_type_id);
+      const srcId = Number(link.source_object_id);
+      const tgtId = Number(link.target_object_id);
+      const ltColor = LINKTYPE_COLORS[(linkTypeId - 1) % LINKTYPE_COLORS.length];
       links.push({
-        source: `obj::${link.source_object_id}`, target: `obj::${link.target_object_id}`,
+        source: `obj::${srcId}`, target: `obj::${tgtId}`,
         color: ltColor, weight: Number(link.weight) || 0.5,
-        _linkTypeId: link.link_type_id, _linkTypeName: linkTypeMap[link.link_type_id]?.name,
+        _linkTypeId: linkTypeId, _linkTypeName: linkTypeMap[linkTypeId]?.name,
       });
     });
 
     actions.forEach((act: any) => {
-      if (!filteredObjectIds.has(Number(act.object_id))) return;
+      const actId = Number(act.id);
+      const objId = Number(act.object_id);
+      if (!filteredObjectIds.has(objId)) return;
       const statusColor = act.status === 'done' ? '#50fa7b' : '#ff5a8a';
       nodes.push({
-        id: `action::${act.id}`, label: act.name, group: 'action', color: statusColor, size: 10,
-        description: act.description || '', _objId: Number(act.object_id),
+        id: `action::${actId}`, label: act.name, group: 'action', color: statusColor, size: 10,
+        description: act.description || '', _objId: objId,
       });
-      links.push({ source: `obj::${act.object_id}`, target: `action::${act.id}`, color: '#ff5a8a', weight: 0.2 });
+      links.push({ source: `obj::${objId}`, target: `action::${actId}`, color: '#ff5a8a', weight: 0.2 });
     });
 
     const typeNames = objectTypes.map((t: any) => t.name);

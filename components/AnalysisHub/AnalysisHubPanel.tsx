@@ -78,7 +78,7 @@ export const AnalysisHubPanel: React.FC<AnalysisHubPanelProps> = ({
       <header className="flex items-center justify-between px-5 py-3 bg-monokai-surface border-b border-monokai-border">
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-monokai-purple to-monokai-blue flex items-center justify-center">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-monokai-amethyst to-monokai-blue flex items-center justify-center">
               <Activity className="w-4 h-4 text-white" />
             </div>
             <span className="text-sm font-semibold text-monokai-fg tracking-tight">Analysis Hub</span>
@@ -93,7 +93,7 @@ export const AnalysisHubPanel: React.FC<AnalysisHubPanelProps> = ({
                   onClick={() => setActiveMainTab(tab.id)}
                   className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-all duration-150 ${
                     activeMainTab === tab.id
-                      ? 'bg-monokai-purple/15 text-monokai-purple font-medium'
+                      ? 'bg-monokai-amethyst/15 text-monokai-amethyst font-medium'
                       : 'text-monokai-fg-muted hover:text-monokai-fg hover:bg-monokai-bg'
                   }`}
                 >

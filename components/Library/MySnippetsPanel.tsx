@@ -248,7 +248,7 @@ export const MySnippetsPanel: React.FC<MySnippetsPanelProps> = ({
         <button
           onClick={handleAIFill}
           disabled={isAIFilling}
-          className="flex items-center gap-1 px-3 py-1.5 bg-gradient-to-r from-monokai-purple to-monokai-pink text-white rounded-lg text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+          className="flex items-center gap-1 px-3 py-1.5 bg-gradient-to-r from-monokai-amethyst to-monokai-pink text-white rounded-lg text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
           title="AI 一键填充（Ctrl+Shift+A）"
         >
           {isAIFilling ? (
@@ -447,11 +447,11 @@ export const MySnippetsPanel: React.FC<MySnippetsPanelProps> = ({
       {/* AI 建议弹窗 */}
       {showAISuggestions && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-monokai-bg border border-monokai-purple/30 rounded-xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
+          <div className="bg-monokai-bg border border-monokai-amethyst/30 rounded-xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
             {/* 弹窗头部 */}
             <div className="p-4 border-b border-monokai-accent flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-monokai-purple" />
+                <Sparkles className="w-5 h-5 text-monokai-amethyst" />
                 <h3 className="text-lg font-bold text-monokai-fg">AI 智能推荐</h3>
               </div>
               <button
@@ -497,9 +497,9 @@ export const MySnippetsPanel: React.FC<MySnippetsPanelProps> = ({
                 ))}
               </div>
 
-              <div className="mt-4 p-3 bg-monokai-purple/10 rounded-lg border border-monokai-purple/20">
+              <div className="mt-4 p-3 bg-monokai-amethyst/10 rounded-lg border border-monokai-amethyst/20">
                 <p className="text-xs text-monokai-comment">
-                  💡 <span className="text-monokai-purple font-medium">与 AI 二次优化：</span>
+                  💡 <span className="text-monokai-amethyst font-medium">与 AI 二次优化：</span>
                   您可以点击上方片段直接采用，也可以复制后让 AI 为您定制更贴合业务需求的内容。
                 </p>
               </div>

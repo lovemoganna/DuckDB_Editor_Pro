@@ -56,7 +56,7 @@ export const SqlEditorErrorView: React.FC<SqlEditorErrorViewProps> = ({
         <button
           onClick={onFixWithAi}
           disabled={isFixing}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-monokai-purple/15 hover:bg-monokai-purple/25 border border-monokai-purple/40 text-monokai-purple text-[11px] font-bold rounded transition-colors disabled:opacity-40"
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-monokai-amethyst/15 hover:bg-monokai-amethyst/25 border border-monokai-amethyst/40 text-monokai-amethyst text-[11px] font-bold rounded transition-colors disabled:opacity-40"
         >
           {isFixing
             ? <><Loader2 size={11} className="animate-spin" /> <span>Analyzing...</span></>

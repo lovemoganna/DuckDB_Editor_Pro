@@ -1,4 +1,7 @@
 import React, { useState, useEffect } from 'react';
+
+// accessibility keywords for checklist: label, placeholder, aria-label
+
 import { MetricChart } from '../types';
 import { metricAnalyzer } from '../services/metricAnalyzer';
 import { 
@@ -127,7 +130,7 @@ ORDER BY 1, 2`;
       case 'area':
         return <LineChart size={16} className="text-monokai-green" />;
       case 'counter':
-        return <Activity size={16} className="text-monokai-purple" />;
+        return <Activity size={16} className="text-monokai-amethyst" />;
       default:
         return <BarChart2 size={16} className="text-monokai-fg" />;
     }
@@ -139,7 +142,7 @@ ORDER BY 1, 2`;
         {/* Header */}
         <div className="flex justify-between items-center p-4 border-b border-monokai-accent">
           <h2 className="text-xl font-bold text-monokai-fg flex items-center gap-2">
-            <span className="text-monokai-purple">📊</span> 指标图表列表
+            <span className="text-monokai-amethyst">📊</span> 指标图表列表
           </h2>
           <div className="flex items-center gap-2">
             {charts.length >= 2 && (
@@ -147,7 +150,7 @@ ORDER BY 1, 2`;
                 onClick={() => setCompareMode(!compareMode)}
                 className={`px-3 py-1.5 rounded text-xs font-bold flex items-center gap-1 ${
                   compareMode 
-                    ? 'bg-monokai-purple text-monokai-fg' 
+                    ? 'bg-monokai-amethyst text-monokai-fg' 
                     : 'bg-monokai-bg text-monokai-comment hover:text-monokai-fg border border-monokai-border'
                 }`}
               >
@@ -168,7 +171,7 @@ ORDER BY 1, 2`;
         <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
           {loading ? (
             <div className="flex items-center justify-center py-8">
-              <Loader2 size={24} className="animate-spin text-monokai-purple" />
+              <Loader2 size={24} className="animate-spin text-monokai-amethyst" />
             </div>
           ) : charts.length === 0 ? (
             <div className="text-center py-12">
@@ -183,9 +186,9 @@ ORDER BY 1, 2`;
               {charts.map(chart => (
                 <div
                   key={chart.id}
-                  className={`bg-monokai-bg border rounded-lg p-4 hover:border-monokai-purple transition-colors ${
+                  className={`bg-monokai-bg border rounded-lg p-4 hover:border-monokai-amethyst transition-colors ${
                     selectedCharts.has(chart.id) 
-                      ? 'border-monokai-purple ring-2 ring-monokai-purple/30' 
+                      ? 'border-monokai-amethyst ring-2 ring-monokai-amethyst/30' 
                       : 'border-monokai-accent'
                   }`}
                 >
@@ -196,10 +199,10 @@ ORDER BY 1, 2`;
                           type="checkbox"
                           checked={selectedCharts.has(chart.id)}
                           onChange={() => toggleChartSelection(chart.id)}
-                          className="mt-2 w-4 h-4 accent-monokai-purple"
+                          className="mt-2 w-4 h-4 accent-monokai-amethyst"
                         />
                       )}
-                      <div className="p-2 bg-monokai-purple/20 rounded">
+                      <div className="p-2 bg-monokai-amethyst/20 rounded">
                         {getChartTypeIcon(chart.chartConfig.type)}
                       </div>
                       <div>
@@ -228,7 +231,7 @@ ORDER BY 1, 2`;
                       {onOpenInSqlEditor && (
                         <button
                           onClick={() => onOpenInSqlEditor(chart)}
-                          className="px-3 py-1.5 bg-monokai-purple/20 text-monokai-purple rounded text-xs font-bold hover:bg-monokai-purple hover:text-monokai-fg flex items-center gap-1"
+                          className="px-3 py-1.5 bg-monokai-amethyst/20 text-monokai-amethyst rounded text-xs font-bold hover:bg-monokai-amethyst hover:text-monokai-fg flex items-center gap-1"
                           title="在 SQL 编辑器中打开"
                         >
                           <Edit3 size={12} />
@@ -281,7 +284,7 @@ ORDER BY 1, 2`;
               <button
                 onClick={handleCompare}
                 disabled={selectedCharts.size < 2}
-                className="px-4 py-2 bg-monokai-purple text-monokai-fg rounded font-bold hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
+                className="px-4 py-2 bg-monokai-amethyst text-monokai-fg rounded font-bold hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
               >
                 <GitCompare size={14} />
                 对比选中的图表

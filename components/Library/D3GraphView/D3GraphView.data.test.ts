@@ -71,7 +71,7 @@ const defaultSeedState = {
 };
 
 describe('default ontology seed', () => {
-  it('contains complete Aspect, Person, and Goal starter data', () => {
+  it('contains complete Palantir Ontology meta-model starter data', () => {
     const objectTypeRows = countInsertRows(ONTOLOGY_SEED_STATEMENTS.find(s => s.includes('life_object_type'))!);
     const objectRows = ONTOLOGY_SEED_STATEMENTS
       .filter(s => s.includes('INSERT INTO life_object '))
@@ -80,10 +80,10 @@ describe('default ontology seed', () => {
     const linkRows = countInsertRows(ONTOLOGY_SEED_STATEMENTS.find(s => s.includes('INSERT INTO life_link VALUES'))!);
     const actionRows = countInsertRows(ONTOLOGY_SEED_STATEMENTS.find(s => s.includes('life_action'))!);
 
-    expect(objectTypeRows).toBe(3);
-    expect(objectRows).toBe(12);
-    expect(linkTypeRows).toBe(6);
-    expect(linkRows).toBe(13);
+    expect(objectTypeRows).toBe(2);
+    expect(objectRows).toBe(6);
+    expect(linkTypeRows).toBe(7);
+    expect(linkRows).toBe(7);
     expect(actionRows).toBe(3);
   });
 });

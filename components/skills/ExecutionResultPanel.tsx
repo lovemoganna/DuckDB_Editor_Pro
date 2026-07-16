@@ -90,9 +90,9 @@ export const ExecutionResultPanel: React.FC<ExecutionResultPanelProps> = ({
             <div className="flex items-center gap-1.5 mb-1">
               <span className="text-[10px] text-monokai-comment/70 font-sans">流式输出</span>
             </div>
-            <pre className="p-3 bg-monokai-sidebar/60 rounded-lg overflow-x-auto text-xs font-mono text-monokai-fg custom-scrollbar max-h-48 border border-monokai-purple/20">
+            <pre className="p-3 bg-monokai-sidebar/60 rounded-lg overflow-x-auto text-xs font-mono text-monokai-fg custom-scrollbar max-h-48 border border-monokai-amethyst/20">
               {streamingSql}
-              <span className="inline-block w-2 h-3.5 bg-monokai-purple ml-0.5 animate-pulse align-middle" />
+              <span className="inline-block w-2 h-3.5 bg-monokai-amethyst ml-0.5 animate-pulse align-middle" />
             </pre>
           </div>
         )}

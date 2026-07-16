@@ -8,7 +8,7 @@ import { AbstractionTable } from '../../types';
 
 // 静态颜色映射（解决 Tailwind 动态类名问题）
 const LEVEL_COLOR_CLASSES: Record<string, string> = {
-  purple: 'bg-monokai-purple/20 text-monokai-purple',
+  amethyst: 'bg-monokai-amethyst/20 text-monokai-amethyst',
   blue:   'bg-monokai-blue/20 text-monokai-blue',
   green:  'bg-monokai-green/20 text-monokai-green',
   yellow: 'bg-monokai-yellow/20 text-monokai-yellow',
@@ -20,7 +20,7 @@ const LEVEL_COLOR_CLASSES: Record<string, string> = {
 };
 
 const LEVEL_BORDER_CLASSES: Record<string, string> = {
-  purple: 'border-monokai-purple/30',
+  amethyst: 'border-monokai-amethyst/30',
   blue:   'border-monokai-blue/30',
   green:  'border-monokai-green/30',
   yellow: 'border-monokai-yellow/30',

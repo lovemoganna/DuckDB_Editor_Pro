@@ -171,12 +171,14 @@ const OntologyInsightsPanel: React.FC<OntologyInsightsPanelProps> = ({
     setNeedsInit(false);
     try {
       await duckDBService.ontologyInit();
+      // Dynamically import ontologyInsightsService to preserve separation
+      const insightsService = await import('../../services/ontology/ontologyInsightsService');
       const [ints, ins] = await Promise.all([
-        duckDBService.query('SELECT * FROM life_introspection ORDER BY created_at DESC LIMIT 20'),
-        duckDBService.query('SELECT li.*, lo.name as object_name FROM life_insight li LEFT JOIN life_object lo ON li.object_id = lo.id ORDER BY li.created_at DESC LIMIT 20'),
+        insightsService.queryRecentIntrospections(20),
+        insightsService.queryRecentInsights(20),
       ]);
-      setIntrospections(ints as Introspection[]);
-      setInsights(ins as Insight[]);
+      setIntrospections(ints as any[]);
+      setInsights(ins as any[]);
     } catch (e: any) {
       const msg = e?.message || '';
       if (msg.includes('does not exist') || msg.includes('Catalog Error')) {
@@ -199,9 +201,10 @@ const OntologyInsightsPanel: React.FC<OntologyInsightsPanelProps> = ({
     if (!selectedObject || !introspectionQ.trim() || !introspectionA.trim()) return;
     setSaving(true);
     try {
-      await duckDBService.addIntrospection(selectedObject.id, introspectionQ, introspectionA);
-      const ints = await duckDBService.query(`SELECT * FROM life_introspection WHERE object_id = ${selectedObject.id} ORDER BY created_at DESC LIMIT 20`);
-      setIntrospections(ints as Introspection[]);
+      const insightsService = await import('../../services/ontology/ontologyInsightsService');
+      await insightsService.addIntrospection(selectedObject.id, introspectionQ, introspectionA);
+      const ints = await insightsService.queryIntrospectionsByObject(selectedObject.id, 20);
+      setIntrospections(ints as any[]);
       setIntrospectionQ('');
       setIntrospectionA('');
     } catch {}
@@ -212,9 +215,10 @@ const OntologyInsightsPanel: React.FC<OntologyInsightsPanelProps> = ({
     if (!selectedObject || !insightText.trim()) return;
     setSaving(true);
     try {
-      await duckDBService.addInsight(selectedObject.id, insightText, insightTag || 'general');
-      const ins = await duckDBService.query('SELECT li.*, lo.name as object_name FROM life_insight li LEFT JOIN life_object lo ON li.object_id = lo.id ORDER BY li.created_at DESC LIMIT 20');
-      setInsights(ins as Insight[]);
+      const insightsService = await import('../../services/ontology/ontologyInsightsService');
+      await insightsService.addInsight(selectedObject.id, insightText, insightTag || 'general');
+      const ins = await insightsService.queryRecentInsights(20);
+      setInsights(ins as any[]);
       setInsightText('');
       setInsightTag('');
     } catch {}
@@ -223,13 +227,14 @@ const OntologyInsightsPanel: React.FC<OntologyInsightsPanelProps> = ({
 
   const handleDeleteInsight = async (id: number) => {
     try {
-      await duckDBService.deleteInsight(id);
+      const insightsService = await import('../../services/ontology/ontologyInsightsService');
+      await insightsService.deleteInsight(id);
       setInsights(prev => prev.filter(i => i.id !== id));
     } catch {}
   };
 
   const TABS = [
-    { id: 'overview' as const, label: '总览', icon: <TrendingUp className="w-3 h-3" />, color: '#a78bfa' },
+    { id: 'overview' as const, label: '总览', icon: <TrendingUp className="w-3 h-3" />, color: '#ae81ff' },
     { id: 'suggestions' as const, label: `建议 (${suggestions.length})`, icon: <Lightbulb className="w-3 h-3" />, color: '#fbbf24' },
     { id: 'introspect' as const, label: '反思', icon: <Brain className="w-3 h-3" />, color: '#38bdf8' },
     { id: 'insights' as const, label: `洞察 (${insights.length})`, icon: <Lightbulb className="w-3 h-3" />, color: '#4ade80' },
@@ -275,7 +280,7 @@ const OntologyInsightsPanel: React.FC<OntologyInsightsPanelProps> = ({
         )}
         {needsInit && (
           <div style={{ marginBottom: 10, padding: '12px 16px', background: 'rgba(167, 139, 250, 0.08)', border: '1px solid rgba(167, 139, 250, 0.25)', borderRadius: 10, textAlign: 'center' }}>
-            <div style={{ fontSize: 12, color: '#c4b5fd', fontWeight: 600, marginBottom: 4 }}>本体论尚未初始化</div>
+            <div style={{ fontSize: 12, color: '#bda2ff', fontWeight: 600, marginBottom: 4 }}>本体论尚未初始化</div>
             <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 10, lineHeight: 1.6 }}>
               点击下方按钮初始化并导入种子数据后，即可使用 AI 洞察分析功能。
             </div>
@@ -297,10 +302,10 @@ const OntologyInsightsPanel: React.FC<OntologyInsightsPanelProps> = ({
                 background: initting ? 'rgba(167,139,250,0.5)' : 'rgba(167,139,250,0.2)',
                 border: '1px solid rgba(167,139,250,0.4)',
                 cursor: initting ? 'not-allowed' : 'pointer',
-                color: '#c4b5fd', fontSize: 12, fontWeight: 600,
+                color: '#bda2ff', fontSize: 12, fontWeight: 600,
               }}
             >
-              {initting ? <><div className="animate-spin" style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#c4b5fd', borderRadius: '50%' }} /> 初始化中...</> : <><Sparkles className="w-3.5 h-3.5" /> 一键初始化</>}
+              {initting ? <><div className="animate-spin" style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#bda2ff', borderRadius: '50%' }} /> 初始化中...</> : <><Sparkles className="w-3.5 h-3.5" /> 一键初始化</>}
             </button>
           </div>
         )}
@@ -309,7 +314,7 @@ const OntologyInsightsPanel: React.FC<OntologyInsightsPanelProps> = ({
             {/* Stats */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
               {[
-                { label: '对象', value: objects.length, color: '#a78bfa' },
+                { label: '对象', value: objects.length, color: '#ae81ff' },
                 { label: '关系', value: links.length, color: '#22c55e' },
                 { label: '类型', value: objectTypes.length, color: '#38bdf8' },
                 { label: '建议', value: suggestions.length, color: '#fbbf24' },
@@ -333,7 +338,7 @@ const OntologyInsightsPanel: React.FC<OntologyInsightsPanelProps> = ({
                       <span style={{ fontSize: 10, color: '#6b7280' }}>{tc.count} ({tc.coverage})</span>
                     </div>
                     <div style={{ height: 4, background: 'rgba(255,255,255,0.08)', borderRadius: 2, overflow: 'hidden' }}>
-                      <div style={{ height: '100%', width: `${pct}%`, background: '#a78bfa', borderRadius: 2, transition: 'width 0.3s' }} />
+                      <div style={{ height: '100%', width: `${pct}%`, background: '#ae81ff', borderRadius: 2, transition: 'width 0.3s' }} />
                     </div>
                   </div>
                 );
@@ -405,7 +410,7 @@ const OntologyInsightsPanel: React.FC<OntologyInsightsPanelProps> = ({
                 </div>
                 {aiSuggestions.map((item, i) => {
                   const TYPE_COLORS: Record<string, string> = {
-                    object: '#a78bfa', link: '#22c55e', action: '#fbbf24', introspection: '#38bdf8'
+                    object: '#ae81ff', link: '#22c55e', action: '#fbbf24', introspection: '#38bdf8'
                   };
                   const color = TYPE_COLORS[item.type] || '#4ade80';
                   return (
@@ -527,7 +532,7 @@ const OntologyInsightsPanel: React.FC<OntologyInsightsPanelProps> = ({
                       {q.relatedConcepts?.length > 0 && (
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
                           {q.relatedConcepts.map((c, j) => (
-                            <span key={j} style={{ padding: '1px 6px', background: 'rgba(167,139,250,0.2)', color: '#a78bfa', fontSize: 9, borderRadius: 4 }}>{c}</span>
+                            <span key={j} style={{ padding: '1px 6px', background: 'rgba(167,139,250,0.2)', color: '#ae81ff', fontSize: 9, borderRadius: 4 }}>{c}</span>
                           ))}
                         </div>
                       )}
@@ -645,7 +650,7 @@ const OntologyInsightsPanel: React.FC<OntologyInsightsPanelProps> = ({
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                       {ins.tag && (
-                        <span style={{ padding: '2px 7px', background: 'rgba(167,139,250,0.15)', border: '1px solid rgba(167,139,250,0.3)', borderRadius: 12, fontSize: 9, color: '#c4b5fd' }}>
+                        <span style={{ padding: '2px 7px', background: 'rgba(167,139,250,0.15)', border: '1px solid rgba(167,139,250,0.3)', borderRadius: 12, fontSize: 9, color: '#bda2ff' }}>
                           <Tag className="w-2.5 h-2.5 inline" /> {ins.tag}
                         </span>
                       )}

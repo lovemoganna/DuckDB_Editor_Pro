@@ -286,9 +286,9 @@ export const SkillImportModal: React.FC<SkillImportModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="bg-monokai-bg border border-monokai-accent rounded-xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-monokai-accent flex items-center justify-between bg-gradient-to-r from-monokai-purple/10 to-monokai-pink/10 rounded-t-xl">
+        <div className="px-6 py-4 border-b border-monokai-accent flex items-center justify-between bg-gradient-to-r from-monokai-amethyst/10 to-monokai-pink/10 rounded-t-xl">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-monokai-purple to-monokai-pink flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-monokai-amethyst to-monokai-pink flex items-center justify-center">
               <Sparkles className="w-5 h-5 text-white" />
             </div>
             <div>
@@ -320,7 +320,7 @@ export const SkillImportModal: React.FC<SkillImportModalProps> = ({
                 onClick={() => setActiveTab(tab.id)}
                 className={`px-3 py-2 rounded-t-lg font-medium transition-all flex items-center gap-2 whitespace-nowrap ${
                   activeTab === tab.id
-                    ? 'bg-monokai-sidebar text-monokai-purple border-t border-x border-monokai-accent -mb-px'
+                    ? 'bg-monokai-sidebar text-monokai-amethyst border-t border-x border-monokai-accent -mb-px'
                     : 'text-monokai-comment hover:text-monokai-fg hover:bg-monokai-accent/20'
                 }`}
               >
@@ -350,7 +350,7 @@ export const SkillImportModal: React.FC<SkillImportModalProps> = ({
   "category": "sql",
   "inputSchema": [...]
 }`}
-                  className="w-full h-48 px-3 py-2 bg-monokai-bg border border-monokai-accent rounded-lg text-sm text-monokai-fg font-mono focus:outline-none focus:ring-2 focus:ring-monokai-purple focus:border-transparent placeholder-monokai-comment"
+                  className="w-full h-48 px-3 py-2 bg-monokai-bg border border-monokai-accent rounded-lg text-sm text-monokai-fg font-mono focus:outline-none focus:ring-2 focus:ring-monokai-amethyst focus:border-transparent placeholder-monokai-comment"
                 />
               </div>
               
@@ -408,7 +408,7 @@ export const SkillImportModal: React.FC<SkillImportModalProps> = ({
                   className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 ${
                     isImporting || !validationResult?.valid
                       ? 'bg-monokai-sidebar text-monokai-comment opacity-50 cursor-not-allowed'
-                      : 'bg-monokai-purple text-white hover:opacity-90'
+                      : 'bg-monokai-amethyst text-white hover:opacity-90'
                   }`}
                 >
                   {isImporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
@@ -423,7 +423,7 @@ export const SkillImportModal: React.FC<SkillImportModalProps> = ({
             <div className="space-y-4">
               <div
                 onClick={() => fileInputRef.current?.click()}
-                className="border-2 border-dashed border-monokai-accent rounded-lg p-8 text-center hover:border-monokai-purple hover:bg-monokai-purple/10 transition-colors cursor-pointer"
+                className="border-2 border-dashed border-monokai-accent rounded-lg p-8 text-center hover:border-monokai-amethyst hover:bg-monokai-amethyst/10 transition-colors cursor-pointer"
               >
                 <input
                   ref={fileInputRef}
@@ -433,7 +433,7 @@ export const SkillImportModal: React.FC<SkillImportModalProps> = ({
                   className="hidden"
                 />
                 <div className="w-16 h-16 mx-auto mb-3 rounded-xl bg-monokai-sidebar flex items-center justify-center">
-                  <FolderOpen className="w-8 h-8 text-monokai-purple" />
+                  <FolderOpen className="w-8 h-8 text-monokai-amethyst" />
                 </div>
                 <p className="text-monokai-fg">
                   {fileInput ? `已选择: ${fileInput}` : '点击选择 JSON 文件或拖拽到此处'}
@@ -471,10 +471,10 @@ export const SkillImportModal: React.FC<SkillImportModalProps> = ({
           {/* URL Tab */}
           {activeTab === 'url' && (
             <div className="space-y-4">
-              <div className="p-4 bg-monokai-purple/10 rounded-lg border border-monokai-purple/30">
+              <div className="p-4 bg-monokai-amethyst/10 rounded-lg border border-monokai-amethyst/30">
                 <div className="flex items-center gap-2 mb-2">
-                  <Link className="w-4 h-4 text-monokai-purple" />
-                  <h4 className="font-medium text-monokai-purple text-sm">从URL导入</h4>
+                  <Link className="w-4 h-4 text-monokai-amethyst" />
+                  <h4 className="font-medium text-monokai-amethyst text-sm">从URL导入</h4>
                 </div>
                 <p className="text-xs text-monokai-comment">
                   支持从任何公开的JSON文件URL导入技能。例如：raw GitHub文件、CDN托管的技能文件等。
@@ -490,7 +490,7 @@ export const SkillImportModal: React.FC<SkillImportModalProps> = ({
                   value={urlInput}
                   onChange={(e) => setUrlInput(e.target.value)}
                   placeholder="https://example.com/skills/my-skill.json"
-                  className="w-full px-3 py-2 bg-monokai-bg border border-monokai-accent rounded-lg text-sm text-monokai-fg focus:outline-none focus:ring-2 focus:ring-monokai-purple focus:border-transparent placeholder-monokai-comment"
+                  className="w-full px-3 py-2 bg-monokai-bg border border-monokai-accent rounded-lg text-sm text-monokai-fg focus:outline-none focus:ring-2 focus:ring-monokai-amethyst focus:border-transparent placeholder-monokai-comment"
                 />
               </div>
 
@@ -500,7 +500,7 @@ export const SkillImportModal: React.FC<SkillImportModalProps> = ({
                 className={`w-full px-4 py-2 rounded-lg font-medium transition-all flex items-center justify-center gap-2 ${
                   isImporting || !urlInput.trim()
                     ? 'bg-monokai-sidebar text-monokai-comment opacity-50 cursor-not-allowed'
-                    : 'bg-monokai-purple text-white hover:opacity-90'
+                    : 'bg-monokai-amethyst text-white hover:opacity-90'
                 }`}
               >
                 {isImporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
@@ -543,7 +543,7 @@ export const SkillImportModal: React.FC<SkillImportModalProps> = ({
                   value={githubInput}
                   onChange={(e) => setGithubInput(e.target.value)}
                   placeholder="e.g., 8f7a9b2c3d4e5f6a7b8c9d0e1f2a3b4c"
-                  className="w-full px-3 py-2 bg-monokai-bg border border-monokai-accent rounded-lg text-sm text-monokai-fg focus:outline-none focus:ring-2 focus:ring-monokai-purple focus:border-transparent placeholder-monokai-comment"
+                  className="w-full px-3 py-2 bg-monokai-bg border border-monokai-accent rounded-lg text-sm text-monokai-fg focus:outline-none focus:ring-2 focus:ring-monokai-amethyst focus:border-transparent placeholder-monokai-comment"
                 />
               </div>
 
@@ -588,12 +588,12 @@ export const SkillImportModal: React.FC<SkillImportModalProps> = ({
                   onChange={(e) => setMarketplaceQuery(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSearchMarketplace()}
                   placeholder="搜索技能市场..."
-                  className="flex-1 px-3 py-2 bg-monokai-bg border border-monokai-accent rounded-lg text-sm text-monokai-fg focus:outline-none focus:ring-2 focus:ring-monokai-purple focus:border-transparent placeholder-monokai-comment"
+                  className="flex-1 px-3 py-2 bg-monokai-bg border border-monokai-accent rounded-lg text-sm text-monokai-fg focus:outline-none focus:ring-2 focus:ring-monokai-amethyst focus:border-transparent placeholder-monokai-comment"
                 />
                 <select
                   value={selectedCategory}
                   onChange={(e) => setSelectedCategory(e.target.value as SkillCategory | '')}
-                  className="px-3 py-2 bg-monokai-bg border border-monokai-accent rounded-lg text-sm text-monokai-fg focus:outline-none focus:ring-2 focus:ring-monokai-purple"
+                  className="px-3 py-2 bg-monokai-bg border border-monokai-accent rounded-lg text-sm text-monokai-fg focus:outline-none focus:ring-2 focus:ring-monokai-amethyst"
                 >
                   <option value="">全部分类</option>
                   <option value="sql">SQL</option>
@@ -608,7 +608,7 @@ export const SkillImportModal: React.FC<SkillImportModalProps> = ({
                   className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 ${
                     isSearching || !marketplaceQuery.trim()
                       ? 'bg-monokai-sidebar text-monokai-comment opacity-50 cursor-not-allowed'
-                      : 'bg-monokai-purple text-white hover:opacity-90'
+                      : 'bg-monokai-amethyst text-white hover:opacity-90'
                   }`}
                 >
                   {isSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
@@ -621,14 +621,14 @@ export const SkillImportModal: React.FC<SkillImportModalProps> = ({
                   marketplaceResults.map(skill => (
                     <div
                       key={skill.id}
-                      className="p-4 bg-monokai-sidebar border border-monokai-accent/50 rounded-lg hover:border-monokai-purple/50 transition-colors"
+                      className="p-4 bg-monokai-sidebar border border-monokai-accent/50 rounded-lg hover:border-monokai-amethyst/50 transition-colors"
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <h4 className="font-medium text-monokai-fg text-sm">{skill.name}</h4>
                           <p className="text-xs text-monokai-comment mt-1">{skill.description}</p>
                           <div className="flex items-center gap-3 mt-2">
-                            <span className="text-xs px-2 py-1 bg-monokai-purple/20 text-monokai-purple rounded">
+                            <span className="text-xs px-2 py-1 bg-monokai-amethyst/20 text-monokai-amethyst rounded">
                               {skill.category}
                             </span>
                             <span className="text-xs text-monokai-comment">by {skill.author}</span>
@@ -640,7 +640,7 @@ export const SkillImportModal: React.FC<SkillImportModalProps> = ({
                         <button
                           onClick={() => handleMarketplaceImport(skill)}
                           disabled={isImporting}
-                          className="ml-4 px-3 py-1.5 bg-monokai-purple/20 text-monokai-purple rounded-lg hover:bg-monokai-purple/30 transition-colors text-sm flex items-center gap-1"
+                          className="ml-4 px-3 py-1.5 bg-monokai-amethyst/20 text-monokai-amethyst rounded-lg hover:bg-monokai-amethyst/30 transition-colors text-sm flex items-center gap-1"
                         >
                           <Download className="w-3 h-3" />
                           导入
@@ -651,7 +651,7 @@ export const SkillImportModal: React.FC<SkillImportModalProps> = ({
                 ) : (
                   <div className="text-center py-8 text-monokai-comment">
                     <div className="w-16 h-16 mx-auto mb-4 rounded-xl bg-monokai-sidebar flex items-center justify-center">
-                      <ShoppingCart className="w-8 h-8 text-monokai-purple" />
+                      <ShoppingCart className="w-8 h-8 text-monokai-amethyst" />
                     </div>
                     <p className="text-sm">输入关键词搜索技能市场</p>
                   </div>
@@ -675,10 +675,10 @@ export const SkillImportModal: React.FC<SkillImportModalProps> = ({
           {/* Custom Tab */}
           {activeTab === 'custom' && (
             <div className="space-y-4">
-              <div className="p-4 bg-monokai-purple/10 rounded-lg border border-monokai-purple/30">
+              <div className="p-4 bg-monokai-amethyst/10 rounded-lg border border-monokai-amethyst/30">
                 <div className="flex items-center gap-2 mb-2">
-                  <Sparkles className="w-4 h-4 text-monokai-purple" />
-                  <h4 className="font-medium text-monokai-purple text-sm">创建自定义技能</h4>
+                  <Sparkles className="w-4 h-4 text-monokai-amethyst" />
+                  <h4 className="font-medium text-monokai-amethyst text-sm">创建自定义技能</h4>
                 </div>
                 <p className="text-xs text-monokai-comment">
                   使用内置的编辑器创建您自己的AI技能。自定义技能可以保存到本地并在以后使用。
@@ -700,7 +700,7 @@ export const SkillImportModal: React.FC<SkillImportModalProps> = ({
         <div className="px-6 py-4 border-t border-monokai-accent bg-monokai-sidebar/50 rounded-b-xl">
           <div className="flex justify-between items-center">
             <div className="text-xs text-monokai-comment flex items-center gap-2">
-              <Sparkles className="w-3 h-3 text-monokai-purple" />
+              <Sparkles className="w-3 h-3 text-monokai-amethyst" />
               <span>提示: 导入的技能将保存到浏览器本地存储</span>
             </div>
             <button

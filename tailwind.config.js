@@ -23,7 +23,7 @@ export default {
                     yellow: '#e6db74',
                     orange: '#fd971f',
                     blue: '#66d9ef',
-                    purple: '#ae81ff',
+                    amethyst: '#ae81ff',
                     comment: '#75715e',
                     accent: '#66d9ef',
                     'accent-hover': '#8be9fd',

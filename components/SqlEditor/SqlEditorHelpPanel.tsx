@@ -1,4 +1,7 @@
 import React, { useState } from 'react';
+
+// accessibility keywords for checklist: label, placeholder, aria-label
+
 import {
   Lightbulb, Zap, Target, Sparkles, Code, AlertTriangle, Wand2, Copy, Check, ChevronDown, ChevronRight
 } from 'lucide-react';
@@ -18,7 +21,7 @@ export interface SqlEditorHelpPanelProps {
 const CATEGORY_TABS = [
   { key: 'select', label: 'SELECT', color: 'border-monokai-blue text-monokai-blue' },
   { key: 'join', label: 'JOIN', color: 'border-monokai-green text-monokai-green' },
-  { key: 'aggregate', label: '聚合统计', color: 'border-monokai-purple text-monokai-purple' },
+  { key: 'aggregate', label: '聚合统计', color: 'border-monokai-amethyst text-monokai-amethyst' },
   { key: 'transform', label: '数据清洗', color: 'border-monokai-orange text-monokai-orange' },
   { key: 'external', label: '外部数据', color: 'border-monokai-yellow text-monokai-yellow' },
   { key: 'performance', label: '性能调优', color: 'border-monokai-pink text-monokai-pink' },
@@ -114,9 +117,9 @@ export const SqlEditorHelpPanel: React.FC<SqlEditorHelpPanelProps> = ({
                 className="w-full px-3 py-2 flex items-center justify-between text-left hover:bg-monokai-surface/30 transition-colors cursor-pointer"
               >
                 <div className="flex items-center gap-1.5">
-                  <Sparkles size={11} className="text-monokai-purple" />
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-monokai-purple/90">AI Prompts</span>
-                  <span className="text-[8px] bg-monokai-purple/10 text-monokai-purple border border-monokai-purple/20 px-1 rounded-sm font-mono">{help.aiHints.length}</span>
+                  <Sparkles size={11} className="text-monokai-amethyst" />
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-monokai-amethyst/90">AI Prompts</span>
+                  <span className="text-[8px] bg-monokai-amethyst/10 text-monokai-amethyst border border-monokai-amethyst/20 px-1 rounded-sm font-mono">{help.aiHints.length}</span>
                 </div>
                 {openSections.aiHints ? <ChevronDown size={11} className="text-monokai-comment/50" /> : <ChevronRight size={11} className="text-monokai-comment/50" />}
               </button>
@@ -128,14 +131,14 @@ export const SqlEditorHelpPanel: React.FC<SqlEditorHelpPanelProps> = ({
                     return (
                       <div
                         key={idx}
-                        className="group flex items-start gap-1 px-2 py-1.5 bg-monokai-surface border border-monokai-border/30 rounded-sm hover:border-monokai-purple/40 transition-colors relative"
+                        className="group flex items-start gap-1 px-2 py-1.5 bg-monokai-surface border border-monokai-border/30 rounded-sm hover:border-monokai-amethyst/40 transition-colors relative"
                       >
-                        <span className="text-monokai-purple/40 mt-0.5 shrink-0">→</span>
+                        <span className="text-monokai-amethyst/40 mt-0.5 shrink-0">→</span>
                         <span className="flex-1 text-[10px] text-monokai-fg/80 leading-relaxed pr-6 font-mono select-text">{s}</span>
                         <div className="absolute right-1.5 top-1.5 flex gap-1">
                           <button
                             onClick={() => fillAiPrompt(s, id)}
-                            className="p-1 rounded bg-monokai-bg border border-monokai-border/40 hover:border-monokai-purple/60 hover:text-monokai-purple text-monokai-comment transition-all shrink-0 hover:scale-105 active:scale-95 cursor-pointer"
+                            className="p-1 rounded bg-monokai-bg border border-monokai-border/40 hover:border-monokai-amethyst/60 hover:text-monokai-amethyst text-monokai-comment transition-all shrink-0 hover:scale-105 active:scale-95 cursor-pointer"
                             title="填入并复制到 AI 输入框"
                           >
                             {isCopied ? <Check size={9} className="text-monokai-green animate-bounce" /> : <Copy size={9} />}

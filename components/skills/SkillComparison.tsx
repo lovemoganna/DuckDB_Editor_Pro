@@ -68,7 +68,7 @@ export const SkillComparison: React.FC<SkillComparisonProps> = ({
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-2 bg-monokai-sidebar border-b border-monokai-accent">
         <div className="flex items-center gap-2">
-          <GitCompare className="w-4 h-4 text-monokai-purple" />
+          <GitCompare className="w-4 h-4 text-monokai-amethyst" />
           <span className="text-xs font-medium text-monokai-fg">技能对比</span>
           <span className="text-[10px] text-monokai-comment">{skills.length} 个技能</span>
         </div>
@@ -250,7 +250,7 @@ export const SkillComparison: React.FC<SkillComparisonProps> = ({
                           <button
                             key={sim.id}
                             onClick={() => onSelectSkill?.(sim)}
-                            className="px-1.5 py-0.5 text-[9px] bg-monokai-bg border border-monokai-accent/30 text-monokai-comment hover:text-monokai-purple hover:border-monokai-purple/40 rounded transition-colors"
+                            className="px-1.5 py-0.5 text-[9px] bg-monokai-bg border border-monokai-accent/30 text-monokai-comment hover:text-monokai-amethyst hover:border-monokai-amethyst/40 rounded transition-colors"
                           >
                             {sim.name}
                           </button>
@@ -276,7 +276,7 @@ export const SkillComparison: React.FC<SkillComparisonProps> = ({
         {skills.length === 2 && onSelectSkill && (
           <button
             onClick={() => onSelectSkill(skills[0])}
-            className="px-3 py-1.5 text-[10px] bg-monokai-purple text-monokai-surface hover:bg-monokai-purple/80 rounded transition-colors"
+            className="px-3 py-1.5 text-[10px] bg-monokai-amethyst text-monokai-surface hover:bg-monokai-amethyst/80 rounded transition-colors"
           >
             使用第一个
           </button>

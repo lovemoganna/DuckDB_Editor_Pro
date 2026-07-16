@@ -58,7 +58,7 @@ export const SandboxAIPanel: React.FC = () => {
     <div className="h-full flex flex-col bg-monokai-bg">
       {/* 头部 */}
       <div className="flex items-center gap-2 px-4 py-3 bg-monokai-surface border-b border-monokai-border">
-        <div className="w-5 h-5 rounded bg-gradient-to-br from-monokai-purple to-monokai-blue flex items-center justify-center">
+        <div className="w-5 h-5 rounded bg-gradient-to-br from-monokai-amethyst to-monokai-blue flex items-center justify-center">
           <Sparkles className="w-3 h-3 text-white" />
         </div>
         <span className="text-xs font-semibold text-monokai-fg">AI 协作</span>
@@ -94,12 +94,12 @@ export const SandboxAIPanel: React.FC = () => {
           onChange={(e) => setPrompt(e.target.value)}
           placeholder={`描述你想要的 SQL 功能，例如：帮我写一个按日统计新用户的 ${OPERATION_CONFIG[operation].label} SQL`}
           rows={3}
-          className="w-full px-3 py-2 text-sm bg-monokai-surface border border-monokai-border rounded-lg text-monokai-fg placeholder-monokai-fg-muted/60 focus:outline-none focus:border-monokai-purple transition-colors resize-none"
+          className="w-full px-3 py-2 text-sm bg-monokai-surface border border-monokai-border rounded-lg text-monokai-fg placeholder-monokai-fg-muted/60 focus:outline-none focus:border-monokai-amethyst transition-colors resize-none"
         />
         <button
           onClick={handleGenerate}
           disabled={isGenerating || !prompt.trim()}
-          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-monokai-purple to-monokai-blue text-white text-sm font-semibold rounded-lg hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-monokai-amethyst to-monokai-blue text-white text-sm font-semibold rounded-lg hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
           style={{ boxShadow: '0 0 20px rgba(189,147,249,0.25)' }}
         >
           {isGenerating ? (
@@ -122,8 +122,8 @@ export const SandboxAIPanel: React.FC = () => {
         <div className="flex-1 px-4 pb-4 space-y-3 overflow-y-auto">
           {/* 解释 */}
           {explanation && (
-            <div className="px-3 py-2 bg-monokai-purple/10 border border-monokai-purple/30 rounded-lg">
-              <p className="text-xs text-monokai-purple leading-relaxed">{explanation}</p>
+            <div className="px-3 py-2 bg-monokai-amethyst/10 border border-monokai-amethyst/30 rounded-lg">
+              <p className="text-xs text-monokai-amethyst leading-relaxed">{explanation}</p>
             </div>
           )}
 

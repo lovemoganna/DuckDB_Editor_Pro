@@ -82,7 +82,7 @@ export const AbstractionHelp: React.FC<AbstractionHelpProps> = ({ compact = fals
 
         {/* AI 提示 */}
         <div>
-          <div className="flex items-center gap-1 text-[10px] font-medium text-monokai-purple mb-1">
+          <div className="flex items-center gap-1 text-[10px] font-medium text-monokai-amethyst mb-1">
             <Lightbulb className="w-3 h-3" /> AI 生成提示
           </div>
           <ul className="space-y-0.5 text-[10px] text-monokai-comment">
@@ -130,8 +130,8 @@ export const AbstractionHelp: React.FC<AbstractionHelpProps> = ({ compact = fals
       </div>
 
       {/* 最佳实践 */}
-      <div className="p-2 bg-monokai-purple/10 rounded border border-monokai-purple/20">
-        <div className="flex items-center gap-1 text-[10px] font-medium text-monokai-purple mb-1">
+      <div className="p-2 bg-monokai-amethyst/10 rounded border border-monokai-amethyst/20">
+        <div className="flex items-center gap-1 text-[10px] font-medium text-monokai-amethyst mb-1">
           <BookOpen className="w-3 h-3" /> 最佳实践
         </div>
         <ul className="space-y-0.5 text-[10px] text-monokai-comment">
@@ -143,9 +143,9 @@ export const AbstractionHelp: React.FC<AbstractionHelpProps> = ({ compact = fals
 
       {/* MECE 层级说明 */}
       <div className="p-2 bg-monokai-sidebar/50 rounded">
-        <div className="text-[10px] font-medium text-monokai-purple mb-2">MECE 抽象层级</div>
+        <div className="text-[10px] font-medium text-monokai-amethyst mb-2">MECE 抽象层级</div>
         <ul className="space-y-1 text-[10px] text-monokai-comment">
-          <li>• <span className="text-monokai-purple">概念(CONCEPT)</span>：业务实体抽象</li>
+          <li>• <span className="text-monokai-amethyst">概念(CONCEPT)</span>：业务实体抽象</li>
           <li>• <span className="text-monokai-blue">属性(PROPERTY)</span>：特征与度量</li>
           <li>• <span className="text-monokai-green">关系(RELATION)</span>：表间关联逻辑</li>
           <li>• <span className="text-monokai-yellow">实例(INSTANCE)</span>：具体表名与字段</li>

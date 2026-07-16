@@ -39,14 +39,14 @@ export interface CanvasState {
 }
 
 export const SPACE_COLORS = [
-  '#a78bfa', '#38bdf8', '#4ade80', '#fb923c',
+  '#ae81ff', '#38bdf8', '#4ade80', '#fb923c',
   '#f472b6', '#a3e635', '#fbbf24', '#60a5fa',
 ];
 
 export type MECELayer = 'foundation' | 'relations' | 'methodology' | 'patterns' | 'domains';
 
 export const MECE_LAYER_COLORS: Record<MECELayer, string> = {
-  foundation:  '#a78bfa',
+  foundation:  '#ae81ff',
   relations:   '#38bdf8',
   methodology: '#4ade80',
   patterns:    '#fb923c',

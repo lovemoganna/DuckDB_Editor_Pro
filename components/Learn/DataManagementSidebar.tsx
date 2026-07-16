@@ -260,7 +260,7 @@ export const DataManagementSidebar: React.FC<DataManagementSidebarProps> = ({
                 <div className="text-xs text-monokai-comment">收藏教程</div>
               </div>
               <div className="bg-monokai-bg/50 rounded-lg p-3 border border-monokai-accent/30">
-                <div className="text-xl font-bold text-monokai-purple">{stats?.codeSnippetsCount || 0}</div>
+                <div className="text-xl font-bold text-monokai-amethyst">{stats?.codeSnippetsCount || 0}</div>
                 <div className="text-xs text-monokai-comment">代码片段</div>
               </div>
             </div>

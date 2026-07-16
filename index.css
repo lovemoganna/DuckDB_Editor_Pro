@@ -36,7 +36,7 @@
   --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.35);
   --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.4);
   --shadow-glow-cyan: 0 0 20px rgba(102, 217, 239, 0.15);
-  --shadow-glow-purple: 0 0 20px rgba(189, 147, 249, 0.15);
+  --shadow-glow-amethyst: 0 0 20px rgba(189, 147, 249, 0.15);
   --shadow-glow-green: 0 0 20px rgba(166, 226, 46, 0.12);
 
   /* Easing Curves */
@@ -186,7 +186,7 @@
   background-color: #3e3d32;
   padding: 0.125rem 0.375rem;
   border-radius: 0.25rem;
-  font-family: 'Victor Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 0.75rem;
   color: #8be9fd;
 }
@@ -197,7 +197,7 @@
   padding: 0.75rem;
   border-radius: 0.5rem;
   overflow-x: auto;
-  font-family: 'Victor Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 0.75rem;
   margin: 0.5rem 0;
 }
@@ -246,102 +246,94 @@
    ============================================================ */
 
 /* 定义字体堆栈（按优先级） */
-@font-face {
-    font-family: 'IntelligentMono';
-    src: local('Victor Mono'), local('JetBrains Mono'), local('Consolas'), local('Monaco'), local('monospace');
-    unicode-range: U+0000-00FF, U+0020-007F, U+0080-00FF, U+0130-0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
 
-@font-face {
-    font-family: 'IntelligentSans';
-    src: local('Noto Sans SC'), local('Noto Sans CJK SC'), local('Microsoft YaHei'), local('PingFang SC'), local('Heiti SC'), local('SimHei'), local('sans-serif');
-    unicode-range: U+4E00-9FFF, U+3400-4DBF, U+20000-2A6DF, U+2A700-2B73F, U+2B740-2B81F, U+2B820-2CEAF, U+2CEB0-2EBEF, U+3000-303F, U+FF00-FFEF;
-}
+
+
 
 /* 全局字体设置 - 智能双字体策略 */
 
 /* 针对中文字符的额外回退（确保中文字符正确渲染） */
 :lang(zh), :lang(zh-CN), :lang(zh-TW), :lang(zh-Hans), :lang(zh-Hant) {
-    font-family: 'Noto Sans SC', 'Microsoft YaHei', 'PingFang SC', 'SimHei', sans-serif;
+    font-family: var(--font-sans);
 }
 
 body {
     @apply bg-[#272822] text-[#f8f8f2];
     background-color: #272822 !important;
     color: #f8f8f2 !important;
-    font-family: 'Victor Mono', 'Noto Sans SC', monospace;
+    font-family: var(--font-mono);
 }
 
 /* UI 文本使用无衬线字体（更友好的界面显示） */
 .font-sans {
-    font-family: 'IBM Plex Sans', 'Noto Sans SC', system-ui, -apple-system, sans-serif !important;
+    font-family: var(--font-sans);
 }
 
 /* 代码和技术内容使用等宽字体 */
 .font-mono {
-    font-family: 'Victor Mono', 'JetBrains Mono', 'Consolas', monospace !important;
+    font-family: var(--font-mono);
 }
 
 /* AI Skills 模块专用字体设置 */
 [data-tab="ai-skills"], .ai-skills-panel, .skill-panel {
-    font-family: 'IBM Plex Sans', 'Noto Sans SC', system-ui, -apple-system, sans-serif;
+    font-family: var(--font-sans);
 }
 
 [data-tab="ai-skills"] code, [data-tab="ai-skills"] pre,
 .ai-skills-panel code, .ai-skills-panel pre,
 .skill-panel code, .skill-panel pre {
-    font-family: 'Victor Mono', 'JetBrains Mono', 'Consolas', monospace;
+    font-family: var(--font-mono);
 }
 
 /* =====================
    CodeMirror 编辑器字体设置
    ===================== */
 .cm-editor {
-    font-family: 'Victor Mono', 'Noto Sans SC', monospace !important;
+    font-family: var(--font-mono);
 }
 
 .cm-editor .cm-content {
-    font-family: 'Victor Mono', 'Noto Sans SC', monospace !important;
+    font-family: var(--font-mono);
 }
 
 .cm-editor .cm-line {
-    font-family: 'Victor Mono', 'Noto Sans SC', monospace !important;
+    font-family: var(--font-mono);
 }
 
 .cm-editor .cm-gutters {
-    font-family: 'Victor Mono', 'Noto Sans SC', monospace !important;
+    font-family: var(--font-mono);
 }
 
 /* =====================
    CodeMirror 自动补全提示字体设置
    ===================== */
 .cm-tooltip-autocomplete {
-    font-family: 'Victor Mono', 'Noto Sans SC', monospace !important;
+    font-family: var(--font-mono);
     font-size: 10px !important;
 }
 
 .cm-tooltip-autocomplete > ul {
-    font-family: 'Victor Mono', 'Noto Sans SC', monospace !important;
+    font-family: var(--font-mono);
     font-size: 10px !important;
 }
 
 .cm-tooltip-autocomplete > ul > li {
-    font-family: 'Victor Mono', 'Noto Sans SC', monospace !important;
+    font-family: var(--font-mono);
     font-size: 10px !important;
 }
 
 .cm-completionLabel {
-    font-family: 'Victor Mono', 'Noto Sans SC', monospace !important;
+    font-family: var(--font-mono);
     font-size: 10px !important;
 }
 
 .cm-completionDetail {
-    font-family: 'Victor Mono', 'Noto Sans SC', monospace !important;
+    font-family: var(--font-mono);
     font-size: 10px !important;
 }
 
 .cm-tooltip.cm-completionInfo {
-    font-family: 'Victor Mono', 'Noto Sans SC', monospace !important;
+    font-family: var(--font-mono);
     font-size: 10px !important;
 }
 
@@ -630,7 +622,7 @@ button:hover, .btn:hover {
     color: #f8f8f2;
     padding: 0.2em 0.4em;
     border-radius: 3px;
-    font-family: 'Fira Code', monospace;
+    font-family: var(--font-mono);
     font-size: 0.9em;
 }
 
@@ -645,7 +637,7 @@ button:hover, .btn:hover {
 
 .markdown-body pre code {
     color: #f8f8f2;
-    font-family: 'Fira Code', 'Consolas', monospace;
+    font-family: var(--font-mono);
     font-size: 14px;
     line-height: 1.5;
 }
@@ -672,7 +664,7 @@ button:hover, .btn:hover {
 .code-lang {
     font-size: 12px;
     color: #888;
-    font-family: monospace;
+    font-family: var(--font-mono);
     text-transform: uppercase;
 }
 
@@ -793,7 +785,7 @@ button:hover, .btn:hover {
    SQL Syntax Highlighting - Global Monokai Theme
    ===================== */
 .sql-highlight-container {
-    font-family: 'Victor Mono', 'JetBrains Mono', 'Consolas', monospace;
+    font-family: var(--font-mono);
     font-size: 12px;
     line-height: 1.6;
     background: #1e1f1c;
@@ -1095,7 +1087,7 @@ button:hover, .btn:hover {
   padding: 14px;
   background: #1e1e1c;
   border: 1px solid #3e3d32;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   line-height: 1.6;
   color: #f8f8f2;
@@ -1106,7 +1098,7 @@ button:hover, .btn:hover {
 }
 
 .skill-btn-primary {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.05em;
@@ -1214,7 +1206,7 @@ button:hover, .btn:hover {
   background: linear-gradient(135deg, #272822 0%, #1e1f1c 100%);
   border: 1px solid #49483e;
   border-radius: 8px;
-  font-family: 'JetBrains Mono', 'Victor Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 500;
   color: #f8f8f2;
@@ -1242,7 +1234,7 @@ button:hover, .btn:hover {
   background: linear-gradient(135deg, #272822 0%, #1e1f1c 100%);
   border: 1px solid #49483e;
   border-radius: 8px;
-  font-family: 'JetBrains Mono', 'Victor Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 500;
   color: #f8f8f2;
@@ -1293,17 +1285,17 @@ body.is-resizing .resizable-width-indicator {
 
 .sql-preview-codemirror .cm-editor {
   background: transparent !important;
-  font-family: 'Victor Mono', 'JetBrains Mono', 'Consolas', monospace !important;
+  font-family: var(--font-mono);
 }
 
 .sql-preview-codemirror .cm-editor .cm-content {
-  font-family: 'Victor Mono', 'JetBrains Mono', 'Consolas', monospace !important;
+  font-family: var(--font-mono);
   font-size: 11px !important;
   padding: 12px 0 !important;
 }
 
 .sql-preview-codemirror .cm-editor .cm-line {
-  font-family: 'Victor Mono', 'JetBrains Mono', 'Consolas', monospace !important;
+  font-family: var(--font-mono);
   font-size: 11px !important;
 }
 
@@ -1364,7 +1356,7 @@ body.is-resizing .resizable-width-indicator {
 /* Compact count badge for category headers */
 .template-category-badge {
   font-size: 10px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   padding: 1px 5px;
   border-radius: 9999px;
   background-color: rgba(62, 61, 50, 0.5);
@@ -1378,7 +1370,7 @@ body.is-resizing .resizable-width-indicator {
   align-items: center;
   gap: 4px;
   font-size: 10px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   padding: 1px 7px;
   border-radius: 9999px;
   font-weight: 500;
@@ -1456,6 +1448,84 @@ body.is-resizing .resizable-width-indicator {
 .template-tab-item.active {
   color: rgba(102, 217, 239, 1);
 }
+
+/* ============================================================
+   Graph Control Card Styles — Refined Glassmorphism & Centering
+   ============================================================ */
+.graph-control-card {
+  background: rgba(39, 40, 34, 0.85) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(248, 248, 242, 0.12) !important;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05) !important;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.graph-control-card:hover {
+  border-color: rgba(248, 248, 242, 0.2) !important;
+  box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Enforce text-align center on all text nodes inside control card */
+.graph-control-card,
+.graph-control-card span,
+.graph-control-card p,
+.graph-control-card div {
+  text-align: center !important;
+}
+
+/* Center all flex and grid div containers inside control card and force 100% width to guarantee horizontal centering */
+.graph-control-card div.flex,
+.graph-control-card div[class*="flex"] {
+  display: flex !important;
+  width: 100% !important;
+  justify-content: center !important;
+  align-items: center !important;
+  text-align: center !important;
+}
+
+.graph-control-card div.grid,
+.graph-control-card div[class*="grid"] {
+  display: grid !important;
+  width: 100% !important;
+  justify-content: center !important;
+  align-items: center !important;
+  justify-items: center !important;
+  text-align: center !important;
+}
+
+/* Center text and align content within buttons, inputs, select fields */
+.graph-control-card button,
+.graph-control-card input,
+.graph-control-card select,
+.graph-control-card .ctrl-btn,
+.graph-control-card .ctrl-pill,
+.graph-control-card .ctrl-btn-full {
+  text-align: center !important;
+  justify-content: center !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  transition: all 0.2s ease-in-out !important;
+}
+
+.graph-control-card button:hover,
+.graph-control-card .ctrl-btn:hover,
+.graph-control-card .ctrl-pill:hover,
+.graph-control-card .ctrl-btn-full:hover {
+  transform: translateY(-0.5px);
+  filter: brightness(1.1);
+}
+
+.graph-control-card input {
+  text-align: center !important;
+}
+
+.graph-control-card input::placeholder {
+  text-align: center !important;
+}
+
+
 
 /* ============================================================
    TOUCH DEVICE COMPATIBILITY

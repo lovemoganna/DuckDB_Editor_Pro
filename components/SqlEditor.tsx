@@ -89,7 +89,7 @@ const MONOKAI_COLORS = [
     'rgba(166, 226, 46, 0.8)', // Green
     'rgba(102, 217, 239, 0.8)', // Blue
     'rgba(253, 151, 31, 0.8)', // Orange
-    'rgba(174, 129, 255, 0.8)', // Purple
+    'rgba(174, 129, 255, 0.8)', // Amethyst
     'rgba(230, 219, 116, 0.8)', // Yellow
 ];
 
@@ -807,8 +807,8 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
                         {/* 头部 */}
                         <div className="flex items-center justify-between px-5 py-4 bg-monokai-bg border-b border-monokai-accent">
                             <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-lg bg-monokai-purple/20 flex items-center justify-center">
-                                    <Zap className="w-4 h-4 text-monokai-purple" />
+                                <div className="w-8 h-8 rounded-lg bg-monokai-amethyst/20 flex items-center justify-center">
+                                    <Zap className="w-4 h-4 text-monokai-amethyst" />
                                 </div>
                                 <div>
                                     <h3 className="text-base font-bold text-monokai-fg">SQL 解释</h3>
@@ -839,9 +839,9 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
                             <ReactMarkdown 
                                 remarkPlugins={[remarkGfm]}
                                 components={{
-                                    h1: ({children}) => <h1 className="text-lg font-bold text-monokai-purple mb-3 mt-2">{children}</h1>,
+                                    h1: ({children}) => <h1 className="text-lg font-bold text-monokai-amethyst mb-3 mt-2">{children}</h1>,
                                     h2: ({children}) => <h2 className="text-base font-bold text-monokai-blue mb-2 mt-3">{children}</h2>,
-                                    h3: ({children}) => <h3 className="text-sm font-semibold text-monokai-purple mb-1 mt-2">{children}</h3>,
+                                    h3: ({children}) => <h3 className="text-sm font-semibold text-monokai-amethyst mb-1 mt-2">{children}</h3>,
                                     p: ({children}) => <p className="mb-2 leading-relaxed">{children}</p>,
                                     ul: ({children}) => <ul className="list-disc list-inside mb-2 space-y-1 ml-2">{children}</ul>,
                                     ol: ({children}) => <ol className="list-decimal list-inside mb-2 space-y-1 ml-2">{children}</ol>,
@@ -852,13 +852,13 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
                                         const match = /language-(\w+)/.exec(className || '');
                                         const isInline = !match && !className;
                                         if (isInline) {
-                                            return <code className="bg-monokai-bg px-1.5 py-0.5 rounded text-monokai-purple text-xs font-mono">{children}</code>;
+                                            return <code className="bg-monokai-bg px-1.5 py-0.5 rounded text-monokai-amethyst text-xs font-mono">{children}</code>;
                                         }
                                         return <code className="block bg-monokai-bg p-3 rounded-lg border border-monokai-accent/30 text-xs font-mono overflow-x-auto mb-2" {...props}>{children}</code>;
                                     },
                                     pre: ({children}) => <pre className="mb-2">{children}</pre>,
                                     a: ({href, children}) => <a href={href} className="text-monokai-blue hover:underline">{children}</a>,
-                                    blockquote: ({children}) => <blockquote className="border-l-4 border-monokai-purple pl-3 italic text-monokai-comment mb-2">{children}</blockquote>,
+                                    blockquote: ({children}) => <blockquote className="border-l-4 border-monokai-amethyst pl-3 italic text-monokai-comment mb-2">{children}</blockquote>,
                                 }}
                             >
                                 {aiExplanation}
@@ -959,7 +959,7 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
                             {/* Collapsible toggle handle */}
                             <button
                                 onClick={onToggleZen}
-                                className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 w-4.5 h-12 bg-monokai-sidebar border border-monokai-accent/40 rounded-r hover:bg-monokai-surface hover:text-monokai-purple flex items-center justify-center text-monokai-comment transition-all z-50 shadow-lg cursor-pointer hover:w-6 group-hover/sidebar:opacity-100 opacity-0"
+                                className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 w-4.5 h-12 bg-monokai-sidebar border border-monokai-accent/40 rounded-r hover:bg-monokai-surface hover:text-monokai-amethyst flex items-center justify-center text-monokai-comment transition-all z-50 shadow-lg cursor-pointer hover:w-6 group-hover/sidebar:opacity-100 opacity-0"
                                 title="Collapse Sidebar"
                             >
                                 <ChevronLeft size={10} className="relative -left-0.5" />
@@ -972,7 +972,7 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
                     {isZenMode && (
                         <button
                             onClick={onToggleZen}
-                            className="absolute left-0 top-1/2 -translate-y-1/2 w-4.5 h-12 bg-monokai-sidebar border border-l-0 border-monokai-accent/45 rounded-r hover:bg-monokai-surface hover:text-monokai-purple flex items-center justify-center text-monokai-comment transition-all z-55 shadow-lg cursor-pointer hover:w-6 opacity-45 hover:opacity-100"
+                            className="absolute left-0 top-1/2 -translate-y-1/2 w-4.5 h-12 bg-monokai-sidebar border border-l-0 border-monokai-accent/45 rounded-r hover:bg-monokai-surface hover:text-monokai-amethyst flex items-center justify-center text-monokai-comment transition-all z-55 shadow-lg cursor-pointer hover:w-6 opacity-45 hover:opacity-100"
                             title="Expand Sidebar"
                         >
                             <ChevronRight size={10} className="relative" />
@@ -1042,9 +1042,9 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
                                 <div className="absolute top-0 left-0 right-0 bottom-0 z-20 flex flex-col bg-monokai-bg/95 backdrop-blur-sm">
                                     <div className="flex items-center justify-between px-3 py-2 bg-monokai-surface border-b border-monokai-accent">
                                         <div className="flex items-center gap-2">
-                                            <Eye className="w-4 h-4 text-monokai-purple" />
+                                            <Eye className="w-4 h-4 text-monokai-amethyst" />
                                             <span className="text-xs font-bold text-monokai-fg">SQL 格式化预览</span>
-                                            {isGeneratingPreview && <Loader2 className="w-3 h-3 animate-spin text-monokai-purple" />}
+                                            {isGeneratingPreview && <Loader2 className="w-3 h-3 animate-spin text-monokai-amethyst" />}
                                         </div>
                                         <button
                                             onClick={() => setShowLivePreview(false)}
@@ -1116,14 +1116,14 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
                             <div className="flex gap-1 bg-monokai-bg p-0.5 rounded border border-monokai-accent/30">
                                 <button onClick={() => updateActiveTab({ viewMode: 'table' })} className={`px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded ${activeTab.viewMode === 'table' ? 'bg-monokai-accent text-monokai-fg shadow-sm' : 'text-monokai-comment hover:text-monokai-fg'}`}>Table</button>
                                 <button onClick={() => updateActiveTab({ viewMode: 'chart' })} disabled={!activeTab.result || activeTab.result.rows.length === 0 || activeTab.result.isExplain} className={`px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded ${activeTab.viewMode === 'chart' ? 'bg-monokai-accent text-monokai-pink shadow-sm' : 'text-monokai-comment hover:text-monokai-pink disabled:opacity-30'}`}>Chart</button>
-                                {activeTab.result?.isExplain && <button onClick={() => updateActiveTab({ viewMode: 'explain' })} className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded bg-monokai-purple text-monokai-fg">Plan</button>}
+                                {activeTab.result?.isExplain && <button onClick={() => updateActiveTab({ viewMode: 'explain' })} className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded bg-monokai-amethyst text-monokai-fg">Plan</button>}
                                 <button onClick={() => updateActiveTab({ viewMode: 'profiling' })} disabled={!activeTab.code.trim()} className={`px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded ${activeTab.viewMode === 'profiling' ? 'bg-monokai-accent text-monokai-fg shadow-sm' : 'text-monokai-comment hover:text-monokai-fg disabled:opacity-30'}`}>Profiling</button>
                             </div>
                             {activeTab.viewMode === 'chart' && (
                                 <div className="flex items-center gap-2">
                                     {/* Source indicator for metric charts */}
                                     {activeTab.charts?.some(c => c.source === 'metric') && (
-                                        <span className="text-xs bg-monokai-purple/20 text-monokai-purple px-2 py-0.5 rounded flex items-center gap-1">
+                                        <span className="text-xs bg-monokai-amethyst/20 text-monokai-amethyst px-2 py-0.5 rounded flex items-center gap-1">
                                             <BarChart2 size={10} />
                                             指标图表
                                         </span>
@@ -1347,7 +1347,7 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
                                             <button
                                                 onClick={() => handleAiContinueOptimize('explain')}
                                                 disabled={isAiLoading}
-                                                className="flex items-center gap-1 px-2 py-0.5 bg-monokai-purple/10 hover:bg-monokai-purple/20 text-monokai-purple/80 hover:text-monokai-purple rounded transition-colors text-[9px]"
+                                                className="flex items-center gap-1 px-2 py-0.5 bg-monokai-amethyst/10 hover:bg-monokai-amethyst/20 text-monokai-amethyst/80 hover:text-monokai-amethyst rounded transition-colors text-[9px]"
                                                 title="解释 SQL"
                                             >
                                                 <Lightbulb size={10} />

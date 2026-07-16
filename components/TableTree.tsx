@@ -13,7 +13,7 @@ const getColumnMeta = (type: string): { icon: React.ReactNode; color: string; la
     if (/INT|FLOAT|DOUBLE|DECIMAL/.test(t)) return { icon: <Hash size={9} />, color: 'text-monokai-blue bg-monokai-blue/10 border-monokai-blue/20', label: 'NUM' };
     if (/CHAR|TEXT|STRING/.test(t)) return { icon: <Type size={9} />, color: 'text-monokai-green bg-monokai-green/10 border-monokai-green/20', label: 'TXT' };
     if (/DATE|TIME/.test(t)) return { icon: <Calendar size={9} />, color: 'text-monokai-yellow bg-monokai-yellow/10 border-monokai-yellow/20', label: 'DAT' };
-    if (/BOOL/.test(t)) return { icon: <ToggleLeft size={9} />, color: 'text-monokai-purple bg-monokai-purple/10 border-monokai-purple/20', label: 'BOOL' };
+    if (/BOOL/.test(t)) return { icon: <ToggleLeft size={9} />, color: 'text-monokai-amethyst bg-monokai-amethyst/10 border-monokai-amethyst/20', label: 'BOOL' };
     if (/LIST|ARRAY/.test(t)) return { icon: <List size={9} />, color: 'text-monokai-accent bg-monokai-accent/10 border-monokai-accent/20', label: 'LIST' };
     if (/STRUCT|MAP/.test(t)) return { icon: <Box size={9} />, color: 'text-monokai-pink bg-monokai-pink/10 border-monokai-pink/20', label: 'OBJ' };
     if (/JSON/.test(t)) return { icon: <FileText size={9} />, color: 'text-monokai-orange bg-monokai-orange/10 border-monokai-orange/20', label: 'JSON' };
@@ -82,13 +82,13 @@ export const TableTree: React.FC<TableTreeProps> = ({ tables, onInsert }) => {
             <div className="p-2 border-b border-monokai-border/40 bg-monokai-surface/50 backdrop-blur-sm">
                 <div className="flex items-center justify-between mb-1.5">
                     <div className="flex items-center gap-1.5">
-                        <Layers size={10} className="text-monokai-purple shrink-0" />
+                        <Layers size={10} className="text-monokai-amethyst shrink-0" />
                         <span className="text-[9px] font-bold uppercase tracking-widest text-monokai-comment">
                             {tables.length} {tables.length === 1 ? 'Table' : 'Tables'}
                         </span>
                     </div>
                     {searchQuery && (
-                        <span className="text-[8px] bg-monokai-purple/10 text-monokai-purple border border-monokai-purple/30 px-1 rounded-sm">
+                        <span className="text-[8px] bg-monokai-amethyst/10 text-monokai-amethyst border border-monokai-amethyst/30 px-1 rounded-sm">
                             {filteredTables.length} match{filteredTables.length !== 1 ? 'es' : ''}
                         </span>
                     )}
@@ -99,7 +99,7 @@ export const TableTree: React.FC<TableTreeProps> = ({ tables, onInsert }) => {
                         value={searchQuery}
                         onChange={e => setSearchQuery(e.target.value)}
                         placeholder="Search tables & columns..."
-                        className="w-full bg-monokai-surface border border-monokai-border/50 rounded pl-6 pr-5 py-1 text-[10px] text-monokai-fg placeholder:text-monokai-comment/40 outline-none focus:border-monokai-purple/60 focus:bg-monokai-bg transition-colors"
+                        className="w-full bg-monokai-surface border border-monokai-border/50 rounded pl-6 pr-5 py-1 text-[10px] text-monokai-fg placeholder:text-monokai-comment/40 outline-none focus:border-monokai-amethyst/60 focus:bg-monokai-bg transition-colors"
                     />
                     {searchQuery && (
                         <button onClick={() => setSearchQuery('')} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-monokai-comment/50 hover:text-monokai-comment">
@@ -180,23 +180,23 @@ const TableRow: React.FC<TableRowProps> = ({
         <div className="border-b border-monokai-border/20 last:border-b-0">
             {/* Table Header */}
             <div
-                className={`group flex items-center gap-1.5 px-2.5 py-1.5 cursor-pointer transition-all duration-150 ${isExpanded ? 'bg-monokai-purple/5' : 'hover:bg-monokai-surface/30'}`}
+                className={`group flex items-center gap-1.5 px-2.5 py-1.5 cursor-pointer transition-all duration-150 ${isExpanded ? 'bg-monokai-amethyst/5' : 'hover:bg-monokai-surface/30'}`}
                 onClick={onToggle}
             >
                 <span className="w-4 flex items-center justify-center shrink-0">
                     {isLoading ? (
-                        <div className="w-2.5 h-2.5 border border-monokai-comment/30 border-t-monokai-purple rounded-full animate-spin" />
+                        <div className="w-2.5 h-2.5 border border-monokai-comment/30 border-t-monokai-amethyst rounded-full animate-spin" />
                     ) : isExpanded ? (
-                        <ChevronDown size={10} className="text-monokai-purple" />
+                        <ChevronDown size={10} className="text-monokai-amethyst" />
                     ) : (
                         <ChevronRight size={10} className="text-monokai-comment/50 group-hover:text-monokai-comment transition-colors" />
                     )}
                 </span>
 
-                <Database size={11} className={`shrink-0 transition-colors ${isExpanded ? 'text-monokai-purple' : 'text-monokai-comment/65 group-hover:text-monokai-purple'}`} />
+                <Database size={11} className={`shrink-0 transition-colors ${isExpanded ? 'text-monokai-amethyst' : 'text-monokai-comment/65 group-hover:text-monokai-amethyst'}`} />
 
                 <span
-                    className={`flex-1 text-[11px] font-semibold truncate transition-colors ${isExpanded ? 'text-monokai-purple' : 'text-monokai-fg/90 group-hover:text-monokai-purple'}`}
+                    className={`flex-1 text-[11px] font-semibold truncate transition-colors ${isExpanded ? 'text-monokai-amethyst' : 'text-monokai-fg/90 group-hover:text-monokai-amethyst'}`}
                     title={table}
                 >
                     {searchQuery ? <HighlightMatch text={table} query={searchQuery} /> : table}
@@ -209,7 +209,7 @@ const TableRow: React.FC<TableRowProps> = ({
                 )}
 
                 <button
-                    className="shrink-0 opacity-0 group-hover:opacity-100 text-monokai-comment/60 hover:text-monokai-purple bg-monokai-surface border border-monokai-border/50 px-1 py-0.5 rounded-sm transition-all hover:scale-105 active:scale-95"
+                    className="shrink-0 opacity-0 group-hover:opacity-100 text-monokai-comment/60 hover:text-monokai-amethyst bg-monokai-surface border border-monokai-border/50 px-1 py-0.5 rounded-sm transition-all hover:scale-105 active:scale-95"
                     onClick={(e) => { e.stopPropagation(); onInsert(table); }}
                     title={`Insert "${table}"`}
                 >
@@ -269,7 +269,7 @@ const TableRow: React.FC<TableRowProps> = ({
     );
 };
 
-const HighlightMatch: React.FC<{ text: string; query: string; highlightClass?: string }> = ({ text, query, highlightClass = 'text-monokai-purple bg-monokai-purple/20 px-0.5 rounded-xs' }) => {
+const HighlightMatch: React.FC<{ text: string; query: string; highlightClass?: string }> = ({ text, query, highlightClass = 'text-monokai-amethyst bg-monokai-amethyst/20 px-0.5 rounded-xs' }) => {
     if (!query) return <>{text}</>;
     const idx = text.toLowerCase().indexOf(query.toLowerCase());
     if (idx === -1) return <>{text}</>;

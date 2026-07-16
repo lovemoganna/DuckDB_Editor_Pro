@@ -231,7 +231,7 @@ const SchemaGraphView: React.FC<SchemaGraphViewProps> = ({
     simulationRef.current = sim;
 
     // Arrow marker
-    const defs = svg.append('defs').style('display', 'none');
+    const defs = svg.append('defs');
     defs.append('marker')
       .attr('id', 'sg-arrow')
       .attr('markerWidth', 8).attr('markerHeight', 6)
@@ -506,7 +506,7 @@ const SchemaGraphView: React.FC<SchemaGraphViewProps> = ({
                       borderRadius: 6, background: 'rgba(189,174,255,0.06)',
                       border: '1px solid rgba(189,174,255,0.12)', fontSize: 11,
                     }}>
-                      <ChevronRight className="w-3 h-3 text-monokai-purple shrink-0" style={{ color: '#c77dff' }} />
+                      <ChevronRight className="w-3 h-3 text-monokai-amethyst shrink-0" style={{ color: '#c77dff' }} />
                       <span style={{ color: '#e8f4ff', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {obj.name}
                       </span>

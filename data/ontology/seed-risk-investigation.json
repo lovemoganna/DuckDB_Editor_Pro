@@ -8,10 +8,10 @@
     "scenario": "project-risk-investigation",
     "complexity": "medium",
     "entity_counts": {
-      "object_types": 5,
-      "objects": 10,
-      "link_types": 5,
-      "links": 12,
+      "object_types": 6,
+      "objects": 11,
+      "link_types": 6,
+      "links": 13,
       "actions": 4,
       "introspections": 2,
       "insights": 2
@@ -23,7 +23,8 @@
     { "id": 2, "name": "Component",   "description": "技术组件或服务模块" },
     { "id": 3, "name": "Metric",      "description": "可量化的关键指标" },
     { "id": 4, "name": "Team",        "description": "负责团队" },
-    { "id": 5, "name": "Stakeholder", "description": "干系人或决策者" }
+    { "id": 5, "name": "Stakeholder", "description": "干系人或决策者" },
+    { "id": 6, "name": "Function",    "description": "计算与安全规则" }
   ],
 
   "objects": [
@@ -36,7 +37,8 @@
     { "id": 7,  "object_type_id": 3, "name": "系统可用性",         "properties": "{\"unit\": \"%\", \"baseline\": 99.5, \"当前\": 99.5, \"目标\": 99.9, \"threshold\": 99.0}", "annotations": "" },
     { "id": 8,  "object_type_id": 3, "name": "发布频率",          "properties": "{\"unit\": \"releases/week\", \"baseline\": 4.2, \"当前\": 3.8, \"目标\": 5.0, \"threshold\": 3.0}", "annotations": "" },
     { "id": 9,  "object_type_id": 3, "name": "缺陷逃逸率",        "properties": "{\"unit\": \"%\", \"baseline\": 15, \"当前\": 18, \"目标\": 10, \"threshold\": 20}", "annotations": "生产环境发现的缺陷 / 总缺陷，越低越好" },
-    { "id": 10, "object_type_id": 3, "name": "平均恢复时间",      "properties": "{\"unit\": \"minutes\", \"baseline\": 45, \"当前\": 52, \"目标\": 30, \"threshold\": 60}", "annotations": "" }
+    { "id": 10, "object_type_id": 3, "name": "平均恢复时间",      "properties": "{\"unit\": \"minutes\", \"baseline\": 45, \"当前\": 52, \"目标\": 30, \"threshold\": 60}", "annotations": "" },
+    { "id": 11, "object_type_id": 6, "name": "系统可用性计算规则",  "properties": "{\"formula\": \"1 - (MTTR * IncidentCount) / TotalActiveTime\"}", "annotations": "系统可用性派生算法" }
   ],
 
   "linkTypes": [
@@ -44,7 +46,8 @@
     { "id": 2, "name": "风险传导",   "description": "A 的风险事件会传导到 B（权重表示传导强度，1=完全传导，0=不传导）" },
     { "id": 3, "name": "影响指标",   "description": "A 的状态变化会直接影响指标 M" },
     { "id": 4, "name": "团队负责",   "description": "团队 T 负责组件 A" },
-    { "id": 5, "name": "上报干系人", "description": "风险/指标异常需上报给干系人 S" }
+    { "id": 5, "name": "上报干系人", "description": "风险/指标异常需上报给干系人 S" },
+    { "id": 6, "name": "依赖计算",   "description": "该指标值由计算逻辑规则 B 计算生成" }
   ],
 
   "links": [
@@ -59,7 +62,8 @@
     { "id": 9,  "link_type_id": 3, "source_object_id": 5,  "target_object_id": 8,  "weight": 0.70 },
     { "id": 10, "link_type_id": 3, "source_object_id": 6,  "target_object_id": 9,  "weight": 0.60 },
     { "id": 11, "link_type_id": 3, "source_object_id": 6,  "target_object_id": 8,  "weight": 0.50 },
-    { "id": 12, "link_type_id": 3, "source_object_id": 3,  "target_object_id": 9,  "weight": 0.95 }
+    { "id": 12, "link_type_id": 3, "source_object_id": 3,  "target_object_id": 9,  "weight": 0.95 },
+    { "id": 13, "link_type_id": 6, "source_object_id": 11, "target_object_id": 7,  "weight": 1.00 }
   ],
 
   "actions": [

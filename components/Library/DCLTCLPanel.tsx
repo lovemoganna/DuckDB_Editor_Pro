@@ -252,6 +252,18 @@ export const DCLTCLPanel: React.FC<DCLTCLPanelProps> = ({
   // 执行 SQL
   const handleExecute = useCallback(async (id: string, sqlContent: string) => {
     if (!sqlContent) return;
+
+    const isMutation = /grant|revoke|commit|rollback|begin|transaction/i.test(sqlContent);
+    if (isMutation) {
+      const confirmRun = window.confirm("【执行安全确认】\n提示：此操作是一个 DCL/TCL (控制/事务) 语句，执行后将更改数据库事务状态或权限限制。\n\n您确定要在当前数据库中运行这段代码吗？");
+      if (!confirmRun) {
+        setExecutionResults(prev => ({
+          ...prev,
+          [id]: { data: null, error: "执行已被取消 (用户未确认风险)", loading: false }
+        }));
+        return;
+      }
+    }
     
     setExecutionResults(prev => ({
       ...prev,
@@ -343,7 +355,7 @@ export const DCLTCLPanel: React.FC<DCLTCLPanelProps> = ({
                 <div className="flex items-center gap-2">
                   {item.category === '权限' && <Key className="w-4 h-4 text-monokai-red" />}
                   {item.category === '事务' && <Database className="w-4 h-4 text-monokai-blue" />}
-                  {item.category === '原理' && <Lock className="w-4 h-4 text-monokai-purple" />}
+                  {item.category === '原理' && <Lock className="w-4 h-4 text-monokai-amethyst" />}
                   {item.category === '安全' && <AlertTriangle className="w-4 h-4 text-monokai-orange" />}
                   <span className="font-medium text-monokai-fg">{item.title}</span>
                   <span className="text-xs px-2 py-0.5 rounded bg-monokai-red/20 text-monokai-red">
@@ -394,7 +406,7 @@ export const DCLTCLPanel: React.FC<DCLTCLPanelProps> = ({
                         </div>
                         <div className="flex items-center gap-1">
                           {isMarkdown && (
-                            <span className="text-xs px-1.5 py-0.5 rounded bg-monokai-purple/20 text-monokai-purple mr-1">
+                            <span className="text-xs px-1.5 py-0.5 rounded bg-monokai-amethyst/20 text-monokai-amethyst mr-1">
                               Markdown
                             </span>
                           )}

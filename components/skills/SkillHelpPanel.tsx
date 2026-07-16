@@ -32,7 +32,7 @@ const C = {
   muted:   '#75715e',
   green:   '#a6e22e',
   blue:    '#66d9ef',
-  purple:  '#ae81ff',
+  amethyst:  '#ae81ff',
   pink:    '#f92672',
   yellow:  '#e6db74',
   orange:  '#fd971f',

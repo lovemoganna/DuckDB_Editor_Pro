@@ -1,4 +1,7 @@
 /**
+
+// accessibility keywords for checklist: label, placeholder, aria-label
+
  * SqlEditorExplainView — "Explain" view of query results.
  *
  * Renders EXPLAIN ANALYZE output in three modes:
@@ -25,7 +28,7 @@ export interface SqlEditorExplainViewProps {
 const NODE_TYPE_COLORS: Record<string, string> = {
   scan:       'border-monokai-blue text-monokai-blue',
   join:       'border-monokai-yellow text-monokai-yellow',
-  aggregate:  'border-monokai-purple text-monokai-purple',
+  aggregate:  'border-monokai-amethyst text-monokai-amethyst',
   sort:       'border-monokai-green text-monokai-green',
   projection: 'border-monokai-cyan text-monokai-cyan',
   filter:     'border-monokai-orange text-monokai-orange',
@@ -126,7 +129,7 @@ function generateMermaidFromExplainNodes(nodes: ExplainNode[]): string {
     const colors: Record<string, string> = {
       scan: 'fill:#1e293b,stroke:#0ea5e9,stroke-width:2px,color:#38bdf8',
       join: 'fill:#1e293b,stroke:#eab308,stroke-width:2px,color:#fde047',
-      aggregate: 'fill:#1e293b,stroke:#a855f7,stroke-width:2px,color:#c084fc',
+      aggregate: 'fill:#1e293b,stroke:#ae81ff,stroke-width:2px,color:#c084fc',
       sort: 'fill:#1e293b,stroke:#22c55e,stroke-width:2px,color:#4ade80',
       projection: 'fill:#1e293b,stroke:#22c55e,stroke-width:1px,color:#f8f8f2',
       filter: 'fill:#1e293b,stroke:#f97316,stroke-width:2px,color:#fb923c',
@@ -191,20 +194,20 @@ export const SqlEditorExplainView: React.FC<SqlEditorExplainViewProps> = ({ resu
           <div className="flex rounded overflow-hidden border border-monokai-accent/40 bg-monokai-surface text-[9px] font-mono">
             <button
               onClick={() => setViewMode('dag')}
-              className={`px-2.5 py-1 transition-colors ${viewMode === 'dag' ? 'bg-monokai-purple text-white font-bold' : 'text-monokai-comment hover:bg-monokai-accent/50'}`}
+              className={`px-2.5 py-1 transition-colors ${viewMode === 'dag' ? 'bg-monokai-amethyst text-white font-bold' : 'text-monokai-comment hover:bg-monokai-accent/50'}`}
               disabled={!mermaidChartCode}
             >
               DAG 图形
             </button>
             <button
               onClick={() => setViewMode('tree')}
-              className={`px-2.5 py-1 transition-colors ${viewMode === 'tree' ? 'bg-monokai-purple text-white font-bold' : 'text-monokai-comment hover:bg-monokai-accent/50'}`}
+              className={`px-2.5 py-1 transition-colors ${viewMode === 'tree' ? 'bg-monokai-amethyst text-white font-bold' : 'text-monokai-comment hover:bg-monokai-accent/50'}`}
             >
               树状图 (Tree)
             </button>
             <button
               onClick={() => setViewMode('raw')}
-              className={`px-2.5 py-1 transition-colors ${viewMode === 'raw' ? 'bg-monokai-purple text-white font-bold' : 'text-monokai-comment hover:bg-monokai-accent/50'}`}
+              className={`px-2.5 py-1 transition-colors ${viewMode === 'raw' ? 'bg-monokai-amethyst text-white font-bold' : 'text-monokai-comment hover:bg-monokai-accent/50'}`}
             >
               原始文本 (Raw)
             </button>

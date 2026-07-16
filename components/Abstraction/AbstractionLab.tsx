@@ -81,7 +81,7 @@ export const AbstractionLab: React.FC<AbstractionLabProps> = ({
         {/* 左侧：标题 + 草稿名 */}
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5">
-            <FlaskConical className="w-4 h-4 text-monokai-purple" />
+            <FlaskConical className="w-4 h-4 text-monokai-amethyst" />
             <span className="text-sm font-semibold text-monokai-fg">实验台</span>
           </div>
           <input
@@ -104,7 +104,7 @@ export const AbstractionLab: React.FC<AbstractionLabProps> = ({
               onClick={() => setSandboxTab(key)}
               className={`px-4 py-1.5 text-sm rounded-md transition-all ${
                 sandboxTab === key
-                  ? 'bg-monokai-purple/20 text-monokai-purple font-medium shadow-sm'
+                  ? 'bg-monokai-amethyst/20 text-monokai-amethyst font-medium shadow-sm'
                   : 'text-monokai-fg-muted hover:text-monokai-fg'
               }`}
             >
@@ -117,7 +117,7 @@ export const AbstractionLab: React.FC<AbstractionLabProps> = ({
         <div className="flex items-center gap-2">
           {/* 执行状态指示 */}
           {isGenerating && (
-            <div className="flex items-center gap-1.5 text-xs text-monokai-purple">
+            <div className="flex items-center gap-1.5 text-xs text-monokai-amethyst">
               <Loader2 className="w-3 h-3 animate-spin" />
               执行中
             </div>
@@ -142,7 +142,7 @@ export const AbstractionLab: React.FC<AbstractionLabProps> = ({
             onClick={() => setShowVersions(!showVersions)}
             className={`relative flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-md transition-colors ${
               showVersions
-                ? 'bg-monokai-purple/15 text-monokai-purple'
+                ? 'bg-monokai-amethyst/15 text-monokai-amethyst'
                 : 'text-monokai-fg-muted hover:text-monokai-fg hover:bg-monokai-bg'
             }`}
           >
@@ -150,7 +150,7 @@ export const AbstractionLab: React.FC<AbstractionLabProps> = ({
             历史
             {versions.length > 0 && (
               <span className={`ml-0.5 px-1 py-0.5 text-[10px] rounded-full ${
-                showVersions ? 'bg-monokai-purple/30' : 'bg-monokai-bg'
+                showVersions ? 'bg-monokai-amethyst/30' : 'bg-monokai-bg'
               }`}>
                 {versions.length}
               </span>
@@ -219,7 +219,7 @@ export const AbstractionLab: React.FC<AbstractionLabProps> = ({
                   onChange={(e) => setSaveName(e.target.value)}
                   placeholder="例如：日活统计"
                   autoFocus
-                  className="w-full px-3 py-2 text-sm bg-monokai-bg border border-monokai-border rounded-lg text-monokai-fg placeholder-monokai-fg-muted/50 focus:outline-none focus:border-monokai-purple transition-colors"
+                  className="w-full px-3 py-2 text-sm bg-monokai-bg border border-monokai-border rounded-lg text-monokai-fg placeholder-monokai-fg-muted/50 focus:outline-none focus:border-monokai-amethyst transition-colors"
                 />
               </div>
               <div>
@@ -227,7 +227,7 @@ export const AbstractionLab: React.FC<AbstractionLabProps> = ({
                 <select
                   value={saveDomain}
                   onChange={(e) => setSaveDomain(e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-monokai-bg border border-monokai-border rounded-lg text-monokai-fg focus:outline-none focus:border-monokai-purple transition-colors"
+                  className="w-full px-3 py-2 text-sm bg-monokai-bg border border-monokai-border rounded-lg text-monokai-fg focus:outline-none focus:border-monokai-amethyst transition-colors"
                 >
                   {[...new Set(domains)].map((d) => <option key={d} value={d}>{d}</option>)}
                 </select>
@@ -242,7 +242,7 @@ export const AbstractionLab: React.FC<AbstractionLabProps> = ({
                 <button
                   onClick={handleSaveTemplate}
                   disabled={!saveName.trim()}
-                  className="px-5 py-2 text-sm font-medium rounded-lg bg-monokai-purple text-white hover:bg-monokai-purple/80 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  className="px-5 py-2 text-sm font-medium rounded-lg bg-monokai-amethyst text-white hover:bg-monokai-amethyst/80 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
                   保存
                 </button>

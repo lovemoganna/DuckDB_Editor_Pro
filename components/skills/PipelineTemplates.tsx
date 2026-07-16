@@ -46,13 +46,13 @@ export const PipelineTemplates: React.FC<PipelineTemplatesProps> = ({
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <Zap className="w-4 h-4 text-monokai-purple" />
+          <Zap className="w-4 h-4 text-monokai-amethyst" />
           <span className="text-xs font-medium text-monokai-fg font-sans">Pipeline 模板</span>
         </div>
         {onCreateCustom && (
           <button
             onClick={onCreateCustom}
-            className="flex items-center gap-1 px-2 py-1 text-[10px] border border-monokai-purple/40 text-monokai-purple hover:bg-monokai-purple/10 rounded transition-colors"
+            className="flex items-center gap-1 px-2 py-1 text-[10px] border border-monokai-amethyst/40 text-monokai-amethyst hover:bg-monokai-amethyst/10 rounded transition-colors"
           >
             <Plus className="w-3 h-3" />
             自定义
@@ -95,7 +95,7 @@ export const PipelineTemplates: React.FC<PipelineTemplatesProps> = ({
                       onMouseLeave={() => setHoveredTemplate(null)}
                       className={`w-full text-left px-2 py-2 rounded border transition-all ${
                         hoveredTemplate === template.id
-                          ? 'bg-monokai-sidebar border-monokai-purple/40'
+                          ? 'bg-monokai-sidebar border-monokai-amethyst/40'
                           : 'bg-transparent border-transparent hover:bg-monokai-bg hover:border-monokai-accent/30'
                       }`}
                     >
@@ -110,7 +110,7 @@ export const PipelineTemplates: React.FC<PipelineTemplatesProps> = ({
                           </div>
                         </div>
                         <div className="flex items-center gap-1 shrink-0">
-                          <span className="text-[9px] text-monokai-purple font-mono">
+                          <span className="text-[9px] text-monokai-amethyst font-mono">
                             {template.steps.length}步
                           </span>
                           <ChevronRight className="w-3 h-3 text-monokai-comment" />
@@ -143,7 +143,7 @@ export const PipelineTemplates: React.FC<PipelineTemplatesProps> = ({
       <div className="mt-4 pt-3 border-t border-monokai-accent/30">
         <div className="flex items-center justify-between text-[10px] text-monokai-comment">
           <span>共 {PIPELINE_TEMPLATES.length} 个模板</span>
-          <span className="text-monokai-purple">点击加载</span>
+          <span className="text-monokai-amethyst">点击加载</span>
         </div>
       </div>
     </div>

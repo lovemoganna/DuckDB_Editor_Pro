@@ -20,7 +20,7 @@ export const MECE_LAYER_LABELS: Record<MECELayer, string> = {
 
 // ── MECE 五层颜色语义（按 Ontology_Canvas_MECE_Optimize_Prompt.md 规范）────────
 export const MECE_LAYER_COLORS: Record<MECELayer, string> = {
-  foundation:  '#a78bfa', // purple-400 — 对象类型
+  foundation:  '#ae81ff', // amethyst-400 — 对象类型
   relations:   '#38bdf8', // sky-400 — 链接类型
   methodology: '#4ade80',  // green-400 — 行动
   patterns:    '#fb923c',  // orange-400 — 洞察
@@ -28,7 +28,7 @@ export const MECE_LAYER_COLORS: Record<MECELayer, string> = {
 };
 
 export const MECE_LAYER_TAILWIND: Record<MECELayer, string> = {
-  foundation:  'text-purple-400',
+  foundation:  'text-amethyst-400',
   relations:   'text-sky-400',
   methodology: 'text-green-400',
   patterns:    'text-orange-400',
@@ -36,7 +36,7 @@ export const MECE_LAYER_TAILWIND: Record<MECELayer, string> = {
 };
 
 export const MECE_LAYER_BG: Record<MECELayer, string> = {
-  foundation:  'bg-purple-400',
+  foundation:  'bg-amethyst-400',
   relations:   'bg-sky-400',
   methodology: 'bg-green-400',
   patterns:    'bg-orange-400',
@@ -53,7 +53,7 @@ export const CANVAS_DEFAULT_ZOOM = 1.0;
 // 节点类型颜色轮转（用于无 MECE 层信息时的降级展示）
 export const NODE_TYPE_COLORS = [
   '#7dd3fc', // sky-300
-  '#a78bfa', // purple-400
+  '#ae81ff', // amethyst-400
   '#4ade80', // green-400
   '#fbbf24', // amber-400
   '#fb923c', // orange-400

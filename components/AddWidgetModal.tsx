@@ -103,7 +103,7 @@ export const AddWidgetModal: React.FC<AddWidgetModalProps> = ({ onClose, onAdd }
                         onClick={() => setActiveTab('metrics')}
                         className={`flex-1 py-3 px-4 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
                             activeTab === 'metrics' 
-                                ? 'bg-monokai-bg text-monokai-purple border-b-2 border-monokai-purple' 
+                                ? 'bg-monokai-bg text-monokai-amethyst border-b-2 border-monokai-amethyst' 
                                 : 'text-monokai-comment hover:text-monokai-fg'
                         }`}
                     >
@@ -144,7 +144,7 @@ export const AddWidgetModal: React.FC<AddWidgetModalProps> = ({ onClose, onAdd }
                                                     className="p-3 rounded border border-monokai-accent bg-monokai-bg hover:border-monokai-blue hover:bg-monokai-accent/20 cursor-pointer transition-all flex justify-between items-center group"
                                                 >
                                                     <div className="flex items-center gap-3">
-                                                        <div className={`p-2 rounded ${hasCharts ? 'bg-monokai-purple/20 text-monokai-purple' : 'bg-monokai-blue/20 text-monokai-blue'}`}>
+                                                        <div className={`p-2 rounded ${hasCharts ? 'bg-monokai-amethyst/20 text-monokai-amethyst' : 'bg-monokai-blue/20 text-monokai-blue'}`}>
                                                             {hasCharts ? <BarChart2 size={18} /> : <Table size={18} />}
                                                         </div>
                                                         <div>
@@ -186,7 +186,7 @@ export const AddWidgetModal: React.FC<AddWidgetModalProps> = ({ onClose, onAdd }
                                                     onClick={() => setSelectedPackage(pkg)}
                                                     className={`px-3 py-1.5 rounded text-sm flex items-center gap-2 transition-colors ${
                                                         selectedPackage?.id === pkg.id
-                                                            ? 'bg-monokai-purple text-monokai-fg'
+                                                            ? 'bg-monokai-amethyst text-monokai-fg'
                                                             : 'bg-monokai-accent/30 text-monokai-fg hover:bg-monokai-accent/50'
                                                     }`}
                                                 >
@@ -217,11 +217,11 @@ export const AddWidgetModal: React.FC<AddWidgetModalProps> = ({ onClose, onAdd }
                                                         className={`p-3 rounded border transition-all flex justify-between items-center group ${
                                                             isGenerating 
                                                                 ? 'bg-monokai-bg border-monokai-accent opacity-50'
-                                                                : 'bg-monokai-bg border-monokai-accent hover:border-monokai-purple hover:bg-monokai-purple/10 cursor-pointer'
+                                                                : 'bg-monokai-bg border-monokai-accent hover:border-monokai-amethyst hover:bg-monokai-amethyst/10 cursor-pointer'
                                                         }`}
                                                     >
                                                         <div className="flex items-center gap-3">
-                                                            <div className="p-2 rounded bg-monokai-purple/20 text-monokai-purple">
+                                                            <div className="p-2 rounded bg-monokai-amethyst/20 text-monokai-amethyst">
                                                                 <BarChart2 size={18} />
                                                             </div>
                                                             <div>
@@ -234,11 +234,11 @@ export const AddWidgetModal: React.FC<AddWidgetModalProps> = ({ onClose, onAdd }
                                                         </div>
                                                         <div className="opacity-0 group-hover:opacity-100 flex items-center gap-2">
                                                             {isGenerating ? (
-                                                                <Loader2 size={14} className="animate-spin text-monokai-purple" />
+                                                                <Loader2 size={14} className="animate-spin text-monokai-amethyst" />
                                                             ) : (
                                                                 <>
-                                                                    <span className="text-xs text-monokai-purple">Create Chart</span>
-                                                                    <ChevronRight size={14} className="text-monokai-purple" />
+                                                                    <span className="text-xs text-monokai-amethyst">Create Chart</span>
+                                                                    <ChevronRight size={14} className="text-monokai-amethyst" />
                                                                 </>
                                                             )}
                                                         </div>
@@ -252,8 +252,8 @@ export const AddWidgetModal: React.FC<AddWidgetModalProps> = ({ onClose, onAdd }
                             
                             {isGenerating && (
                                 <div className="p-4 border-t border-monokai-accent bg-monokai-bg flex items-center justify-center gap-2">
-                                    <Loader2 size={16} className="animate-spin text-monokai-purple" />
-                                    <span className="text-sm text-monokai-purple">Generating chart...</span>
+                                    <Loader2 size={16} className="animate-spin text-monokai-amethyst" />
+                                    <span className="text-sm text-monokai-amethyst">Generating chart...</span>
                                 </div>
                             )}
                         </div>
