@@ -34,7 +34,7 @@ export const OPERATION_CONFIG: Record<AbstractionSqlOperation, OperationMeta> = 
   INSERT:    { label: '插入', color: 'monokai-green' },
   UPDATE:    { label: '更新', color: 'monokai-yellow' },
   DELETE:    { label: '删除', color: 'monokai-red' },
-  AGGREGATE: { label: '聚合', color: 'monokai-purple' },
+  AGGREGATE: { label: '聚合', color: 'monokai-amethyst' },
   JOIN:      { label: '关联', color: 'monokai-pink' },
   WINDOW:    { label: '窗口', color: 'monokai-orange' },
   CTE:       { label: 'CTE',  color: 'monokai-cyan' },
@@ -42,7 +42,7 @@ export const OPERATION_CONFIG: Record<AbstractionSqlOperation, OperationMeta> = 
 
 // 抽象层级配置
 export const LEVEL_CONFIG: Record<AbstractionLevel, LevelMeta> = {
-  concept:   { label: '概念', color: 'monokai-purple' },
+  concept:   { label: '概念', color: 'monokai-amethyst' },
   property:  { label: '属性', color: 'monokai-blue' },
   relation:  { label: '关系', color: 'monokai-green' },
   instance:  { label: '实例', color: 'monokai-yellow' },

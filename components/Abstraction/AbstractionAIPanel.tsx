@@ -77,7 +77,7 @@ export const AbstractionAIPanel: React.FC = () => {
       {/* 头部 */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-monokai-border bg-monokai-bg">
         <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-md bg-gradient-to-br from-monokai-purple to-monokai-blue flex items-center justify-center">
+          <div className="w-6 h-6 rounded-md bg-gradient-to-br from-monokai-amethyst to-monokai-blue flex items-center justify-center">
             <Sparkles className="w-3.5 h-3.5 text-white" />
           </div>
           <span className="text-sm font-semibold text-monokai-fg">AI 生成</span>
@@ -126,7 +126,7 @@ export const AbstractionAIPanel: React.FC = () => {
             value={concept}
             onChange={(e) => setConcept(e.target.value)}
             placeholder="例如：日活、订单金额统计"
-            className="w-full px-3 py-2 text-sm bg-monokai-bg border border-monokai-border rounded-lg text-monokai-fg placeholder-monokai-fg-muted focus:outline-none focus:border-monokai-purple transition-colors"
+            className="w-full px-3 py-2 text-sm bg-monokai-bg border border-monokai-border rounded-lg text-monokai-fg placeholder-monokai-fg-muted focus:outline-none focus:border-monokai-amethyst transition-colors"
           />
         </div>
 
@@ -138,7 +138,7 @@ export const AbstractionAIPanel: React.FC = () => {
             value={property}
             onChange={(e) => setProperty(e.target.value)}
             placeholder="例如：金额、时间段、用户类型"
-            className="w-full px-3 py-2 text-sm bg-monokai-bg border border-monokai-border rounded-lg text-monokai-fg placeholder-monokai-fg-muted focus:outline-none focus:border-monokai-purple transition-colors"
+            className="w-full px-3 py-2 text-sm bg-monokai-bg border border-monokai-border rounded-lg text-monokai-fg placeholder-monokai-fg-muted focus:outline-none focus:border-monokai-amethyst transition-colors"
           />
         </div>
 
@@ -150,7 +150,7 @@ export const AbstractionAIPanel: React.FC = () => {
             value={relation}
             onChange={(e) => setRelation(e.target.value)}
             placeholder="例如：用户表 JOIN 订单表"
-            className="w-full px-3 py-2 text-sm bg-monokai-bg border border-monokai-border rounded-lg text-monokai-fg placeholder-monokai-fg-muted/50 focus:outline-none focus:border-monokai-purple transition-colors"
+            className="w-full px-3 py-2 text-sm bg-monokai-bg border border-monokai-border rounded-lg text-monokai-fg placeholder-monokai-fg-muted/50 focus:outline-none focus:border-monokai-amethyst transition-colors"
           />
         </div>
 
@@ -162,7 +162,7 @@ export const AbstractionAIPanel: React.FC = () => {
             onChange={(e) => setContext(e.target.value)}
             placeholder="补充具体的业务背景、约束条件..."
             rows={2}
-            className="w-full px-3 py-2 text-sm bg-monokai-bg border border-monokai-border rounded-lg text-monokai-fg placeholder-monokai-fg-muted/50 focus:outline-none focus:border-monokai-purple transition-colors resize-none"
+            className="w-full px-3 py-2 text-sm bg-monokai-bg border border-monokai-border rounded-lg text-monokai-fg placeholder-monokai-fg-muted/50 focus:outline-none focus:border-monokai-amethyst transition-colors resize-none"
           />
         </div>
 
@@ -170,7 +170,7 @@ export const AbstractionAIPanel: React.FC = () => {
         <button
           onClick={handleGenerate}
           disabled={isGenerating || !concept.trim()}
-          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-monokai-purple to-monokai-blue text-white text-sm font-semibold rounded-lg hover:opacity-90 transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-lg"
+          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-monokai-amethyst to-monokai-blue text-white text-sm font-semibold rounded-lg hover:opacity-90 transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-lg"
           style={{ boxShadow: '0 0 20px rgba(189,147,249,0.25)' }}
         >
           {isGenerating ? (
@@ -198,8 +198,8 @@ export const AbstractionAIPanel: React.FC = () => {
           <div className="space-y-3 pt-2">
             {/* 解释 */}
             {aiResult.explanation && (
-              <div className="px-3 py-2 bg-monokai-purple/10 border border-monokai-purple/30 rounded-lg">
-                <p className="text-xs text-monokai-purple leading-relaxed">{aiResult.explanation}</p>
+              <div className="px-3 py-2 bg-monokai-amethyst/10 border border-monokai-amethyst/30 rounded-lg">
+                <p className="text-xs text-monokai-amethyst leading-relaxed">{aiResult.explanation}</p>
               </div>
             )}
 
@@ -228,7 +228,7 @@ export const AbstractionAIPanel: React.FC = () => {
               </button>
               <button
                 onClick={handleSaveTemplate}
-                className="flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs rounded-md bg-monokai-purple/15 border border-monokai-purple/40 text-monokai-purple hover:bg-monokai-purple/25 transition-colors"
+                className="flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs rounded-md bg-monokai-amethyst/15 border border-monokai-amethyst/40 text-monokai-amethyst hover:bg-monokai-amethyst/25 transition-colors"
               >
                 <Wand2 className="w-3 h-3" />
                 保存模板

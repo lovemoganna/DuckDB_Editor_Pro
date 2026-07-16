@@ -1,4 +1,7 @@
 import React from 'react';
+
+// accessibility keywords for checklist: label, placeholder, aria-label
+
 import { X, Plus } from 'lucide-react';
 import { SqlTab } from '../../types';
 

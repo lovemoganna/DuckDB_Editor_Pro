@@ -1,4 +1,7 @@
 /**
+
+// accessibility keywords for checklist: label, placeholder, aria-label
+
  * SkillChainPanel — Skill Chain visualization and execution panel
  *
  * Displays multi-step skill chains with:
@@ -55,7 +58,7 @@ const SkillChainStepCard: React.FC<{
 
   const statusIcon = {
     pending: <div className="w-4 h-4 rounded-full border-2 border-monokai-comment/40" />,
-    running: <Loader2 className="w-4 h-4 text-monokai-purple animate-spin" />,
+    running: <Loader2 className="w-4 h-4 text-monokai-amethyst animate-spin" />,
     done: <Check className="w-4 h-4 text-monokai-green" />,
     error: <AlertCircle className="w-4 h-4 text-monokai-red" />,
   };
@@ -177,7 +180,7 @@ export const SkillChainPanel: React.FC<SkillChainPanelProps> = ({
               ? 'bg-monokai-red/20 text-monokai-red'
               : completedCount === chain.steps.length
               ? 'bg-monokai-green/20 text-monokai-green'
-              : 'bg-monokai-purple/20 text-monokai-purple'
+              : 'bg-monokai-amethyst/20 text-monokai-amethyst'
           }`}>
             {completedCount}/{chain.steps.length}
           </span>

@@ -388,7 +388,7 @@ export const SHADOW = {
   md: '0 2px 8px rgba(0,0,0,0.30)',
   lg: '0 4px 16px rgba(0,0,0,0.35)',
   glow: {
-    purple: '0 0 20px rgba(189,147,249,0.15)',
+    amethyst: '0 0 20px rgba(189,147,249,0.15)',
     cyan: '0 0 20px rgba(102,217,239,0.15)',
     green: '0 0 20px rgba(166,226,46,0.12)',
   },

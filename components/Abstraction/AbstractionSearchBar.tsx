@@ -43,7 +43,7 @@ export const AbstractionSearchBar: React.FC<AbstractionSearchBarProps> = ({
           placeholder="搜索数据抽象表..."
           value={filters.searchQuery}
           onChange={(e) => onFiltersChange({ ...filters, searchQuery: e.target.value })}
-          className="w-full pl-8 pr-8 py-1.5 text-sm bg-monokai-bg border border-monokai-accent rounded-lg text-monokai-fg placeholder-monokai-comment focus:outline-none focus:border-monokai-purple"
+          className="w-full pl-8 pr-8 py-1.5 text-sm bg-monokai-bg border border-monokai-accent rounded-lg text-monokai-fg placeholder-monokai-comment focus:outline-none focus:border-monokai-amethyst"
         />
         {filters.searchQuery && (
           <button
@@ -119,7 +119,7 @@ export const AbstractionSearchBar: React.FC<AbstractionSearchBarProps> = ({
           filters.isFavorite) && (
           <button
             onClick={onClear}
-            className="text-xs text-monokai-purple hover:underline"
+            className="text-xs text-monokai-amethyst hover:underline"
           >
             清除筛选
           </button>

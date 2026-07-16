@@ -255,9 +255,9 @@ export const SkillInvoker: React.FC<SkillInvokerProps> = ({
 
       {/* ── Tactical Command Bar ── */}
       <div className="flex items-center gap-2 px-4 py-2 border-b border-[#3e3d32] bg-[#1e1f1c]/80 shrink-0">
-        <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-monokai-purple/10 border border-monokai-purple/20">
+        <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-monokai-amethyst/10 border border-monokai-amethyst/20">
           <Zap className="w-3 h-3" style={{ color: '#bd93f9' }} />
-          <span className="text-[9px] font-bold uppercase tracking-widest font-mono text-monokai-purple">Tactical</span>
+          <span className="text-[9px] font-bold uppercase tracking-widest font-mono text-monokai-amethyst">Tactical</span>
         </div>
 
         <div className="w-px h-4 bg-[#3e3d32]" />

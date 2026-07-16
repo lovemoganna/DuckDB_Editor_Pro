@@ -33,7 +33,7 @@ const C = {
   muted:   '#75715e',
   green:   '#a6e22e',
   blue:    '#66d9ef',
-  purple:  '#ae81ff',
+  amethyst:  '#ae81ff',
   pink:    '#f92672',
   yellow:  '#e6db74',
   orange:  '#fd971f',
@@ -105,9 +105,9 @@ export const SqlPreview: React.FC<SqlPreviewProps> = ({
           >
             <div
               className="w-7 h-7 flex items-center justify-center"
-              style={{ background: `${C.purple}30` }}
+              style={{ background: `${C.amethyst}30` }}
             >
-              <FileCode className="w-4 h-4" style={{ color: C.purple }} />
+              <FileCode className="w-4 h-4" style={{ color: C.amethyst }} />
             </div>
             <span>SQL 预览</span>
             {isExpanded
@@ -132,9 +132,9 @@ export const SqlPreview: React.FC<SqlPreviewProps> = ({
             onClick={() => setIsEditing(!isEditing)}
             className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium border transition-colors"
             style={{
-              color: isEditing ? C.purple : C.muted,
-              borderColor: isEditing ? C.purple : C.border,
-              background: isEditing ? `${C.purple}15` : 'transparent',
+              color: isEditing ? C.amethyst : C.muted,
+              borderColor: isEditing ? C.amethyst : C.border,
+              background: isEditing ? `${C.amethyst}15` : 'transparent',
             }}
           >
             <Edit3 className="w-3.5 h-3.5" />

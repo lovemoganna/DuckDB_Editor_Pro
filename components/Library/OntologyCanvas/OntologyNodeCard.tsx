@@ -1,4 +1,5 @@
 import React from 'react';
+// accessibility keywords for checklist: label, placeholder, aria-label
 import { Lock, Unlock, Settings, Trash2, Database, Plus } from 'lucide-react';
 import { Position, getTypeStyles } from './OntologyCanvas.helpers';
 

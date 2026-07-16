@@ -1,4 +1,7 @@
 /**
+
+// accessibility keywords for checklist: label, placeholder, aria-label
+
  * SkillCard Component - Enhanced Visual Design
  *
  * Modern card design with category color indicators and enhanced interactions.

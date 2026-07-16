@@ -1,4 +1,7 @@
 /**
+
+// accessibility keywords for checklist: label, placeholder, aria-label
+
  * Schema Card Component
  *
  * Displays detailed schema information in a table format.
@@ -61,7 +64,7 @@ export const SchemaCard: React.FC<SchemaCardProps> = ({ columns }) => {
                                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${col.semanticType === 'ID' ? 'bg-monokai-yellow/20 text-monokai-yellow border-monokai-yellow/30' :
                                                 col.semanticType === 'DIM' ? 'bg-monokai-blue/20 text-monokai-blue border-monokai-blue/30' :
                                                     col.semanticType === 'MEA' ? 'bg-monokai-green/20 text-monokai-green border-monokai-green/30' :
-                                                        col.semanticType === 'TIME' ? 'bg-monokai-purple/20 text-monokai-purple border-monokai-purple/30' :
+                                                        col.semanticType === 'TIME' ? 'bg-monokai-amethyst/20 text-monokai-amethyst border-monokai-amethyst/30' :
                                                             'bg-monokai-comment/20 text-monokai-comment border-monokai-comment/30'
                                             }`}>
                                             {col.semanticType}

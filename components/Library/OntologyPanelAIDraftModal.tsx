@@ -42,8 +42,8 @@ const AIDraftModal: React.FC<AIDraftModalProps> = ({ payload, jsonStr, onCommit,
         <div className="w-[720px] max-h-[85vh] bg-monokai-bg border border-monokai-accent/20 rounded-2xl shadow-2xl flex flex-col">
           <div className="flex items-center justify-between px-6 py-5 border-b border-monokai-accent/10">
             <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-xl bg-monokai-purple/15 flex items-center justify-center">
-                <Sparkles className="w-5 h-5 text-monokai-purple" />
+              <div className="w-10 h-10 rounded-xl bg-monokai-amethyst/15 flex items-center justify-center">
+                <Sparkles className="w-5 h-5 text-monokai-amethyst" />
               </div>
               <div>
                 <h3 className="text-base font-bold text-monokai-fg">AI 生成预览</h3>
@@ -57,7 +57,7 @@ const AIDraftModal: React.FC<AIDraftModalProps> = ({ payload, jsonStr, onCommit,
 
           <div className="px-6 py-4 border-b border-monokai-accent/10 bg-monokai-sidebar/30 flex items-center gap-6 text-sm">
             {payload.objects?.length > 0 && <span className="text-monokai-blue flex items-center gap-2"><Table2 className="w-4 h-4" /> 对象 × {payload.objects.length}</span>}
-            {payload.links?.length > 0 && <span className="text-monokai-purple flex items-center gap-2"><Link2 className="w-4 h-4" /> 关系 × {payload.links.length}</span>}
+            {payload.links?.length > 0 && <span className="text-monokai-amethyst flex items-center gap-2"><Link2 className="w-4 h-4" /> 关系 × {payload.links.length}</span>}
             {payload.actions?.length > 0 && <span className="text-monokai-yellow flex items-center gap-2"><Zap className="w-4 h-4" /> 行动 × {payload.actions.length}</span>}
           </div>
 
@@ -77,7 +77,7 @@ const AIDraftModal: React.FC<AIDraftModalProps> = ({ payload, jsonStr, onCommit,
               取消
             </button>
             <button onClick={handleCommit} disabled={committing}
-              className="flex items-center gap-2 px-5 py-2.5 text-sm rounded-xl bg-monokai-purple/20 text-monokai-purple hover:bg-monokai-purple/30 transition-colors disabled:opacity-50 font-medium">
+              className="flex items-center gap-2 px-5 py-2.5 text-sm rounded-xl bg-monokai-amethyst/20 text-monokai-amethyst hover:bg-monokai-amethyst/30 transition-colors disabled:opacity-50 font-medium">
               {committing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
               确认并注入
             </button>

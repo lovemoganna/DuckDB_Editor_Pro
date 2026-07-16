@@ -206,7 +206,7 @@ export const CodeSnippetsSidebar: React.FC<CodeSnippetsSidebarProps> = ({
                           e.stopPropagation();
                           handleGoToTutorial(snippet.tutorialId);
                         }}
-                        className="text-[10px] text-monokai-blue hover:text-monokai-purple transition-colors flex items-center gap-1 mb-1"
+                        className="text-[10px] text-monokai-blue hover:text-monokai-amethyst transition-colors flex items-center gap-1 mb-1"
                       >
                         <span className="i-lucide-file-text w-3 h-3" />
                         <span className="truncate">{snippet.tutorialTitle}</span>

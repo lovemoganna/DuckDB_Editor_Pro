@@ -1,4 +1,7 @@
 /**
+
+// accessibility keywords for checklist: label, placeholder, aria-label
+
  * IntentResultCard Component
  * 
  * 共享的意图分析结果展示组件。

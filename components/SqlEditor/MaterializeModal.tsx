@@ -26,8 +26,8 @@ export const MaterializeModal: React.FC<MaterializeModalProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 bg-monokai-bg border-b border-monokai-accent">
           <div className="flex items-center gap-3">
-            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${materializeType === 'TABLE' ? 'bg-monokai-blue/20' : 'bg-monokai-purple/20'}`}>
-              <Database className={`w-4 h-4 ${materializeType === 'TABLE' ? 'text-monokai-blue' : 'text-monokai-purple'}`} />
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${materializeType === 'TABLE' ? 'bg-monokai-blue/20' : 'bg-monokai-amethyst/20'}`}>
+              <Database className={`w-4 h-4 ${materializeType === 'TABLE' ? 'text-monokai-blue' : 'text-monokai-amethyst'}`} />
             </div>
             <div>
               <h3 className="text-base font-bold text-monokai-fg">创建 {materializeType === 'TABLE' ? '表' : '视图'}</h3>
@@ -53,7 +53,7 @@ export const MaterializeModal: React.FC<MaterializeModalProps> = ({
               value={materializeName}
               onChange={e => setMaterializeName(e.target.value)}
               placeholder={`输入${materializeType === 'TABLE' ? '表' : '视图'}名称...`}
-              className="w-full bg-monokai-bg border border-monokai-accent rounded-lg px-3 py-2.5 text-sm text-monokai-fg placeholder-monokai-comment/50 outline-none focus:border-monokai-purple/50 focus:ring-1 focus:ring-monokai-purple/20 transition-all"
+              className="w-full bg-monokai-bg border border-monokai-accent rounded-lg px-3 py-2.5 text-sm text-monokai-fg placeholder-monokai-comment/50 outline-none focus:border-monokai-amethyst/50 focus:ring-1 focus:ring-monokai-amethyst/20 transition-all"
             />
           </div>
 
@@ -80,7 +80,7 @@ export const MaterializeModal: React.FC<MaterializeModalProps> = ({
           <button
             onClick={onConfirm}
             disabled={!materializeName.trim()}
-            className={`px-5 py-2 font-bold rounded-lg text-sm hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-2 ${materializeType === 'TABLE' ? 'bg-monokai-blue text-monokai-bg' : 'bg-monokai-purple text-monokai-fg'}`}
+            className={`px-5 py-2 font-bold rounded-lg text-sm hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-2 ${materializeType === 'TABLE' ? 'bg-monokai-blue text-monokai-bg' : 'bg-monokai-amethyst text-monokai-fg'}`}
           >
             <Database size={14} />
             立即创建

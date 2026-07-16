@@ -183,7 +183,7 @@ export const NotesSidebar: React.FC<NotesSidebarProps> = ({
                 </div>
                 
                 {/* 选中的文本 */}
-                <div className="text-xs text-monokai-fg mb-3 line-clamp-2 italic border-l-2 border-monokai-purple/40 pl-2.5 py-0.5 bg-monokai-purple/5 rounded-r">
+                <div className="text-xs text-monokai-fg mb-3 line-clamp-2 italic border-l-2 border-monokai-amethyst/40 pl-2.5 py-0.5 bg-monokai-amethyst/5 rounded-r">
                   "{note.selectedText}"
                 </div>
                 

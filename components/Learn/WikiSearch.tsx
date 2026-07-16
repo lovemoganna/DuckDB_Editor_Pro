@@ -68,7 +68,7 @@ export const WikiSearch: React.FC<WikiSearchProps> = ({ onSelectTutorial }) => {
     switch (difficulty) {
       case 'Beginner': return 'bg-monokai-green/20 text-monokai-green';
       case 'Intermediate': return 'bg-monokai-orange/20 text-monokai-orange';
-      case 'Advanced': return 'bg-monokai-purple/20 text-monokai-purple';
+      case 'Advanced': return 'bg-monokai-amethyst/20 text-monokai-amethyst';
       default: return 'bg-monokai-blue/20 text-monokai-blue';
     }
   };

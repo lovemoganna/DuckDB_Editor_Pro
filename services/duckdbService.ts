@@ -1591,13 +1591,17 @@ class DuckDBService {
     return this.runInQueue(async () => {
       await this.waitForInit();
       if (!this.conn) return;
-      try {
-        const sql = ONTOLOGY_CREATE_STATEMENTS.join(';\n');
-        await this.conn.query(sql);
-        this.dispatchSchemaChanged();
-      } catch (e) {
-        console.error('ontologyInit failed', e);
+      for (const stmt of ONTOLOGY_CREATE_STATEMENTS) {
+        if (stmt.trim()) {
+          try {
+            await this.conn.query(stmt);
+          } catch (e: any) {
+            console.error(`[DuckDB] DDL execution failed for: "${stmt}"`, e);
+            throw e;
+          }
+        }
       }
+      this.dispatchSchemaChanged();
     });
   }
 
@@ -1605,11 +1609,15 @@ class DuckDBService {
     return this.runInQueue(async () => {
       await this.waitForInit();
       if (!this.conn) return;
-      try {
-        const sql = ONTOLOGY_SEED_STATEMENTS.join(';\n');
-        await this.conn.query(sql);
-      } catch (e) {
-        console.error('ontologySeed failed', e);
+      for (const stmt of ONTOLOGY_SEED_STATEMENTS) {
+        if (stmt.trim()) {
+          try {
+            await this.conn.query(stmt);
+          } catch (e: any) {
+            console.error(`[DuckDB] Seed execution failed for: "${stmt}"`, e);
+            throw e;
+          }
+        }
       }
     });
   }
@@ -1896,10 +1904,13 @@ class DuckDBService {
           sqlParts.push(`INSERT INTO life_insight (id, object_id, insight, tag, created_at) VALUES ${values}`);
         }
 
-        // Execute ALL statements as a single DuckDB worker message
-        const combinedSql = sqlParts.join(';\n');
-        console.log(`[DuckDB] loadOntologyTemplate: executing ${sqlParts.length} statements in single batch`);
-        await this.conn.query(combinedSql);
+        // Execute ALL statements sequentially
+        console.log(`[DuckDB] loadOntologyTemplate: executing ${sqlParts.length} statements sequentially`);
+        for (const stmt of sqlParts) {
+          if (stmt.trim()) {
+            await this.conn.query(stmt);
+          }
+        }
         this.dispatchSchemaChanged();
       } catch (err) {
         console.error('Load ontology template failed', err);
@@ -1908,6 +1919,82 @@ class DuckDBService {
     });
   }
 
+
+  async getOntologyPatterns(): Promise<any[]> {
+    if (!this.conn) return [];
+    try {
+      const rows = await this.query('SELECT * FROM _sys_ontology_pattern_library');
+      return rows.map((r: any) => {
+        const parseJson = (val: any) => {
+          if (!val) return [];
+          if (typeof val === 'string') {
+            try { return JSON.parse(val); } catch { return []; }
+          }
+          return val;
+        };
+        return {
+          ...r,
+          seedIds: parseJson(r.seed_ids),
+          coreNodes: parseJson(r.core_nodes),
+          principles: parseJson(r.principles),
+          bestPractices: parseJson(r.best_practices),
+          antiPatterns: parseJson(r.anti_patterns),
+        };
+      });
+    } catch (e) {
+      console.warn('[DuckDB] Failed to query pattern library:', e);
+      return [];
+    }
+  }
+
+  async saveOntologyPattern(pattern: any): Promise<void> {
+    if (!this.conn) return;
+    const esc = (val: any) => (val ? String(val).replace(/'/g, "''") : '');
+    const seedIdsJson = JSON.stringify(pattern.seedIds || pattern.seed_ids || []);
+    const coreNodesJson = JSON.stringify(pattern.coreNodes || pattern.core_nodes || []);
+    const principlesJson = JSON.stringify(pattern.principles || []);
+    const bestPracticesJson = JSON.stringify(pattern.bestPractices || pattern.best_practices || []);
+    const antiPatternsJson = JSON.stringify(pattern.antiPatterns || pattern.anti_patterns || []);
+
+    await this.query(`
+      INSERT INTO _sys_ontology_pattern_library (
+        id, category_id, category_title, title, icon_name, brief, description, layer, seed_ids, core_nodes, principles, best_practices, anti_patterns, mermaid
+      ) VALUES (
+        '${esc(pattern.id)}',
+        '${esc(pattern.categoryId || pattern.category_id)}',
+        '${esc(pattern.categoryTitle || pattern.category_title)}',
+        '${esc(pattern.title)}',
+        '${esc(pattern.iconName || pattern.icon_name || 'BookOpen')}',
+        '${esc(pattern.brief)}',
+        '${esc(pattern.description)}',
+        '${esc(pattern.layer)}',
+        '${esc(seedIdsJson)}'::JSON,
+        '${esc(coreNodesJson)}'::JSON,
+        '${esc(principlesJson)}'::JSON,
+        '${esc(bestPracticesJson)}'::JSON,
+        '${esc(antiPatternsJson)}'::JSON,
+        '${esc(pattern.mermaid || '')}'
+      )
+      ON CONFLICT (id) DO UPDATE SET
+        category_id = EXCLUDED.category_id,
+        category_title = EXCLUDED.category_title,
+        title = EXCLUDED.title,
+        icon_name = EXCLUDED.icon_name,
+        brief = EXCLUDED.brief,
+        description = EXCLUDED.description,
+        layer = EXCLUDED.layer,
+        seed_ids = EXCLUDED.seed_ids,
+        core_nodes = EXCLUDED.core_nodes,
+        principles = EXCLUDED.principles,
+        best_practices = EXCLUDED.best_practices,
+        anti_patterns = EXCLUDED.anti_patterns,
+        mermaid = EXCLUDED.mermaid
+    `);
+  }
+
+  async deleteOntologyPattern(id: string): Promise<void> {
+    await this.query(`DELETE FROM _sys_ontology_pattern_library WHERE id = '${id.replace(/'/g, "''")}'`);
+  }
 
   async getDatabaseDiagnostics(): Promise<{ databaseSize: string; memoryUsage: string; memoryLimit: string }> {
     if (!this.conn) return { databaseSize: 'Unknown', memoryUsage: 'Unknown', memoryLimit: 'Unknown' };

@@ -210,7 +210,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                           onClick={() => execute(cmd)}
                           className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer transition-all duration-100 border-l-2 ${
                             isSelected
-                              ? 'border-monokai-purple bg-monokai-accent/20'
+                              ? 'border-monokai-amethyst bg-monokai-accent/20'
                               : 'border-transparent hover:bg-monokai-sidebar/40'
                           }`}
                         >
@@ -232,7 +232,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                             </span>
                           )}
                           {globalIdx === selectedIndex && (
-                            <CornerDownLeft className="w-4 h-4 text-monokai-purple flex-shrink-0" />
+                            <CornerDownLeft className="w-4 h-4 text-monokai-amethyst flex-shrink-0" />
                           )}
                         </div>
                       );

@@ -28,7 +28,7 @@ export interface HandbookLayerMeta {
 /** All cognitive layers in execution order */
 export const COGNITIVE_LAYERS: HandbookLayerMeta[] = [
   { layer: 'perception', label: '感知层',   priority: 1, color: 'cyan'    },
-  { layer: 'strategy',   label: '决策层',   priority: 2, color: 'purple'  },
+  { layer: 'strategy',   label: '决策层',   priority: 2, color: 'amethyst'  },
   { layer: 'execution',  label: '执行层',   priority: 3, color: 'green'   },
   { layer: 'meta',       label: '元认知层', priority: 4, color: 'yellow'  },
 ];

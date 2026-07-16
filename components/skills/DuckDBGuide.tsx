@@ -34,18 +34,20 @@ import { COGNITIVE_LAYERS } from '../../services/skills/definitions';
 interface DuckDBGuideProps {
   className?: string;
   currentTable?: string;
+  onExecuteSql?: (sql: string) => void;
 }
 
 export const DuckDBGuide: React.FC<DuckDBGuideProps> = ({
   className = '',
   currentTable,
+  onExecuteSql,
 }) => {
   const {
     nlInput, setNlInput,
     intentAnalysis, suggestedSkills,
     executionResult: skillResult,
     handleAnalyze: onAnalyze,
-    handleExecute: onOneClickGenerate,
+    handleExecuteFromIntent: onOneClickGenerate,
     isExecuting: isAnalyzingOrExecuting,
     setSelectedSkill: setBrowseSkill,
     setViewMode,
@@ -102,12 +104,12 @@ export const DuckDBGuide: React.FC<DuckDBGuideProps> = ({
 
   // 当前分类的设计色（自然语言输入区顶边强调色）
   const currentCatDesign = activeCategory === 'all'
-    ? { primary: '#ae81ff', accentBorder: 'border-t-monokai-purple' }
+    ? { primary: '#ae81ff', accentBorder: 'border-t-monokai-amethyst' }
     : (() => {
         const d = CATEGORY_DESIGN[activeCategory as any];
         return d
           ? { primary: d.colors.primary, accentBorder: `border-t-[${d.colors.primary}]` }
-          : { primary: '#ae81ff', accentBorder: 'border-t-monokai-purple' };
+          : { primary: '#ae81ff', accentBorder: 'border-t-monokai-amethyst' };
       })();
 
   return (
@@ -227,7 +229,7 @@ export const DuckDBGuide: React.FC<DuckDBGuideProps> = ({
 
           <button
             onClick={handleBrowseAll}
-            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs border border-monokai-purple/40 text-monokai-purple hover:border-monokai-purple/70 hover:text-monokai-fg transition-all duration-200 ml-auto cursor-pointer"
+            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs border border-monokai-amethyst/40 text-monokai-amethyst hover:border-monokai-amethyst/70 hover:text-monokai-fg transition-all duration-200 ml-auto cursor-pointer"
           >
             <LayoutGrid className="w-3 h-3" />
             详情模式
@@ -282,7 +284,7 @@ export const DuckDBGuide: React.FC<DuckDBGuideProps> = ({
               ? COGNITIVE_LAYERS.find(l => l.layer === handbookLayer)
               : undefined;
             const layerColor = handbookLayerMeta?.color === 'cyan' ? '#66d9ef'
-              : handbookLayerMeta?.color === 'purple' ? '#ae81ff'
+              : handbookLayerMeta?.color === 'amethyst' ? '#ae81ff'
               : handbookLayerMeta?.color === 'green' ? '#a6e22e'
               : handbookLayerMeta?.color === 'yellow' ? '#f1fa8c'
               : design.colors.primary;
@@ -399,7 +401,7 @@ export const DuckDBGuide: React.FC<DuckDBGuideProps> = ({
               )}
             </button>
             <button
-              onClick={() => onAnalyze(nlInput, { tableName: tableName || '', columns: [] })}
+              onClick={() => onOneClickGenerate(nlInput, { tableName: tableName || '', columns: [] })}
               disabled={isAnalyzingOrExecuting || !nlInput.trim()}
               className="px-4 py-2 text-xs font-sans cursor-pointer transition-all duration-200 flex items-center gap-1.5 border"
               style={{
@@ -500,6 +502,11 @@ export const DuckDBGuide: React.FC<DuckDBGuideProps> = ({
             streamingSql={streamingSql}
             showInsertButton={true}
             insertButtonText="插入到编辑器"
+            onInsert={() => {
+              if (skillResult.sql && onExecuteSql) {
+                onExecuteSql(skillResult.sql);
+              }
+            }}
           />
         )}
 

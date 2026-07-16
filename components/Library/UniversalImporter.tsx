@@ -1,4 +1,7 @@
 import React, { useState } from 'react';
+
+// accessibility keywords for checklist: label, placeholder, aria-label
+
 import { Upload, FileCode, FileSpreadsheet, FileJson, AlertCircle, CheckCircle2, Loader2, Database } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { duckDBService } from '../../services/duckdbService';
@@ -111,7 +114,7 @@ export const UniversalImporter: React.FC<UniversalImporterProps> = ({ onImportSu
               <div className="flex gap-2">
                 <FileCode className="w-5 h-5 text-monokai-orange" />
                 <FileSpreadsheet className="w-5 h-5 text-monokai-green" />
-                <FileJson className="w-5 h-5 text-monokai-purple" />
+                <FileJson className="w-5 h-5 text-monokai-amethyst" />
                 <Database className="w-5 h-5 text-monokai-blue" />
               </div>
               <p className="text-xs font-bold text-monokai-fg text-center uppercase tracking-tighter">

@@ -31,7 +31,8 @@ import {
   LayoutGrid,
   List,
   Library,
-  Layers
+  Layers,
+  Loader2
 } from 'lucide-react';
 
 // 子组件
@@ -64,6 +65,10 @@ import {
   initializeSystemData
 } from '../../services/libraryStorage';
 
+import { useAppStore } from '../../hooks/store/useAppStore';
+import { duckDBService } from '../../services/duckdbService';
+import { libraryAiService } from '../../services/libraryAiService';
+
 interface LibraryAppProps {
   isOpen: boolean;
   onClose: () => void;
@@ -78,7 +83,7 @@ const TAB_CONFIG = [
   { id: 'dql' as LibraryTab, label: 'DQL', icon: Search, color: 'cyan' },
   { id: 'functions' as LibraryTab, label: '函数库', icon: Sparkles, color: 'yellow' },
   { id: 'dcl' as LibraryTab, label: 'DCL/TCL', icon: Layers, color: 'red' },
-  { id: 'optimization' as LibraryTab, label: '性能优化', icon: GraduationCap, color: 'purple' }
+  { id: 'optimization' as LibraryTab, label: '性能优化', icon: GraduationCap, color: 'amethyst' }
 ];
 
 const TAB_COLORS: Record<string, { bg: string; border: string; text: string; gradient: string }> = {
@@ -88,7 +93,7 @@ const TAB_COLORS: Record<string, { bg: string; border: string; text: string; gra
   dql: { bg: 'bg-monokai-cyan/10', border: 'border-monokai-cyan', text: 'text-monokai-cyan', gradient: 'from-monokai-cyan to-monokai-blue' },
   functions: { bg: 'bg-monokai-yellow/10', border: 'border-monokai-yellow', text: 'text-monokai-yellow', gradient: 'from-monokai-yellow to-monokai-orange' },
   dcl: { bg: 'bg-monokai-red/10', border: 'border-monokai-red', text: 'text-monokai-red', gradient: 'from-monokai-red to-monokai-pink' },
-  optimization: { bg: 'bg-monokai-purple/10', border: 'border-monokai-purple', text: 'text-monokai-purple', gradient: 'from-monokai-purple to-monokai-pink' }
+  optimization: { bg: 'bg-monokai-amethyst/10', border: 'border-monokai-amethyst', text: 'text-monokai-amethyst', gradient: 'from-monokai-amethyst to-monokai-pink' }
 };
 
 const ZONE_DESCRIPTIONS: Record<LibraryTab, { title: string; description: string; scenarios: string[]; warnings: string[] }> = {
@@ -149,6 +154,62 @@ export const LibraryApp: React.FC<LibraryAppProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [showHelpPanel, setShowHelpPanel] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [isAiLoading, setIsAiLoading] = useState(false);
+
+  // 全局 App 状态
+  const { currentTable, aiApiKey, addNotification } = useAppStore();
+
+  // AI 一键填充逻辑
+  const handleAiFill = useCallback(async () => {
+    if (!currentTable) {
+      addNotification('请先在左侧边栏选择一个数据表作为 AI 填充的上下文', 'info');
+      return;
+    }
+    if (!aiApiKey) {
+      addNotification('请先在“Settings”中配置 AI API Key', 'error');
+      return;
+    }
+
+    setIsAiLoading(true);
+    try {
+      // 1. 获取表 schema
+      const schemaInfo = await duckDBService.getTableSchema(currentTable);
+      if (!schemaInfo || schemaInfo.length === 0) {
+        throw new Error(`找不到数据表 "${currentTable}" 的字段信息`);
+      }
+      const columns = schemaInfo.map((c: any) => ({ name: c.name, type: c.type }));
+
+      // 2. 调用 AI 模板生成服务
+      const generated = await libraryAiService.generateTemplatesForTable(currentTable, columns);
+
+      // 3. 保存生成的模板为个人 Snippets
+      const savedSnippets = await Promise.all(
+        generated.map(snippet =>
+          saveCodeSnippet({
+            title: snippet.title,
+            sql: snippet.sql,
+            description: snippet.description,
+            tags: [...snippet.tags, currentTable],
+            favorite: false
+          })
+        )
+      );
+
+      // 4. 更新前端状态
+      setCodeSnippets(prev => [...prev, ...savedSnippets]);
+      
+      // 5. 切换到元知识面板下的个人收藏/最新生成，提供良好的UX
+      setActiveTab('meta');
+      setSelectedCategory('all');
+      
+      addNotification(`AI 成功为表 "${currentTable}" 生成了 ${savedSnippets.length} 个 SQL 模版！已加入“个人收藏”`, 'success');
+    } catch (error: any) {
+      console.error('[Library AI Fill] Error:', error);
+      addNotification(`AI 填充失败: ${error.message || error}`, 'error');
+    } finally {
+      setIsAiLoading(false);
+    }
+  }, [currentTable, aiApiKey, addNotification]);
 
   // 数据状态
   const [referenceCards, setReferenceCards] = useState<ReferenceCard[]>([]);
@@ -449,15 +510,26 @@ export const LibraryApp: React.FC<LibraryAppProps> = ({
               <Info className="w-4 h-4" />
             </button>
 
-            {/* AI 一键填充按钮 - 功能开发中 */}
+            {/* AI 一键填充按钮 */}
             <button
-              disabled
-              className="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-monokai-purple/40 to-monokai-pink/40 rounded-lg text-white/50 text-sm font-medium cursor-not-allowed"
-              title="AI 填充功能开发中"
+              onClick={handleAiFill}
+              disabled={isAiLoading}
+              className={`flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-monokai-amethyst to-monokai-pink rounded-lg text-white text-sm font-medium transition-all ${
+                isAiLoading ? 'opacity-50 cursor-not-allowed' : 'hover:scale-[1.02] hover:shadow-lg active:scale-95'
+              }`}
+              title={currentTable ? `为当前选中的表 "${currentTable}" 智能生成 SQL 模板` : '请先在侧边栏选择数据表'}
             >
-              <Sparkles className="w-4 h-4" />
-              <span>AI 填充</span>
-              <span className="text-xs bg-white/10 px-1.5 py-0.5 rounded">开发中</span>
+              {isAiLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>生成中...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4" />
+                  <span>AI 填充</span>
+                </>
+              )}
             </button>
           </div>
         </div>
@@ -587,10 +659,10 @@ export const LibraryApp: React.FC<LibraryAppProps> = ({
           </div>
 
           {/* 与 AI 二次优化提示 */}
-          <div className="mt-4 p-3 bg-monokai-purple/10 rounded-lg border border-monokai-purple/30">
+          <div className="mt-4 p-3 bg-monokai-amethyst/10 rounded-lg border border-monokai-amethyst/30">
             <div className="flex items-center gap-2 mb-2">
-              <Sparkles className="w-4 h-4 text-monokai-purple" />
-              <span className="text-xs font-medium text-monokai-purple">与 AI 协作</span>
+              <Sparkles className="w-4 h-4 text-monokai-amethyst" />
+              <span className="text-xs font-medium text-monokai-amethyst">与 AI 协作</span>
             </div>
             <p className="text-xs text-monokai-comment mb-3">
               基于此模块说明，让 AI 为你定制更贴合业务的内容。

@@ -38,20 +38,22 @@ export const MappingConsole: React.FC = () => {
   };
 
   useEffect(() => {
-    refreshTables();
-  }, []);
+    if (state.initState !== 'no-tables' && state.initState !== 'loading') {
+      refreshTables();
+    }
+  }, [state.initState]);
 
   useEffect(() => {
-    if (state.mapping.objectTable) {
+    if (state.initState !== 'no-tables' && state.initState !== 'loading' && state.mapping.objectTable) {
       fetchColsForTable(state.mapping.objectTable);
     }
-  }, [state.mapping.objectTable]);
+  }, [state.mapping.objectTable, state.initState]);
 
   useEffect(() => {
-    if (state.mapping.linkTable) {
+    if (state.initState !== 'no-tables' && state.initState !== 'loading' && state.mapping.linkTable) {
       fetchColsForTable(state.mapping.linkTable);
     }
-  }, [state.mapping.linkTable]);
+  }, [state.mapping.linkTable, state.initState]);
 
   const [showImporter, setShowImporter] = useState(false);
 
@@ -74,20 +76,63 @@ export const MappingConsole: React.FC = () => {
   };
 
   const OBJECT_FIELDS = [
-    { key: 'id', label: 'ID 标识符 (id)', required: true },
-    { key: 'name', label: '名称 (name)', required: true },
-    { key: 'object_type_id', label: '类型ID (object_type_id)', required: true },
-    { key: 'properties', label: '属性JSON (properties)', required: false },
-    { key: 'annotations', label: '批注 (annotations)', required: false },
+    { key: 'id', label: 'ID 标识符 (id)', required: true, synonyms: ['id', 'object_id', 'key', 'uuid'] },
+    { key: 'name', label: '名称 (name)', required: true, synonyms: ['name', 'title', 'label', 'display'] },
+    { key: 'object_type_id', label: '类型ID (object_type_id)', required: true, synonyms: ['object_type_id', 'type_id', 'type', 'category'] },
+    { key: 'properties', label: '属性JSON (properties)', required: false, synonyms: ['properties', 'props', 'metadata', 'json', 'data'] },
+    { key: 'annotations', label: '批注 (annotations)', required: false, synonyms: ['annotations', 'comments', 'notes', 'remarks'] },
   ];
 
   const LINK_FIELDS = [
-    { key: 'id', label: 'ID 标识符 (id)', required: true },
-    { key: 'link_type_id', label: '关系类型ID (link_type_id)', required: true },
-    { key: 'source_object_id', label: '起点对象ID (source_object_id)', required: true },
-    { key: 'target_object_id', label: '终点对象ID (target_object_id)', required: true },
-    { key: 'weight', label: '权重 (weight)', required: false },
+    { key: 'id', label: 'ID 标识符 (id)', required: true, synonyms: ['id', 'link_id', 'key', 'uuid'] },
+    { key: 'link_type_id', label: '关系类型ID (link_type_id)', required: true, synonyms: ['link_type_id', 'type_id', 'type', 'relation_type'] },
+    { key: 'source_object_id', label: '起点对象ID (source_object_id)', required: true, synonyms: ['source_object_id', 'source_id', 'source', 'from_id', 'from'] },
+    { key: 'target_object_id', label: '终点对象ID (target_object_id)', required: true, synonyms: ['target_object_id', 'target_id', 'target', 'to_id', 'to'] },
+    { key: 'weight', label: '权重 (weight)', required: false, synonyms: ['weight', 'score', 'strength', 'value'] },
   ];
+
+  // Helper to calculate mapping progress
+  const getMappingProgress = (tableKey: 'objectFields' | 'linkFields', fields: typeof OBJECT_FIELDS) => {
+    const currentFields = state.mapping[tableKey] || {};
+    const requiredFields = fields.filter(f => f.required);
+    const mappedRequired = requiredFields.filter(f => currentFields[f.key]);
+    const totalMapped = fields.filter(f => currentFields[f.key]).length;
+    
+    return {
+      percentage: Math.round((mappedRequired.length / requiredFields.length) * 100),
+      isComplete: mappedRequired.length === requiredFields.length,
+      totalMapped,
+      totalCount: fields.length
+    };
+  };
+
+  const autoMatchColumns = async (tableKey: 'objectFields' | 'linkFields', tableName: string, fields: typeof OBJECT_FIELDS) => {
+    if (!tableName) return;
+    const cols = tableCols[tableName] || [];
+    if (cols.length === 0) return;
+
+    const newMappings: Record<string, string> = { ...(state.mapping[tableKey] || {}) };
+    fields.forEach(f => {
+      // Find matching column by checking exact match or synonym match
+      const matchedCol = cols.find(col => {
+        const cLower = col.toLowerCase();
+        return f.synonyms.some(syn => cLower === syn.toLowerCase() || cLower.includes(syn.toLowerCase()));
+      });
+      if (matchedCol) {
+        newMappings[f.key] = matchedCol;
+      }
+    });
+
+    dispatch({
+      type: 'UPDATE_MAPPING',
+      mapping: {
+        [tableKey]: newMappings
+      }
+    });
+  };
+
+  const objProgress = getMappingProgress('objectFields', OBJECT_FIELDS);
+  const linkProgress = getMappingProgress('linkFields', LINK_FIELDS);
 
   return (
     <div className="space-y-6 p-4 bg-black/20 rounded-xl border border-monokai-accent/10">
@@ -125,7 +170,7 @@ export const MappingConsole: React.FC = () => {
         <div className="space-y-2 p-3 bg-monokai-sidebar/20 rounded-lg border border-monokai-accent/5">
           <div className="flex items-center justify-between">
             <label className="text-xs text-monokai-comment font-bold uppercase flex items-center gap-1.5">
-              <Layers className="w-3.5 h-3.5 text-monokai-purple" />
+              <Layers className="w-3.5 h-3.5 text-monokai-amethyst" />
               对象表 (Objects Table)
             </label>
             {state.mapping.objectTable && (
@@ -138,14 +183,34 @@ export const MappingConsole: React.FC = () => {
               </button>
             )}
           </div>
-          <select
-            value={state.mapping.objectTable}
-            onChange={(e) => updateMapping('objectTable', e.target.value)}
-            className="w-full bg-monokai-sidebar/50 border border-monokai-accent/20 rounded-md px-3 py-2 text-xs text-monokai-fg outline-none focus:border-monokai-cyan transition-colors"
-          >
-            <option value="">-- 选择表 --</option>
-            {tables.map(t => <option key={t} value={t}>{t}</option>)}
-          </select>
+          <div className="flex gap-2">
+            <select
+              value={state.mapping.objectTable}
+              onChange={(e) => updateMapping('objectTable', e.target.value)}
+              className="flex-1 bg-monokai-sidebar/50 border border-monokai-accent/20 rounded-md px-3 py-2 text-xs text-monokai-fg outline-none focus:border-monokai-cyan transition-colors"
+            >
+              <option value="">-- 选择表 --</option>
+              {tables.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+            {state.mapping.objectTable && (
+              <button
+                onClick={() => autoMatchColumns('objectFields', state.mapping.objectTable, OBJECT_FIELDS)}
+                title="智能推荐并绑定列"
+                className="px-2 py-1 text-[11px] text-monokai-amethyst bg-monokai-amethyst/10 border border-monokai-amethyst/30 rounded-md hover:bg-monokai-amethyst/20 transition-all font-bold"
+              >
+                🪄 智能绑定
+              </button>
+            )}
+          </div>
+
+          {state.mapping.objectTable && (
+            <div className="mt-1 flex items-center justify-between text-[10px]">
+              <span className="text-monokai-comment">配置度: {objProgress.totalMapped}/{objProgress.totalCount} 列</span>
+              <span className={`px-1.5 py-0.5 rounded font-bold ${objProgress.isComplete ? 'bg-monokai-green/10 text-monokai-green' : 'bg-monokai-yellow/10 text-monokai-yellow'}`}>
+                {objProgress.isComplete ? '✓ 必需列绑定完整' : '⚠️ 缺少必需列'}
+              </span>
+            </div>
+          )}
 
           {expandedMapping.objectTable && state.mapping.objectTable && (
             <div className="pt-2.5 mt-2.5 border-t border-monokai-accent/5 space-y-2.5 animate-in slide-in-from-top-1 duration-200">
@@ -190,14 +255,34 @@ export const MappingConsole: React.FC = () => {
               </button>
             )}
           </div>
-          <select
-            value={state.mapping.linkTable}
-            onChange={(e) => updateMapping('linkTable', e.target.value)}
-            className="w-full bg-monokai-sidebar/50 border border-monokai-accent/20 rounded-md px-3 py-2 text-xs text-monokai-fg outline-none focus:border-monokai-cyan transition-colors"
-          >
-            <option value="">-- 选择表 --</option>
-            {tables.map(t => <option key={t} value={t}>{t}</option>)}
-          </select>
+          <div className="flex gap-2">
+            <select
+              value={state.mapping.linkTable}
+              onChange={(e) => updateMapping('linkTable', e.target.value)}
+              className="flex-1 bg-monokai-sidebar/50 border border-monokai-accent/20 rounded-md px-3 py-2 text-xs text-monokai-fg outline-none focus:border-monokai-cyan transition-colors"
+            >
+              <option value="">-- 选择表 --</option>
+              {tables.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+            {state.mapping.linkTable && (
+              <button
+                onClick={() => autoMatchColumns('linkFields', state.mapping.linkTable, LINK_FIELDS)}
+                title="智能推荐并绑定列"
+                className="px-2 py-1 text-[11px] text-monokai-amethyst bg-monokai-amethyst/10 border border-monokai-amethyst/30 rounded-md hover:bg-monokai-amethyst/20 transition-all font-bold"
+              >
+                🪄 智能绑定
+              </button>
+            )}
+          </div>
+
+          {state.mapping.linkTable && (
+            <div className="mt-1 flex items-center justify-between text-[10px]">
+              <span className="text-monokai-comment">配置度: {linkProgress.totalMapped}/{linkProgress.totalCount} 列</span>
+              <span className={`px-1.5 py-0.5 rounded font-bold ${linkProgress.isComplete ? 'bg-monokai-green/10 text-monokai-green' : 'bg-monokai-yellow/10 text-monokai-yellow'}`}>
+                {linkProgress.isComplete ? '✓ 必需列绑定完整' : '⚠️ 缺少必需列'}
+              </span>
+            </div>
+          )}
 
           {expandedMapping.linkTable && state.mapping.linkTable && (
             <div className="pt-2.5 mt-2.5 border-t border-monokai-accent/5 space-y-2.5 animate-in slide-in-from-top-1 duration-200">
@@ -249,7 +334,8 @@ export const MappingConsole: React.FC = () => {
       <div className="pt-4 border-t border-monokai-accent/10">
         <button 
           onClick={() => loadData()}
-          className="w-full py-2.5 bg-monokai-cyan/10 hover:bg-monokai-cyan/20 text-monokai-cyan text-xs font-bold rounded-lg border border-monokai-cyan/30 flex items-center justify-center gap-2 transition-all active:scale-95"
+          disabled={!objProgress.isComplete || (state.mapping.linkTable && !linkProgress.isComplete)}
+          className="w-full py-2.5 bg-monokai-cyan/10 hover:bg-monokai-cyan/20 text-monokai-cyan text-xs font-bold rounded-lg border border-monokai-cyan/30 flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <Check className="w-3 h-3" />
           应用映射并重载 Apply & Reload
@@ -258,7 +344,7 @@ export const MappingConsole: React.FC = () => {
 
       <div className="p-3 bg-monokai-bg/40 rounded-lg border border-monokai-accent/5">
         <p className="text-[11px] text-monokai-comment leading-normal italic">
-          提示：若导入的临时表列名不匹配，可展开高级列映射，手动指定物理列映射。
+          提示：若导入的临时表列名不匹配，可使用 🪄智能绑定 或展开高级列映射手动指定。
         </p>
       </div>
     </div>

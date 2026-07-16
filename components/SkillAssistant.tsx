@@ -75,7 +75,7 @@ export const SkillAssistant: React.FC<SkillAssistantProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-monokai-accent bg-monokai-sidebar">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-monokai-purple to-monokai-pink flex items-center justify-center shadow-lg">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-monokai-amethyst to-monokai-pink flex items-center justify-center shadow-lg">
               <Sparkles className="w-5 h-5 text-white" />
             </div>
             <div>
@@ -93,9 +93,9 @@ export const SkillAssistant: React.FC<SkillAssistantProps> = ({
 
         {/* Context Info */}
         {currentTable && (
-          <div className="px-4 py-2 bg-monokai-purple/10 border-b border-monokai-accent/50 flex items-center gap-4 text-xs">
+          <div className="px-4 py-2 bg-monokai-amethyst/10 border-b border-monokai-accent/50 flex items-center gap-4 text-xs">
             <div className="flex items-center gap-1.5 text-monokai-fg">
-              <Table className="w-3.5 h-3.5 text-monokai-purple" />
+              <Table className="w-3.5 h-3.5 text-monokai-amethyst" />
               <span>表:</span>
               <span className="font-medium">{currentTable}</span>
             </div>
@@ -117,7 +117,7 @@ export const SkillAssistant: React.FC<SkillAssistantProps> = ({
               value={router.input}
               onChange={(e) => router.setInput(e.target.value)}
               placeholder="描述你的需求，例如：帮我统计每个月的销售总额，按金额降序排列"
-              className="w-full px-4 py-3 text-sm bg-monokai-bg border border-monokai-accent text-monokai-fg placeholder-monokai-comment rounded-lg focus:outline-none focus:ring-2 focus:ring-monokai-purple focus:border-transparent transition-all resize-none"
+              className="w-full px-4 py-3 text-sm bg-monokai-bg border border-monokai-accent text-monokai-fg placeholder-monokai-comment rounded-lg focus:outline-none focus:ring-2 focus:ring-monokai-amethyst focus:border-transparent transition-all resize-none"
               rows={4}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
@@ -130,7 +130,7 @@ export const SkillAssistant: React.FC<SkillAssistantProps> = ({
               <button
                 onClick={router.handleAnalyze}
                 disabled={router.isAnalyzing || !router.input.trim()}
-                className="px-3 py-1.5 text-xs font-medium bg-monokai-purple/20 text-monokai-purple rounded-lg hover:bg-monokai-purple/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-1.5"
+                className="px-3 py-1.5 text-xs font-medium bg-monokai-amethyst/20 text-monokai-amethyst rounded-lg hover:bg-monokai-amethyst/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-1.5"
               >
                 {router.isAnalyzing ? (
                   <><span className="typing-dot"><span /><span /><span /></span> 分析中</>
@@ -141,7 +141,7 @@ export const SkillAssistant: React.FC<SkillAssistantProps> = ({
               <button
                 onClick={router.handleExecute}
                 disabled={router.isExecuting || !router.input.trim()}
-                className="px-3 py-1.5 text-xs font-medium bg-gradient-to-r from-monokai-purple to-monokai-pink text-white rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-1.5"
+                className="px-3 py-1.5 text-xs font-medium bg-gradient-to-r from-monokai-amethyst to-monokai-pink text-white rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-1.5"
               >
                 {router.isExecuting ? (
                   <><span className="typing-dot"><span /><span /><span /></span> 执行中</>
@@ -158,7 +158,7 @@ export const SkillAssistant: React.FC<SkillAssistantProps> = ({
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-medium text-monokai-comment">识别意图:</span>
-                  <span className="px-2 py-0.5 text-xs font-medium bg-monokai-purple/20 text-monokai-purple rounded">
+                  <span className="px-2 py-0.5 text-xs font-medium bg-monokai-amethyst/20 text-monokai-amethyst rounded">
                     {INTENT_LABELS_SIMPLE[router.intentAnalysis.intent] || router.intentAnalysis.intent}
                   </span>
                 </div>
@@ -265,7 +265,7 @@ export const SkillAssistant: React.FC<SkillAssistantProps> = ({
             </div>
           </div>
           <div className="flex items-center gap-1.5">
-            <Sparkles className="w-3 h-3 text-monokai-purple" />
+            <Sparkles className="w-3 h-3 text-monokai-amethyst" />
             <span>AI 驱动 · 自然语言</span>
           </div>
         </div>

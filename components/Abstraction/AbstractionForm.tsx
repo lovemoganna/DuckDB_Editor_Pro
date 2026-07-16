@@ -164,7 +164,7 @@ export const AbstractionForm: React.FC<AbstractionFormProps> = ({
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {/* 基本信息 */}
           <div className="space-y-3">
-            <h4 className="text-sm font-medium text-monokai-purple">基本信息</h4>
+            <h4 className="text-sm font-medium text-monokai-amethyst">基本信息</h4>
 
             <div>
               <label className="block text-xs text-monokai-comment mb-1">
@@ -175,7 +175,7 @@ export const AbstractionForm: React.FC<AbstractionFormProps> = ({
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="例如：用户行为分析"
-                className="w-full px-3 py-2 text-sm bg-monokai-sidebar border border-monokai-accent rounded-lg text-monokai-fg placeholder-monokai-comment focus:outline-none focus:border-monokai-purple"
+                className="w-full px-3 py-2 text-sm bg-monokai-sidebar border border-monokai-accent rounded-lg text-monokai-fg placeholder-monokai-comment focus:outline-none focus:border-monokai-amethyst"
               />
             </div>
 
@@ -186,7 +186,7 @@ export const AbstractionForm: React.FC<AbstractionFormProps> = ({
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="描述这个抽象表的用途..."
                 rows={2}
-                className="w-full px-3 py-2 text-sm bg-monokai-sidebar border border-monokai-accent rounded-lg text-monokai-fg placeholder-monokai-comment focus:outline-none focus:border-monokai-purple resize-none"
+                className="w-full px-3 py-2 text-sm bg-monokai-sidebar border border-monokai-accent rounded-lg text-monokai-fg placeholder-monokai-comment focus:outline-none focus:border-monokai-amethyst resize-none"
               />
             </div>
 
@@ -213,7 +213,7 @@ export const AbstractionForm: React.FC<AbstractionFormProps> = ({
                     value={newDomain}
                     onChange={(e) => setNewDomain(e.target.value)}
                     placeholder="新领域名称"
-                    className="flex-1 px-3 py-2 text-sm bg-monokai-sidebar border border-monokai-accent rounded-lg text-monokai-fg placeholder-monokai-comment focus:outline-none focus:border-monokai-purple"
+                    className="flex-1 px-3 py-2 text-sm bg-monokai-sidebar border border-monokai-accent rounded-lg text-monokai-fg placeholder-monokai-comment focus:outline-none focus:border-monokai-amethyst"
                   />
                 )}
               </div>
@@ -222,7 +222,7 @@ export const AbstractionForm: React.FC<AbstractionFormProps> = ({
 
           {/* 抽象路径 */}
           <div className="space-y-3">
-            <h4 className="text-sm font-medium text-monokai-purple">抽象路径</h4>
+            <h4 className="text-sm font-medium text-monokai-amethyst">抽象路径</h4>
             <p className="text-xs text-monokai-comment">
               基于 MECE 原则的四层抽象路径，从概念到实例逐层定义
             </p>
@@ -237,7 +237,7 @@ export const AbstractionForm: React.FC<AbstractionFormProps> = ({
                   value={concept}
                   onChange={(e) => setConcept(e.target.value)}
                   placeholder="例如：用户、订单"
-                  className="w-full px-3 py-2 text-sm bg-monokai-sidebar border border-monokai-accent rounded-lg text-monokai-fg placeholder-monokai-comment focus:outline-none focus:border-monokai-purple"
+                  className="w-full px-3 py-2 text-sm bg-monokai-sidebar border border-monokai-accent rounded-lg text-monokai-fg placeholder-monokai-comment focus:outline-none focus:border-monokai-amethyst"
                 />
               </div>
               <div>
@@ -247,7 +247,7 @@ export const AbstractionForm: React.FC<AbstractionFormProps> = ({
                   value={property}
                   onChange={(e) => setProperty(e.target.value)}
                   placeholder="例如：金额、日期"
-                  className="w-full px-3 py-2 text-sm bg-monokai-sidebar border border-monokai-accent rounded-lg text-monokai-fg placeholder-monokai-comment focus:outline-none focus:border-monokai-purple"
+                  className="w-full px-3 py-2 text-sm bg-monokai-sidebar border border-monokai-accent rounded-lg text-monokai-fg placeholder-monokai-comment focus:outline-none focus:border-monokai-amethyst"
                 />
               </div>
               <div>
@@ -257,7 +257,7 @@ export const AbstractionForm: React.FC<AbstractionFormProps> = ({
                   value={relation}
                   onChange={(e) => setRelation(e.target.value)}
                   placeholder="例如：AGGREGATE、JOIN"
-                  className="w-full px-3 py-2 text-sm bg-monokai-sidebar border border-monokai-accent rounded-lg text-monokai-fg placeholder-monokai-comment focus:outline-none focus:border-monokai-purple"
+                  className="w-full px-3 py-2 text-sm bg-monokai-sidebar border border-monokai-accent rounded-lg text-monokai-fg placeholder-monokai-comment focus:outline-none focus:border-monokai-amethyst"
                 />
               </div>
               <div>
@@ -267,7 +267,7 @@ export const AbstractionForm: React.FC<AbstractionFormProps> = ({
                   value={instance}
                   onChange={(e) => setInstance(e.target.value)}
                   placeholder="例如：orders、users"
-                  className="w-full px-3 py-2 text-sm bg-monokai-sidebar border border-monokai-accent rounded-lg text-monokai-fg placeholder-monokai-comment focus:outline-none focus:border-monokai-purple"
+                  className="w-full px-3 py-2 text-sm bg-monokai-sidebar border border-monokai-accent rounded-lg text-monokai-fg placeholder-monokai-comment focus:outline-none focus:border-monokai-amethyst"
                 />
               </div>
             </div>
@@ -275,7 +275,7 @@ export const AbstractionForm: React.FC<AbstractionFormProps> = ({
 
           {/* SQL 配置 */}
           <div className="space-y-3">
-            <h4 className="text-sm font-medium text-monokai-purple">SQL 配置</h4>
+            <h4 className="text-sm font-medium text-monokai-amethyst">SQL 配置</h4>
 
             <div>
               <label className="block text-xs text-monokai-comment mb-1">
@@ -307,7 +307,7 @@ export const AbstractionForm: React.FC<AbstractionFormProps> = ({
                 onChange={(e) => setTemplate(e.target.value)}
                 placeholder="SELECT ... FROM ..."
                 rows={8}
-                className="w-full px-3 py-2 text-sm bg-monokai-sidebar border border-monokai-accent rounded-lg text-monokai-fg font-mono placeholder-monokai-comment focus:outline-none focus:border-monokai-purple resize-none"
+                className="w-full px-3 py-2 text-sm bg-monokai-sidebar border border-monokai-accent rounded-lg text-monokai-fg font-mono placeholder-monokai-comment focus:outline-none focus:border-monokai-amethyst resize-none"
               />
             </div>
 
@@ -319,7 +319,7 @@ export const AbstractionForm: React.FC<AbstractionFormProps> = ({
                 </label>
                 <button
                   onClick={handleAddParam}
-                  className="flex items-center gap-1 px-2 py-1 text-xs text-monokai-purple hover:bg-monokai-purple/10 rounded border border-monokai-purple/30 transition-colors"
+                  className="flex items-center gap-1 px-2 py-1 text-xs text-monokai-amethyst hover:bg-monokai-amethyst/10 rounded border border-monokai-amethyst/30 transition-colors"
                 >
                   <Plus className="w-3 h-3" />
                   添加参数
@@ -342,7 +342,7 @@ export const AbstractionForm: React.FC<AbstractionFormProps> = ({
                             value={param.name}
                             onChange={(e) => handleParamChange(idx, 'name', e.target.value)}
                             placeholder="名称"
-                            className="w-full px-2 py-1.5 text-xs bg-monokai-bg border border-monokai-accent rounded text-monokai-purple font-mono focus:outline-none focus:border-monokai-purple placeholder-monokai-comment/40"
+                            className="w-full px-2 py-1.5 text-xs bg-monokai-bg border border-monokai-accent rounded text-monokai-amethyst font-mono focus:outline-none focus:border-monokai-amethyst placeholder-monokai-comment/40"
                           />
                         </div>
                         {/* 类型 */}
@@ -350,7 +350,7 @@ export const AbstractionForm: React.FC<AbstractionFormProps> = ({
                           <select
                             value={param.type}
                             onChange={(e) => handleParamChange(idx, 'type', e.target.value as SqlParameter['type'])}
-                            className="w-full px-2 py-1.5 text-xs bg-monokai-bg border border-monokai-accent rounded text-monokai-fg focus:outline-none focus:border-monokai-purple"
+                            className="w-full px-2 py-1.5 text-xs bg-monokai-bg border border-monokai-accent rounded text-monokai-fg focus:outline-none focus:border-monokai-amethyst"
                           >
                             {PARAM_TYPES.map(t => (
                               <option key={t} value={t}>{t}</option>
@@ -364,7 +364,7 @@ export const AbstractionForm: React.FC<AbstractionFormProps> = ({
                             value={param.description}
                             onChange={(e) => handleParamChange(idx, 'description', e.target.value)}
                             placeholder="描述"
-                            className="w-full px-2 py-1.5 text-xs bg-monokai-bg border border-monokai-accent rounded text-monokai-fg focus:outline-none focus:border-monokai-purple placeholder-monokai-comment/40"
+                            className="w-full px-2 py-1.5 text-xs bg-monokai-bg border border-monokai-accent rounded text-monokai-fg focus:outline-none focus:border-monokai-amethyst placeholder-monokai-comment/40"
                           />
                         </div>
                         {/* 默认值 */}
@@ -374,7 +374,7 @@ export const AbstractionForm: React.FC<AbstractionFormProps> = ({
                             value={param.defaultValue || ''}
                             onChange={(e) => handleParamChange(idx, 'defaultValue', e.target.value)}
                             placeholder="默认值"
-                            className="w-full px-2 py-1.5 text-xs bg-monokai-bg border border-monokai-accent rounded text-monokai-green focus:outline-none focus:border-monokai-purple placeholder-monokai-comment/40"
+                            className="w-full px-2 py-1.5 text-xs bg-monokai-bg border border-monokai-accent rounded text-monokai-green focus:outline-none focus:border-monokai-amethyst placeholder-monokai-comment/40"
                           />
                         </div>
                       </div>
@@ -413,7 +413,7 @@ export const AbstractionForm: React.FC<AbstractionFormProps> = ({
                 onChange={(e) => setSampleOutput(e.target.value)}
                 placeholder={"user_id | amount | rolling_sum\n101    | 1234  | 8765"}
                 rows={4}
-                className="w-full px-3 py-2 text-xs bg-monokai-sidebar border border-monokai-accent rounded-lg text-monokai-fg font-mono placeholder-monokai-comment focus:outline-none focus:border-monokai-purple resize-none"
+                className="w-full px-3 py-2 text-xs bg-monokai-sidebar border border-monokai-accent rounded-lg text-monokai-fg font-mono placeholder-monokai-comment focus:outline-none focus:border-monokai-amethyst resize-none"
               />
               <p className="text-[10px] text-monokai-comment/60 mt-1">
                 使用管道符分隔列，换行分隔行。如需 Markdown 格式请保留 |---| 分隔行
@@ -423,7 +423,7 @@ export const AbstractionForm: React.FC<AbstractionFormProps> = ({
 
           {/* 标签 */}
           <div className="space-y-3">
-            <h4 className="text-sm font-medium text-monokai-purple">标签</h4>
+            <h4 className="text-sm font-medium text-monokai-amethyst">标签</h4>
             <div className="flex flex-wrap gap-2">
               {tags.map((tag) => (
                 <span
@@ -447,7 +447,7 @@ export const AbstractionForm: React.FC<AbstractionFormProps> = ({
                 onChange={(e) => setNewTag(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleAddTag()}
                 placeholder="添加标签"
-                className="flex-1 px-3 py-1.5 text-sm bg-monokai-sidebar border border-monokai-accent rounded-lg text-monokai-fg placeholder-monokai-comment focus:outline-none focus:border-monokai-purple"
+                className="flex-1 px-3 py-1.5 text-sm bg-monokai-sidebar border border-monokai-accent rounded-lg text-monokai-fg placeholder-monokai-comment focus:outline-none focus:border-monokai-amethyst"
               />
               <button
                 onClick={handleAddTag}
@@ -470,7 +470,7 @@ export const AbstractionForm: React.FC<AbstractionFormProps> = ({
           <button
             onClick={handleSubmit}
             disabled={!name.trim() || !template.trim() || !concept.trim() || (domain === '__new__' && !newDomain.trim())}
-            className="px-4 py-2 text-sm bg-monokai-purple text-white rounded-lg hover:bg-monokai-purple/80 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2 text-sm bg-monokai-amethyst text-white rounded-lg hover:bg-monokai-amethyst/80 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {editingTable?.id === '__prefill__' || !editingTable ? '创建' : '保存修改'}
           </button>

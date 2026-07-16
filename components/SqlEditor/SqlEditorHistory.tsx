@@ -41,7 +41,7 @@ export const SqlEditorHistory: React.FC<SqlEditorHistoryProps> = ({
               value={historyFilter}
               onChange={onHistoryFilterChange}
             />
-            <button onClick={onClearHistory} className="text-[9px] text-monokai-purple/70 hover:text-monokai-purple uppercase font-bold tracking-wider shrink-0">Clear</button>
+            <button onClick={onClearHistory} className="text-[9px] text-monokai-amethyst/70 hover:text-monokai-amethyst uppercase font-bold tracking-wider shrink-0">Clear</button>
           </div>
           <div className="flex-1 overflow-y-auto custom-scrollbar">
             {filteredHistory.length === 0 && (

@@ -322,7 +322,7 @@ export const UploadTutorialModal: React.FC<UploadTutorialModalProps> = ({
                         : level === 'Intermediate'
                         ? 'bg-monokai-orange/20 text-monokai-orange border border-monokai-orange/50'
                         : level === 'Advanced'
-                        ? 'bg-monokai-purple/20 text-monokai-purple border border-monokai-purple/50'
+                        ? 'bg-monokai-amethyst/20 text-monokai-amethyst border border-monokai-amethyst/50'
                         : 'bg-monokai-blue/20 text-monokai-blue border border-monokai-blue/50'
                       : 'bg-monokai-bg text-monokai-comment border border-monokai-accent/30 hover:border-monokai-accent/60'
                   }`}

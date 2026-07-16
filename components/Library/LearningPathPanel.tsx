@@ -127,10 +127,10 @@ export const LearningPathPanel: React.FC<LearningPathPanelProps> = ({
   return (
     <div className="h-full overflow-y-auto p-4">
       {/* 学习路径头部 */}
-      <div className="mb-6 p-4 bg-gradient-to-r from-monokai-purple/20 to-monokai-pink/20 border border-monokai-purple/30 rounded-lg">
+      <div className="mb-6 p-4 bg-gradient-to-r from-monokai-amethyst/20 to-monokai-pink/20 border border-monokai-amethyst/30 rounded-lg">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-3">
-            <GraduationCap className="w-6 h-6 text-monokai-purple" />
+            <GraduationCap className="w-6 h-6 text-monokai-amethyst" />
             <div>
               <h3 className="text-lg font-bold text-monokai-fg">SQL 学习路径</h3>
               <p className="text-xs text-monokai-comment">基于 Quick_Tutorial 方法论</p>
@@ -141,7 +141,7 @@ export const LearningPathPanel: React.FC<LearningPathPanelProps> = ({
             <button
               onClick={handleAIRecommend}
               disabled={isAIRecommending}
-              className="flex items-center gap-1 px-3 py-1.5 bg-gradient-to-r from-monokai-purple to-monokai-pink text-white rounded-lg text-xs hover:opacity-90 transition-opacity disabled:opacity-50"
+              className="flex items-center gap-1 px-3 py-1.5 bg-gradient-to-r from-monokai-amethyst to-monokai-pink text-white rounded-lg text-xs hover:opacity-90 transition-opacity disabled:opacity-50"
               title="AI 智能推荐下一个学习内容（Ctrl+Shift+A）"
             >
               {isAIRecommending ? (
@@ -163,7 +163,7 @@ export const LearningPathPanel: React.FC<LearningPathPanelProps> = ({
         </div>
         {/* AI 推荐提示 */}
         {aiRecommendation && (
-          <div className="mt-2 p-2 bg-monokai-purple/10 rounded flex items-center gap-2">
+          <div className="mt-2 p-2 bg-monokai-amethyst/10 rounded flex items-center gap-2">
             <Lightbulb className="w-4 h-4 text-monokai-yellow" />
             <span className="text-xs text-monokai-fg">{aiRecommendation}</span>
             <button
@@ -196,7 +196,7 @@ export const LearningPathPanel: React.FC<LearningPathPanelProps> = ({
               key={stage.id}
               className={`border rounded-lg transition-colors ${
                 isUnlocked
-                  ? 'border-monokai-purple/30 bg-monokai-sidebar'
+                  ? 'border-monokai-amethyst/30 bg-monokai-sidebar'
                   : 'border-monokai-accent/30 bg-monokai-bg opacity-60'
               }`}
             >
@@ -214,14 +214,14 @@ export const LearningPathPanel: React.FC<LearningPathPanelProps> = ({
                     ? 'bg-monokai-accent/20'
                     : stage.nodes.every(n => n.isCompleted)
                     ? 'bg-monokai-green/20'
-                    : 'bg-monokai-purple/20'
+                    : 'bg-monokai-amethyst/20'
                 }`}>
                   {!isUnlocked ? (
                     <Lock className="w-4 h-4 text-monokai-comment" />
                   ) : stage.nodes.every(n => n.isCompleted) ? (
                     <Check className="w-4 h-4 text-monokai-green" />
                   ) : (
-                    <span className="text-sm font-bold text-monokai-purple">{index + 1}</span>
+                    <span className="text-sm font-bold text-monokai-amethyst">{index + 1}</span>
                   )}
                 </div>
 
@@ -246,7 +246,7 @@ export const LearningPathPanel: React.FC<LearningPathPanelProps> = ({
                     </div>
                     <div className="h-1.5 bg-monokai-accent/20 rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-gradient-to-r from-monokai-purple to-monokai-pink rounded-full transition-all duration-300"
+                        className="h-full bg-gradient-to-r from-monokai-amethyst to-monokai-pink rounded-full transition-all duration-300"
                         style={{ width: `${progress}%` }}
                       />
                     </div>
@@ -270,7 +270,7 @@ export const LearningPathPanel: React.FC<LearningPathPanelProps> = ({
                       className={`p-3 border rounded-lg transition-colors ${
                         node.isCompleted
                           ? 'border-monokai-green/30 bg-monokai-green/5'
-                          : 'border-monokai-accent/20 hover:border-monokai-purple/30'
+                          : 'border-monokai-accent/20 hover:border-monokai-amethyst/30'
                       }`}
                     >
                       <div className="flex items-start gap-3">
@@ -280,7 +280,7 @@ export const LearningPathPanel: React.FC<LearningPathPanelProps> = ({
                           className={`mt-0.5 w-5 h-5 rounded-full flex items-center justify-center transition-colors ${
                             node.isCompleted
                               ? 'bg-monokai-green text-white'
-                              : 'border-2 border-monokai-accent hover:border-monokai-purple'
+                              : 'border-2 border-monokai-accent hover:border-monokai-amethyst'
                           }`}
                         >
                           {node.isCompleted && <Check className="w-3 h-3" />}
@@ -313,7 +313,7 @@ export const LearningPathPanel: React.FC<LearningPathPanelProps> = ({
                             {node.skills.length > 0 && onNavigateToSkill && (
                               <button
                                 onClick={() => onNavigateToSkill(node.skills[0])}
-                                className="text-xs text-monokai-purple hover:underline flex items-center gap-1"
+                                className="text-xs text-monokai-amethyst hover:underline flex items-center gap-1"
                               >
                                 <Sparkles className="w-3 h-3" />
                                 相关技能
@@ -342,7 +342,7 @@ export const LearningPathPanel: React.FC<LearningPathPanelProps> = ({
       {/* 节点详情弹窗 */}
       {selectedNode && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-monokai-bg border border-monokai-purple/30 rounded-xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
+          <div className="bg-monokai-bg border border-monokai-amethyst/30 rounded-xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
             {/* 弹窗头部 */}
             <div className="p-4 border-b border-monokai-accent flex items-center justify-between">
               <div>

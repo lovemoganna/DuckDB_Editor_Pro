@@ -92,7 +92,7 @@ export const AuditTab: React.FC<AuditTabProps> = ({ auditLogs }) => {
         } else if (cleanType.includes('CREATE') || cleanType.includes('ALTER')) {
             return 'bg-monokai-blue/10 text-monokai-blue border-monokai-blue/30';
         } else if (cleanType.includes('DROP')) {
-            return 'bg-monokai-purple/10 text-monokai-purple border-monokai-purple/30';
+            return 'bg-monokai-amethyst/10 text-monokai-amethyst border-monokai-amethyst/30';
         }
         return 'bg-monokai-comment/10 text-monokai-fg border-monokai-border';
     };
@@ -252,7 +252,7 @@ export const AuditTab: React.FC<AuditTabProps> = ({ auditLogs }) => {
                                             </td>
                                             <td className="p-3 font-mono text-right">
                                                 {log.affected_rows > 0 ? (
-                                                    <span className="text-monokai-purple font-semibold bg-monokai-purple/10 px-1.5 py-0.5 rounded">
+                                                    <span className="text-monokai-amethyst font-semibold bg-monokai-amethyst/10 px-1.5 py-0.5 rounded">
                                                         {log.affected_rows}
                                                     </span>
                                                 ) : (
@@ -269,7 +269,7 @@ export const AuditTab: React.FC<AuditTabProps> = ({ auditLogs }) => {
                                                             <div className="flex items-center gap-4 text-monokai-comment font-mono">
                                                                 <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" /> ID: {log.id}</span>
                                                                 <span>•</span>
-                                                                <span>Affected Rows: <strong className="text-monokai-purple">{log.affected_rows}</strong></span>
+                                                                <span>Affected Rows: <strong className="text-monokai-amethyst">{log.affected_rows}</strong></span>
                                                             </div>
                                                             <button
                                                                 onClick={(e) => { e.stopPropagation(); handleCopy(log.id, log.details); }}

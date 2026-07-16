@@ -311,7 +311,7 @@ export const SqlTemplatesPanel: React.FC<SqlTemplatesPanelProps> = ({
         <button
           onClick={handleAIFill}
           disabled={isAIFilling}
-          className="flex items-center gap-1 px-3 py-1.5 bg-gradient-to-r from-monokai-purple to-monokai-pink text-white rounded-lg text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+          className="flex items-center gap-1 px-3 py-1.5 bg-gradient-to-r from-monokai-amethyst to-monokai-pink text-white rounded-lg text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
           title="AI 一键填充（Ctrl+Shift+A）"
         >
           {isAIFilling ? (

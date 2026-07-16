@@ -619,7 +619,7 @@ const App: React.FC = () => {
               ].map(tab => (
                 <button key={tab.id} onClick={() => { setActiveTab(tab.id); if (tab.id === Tab.AUDIT) refreshAudit(); }} className={`h-9 px-3 flex items-center gap-2 text-sm font-medium transition-all rounded-md relative ${activeTab === tab.id ? 'bg-monokai-bg text-monokai-fg' : 'text-monokai-comment hover:text-monokai-fg hover:bg-monokai-bg/30'}`}>
                   <span>{tab.icon}</span> {tab.label}
-                  {activeTab === tab.id && <div className="absolute bottom-0 left-1 right-1 h-0.5 bg-monokai-purple rounded-full" />}
+                  {activeTab === tab.id && <div className="absolute bottom-0 left-1 right-1 h-0.5 bg-monokai-amethyst rounded-full" />}
                 </button>
               ))}
             </div>
@@ -634,9 +634,9 @@ const App: React.FC = () => {
                   {activeTab === tab.id && <div className="absolute bottom-0 left-1 right-1 h-0.5 bg-monokai-blue rounded-full" />}
                 </button>
               ))}
-              <button onClick={() => setActiveTab(Tab.AI_SKILLS)} className={`h-9 px-3 flex items-center gap-2 text-sm font-medium transition-all rounded-md relative font-sans ${activeTab === Tab.AI_SKILLS ? 'bg-monokai-bg text-monokai-fg' : 'text-monokai-purple hover:text-monokai-fg hover:bg-monokai-purple/20'}`}><span>⚡</span> AI Skills</button>
+              <button onClick={() => setActiveTab(Tab.AI_SKILLS)} className={`h-9 px-3 flex items-center gap-2 text-sm font-medium transition-all rounded-md relative font-sans ${activeTab === Tab.AI_SKILLS ? 'bg-monokai-bg text-monokai-fg' : 'text-monokai-amethyst hover:text-monokai-fg hover:bg-monokai-amethyst/20'}`}><span>⚡</span> AI Skills</button>
               <button onClick={() => setActiveTab(Tab.LIBRARY)} className={`h-9 px-3 flex items-center gap-2 text-sm font-medium transition-all rounded-md relative font-sans ${activeTab === Tab.LIBRARY ? 'bg-monokai-bg text-monokai-fg' : 'text-monokai-blue hover:text-monokai-fg hover:bg-monokai-blue/20'}`}><span>📚</span> Library</button>
-              <button onClick={() => setActiveTab(Tab.ONTOLOGY)} className={`h-9 px-3 flex items-center gap-2 text-sm font-medium transition-all rounded-md relative ${activeTab === Tab.ONTOLOGY ? 'bg-monokai-bg text-monokai-fg' : 'text-monokai-purple hover:text-monokai-fg hover:bg-monokai-purple/20'}`}><span>🕸️</span> Ontology</button>
+              <button onClick={() => setActiveTab(Tab.ONTOLOGY)} className={`h-9 px-3 flex items-center gap-2 text-sm font-medium transition-all rounded-md relative ${activeTab === Tab.ONTOLOGY ? 'bg-monokai-bg text-monokai-fg' : 'text-monokai-amethyst hover:text-monokai-fg hover:bg-monokai-amethyst/20'}`}><span>🕸️</span> Ontology</button>
             </div>
             <div className="flex-1" />
           </div>

@@ -70,7 +70,7 @@ export const SchemaPreview: React.FC<SchemaPreviewProps> = ({ tableName, columns
                     </span>
                 )}
                 {times > 0 && (
-                    <span className="px-2 py-0.5 bg-monokai-purple/20 text-monokai-purple text-[10px] rounded border border-monokai-purple/30 font-bold" title="Time Attributes">
+                    <span className="px-2 py-0.5 bg-monokai-amethyst/20 text-monokai-amethyst text-[10px] rounded border border-monokai-amethyst/30 font-bold" title="Time Attributes">
                         📅 {times} TIMEs
                     </span>
                 )}

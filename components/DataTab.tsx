@@ -269,7 +269,7 @@ export const DataTab: React.FC<DataTabProps> = ({
                             onClick={() => setShowVisualFilter(!showVisualFilter)}
                             className={`text-xs px-3 py-1 rounded border transition-colors flex items-center gap-1.5 ${
                                 showVisualFilter || visualRules.length > 0
-                                    ? 'bg-monokai-purple/20 border-monokai-purple text-monokai-purple font-bold'
+                                    ? 'bg-monokai-amethyst/20 border-monokai-amethyst text-monokai-amethyst font-bold'
                                     : 'bg-monokai-accent border-transparent text-monokai-fg hover:bg-monokai-comment'
                             }`}
                         >
@@ -327,7 +327,7 @@ export const DataTab: React.FC<DataTabProps> = ({
                 {showVisualFilter && dataViewMode === 'grid' && (
                     <div className="bg-monokai-surface border border-monokai-accent p-3 rounded-lg flex flex-col gap-2">
                         <div className="flex justify-between items-center mb-1">
-                            <span className="text-xs font-bold text-monokai-purple flex items-center gap-1">
+                            <span className="text-xs font-bold text-monokai-amethyst flex items-center gap-1">
                                 <SlidersHorizontal size={12} /> Visual Filter rules
                             </span>
                             <button
@@ -399,7 +399,7 @@ export const DataTab: React.FC<DataTabProps> = ({
                             </button>
                             <button
                                 onClick={applyVisualFilters}
-                                className="px-3 py-1 bg-monokai-purple text-white text-xs rounded hover:opacity-90"
+                                className="px-3 py-1 bg-monokai-amethyst text-white text-xs rounded hover:opacity-90"
                             >
                                 Apply filters
                             </button>
@@ -440,7 +440,7 @@ export const DataTab: React.FC<DataTabProps> = ({
                                         <div className="grid grid-cols-2 gap-4 text-xs">
                                             <div>
                                                 <div className="text-monokai-comment text-[10px] uppercase">Unique</div>
-                                                <div className="font-mono text-monokai-purple">{col.approx_unique}</div>
+                                                <div className="font-mono text-monokai-amethyst">{col.approx_unique}</div>
                                             </div>
                                             <div className="text-right">
                                                 <div className="text-monokai-comment text-[10px] uppercase">Nulls</div>
@@ -508,7 +508,7 @@ export const DataTab: React.FC<DataTabProps> = ({
                                             </div>
                                             {/* 列宽调整锚点 */}
                                             <div
-                                                className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-monokai-purple/60 active:bg-monokai-purple z-30"
+                                                className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-monokai-amethyst/60 active:bg-monokai-amethyst z-30"
                                                 onMouseDown={(e) => handleResizeMouseDown(col, e)}
                                             />
                                         </th>
@@ -596,7 +596,7 @@ export const DataTab: React.FC<DataTabProps> = ({
                     <div className="py-1">
                         <button
                             onClick={copyCellValue}
-                            className="w-full text-left px-3 py-1.5 hover:bg-monokai-purple/20 hover:text-monokai-purple flex items-center gap-2"
+                            className="w-full text-left px-3 py-1.5 hover:bg-monokai-amethyst/20 hover:text-monokai-amethyst flex items-center gap-2"
                         >
                             <Copy size={12} /> Copy Cell Value
                         </button>
@@ -605,7 +605,7 @@ export const DataTab: React.FC<DataTabProps> = ({
                                 setPreviewCell({ columnName: contextMenu.col, val: contextMenu.val });
                                 closeContextMenu();
                             }}
-                            className="w-full text-left px-3 py-1.5 hover:bg-monokai-purple/20 hover:text-monokai-purple flex items-center gap-2"
+                            className="w-full text-left px-3 py-1.5 hover:bg-monokai-amethyst/20 hover:text-monokai-amethyst flex items-center gap-2"
                         >
                             <Eye size={12} /> View Details
                         </button>
@@ -613,13 +613,13 @@ export const DataTab: React.FC<DataTabProps> = ({
                     <div className="py-1">
                         <button
                             onClick={copyRowJson}
-                            className="w-full text-left px-3 py-1.5 hover:bg-monokai-purple/20 hover:text-monokai-purple flex items-center gap-2"
+                            className="w-full text-left px-3 py-1.5 hover:bg-monokai-amethyst/20 hover:text-monokai-amethyst flex items-center gap-2"
                         >
                             <Code size={12} /> Copy Row as JSON
                         </button>
                         <button
                             onClick={copyRowSql}
-                            className="w-full text-left px-3 py-1.5 hover:bg-monokai-purple/20 hover:text-monokai-purple flex items-center gap-2"
+                            className="w-full text-left px-3 py-1.5 hover:bg-monokai-amethyst/20 hover:text-monokai-amethyst flex items-center gap-2"
                         >
                             <Database size={12} /> Copy Row as INSERT
                         </button>
@@ -628,7 +628,7 @@ export const DataTab: React.FC<DataTabProps> = ({
                         <div className="py-1">
                             <button
                                 onClick={cloneRow}
-                                className="w-full text-left px-3 py-1.5 hover:bg-monokai-purple/20 hover:text-monokai-purple flex items-center gap-2 text-monokai-green"
+                                className="w-full text-left px-3 py-1.5 hover:bg-monokai-amethyst/20 hover:text-monokai-amethyst flex items-center gap-2 text-monokai-green"
                             >
                                 <Plus size={12} /> Clone Row
                             </button>

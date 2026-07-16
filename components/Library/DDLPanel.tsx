@@ -310,6 +310,18 @@ export const DDLPanel: React.FC<DDLPanelProps> = ({
 
   // 执行 SQL
   const handleExecute = useCallback(async (id: string, sql: string) => {
+    const isMutation = /create|drop|alter|insert|delete|update|truncate/i.test(sql);
+    if (isMutation) {
+      const confirmRun = window.confirm("【执行安全确认】\n提示：此操作是一个 DDL (数据定义) 语句，执行后将直接修改当前数据库的表结构。\n\n您确定要在当前数据库中运行这段代码吗？");
+      if (!confirmRun) {
+        setExecutionResults(prev => ({
+          ...prev,
+          [id]: { data: null, error: "执行已被取消 (用户未确认风险)", loading: false }
+        }));
+        return;
+      }
+    }
+
     setExecutionResults(prev => ({
       ...prev,
       [id]: { data: null, error: null, loading: true }
@@ -404,7 +416,7 @@ export const DDLPanel: React.FC<DDLPanelProps> = ({
                 {item.category === '修改' && <Table className="w-4 h-4 text-monokai-blue" />}
                 {item.category === '约束' && <Check className="w-4 h-4 text-monokai-red" />}
                 {item.category === '性能' && <ListOrdered className="w-4 h-4 text-monokai-yellow" />}
-                {item.category === '视图' && <Eye className="w-4 h-4 text-monokai-purple" />}
+                {item.category === '视图' && <Eye className="w-4 h-4 text-monokai-amethyst" />}
                 {item.category === '自动化' && <Cpu className="w-4 h-4 text-monokai-cyan" />}
                 <span className="font-medium text-monokai-fg">{item.title}</span>
                 <span className="text-xs px-2 py-0.5 rounded bg-monokai-green/20 text-monokai-green">

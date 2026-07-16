@@ -27,6 +27,15 @@ import seedOntologyLv2 from '../data/ontology/seed-ontology-lv2.json';
 import seedOntologyLv3 from '../data/ontology/seed-ontology-lv3.json';
 import seedOntologyLv4 from '../data/ontology/seed-ontology-lv4.json';
 import seedOntologyLv5 from '../data/ontology/seed-ontology-lv5.json';
+import seedEcommerce from '../data/ontology/seed-ecommerce.json';
+import seedHealthTracker from '../data/ontology/seed-health-tracker.json';
+import seedMyLife from '../data/ontology/seed-my-life.json';
+import seedProductCatalog from '../data/ontology/seed-product-catalog.json';
+import seedProjectTracker from '../data/ontology/seed-project-tracker.json';
+import seedRiskInvestigation from '../data/ontology/seed-risk-investigation.json';
+import seedTaskTracker from '../data/ontology/seed-task-tracker.json';
+import seedWorkflow from '../data/ontology/seed-workflow.json';
+import seedStressTest from '../data/ontology/seed-stress-test.json';import { DEFAULT_PATTERNS } from '../components/Library/defaultPatterns';
 
 export const ONTOLOGY_SEEDS: Record<string, any> = {
   'ontology-lv1': seedOntologyLv1,
@@ -34,14 +43,37 @@ export const ONTOLOGY_SEEDS: Record<string, any> = {
   'ontology-lv3': seedOntologyLv3,
   'ontology-lv4': seedOntologyLv4,
   'ontology-lv5': seedOntologyLv5,
+  'ecommerce': seedEcommerce,
+  'health-tracker': seedHealthTracker,
+  'my-life': seedMyLife,
+  'product-catalog': seedProductCatalog,
+  'project-tracker': seedProjectTracker,
+  'risk-investigation': seedRiskInvestigation,
+  'task-tracker': seedTaskTracker,
+  'workflow': seedWorkflow,
+  'stress-test': seedStressTest,
 };
 
 export const ONTOLOGY_SEED_INFOS = [
-  { id: 'ontology-lv1', name: '本体 Lv.1：概念与对象', category: 'Ontology', icon: '🌱', description: '学习如何定义核心概念类型（Class）和具体的实例（Instance），是本体建模的基石' },
-  { id: 'ontology-lv2', name: '本体 Lv.2：语义关联', category: 'Ontology', icon: '🌿', description: '引入“关系类型”与“对象连线”，学习如何在概念与实例之间编织语义关联网络' },
-  { id: 'ontology-lv3', name: '本体 Lv.3：属性特征化', category: 'Ontology', icon: '🌳', description: '使用 JSON 属性细化描述类与实例的特征约束，增强本体的多态性' },
-  { id: 'ontology-lv4', name: '本体 Lv.4：演变与行动', category: 'Ontology', icon: '⚙️', description: '引入“行动”表，模拟在实际应用中如何推进本体模型迭代与更新的运维流' },
-  { id: 'ontology-lv5', name: '本体 Lv.5：方法论反思', category: 'Ontology', icon: '🧠', description: '引入“反思”与“洞察”，深入探讨本体设计的深层逻辑、局限性及逻辑推理应用' }
+  // ── 基础教学 (Tutorial) ──
+  { id: 'ontology-lv1', name: '本体 Lv.1：概念与对象', category: 'Tutorial', icon: '🌱', description: '定义核心概念类型 (Class) 与具体实例 (Instance)，是建模的基础' },
+  { id: 'ontology-lv2', name: '本体 Lv.2：语义关联', category: 'Tutorial', icon: '🌿', description: '定义概念与实例之间的关系类型 (Relation) 与连线 (Link)' },
+  { id: 'ontology-lv3', name: '本体 Lv.3：属性特征化', category: 'Tutorial', icon: '🌳', description: '使用 JSON 属性细化描述类与实例的特征约束，增强多态性' },
+  { id: 'ontology-lv4', name: '本体 Lv.4：演变与行动', category: 'Tutorial', icon: '⚙️', description: '引入行动 (Action) 机制，模拟本体模型的动态演变与回写运维流' },
+  { id: 'ontology-lv5', name: '本体 Lv.5：方法论反思', category: 'Tutorial', icon: '🧠', description: '通过反思 (Introspection) 与洞察 (Insight)，探索本体设计的深层逻辑' },
+
+  // ── 行业应用 (Industry - Palantir Ontology 风格) ──
+  { id: 'risk-investigation', name: '项目风险调查 (Risk)', category: 'Industry', icon: '⚠️', description: '模拟风险事件向技术组件与可用性指标传导，支持路径影响分析' },
+  { id: 'ecommerce', name: '电商运营图谱 (E-Commerce)', category: 'Industry', icon: '🛒', description: '定义商品 (Product)、客户 (Customer)、渠道 (Channel) 等商业运营实体与交易关联' },
+  { id: 'product-catalog', name: '商品目录管理 (Catalog)', category: 'Industry', icon: '📦', description: '模拟大型商品分类树、属性集、供应商等实体与多对多目录链接结构' },
+  { id: 'workflow', name: '业务工作流 (Workflow)', category: 'Industry', icon: '🔄', description: '模拟业务审批流、任务分派、状态流转等流程本体管理与时序追踪' },
+
+  // ── 日常管理 (Personal) ──
+  { id: 'my-life', name: '个人生活管理 (Life)', category: 'Personal', icon: '🏠', description: '通过事件、习惯、项目等实体刻画个人的生活习惯及多维价值关联' },
+  { id: 'health-tracker', name: '健康追踪 (Health)', category: 'Personal', icon: '🏥', description: '记录饮食、运动、体征、睡眠，以及健康指标的波动和交叉影响关系' },
+  { id: 'project-tracker', name: '项目追踪管理 (Project)', category: 'Personal', icon: '📅', description: '针对工程项目的里程碑、团队、依赖组件等进行建模与风险监控' },
+  { id: 'task-tracker', name: '任务追踪 (Task)', category: 'Personal', icon: '✅', description: '任务依赖、优先级、执行人等本体建模，管理细粒度研发工作流' },
+  { id: 'stress-test', name: '本体压力测试 (Stress)', category: 'Personal', icon: '⚡', description: '高基数、多层级拓扑结构的测试种子，用于评估画布在极端数据下的性能' }
 ];
 
 // ============================================================
@@ -146,6 +178,8 @@ export interface OntologyStoreState {
   initState: InitState;
   initting: boolean;
   activeTemplateId: string;
+  patterns: any[];
+  patternsLoading: boolean;
 
   // Core data (五表)
   objectTypes: LifeObjectType[];
@@ -235,7 +269,9 @@ export type OntologyAction =
   | { type: 'PUSH_CANVAS_SNAPSHOT'; snapshot: CanvasSnapshot }
   | { type: 'POP_CANVAS_SNAPSHOT' }
   | { type: 'SET_CANVAS_POSITIONS'; positions: SavedPositions }
-  | { type: 'SET_CANVAS_LOCKED_NODES'; lockedNodeIds: Set<number> };
+  | { type: 'SET_CANVAS_LOCKED_NODES'; lockedNodeIds: Set<number> }
+  | { type: 'SET_PATTERNS'; patterns: any[] }
+  | { type: 'SET_PATTERNS_LOADING'; value: boolean };
 
 // ============================================================
 // Reducer
@@ -248,6 +284,12 @@ function reducer(state: OntologyStoreState, action: OntologyAction): OntologySto
 
     case 'SET_ACTIVE_TEMPLATE':
       return { ...state, activeTemplateId: action.templateId };
+
+    case 'SET_PATTERNS':
+      return { ...state, patterns: action.patterns, patternsLoading: false };
+
+    case 'SET_PATTERNS_LOADING':
+      return { ...state, patternsLoading: action.value };
 
     case 'SET_INITTING':
       return { ...state, initting: action.value };
@@ -375,6 +417,8 @@ const initState: OntologyStoreState = {
   initState: 'loading',
   initting: false,
   activeTemplateId: 'ontology-lv1',
+  patterns: [],
+  patternsLoading: false,
   objectTypes: [],
   objects: [],
   linkTypes: [],
@@ -441,6 +485,8 @@ const normalizeDate = (dateStr: string): string => {
   } catch { return ''; }
 };
 
+let seedingPromise: Promise<void> | null = null;
+
 // ============================================================
 // Store Hook
 // ============================================================
@@ -454,10 +500,97 @@ function useOntologyStoreInternal() {
   const stateRef = useRef(state);
   useEffect(() => { stateRef.current = state; }, [state]);
 
+  const pendingPositionsRef = useRef<SavedPositions>({});
+  const dbWriteTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const flushPositionsToDb = useCallback(async () => {
+    const positionsToWrite = pendingPositionsRef.current;
+    pendingPositionsRef.current = {};
+    if (Object.keys(positionsToWrite).length === 0) return;
+
+    try {
+      for (const [nodeIdStr, pos] of Object.entries(positionsToWrite)) {
+        const nodeId = Number(nodeIdStr);
+        const isLocked = stateRef.current.canvasLockedNodeIds.has(nodeId);
+        await duckDBService.saveOntologyCanvasState(
+          `object_${nodeId}`,
+          null,
+          nodeId,
+          `object_${nodeId}`,
+          '',
+          pos.x,
+          pos.y,
+          0,
+          0,
+          'object',
+          { is_locked: isLocked }
+        );
+      }
+    } catch (err) {
+      console.error('Failed to batch save node positions to DuckDB in debounced task', err);
+    }
+  }, []);
+
+  const queuePositionsForDb = useCallback((positions: SavedPositions) => {
+    pendingPositionsRef.current = { ...pendingPositionsRef.current, ...positions };
+    if (dbWriteTimeoutRef.current) {
+      clearTimeout(dbWriteTimeoutRef.current);
+    }
+    dbWriteTimeoutRef.current = setTimeout(flushPositionsToDb, 500);
+  }, [flushPositionsToDb]);
+
+  useEffect(() => {
+    return () => {
+      if (dbWriteTimeoutRef.current) {
+        clearTimeout(dbWriteTimeoutRef.current);
+      }
+    };
+  }, []);
+
   // ── Load all ontology data from DuckDB ──
   const loadData = useCallback(async () => {
     try {
       const tables = await duckDBService.getTables();
+
+      // Load or seed patterns first (independent of other tables)
+      try {
+        await duckDBService.query(`
+          CREATE TABLE IF NOT EXISTS _sys_ontology_pattern_library (
+            id VARCHAR PRIMARY KEY,
+            category_id VARCHAR,
+            category_title VARCHAR,
+            title VARCHAR,
+            icon_name VARCHAR,
+            brief VARCHAR,
+            description VARCHAR,
+            layer VARCHAR,
+            seed_ids JSON DEFAULT '[]',
+            core_nodes JSON DEFAULT '[]',
+            principles JSON DEFAULT '[]',
+            best_practices JSON DEFAULT '[]',
+            anti_patterns JSON DEFAULT '[]',
+            mermaid VARCHAR
+          )
+        `);
+        let patterns = await duckDBService.getOntologyPatterns();
+        if (patterns.length === 0) {
+          if (!seedingPromise) {
+            seedingPromise = (async () => {
+              console.log('[Store] Pattern library is empty, seeding default patterns...');
+              for (const p of DEFAULT_PATTERNS) {
+                await duckDBService.saveOntologyPattern(p);
+              }
+            })();
+          }
+          await seedingPromise;
+          seedingPromise = null;
+          patterns = await duckDBService.getOntologyPatterns();
+        }
+        dispatchAction({ type: 'SET_PATTERNS', patterns });
+      } catch (pe) {
+        console.warn('Load pattern library failed:', pe);
+      }
+
       const requiredTables = [
         'life_object_type', 'life_object', 'life_link_type',
         'life_link', 'life_action',
@@ -469,13 +602,40 @@ function useOntologyStoreInternal() {
         return;
       }
 
-      const [objectTypes, objects, linkTypes, links, actions] = await Promise.all([
+      const [objectTypesRaw, objectsRaw, linkTypesRaw, linksRaw, actionsRaw] = await Promise.all([
         duckDBService.getOntologyObjectTypes(),
         duckDBService.getOntologyObjects(),
         duckDBService.getOntologyLinkTypes(),
         duckDBService.getOntologyLinks(),
         duckDBService.getOntologyActions(),
       ]);
+
+      const objectTypes = objectTypesRaw.map((ot: any) => ({
+        ...ot,
+        id: Number(ot.id)
+      }));
+      const objects = objectsRaw.map((o: any) => ({
+        ...o,
+        id: Number(o.id),
+        object_type_id: Number(o.object_type_id)
+      }));
+      const linkTypes = linkTypesRaw.map((lt: any) => ({
+        ...lt,
+        id: Number(lt.id)
+      }));
+      const links = linksRaw.map((l: any) => ({
+        ...l,
+        id: Number(l.id),
+        link_type_id: Number(l.link_type_id),
+        source_object_id: Number(l.source_object_id),
+        target_object_id: Number(l.target_object_id),
+        weight: Number(l.weight) || 0.5
+      }));
+      const actions = actionsRaw.map((a: any) => ({
+        ...a,
+        id: Number(a.id),
+        object_id: Number(a.object_id)
+      }));
 
       // Load introspection/insight if tables exist
       const introTable = stateRef.current.mapping.introspectionTable || 'life_introspection';
@@ -485,11 +645,21 @@ function useOntologyStoreInternal() {
       try {
         if (tables.includes(introTable)) {
           const rows = await duckDBService.query(`SELECT * FROM ${introTable} ORDER BY id`);
-          introspections = rows.map(r => ({ ...r, created_at: normalizeDate(r.created_at) })) as LifeIntrospection[];
+          introspections = rows.map(r => ({
+            ...r,
+            id: Number(r.id),
+            object_id: Number(r.object_id),
+            created_at: normalizeDate(r.created_at)
+          })) as LifeIntrospection[];
         }
         if (tables.includes(insTable)) {
           const rows = await duckDBService.query(`SELECT * FROM ${insTable} ORDER BY id`);
-          insights = rows.map(r => ({ ...r, created_at: normalizeDate(r.created_at) })) as LifeInsight[];
+          insights = rows.map(r => ({
+            ...r,
+            id: Number(r.id),
+            object_id: Number(r.object_id),
+            created_at: normalizeDate(r.created_at)
+          })) as LifeInsight[];
         }
       } catch {}
 
@@ -509,16 +679,43 @@ function useOntologyStoreInternal() {
         console.warn('Initialize layout table failed', e);
       }
 
+      // Ensure pattern library table exists
+      try {
+        await duckDBService.query(`
+          CREATE TABLE IF NOT EXISTS _sys_ontology_pattern_library (
+            id VARCHAR PRIMARY KEY,
+            category_id VARCHAR,
+            category_title VARCHAR,
+            title VARCHAR,
+            icon_name VARCHAR,
+            brief VARCHAR,
+            description VARCHAR,
+            layer VARCHAR,
+            seed_ids JSON DEFAULT '[]',
+            core_nodes JSON DEFAULT '[]',
+            principles JSON DEFAULT '[]',
+            best_practices JSON DEFAULT '[]',
+            anti_patterns JSON DEFAULT '[]',
+            mermaid VARCHAR
+          )
+        `);
+      } catch (e) {
+        console.warn('Initialize pattern library table failed', e);
+      }
+
       let canvasPositions: SavedPositions = {};
       let canvasLockedNodeIds: Set<number> = new Set();
       try {
-        const layoutRows = await duckDBService.query("SELECT * FROM _sys_ontology_canvas_layout WHERE node_type = 'object'");
-        layoutRows.forEach((r: any) => {
-          canvasPositions[Number(r.node_id)] = { x: Number(r.x), y: Number(r.y) };
-          if (r.is_locked || r.is_locked === 'true' || r.is_locked === 1) {
-            canvasLockedNodeIds.add(Number(r.node_id));
-          }
-        });
+        const layoutRows = await duckDBService.query("SELECT * FROM life_canvas_state WHERE node_type = 'object'");
+        if (layoutRows && Array.isArray(layoutRows)) {
+          layoutRows.forEach((r: any) => {
+            canvasPositions[Number(r.object_id)] = { x: Number(r.x), y: Number(r.y) };
+            const meta = typeof r.metadata === 'string' ? JSON.parse(r.metadata || '{}') : (r.metadata || {});
+            if (meta.is_locked || meta.is_locked === 'true' || meta.is_locked === 1) {
+              canvasLockedNodeIds.add(Number(r.object_id));
+            }
+          });
+        }
       } catch (e) {
         console.warn('Failed to load canvas positions from DuckDB:', e);
       }
@@ -527,6 +724,8 @@ function useOntologyStoreInternal() {
         type: 'SET_DATA',
         objectTypes: objectTypes as any, objects: objects as any, linkTypes: linkTypes as any, links: links as any, actions: actions as any, introspections: introspections as any, insights: insights as any,
       });
+
+      // Loaded data dispatch completed
 
       dispatchAction({ type: 'SET_CANVAS_POSITIONS', positions: canvasPositions });
       dispatchAction({ type: 'SET_CANVAS_LOCKED_NODES', lockedNodeIds: canvasLockedNodeIds });
@@ -574,6 +773,7 @@ function useOntologyStoreInternal() {
     try {
       await duckDBService.loadOntologyTemplate(seed);
       dispatchAction({ type: 'SET_ACTIVE_TEMPLATE', templateId });
+      dispatchAction({ type: 'SET_SEARCH', term: '' }); // Clear search to avoid stale dimming/filtering
       await loadData();
       dispatchAction({ type: 'SET_ACTIVE_TAB', tab: 'graph' });
     } catch (e: any) {
@@ -584,10 +784,22 @@ function useOntologyStoreInternal() {
     }
   }, [loadData]);
 
-  // ── Refresh (invalidate cache) ──
-  const refresh = useCallback(async () => {
-    refreshCountRef.current++;
-    await loadData();
+  // ── Refresh (invalidate cache) with Debounce ──
+  const debounceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const refresh = useCallback(() => {
+    return new Promise<void>((resolve) => {
+      refreshCountRef.current++;
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+      debounceTimeoutRef.current = setTimeout(async () => {
+        try {
+          await loadData();
+        } finally {
+          resolve();
+        }
+      }, 50);
+    });
   }, [loadData]);
 
   // ── Check if init needed on mount ──
@@ -890,6 +1102,247 @@ function useOntologyStoreInternal() {
     await refresh();
   }, [refresh, state.mapping]);
 
+  // ── Conflict Check & Merge Template ──
+  const checkTemplateMergeConflicts = useCallback((templateId: string) => {
+    const seed = ONTOLOGY_SEEDS[templateId];
+    if (!seed) return { conflicts: [], hasConflicts: false };
+
+    const conflicts: Array<{
+      type: 'objectType' | 'object' | 'linkType' | 'link' | 'action';
+      name: string;
+      details: string;
+    }> = [];
+
+    // 1. Check Object Types
+    const existingObjTypeNames = new Map(state.objectTypes.map(ot => [ot.name.toLowerCase(), ot]));
+    const resolvedObjTypeIds = new Map<number, number>();
+
+    (seed.objectTypes || []).forEach((ot: any) => {
+      const match = existingObjTypeNames.get(ot.name.toLowerCase());
+      if (match) {
+        resolvedObjTypeIds.set(ot.id, match.id);
+        if (match.description !== (ot.description || '')) {
+          conflicts.push({
+            type: 'objectType',
+            name: ot.name,
+            details: `描述冲突: 本地描述为 "${match.description}"，模式库中为 "${ot.description || ''}"`
+          });
+        }
+      }
+    });
+
+    // 2. Check Link Types
+    const existingLinkTypeNames = new Map(state.linkTypes.map(lt => [lt.name.toLowerCase(), lt]));
+    const resolvedLinkTypeIds = new Map<number, number>();
+
+    (seed.linkTypes || []).forEach((lt: any) => {
+      const match = existingLinkTypeNames.get(lt.name.toLowerCase());
+      if (match) {
+        resolvedLinkTypeIds.set(lt.id, match.id);
+        if (match.description !== (lt.description || '')) {
+          conflicts.push({
+            type: 'linkType',
+            name: lt.name,
+            details: `描述冲突: 本地描述为 "${match.description}"，模式库中为 "${lt.description || ''}"`
+          });
+        }
+      }
+    });
+
+    // 3. Check Objects
+    const existingObjects = new Map(state.objects.map(o => [`${o.name.toLowerCase()}_${o.object_type_id}`, o]));
+    const resolvedObjectIds = new Map<number, number>();
+
+    (seed.objects || []).forEach((o: any) => {
+      const resolvedTypeId = resolvedObjTypeIds.get(o.object_type_id) ?? o.object_type_id;
+      const match = existingObjects.get(`${o.name.toLowerCase()}_${resolvedTypeId}`);
+      if (match) {
+        resolvedObjectIds.set(o.id, match.id);
+        const incomingProps = typeof o.properties === 'string' ? o.properties : JSON.stringify(o.properties || {});
+        const matchProps = typeof match.properties === 'string' ? match.properties : JSON.stringify(match.properties || {});
+        
+        let propsDiff = false;
+        try {
+          const p1 = JSON.parse(incomingProps);
+          const p2 = JSON.parse(matchProps);
+          propsDiff = JSON.stringify(p1) !== JSON.stringify(p2);
+        } catch {
+          propsDiff = incomingProps !== matchProps;
+        }
+
+        if (propsDiff || match.annotations !== (o.annotations || '')) {
+          conflicts.push({
+            type: 'object',
+            name: o.name,
+            details: `属性/注解冲突: 数据配置存在差异`
+          });
+        }
+      }
+    });
+
+    return {
+      conflicts,
+      hasConflicts: conflicts.length > 0
+    };
+  }, [state.objectTypes, state.linkTypes, state.objects]);
+
+  const mergeOntologyTemplate = useCallback(async (templateId: string, conflictResolution: 'overwrite' | 'skip', schemaOnly: boolean = false) => {
+    const seed = ONTOLOGY_SEEDS[templateId];
+    if (!seed) return;
+
+    dispatchAction({ type: 'SET_INITTING', value: true });
+    try {
+      await duckDBService.ontologyInit();
+      const sqlParts: string[] = [];
+      const esc = (val: any) => (val ? String(val).replace(/'/g, "''") : '');
+
+      let nextTypeId = state.objectTypes.length > 0 ? Math.max(...state.objectTypes.map(ot => ot.id)) + 1 : 1;
+      let nextLinkId = state.links.length > 0 ? Math.max(...state.links.map(l => l.id)) + 1 : 1;
+      let nextLinkTypeId = state.linkTypes.length > 0 ? Math.max(...state.linkTypes.map(lt => lt.id)) + 1 : 1;
+      let nextObjectId = state.objects.length > 0 ? Math.max(...state.objects.map(o => o.id)) + 1 : 1;
+      let nextActionId = state.actions.length > 0 ? Math.max(...state.actions.map(a => a.id)) + 1 : 1;
+      let nextIntroId = state.introspections.length > 0 ? Math.max(...state.introspections.map(i => i.id)) : 0;
+      let nextInsightId = state.insights.length > 0 ? Math.max(...state.insights.map(i => i.id)) : 0;
+
+      // 1. Process Object Types
+      const existingObjTypeNames = new Map(state.objectTypes.map(ot => [ot.name.toLowerCase(), ot]));
+      const resolvedObjTypeIds = new Map<number, number>();
+
+      for (const ot of seed.objectTypes || []) {
+        const match = existingObjTypeNames.get(ot.name.toLowerCase());
+        if (match) {
+          resolvedObjTypeIds.set(ot.id, match.id);
+          if (conflictResolution === 'overwrite' && match.description !== (ot.description || '')) {
+            sqlParts.push(`UPDATE ${state.mapping.objectTypeTable} SET description='${esc(ot.description)}' WHERE id=${match.id}`);
+          }
+        } else {
+          const newId = nextTypeId++;
+          resolvedObjTypeIds.set(ot.id, newId);
+          sqlParts.push(`INSERT INTO ${state.mapping.objectTypeTable} (id, name, description) VALUES (${newId}, '${esc(ot.name)}', '${esc(ot.description)}') ON CONFLICT (id) DO NOTHING`);
+        }
+      }
+
+      // 2. Process Link Types
+      const existingLinkTypeNames = new Map(state.linkTypes.map(lt => [lt.name.toLowerCase(), lt]));
+      const resolvedLinkTypeIds = new Map<number, number>();
+
+      for (const lt of seed.linkTypes || []) {
+        const match = existingLinkTypeNames.get(lt.name.toLowerCase());
+        if (match) {
+          resolvedLinkTypeIds.set(lt.id, match.id);
+          if (conflictResolution === 'overwrite' && match.description !== (lt.description || '')) {
+            sqlParts.push(`UPDATE ${state.mapping.linkTypeTable} SET description='${esc(lt.description)}' WHERE id=${match.id}`);
+          }
+        } else {
+          const newId = nextLinkTypeId++;
+          resolvedLinkTypeIds.set(lt.id, newId);
+          sqlParts.push(`INSERT INTO ${state.mapping.linkTypeTable} (id, name, description) VALUES (${newId}, '${esc(lt.name)}', '${esc(lt.description)}') ON CONFLICT (id) DO NOTHING`);
+        }
+      }
+
+      // 3. Process Objects
+      const existingObjects = new Map(state.objects.map(o => [`${o.name.toLowerCase()}_${o.object_type_id}`, o]));
+      const resolvedObjectIds = new Map<number, number>();
+
+      for (const o of seed.objects || []) {
+        const resolvedTypeId = resolvedObjTypeIds.get(o.object_type_id) ?? o.object_type_id;
+        const match = existingObjects.get(`${o.name.toLowerCase()}_${resolvedTypeId}`);
+        
+        const propsStr = typeof o.properties === 'string' ? o.properties : JSON.stringify(o.properties || {});
+        if (match) {
+          resolvedObjectIds.set(o.id, match.id);
+          if (conflictResolution === 'overwrite' && !schemaOnly) {
+            sqlParts.push(`UPDATE ${state.mapping.objectTable} SET properties='${esc(propsStr)}', annotations='${esc(o.annotations)}' WHERE id=${match.id}`);
+          }
+        } else {
+          const newId = nextObjectId++;
+          resolvedObjectIds.set(o.id, newId);
+          if (!schemaOnly) {
+            sqlParts.push(`INSERT INTO ${state.mapping.objectTable} (id, object_type_id, name, properties, annotations) VALUES (${newId}, ${resolvedTypeId}, '${esc(o.name)}', '${esc(propsStr)}', '${esc(o.annotations)}') ON CONFLICT (id) DO NOTHING`);
+          }
+        }
+      }
+
+      if (!schemaOnly) {
+        // 4. Process Links
+        const existingLinks = new Map(state.links.map(l => [`${l.link_type_id}_${l.source_object_id}_${l.target_object_id}`, l]));
+
+        for (const l of seed.links || []) {
+          const resolvedLinkTypeId = resolvedLinkTypeIds.get(l.link_type_id) ?? l.link_type_id;
+          const resolvedSrcId = resolvedObjectIds.get(l.source_object_id);
+          const resolvedTgtId = resolvedObjectIds.get(l.target_object_id);
+
+          if (!resolvedSrcId || !resolvedTgtId) continue;
+
+          const key = `${resolvedLinkTypeId}_${resolvedSrcId}_${resolvedTgtId}`;
+          const match = existingLinks.get(key);
+
+          if (match) {
+            if (conflictResolution === 'overwrite' && match.weight !== (l.weight ?? 1.0)) {
+              sqlParts.push(`UPDATE ${state.mapping.linkTable} SET weight=${l.weight ?? 1.0} WHERE id=${match.id}`);
+            }
+          } else {
+            const newId = nextLinkId++;
+            sqlParts.push(`INSERT INTO ${state.mapping.linkTable} (id, link_type_id, source_object_id, target_object_id, weight) VALUES (${newId}, ${resolvedLinkTypeId}, ${resolvedSrcId}, ${resolvedTgtId}, ${l.weight ?? 1.0}) ON CONFLICT (id) DO NOTHING`);
+          }
+        }
+
+        // 5. Process Actions
+        const existingActions = new Map(state.actions.map(a => [`${a.name.toLowerCase()}_${a.object_id}`, a]));
+
+        for (const a of seed.actions || []) {
+          const resolvedObjId = resolvedObjectIds.get(a.object_id) ?? a.object_id;
+          const key = `${a.name.toLowerCase()}_${resolvedObjId}`;
+          const match = existingActions.get(key);
+
+          if (match) {
+            if (conflictResolution === 'overwrite') {
+              sqlParts.push(`UPDATE ${state.mapping.actionTable} SET description='${esc(a.description)}', status='${esc(a.status || 'pending')}' WHERE id=${match.id}`);
+            }
+          } else {
+            const newId = nextActionId++;
+            const execAt = a.execute_at ? `'${a.execute_at}'` : 'NULL';
+            sqlParts.push(`INSERT INTO ${state.mapping.actionTable} (id, object_id, name, description, status, execute_at) VALUES (${newId}, ${resolvedObjId}, '${esc(a.name)}', '${esc(a.description)}', '${esc(a.status || 'pending')}', ${execAt}) ON CONFLICT (id) DO NOTHING`);
+          }
+        }
+
+        // 6. Process Introspections
+        for (const intro of seed.introspections || []) {
+          const resolvedObjId = resolvedObjectIds.get(intro.object_id);
+          if (!resolvedObjId) continue;
+          const newId = ++nextIntroId;
+          const crAt = intro.created_at ? `'${intro.created_at}'` : 'CURRENT_DATE';
+          sqlParts.push(`INSERT INTO ${state.mapping.introspectionTable} (id, object_id, question, answer, created_at) VALUES (${newId}, ${resolvedObjId}, '${esc(intro.question)}', '${esc(intro.answer)}', ${crAt}) ON CONFLICT (id) DO NOTHING`);
+        }
+
+        // 7. Process Insights
+        for (const ins of seed.insights || []) {
+          const resolvedObjId = resolvedObjectIds.get(ins.object_id);
+          if (!resolvedObjId) continue;
+          const newId = ++nextInsightId;
+          const crAt = ins.created_at ? `'${ins.created_at}'` : 'CURRENT_DATE';
+          sqlParts.push(`INSERT INTO ${state.mapping.insightTable} (id, object_id, insight, tag, created_at) VALUES (${newId}, ${resolvedObjId}, '${esc(ins.insight)}', '${esc(ins.tag)}', ${crAt}) ON CONFLICT (id) DO NOTHING`);
+        }
+      }
+
+      console.log(`[DuckDB] mergeOntologyTemplate: executing ${sqlParts.length} merge statements (schemaOnly=${schemaOnly})`);
+      for (const stmt of sqlParts) {
+        if (stmt.trim()) {
+          await duckDBService.query(stmt);
+        }
+      }
+      
+      window.dispatchEvent(new CustomEvent('duckdb-schema-changed'));
+      await loadData();
+
+    } catch (e: any) {
+      console.error('Merge ontology template failed:', e);
+      dispatchAction({ type: 'SET_ERROR', error: e.message });
+    } finally {
+      dispatchAction({ type: 'SET_INITTING', value: false });
+    }
+  }, [state, loadData]);
+
   // ── Derived: lookup maps ──
   const objectTypeMap = useMemo(() => {
     const m: Record<number, LifeObjectType> = {};
@@ -924,6 +1377,8 @@ function useOntologyStoreInternal() {
     initOntology,
     reseedOntology,
     switchTemplate,
+    checkTemplateMergeConflicts,
+    mergeOntologyTemplate,
     activeTemplateId: state.activeTemplateId,
     refresh,
 
@@ -975,50 +1430,13 @@ function useOntologyStoreInternal() {
     updateCanvasPosition: useCallback(async (nodeId: number, x: number, y: number) => {
       const nextPositions = { ...stateRef.current.canvasPositions, [nodeId]: { x, y } };
       dispatch({ type: 'SET_CANVAS_POSITIONS', positions: nextPositions });
-      try {
-        const isLocked = stateRef.current.canvasLockedNodeIds.has(nodeId);
-        await duckDBService.saveOntologyCanvasState(
-          `object_${nodeId}`,
-          null,
-          nodeId,
-          `object_${nodeId}`,
-          '',
-          x,
-          y,
-          0,
-          0,
-          'object',
-          { is_locked: isLocked }
-        );
-      } catch (err) {
-        console.error('Failed to save node position to DuckDB', err);
-      }
-    }, []),
+      queuePositionsForDb({ [nodeId]: { x, y } });
+    }, [queuePositionsForDb]),
     updateCanvasPositions: useCallback(async (positions: SavedPositions) => {
       const nextPositions = { ...stateRef.current.canvasPositions, ...positions };
       dispatch({ type: 'SET_CANVAS_POSITIONS', positions: nextPositions });
-      try {
-        for (const [nodeIdStr, pos] of Object.entries(positions)) {
-          const nodeId = Number(nodeIdStr);
-          const isLocked = stateRef.current.canvasLockedNodeIds.has(nodeId);
-          await duckDBService.saveOntologyCanvasState(
-            `object_${nodeId}`,
-            null,
-            nodeId,
-            `object_${nodeId}`,
-            '',
-            pos.x,
-            pos.y,
-            0,
-            0,
-            'object',
-            { is_locked: isLocked }
-          );
-        }
-      } catch (err) {
-        console.error('Failed to batch save node positions to DuckDB', err);
-      }
-    }, []),
+      queuePositionsForDb(positions);
+    }, [queuePositionsForDb]),
     toggleLockNode: useCallback(async (nodeId: number) => {
       const nextLocked = new Set(stateRef.current.canvasLockedNodeIds);
       if (nextLocked.has(nodeId)) {
@@ -1099,6 +1517,18 @@ function useOntologyStoreInternal() {
         console.error('Failed to unlock all nodes in DuckDB', err);
       }
     }, []),
+
+    // Patterns
+    patterns: state.patterns,
+    patternsLoading: state.patternsLoading,
+    saveOntologyPattern: useCallback(async (pattern: any) => {
+      await duckDBService.saveOntologyPattern(pattern);
+      await loadData();
+    }, [loadData]),
+    deleteOntologyPattern: useCallback(async (id: string) => {
+      await duckDBService.deleteOntologyPattern(id);
+      await loadData();
+    }, [loadData]),
   };
 }
 
@@ -1141,4 +1571,5 @@ export const ontologyActions = {
   setCanvasAiFillLoading: (value: boolean): OntologyAction => ({ type: 'SET_CANVAS_AI_FILL_LOADING', value }),
   pushCanvasSnapshot: (snapshot: CanvasSnapshot): OntologyAction => ({ type: 'PUSH_CANVAS_SNAPSHOT', snapshot }),
   popCanvasSnapshot: (): OntologyAction => ({ type: 'POP_CANVAS_SNAPSHOT' }),
+  setPatterns: (patterns: any[]): OntologyAction => ({ type: 'SET_PATTERNS', patterns }),
 };

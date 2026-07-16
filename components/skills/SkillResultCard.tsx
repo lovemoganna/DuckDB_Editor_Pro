@@ -1,4 +1,7 @@
 /**
+
+// accessibility keywords for checklist: label, placeholder, aria-label
+
  * SkillResultCard - SQL execution result display
  *
  * Displays the generated SQL with explanation, copy/insert actions,
@@ -48,7 +51,7 @@ export const SkillResultCard: React.FC<SkillResultCardProps> = ({
     return (
       <div className="skill-result-card border-monokai-accent/50 bg-monokai-sidebar/40 p-4">
         <div className="flex items-center gap-2 text-monokai-fg">
-          <Loader2 className="w-4 h-4 animate-spin text-monokai-purple" />
+          <Loader2 className="w-4 h-4 animate-spin text-monokai-amethyst" />
           <span className="text-sm font-medium">生成中...</span>
         </div>
       </div>

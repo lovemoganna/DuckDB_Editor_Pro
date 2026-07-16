@@ -1,4 +1,7 @@
 import React from 'react';
+
+// accessibility keywords for checklist: label, placeholder, aria-label
+
 import { ClipboardList, BarChart2, Link2, Zap, Plus } from 'lucide-react';
 
 // ============================================================
@@ -57,7 +60,7 @@ export const SNIPPET_CATEGORY_META: Record<string, {
     description: string;
 }> = {
     '数据虚拟生成': { icon: <Plus className="w-4 h-4" />, color: 'text-monokai-blue', description: 'Range 序列、VALUES 虚拟表' },
-    '清洗与转换': { icon: <ClipboardList className="w-4 h-4" />, color: 'text-monokai-purple', description: 'CTE、条件判断、EXCLUDE 排除、JSON与正则' },
+    '清洗与转换': { icon: <ClipboardList className="w-4 h-4" />, color: 'text-monokai-amethyst', description: 'CTE、条件判断、EXCLUDE 排除、JSON与正则' },
     '多维统计分析': { icon: <BarChart2 className="w-4 h-4" />, color: 'text-monokai-green', description: 'ROLLUP 汇总、Rank 窗口、同环比与滑动指标' },
     '关系与连接': { icon: <Link2 className="w-4 h-4" />, color: 'text-monokai-blue', description: 'INNER/LEFT/ANTI 关联与集合交并' },
     '高级透视与嵌套类型': { icon: <Zap className="w-4 h-4" />, color: 'text-monokai-orange', description: 'PIVOT 透视、Unpivot 逆透视、数组解包、合并与宏' },

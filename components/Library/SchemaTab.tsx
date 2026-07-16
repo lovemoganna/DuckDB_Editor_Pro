@@ -318,8 +318,8 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({
           <button
             onClick={handleInfer}
             className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold
-              bg-monokai-purple/15 text-monokai-purple hover:bg-monokai-purple/25
-              border border-monokai-purple/25 transition-all shadow-[0_0_14px_rgba(189,174,255,0.18)]"
+              bg-monokai-amethyst/15 text-monokai-amethyst hover:bg-monokai-amethyst/25
+              border border-monokai-amethyst/25 transition-all shadow-[0_0_14px_rgba(189,174,255,0.18)]"
           >
             <Wand2 className="w-4 h-4" />
             推断本体结构

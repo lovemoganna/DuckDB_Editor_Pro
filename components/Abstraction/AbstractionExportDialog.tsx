@@ -168,14 +168,14 @@ export const AbstractionExportDialog: React.FC<AbstractionExportDialogProps> = (
         <div className="flex border-b border-monokai-accent">
           <button
             onClick={() => { setMode('export'); setResult(null); }}
-            className={`flex-1 px-4 py-2 text-sm ${mode === 'export' ? 'text-monokai-purple border-b-2 border-monokai-purple' : 'text-monokai-comment hover:text-monokai-fg'}`}
+            className={`flex-1 px-4 py-2 text-sm ${mode === 'export' ? 'text-monokai-amethyst border-b-2 border-monokai-amethyst' : 'text-monokai-comment hover:text-monokai-fg'}`}
           >
             <Download className="w-4 h-4 inline mr-1" />
             导出
           </button>
           <button
             onClick={() => { setMode('import'); setResult(null); }}
-            className={`flex-1 px-4 py-2 text-sm ${mode === 'import' ? 'text-monokai-purple border-b-2 border-monokai-purple' : 'text-monokai-comment hover:text-monokai-fg'}`}
+            className={`flex-1 px-4 py-2 text-sm ${mode === 'import' ? 'text-monokai-amethyst border-b-2 border-monokai-amethyst' : 'text-monokai-comment hover:text-monokai-fg'}`}
           >
             <Upload className="w-4 h-4 inline mr-1" />
             导入
@@ -193,7 +193,7 @@ export const AbstractionExportDialog: React.FC<AbstractionExportDialogProps> = (
               <button
                 onClick={handleExportFile}
                 disabled={isExporting}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-monokai-purple text-white rounded-lg text-sm hover:bg-monokai-purple/80 disabled:opacity-50"
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-monokai-amethyst text-white rounded-lg text-sm hover:bg-monokai-amethyst/80 disabled:opacity-50"
               >
                 <FileJson className="w-4 h-4" />
                 {isExporting ? '导出中...' : '下载 JSON 文件'}
@@ -224,7 +224,7 @@ export const AbstractionExportDialog: React.FC<AbstractionExportDialogProps> = (
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isImporting}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-monokai-purple text-white rounded-lg text-sm hover:bg-monokai-purple/80 disabled:opacity-50"
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-monokai-amethyst text-white rounded-lg text-sm hover:bg-monokai-amethyst/80 disabled:opacity-50"
               >
                 <FileJson className="w-4 h-4" />
                 {isImporting ? '导入中...' : '选择 JSON 文件'}
@@ -237,7 +237,7 @@ export const AbstractionExportDialog: React.FC<AbstractionExportDialogProps> = (
                 onChange={(e) => setImportText(e.target.value)}
                 placeholder="粘贴 JSON 数据..."
                 rows={4}
-                className="w-full px-3 py-2 text-sm bg-monokai-sidebar border border-monokai-accent rounded-lg text-monokai-fg placeholder-monokai-comment focus:outline-none focus:border-monokai-purple resize-none"
+                className="w-full px-3 py-2 text-sm bg-monokai-sidebar border border-monokai-accent rounded-lg text-monokai-fg placeholder-monokai-comment focus:outline-none focus:border-monokai-amethyst resize-none"
               />
               <button
                 onClick={handleImportText}

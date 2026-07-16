@@ -289,7 +289,7 @@ export const CustomAssertionPanel: React.FC<CustomAssertionPanelProps> = ({
                       <div className="flex items-center gap-2">
                         <div className={`w-6 h-6 rounded flex items-center justify-center ${
                           assertion.category === 'null_check' ? 'bg-monokai-blue/20 text-monokai-blue' :
-                          assertion.category === 'uniqueness' ? 'bg-monokai-purple/20 text-monokai-purple' :
+                          assertion.category === 'uniqueness' ? 'bg-monokai-amethyst/20 text-monokai-amethyst' :
                           assertion.category === 'range' ? 'bg-monokai-orange/20 text-monokai-orange' :
                           'bg-monokai-sidebar text-monokai-comment'
                         }`}>

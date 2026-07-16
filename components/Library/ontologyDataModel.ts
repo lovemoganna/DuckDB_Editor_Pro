@@ -88,7 +88,7 @@ CREATE TABLE life_canvas_state (
     object_id INTEGER,
     title VARCHAR,
     color VARCHAR,
-    x DECIMAL, y DECIMAL, width DECIMAL, height DECIMAL,
+    x DOUBLE, y DOUBLE, width DOUBLE, height DOUBLE,
     node_type VARCHAR DEFAULT 'Source',
     metadata JSON DEFAULT '{}'
 );
@@ -101,8 +101,6 @@ CREATE TABLE life_canvas_edge (
 );`;
 
 // ============================================
-// 2. 种子数据（INSERT）
-// ============================================
 
 export const ONTOLOGY_SEED_DATA = `-- ═══════════════════════════════════════
 -- 种子数据
@@ -114,30 +112,34 @@ INSERT INTO life_object_type VALUES
     (1, '核心元', '实体与关系'),
     (2, '控制元', '运算与操作');
 
--- 对象实例（6 个核心元对象）
+-- 对象实例（6 个核心元对象，具备强属性Schema契约定义）
 INSERT INTO life_object (id, object_type_id, name, properties, annotations) VALUES
-    (1, 1, '对象类型', '{"数据源表": "主物理表", "主键字段": "标识键", "启用共享": true}', '数字孪生体'),
-    (2, 1, '链接类型', '{"关联映射": "外键联合表", "对应基数": "多对多"}', '关联关系'),
-    (3, 2, '行动类型', '{"回写模式": "同步事务回写", "授权范围": "操作员组"}', '回写操作'),
-    (4, 1, '属性', '{"字段类型": "字符型", "主键约束": false, "敏感评级": "普通"}', '特征字段'),
-    (5, 2, '逻辑函数', '{"执行环境": "计算引擎节点", "输入参数": "属性集合"}', '指标运算'),
-    (6, 1, '对象接口', '{"共享特征": ["标识码", "修改时间"], "多态继承": true}', '多态复用');
+    (1, 1, '对象类型', '{"schema": {"数据源表": "string", "主键字段": "string", "启用共享": "boolean"}, "数据源表": "主物理表", "主键字段": "标识键", "启用共享": true}', '数字孪生体'),
+    (2, 1, '链接类型', '{"schema": {"关联映射": "string", "对应基数": "string"}, "关联映射": "外键联合表", "对应基数": "多对多"}', '关联关系'),
+    (3, 2, '行动类型', '{"schema": {"回写模式": "string", "授权范围": "string"}, "回写模式": "同步事务回写", "授权范围": "操作员组"}', '回写操作'),
+    (4, 1, '属性', '{"schema": {"字段类型": "string", "主键约束": "boolean", "敏感评级": "string"}, "字段类型": "字符型", "主键约束": false, "敏感评级": "普通"}', '特征字段'),
+    (5, 2, '逻辑函数', '{"schema": {"执行环境": "string", "输入参数": "array"}, "执行环境": "计算引擎节点", "输入参数": "属性集合"}', '指标运算'),
+    (6, 1, '对象接口', '{"schema": {"共享特征": "array", "多态继承": "boolean"}, "共享特征": ["标识码", "修改时间"], "多态继承": true}', '多态复用');
 
--- 链接类型（5 种关系类型）
+-- 链接类型（7 种关系类型，补全计算依赖与作用范围）
 INSERT INTO life_link_type VALUES
     (1, '从属于', '包含归属'),
     (2, '定义关联', '声明关系'),
     (3, '作用于', '修改目标'),
     (4, '驱动计算', '重算特征'),
-    (5, '实现接口', '协议遵从');
+    (5, '实现接口', '协议遵从'),
+    (6, '依赖计算', '指标派生计算关联'),
+    (7, '作用范围', '操作限制和回写范围');
 
--- 对象链接（5 条关系实例）
+-- 对象链接（7 条关系实例，连通控制元与核心元）
 INSERT INTO life_link VALUES
     (1, 1, 4, 1, 1.0),   -- 属性 -> 从属于 -> 对象类型
     (2, 2, 2, 1, 0.95),  -- 链接类型 -> 定义关联 -> 对象类型
     (3, 3, 3, 1, 0.9),   -- 行动类型 -> 作用于 -> 对象类型
     (4, 4, 5, 4, 0.8),   -- 逻辑函数 -> 驱动计算 -> 属性
-    (5, 5, 1, 6, 0.85);  -- 对象类型 -> 实现接口 -> 对象接口
+    (5, 5, 1, 6, 0.85),  -- 对象类型 -> 实现接口 -> 对象接口
+    (6, 6, 5, 4, 0.90),  -- 逻辑函数 -> 依赖计算 -> 属性 (因果链路)
+    (7, 7, 3, 1, 0.88);  -- 行动类型 -> 作用范围 -> 对象类型 (控制链路)
 
 -- 行动实例（建模维护行动）
 INSERT INTO life_action VALUES
@@ -153,13 +155,13 @@ INSERT INTO life_introspection VALUES
 
 -- 洞察
 INSERT INTO life_insight VALUES
-    (1, 1, '将业务逻辑沉淀在本体层面（如把逻辑函数直接与对象属性绑定），可以打破“应用层烟囱式”的开发困局，使得核心业务指标对于整个平台和全部上层决策流保持单源真实性。', '集成架构', '2026-07-08'),
+    (1, 1, '将业务逻辑沉淀在本体层面（如把逻辑函数直接与对象属性绑定），可以打破“应用层烟囱式”的开发困局，使得核心业务指标对于整个平台 and 全部上层决策流保持单源真实性。', '集成架构', '2026-07-08'),
     (2, 4, '链接类型 (Link Types) 并非简单的物理主外键，它不仅定义了物理维度的关联，还限制了决策沿拓扑链条蔓延的逻辑通路。', '模型拓扑', '2026-07-08'),
     (3, 3, '行动回写的实时反馈能力是让数据产生“生产力”的关键。从单纯的数据提取到业务状态回写，实现了从“看见数据”到“驱动变革”的范式飞跃。', '核心洞察', '2026-07-08');
 
 -- Canvas 画布状态
 INSERT INTO life_canvas_state (id, space_id, object_id, title, color, x, y, width, height) VALUES
-    ('space-class', 'space-class', NULL, '关系拓扑', '#a78bfa', 100, 100, 320, 480),
+    ('space-class', 'space-class', NULL, '关系拓扑', '#ae81ff', 100, 100, 320, 480),
     ('item-c1',      'space-class', 1,    NULL,   NULL,      20,  50,  280, 100),
     ('item-c2',      'space-class', 2,    NULL,   NULL,      20,  180, 280, 100),
     ('item-c3',      'space-class', 3,    NULL,   NULL,      20,  310, 280, 100),
@@ -182,22 +184,23 @@ export const ONTOLOGY_CREATE_STATEMENTS: string[] = [
   `CREATE TABLE IF NOT EXISTS life_action (id INTEGER PRIMARY KEY, object_id INTEGER, name VARCHAR NOT NULL, description VARCHAR, status VARCHAR DEFAULT 'pending', execute_at DATE)`,
   `CREATE TABLE IF NOT EXISTS life_introspection (id INTEGER PRIMARY KEY, object_id INTEGER, question VARCHAR, answer VARCHAR, created_at DATE DEFAULT CURRENT_DATE)`,
   `CREATE TABLE IF NOT EXISTS life_insight (id INTEGER PRIMARY KEY, object_id INTEGER, insight VARCHAR, tag VARCHAR, created_at DATE DEFAULT CURRENT_DATE)`,
-  `CREATE TABLE IF NOT EXISTS life_canvas_state (id VARCHAR PRIMARY KEY, space_id VARCHAR, object_id INTEGER, title VARCHAR, color VARCHAR, x DECIMAL, y DECIMAL, width DECIMAL, height DECIMAL, node_type VARCHAR DEFAULT 'Source', metadata JSON DEFAULT '{}')`,
+  `CREATE TABLE IF NOT EXISTS life_canvas_state (id VARCHAR PRIMARY KEY, space_id VARCHAR, object_id INTEGER, title VARCHAR, color VARCHAR, x DOUBLE, y DOUBLE, width DOUBLE, height DOUBLE, node_type VARCHAR DEFAULT 'Source', metadata JSON DEFAULT '{}')`,
   `CREATE TABLE IF NOT EXISTS life_canvas_edge (id VARCHAR PRIMARY KEY, source_id VARCHAR, target_id VARCHAR)`,
+  `CREATE TABLE IF NOT EXISTS _sys_ontology_pattern_library (id VARCHAR PRIMARY KEY, category_id VARCHAR, category_title VARCHAR, title VARCHAR, icon_name VARCHAR, brief VARCHAR, description VARCHAR, layer VARCHAR, seed_ids JSON DEFAULT '[]', core_nodes JSON DEFAULT '[]', principles JSON DEFAULT '[]', best_practices JSON DEFAULT '[]', anti_patterns JSON DEFAULT '[]', mermaid VARCHAR)`,
 ];
 
 /** 种子数据 INSERT 语句数组 — 与 ONTOLOGY_SEED_DATA 内容一致 */
 export const ONTOLOGY_SEED_STATEMENTS: string[] = [
   `INSERT INTO life_object_type VALUES (1, '核心元', '实体与关系'), (2, '控制元', '运算与操作') ON CONFLICT (id) DO NOTHING`,
-  `INSERT INTO life_object (id, object_type_id, name, properties, annotations) VALUES (1, 1, '对象类型', '{"数据源表": "主物理表", "主键字段": "标识键", "启用共享": true}', '数字孪生体'), (2, 1, '链接类型', '{"关联映射": "外键联合表", "对应基数": "多对多"}', '关联关系'), (3, 2, '行动类型', '{"回写模式": "同步事务回写", "授权范围": "操作员组"}', '回写操作') ON CONFLICT (id) DO NOTHING`,
-  `INSERT INTO life_object (id, object_type_id, name, properties, annotations) VALUES (4, 1, '属性', '{"字段类型": "字符型", "主键约束": false, "敏感评级": "普通"}', '特征字段'), (5, 2, '逻辑函数', '{"执行环境": "计算引擎节点", "输入参数": "属性集合"}', '指标运算'), (6, 1, '对象接口', '{"共享特征": ["标识码", "修改时间"], "多态继承": true}', '多态复用') ON CONFLICT (id) DO NOTHING`,
-  `INSERT INTO life_link_type VALUES (1, '从属于', '包含归属'), (2, '定义关联', '声明关系'), (3, '作用于', '修改目标'), (4, '驱动计算', '重算特征'), (5, '实现接口', '协议遵从') ON CONFLICT (id) DO NOTHING`,
-  `INSERT INTO life_link VALUES (1, 1, 4, 1, 1.0), (2, 2, 2, 1, 0.95), (3, 3, 3, 1, 0.9), (4, 4, 5, 4, 0.8), (5, 5, 1, 6, 0.85) ON CONFLICT (id) DO NOTHING`,
+  `INSERT INTO life_object (id, object_type_id, name, properties, annotations) VALUES (1, 1, '对象类型', '{"schema": {"数据源表": "string", "主键字段": "string", "启用共享": "boolean"}, "数据源表": "主物理表", "主键字段": "标识键", "启用共享": true}', '数字孪生体'), (2, 1, '链接类型', '{"schema": {"关联映射": "string", "对应基数": "string"}, "关联映射": "外键联合表", "对应基数": "多对多"}', '关联关系'), (3, 2, '行动类型', '{"schema": {"回写模式": "string", "授权范围": "string"}, "回写模式": "同步事务回写", "授权范围": "操作员组"}', '回写操作') ON CONFLICT (id) DO NOTHING`,
+  `INSERT INTO life_object (id, object_type_id, name, properties, annotations) VALUES (4, 1, '属性', '{"schema": {"字段类型": "string", "主键约束": "boolean", "敏感评级": "string"}, "字段类型": "字符型", "主键约束": false, "敏感评级": "普通"}', '特征字段'), (5, 2, '逻辑函数', '{"schema": {"执行环境": "string", "输入参数": "array"}, "执行环境": "计算引擎节点", "输入参数": "属性集合"}', '指标运算'), (6, 1, '对象接口', '{"schema": {"共享特征": "array", "多态继承": "boolean"}, "共享特征": ["标识码", "修改时间"], "多态继承": true}', '多态复用') ON CONFLICT (id) DO NOTHING`,
+  `INSERT INTO life_link_type VALUES (1, '从属于', '包含归属'), (2, '定义关联', '声明关系'), (3, '作用于', '修改目标'), (4, '驱动计算', '重算特征'), (5, '实现接口', '协议遵从'), (6, '依赖计算', '指标派生计算关联'), (7, '作用范围', '操作限制和回写范围') ON CONFLICT (id) DO NOTHING`,
+  `INSERT INTO life_link VALUES (1, 1, 4, 1, 1.0), (2, 2, 2, 1, 0.95), (3, 3, 3, 1, 0.9), (4, 4, 5, 4, 0.8), (5, 5, 1, 6, 0.85), (6, 6, 5, 4, 0.90), (7, 7, 3, 1, 0.88) ON CONFLICT (id) DO NOTHING`,
   `INSERT INTO life_action VALUES (1, 3, '属性回写', '更新属性值', 'executed', '2026-07-08'), (2, 5, '函数计算', '重算指标', 'in_progress', '2026-07-10'), (3, 1, '数据同步', '同步源表', 'pending', '2026-07-15') ON CONFLICT (id) DO NOTHING`,
   `INSERT INTO life_introspection (id, object_id, question, answer, created_at) VALUES (1, 1, '本体与数仓区别？', '本体是双向可操作孪生，数仓仅只读表格。', '2026-07-08'), (2, 6, '接口多态价值？', '声明公共协议，异构表复用接口，下游面向接口开发。', '2026-07-08'), (3, 3, '回写安全机制？', '参数校验加事务隔离，防止并发冲突。', '2026-07-08') ON CONFLICT (id) DO NOTHING`,
   `INSERT INTO life_insight (id, object_id, insight, tag, created_at) VALUES (1, 1, '将业务逻辑沉淀在本体层面（如把逻辑函数直接与对象属性绑定），可以打破“应用层烟囱式”的开发困局，使得核心业务指标对于整个平台和全部上层决策流保持单源真实性。', '集成架构', '2026-07-08'), (2, 4, '链接类型并非简单的物理主外键，它不仅定义了物理维度的关联，还限制了决策沿拓扑链条蔓延的逻辑通路。', '模型拓扑', '2026-07-08'), (3, 3, '行动回写的实时反馈能力是让数据产生“生产力”的关键。从单纯的数据提取到业务状态回写，实现了从“看见数据”到“驱动变革”的范式飞跃。', '核心洞察', '2026-07-08') ON CONFLICT (id) DO NOTHING`,
-  `INSERT INTO life_canvas_state (id, space_id, object_id, title, color, x, y, width, height) VALUES ('space-class', 'space-class', NULL, '关系拓扑', '#a78bfa', 100, 100, 320, 480), ('item-c1', 'space-class', 1, NULL, NULL, 20, 50, 280, 100), ('item-c2', 'space-class', 2, NULL, NULL, 20, 180, 280, 100), ('item-c3', 'space-class', 3, NULL, NULL, 20, 310, 280, 100), ('space-inst', 'space-inst', NULL, '控制逻辑', '#38bdf8', 480, 100, 320, 480), ('item-i4', 'space-inst', 4, NULL, NULL, 20, 50, 280, 100), ('item-i5', 'space-inst', 5, NULL, NULL, 20, 180, 280, 100), ('item-i6', 'space-inst', 6, NULL, NULL, 20, 310, 280, 100) ON CONFLICT (id) DO NOTHING`,
 ];
+
 
 // ============================================
 // 3. 完整初始化脚本（建表 + 种子数据）

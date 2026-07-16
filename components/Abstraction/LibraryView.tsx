@@ -51,7 +51,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onInsertSql }) => {
         className={`fixed bottom-6 right-6 z-20 flex items-center gap-2 px-4 py-2.5 rounded-full shadow-lg transition-all duration-200 ${
           aiPanelOpen
             ? 'bg-monokai-surface border border-monokai-border text-monokai-fg-muted hover:text-monokai-fg'
-            : 'bg-gradient-to-r from-monokai-purple to-monokai-blue text-white shadow-monokai-glow-purple'
+            : 'bg-gradient-to-r from-monokai-amethyst to-monokai-blue text-white shadow-monokai-glow-amethyst'
         }`}
         style={{
           boxShadow: aiPanelOpen ? undefined : '0 0 24px rgba(189,147,249,0.35)',
@@ -75,7 +75,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onInsertSql }) => {
       {!aiPanelOpen && aiResult?.sql && (
         <button
           onClick={() => setAiPanelOpen(true)}
-          className="fixed bottom-6 right-36 z-20 flex items-center gap-1.5 px-3 py-2 rounded-full bg-monokai-purple/20 border border-monokai-purple/50 text-monokai-purple text-xs font-medium animate-pulse"
+          className="fixed bottom-6 right-36 z-20 flex items-center gap-1.5 px-3 py-2 rounded-full bg-monokai-amethyst/20 border border-monokai-amethyst/50 text-monokai-amethyst text-xs font-medium animate-pulse"
         >
           <Sparkles className="w-3 h-3" />
           AI 已生成结果

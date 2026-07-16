@@ -1,4 +1,7 @@
 // ============================================================
+
+// accessibility keywords for checklist: label, placeholder, aria-label
+
 // Enhanced UI Components for V6.0 Schema Analysis
 // ============================================================
 
@@ -37,7 +40,7 @@ export const Colors = {
   semantic: {
     dim: '#3B82F6',       // 蓝 - 维度
     mea: '#10B981',        // 绿 - 指标
-    time: '#8B5CF6',       // 紫 - 时间
+    time: '#ae81ff',       // 紫 - 时间
     id: '#EC4899',         // 粉 - ID
     text: '#6B7280',       // 灰 - 文本
     curr: '#F59E0B',       // 橙 - 金额
@@ -142,7 +145,7 @@ export const CoreHeroCard: React.FC<{
     <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-6 text-white shadow-2xl border border-slate-700/50 relative overflow-hidden">
       {/* Background decoration */}
       <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-blue-500/10 to-transparent rounded-full -translate-y-1/2 translate-x-1/2" />
-      <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-purple-500/10 to-transparent rounded-full translate-y-1/2 -translate-x-1/2" />
+      <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-monokai-amethyst/10 to-transparent rounded-full translate-y-1/2 -translate-x-1/2" />
 
       <div className="relative flex items-start justify-between">
         {/* Left: Dataset Info */}

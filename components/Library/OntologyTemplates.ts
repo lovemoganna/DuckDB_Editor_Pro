@@ -28,7 +28,7 @@ export const ONTOLOGY_TEMPLATES: OntologyTemplate[] = [
     name: 'OKR 战略图谱',
     description: '核心目标 -> 关键结果 -> 具体行动的层级驱动系统',
     icon: '🎯',
-    color: '#a78bfa',
+    color: '#ae81ff',
     category: 'Productivity',
     isBuiltin: true,
     sql: [
@@ -150,7 +150,7 @@ export const ONTOLOGY_TEMPLATES: OntologyTemplate[] = [
     name: '财务追踪图谱',
     description: '账户 -> 交易 -> 预算 -> 目标的个人财务闭环',
     icon: '💰',
-    color: '#a78bfa',
+    color: '#ae81ff',
     category: 'Finance',
     sql: [
       "INSERT INTO life_object_type VALUES (90, 'Account', '账户'), (91, 'Transaction', '交易'), (92, 'Budget', '预算'), (93, 'Goal', '财务目标')",

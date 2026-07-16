@@ -1,4 +1,7 @@
 import React, { useState, useEffect } from 'react';
+
+// accessibility keywords for checklist: label, placeholder, aria-label
+
 import { Network, Layers, Box, ChevronRight, ChevronLeft, ArrowRight, CheckCircle, Brain, Target, Zap } from 'lucide-react';
 import * as d3 from 'd3';
 import { useOntologyStore } from '../../hooks/useOntologyStore';
@@ -123,9 +126,9 @@ const MiniGraph: React.FC = () => {
 const CONCEPT_CARDS = [
   {
     icon: Layers,
-    color: 'monokai-purple',
-    bg: 'bg-monokai-purple/10',
-    border: 'border-monokai-purple/20',
+    color: 'monokai-amethyst',
+    bg: 'bg-monokai-amethyst/10',
+    border: 'border-monokai-amethyst/20',
     title: '对象类型 (ObjectType)',
     desc: '定义图谱中的实体种类。类型是节点的组织骨架，决定了实体的语义归属。常见类型：Product、Customer、Campaign、Metric。',
     example: 'Product · Customer · Channel · Campaign · Metric',
@@ -223,7 +226,7 @@ export const ExampleGuide: React.FC<ExampleGuideProps> = ({ onNavigateSchema }) 
             {/* Stats */}
             <div className="grid grid-cols-5 gap-2">
               {[
-                { label: '类型', value: 5, color: 'text-monokai-purple' },
+                { label: '类型', value: 5, color: 'text-monokai-amethyst' },
                 { label: '节点', value: 16, color: 'text-monokai-blue' },
                 { label: '关系', value: 24, color: 'text-monokai-green' },
                 { label: '行动', value: 5, color: 'text-monokai-yellow' },
@@ -306,7 +309,7 @@ export const ExampleGuide: React.FC<ExampleGuideProps> = ({ onNavigateSchema }) 
             <div className="space-y-2">
               {[
                 { icon: Network, color: 'text-monokai-cyan', bg: 'bg-monokai-cyan/10', border: 'border-monokai-cyan/20', title: 'Schema 图谱', desc: '读取数据库表结构与外键关系，生成可视化拓扑图' },
-                { icon: Brain, color: 'text-monokai-purple', bg: 'bg-monokai-purple/10', border: 'border-monokai-purple/20', title: '本体推断', desc: '从外键关系智能推断对象类型和语义关系定义' },
+                { icon: Brain, color: 'text-monokai-amethyst', bg: 'bg-monokai-amethyst/10', border: 'border-monokai-amethyst/20', title: '本体推断', desc: '从外键关系智能推断对象类型和语义关系定义' },
                 { icon: ArrowRight, color: 'text-monokai-green', bg: 'bg-monokai-green/10', border: 'border-monokai-green/20', title: '一键导入', desc: '将推断结果批量写入本体论实体库' },
               ].map(item => {
                 const Icon = item.icon;

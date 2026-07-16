@@ -783,10 +783,42 @@ action 模式：
   // Introspection Panel — Guided Questions
   // ============================================================
   async generateIntrospectionGuidance(topic: string): Promise<IntrospectionGuidance> {
+    const configStr = localStorage.getItem('ab-app-config');
+    const aiConfig = configStr ? JSON.parse(configStr).ai : null;
+    if (!aiConfig?.apiKey) {
+      console.warn('[OntologyAI] API Key not set. Falling back to local introspection questions.');
+      return {
+        topic,
+        questions: [
+          {
+            question: `针对「${topic}」，该概念在当前业务链路中的上下游输入是什么？`,
+            hint: '理清它的数据源依赖关系',
+            relatedConcepts: ['数据源', '输入流']
+          },
+          {
+            question: `「${topic}」的核心属性及主键字段是否已经进行了严格的数据类型契约化约束？`,
+            hint: '检查 properties 的类型一致性',
+            relatedConcepts: ['数据契约', 'Schema 验证']
+          },
+          {
+            question: `「${topic}」在生命周期内会经历哪些状态流转，哪些行动 (Action) 会触发这些流转？`,
+            hint: '思考对象状态机与 Action 绑定',
+            relatedConcepts: ['状态流转', '行动回写']
+          },
+          {
+            question: `是否有其他维度对「${topic}」产生强关联依赖，如果级联删除该如何处理？`,
+            hint: '评估图谱关联紧密性与完整性风险',
+            relatedConcepts: ['级联删除', '关联强度']
+          }
+        ],
+        reflectionTemplate: `### 关于「${topic}」的深度反思报告\n\n- **核心定义**: [描述核心语义]\n- **业务边界**: [理清与其他实体的依赖关系]\n- **控制链路**: [列出对该对象发起的操作行为]`
+      };
+    }
+
     const prompt = `用户正在进行关于【${topic}】的自我反思（Introspection）。
-
+ 
 请生成一套引导性问题，帮助用户深度思考。
-
+ 
 输出必须是纯 JSON（无 markdown 块）：
 {
   "topic": "${topic}",
@@ -795,7 +827,7 @@ action 模式：
   ],
   "reflectionTemplate": "反思记录模板（Markdown 格式，包含占位符）"
 }
-
+ 
 要求：questions 至少 4 个，最多 6 个；覆盖 What/Why/How/Impact 四个维度`;
 
     return this._callAI<IntrospectionGuidance>(
@@ -812,6 +844,40 @@ action 模式：
     objectCount: number,
     linkCount: number
   ): Promise<SuggestionItem[]> {
+    const configStr = localStorage.getItem('ab-app-config');
+    const aiConfig = configStr ? JSON.parse(configStr).ai : null;
+    if (!aiConfig?.apiKey) {
+      console.warn('[OntologyAI] API Key not set. Falling back to local graph analysis rule-engine.');
+      const localSuggestions: SuggestionItem[] = [];
+      if (objectCount === 0) {
+        localSuggestions.push({
+          type: 'object',
+          title: '创建初始实体概念',
+          description: '当前模型尚无任何节点，可以先建立几个核心业务实体（例如: 订单、用户、产品）。',
+          confidence: 1.0,
+          action: '在画布或实体库添加新对象类型'
+        });
+      } else {
+        if (linkCount === 0) {
+          localSuggestions.push({
+            type: 'link',
+            title: '串联物理关系连线',
+            description: '已存在对象实例，但尚未连线。请通过拖拽锚点建立对象之间的主外键或依赖链路。',
+            confidence: 0.95,
+            action: '在画布建立逻辑关系'
+          });
+        }
+        localSuggestions.push({
+          type: 'introspection',
+          title: '建立指标反思',
+          description: '尝试对现有的关键对象设计反思，探寻其双向孪生映射是否能满足回写事务要求。',
+          confidence: 0.8,
+          action: '打开反思标签录入反思问题'
+        });
+      }
+      return localSuggestions;
+    }
+
     const prompt = `基于用户现有的本体论数据，生成补全建议。
 
 现有对象（${objectCount}个）：${existingObjects.slice(0, 20).join(', ')}${objectCount > 20 ? '...' : ''}
@@ -826,7 +892,9 @@ action 模式：
 
     try {
       const result = await this._callAI<SuggestionItem[]>(
-        'ontology-suggestions', prompt, '你是本体论知识图谱补全专家'
+        'ontology-suggestions',
+        prompt,
+        '你是本体论知识图谱补全专家'
       );
       return Array.isArray(result) ? result : [];
     } catch {

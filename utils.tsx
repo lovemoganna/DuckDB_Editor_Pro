@@ -13,7 +13,7 @@ export const getTypeIcon = (type: string) => {
 };
 
 // --- SQL Syntax Highlighting Utility ---
-// Monokai theme: purple for keywords, cyan for functions, green for strings, orange for numbers, gray for comments
+// Monokai theme: amethyst for keywords, cyan for functions, green for strings, orange for numbers, gray for comments
 
 const SQL_KEYWORDS = [
     'SELECT', 'FROM', 'WHERE', 'AND', 'OR', 'NOT', 'IN', 'LIKE', 'BETWEEN',

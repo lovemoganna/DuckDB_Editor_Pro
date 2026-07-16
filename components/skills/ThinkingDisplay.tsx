@@ -59,7 +59,7 @@ const StepIcon: React.FC<{ step: ThinkingStep }> = ({ step }) => {
     case 'error':
       return <AlertCircle className="w-3.5 h-3.5 text-monokai-red shrink-0" />;
     case 'running':
-      return <Loader2 className="w-3.5 h-3.5 text-monokai-purple animate-spin shrink-0" />;
+      return <Loader2 className="w-3.5 h-3.5 text-monokai-amethyst animate-spin shrink-0" />;
     case 'cancelled':
       return <X className="w-3.5 h-3.5 text-monokai-yellow shrink-0" />;
     default:
@@ -76,7 +76,7 @@ const StepConnector: React.FC<{ step: ThinkingStep; prevStep: ThinkingStep }> = 
   return (
     <div
       className={`absolute left-[15px] -top-3 w-px h-3 ${
-        isActive ? 'bg-monokai-purple/40' : 'bg-monokai-accent/20'
+        isActive ? 'bg-monokai-amethyst/40' : 'bg-monokai-accent/20'
       }`}
     />
   );
@@ -101,7 +101,7 @@ export const ThinkingDisplay: React.FC<ThinkingDisplayProps> = ({
   const sqlStep = steps.find(s => s.phase === 'sql_generate');
 
   return (
-    <div className={`mb-3 border border-monokai-purple/30 rounded-xl overflow-hidden ${className}`}>
+    <div className={`mb-3 border border-monokai-amethyst/30 rounded-xl overflow-hidden ${className}`}>
       {/* Collapsed header / progress bar */}
       {isCollapsed ? (
         <button
@@ -112,7 +112,7 @@ export const ThinkingDisplay: React.FC<ThinkingDisplayProps> = ({
             {hasCancelled ? (
               <X className="w-3.5 h-3.5 text-monokai-yellow" />
             ) : activeStep ? (
-              <Loader2 className="w-3.5 h-3.5 text-monokai-purple animate-spin" />
+              <Loader2 className="w-3.5 h-3.5 text-monokai-amethyst animate-spin" />
             ) : (
               <CheckCircle2 className="w-3.5 h-3.5 text-monokai-green" />
             )}
@@ -131,7 +131,7 @@ export const ThinkingDisplay: React.FC<ThinkingDisplayProps> = ({
           <div className="flex-1 h-1 bg-monokai-accent/20 rounded-full overflow-hidden">
             <div
               className={`h-full transition-all duration-300 rounded-full ${
-                hasCancelled ? 'bg-monokai-yellow' : 'bg-monokai-purple'
+                hasCancelled ? 'bg-monokai-yellow' : 'bg-monokai-amethyst'
               }`}
               style={{ width: `${displayProgress}%` }}
             />
@@ -150,17 +150,17 @@ export const ThinkingDisplay: React.FC<ThinkingDisplayProps> = ({
       ) : (
         <>
           {/* Expanded header */}
-          <div className="flex items-center justify-between px-4 py-2.5 bg-monokai-sidebar/60 border-b border-monokai-purple/20">
+          <div className="flex items-center justify-between px-4 py-2.5 bg-monokai-sidebar/60 border-b border-monokai-amethyst/20">
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-1.5">
                 {hasCancelled ? (
                   <X className="w-3.5 h-3.5 text-monokai-yellow" />
                 ) : activeStep ? (
-                  <Loader2 className="w-3.5 h-3.5 text-monokai-purple animate-spin" />
+                  <Loader2 className="w-3.5 h-3.5 text-monokai-amethyst animate-spin" />
                 ) : (
                   <CheckCircle2 className="w-3.5 h-3.5 text-monokai-green" />
                 )}
-                <span className="text-xs font-medium text-monokai-purple font-sans">
+                <span className="text-xs font-medium text-monokai-amethyst font-sans">
                   {hasCancelled
                     ? '已取消'
                     : activeStep
@@ -172,7 +172,7 @@ export const ThinkingDisplay: React.FC<ThinkingDisplayProps> = ({
               <div className="flex-1 max-w-[120px] h-1.5 bg-monokai-accent/20 rounded-full overflow-hidden">
                 <div
                   className={`h-full transition-all duration-300 rounded-full ${
-                    hasCancelled ? 'bg-monokai-yellow' : 'bg-monokai-purple'
+                    hasCancelled ? 'bg-monokai-yellow' : 'bg-monokai-amethyst'
                   }`}
                   style={{ width: `${displayProgress}%` }}
                 />
@@ -218,7 +218,7 @@ export const ThinkingDisplay: React.FC<ThinkingDisplayProps> = ({
                       step.status === 'done'
                         ? 'bg-monokai-green/10'
                         : step.status === 'running'
-                        ? 'bg-monokai-purple/10'
+                        ? 'bg-monokai-amethyst/10'
                         : step.status === 'error'
                         ? 'bg-monokai-red/10'
                         : step.status === 'cancelled'
@@ -237,7 +237,7 @@ export const ThinkingDisplay: React.FC<ThinkingDisplayProps> = ({
                           step.status === 'done'
                             ? 'text-monokai-green'
                             : step.status === 'running'
-                            ? 'text-monokai-purple'
+                            ? 'text-monokai-amethyst'
                             : step.status === 'error'
                             ? 'text-monokai-red'
                             : step.status === 'cancelled'
@@ -248,7 +248,7 @@ export const ThinkingDisplay: React.FC<ThinkingDisplayProps> = ({
                         {PHASE_LABELS[step.phase]}
                       </span>
                       {step.status === 'running' && (
-                        <span className="text-[10px] text-monokai-purple/70 font-sans animate-pulse">
+                        <span className="text-[10px] text-monokai-amethyst/70 font-sans animate-pulse">
                           进行中...
                         </span>
                       )}
@@ -296,7 +296,7 @@ export const ThinkingDisplay: React.FC<ThinkingDisplayProps> = ({
                 <pre className="text-[10px] font-mono text-monokai-fg bg-monokai-sidebar/80 rounded-lg p-2.5 overflow-x-auto max-h-40 leading-relaxed whitespace-pre-wrap break-all">
                   {streamingSql}
                   {sqlStep?.status === 'running' && (
-                    <span className="inline-block w-2 h-3.5 bg-monokai-purple ml-0.5 animate-pulse align-middle" />
+                    <span className="inline-block w-2 h-3.5 bg-monokai-amethyst ml-0.5 animate-pulse align-middle" />
                   )}
                 </pre>
               </div>

@@ -1124,7 +1124,7 @@ export const MetricManager: React.FC<MetricManagerProps> = ({ tables, onExecuteS
                     <HelpSection title="典型场景" color="monokai-blue" items={c.scenarios} />
                     <HelpSection title="常见错误" color="monokai-pink" items={c.commonErrors} />
                     <HelpSection title="AI 协作提示" color="monokai-green" items={c.aiHints} />
-                    <HelpSection title="快速上手" color="monokai-purple" items={c.quickStart} numbered />
+                    <HelpSection title="快速上手" color="monokai-amethyst" items={c.quickStart} numbered />
 
                     <div>
                       <div className="text-monokai-comment uppercase font-medium mb-1.5">公式示例</div>
@@ -1164,7 +1164,7 @@ export const MetricManager: React.FC<MetricManagerProps> = ({ tables, onExecuteS
                   placeholder="（可选）描述你的业务需求，AI 将实时生成指标草稿..."
                   value={aiNaturalLanguageInput}
                   onChange={(e) => handleNLInputChange(e.target.value)}
-                  className="w-full bg-monokai-bg border border-monokai-accent p-2 pr-8 rounded text-xs text-monokai-fg placeholder-monokai-comment focus:border-monokai-purple outline-none resize-none"
+                  className="w-full bg-monokai-bg border border-monokai-accent p-2 pr-8 rounded text-xs text-monokai-fg placeholder-monokai-comment focus:border-monokai-amethyst outline-none resize-none"
                 />
                 {aiNaturalLanguageInput && (
                   <button
@@ -1178,8 +1178,8 @@ export const MetricManager: React.FC<MetricManagerProps> = ({ tables, onExecuteS
 
               {/* 实时预览草稿 */}
               {(isGeneratingPreview || metricPreview) && (
-                <div className="bg-monokai-sidebar border border-monokai-purple/40 rounded p-2">
-                  <div className="text-xs text-monokai-purple font-medium mb-1 flex items-center gap-1">
+                <div className="bg-monokai-sidebar border border-monokai-amethyst/40 rounded p-2">
+                  <div className="text-xs text-monokai-amethyst font-medium mb-1 flex items-center gap-1">
                     {isGeneratingPreview ? (
                       <><Loader2 size={10} className="animate-spin" /> 正在生成指标草稿...</>
                     ) : (
@@ -1189,7 +1189,7 @@ export const MetricManager: React.FC<MetricManagerProps> = ({ tables, onExecuteS
                   {metricPreview && metricPreview.map((m, i) => (
                     <div key={i} className="text-xs text-monokai-fg border-t border-monokai-accent/40 pt-1 mt-1">
                       <span className="text-monokai-pink font-medium">{m.name}</span>
-                      {m.category && <span className="ml-1 text-monokai-purple">· {m.category}</span>}
+                      {m.category && <span className="ml-1 text-monokai-amethyst">· {m.category}</span>}
                       <div className="text-monokai-comment mt-0.5">{m.formula}</div>
                     </div>
                   ))}
@@ -1232,7 +1232,7 @@ export const MetricManager: React.FC<MetricManagerProps> = ({ tables, onExecuteS
                 <button
                   onClick={handleMetricAIFill}
                   disabled={isAiFilling || selectedTables.size === 0}
-                  className="px-3 py-2 !bg-monokai-surface border border-monokai-purple text-monokai-purple rounded text-xs font-medium hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5 justify-center"
+                  className="px-3 py-2 !bg-monokai-surface border border-monokai-amethyst text-monokai-amethyst rounded text-xs font-medium hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5 justify-center"
                   title="AI 自动填充包名和描述"
                 >
                   {isAiFilling ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
@@ -1292,7 +1292,7 @@ export const MetricManager: React.FC<MetricManagerProps> = ({ tables, onExecuteS
             <div className="flex gap-2">
               <button
                 onClick={() => setShowTemplates(true)}
-                className="flex-1 px-3 py-2 !bg-monokai-surface border border-monokai-purple text-monokai-purple rounded text-xs hover:opacity-80 flex items-center justify-center gap-1.5"
+                className="flex-1 px-3 py-2 !bg-monokai-surface border border-monokai-amethyst text-monokai-amethyst rounded text-xs hover:opacity-80 flex items-center justify-center gap-1.5"
               >
                 <Package size={14} />
                 使用模板
@@ -1350,7 +1350,7 @@ export const MetricManager: React.FC<MetricManagerProps> = ({ tables, onExecuteS
                 <button
                   onClick={() => handleGenerateAllCharts()}
                   disabled={isGeneratingChart || !selectedPackage.sourceTables.length}
-                  className="px-3 py-1.5 !bg-monokai-surface border border-monokai-purple text-monokai-green rounded text-sm hover:opacity-80 flex items-center gap-2 disabled:opacity-50"
+                  className="px-3 py-1.5 !bg-monokai-surface border border-monokai-amethyst text-monokai-green rounded text-sm hover:opacity-80 flex items-center gap-2 disabled:opacity-50"
                   title="批量生成所有指标的图表"
                 >
                   <BarChart2 size={14} />
@@ -1358,7 +1358,7 @@ export const MetricManager: React.FC<MetricManagerProps> = ({ tables, onExecuteS
                 </button>
                 <button
                   onClick={() => setShowChartList(true)}
-                  className="px-3 py-1.5 !bg-monokai-surface border border-monokai-purple text-monokai-green rounded text-sm hover:opacity-80 flex items-center gap-2"
+                  className="px-3 py-1.5 !bg-monokai-surface border border-monokai-amethyst text-monokai-green rounded text-sm hover:opacity-80 flex items-center gap-2"
                   title="查看已生成的图表"
                 >
                   <BarChart2 size={14} />
@@ -1413,7 +1413,7 @@ export const MetricManager: React.FC<MetricManagerProps> = ({ tables, onExecuteS
                 >
                   <Star className={`w-4 h-4 ${showFavoritesOnly ? 'fill-current' : ''}`} />
                   {showFavoritesOnly ? '已收藏' : '收藏'}
-                  {favorites.size > 0 && <span className="ml-1 bg-monokai-purple text-monokai-fg text-xs px-1.5 py-0.5 rounded">{favorites.size}</span>}
+                  {favorites.size > 0 && <span className="ml-1 bg-monokai-amethyst text-monokai-fg text-xs px-1.5 py-0.5 rounded">{favorites.size}</span>}
                 </button>
               </div>
               
@@ -1457,7 +1457,7 @@ export const MetricManager: React.FC<MetricManagerProps> = ({ tables, onExecuteS
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-lg font-bold text-monokai-fg flex items-center gap-2">
-                    <Package size={18} className="text-monokai-purple" />
+                    <Package size={18} className="text-monokai-amethyst" />
                     指标包列表
                   </h2>
                   <p className="text-xs text-monokai-comment mt-1">
@@ -1579,7 +1579,7 @@ export const MetricManager: React.FC<MetricManagerProps> = ({ tables, onExecuteS
           <div className="bg-monokai-bg border border-monokai-accent rounded-lg w-[600px] max-h-[80vh] overflow-hidden" onClick={e => e.stopPropagation()}>
             <div className="p-4 border-b border-monokai-accent flex items-center justify-between">
               <h3 className="text-lg font-bold text-monokai-fg flex items-center gap-2">
-                <Package size={18} className="text-monokai-purple" />
+                <Package size={18} className="text-monokai-amethyst" />
                 选择指标模板
               </h3>
               <button onClick={() => setShowTemplates(false)} className="text-monokai-comment hover:text-monokai-fg">
@@ -1591,7 +1591,7 @@ export const MetricManager: React.FC<MetricManagerProps> = ({ tables, onExecuteS
                 {metricTemplates.map((template, idx) => (
                   <div
                     key={idx}
-                    className="bg-[#272822] border border-monokai-border rounded-lg p-3 hover:border-monokai-purple cursor-pointer transition-colors"
+                    className="bg-[#272822] border border-monokai-border rounded-lg p-3 hover:border-monokai-amethyst cursor-pointer transition-colors"
                     onClick={() => addFromTemplate(template)}
                   >
                     <div className="flex items-center justify-between">
@@ -1599,7 +1599,7 @@ export const MetricManager: React.FC<MetricManagerProps> = ({ tables, onExecuteS
                         <h4 className="font-bold text-monokai-fg">{template.name}</h4>
                         <p className="text-xs text-monokai-comment mt-1">{template.definition}</p>
                       </div>
-                      <span className="text-xs px-2 py-1 bg-monokai-purple/20 text-monokai-purple rounded">
+                      <span className="text-xs px-2 py-1 bg-monokai-amethyst/20 text-monokai-amethyst rounded">
                         {template.category}
                       </span>
                     </div>

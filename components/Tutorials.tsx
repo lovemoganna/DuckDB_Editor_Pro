@@ -318,7 +318,7 @@ export const Tutorials: React.FC<TutorialsProps> = ({ onTryCode }) => {
                                         <div className="flex gap-2">
                                             <span className={`text-[9px] uppercase px-1.5 py-0.5 rounded font-bold opacity-80 ${lesson.difficulty === 'Beginner' ? 'text-monokai-green bg-monokai-green/10' :
                                                 lesson.difficulty === 'Intermediate' ? 'text-monokai-orange bg-monokai-orange/10' :
-                                                    lesson.difficulty === 'Advanced' ? 'text-monokai-purple bg-monokai-purple/10' :
+                                                    lesson.difficulty === 'Advanced' ? 'text-monokai-amethyst bg-monokai-amethyst/10' :
                                                         'text-monokai-blue bg-monokai-blue/10'
                                                 }`}>
                                                 {lesson.difficulty}
@@ -344,7 +344,7 @@ export const Tutorials: React.FC<TutorialsProps> = ({ onTryCode }) => {
                                     <span className="text-monokai-comment">/</span>
                                     <span className={`text-xs font-bold px-3 py-1 rounded-full border ${activeLesson.difficulty === 'Beginner' ? 'border-monokai-green text-monokai-green' :
                                         activeLesson.difficulty === 'Intermediate' ? 'border-monokai-orange text-monokai-orange' :
-                                            activeLesson.difficulty === 'Advanced' ? 'border-monokai-purple text-monokai-purple' :
+                                            activeLesson.difficulty === 'Advanced' ? 'border-monokai-amethyst text-monokai-amethyst' :
                                                 'border-monokai-blue text-monokai-blue'
                                         }`}>
                                         {activeLesson.difficulty}

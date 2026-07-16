@@ -61,15 +61,15 @@ const StepIndicator: React.FC<{ step: WizardStep }> = ({ step }) => {
                 <div className="absolute w-8 h-8 rounded-full shadow-[0_0_20px_rgba(139,233,253,0.6)]" />
               )}
               <div className="relative z-10 flex items-center justify-center w-8 h-8 rounded-full border-2 transition-all duration-500
-                ${done ? 'bg-monokai-purple/20 border-monokai-purple shadow-[0_0_12px_rgba(189,147,249,0.5)]' : active ? 'bg-monokai-cyan/15 border-monokai-cyan' : 'bg-monokai-surface/40 border-monokai-comment/30'}
+                ${done ? 'bg-monokai-amethyst/20 border-monokai-amethyst shadow-[0_0_12px_rgba(189,147,249,0.5)]' : active ? 'bg-monokai-cyan/15 border-monokai-cyan' : 'bg-monokai-surface/40 border-monokai-comment/30'}
               ">
                 {done
-                  ? <Check className="w-4 h-4 text-monokai-purple" strokeWidth={2.5} />
+                  ? <Check className="w-4 h-4 text-monokai-amethyst" strokeWidth={2.5} />
                   : <item.Icon className={`w-3.5 h-3.5 ${active ? 'text-monokai-cyan' : 'text-monokai-comment/40'}`} />
                 }
               </div>
               <span className={`text-[10px] font-medium whitespace-nowrap transition-colors duration-300
-                ${done ? 'text-monokai-purple' : active ? 'text-monokai-cyan' : 'text-monokai-comment/40'}
+                ${done ? 'text-monokai-amethyst' : active ? 'text-monokai-cyan' : 'text-monokai-comment/40'}
               `}>
                 {item.label}
               </span>
@@ -79,7 +79,7 @@ const StepIndicator: React.FC<{ step: WizardStep }> = ({ step }) => {
             {i < 2 && (
               <div className="flex-1 mx-2 flex items-center min-w-[16px]">
                 <div className={`h-px w-full rounded-full transition-all duration-700
-                  ${done ? 'bg-gradient-to-r from-monokai-purple to-monokai-cyan shadow-[0_0_6px_rgba(189,147,249,0.5)]' : 'bg-monokai-comment/20'}
+                  ${done ? 'bg-gradient-to-r from-monokai-amethyst to-monokai-cyan shadow-[0_0_6px_rgba(189,147,249,0.5)]' : 'bg-monokai-comment/20'}
                 `} />
               </div>
             )}
@@ -100,12 +100,12 @@ const SectionHeader: React.FC<{
   icon: React.ReactElement;
   label: string;
   count: number;
-  accent: 'purple' | 'cyan';
+  accent: 'amethyst' | 'cyan';
   onAdd?: () => void;
 }> = ({ icon, label, count, accent, onAdd }) => {
-  const iconBg = accent === 'purple' ? 'bg-monokai-purple/20' : 'bg-monokai-cyan/20';
-  const iconColor = accent === 'purple' ? 'text-monokai-purple' : 'text-monokai-cyan';
-  const badgeBg = accent === 'purple' ? 'bg-monokai-purple/15 text-monokai-purple' : 'bg-monokai-cyan/15 text-monokai-cyan';
+  const iconBg = accent === 'amethyst' ? 'bg-monokai-amethyst/20' : 'bg-monokai-cyan/20';
+  const iconColor = accent === 'amethyst' ? 'text-monokai-amethyst' : 'text-monokai-cyan';
+  const badgeBg = accent === 'amethyst' ? 'bg-monokai-amethyst/15 text-monokai-amethyst' : 'bg-monokai-cyan/15 text-monokai-cyan';
 
   return (
     <div className="flex items-center justify-between mb-2">
@@ -151,17 +151,17 @@ const ObjectTypeCard: React.FC<{
   return (
     <div
       className="group relative flex items-center gap-2 px-2.5 py-2 rounded-xl mb-1 last:mb-0
-        bg-monokai-surface/15 border border-monokai-purple/10
-        hover:border-monokai-purple/35 hover:bg-monokai-surface/25
+        bg-monokai-surface/15 border border-monokai-amethyst/10
+        hover:border-monokai-amethyst/35 hover:bg-monokai-surface/25
         transition-all duration-200"
       style={{ animationDelay: `${index * 40}ms` }}
     >
       {/* Left accent bar */}
-      <div className="absolute left-0 top-2 bottom-2 w-0.5 rounded-full bg-monokai-purple/0 group-hover:bg-monokai-purple/60 transition-all duration-200" />
+      <div className="absolute left-0 top-2 bottom-2 w-0.5 rounded-full bg-monokai-amethyst/0 group-hover:bg-monokai-amethyst/60 transition-all duration-200" />
 
       {/* Icon badge: 24×24 */}
-      <div className="w-6 h-6 rounded-lg bg-monokai-purple/15 flex items-center justify-center shrink-0">
-        <Layers className="w-3.5 h-3.5 text-monokai-purple/75" />
+      <div className="w-6 h-6 rounded-lg bg-monokai-amethyst/15 flex items-center justify-center shrink-0">
+        <Layers className="w-3.5 h-3.5 text-monokai-amethyst/75" />
       </div>
 
       {/* Name input */}
@@ -173,7 +173,7 @@ const ObjectTypeCard: React.FC<{
         className={`
           flex-1 h-6 px-2.5 text-sm bg-black/30 border text-monokai-fg rounded-lg
           focus:outline-none transition-all duration-200
-          ${focused ? 'border-monokai-purple/55 shadow-[0_0_10px_rgba(189,147,249,0.18)]' : 'border-monokai-purple/15'}
+          ${focused ? 'border-monokai-amethyst/55 shadow-[0_0_10px_rgba(189,147,249,0.18)]' : 'border-monokai-amethyst/15'}
         `}
         placeholder="类型名称"
       />
@@ -247,7 +247,7 @@ const ObjectCard: React.FC<{
       <select
         value={item.objectType}
         onChange={e => onChange(index, { objectType: e.target.value })}
-        className="w-24 h-6 px-2 text-xs bg-black/20 border border-monokai-purple/15 text-monokai-purple rounded-lg focus:outline-none focus:border-monokai-purple/45 transition-colors appearance-none cursor-pointer"
+        className="w-24 h-6 px-2 text-xs bg-black/20 border border-monokai-amethyst/15 text-monokai-amethyst rounded-lg focus:outline-none focus:border-monokai-amethyst/45 transition-colors appearance-none cursor-pointer"
       >
         {typeNames.map(t => <option key={t} value={t} className="bg-monokai-bg">{t}</option>)}
       </select>
@@ -293,10 +293,10 @@ const LoadingState: React.FC<{ progress: ModelingProgress | null }> = ({ progres
     <div className="flex flex-col items-center gap-5 py-8">
       {/* Orb */}
       <div className="relative w-16 h-16">
-        <div className="absolute inset-0 rounded-full border-2 border-monokai-purple/20 animate-spin" style={{ animationDuration: '3s' }} />
+        <div className="absolute inset-0 rounded-full border-2 border-monokai-amethyst/20 animate-spin" style={{ animationDuration: '3s' }} />
         <div className="absolute inset-2 rounded-full border-2 border-monokai-cyan/30 animate-spin" style={{ animationDuration: '2s', animationDirection: 'reverse' }} />
-        <div className="absolute inset-[22px] rounded-full bg-monokai-purple/15 flex items-center justify-center">
-          <BrainCircuit className="w-5 h-5 text-monokai-purple animate-pulse" />
+        <div className="absolute inset-[22px] rounded-full bg-monokai-amethyst/15 flex items-center justify-center">
+          <BrainCircuit className="w-5 h-5 text-monokai-amethyst animate-pulse" />
         </div>
         <div className="absolute inset-0 rounded-full shadow-[0_0_28px_rgba(189,147,249,0.4)]" />
       </div>
@@ -367,7 +367,7 @@ const ImportingState: React.FC = () => (
 const SummaryBar: React.FC<{ types: number; objects: number }> = ({ types, objects }) => (
   <div className="flex items-center gap-3 px-3 h-7 rounded-xl bg-monokai-surface/15 border border-monokai-accent/10 mb-3">
     <div className="flex items-center gap-1.5">
-      <div className="w-1.5 h-1.5 rounded-full bg-monokai-purple shadow-[0_0_5px_rgba(189,147,249,0.9)]" />
+      <div className="w-1.5 h-1.5 rounded-full bg-monokai-amethyst shadow-[0_0_5px_rgba(189,147,249,0.9)]" />
       <span className="text-[11px] text-monokai-comment">{types} 类型</span>
     </div>
     <div className="w-px h-3 bg-monokai-accent/20" />
@@ -392,7 +392,7 @@ const PipelineRow: React.FC = () => {
     <div className="flex items-center gap-1 flex-wrap">
       {steps.map((s, i) => (
         <React.Fragment key={s}>
-          <span className="text-[10px] px-1.5 py-px rounded-full bg-monokai-purple/10 text-monokai-purple/75 border border-monokai-purple/15">
+          <span className="text-[10px] px-1.5 py-px rounded-full bg-monokai-amethyst/10 text-monokai-amethyst/75 border border-monokai-amethyst/15">
             {s}
           </span>
           {i < steps.length - 1 && (
@@ -496,15 +496,15 @@ export const OntologyModelingWizard: React.FC<Props> = ({ onClose, onImport }) =
       >
 
         {/* Top accent */}
-        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-monokai-purple/70 to-transparent pointer-events-none z-10" />
+        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-monokai-amethyst/70 to-transparent pointer-events-none z-10" />
 
         {/* ── Header (44px) ──────────────────────────── */}
-        <div className="relative shrink-0 flex items-center justify-between px-6 h-11 border-b border-monokai-purple/10">
+        <div className="relative shrink-0 flex items-center justify-between px-6 h-11 border-b border-monokai-amethyst/10">
           {/* Icon + Title */}
           <div className="flex items-center gap-2.5">
             <div className="relative w-7 h-7 shrink-0">
               <div className="w-full h-full rounded-lg bg-zinc-800/50 flex items-center justify-center border border-zinc-700/60">
-                <Wand2 className="w-3.5 h-3.5 text-monokai-purple" />
+                <Wand2 className="w-3.5 h-3.5 text-monokai-amethyst" />
               </div>
             </div>
             <div>
@@ -539,9 +539,9 @@ export const OntologyModelingWizard: React.FC<Props> = ({ onClose, onImport }) =
             <div className="px-6 pb-6 space-y-3" style={{ animation: 'slideDown 0.3s ease-out 0.12s both' }}>
 
               {/* Input card */}
-              <div className="rounded-2xl border border-monokai-purple/25 bg-monokai-surface/20 p-4
-                shadow-[0_0_20px_rgba(189,147,249,0.08)] hover:border-monokai-purple/40 transition-all duration-300">
-                <label className="block text-[11px] font-semibold text-monokai-purple/80 mb-2 tracking-widest uppercase leading-none">
+              <div className="rounded-2xl border border-monokai-amethyst/25 bg-monokai-surface/20 p-4
+                shadow-[0_0_20px_rgba(189,147,249,0.08)] hover:border-monokai-amethyst/40 transition-all duration-300">
+                <label className="block text-[11px] font-semibold text-monokai-amethyst/80 mb-2 tracking-widest uppercase leading-none">
                   领域概念描述
                 </label>
                 <textarea
@@ -551,9 +551,9 @@ export const OntologyModelingWizard: React.FC<Props> = ({ onClose, onImport }) =
                   rows={5}
                   className="
                     w-full h-28 px-4 py-3 text-sm bg-black/40
-                    border border-monokai-purple/20 text-monokai-fg
+                    border border-monokai-amethyst/20 text-monokai-fg
                     placeholder-monokai-comment/30 rounded-xl
-                    focus:outline-none focus:border-monokai-purple/55
+                    focus:outline-none focus:border-monokai-amethyst/55
                     transition-all duration-300 resize-none
                     shadow-[inset_0_1px_4px_rgba(0,0,0,0.3)]
                   "
@@ -627,7 +627,7 @@ export const OntologyModelingWizard: React.FC<Props> = ({ onClose, onImport }) =
                     flex-1 h-9 text-sm font-bold rounded-xl
                     flex items-center justify-center gap-2 transition-all duration-300
                     ${concept.trim()
-                      ? 'text-monokai-bg bg-gradient-to-r from-monokai-purple to-monokai-purple/75 border border-monokai-purple/30 shadow-[0_0_18px_rgba(189,147,249,0.4)] hover:shadow-[0_0_28px_rgba(189,147,249,0.6)]'
+                      ? 'text-monokai-bg bg-gradient-to-r from-monokai-amethyst to-monokai-amethyst/75 border border-monokai-amethyst/30 shadow-[0_0_18px_rgba(189,147,249,0.4)] hover:shadow-[0_0_28px_rgba(189,147,249,0.6)]'
                       : 'text-monokai-comment/40 bg-monokai-sidebar/30 border border-monokai-accent/10 cursor-not-allowed'
                     }
                   `}
@@ -664,7 +664,7 @@ export const OntologyModelingWizard: React.FC<Props> = ({ onClose, onImport }) =
 
               {/* Object Types */}
               <div>
-                <SectionHeader icon={<Layers />} label="对象类型" count={objectTypes.length} accent="purple" onAdd={addObjectType} />
+                <SectionHeader icon={<Layers />} label="对象类型" count={objectTypes.length} accent="amethyst" onAdd={addObjectType} />
                 <div style={{ animation: 'slideDown 0.25s ease-out 0.1s both' }}>
                   {objectTypes.length === 0 ? (
                     <div className="py-4 text-center text-xs text-monokai-comment/35">暂无对象类型</div>

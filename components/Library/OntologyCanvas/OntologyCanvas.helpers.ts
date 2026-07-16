@@ -43,12 +43,12 @@ export const resolveCollisions = (
   const getWidth = (id: number) => 220;
   const getHeight = (id: number) => isExpanded(id) ? 145 : 82;
 
-  const marginX = 30; // Horizontal gap between cards
-  const marginY = 30; // Vertical gap between cards
+  const marginX = 20; // Slightly reduced margin for tighter layout
+  const marginY = 20;
 
   let hasCollision = true;
   let attempts = 0;
-  const maxAttempts = 100;
+  const maxAttempts = 15; // Reduced from 100 to prevent long-running cascade jitter
 
   while (hasCollision && attempts < maxAttempts) {
     hasCollision = false;
@@ -65,23 +65,23 @@ export const resolveCollisions = (
       const Bw = getWidth(id) + marginX;
       const Bh = getHeight(id) + marginY;
 
-      // AABB Bounding Box overlap check
-      const overlapX = droppedPos.x < otherPos.x + Bw && droppedPos.x + Aw > otherPos.x;
-      const overlapY = droppedPos.y < otherPos.y + Bh && droppedPos.y + Ah > otherPos.y;
+      // AABB overlap check with a small threshold buffer (5px)
+      const overlapX = droppedPos.x < otherPos.x + Bw - 5 && droppedPos.x + Aw > otherPos.x + 5;
+      const overlapY = droppedPos.y < otherPos.y + Bh - 5 && droppedPos.y + Ah > otherPos.y + 5;
 
       if (overlapX && overlapY) {
         hasCollision = true;
         
-        // Calculate displacement along the axis of minimum penetration
         const overlapWidth = Math.min(droppedPos.x + Aw - otherPos.x, otherPos.x + Bw - droppedPos.x);
         const overlapHeight = Math.min(droppedPos.y + Ah - otherPos.y, otherPos.y + Bh - droppedPos.y);
 
+        // Smooth displacement with a dampening factor to prevent radical jumping
         if (overlapWidth < overlapHeight) {
           const pushX = droppedPos.x >= otherPos.x ? overlapWidth : -overlapWidth;
-          droppedPos.x = Math.round((droppedPos.x + pushX) / GRID_SIZE) * GRID_SIZE;
+          droppedPos.x = Math.round((droppedPos.x + pushX * 0.9) / GRID_SIZE) * GRID_SIZE;
         } else {
           const pushY = droppedPos.y >= otherPos.y ? overlapHeight : -overlapHeight;
-          droppedPos.y = Math.round((droppedPos.y + pushY) / GRID_SIZE) * GRID_SIZE;
+          droppedPos.y = Math.round((droppedPos.y + pushY * 0.9) / GRID_SIZE) * GRID_SIZE;
         }
         attempts++;
         break;
@@ -164,116 +164,6 @@ export const computeLinkPath = (
   }
   
   return { smoothPath, labelX, labelY, arrowheadPath };
-};
-
-export const computeAutoAlignLayout = (
-  objects: any[],
-  links: any[],
-  canvasHeight: number,
-  currentPositions: SavedPositions,
-  lockedNodeIds: Set<number>
-): SavedPositions => {
-  const updated = { ...currentPositions };
-  
-  // 1. Build adjacency lists and compute in-degrees
-  const adj: { [key: number]: number[] } = {};
-  const inDegree: { [key: number]: number } = {};
-  
-  objects.forEach((obj: any) => {
-    adj[obj.id] = [];
-    inDegree[obj.id] = 0;
-  });
-  
-  links.forEach((link: any) => {
-    const src = link.source_object_id;
-    const tgt = link.target_object_id;
-    if (adj[src] !== undefined && adj[tgt] !== undefined) {
-      adj[src].push(tgt);
-      inDegree[tgt]++;
-    }
-  });
-  
-  // 2. Queue-based level calculation (longest-path/layering BFS)
-  const levels: { [key: number]: number } = {};
-  const queue: number[] = [];
-  
-  // Initialize sources at Level 0
-  objects.forEach((obj: any) => {
-    if (inDegree[obj.id] === 0) {
-      levels[obj.id] = 0;
-      queue.push(obj.id);
-    } else {
-      levels[obj.id] = -1; // unvisited
-    }
-  });
-  
-  // BFS to find layer levels (depth of node in DAG)
-  while (queue.length > 0) {
-    const curr = queue.shift()!;
-    const currLevel = levels[curr];
-    adj[curr].forEach((neighbor) => {
-      if (levels[neighbor] < currLevel + 1) {
-        levels[neighbor] = currLevel + 1;
-        queue.push(neighbor);
-      }
-    });
-  }
-  
-  // For nodes in cycles or disconnected components without 0 in-degree:
-  // Resolve any unvisited nodes by starting from them at Level 0
-  let hasUnvisited = objects.some((obj: any) => levels[obj.id] === -1);
-  while (hasUnvisited) {
-    const nextUnvisited = objects.find((obj: any) => levels[obj.id] === -1);
-    if (!nextUnvisited) break;
-    
-    levels[nextUnvisited.id] = 0;
-    queue.push(nextUnvisited.id);
-    
-    while (queue.length > 0) {
-      const curr = queue.shift()!;
-      const currLevel = levels[curr];
-      adj[curr].forEach((neighbor) => {
-        if (levels[neighbor] < currLevel + 1) {
-          levels[neighbor] = currLevel + 1;
-          queue.push(neighbor);
-        }
-      });
-    }
-    hasUnvisited = objects.some((obj: any) => levels[obj.id] === -1);
-  }
-  
-  // 3. Group nodes by their calculated levels
-  const levelGroups: { [key: number]: any[] } = {};
-  objects.forEach((obj: any) => {
-    const lvl = levels[obj.id];
-    if (!levelGroups[lvl]) {
-      levelGroups[lvl] = [];
-    }
-    levelGroups[lvl].push(obj);
-  });
-  
-  // 4. Assign positions based on levels, centered symmetrically
-  const cy = canvasHeight / 2 || 350;
-  const sortedLevels = Object.keys(levelGroups).map(Number).sort((a, b) => a - b);
-  sortedLevels.forEach((level) => {
-    const list = levelGroups[level];
-    const count = list.length;
-    // Adjust vertical spacing: closer if there are more nodes, wider if fewer, min 90px, max 150px
-    const verticalSpacing = Math.max(90, Math.min(150, 450 / count));
-    list.forEach((obj: any, idx: number) => {
-      // Skip locked nodes to preserve their user-defined positions
-      if (lockedNodeIds.has(obj.id)) {
-        return;
-      }
-      const offset = (idx - (count - 1) / 2) * verticalSpacing;
-      updated[obj.id] = {
-        x: Math.round((180 + level * 280) / GRID_SIZE) * GRID_SIZE,
-        y: Math.round((cy + offset) / GRID_SIZE) * GRID_SIZE
-      };
-    });
-  });
-  
-  return updated;
 };
 
 

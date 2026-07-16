@@ -174,7 +174,7 @@ export const LearnApp: React.FC<LearnAppProps> = ({ onTryCode, onOpenTable }) =>
                   <h1 className="text-xl font-bold text-white truncate">{selectedTutorial.title}</h1>
                   <span className={`text-[10px] px-2 py-1 rounded shrink-0 ${selectedTutorial.difficulty === 'Beginner' ? 'bg-monokai-green/20 text-monokai-green' :
                     selectedTutorial.difficulty === 'Intermediate' ? 'bg-monokai-orange/20 text-monokai-orange' :
-                      selectedTutorial.difficulty === 'Advanced' ? 'bg-monokai-purple/20 text-monokai-purple' :
+                      selectedTutorial.difficulty === 'Advanced' ? 'bg-monokai-amethyst/20 text-monokai-amethyst' :
                         'bg-monokai-blue/20 text-monokai-blue'
                     }`}>
                     {selectedTutorial.difficulty}

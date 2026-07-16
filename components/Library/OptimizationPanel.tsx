@@ -472,10 +472,10 @@ export const OptimizationPanel: React.FC<OptimizationPanelProps> = ({
                   {item.category === '分析' && <Zap className="w-4 h-4 text-monokai-yellow" />}
                   {item.category === '索引' && <Search className="w-4 h-4 text-monokai-blue" />}
                   {item.category === '优化' && <Gauge className="w-4 h-4 text-monokai-green" />}
-                  {item.category === '优化器' && <BarChart3 className="w-4 h-4 text-monokai-purple" />}
+                  {item.category === '优化器' && <BarChart3 className="w-4 h-4 text-monokai-amethyst" />}
                   {item.category === '架构' && <Database className="w-4 h-4 text-monokai-cyan" />}
                   <span className="font-medium text-monokai-fg">{item.name}</span>
-                  <span className="text-xs px-2 py-0.5 rounded bg-monokai-purple/20 text-monokai-purple">
+                  <span className="text-xs px-2 py-0.5 rounded bg-monokai-amethyst/20 text-monokai-amethyst">
                     {item.category}
                   </span>
                 </div>
@@ -523,7 +523,7 @@ export const OptimizationPanel: React.FC<OptimizationPanelProps> = ({
                         </div>
                         <div className="flex items-center gap-1">
                           {isMarkdown && (
-                            <span className="text-xs px-1.5 py-0.5 rounded bg-monokai-purple/20 text-monokai-purple mr-1">
+                            <span className="text-xs px-1.5 py-0.5 rounded bg-monokai-amethyst/20 text-monokai-amethyst mr-1">
                               Markdown
                             </span>
                           )}

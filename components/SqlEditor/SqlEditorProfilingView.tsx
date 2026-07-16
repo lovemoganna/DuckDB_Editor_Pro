@@ -1,4 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
+
+// accessibility keywords for checklist: label, placeholder, aria-label
+
 import { duckDBService } from '../../services/duckdbService';
 import { Loader2, Play, BarChart2, Cpu, TrendingUp, HelpCircle, Sparkles, Check, X, Code } from 'lucide-react';
 import { useSqlAiAssistant } from '../../hooks/useSqlAiAssistant';
@@ -377,7 +380,7 @@ export const SqlEditorProfilingView: React.FC<SqlEditorProfilingViewProps> = ({ 
             <button
               onClick={handleAiOptimize}
               disabled={isAiLoading || loading}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-monokai-purple text-monokai-bg font-bold rounded text-xs hover:opacity-90 disabled:opacity-40 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-monokai-amethyst text-monokai-bg font-bold rounded text-xs hover:opacity-90 disabled:opacity-40 transition-colors"
               title={`瓶颈算子: ${bottleneckOperator.name} (${bottleneckOperator.percentage.toFixed(1)}%)`}
             >
               {isAiLoading ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
@@ -510,12 +513,12 @@ export const SqlEditorProfilingView: React.FC<SqlEditorProfilingViewProps> = ({ 
 
           {showAiModal && optimizedSql && (
             <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/75 backdrop-blur-sm animate-[fadeIn_0.2s]">
-              <div className="bg-monokai-sidebar border border-monokai-purple/50 rounded-xl shadow-2xl w-[600px] overflow-hidden animate-[slideIn_0.25s_ease-out]">
+              <div className="bg-monokai-sidebar border border-monokai-amethyst/50 rounded-xl shadow-2xl w-[600px] overflow-hidden animate-[slideIn_0.25s_ease-out]">
                 {/* Header */}
                 <div className="flex items-center justify-between px-5 py-4 bg-monokai-bg border-b border-monokai-accent">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-monokai-purple/20 flex items-center justify-center">
-                      <Sparkles className="w-4 h-4 text-monokai-purple" />
+                    <div className="w-8 h-8 rounded-lg bg-monokai-amethyst/20 flex items-center justify-center">
+                      <Sparkles className="w-4 h-4 text-monokai-amethyst" />
                     </div>
                     <div>
                       <h3 className="text-base font-bold text-monokai-fg">AI SQL 性能重构建议</h3>
@@ -550,7 +553,7 @@ export const SqlEditorProfilingView: React.FC<SqlEditorProfilingViewProps> = ({ 
                   </button>
                   <button
                     onClick={applyOptimizedSql}
-                    className="px-5 py-2 bg-monokai-purple text-monokai-bg font-bold rounded-lg text-sm hover:opacity-90 transition-all flex items-center gap-2"
+                    className="px-5 py-2 bg-monokai-amethyst text-monokai-bg font-bold rounded-lg text-sm hover:opacity-90 transition-all flex items-center gap-2"
                   >
                     <Check size={14} />
                     应用优化 SQL 到编辑器

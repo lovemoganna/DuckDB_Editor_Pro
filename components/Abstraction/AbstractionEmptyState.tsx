@@ -44,7 +44,7 @@ export const AbstractionEmptyState: React.FC<AbstractionEmptyStateProps> = ({
         <p className="text-sm text-monokai-comment mb-4">没有找到匹配的抽象表</p>
         <button
           onClick={onFillSamples}
-          className="text-xs text-monokai-purple hover:underline"
+          className="text-xs text-monokai-amethyst hover:underline"
         >
           清除筛选条件
         </button>
@@ -69,7 +69,7 @@ export const AbstractionEmptyState: React.FC<AbstractionEmptyStateProps> = ({
       </button>
         <button
           onClick={onAdd}
-          className="flex items-center gap-1 px-3 py-1.5 text-xs bg-monokai-purple/20 text-monokai-purple rounded-lg hover:bg-monokai-purple/30 transition-colors"
+          className="flex items-center gap-1 px-3 py-1.5 text-xs bg-monokai-amethyst/20 text-monokai-amethyst rounded-lg hover:bg-monokai-amethyst/30 transition-colors"
         >
           <Plus className="w-3 h-3" />
           添加抽象表

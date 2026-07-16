@@ -220,7 +220,9 @@ const CausalGraph: React.FC<CausalGraphProps> = ({ data, correlations }) => {
                                 <span className="font-bold text-monokai-blue">{(deltas[selectedNode] || 0).toFixed(0)}%</span>
                                 <span>+50%</span>
                             </div>
+                            <label htmlFor="sim-range-input" className="sr-only">Adjust simulation value</label>
                             <input
+                                id="sim-range-input"
                                 type="range"
                                 min="-50" max="50"
                                 value={deltas[selectedNode] || 0}

@@ -8,10 +8,10 @@
     "scenario": "e-commerce",
     "complexity": "medium",
     "entity_counts": {
-      "object_types": 5,
-      "objects": 16,
-      "link_types": 7,
-      "links": 24,
+      "object_types": 6,
+      "objects": 17,
+      "link_types": 8,
+      "links": 25,
       "actions": 5,
       "introspections": 3,
       "insights": 3
@@ -23,7 +23,8 @@
     { "id": 2, "name": "Customer", "description": "客户/用户" },
     { "id": 3, "name": "Channel",  "description": "渠道" },
     { "id": 4, "name": "Campaign", "description": "营销活动" },
-    { "id": 5, "name": "Metric",    "description": "运营指标" }
+    { "id": 5, "name": "Metric",    "description": "运营指标" },
+    { "id": 6, "name": "Function",  "description": "逻辑计算规则" }
   ],
 
   "objects": [
@@ -42,7 +43,8 @@
     { "id": 13, "object_type_id": 5, "name": "综合毛利率",      "properties": "{\"current\": 0.38, \"baseline\": 0.35, \"target\": 0.42}",                                 "annotations": "" },
     { "id": 14, "object_type_id": 5, "name": "月活跃用户数",    "properties": "{\"current\": 28500, \"baseline\": 22000, \"target\": 35000}",                               "annotations": "" },
     { "id": 15, "object_type_id": 5, "name": "平均客单价",      "properties": "{\"current\": 156, \"baseline\": 138, \"target\": 180}",                                      "annotations": "" },
-    { "id": 16, "object_type_id": 5, "name": "库存周转天数",    "properties": "{\"current\": 42, \"baseline\": 55, \"target\": 35}",                                         "annotations": "" }
+    { "id": 16, "object_type_id": 5, "name": "库存周转天数",    "properties": "{\"current\": 42, \"baseline\": 55, \"target\": 35}",                                         "annotations": "" },
+    { "id": 17, "object_type_id": 6, "name": "综合毛利率计算规则", "properties": "{\"formula\": \"(sum(price*volume) - sum(cost*volume)) / sum(price*volume)\"}", "annotations": "衍生指标计算逻辑" }
   ],
 
   "linkTypes": [
@@ -52,7 +54,8 @@
     { "id": 4, "name": "贡献",    "description": "A 对 B 有显著贡献" },
     { "id": 5, "name": "影响",    "description": "A 变化会影响 B" },
     { "id": 6, "name": "转化",    "description": "A 能转化为 B" },
-    { "id": 7, "name": "捆绑",    "description": "A 和 B 捆绑销售" }
+    { "id": 7, "name": "捆绑",    "description": "A 和 B 捆绑销售" },
+    { "id": 8, "name": "依赖计算", "description": "A 的值由逻辑规则 B 驱动计算得出" }
   ],
 
   "links": [
@@ -79,7 +82,8 @@
     { "id": 21, "link_type_id": 6, "source_object_id": 6,  "target_object_id": 5,  "weight": 0.30 },
     { "id": 22, "link_type_id": 7, "source_object_id": 1,  "target_object_id": 3,  "weight": 0.65 },
     { "id": 23, "link_type_id": 4, "source_object_id": 2,  "target_object_id": 15, "weight": 0.60 },
-    { "id": 24, "link_type_id": 5, "source_object_id": 4,  "target_object_id": 7,  "weight": 0.50 }
+    { "id": 24, "link_type_id": 5, "source_object_id": 4,  "target_object_id": 7,  "weight": 0.50 },
+    { "id": 25, "link_type_id": 8, "source_object_id": 17, "target_object_id": 13, "weight": 1.00 }
   ],
 
   "actions": [

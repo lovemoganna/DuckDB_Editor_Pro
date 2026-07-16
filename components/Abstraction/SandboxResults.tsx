@@ -228,7 +228,7 @@ export const SandboxResults: React.FC = () => {
     return (
       <div className="h-full flex items-center justify-center bg-monokai-bg">
         <div className="text-center">
-          <Loader2 className="w-8 h-8 mx-auto mb-3 text-monokai-purple animate-spin" />
+          <Loader2 className="w-8 h-8 mx-auto mb-3 text-monokai-amethyst animate-spin" />
           <p className="text-sm text-monokai-fg-muted">执行中...</p>
         </div>
       </div>
@@ -262,7 +262,7 @@ export const SandboxResults: React.FC = () => {
               onClick={() => setViewMode('grid')}
               className={`px-3 py-1 flex items-center gap-1.5 text-xs font-semibold rounded-md transition-colors ${
                 viewMode === 'grid'
-                  ? 'bg-monokai-purple/20 text-monokai-purple'
+                  ? 'bg-monokai-amethyst/20 text-monokai-amethyst'
                   : 'text-monokai-fg-muted hover:text-monokai-fg'
               }`}
             >
@@ -273,7 +273,7 @@ export const SandboxResults: React.FC = () => {
               onClick={() => setViewMode('profile')}
               className={`px-3 py-1 flex items-center gap-1.5 text-xs font-semibold rounded-md transition-colors ${
                 viewMode === 'profile'
-                  ? 'bg-monokai-purple/20 text-monokai-purple'
+                  ? 'bg-monokai-amethyst/20 text-monokai-amethyst'
                   : 'text-monokai-fg-muted hover:text-monokai-fg'
               }`}
             >
@@ -302,7 +302,7 @@ export const SandboxResults: React.FC = () => {
                 setSearchQuery(e.target.value);
                 setCurrentPage(1);
               }}
-              className="pl-8 pr-3 py-1.5 w-44 sm:w-56 text-xs bg-monokai-bg border border-monokai-border rounded-lg text-monokai-fg placeholder-monokai-fg-muted/40 focus:outline-none focus:border-monokai-purple transition-all"
+              className="pl-8 pr-3 py-1.5 w-44 sm:w-56 text-xs bg-monokai-bg border border-monokai-border rounded-lg text-monokai-fg placeholder-monokai-fg-muted/40 focus:outline-none focus:border-monokai-amethyst transition-all"
             />
             {searchQuery && (
               <button
@@ -320,7 +320,7 @@ export const SandboxResults: React.FC = () => {
           <div className="flex items-center bg-monokai-bg rounded-lg border border-monokai-border overflow-hidden">
             <button
               onClick={() => handleExport('csv')}
-              className="px-2.5 py-1.5 text-xs text-monokai-fg-muted hover:text-monokai-purple flex items-center gap-1 transition-colors"
+              className="px-2.5 py-1.5 text-xs text-monokai-fg-muted hover:text-monokai-amethyst flex items-center gap-1 transition-colors"
               title="导出为 CSV"
             >
               <Download className="w-3 h-3" />
@@ -329,7 +329,7 @@ export const SandboxResults: React.FC = () => {
             <div className="w-px h-3.5 bg-monokai-border" />
             <button
               onClick={() => handleExport('json')}
-              className="px-2.5 py-1.5 text-xs text-monokai-fg-muted hover:text-monokai-purple flex items-center gap-1 transition-colors"
+              className="px-2.5 py-1.5 text-xs text-monokai-fg-muted hover:text-monokai-amethyst flex items-center gap-1 transition-colors"
               title="导出为 JSON"
             >
               JSON
@@ -352,7 +352,7 @@ export const SandboxResults: React.FC = () => {
                       <th
                         key={idx}
                         onClick={() => handleSort(idx)}
-                        className="px-4 py-2.5 text-left text-xs font-semibold text-monokai-purple bg-monokai-surface border-b border-monokai-border cursor-pointer hover:bg-monokai-bg hover:text-monokai-yellow transition-all select-none"
+                        className="px-4 py-2.5 text-left text-xs font-semibold text-monokai-amethyst bg-monokai-surface border-b border-monokai-border cursor-pointer hover:bg-monokai-bg hover:text-monokai-yellow transition-all select-none"
                       >
                         <div className="flex items-center gap-1">
                           <span>{col}</span>
@@ -403,7 +403,7 @@ export const SandboxResults: React.FC = () => {
                                     val: cell,
                                   })
                                 }
-                                className="flex items-center gap-1 px-1.5 py-0.5 text-[10px] rounded bg-monokai-purple/15 text-monokai-purple border border-monokai-purple/30 hover:bg-monokai-purple/20 transition-all font-sans"
+                                className="flex items-center gap-1 px-1.5 py-0.5 text-[10px] rounded bg-monokai-amethyst/15 text-monokai-amethyst border border-monokai-amethyst/30 hover:bg-monokai-amethyst/20 transition-all font-sans"
                               >
                                 <Maximize2 className="w-2.5 h-2.5" />
                                 结构化数据
@@ -436,7 +436,7 @@ export const SandboxResults: React.FC = () => {
               return (
                 <div
                   key={idx}
-                  className="bg-monokai-surface border border-monokai-border rounded-xl p-4 flex flex-col justify-between hover:border-monokai-purple/50 transition-all hover:shadow-[0_0_15px_rgba(174,129,255,0.05)] group"
+                  className="bg-monokai-surface border border-monokai-border rounded-xl p-4 flex flex-col justify-between hover:border-monokai-amethyst/50 transition-all hover:shadow-[0_0_15px_rgba(174,129,255,0.05)] group"
                 >
                   <div className="mb-3">
                     <div className="flex justify-between items-start gap-2 mb-1.5">
@@ -464,7 +464,7 @@ export const SandboxResults: React.FC = () => {
                   <div className="space-y-1.5 text-[11px] font-mono">
                     <div className="flex justify-between text-monokai-fg-muted">
                       <span>唯一值估算:</span>
-                      <span className="text-monokai-purple font-semibold">{stat.uniqueCount}</span>
+                      <span className="text-monokai-amethyst font-semibold">{stat.uniqueCount}</span>
                     </div>
                     <div className="flex justify-between text-monokai-fg-muted">
                       <span>有效行比例:</span>
@@ -533,7 +533,7 @@ export const SandboxResults: React.FC = () => {
           <div className="relative bg-monokai-surface border border-monokai-border rounded-xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden animate-[scaleIn_0.2s_ease-out]">
             <div className="flex items-center justify-between px-5 py-4 border-b border-monokai-border bg-monokai-surface">
               <div className="flex items-center gap-2">
-                <Database className="w-4 h-4 text-monokai-purple" />
+                <Database className="w-4 h-4 text-monokai-amethyst" />
                 <h3 className="text-sm font-semibold text-monokai-fg">
                   单元格明细: <span className="font-mono font-bold text-monokai-yellow">{selectedCellDetail.columnName}</span>
                 </h3>
@@ -556,7 +556,7 @@ export const SandboxResults: React.FC = () => {
                   navigator.clipboard.writeText(JSON.stringify(selectedCellDetail.val, null, 2));
                   setSelectedCellDetail(null);
                 }}
-                className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-monokai-purple text-white hover:bg-monokai-purple/80 transition-all"
+                className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-monokai-amethyst text-white hover:bg-monokai-amethyst/80 transition-all"
               >
                 复制数据
               </button>

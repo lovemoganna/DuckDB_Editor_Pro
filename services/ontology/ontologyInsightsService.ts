@@ -1,11 +1,4 @@
-/**
- * services/ontology/ontologyInsightsService.ts — 本体论洞察查询 Service
- *
- * 职责：从 OntologyInsightsPanel.tsx 中上浮的 SQL 查询。
- * 仅做数据读取，不含业务逻辑，无 React 依赖。
- */
-
-import { duckDBService } from '../duckdbService';
+import * as ontologyStorage from './ontologyStorage';
 import type { LifeIntrospection, LifeInsight } from '../../hooks/useOntologyStore';
 
 export interface IntrospectionRow {
@@ -25,25 +18,24 @@ export interface InsightRow {
   object_name?: string;
 }
 
-// Table names are part of the schema contract and live in `services/ontology/ontologySchema.ts`.
-// Hardcode here for read-only queries and inline directly to keep the SQL obvious.
-const TABLE_INSIGHT = 'life_insight';
-const TABLE_OBJECT = 'life_object';
+const DEFAULT_MAPPING = {
+  objectTable: 'life_object',
+  objectTypeTable: 'life_object_type',
+  linkTable: 'life_link',
+  linkTypeTable: 'life_link_type',
+  actionTable: 'life_action',
+  introspectionTable: 'life_introspection',
+  insightTable: 'life_insight',
+};
 
 /** Fetches recent introspections across all objects. */
 export async function queryRecentIntrospections(limit = 20): Promise<IntrospectionRow[]> {
-  return duckDBService.query(
-    `SELECT * FROM life_introspection ORDER BY created_at DESC LIMIT ${limit}`
-  );
+  return ontologyStorage.queryRecentIntrospections(DEFAULT_MAPPING, limit);
 }
 
 /** Fetches recent insights with their associated object names. */
 export async function queryRecentInsights(limit = 20): Promise<InsightRow[]> {
-  return duckDBService.query(
-    `SELECT li.*, lo.name as object_name FROM ${TABLE_INSIGHT} li ` +
-      `LEFT JOIN ${TABLE_OBJECT} lo ON li.object_id = lo.id ` +
-      `ORDER BY li.created_at DESC LIMIT ${limit}`
-  );
+  return ontologyStorage.queryRecentInsights(DEFAULT_MAPPING, limit);
 }
 
 /** Fetches introspections for a specific object. */
@@ -51,9 +43,7 @@ export async function queryIntrospectionsByObject(
   objectId: number,
   limit = 20
 ): Promise<IntrospectionRow[]> {
-  return duckDBService.query(
-    `SELECT * FROM ${TABLE_INSIGHT} WHERE object_id = ${objectId} ORDER BY created_at DESC LIMIT ${limit}`
-  );
+  return ontologyStorage.queryIntrospectionsByObject(DEFAULT_MAPPING, objectId, limit);
 }
 
 /** Fetches insights for a specific object. */
@@ -61,9 +51,30 @@ export async function queryInsightsByObject(
   objectId: number,
   limit = 20
 ): Promise<InsightRow[]> {
-  return duckDBService.query(
-    `SELECT li.*, lo.name as object_name FROM ${TABLE_INSIGHT} li ` +
-      `LEFT JOIN ${TABLE_OBJECT} lo ON li.object_id = lo.id ` +
-      `WHERE li.object_id = ${objectId} ORDER BY li.created_at DESC LIMIT ${limit}`
-  );
+  return ontologyStorage.queryInsightsByObject(DEFAULT_MAPPING, objectId, limit);
 }
+
+/** Inserts a new introspection reflection row. */
+export async function addIntrospection(
+  objectId: number,
+  question: string,
+  answer: string
+): Promise<void> {
+  await ontologyStorage.addIntrospection(DEFAULT_MAPPING, objectId, question, answer);
+}
+
+/** Inserts a new insight block. */
+export async function addInsight(
+  objectId: number,
+  insight: string,
+  tag: string
+): Promise<void> {
+  await ontologyStorage.addInsight(DEFAULT_MAPPING, objectId, insight, tag);
+}
+
+/** Deletes an insight block by ID. */
+export async function deleteInsight(id: number): Promise<void> {
+  await ontologyStorage.deleteInsight(DEFAULT_MAPPING, id);
+}
+
+

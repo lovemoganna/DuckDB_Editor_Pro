@@ -45,7 +45,7 @@ export const OnboardingGuide: React.FC<OnboardingGuideProps> = ({ onStartLearnin
   }
   
   return (
-    <div className="bg-gradient-to-r from-monokai-blue/10 to-monokai-purple/10 border-b border-monokai-accent/50">
+    <div className="bg-gradient-to-r from-monokai-blue/10 to-monokai-amethyst/10 border-b border-monokai-accent/50">
       {/* 主要引导区域 */}
       <div className="p-6">
         <div className="flex items-start justify-between">

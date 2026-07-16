@@ -57,7 +57,7 @@ const EXPORT_TYPES = [
     id: 'full' as ExportType,
     label: '完整备份',
     icon: Package,
-    color: 'purple',
+    color: 'amethyst',
     description: '导出完整数据库（Schema + Data）',
     formats: ['sql', 'json'] as ExportFormat[]
   }

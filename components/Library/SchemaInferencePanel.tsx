@@ -282,7 +282,7 @@ export const SchemaInferencePanel: React.FC<SchemaInferencePanelProps> = ({ tabl
         <div className="flex items-center justify-between px-5 py-3 border-b border-monokai-border/50 shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-7 h-7 rounded-md bg-monokai-sidebar flex items-center justify-center shrink-0">
-              <Wand2 className="w-3.5 h-3.5 text-monokai-purple" />
+              <Wand2 className="w-3.5 h-3.5 text-monokai-amethyst" />
             </div>
             <div>
               <h3 className="text-[13px] font-semibold text-monokai-fg">Schema · 本体推断</h3>
@@ -316,7 +316,7 @@ export const SchemaInferencePanel: React.FC<SchemaInferencePanelProps> = ({ tabl
                 type="checkbox"
                 checked={clearDemoData}
                 onChange={e => setClearDemoData(e.target.checked)}
-                className="accent-monokai-purple"
+                className="accent-monokai-amethyst"
               />
               <span>清除示例数据</span>
             </label>
@@ -330,8 +330,8 @@ export const SchemaInferencePanel: React.FC<SchemaInferencePanelProps> = ({ tabl
             disabled={aiEnhancing}
             title="让 AI 根据表名语义自动优化推断的名称和描述"
             className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px]
-              bg-monokai-purple/10 text-monokai-purple border border-monokai-purple/20
-              hover:bg-monokai-purple/20 hover:border-monokai-purple/30 transition-all
+              bg-monokai-amethyst/10 text-monokai-amethyst border border-monokai-amethyst/20
+              hover:bg-monokai-amethyst/20 hover:border-monokai-amethyst/30 transition-all
               disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {aiEnhancing
@@ -373,10 +373,10 @@ export const SchemaInferencePanel: React.FC<SchemaInferencePanelProps> = ({ tabl
                 onClick={() => setExpanded(p => ({ ...p, objectTypes: !p.objectTypes }))}
               >
                 {expanded.objectTypes
-                  ? <ChevronDown className="w-3 h-3 text-monokai-purple shrink-0" />
-                  : <ChevronRight className="w-3 h-3 text-monokai-purple shrink-0" />
+                  ? <ChevronDown className="w-3 h-3 text-monokai-amethyst shrink-0" />
+                  : <ChevronRight className="w-3 h-3 text-monokai-amethyst shrink-0" />
                 }
-                <span className="text-[11px] font-medium text-monokai-purple">概念</span>
+                <span className="text-[11px] font-medium text-monokai-amethyst">概念</span>
                 <span className="text-[10px] text-monokai-comment/60">来自数据表的名字，可点击修改</span>
               </button>
 
@@ -390,7 +390,7 @@ export const SchemaInferencePanel: React.FC<SchemaInferencePanelProps> = ({ tabl
                         key={ot.id}
                         className={`rounded border px-3 py-3 transition-colors ${
                           isDirty
-                            ? 'border-monokai-purple/40 bg-monokai-purple/[0.03]'
+                            ? 'border-monokai-amethyst/40 bg-monokai-amethyst/[0.03]'
                             : 'border-monokai-border/40 bg-monokai-surface hover:border-monokai-border/70'
                         }`}
                       >
@@ -401,7 +401,7 @@ export const SchemaInferencePanel: React.FC<SchemaInferencePanelProps> = ({ tabl
                               ...prev,
                               [ot.id]: { ...(prev[ot.id] || ot), name: e.target.value }
                             }))}
-                            className="text-[12px] font-medium text-monokai-fg bg-transparent border-b border-transparent focus:border-monokai-purple/60 outline-none w-full min-w-0"
+                            className="text-[12px] font-medium text-monokai-fg bg-transparent border-b border-transparent focus:border-monokai-amethyst/60 outline-none w-full min-w-0"
                             placeholder="概念名称"
                           />
                           <ConfidenceBadge confidence={ot.confidence} />
@@ -449,7 +449,7 @@ export const SchemaInferencePanel: React.FC<SchemaInferencePanelProps> = ({ tabl
                         }`}
                       >
                         <div className="flex items-center gap-1.5 mb-1.5">
-                          <span className="text-[10px] px-1 py-0.5 rounded bg-monokai-purple/10 text-monokai-purple">
+                          <span className="text-[10px] px-1 py-0.5 rounded bg-monokai-amethyst/10 text-monokai-amethyst">
                             {fromOt?.name ?? lt.fromObjectTypeId}
                           </span>
                           <ChevronRight className="w-2.5 h-2.5 text-monokai-comment shrink-0" />
