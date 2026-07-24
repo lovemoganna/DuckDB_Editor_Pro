@@ -8,6 +8,8 @@
   W3C 入门规范，说明知识由明确陈述组成，以及缺失事实不等于事实为假。用于事实边界和“未知”课程。
 - [RDF 1.1 Concepts and Abstract Syntax — W3C](https://www.w3.org/TR/rdf11-concepts/)
   W3C 数据模型规范，定义主语、谓语、宾语组成的关系陈述。用于后续“写清一条关系”课程。
+- [PROV-O: The PROV Ontology — W3C](https://www.w3.org/TR/prov-o/)
+  W3C 来源追踪本体规范，将 Activity 定义为一段时间内发生并作用于对象的事情。用于过程识别和参与关系课程。
 
 ## Wisdom
 

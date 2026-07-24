@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="本体建模第二课：从事实中找出需要保持身份的具体对象。"
+    />
+    <title>第二课：找出需要保持身份的对象</title>
+    <link rel="stylesheet" href="../assets/course.css" />
+    <script src="../assets/quiz.js" defer></script>
+  </head>
+  <body>
+    <main class="lesson-shell">
+      <header>
+        <p class="lesson-kicker">本体建模 · 第 02 课 · 约 8 分钟</p>
+        <h1>找出需要保持身份的对象</h1>
+        <p class="lede">
+          今天只练一个动作：从已经确认的事实中，找出需要持续追踪的具体人、物和地点。
+        </p>
+        <div class="win">
+          <strong>本课成果</strong>
+          <span>完成 9 道判断题，并写出第一份对象清单。</span>
+        </div>
+      </header>
+
+      <section>
+        <h2>先回忆第一课</h2>
+        <div class="retrieval">
+          <p>
+            材料只说“周姐把包裹交给小林”，没有说周姐之后去了哪里。周姐之后的位置属于事实、推断还是未知？
+          </p>
+          <button class="secondary-button" data-reveal="recall-answer">
+            查看参考
+          </button>
+          <p class="model-answer" id="recall-answer">
+            未知。材料没有提供周姐后续位置的线索，不能靠常识补充。
+          </p>
+        </div>
+      </section>
+
+      <section>
+        <h2>看一个很小的案例</h2>
+        <div class="case-card">
+          上午，小林进入仓库1。管理员周姐把包裹B交给小林。
+        </div>
+
+        <p>
+          如果我们以后还要记录“谁又做了什么”“哪个包裹去了哪里”，就必须让某些事物保持自己的身份。
+        </p>
+
+        <div class="rule-grid">
+          <article class="rule-card">
+            <span class="rule-label">能指认</span>
+            <p>可以追问“具体是哪一个人、物或地点”。</p>
+          </article>
+          <article class="rule-card">
+            <span class="rule-label">会延续</span>
+            <p>它会继续参加动作，或者在后文发生变化。</p>
+          </article>
+          <article class="rule-card">
+            <span class="rule-label">先排除</span>
+            <p>时间、动作和状态当前不建成对象。</p>
+          </article>
+        </div>
+
+        <p>
+          在本体建模中，这些具体对象也叫<strong>实例</strong>。本课只找实例，暂时不讨论它们属于什么类型。
+        </p>
+      </section>
+
+      <section data-quiz>
+        <h2>哪些需要保持身份？</h2>
+        <p>
+          选择“对象”或“不是”。这里的“不是”只表示当前不作为对象建模，不代表这个词没有意义。
+        </p>
+
+        <div class="question-list">
+          <article
+            class="question"
+            data-answer="object"
+            data-explanation="小林是具体人物，后续动作需要继续指向同一个人。"
+          >
+            <h3>1. 小林</h3>
+            <div class="choices" role="group" aria-label="第 1 题">
+              <button class="choice" data-choice="object">对象</button>
+              <button class="choice" data-choice="not-object">不是</button>
+            </div>
+            <p class="feedback" data-feedback aria-live="polite"></p>
+          </article>
+
+          <article
+            class="question"
+            data-answer="object"
+            data-explanation="仓库1是可区分的具体地点，动作发生位置需要指向它。"
+          >
+            <h3>2. 仓库1</h3>
+            <div class="choices" role="group" aria-label="第 2 题">
+              <button class="choice" data-choice="object">对象</button>
+              <button class="choice" data-choice="not-object">不是</button>
+            </div>
+            <p class="feedback" data-feedback aria-live="polite"></p>
+          </article>
+
+          <article
+            class="question"
+            data-answer="object"
+            data-explanation="周姐是具体人物。“管理员”描述她在本次动作中的身份线索，不会抹掉人物本身。"
+          >
+            <h3>3. 管理员周姐</h3>
+            <div class="choices" role="group" aria-label="第 3 题">
+              <button class="choice" data-choice="object">对象</button>
+              <button class="choice" data-choice="not-object">不是</button>
+            </div>
+            <p class="feedback" data-feedback aria-live="polite"></p>
+          </article>
+
+          <article
+            class="question"
+            data-answer="object"
+            data-explanation="包裹B是可区分的具体物品，交接前后仍是同一个包裹。"
+          >
+            <h3>4. 包裹B</h3>
+            <div class="choices" role="group" aria-label="第 4 题">
+              <button class="choice" data-choice="object">对象</button>
+              <button class="choice" data-choice="not-object">不是</button>
+            </div>
+            <p class="feedback" data-feedback aria-live="polite"></p>
+          </article>
+
+          <article
+            class="question"
+            data-answer="not-object"
+            data-explanation="“上午”当前只是时间信息，不需要独立身份。"
+          >
+            <h3>5. 上午</h3>
+            <div class="choices" role="group" aria-label="第 5 题">
+              <button class="choice" data-choice="object">对象</button>
+              <button class="choice" data-choice="not-object">不是</button>
+            </div>
+            <p class="feedback" data-feedback aria-live="polite"></p>
+          </article>
+
+          <article
+            class="question"
+            data-answer="not-object"
+            data-explanation="“交给”是一个动作。下一课会单独学习怎样识别过程。"
+          >
+            <h3>6. 交给</h3>
+            <div class="choices" role="group" aria-label="第 6 题">
+              <button class="choice" data-choice="object">对象</button>
+              <button class="choice" data-choice="not-object">不是</button>
+            </div>
+            <p class="feedback" data-feedback aria-live="polite"></p>
+          </article>
+        </div>
+
+        <h2>换一个领域，再做一次</h2>
+        <div class="case-card">
+          王女士在诊室2接受检查。检查后，王女士进入观察状态。
+        </div>
+
+        <div class="question-list">
+          <article
+            class="question"
+            data-answer="object"
+            data-explanation="王女士是同一名具体患者，检查前后需要保持身份。"
+          >
+            <h3>7. 王女士</h3>
+            <div class="choices" role="group" aria-label="第 7 题">
+              <button class="choice" data-choice="object">对象</button>
+              <button class="choice" data-choice="not-object">不是</button>
+            </div>
+            <p class="feedback" data-feedback aria-live="polite"></p>
+          </article>
+
+          <article
+            class="question"
+            data-answer="object"
+            data-explanation="诊室2是可区分的具体地点，检查发生在这里。"
+          >
+            <h3>8. 诊室2</h3>
+            <div class="choices" role="group" aria-label="第 8 题">
+              <button class="choice" data-choice="object">对象</button>
+              <button class="choice" data-choice="not-object">不是</button>
+            </div>
+            <p class="feedback" data-feedback aria-live="polite"></p>
+          </article>
+
+          <article
+            class="question"
+            data-answer="not-object"
+            data-explanation="“观察状态”描述王女士此刻怎样，不应因此创建另一个王女士。"
+          >
+            <h3>9. 观察状态</h3>
+            <div class="choices" role="group" aria-label="第 9 题">
+              <button class="choice" data-choice="object">对象</button>
+              <button class="choice" data-choice="not-object">不是</button>
+            </div>
+            <p class="feedback" data-feedback aria-live="polite"></p>
+          </article>
+        </div>
+
+        <div class="quiz-summary">
+          <strong data-progress aria-live="polite">0/9 已完成。</strong>
+          <button class="secondary-button" data-reset>重新练习</button>
+        </div>
+      </section>
+
+      <section>
+        <h2>写出你的第一份对象清单</h2>
+        <div class="retrieval">
+          <label for="object-list"
+            >不看答案，把“小林与包裹”案例中的具体对象写成一行：</label
+          >
+          <textarea
+            id="object-list"
+            placeholder="对象：……"
+          ></textarea>
+          <button class="secondary-button" data-reveal="object-answer">
+            查看参考
+          </button>
+          <p class="model-answer" id="object-answer">
+            对象：小林、仓库1、周姐、包裹B。
+          </p>
+        </div>
+      </section>
+
+      <section class="completion">
+        <h2>怎样算完成本课</h2>
+        <ul>
+          <li>9 道题全部完成；</li>
+          <li>能写出案例中的 4 个具体对象；</li>
+          <li>不会把时间、动作或状态误建成对象；</li>
+          <li>能说明为什么同一人物发生变化后仍是同一个对象。</li>
+        </ul>
+      </section>
+
+      <p class="next-step">
+        上一课：
+        <a href="./0001-fact-inference-unknown.html"
+          >事实、推断和未知</a
+        >。随手查：
+        <a href="../reference/0002-object-instance.html"
+          >什么需要建成对象</a
+        >。完成后进入：
+        <a href="./0003-find-processes.html">第三课：找出发生了什么过程</a
+        >。推荐阅读：
+        <a
+          href="https://protege.stanford.edu/publications/ontology_development/ontology101-noy-mcguinness.html"
+          >Stanford Ontology Development 101</a
+        >
+        中关于类与实例的入门说明。任何判断拿不准，都可以直接向你的教学助手追问。
+      </p>
+    </main>
+  </body>
+</html>

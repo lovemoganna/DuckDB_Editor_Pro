@@ -270,6 +270,46 @@ h3 {
   display: block;
 }
 
+.model-answer > :first-child {
+  margin-top: 0;
+}
+
+.model-answer > :last-child {
+  margin-bottom: 0;
+}
+
+.model-visual {
+  margin-top: 18px;
+  padding: 18px;
+  overflow-x: auto;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.model-visual h3 {
+  margin-bottom: 14px;
+}
+
+.mermaid {
+  min-width: 560px;
+  margin: 0;
+  color: var(--muted);
+  text-align: center;
+  white-space: pre-wrap;
+}
+
+.mermaid svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.diagram-status {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
 .completion {
   margin-top: 42px;
   padding: 24px;
@@ -352,6 +392,10 @@ h3 {
   .quiz-summary {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .mermaid {
+    min-width: 480px;
   }
 }
 
