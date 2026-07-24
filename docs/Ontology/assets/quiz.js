@@ -19,6 +19,8 @@ if (quiz) {
   questions.forEach((question) => {
     const correctAnswer = question.dataset.answer;
     const explanation = question.dataset.explanation;
+    const hint =
+      question.dataset.hint ?? "再看一次材料和本课判断规则，然后重试。";
     const feedback = question.querySelector("[data-feedback]");
     const choices = [...question.querySelectorAll("[data-choice]")];
 
@@ -37,7 +39,7 @@ if (quiz) {
           });
         } else {
           choice.classList.add("is-wrong");
-          feedback.textContent = "再看一次原文：它是直接说了、只能合理推测，还是根本没有足够线索？";
+          feedback.textContent = hint;
         }
 
         updateProgress();

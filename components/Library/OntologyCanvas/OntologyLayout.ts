@@ -143,10 +143,10 @@ const layoutWithDagre = (
   graph.setDefaultEdgeLabel(() => ({}));
   graph.setGraph({
     rankdir,
-    nodesep: Math.max(nodesep, orthogonal ? 100 : 70),
-    ranksep: Math.max(ranksep, orthogonal ? 240 : 170),
-    marginx: 40,
-    marginy: 40,
+    nodesep: Math.max(nodesep, orthogonal ? 120 : 100),
+    ranksep: Math.max(ranksep, orthogonal ? 270 : 230),
+    marginx: 60,
+    marginy: 60,
     ranker: orthogonal ? 'tight-tree' : 'network-simplex',
     align: rankdir === 'LR' ? 'UL' : 'DL',
   });
@@ -191,8 +191,8 @@ const layoutRadial = (
 
   const positions = new Map<string, { x: number; y: number }>();
   const nodeById = new Map(nodes.map((node) => [node.id, node]));
-  const minArc = Math.max(nodeWidth, nodeHeight) + Math.max(60, nodesep * 0.6);
-  const ringGap = Math.max(ranksep, nodeWidth + 100);
+  const minArc = Math.max(nodeWidth, nodeHeight) + Math.max(80, nodesep * 0.7);
+  const ringGap = Math.max(ranksep, nodeWidth + 120);
   let previousRadius = 0;
 
   [...layers.entries()].sort(([a], [b]) => a - b).forEach(([depth, ids]) => {
@@ -237,7 +237,7 @@ const layoutCircular = (
 
   const nodeById = new Map(nodes.map((node) => [node.id, node]));
   const widest = Math.max(...nodes.map((node) => getOntologyNodeDimensions(node, nodeWidth, nodeHeight).width));
-  const radius = Math.max(260, (order.length * (widest + Math.max(nodesep, 70))) / (Math.PI * 2));
+  const radius = Math.max(280, (order.length * (widest + Math.max(nodesep, 85))) / (Math.PI * 2));
   const positions = new Map<string, { x: number; y: number }>();
   order.forEach((id, index) => {
     const angle = -Math.PI / 2 + (index * Math.PI * 2) / order.length;
@@ -280,7 +280,7 @@ const layoutTree = (
       subtreeWidth.set(id, ownWidth);
       return ownWidth;
     }
-    const width = Math.max(ownWidth, children.reduce((sum, child) => sum + measure(child), 0) + (children.length - 1) * nodesep);
+    const width = Math.max(ownWidth, children.reduce((sum, child) => sum + measure(child), 0) + (children.length - 1) * Math.max(nodesep, 90));
     subtreeWidth.set(id, width);
     return width;
   };
@@ -290,17 +290,17 @@ const layoutTree = (
   const place = (id: string, left: number, depth: number) => {
     const width = subtreeWidth.get(id)!;
     const dimensions = getOntologyNodeDimensions(nodeById.get(id)!, nodeWidth, nodeHeight);
-    positions.set(id, { x: left + (width - dimensions.width) / 2, y: depth * Math.max(ranksep, nodeHeight + 120) });
+    positions.set(id, { x: left + (width - dimensions.width) / 2, y: depth * Math.max(ranksep, nodeHeight + 140) });
     let childLeft = left;
     treeChildren.get(id)!.forEach((child) => {
       place(child, childLeft, depth + 1);
-      childLeft += subtreeWidth.get(child)! + nodesep;
+      childLeft += subtreeWidth.get(child)! + Math.max(nodesep, 90);
     });
   };
   let forestLeft = 0;
   roots.forEach((root) => {
     place(root, forestLeft, 0);
-    forestLeft += subtreeWidth.get(root)! + Math.max(nodesep * 2, 140);
+    forestLeft += subtreeWidth.get(root)! + Math.max(nodesep * 2.5, 160);
   });
   return applyPositions(nodes, positions, nodeWidth, nodeHeight);
 };
@@ -331,7 +331,7 @@ const layoutForce = (
 ) => {
   if (nodes.length === 0) return nodes;
   const sortedNodes = [...nodes].sort((a, b) => compareIds(a.id, b.id));
-  const radius = Math.max(220, sortedNodes.length * 28);
+  const radius = Math.max(260, sortedNodes.length * 32);
   const forceNodes: ForceDatum[] = sortedNodes.map((node, index) => ({
     id: node.id,
     x: Math.cos((index * Math.PI * 2) / sortedNodes.length) * radius,
@@ -348,18 +348,18 @@ const layoutForce = (
     .randomSource(seededRandom(0x51f15e))
     .force('link', forceLink<ForceDatum, { source: string | ForceDatum; target: string | ForceDatum }>(links)
       .id((node) => node.id)
-      .distance(Math.max(ranksep, 230))
+      .distance(Math.max(ranksep, 260))
       .strength(0.35))
-    .force('charge', forceManyBody().strength(-Math.max(700, nodes.length * 34)).distanceMax(900))
+    .force('charge', forceManyBody().strength(-Math.max(1100, nodes.length * 45)).distanceMax(1400))
     .force('collision', forceCollide<ForceDatum>().radius((datum) => {
       const dimensions = getOntologyNodeDimensions(nodeById.get(datum.id)!, nodeWidth, nodeHeight);
-      return Math.hypot(dimensions.width, dimensions.height) / 2 + Math.max(24, nodesep / 3);
-    }).iterations(3))
+      return Math.hypot(dimensions.width, dimensions.height) / 2 + Math.max(36, nodesep / 2);
+    }).iterations(4))
     .force('center', forceCenter(0, 0))
     .force('x', forceX(0).strength(0.035))
     .force('y', forceY(0).strength(0.035))
     .stop();
-  simulation.tick(320);
+  simulation.tick(360);
 
   const positions = new Map<string, { x: number; y: number }>();
   forceNodes.forEach((datum) => {
@@ -378,8 +378,8 @@ export const getLayoutedElements = (
   nodes: Node[],
   edges: Edge[],
   requestedMode: OntologyLayoutMode | string = 'hierarchical',
-  nodesep = 80,
-  ranksep = 200,
+  nodesep = 110,
+  ranksep = 240,
   nodeWidth = 220,
   nodeHeight = 82,
 ) => {
@@ -407,4 +407,130 @@ export const getLayoutedElements = (
       break;
   }
   return { nodes: layoutedNodes, edges };
+};
+
+/**
+ * Interactive Incremental Local Relayout on Node Dragging.
+ * Anchored at draggedNodeId, dynamically relaxes 1-hop and 2-hop neighbor nodes
+ * to prevent overlap and maintain natural local structure without causing distant
+ * graph jumping.
+ *
+ * If `isFixedDrag` is true (Alt / Shift key pressed or node locked), only the dragged
+ * node moves without affecting any surrounding nodes.
+ */
+export const applyIncrementalLocalLayout = (
+  nodes: Node[],
+  edges: Edge[],
+  draggedNodeId: string,
+  newPosition: { x: number; y: number },
+  isFixedDrag = false,
+  nodeWidth = 220,
+  nodeHeight = 82,
+): Node[] => {
+  if (isFixedDrag || nodes.length <= 1) {
+    return nodes.map((node) => (node.id === draggedNodeId ? { ...node, position: newPosition } : node));
+  }
+
+  const directNeighbors = new Set<string>();
+  const secondaryNeighbors = new Set<string>();
+
+  edges.forEach((edge) => {
+    if (edge.source === draggedNodeId && edge.target !== draggedNodeId) {
+      directNeighbors.add(edge.target);
+    } else if (edge.target === draggedNodeId && edge.source !== draggedNodeId) {
+      directNeighbors.add(edge.source);
+    }
+  });
+
+  edges.forEach((edge) => {
+    if (directNeighbors.has(edge.source) && edge.target !== draggedNodeId && !directNeighbors.has(edge.target)) {
+      secondaryNeighbors.add(edge.target);
+    } else if (directNeighbors.has(edge.target) && edge.source !== draggedNodeId && !directNeighbors.has(edge.source)) {
+      secondaryNeighbors.add(edge.source);
+    }
+  });
+
+  const activeNeighbors = new Set<string>([...directNeighbors, ...secondaryNeighbors]);
+  if (activeNeighbors.size === 0) {
+    return nodes.map((node) => (node.id === draggedNodeId ? { ...node, position: newPosition } : node));
+  }
+
+  const nodeMap = new Map(nodes.map((node) => [node.id, node]));
+  const positions = new Map<string, { x: number; y: number }>();
+
+  nodes.forEach((node) => {
+    if (node.id === draggedNodeId) {
+      positions.set(node.id, { ...newPosition });
+    } else {
+      const pos = node.positionAbsolute ?? node.position;
+      positions.set(node.id, { x: pos.x, y: pos.y });
+    }
+  });
+
+  const draggedNode = nodeMap.get(draggedNodeId);
+  const draggedDim = getOntologyNodeDimensions(draggedNode!, nodeWidth, nodeHeight);
+  const draggedCenter = {
+    x: newPosition.x + draggedDim.width / 2,
+    y: newPosition.y + draggedDim.height / 2,
+  };
+
+  // Run 16 relaxation steps for smooth local spring-repulsion
+  for (let iter = 0; iter < 16; iter += 1) {
+    activeNeighbors.forEach((id) => {
+      const node = nodeMap.get(id);
+      if (!node || node.data?.isLocked) return;
+
+      const pos = positions.get(id)!;
+      const dim = getOntologyNodeDimensions(node, nodeWidth, nodeHeight);
+      const center = { x: pos.x + dim.width / 2, y: pos.y + dim.height / 2 };
+
+      let dx = center.x - draggedCenter.x;
+      let dy = center.y - draggedCenter.y;
+      let dist = Math.hypot(dx, dy) || 1;
+
+      const minTargetDist = directNeighbors.has(id)
+        ? Math.max(draggedDim.width, draggedDim.height) + 120
+        : Math.max(draggedDim.width, draggedDim.height) + 200;
+
+      let forceX = 0;
+      let forceY = 0;
+
+      if (dist < minTargetDist) {
+        const overlap = minTargetDist - dist;
+        const factor = directNeighbors.has(id) ? 0.3 : 0.15;
+        forceX += (dx / dist) * overlap * factor;
+        forceY += (dy / dist) * overlap * factor;
+      }
+
+      // Check collision with other neighboring nodes
+      nodes.forEach((other) => {
+        if (other.id === id) return;
+        const otherPos = positions.get(other.id)!;
+        const otherDim = getOntologyNodeDimensions(other, nodeWidth, nodeHeight);
+        const otherCenter = { x: otherPos.x + otherDim.width / 2, y: otherPos.y + otherDim.height / 2 };
+
+        const odx = center.x - otherCenter.x;
+        const ody = center.y - otherCenter.y;
+        const odist = Math.hypot(odx, ody) || 1;
+
+        const minDist = (dim.width + otherDim.width) / 2 + 50;
+        if (odist < minDist) {
+          const overlap = minDist - odist;
+          forceX += (odx / odist) * overlap * 0.2;
+          forceY += (ody / odist) * overlap * 0.2;
+        }
+      });
+
+      // Dampen forces to ensure graceful movement without jitter
+      pos.x += Math.max(-28, Math.min(28, forceX));
+      pos.y += Math.max(-28, Math.min(28, forceY));
+    });
+  }
+
+  return nodes.map((node) => {
+    if (node.data?.isLocked) return node;
+    const pos = positions.get(node.id);
+    if (!pos) return node;
+    return { ...node, position: { x: snap(pos.x), y: snap(pos.y) } };
+  });
 };

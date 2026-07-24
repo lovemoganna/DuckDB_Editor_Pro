@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="本体建模第三课：从事实中找出实际发生的过程。"
+    />
+    <title>第三课：找出发生了什么过程</title>
+    <link rel="stylesheet" href="../assets/course.css" />
+    <script src="../assets/quiz.js" defer></script>
+  </head>
+  <body>
+    <main class="lesson-shell">
+      <header>
+        <p class="lesson-kicker">本体建模 · 第 03 课 · 约 8 分钟</p>
+        <h1>找出发生了什么过程</h1>
+        <p class="lede">
+          今天只练一个动作：从已经确认的事实中，找出真正发生过的事情。
+        </p>
+        <div class="win">
+          <strong>本课成果</strong>
+          <span>完成 9 道判断题，并写出第一份过程清单。</span>
+        </div>
+      </header>
+
+      <section>
+        <h2>先回忆第二课</h2>
+        <div class="retrieval">
+          <p>
+            “王女士从诊室2进入观察状态。”这句话中，哪些是需要保持身份的具体对象？
+          </p>
+          <button class="secondary-button" data-reveal="recall-answer">
+            查看参考
+          </button>
+          <p class="model-answer" id="recall-answer">
+            王女士、诊室2。“观察状态”描述王女士此刻怎样，不是另一个具体对象。
+          </p>
+        </div>
+      </section>
+
+      <section>
+        <h2>看一个很小的案例</h2>
+        <div class="case-card">
+          上午，小林进入仓库1。周姐把包裹B交给小林。随后，小林离开仓库。
+        </div>
+
+        <p>
+          找过程时，先问：<strong>发生了什么？</strong>
+          这段材料明确说了三件事：进入仓库、交付包裹、离开仓库。
+        </p>
+
+        <div class="rule-grid">
+          <article class="rule-card">
+            <span class="rule-label">确实发生</span>
+            <p>材料明确说过，不能靠常识补出新的动作。</p>
+          </article>
+          <article class="rule-card">
+            <span class="rule-label">经过时间</span>
+            <p>事情即使很短，也会有发生前和发生后。</p>
+          </article>
+          <article class="rule-card">
+            <span class="rule-label">作用对象</span>
+            <p>它让一个或多个对象参与、移动或发生变化。</p>
+          </article>
+        </div>
+
+        <p>
+          本课把这类实际发生的事情叫<strong>过程</strong>。写清单时使用动词短语，例如“周姐交付包裹B”，不要只写“交付”。
+        </p>
+      </section>
+
+      <section data-quiz>
+        <h2>哪些是过程？</h2>
+        <p>
+          选择“过程”或“不是”。这里的“不是”只表示当前不是过程，它仍可能是对象、时间或状态。
+        </p>
+
+        <div class="question-list">
+          <article
+            class="question"
+            data-answer="process"
+            data-explanation="“进入仓库”实际发生过，让小林的位置发生了变化。"
+          >
+            <h3>1. 小林进入仓库</h3>
+            <div class="choices" role="group" aria-label="第 1 题">
+              <button class="choice" data-choice="process">过程</button>
+              <button class="choice" data-choice="not-process">不是</button>
+            </div>
+            <p class="feedback" data-feedback aria-live="polite"></p>
+          </article>
+
+          <article
+            class="question"
+            data-answer="process"
+            data-explanation="“交付包裹B”实际发生过，周姐、小林和包裹B都参与其中。"
+          >
+            <h3>2. 周姐交付包裹B</h3>
+            <div class="choices" role="group" aria-label="第 2 题">
+              <button class="choice" data-choice="process">过程</button>
+              <button class="choice" data-choice="not-process">不是</button>
+            </div>
+            <p class="feedback" data-feedback aria-live="polite"></p>
+          </article>
+
+          <article
+            class="question"
+            data-answer="process"
+            data-explanation="“离开仓库”实际发生过，让小林的位置再次发生变化。"
+          >
+            <h3>3. 小林离开仓库</h3>
+            <div class="choices" role="group" aria-label="第 3 题">
+              <button class="choice" data-choice="process">过程</button>
+              <button class="choice" data-choice="not-process">不是</button>
+            </div>
+            <p class="feedback" data-feedback aria-live="polite"></p>
+          </article>
+
+          <article
+            class="question"
+            data-answer="not-process"
+            data-explanation="小林是参加过程的具体对象，不是发生的事情。"
+          >
+            <h3>4. 小林</h3>
+            <div class="choices" role="group" aria-label="第 4 题">
+              <button class="choice" data-choice="process">过程</button>
+              <button class="choice" data-choice="not-process">不是</button>
+            </div>
+            <p class="feedback" data-feedback aria-live="polite"></p>
+          </article>
+
+          <article
+            class="question"
+            data-answer="not-process"
+            data-explanation="包裹B是参加交付过程的具体对象，不是过程。"
+          >
+            <h3>5. 包裹B</h3>
+            <div class="choices" role="group" aria-label="第 5 题">
+              <button class="choice" data-choice="process">过程</button>
+              <button class="choice" data-choice="not-process">不是</button>
+            </div>
+            <p class="feedback" data-feedback aria-live="polite"></p>
+          </article>
+
+          <article
+            class="question"
+            data-answer="not-process"
+            data-explanation="“上午”只说明过程发生的时间，不是事情本身。"
+          >
+            <h3>6. 上午</h3>
+            <div class="choices" role="group" aria-label="第 6 题">
+              <button class="choice" data-choice="process">过程</button>
+              <button class="choice" data-choice="not-process">不是</button>
+            </div>
+            <p class="feedback" data-feedback aria-live="polite"></p>
+          </article>
+        </div>
+
+        <h2>换一个领域，再做一次</h2>
+        <div class="case-card">
+          王女士在诊室2接受检查。检查后，王女士进入观察状态。
+        </div>
+
+        <div class="question-list">
+          <article
+            class="question"
+            data-answer="process"
+            data-explanation="“接受检查”是材料明确说过的事情，王女士参与其中。"
+          >
+            <h3>7. 王女士接受检查</h3>
+            <div class="choices" role="group" aria-label="第 7 题">
+              <button class="choice" data-choice="process">过程</button>
+              <button class="choice" data-choice="not-process">不是</button>
+            </div>
+            <p class="feedback" data-feedback aria-live="polite"></p>
+          </article>
+
+          <article
+            class="question"
+            data-answer="process"
+            data-explanation="“进入观察状态”描述王女士从原状态变为观察状态，是一个变化过程。"
+          >
+            <h3>8. 王女士进入观察状态</h3>
+            <div class="choices" role="group" aria-label="第 8 题">
+              <button class="choice" data-choice="process">过程</button>
+              <button class="choice" data-choice="not-process">不是</button>
+            </div>
+            <p class="feedback" data-feedback aria-live="polite"></p>
+          </article>
+
+          <article
+            class="question"
+            data-answer="not-process"
+            data-explanation="“观察状态”只描述王女士此刻怎样；真正的过程是“进入观察状态”。"
+          >
+            <h3>9. 观察状态</h3>
+            <div class="choices" role="group" aria-label="第 9 题">
+              <button class="choice" data-choice="process">过程</button>
+              <button class="choice" data-choice="not-process">不是</button>
+            </div>
+            <p class="feedback" data-feedback aria-live="polite"></p>
+          </article>
+        </div>
+
+        <div class="quiz-summary">
+          <strong data-progress aria-live="polite">0/9 已完成。</strong>
+          <button class="secondary-button" data-reset>重新练习</button>
+        </div>
+      </section>
+
+      <section>
+        <h2>写出你的第一份过程清单</h2>
+        <div class="retrieval">
+          <label for="process-list"
+            >不看答案，把“小林与包裹”案例中的过程写成一行：</label
+          >
+          <textarea
+            id="process-list"
+            placeholder="过程：……"
+          ></textarea>
+          <button class="secondary-button" data-reveal="process-answer">
+            查看参考
+          </button>
+          <p class="model-answer" id="process-answer">
+            过程：小林进入仓库；周姐交付包裹B；小林离开仓库。
+          </p>
+        </div>
+      </section>
+
+      <section class="completion">
+        <h2>怎样算完成本课</h2>
+        <ul>
+          <li>9 道题全部完成；</li>
+          <li>能写出案例中的 3 个过程；</li>
+          <li>不会把对象、时间或状态误写成过程；</li>
+          <li>能区分“进入观察状态”和“观察状态”。</li>
+        </ul>
+      </section>
+
+      <p class="next-step">
+        上一课：
+        <a href="./0002-find-concrete-objects.html">找出需要保持身份的对象</a
+        >。随手查：
+        <a href="../reference/0003-process.html">什么需要建成过程</a
+        >。完成后进入：
+        <a href="./0004-connect-objects-to-processes.html"
+          >第四课：把对象连接到过程</a
+        >。推荐阅读：
+        <a href="https://www.w3.org/TR/prov-o/">W3C PROV-O</a>
+        中关于 Activity 的定义。任何判断拿不准，都可以直接向你的教学助手追问。
+      </p>
+    </main>
+  </body>
+</html>

@@ -1,12 +1,15 @@
-import { describe, expect, it } from 'vitest';
-import { Node } from 'reactflow';
 import {
+  applyIncrementalLocalLayout,
   getLayoutedElements,
   getOntologyNodeDimensions,
   ONTOLOGY_LAYOUTS,
 } from './OntologyLayout';
 
-const node = (id: string, data: Record<string, unknown> = {}) => ({ id, position: { x: 0, y: 0 }, data });
+const node = (id: string, data: Record<string, unknown> = {}, position = { x: 0, y: 0 }) => ({
+  id,
+  position,
+  data,
+});
 const edge = (source: string, target: string, index = 0) => ({ id: `${source}-${target}-${index}`, source, target });
 
 const graphNodes = [
@@ -59,3 +62,77 @@ describe('Ontology canvas layouts', () => {
     expect(radius('leaf')).toBeGreaterThan(radius('child-a'));
   });
 });
+
+describe('Incremental local relayout', () => {
+  it('moves only the dragged node when isFixedDrag is true', () => {
+    const testNodes = [
+      node('n1', {}, { x: 0, y: 0 }),
+      node('n2', {}, { x: 100, y: 0 }),
+      node('n3', {}, { x: 200, y: 0 }),
+    ];
+    const testEdges = [edge('n1', 'n2'), edge('n2', 'n3')];
+
+    const result = applyIncrementalLocalLayout(
+      testNodes,
+      testEdges,
+      'n1',
+      { x: 50, y: 0 },
+      true,
+    );
+
+    const posMap = new Map(result.map((n) => [n.id, n.position]));
+    expect(posMap.get('n1')).toEqual({ x: 50, y: 0 });
+    expect(posMap.get('n2')).toEqual({ x: 100, y: 0 });
+    expect(posMap.get('n3')).toEqual({ x: 200, y: 0 });
+  });
+
+  it('shifts 1-hop and 2-hop neighbors smoothly while leaving 3-hop nodes untouched', () => {
+    // Chain: n1 (dragged) -> n2 (1-hop) -> n3 (2-hop) -> n4 (3-hop)
+    const testNodes = [
+      node('n1', {}, { x: 0, y: 0 }),
+      node('n2', {}, { x: 50, y: 0 }),
+      node('n3', {}, { x: 120, y: 0 }),
+      node('n4', {}, { x: 400, y: 0 }),
+    ];
+    const testEdges = [
+      edge('n1', 'n2'),
+      edge('n2', 'n3'),
+      edge('n3', 'n4'),
+    ];
+
+    const result = applyIncrementalLocalLayout(
+      testNodes,
+      testEdges,
+      'n1',
+      { x: 30, y: 0 },
+      false,
+    );
+
+    const posMap = new Map(result.map((n) => [n.id, n.position]));
+    expect(posMap.get('n1')).toEqual({ x: 30, y: 0 });
+    // n2 (1-hop) and n3 (2-hop) should shift away from n1
+    expect(posMap.get('n2')!.x).toBeGreaterThan(50);
+    // n4 (3-hop) should stay at its original position 400
+    expect(posMap.get('n4')!.x).toEqual(400);
+  });
+
+  it('respects node locking during local relaxation', () => {
+    const testNodes = [
+      node('n1', {}, { x: 0, y: 0 }),
+      node('n2', { isLocked: true }, { x: 50, y: 0 }),
+    ];
+    const testEdges = [edge('n1', 'n2')];
+
+    const result = applyIncrementalLocalLayout(
+      testNodes,
+      testEdges,
+      'n1',
+      { x: 30, y: 0 },
+      false,
+    );
+
+    const posMap = new Map(result.map((n) => [n.id, n.position]));
+    expect(posMap.get('n2')).toEqual({ x: 50, y: 0 });
+  });
+});
+

@@ -284,7 +284,7 @@ const findManhattanPath = (
       const b = { x: xs[neighbor.xi], y: ys[neighbor.yi] };
       if (segmentBlocked(a, b, nearby)) return;
       const segmentLength = Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
-      const bendPenalty = current.direction !== 'start' && current.direction !== neighbor.direction ? 48 : 0;
+      const bendPenalty = current.direction !== 'start' && current.direction !== neighbor.direction ? 72 : 0;
       const lanePenalty = neighbor.direction === 'v'
         ? Math.abs(b.x - preferredX) * 0.002
         : Math.abs(b.y - preferredY) * 0.002;
@@ -340,7 +340,7 @@ export const getOrthogonalRoute = (
   allRects: GraphRect[],
   mode: OntologyLayoutMode,
   laneOffset = 0,
-  clearance = 20,
+  clearance = 28,
 ): OrthogonalRoute => {
   const { sourceSide, targetSide } = getEdgeHandleSides(sourceRect, targetRect, mode);
   const source = anchorForSide(sourceRect, sourceSide);
