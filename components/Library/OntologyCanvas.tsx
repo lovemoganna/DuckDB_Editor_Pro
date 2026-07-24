@@ -593,21 +593,31 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
 
   // Interactive Incremental Local Relayout on Node Dragging
   const onNodeDrag = useCallback((event: any, node: any) => {
-    const isFixedDrag = Boolean(event.altKey || event.shiftKey || lockedNodeIds.has(Number(node.id)));
-    if (isFixedDrag) return;
+    const nodeId = Number(node.id);
+    const isFixedDrag = Boolean(event.altKey || event.shiftKey || lockedNodeIds.has(nodeId));
 
-    setNodes((prevNodes) => {
-      return applyIncrementalLocalLayout(
-        prevNodes,
-        edges,
-        node.id,
-        node.position,
-        false,
-      );
+    if (isFixedDrag) {
+      updateCanvasPosition(nodeId, node.position);
+      return;
+    }
+
+    const updatedNodes = applyIncrementalLocalLayout(
+      nodes,
+      edges,
+      node.id,
+      node.position,
+      false,
+    );
+
+    const updatedPositions: SavedPositions = {};
+    updatedNodes.forEach((n) => {
+      updatedPositions[Number(n.id)] = n.position;
     });
-  }, [edges, lockedNodeIds, setNodes]);
 
-  // Dragging node ends: save position and local neighbor updates back to store
+    updateCanvasPositions(updatedPositions);
+  }, [nodes, edges, lockedNodeIds, updateCanvasPosition, updateCanvasPositions]);
+
+  // Dragging node ends: save position and local neighbor updates back to store with grid snap
   const onNodeDragStop = useCallback((event: any, node: any) => {
     const nodeId = Number(node.id);
     const isFixedDrag = Boolean(event.altKey || event.shiftKey || lockedNodeIds.has(nodeId));
@@ -616,7 +626,7 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
     const grid = snapToGrid ? GRID_SIZE : 1;
 
     if (isFixedDrag) {
-      saveNodePosition(nodeId, {
+      updateCanvasPosition(nodeId, {
         x: Math.round(node.position.x / grid) * grid,
         y: Math.round(node.position.y / grid) * grid,
       });
@@ -630,15 +640,14 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
       );
       const updatedPositions: SavedPositions = {};
       updatedNodes.forEach((n) => {
-        const roundedPos = {
+        updatedPositions[Number(n.id)] = {
           x: Math.round(n.position.x / grid) * grid,
           y: Math.round(n.position.y / grid) * grid,
         };
-        updatedPositions[Number(n.id)] = roundedPos;
       });
       updateCanvasPositions(updatedPositions);
     }
-  }, [lockedNodeIds, nodePositions, snapToGrid, pushToHistory, saveNodePosition, updateCanvasPositions, nodes, edges]);
+  }, [lockedNodeIds, nodePositions, snapToGrid, pushToHistory, updateCanvasPosition, updateCanvasPositions, nodes, edges]);
 
   // Click edge to delete
   const onEdgeClick = useCallback((event: React.MouseEvent, edge: Edge) => {
