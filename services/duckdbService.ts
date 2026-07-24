@@ -348,24 +348,26 @@ class DuckDBService {
     const dangerousKeywords = /\b(DROP|DELETE|INSERT|UPDATE|CREATE|ALTER|TRUNCATE)\b/i;
 
     if (dangerousKeywords.test(sql)) {
-      // Allow "CREATE OR REPLACE TEMPORARY VIEW" ... actually maybe too complex to allow.
-      // For now, strict block on these keywords is safer, but at least we use boundaries.
       throw new Error("Preview blocked: Contains modification keywords (Safety Check)");
     }
 
     // Attempt to inject LIMIT 5 if not present
-    // Simple heuristic: append LIMIT 5 if not ends with LIMIT X
     let safeSql = sql;
     if (!upperSql.includes('LIMIT')) {
       safeSql += ' LIMIT 5';
     }
 
-    try {
-      const result = await this.conn.query(safeSql);
-      return result.toArray().map(r => r.toJSON());
-    } catch (e: any) {
-      throw new Error(`Preview Failed: ${e.message}`);
-    }
+    return this.query(safeSql);
+  }
+
+  /** Phase 3: Explain / Profile Query Execution Plan */
+  async explainQuery(sql: string, analyze: boolean = false): Promise<any[]> {
+    return this.runInQueue(async () => {
+      await this.waitForInit();
+      if (!this.conn) throw new Error("Database not connected");
+      const prefix = analyze ? 'EXPLAIN ANALYZE ' : 'EXPLAIN ';
+      return await this.conn.query(prefix + sql).then(res => res.toArray().map(r => r.toJSON()));
+    });
   }
 
   // Wrapper for operations that need auditing

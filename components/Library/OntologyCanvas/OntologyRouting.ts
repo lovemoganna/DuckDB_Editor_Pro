@@ -27,8 +27,20 @@ export interface OrthogonalRoute {
 const round = (value: number) => Math.round(value * 10) / 10;
 const pointKey = (point: GraphPoint) => `${round(point.x)}:${round(point.y)}`;
 
-export const getGraphNodeRect = (node: Node): GraphRect => {
-  const dimensions = getOntologyNodeDimensions(node);
+export const getGraphNodeRect = (node: Node, isExport = false): GraphRect => {
+  let width = 220;
+  let height = 82;
+  if (isExport) {
+    width = 260;
+    const raw = node.data?.obj?.properties;
+    let propCount = 0;
+    try {
+      const parsed = typeof raw === 'string' ? JSON.parse(raw || '{}') : (raw ?? {});
+      propCount = Math.min(6, Object.keys(parsed).length);
+    } catch {}
+    height = propCount > 0 ? 82 + propCount * 18 + 14 : 95;
+  }
+  const dimensions = getOntologyNodeDimensions(node, width, height);
   const position = node.positionAbsolute ?? node.position;
   return {
     id: node.id,

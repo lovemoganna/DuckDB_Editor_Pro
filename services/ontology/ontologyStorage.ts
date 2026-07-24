@@ -641,3 +641,66 @@ export async function queryInsightsByObject(
   const insightTable = mapping.insightTable ?? `${mapping.objectTable.split('_')[0]}_insight`;
   return duckDBService.query(`SELECT * FROM "${insightTable}" WHERE object_id = ${objectId} ORDER BY created_at DESC LIMIT ${limit}`);
 }
+
+// ============================================================
+// Canvas Spatial Layout Persistence — DuckDB Table Storage
+// ============================================================
+
+export async function initCanvasLayoutTable(mapping: OntologyMapping): Promise<void> {
+  const layoutTable = mapping.canvasStateTable ?? `${mapping.objectTable.split('_')[0]}_canvas_layout`;
+  await duckDBService.query(`
+    CREATE TABLE IF NOT EXISTS "${layoutTable}" (
+      object_id INTEGER PRIMARY KEY,
+      x DOUBLE,
+      y DOUBLE,
+      is_locked BOOLEAN DEFAULT FALSE,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+}
+
+export async function saveCanvasLayoutToDuckDB(
+  mapping: OntologyMapping,
+  positions: Record<number, { x: number; y: number }>,
+  lockedIds: Set<number>
+): Promise<void> {
+  const layoutTable = mapping.canvasStateTable ?? `${mapping.objectTable.split('_')[0]}_canvas_layout`;
+  await initCanvasLayoutTable(mapping);
+
+  const entries = Object.entries(positions);
+  if (entries.length === 0) return;
+
+  const values = entries.map(([idStr, pos]) => {
+    const id = Number(idStr);
+    const locked = lockedIds.has(id) ? 'TRUE' : 'FALSE';
+    return `(${id}, ${pos.x}, ${pos.y}, ${locked}, CURRENT_TIMESTAMP)`;
+  });
+
+  await duckDBService.query(`
+    INSERT OR REPLACE INTO "${layoutTable}" (object_id, x, y, is_locked, updated_at)
+    VALUES ${values.join(', ')};
+  `);
+}
+
+export async function loadCanvasLayoutFromDuckDB(
+  mapping: OntologyMapping
+): Promise<{ positions: Record<number, { x: number; y: number }>; lockedIds: number[] }> {
+  const layoutTable = mapping.canvasStateTable ?? `${mapping.objectTable.split('_')[0]}_canvas_layout`;
+  await initCanvasLayoutTable(mapping);
+
+  const rows = await duckDBService.query(`SELECT object_id, x, y, is_locked FROM "${layoutTable}"`);
+  const positions: Record<number, { x: number; y: number }> = {};
+  const lockedIds: number[] = [];
+
+  if (rows && rows.length > 0) {
+    rows.forEach(r => {
+      positions[Number(r.object_id)] = { x: Number(r.x), y: Number(r.y) };
+      if (Boolean(r.is_locked)) {
+        lockedIds.push(Number(r.object_id));
+      }
+    });
+  }
+
+  return { positions, lockedIds };
+}
+

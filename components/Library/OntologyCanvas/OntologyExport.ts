@@ -66,14 +66,15 @@ const getBounds = (
 };
 
 const renderProperties = (node: Node, rect: GraphRect) => {
-  if (rect.height < 120) return '';
   const raw = node.data?.obj?.properties;
   try {
     const properties = typeof raw === 'string' ? JSON.parse(raw || '{}') : (raw ?? {});
-    return Object.entries(properties).slice(0, 3).map(([key, value], index) => `
-      <text x="14" y="${78 + index * 17}" class="node-prop">
+    const entries = Object.entries(properties);
+    if (entries.length === 0) return '';
+    return entries.slice(0, 6).map(([key, value], index) => `
+      <text x="16" y="${82 + index * 18}" class="node-prop">
         <tspan class="node-prop-key">${escapeXml(key)}:</tspan>
-        <tspan dx="5">${escapeXml(String(value))}</tspan>
+        <tspan dx="6" class="node-prop-val">${escapeXml(String(value))}</tspan>
       </text>`).join('');
   } catch {
     return '';
@@ -86,29 +87,29 @@ const renderNode = (node: Node, rect: GraphRect, index: number) => {
   const color = PALETTE[Math.abs(Number(object.object_type_id ?? index)) % PALETTE.length];
   const name = String(object.name ?? node.data?.label ?? node.id);
   const typeName = String(type.name ?? '未分类');
-  const nameSize = Math.max(9, Math.min(13, 185 / Math.max(8, name.length) * 1.5));
+  const nameSize = Math.max(12, Math.min(16, 220 / Math.max(8, name.length) * 1.5));
   const clipId = `node-clip-${index}`;
   return `
     <g class="ontology-export-node" transform="translate(${round(rect.x)} ${round(rect.y)})" data-node-id="${escapeXml(node.id)}">
-      <defs><clipPath id="${clipId}"><rect width="${round(rect.width)}" height="${round(rect.height)}" rx="8"/></clipPath></defs>
-      <rect width="${round(rect.width)}" height="${round(rect.height)}" rx="8" class="node-surface"/>
-      <rect width="${round(rect.width)}" height="3" fill="${color}" clip-path="url(#${clipId})"/>
-      <circle cx="18" cy="25" r="5" fill="${color}" opacity="0.9"/>
-      <text x="31" y="30" class="node-title" style="font-size:${round(nameSize)}px">${escapeXml(name)}</text>
-      <rect x="14" y="45" width="${Math.min(rect.width - 28, Math.max(46, typeName.length * 7 + 14))}" height="20" rx="3" fill="${color}" opacity="0.12"/>
-      <text x="21" y="59" class="node-type" fill="${color}">${escapeXml(typeName)}</text>
+      <defs><clipPath id="${clipId}"><rect width="${round(rect.width)}" height="${round(rect.height)}" rx="10"/></clipPath></defs>
+      <rect width="${round(rect.width)}" height="${round(rect.height)}" rx="10" class="node-surface"/>
+      <rect width="${round(rect.width)}" height="4" fill="${color}" clip-path="url(#${clipId})"/>
+      <circle cx="20" cy="26" r="5.5" fill="${color}" opacity="0.95"/>
+      <text x="34" y="31" class="node-title" style="font-size:${round(nameSize)}px">${escapeXml(name)}</text>
+      <rect x="16" y="44" width="${Math.min(rect.width - 32, Math.max(54, typeName.length * 8 + 16))}" height="22" rx="4" fill="${color}" opacity="0.16"/>
+      <text x="24" y="59" class="node-type" fill="${color}">${escapeXml(typeName)}</text>
       ${renderProperties(node, rect)}
     </g>`;
 };
 
 const renderEdge = (edge: Edge, route: OrthogonalRoute, index: number) => {
   const label = String(edge.label ?? '');
-  const labelWidth = Math.min(240, Math.max(44, label.length * 7 + 18));
+  const labelWidth = Math.min(260, Math.max(48, label.length * 8 + 20));
   return `
     <g class="ontology-export-edge" data-edge-id="${escapeXml(edge.id)}">
       <path d="${route.path}" marker-end="url(#ontology-arrow)"/>
       ${label ? `<g transform="translate(${round(route.label.x)} ${round(route.label.y)})">
-        <rect x="${round(-labelWidth / 2)}" y="-11" width="${round(labelWidth)}" height="22" rx="4" class="edge-label-bg"/>
+        <rect x="${round(-labelWidth / 2)}" y="-12" width="${round(labelWidth)}" height="24" rx="5" class="edge-label-bg"/>
         <text y="4" class="edge-label">${escapeXml(label)}</text>
       </g>` : ''}
     </g>`;
@@ -123,9 +124,9 @@ export const buildOntologyExportSvg = (
   nodes: Node[],
   edges: Edge[],
   mode: OntologyLayoutMode,
-  padding = 36,
+  padding = 48,
 ): OntologySvgExport => {
-  const rects = nodes.map(getGraphNodeRect);
+  const rects = nodes.map((node) => getGraphNodeRect(node, true));
   const routes = edges.map((edge, index) => ({
     edge,
     route: getOrthogonalRouteForEdge(nodes, edge, mode, Number(edge.data?.laneOffset ?? ((index % 3) - 1) * 8)),
@@ -138,22 +139,23 @@ export const buildOntologyExportSvg = (
   const edgeMarkup = routes.map(({ edge, route }, index) => renderEdge(edge, route, index)).join('');
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${bounds.width}" height="${bounds.height}" viewBox="${bounds.x} ${bounds.y} ${bounds.width} ${bounds.height}" role="img" aria-label="Ontology canvas export">
   <defs>
-    <marker id="ontology-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#71717a"/>
+    <marker id="ontology-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#60a5fa"/>
     </marker>
     <style>
-      .ontology-export-edge > path { fill: none; stroke: #52525b; stroke-width: 1.6; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
-      .node-surface { fill: #101116; stroke: #3f3f46; stroke-width: 1.4; vector-effect: non-scaling-stroke; }
-      text { font-family: Inter, "Segoe UI", "Microsoft YaHei", sans-serif; }
-      .node-title { fill: #f4f4f5; font-weight: 700; }
-      .node-type { font-size: 9px; font-weight: 700; letter-spacing: .04em; }
-      .node-prop { fill: #d4d4d8; font-family: Consolas, monospace; font-size: 9px; }
-      .node-prop-key { fill: #71717a; font-weight: 700; }
-      .edge-label-bg { fill: #0c0d12; stroke: #3f3f46; stroke-width: 1; vector-effect: non-scaling-stroke; }
-      .edge-label { fill: #e4e4e7; font-family: Consolas, monospace; font-size: 10px; font-weight: 650; text-anchor: middle; }
+      .ontology-export-edge > path { fill: none; stroke: #3b82f6; stroke-width: 2.2; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+      .node-surface { fill: #090d16; stroke: #374151; stroke-width: 1.8; vector-effect: non-scaling-stroke; }
+      text { font-family: Inter, system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; }
+      .node-title { fill: #f9fafb; font-weight: 700; }
+      .node-type { font-size: 10px; font-weight: 700; letter-spacing: .05em; }
+      .node-prop { fill: #e5e7eb; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 10.5px; }
+      .node-prop-key { fill: #9ca3af; font-weight: 700; }
+      .node-prop-val { fill: #38bdf8; font-weight: 600; }
+      .edge-label-bg { fill: #111827; stroke: #4b5563; stroke-width: 1.2; vector-effect: non-scaling-stroke; }
+      .edge-label { fill: #f3f4f6; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 11px; font-weight: 700; text-anchor: middle; }
     </style>
   </defs>
-  <rect x="${bounds.x}" y="${bounds.y}" width="${bounds.width}" height="${bounds.height}" fill="#0c0d12"/>
+  <rect x="${bounds.x}" y="${bounds.y}" width="${bounds.width}" height="${bounds.height}" fill="#030712"/>
   <g class="ontology-export-edges">${edgeMarkup}</g>
   <g class="ontology-export-nodes">${nodeMarkup}</g>
 </svg>`;
@@ -177,7 +179,7 @@ const svgToRasterBlob = async (
   height: number,
   format: 'png' | 'jpeg',
 ) => {
-  const requestedScale = 3;
+  const requestedScale = 4;
   const maximumDimension = 16384;
   const maximumPixels = 96_000_000;
   const scale = Math.max(0.25, Math.min(
@@ -226,7 +228,7 @@ export const downloadOntologyGraph = async (
   }
   const blob = await svgToRasterBlob(svg, finite(bounds.width, 1), finite(bounds.height, 1), format);
   saveBlob(blob, `ontology-canvas-${timestamp}.${format === 'jpeg' ? 'jpg' : 'png'}`);
-  const requestedScale = 3;
+  const requestedScale = 4;
   const scale = Math.min(requestedScale, 16384 / bounds.width, 16384 / bounds.height, Math.sqrt(96_000_000 / (bounds.width * bounds.height)));
   return {
     bounds,

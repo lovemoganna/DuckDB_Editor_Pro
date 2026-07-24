@@ -902,7 +902,7 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
                 if (style.text.includes('cyan')) return '#06b6d4';
                 if (style.text.includes('green')) return '#10b981';
                 if (style.text.includes('pink')) return '#f43f5e';
-                return '#a855f7';
+                return '#14b8a6';
               }}
               maskColor="rgba(0, 0, 0, 0.6)"
               style={{ right: 10, bottom: 10 }}

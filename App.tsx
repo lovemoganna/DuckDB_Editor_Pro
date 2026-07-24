@@ -11,16 +11,13 @@ import { MetricManager } from './components/MetricManager';
 import { SkillPanel } from './components/skills/SkillPanel';
 import { LibraryApp, OntologyApp } from './components/Library';
 import { AnalysisHubPanel } from './components/AnalysisHub/AnalysisHubPanel';
-import { ExportModal } from './components/ExportModal';
-import { CreateTableModal } from './components/CreateTableModal';
-import { DuplicateTableModal } from './components/DuplicateTableModal';
-import { ImportWizard } from './components/ImportWizard';
-import { RowDetailPanel } from './components/RowDetailPanel';
 import { CommandPalette } from './components/CommandPalette';
-import { SettingsModal } from './components/SettingsModal';
 import { DataTab } from './components/DataTab';
 import { StructureTab } from './components/StructureTab';
 import { AuditTab } from './components/AuditTab';
+import { NavigationHeader } from './components/layout/NavigationHeader';
+import { AppSidebar } from './components/layout/AppSidebar';
+import { GlobalModalProvider } from './components/layout/GlobalModalProvider';
 import { useAppStore } from './hooks/store/useAppStore';
 import { useOntologyStore } from './hooks/useOntologyStore';
 
@@ -477,7 +474,7 @@ const App: React.FC = () => {
   // ── Render ──────────────────────────────────────────────────────
   return (
     <div className="flex h-screen overflow-hidden text-monokai-fg flex-col">
-      {/* Command Palette (keyboard-only, no visible bar) */}
+      {/* Command Palette (keyboard-only) */}
       <CommandPalette
         tables={tables}
         currentTable={currentTable}
@@ -494,152 +491,70 @@ const App: React.FC = () => {
         }}
       />
 
-      {/* Modals */}
-      <CreateTableModal isOpen={showCreateModal} onClose={() => setShowCreateModal(false)} onTableCreated={handleTableSelect} onRefreshTables={refreshTables} onNotify={addNotification} />
-      <DuplicateTableModal isOpen={showDuplicateModal} onClose={() => setShowDuplicateModal(false)} sourceTable={currentTable} onTableCreated={handleTableSelect} onRefreshTables={refreshTables} onNotify={addNotification} />
-      <RowDetailPanel isOpen={expandedRowIdx !== null} expandedRowIdx={expandedRowIdx} tableData={tableData} onClose={() => setExpandedRowIdx(null)} onNavigatePrev={() => setExpandedRowIdx(Math.max(0, (expandedRowIdx ?? 0) - 1))} onNavigateNext={() => setExpandedRowIdx(Math.min(tableData.length - 1, (expandedRowIdx ?? 0) + 1))} />
-      <SettingsModal isOpen={showSettingsModal} onClose={() => setShowSettingsModal(false)} aiProvider={aiProvider} aiApiKey={aiApiKey} aiBaseUrl={aiBaseUrl} aiModel={aiModel} availableModels={availableModels} loadingModels={loadingModels} onSetAiProvider={setAiProvider} onSetAiApiKey={setAiApiKey} onSetAiBaseUrl={setAiBaseUrl} onSetAiModel={setAiModel} onSetAvailableModels={setAvailableModels} onSetLoadingModels={setLoadingModels} onNotify={addNotification} onExportWorkspace={handleExportWorkspace} onImportWorkspace={handleImportWorkspace} />
-      <ImportWizard isOpen={showImportModal} onClose={() => setShowImportModal(false)} onImportComplete={() => {}} onRefreshTables={refreshTables} onNotify={addNotification} />
-      <ExportModal isOpen={showExportModal} onClose={() => setShowExportModal(false)} />
-
-      {/* Toast Notifications */}
-      <div className="fixed bottom-10 right-4 z-50 flex flex-col gap-2 pointer-events-none">
-        {notifications.map(n => (
-          <div key={n.id} className={`pointer-events-auto px-4 py-3 rounded shadow-lg border-l-4 text-sm font-bold flex items-center gap-2 animate-[slideIn_0.3s_ease-out]
-            ${n.type === 'success' ? 'bg-monokai-sidebar border-monokai-green text-monokai-green' : n.type === 'error' ? 'bg-monokai-sidebar border-monokai-pink text-monokai-pink' : 'bg-monokai-sidebar border-monokai-blue text-monokai-blue'}`}>
-            <span>{n.type === 'success' ? '✓' : n.type === 'error' ? '✕' : 'ℹ'}</span>{n.message}
-          </div>
-        ))}
-      </div>
+      {/* Global Modals & Notifications Provider */}
+      <GlobalModalProvider
+        showCreateModal={showCreateModal}
+        setShowCreateModal={setShowCreateModal}
+        showDuplicateModal={showDuplicateModal}
+        setShowDuplicateModal={setShowDuplicateModal}
+        showSettingsModal={showSettingsModal}
+        setShowSettingsModal={setShowSettingsModal}
+        showImportModal={showImportModal}
+        setShowImportModal={setShowImportModal}
+        showExportModal={showExportModal}
+        setShowExportModal={setShowExportModal}
+        currentTable={currentTable}
+        tableData={tableData}
+        expandedRowIdx={expandedRowIdx}
+        setExpandedRowIdx={setExpandedRowIdx}
+        notifications={notifications}
+        aiProvider={aiProvider}
+        aiApiKey={aiApiKey}
+        aiBaseUrl={aiBaseUrl}
+        aiModel={aiModel}
+        availableModels={availableModels}
+        loadingModels={loadingModels}
+        handleTableSelect={handleTableSelect}
+        refreshTables={refreshTables}
+        addNotification={addNotification}
+        setAiProvider={setAiProvider}
+        setAiApiKey={setAiApiKey}
+        setAiBaseUrl={setAiBaseUrl}
+        setAiModel={setAiModel}
+        setAvailableModels={setAvailableModels}
+        setLoadingModels={setLoadingModels}
+        handleExportWorkspace={handleExportWorkspace}
+        handleImportWorkspace={handleImportWorkspace}
+      />
 
       {/* Main Layout */}
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
-        <div className={`flex-shrink-0 bg-monokai-sidebar border-r border-monokai-accent flex flex-col transition-all duration-300 ${isSidebarCollapsed ? 'w-14' : 'w-64'}`}>
-          <div className={`p-3 border-b border-monokai-accent/50 bg-gradient-to-r from-monokai-bg to-monokai-sidebar flex items-center gap-3 cursor-pointer hover:from-monokai-accent/20 hover:to-monokai-accent/10 transition-all ${isSidebarCollapsed ? 'justify-center' : ''}`} onClick={() => setActiveTab(Tab.DASHBOARD)} title="Dashboard">
-            <span className="text-2xl">🦆</span>
-            {!isSidebarCollapsed && (
-              <div className="flex flex-col min-w-0">
-                <span className="font-bold text-monokai-green truncate">DuckDB Pro</span>
-                <span className="text-[9px] text-monokai-comment bg-monokai-bg/60 px-1.5 py-0.5 rounded w-fit">WASM Edition</span>
-              </div>
-            )}
-          </div>
-          <div className="flex-1 overflow-y-auto p-3 bg-monokai-bg">
-            {!isSidebarCollapsed && (
-              <>
-                <div className="mb-6">
-                  <div className="flex justify-between items-center mb-3">
-                    <h3 className="text-xs uppercase text-monokai-yellow font-bold tracking-wider flex items-center gap-2"><span>📋</span> Tables</h3>
-                    <button onClick={() => setShowCreateModal(true)} className="text-monokai-green hover:text-white w-6 h-6 flex items-center justify-center rounded-full hover:bg-monokai-green/20 transition-all text-lg" title="Create Table">+</button>
-                  </div>
-                  <div className="bg-monokai-surface/50 rounded-lg border border-monokai-accent/30 p-2 min-h-[80px]">
-                    {tables.length > 0 ? (
-                      <ul className="space-y-0.5">
-                        {tables.map(t => (
-                          <li key={t}>
-                            <button onClick={() => handleTableSelect(t)} className={`w-full text-left px-2 py-1.5 rounded text-sm font-mono truncate transition-all ${currentTable === t && activeTab !== Tab.DASHBOARD ? 'bg-monokai-pink text-white shadow-sm' : 'text-monokai-fg hover:bg-monokai-accent/60 hover:pl-3'}`}>▸ {t}</button>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <div className="text-center py-4">
-                        <p className="text-xs text-monokai-comment italic mb-3">No tables yet</p>
-                        <button onClick={handleCreateDemo} className="text-xs text-monokai-blue hover:text-white underline decoration-dotted underline-offset-2">Load Demo Data</button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div className="mb-6">
-                  <h3 className="text-xs uppercase text-monokai-cyan font-bold mb-3 tracking-wider flex items-center gap-2"><span>⚡</span> Data I/O</h3>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button onClick={() => setShowImportModal(true)} className="flex flex-col items-center justify-center gap-1 py-3 px-2 border border-dashed border-monokai-blue/40 rounded-lg text-xs text-monokai-blue hover:bg-monokai-blue/15 hover:border-monokai-blue transition-all"><span className="text-xl">📥</span> Import</button>
-                    <button onClick={() => setShowExportModal(true)} className="flex flex-col items-center justify-center gap-1 py-3 px-2 border border-dashed border-monokai-orange/40 rounded-lg text-xs text-monokai-orange hover:bg-monokai-orange/15 hover:border-monokai-orange transition-all"><span className="text-xl">📤</span> Export</button>
-                  </div>
-                </div>
-                <div className="mb-4">
-                  <div className="bg-gradient-to-br from-monokai-bg to-monokai-sidebar/50 rounded-lg p-3 border border-monokai-accent/30">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-[10px] text-monokai-comment uppercase tracking-wider">Database</span>
-                      <span className="text-[10px] font-bold text-monokai-green flex items-center gap-1">● Ready</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-monokai-comment">Total Tables</span>
-                      <span className="text-sm font-bold text-monokai-fg">{tables.length}</span>
-                    </div>
-                  </div>
-                </div>
-              </>
-            )}
-            {isSidebarCollapsed && (
-              <div className="flex flex-col gap-3 items-center mt-2">
-                <button onClick={() => setShowCreateModal(true)} className="text-monokai-green text-xl hover:scale-110 transition-transform" title="Create Table">+</button>
-                <button onClick={() => setShowImportModal(true)} className="text-monokai-blue text-xl hover:scale-110 transition-transform" title="Import Data">📥</button>
-                <button onClick={() => setShowExportModal(true)} className="text-monokai-orange text-xl hover:scale-110 transition-transform" title="Export DB">📤</button>
-              </div>
-            )}
-          </div>
-          <div className="p-2 border-t border-monokai-accent bg-monokai-bg flex flex-col gap-2 justify-center">
-            {!isSidebarCollapsed && (
-              <button onClick={() => setShowSettingsModal(true)} className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-monokai-comment hover:text-white hover:bg-monokai-accent rounded transition-colors w-full"><span>⚙️</span> Settings & Backup</button>
-            )}
-            {isSidebarCollapsed && (
-              <button onClick={() => setShowSettingsModal(true)} className="text-lg hover:text-white text-monokai-comment" title="Settings">⚙️</button>
-            )}
-            <button onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="text-monokai-comment hover:text-white text-center w-full">{isSidebarCollapsed ? '»' : '«'}</button>
-          </div>
-        </div>
+        <AppSidebar
+          isSidebarCollapsed={isSidebarCollapsed}
+          setIsSidebarCollapsed={setIsSidebarCollapsed}
+          tables={tables}
+          currentTable={currentTable}
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          handleTableSelect={handleTableSelect}
+          handleCreateDemo={handleCreateDemo}
+          setShowCreateModal={setShowCreateModal}
+          setShowImportModal={setShowImportModal}
+          setShowExportModal={setShowExportModal}
+          setShowSettingsModal={setShowSettingsModal}
+        />
 
-        {/* Main Content */}
+        {/* Main Content Area */}
         <div className="flex-1 flex flex-col min-w-0 bg-monokai-bg">
-          {/* Top Nav */}
-          <div className="h-14 border-b border-monokai-accent/50 flex items-center px-4 gap-3 bg-monokai-sidebar shrink-0 overflow-x-auto">
-            <div className="flex items-center gap-1">
-              {[
-                { id: Tab.DASHBOARD, label: 'Dashboard', icon: '🏠' },
-                { id: Tab.DATA, label: 'Data', icon: '📊' },
-                { id: Tab.STRUCTURE, label: 'Schema', icon: '📐' },
-                { id: Tab.SQL, label: 'SQL', icon: '📝' },
-              ].map(tab => (
-                <button key={tab.id} onClick={() => {
-                  setActiveTab(tab.id);
-                  if (tab.id === Tab.DATA && currentTable) fetchTableData(currentTable, pagination.offset, pagination.limit);
-                }} className={`h-9 px-3 flex items-center gap-2 text-sm font-medium transition-all rounded-md relative ${activeTab === tab.id ? 'bg-monokai-bg text-monokai-fg' : 'text-monokai-comment hover:text-monokai-fg hover:bg-monokai-bg/30'}`}>
-                  <span>{tab.icon}</span> {tab.label}
-                  {activeTab === tab.id && <div className="absolute bottom-0 left-1 right-1 h-0.5 bg-monokai-green rounded-full" />}
-                </button>
-              ))}
-            </div>
-            <div className="w-px h-8 bg-monokai-accent/30 shrink-0" />
-            <div className="flex items-center gap-1">
-              {[
-                { id: Tab.ANALYSIS_HUB, label: 'Analysis Hub', icon: '🤖' },
-                { id: Tab.METRICS, label: 'Metrics', icon: '📈' },
-                { id: Tab.AUDIT, label: 'Logs', icon: '📜' },
-              ].map(tab => (
-                <button key={tab.id} onClick={() => { setActiveTab(tab.id); if (tab.id === Tab.AUDIT) refreshAudit(); }} className={`h-9 px-3 flex items-center gap-2 text-sm font-medium transition-all rounded-md relative ${activeTab === tab.id ? 'bg-monokai-bg text-monokai-fg' : 'text-monokai-comment hover:text-monokai-fg hover:bg-monokai-bg/30'}`}>
-                  <span>{tab.icon}</span> {tab.label}
-                  {activeTab === tab.id && <div className="absolute bottom-0 left-1 right-1 h-0.5 bg-monokai-amethyst rounded-full" />}
-                </button>
-              ))}
-            </div>
-            <div className="w-px h-8 bg-monokai-accent/30 shrink-0" />
-            <div className="flex items-center gap-1">
-              {[
-                { id: Tab.EXTENSIONS, label: 'Plugins', icon: '🧩' },
-                { id: Tab.TUTORIALS, label: 'Learn', icon: '🎓' },
-              ].map(tab => (
-                <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`h-9 px-3 flex items-center gap-2 text-sm font-medium transition-all rounded-md relative ${activeTab === tab.id ? 'bg-monokai-bg text-monokai-fg' : 'text-monokai-comment hover:text-monokai-fg hover:bg-monokai-bg/30'}`}>
-                  <span>{tab.icon}</span> {tab.label}
-                  {activeTab === tab.id && <div className="absolute bottom-0 left-1 right-1 h-0.5 bg-monokai-blue rounded-full" />}
-                </button>
-              ))}
-              <button onClick={() => setActiveTab(Tab.AI_SKILLS)} className={`h-9 px-3 flex items-center gap-2 text-sm font-medium transition-all rounded-md relative font-sans ${activeTab === Tab.AI_SKILLS ? 'bg-monokai-bg text-monokai-fg' : 'text-monokai-amethyst hover:text-monokai-fg hover:bg-monokai-amethyst/20'}`}><span>⚡</span> AI Skills</button>
-              <button onClick={() => setActiveTab(Tab.LIBRARY)} className={`h-9 px-3 flex items-center gap-2 text-sm font-medium transition-all rounded-md relative font-sans ${activeTab === Tab.LIBRARY ? 'bg-monokai-bg text-monokai-fg' : 'text-monokai-blue hover:text-monokai-fg hover:bg-monokai-blue/20'}`}><span>📚</span> Library</button>
-              <button onClick={() => setActiveTab(Tab.ONTOLOGY)} className={`h-9 px-3 flex items-center gap-2 text-sm font-medium transition-all rounded-md relative ${activeTab === Tab.ONTOLOGY ? 'bg-monokai-bg text-monokai-fg' : 'text-monokai-amethyst hover:text-monokai-fg hover:bg-monokai-amethyst/20'}`}><span>🕸️</span> Ontology</button>
-            </div>
-            <div className="flex-1" />
-          </div>
+          {/* Navigation Header */}
+          <NavigationHeader
+            activeTab={activeTab}
+            currentTable={currentTable}
+            setActiveTab={setActiveTab}
+            fetchTableData={fetchTableData}
+            refreshAudit={refreshAudit}
+          />
 
           {/* Tab Content */}
           <div className="flex-1 overflow-hidden p-0 relative flex flex-col">

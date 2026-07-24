@@ -7,6 +7,8 @@ export type { SqlEditorToolbarProps } from './SqlEditorToolbar';
 export { SqlEditorHistory } from './SqlEditorHistory';
 export type { SqlEditorHistoryProps } from './SqlEditorHistory';
 
+export { SqlEditorSidebar } from './SqlEditorSidebar';
+
 export { SaveQueryModal } from './SaveQueryModal';
 export type { SaveQueryModalProps } from './SaveQueryModal';
 
