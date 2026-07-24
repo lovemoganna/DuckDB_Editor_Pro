@@ -15,29 +15,109 @@ import type { GraphNode, GraphLink } from './D3GraphView.types';
 
 // ── Graph Navigation ────────────────────────────────────────────────────────
 
+export interface PathTraceResult {
+  pathNodeIds: Set<string>;
+  pathEdgeKeys: Set<string>;
+  distance: number;
+  allPaths: string[][];
+  sourceId: string;
+  targetId: string;
+}
+
 /**
- * BFS shortest path between two nodes.
- * Returns Set of node IDs on the path (including source and target).
+ * Find shortest path(s) using BFS between source and target.
+ * Returns detailed PathTraceResult including node IDs, link edge keys, path distance, and full paths.
  */
-export function findShortestPath(sourceId: string, targetId: string, links: GraphLink[]): Set<string> {
-  const visited = new Set<string>([sourceId]);
-  const queue: { id: string; path: string[] }[] = [{ id: sourceId, path: [sourceId] }];
+export function findShortestPath(sourceId: string, targetId: string, links: GraphLink[]): PathTraceResult {
+  if (sourceId === targetId) {
+    return {
+      pathNodeIds: new Set([sourceId]),
+      pathEdgeKeys: new Set(),
+      distance: 0,
+      allPaths: [[sourceId]],
+      sourceId,
+      targetId,
+    };
+  }
+
+  const distances = new Map<string, number>();
+  distances.set(sourceId, 0);
+
+  const queue: string[] = [sourceId];
+  const predecessors = new Map<string, { prevId: string; link: GraphLink }[]>();
+
   while (queue.length > 0) {
-    const { id, path } = queue.shift()!;
-    if (id === targetId) return new Set(path);
+    const current = queue.shift()!;
+    const currDist = distances.get(current)!;
+
+    if (distances.has(targetId) && currDist >= distances.get(targetId)!) {
+      break;
+    }
+
     links.forEach(l => {
-      const src = typeof l.source === 'object' ? (l.source as GraphNode).id : l.source;
-      const tgt = typeof l.target === 'object' ? (l.target as GraphNode).id : l.target;
+      const s = typeof l.source === 'object' ? (l.source as GraphNode).id : l.source;
+      const t = typeof l.target === 'object' ? (l.target as GraphNode).id : l.target;
+
       let nextId: string | null = null;
-      if (src === id && !visited.has(tgt)) { nextId = tgt; }
-      if (tgt === id && !visited.has(src)) { nextId = src; }
+      if (s === current) nextId = t;
+      else if (t === current) nextId = s;
+
       if (nextId) {
-        visited.add(nextId);
-        queue.push({ id: nextId, path: [...path, nextId] });
+        const nextDist = distances.get(nextId);
+        if (nextDist === undefined) {
+          distances.set(nextId, currDist + 1);
+          predecessors.set(nextId, [{ prevId: current, link: l }]);
+          queue.push(nextId);
+        } else if (nextDist === currDist + 1) {
+          predecessors.get(nextId)!.push({ prevId: current, link: l });
+        }
       }
     });
   }
-  return new Set<string>();
+
+  if (!distances.has(targetId)) {
+    return {
+      pathNodeIds: new Set(),
+      pathEdgeKeys: new Set(),
+      distance: -1,
+      allPaths: [],
+      sourceId,
+      targetId,
+    };
+  }
+
+  const allPathsNodeIds = new Set<string>();
+  const allPathEdgeKeys = new Set<string>();
+  const fullPaths: string[][] = [];
+
+  function backtrack(currId: string, currentPath: string[], currentEdgeKeys: string[]) {
+    if (currId === sourceId) {
+      fullPaths.push([sourceId, ...currentPath]);
+      [sourceId, ...currentPath].forEach(id => allPathsNodeIds.add(id));
+      currentEdgeKeys.forEach(k => allPathEdgeKeys.add(k));
+      return;
+    }
+
+    const preds = predecessors.get(currId) || [];
+    preds.forEach(({ prevId, link }) => {
+      const s = typeof link.source === 'object' ? (link.source as GraphNode).id : link.source;
+      const t = typeof link.target === 'object' ? (link.target as GraphNode).id : link.target;
+      const key1 = `${s}|${t}`;
+      const key2 = `${t}|${s}`;
+      backtrack(prevId, [currId, ...currentPath], [key1, key2, ...currentEdgeKeys]);
+    });
+  }
+
+  backtrack(targetId, [], []);
+
+  return {
+    pathNodeIds: allPathsNodeIds,
+    pathEdgeKeys: allPathEdgeKeys,
+    distance: distances.get(targetId)!,
+    allPaths: fullPaths,
+    sourceId,
+    targetId,
+  };
 }
 
 // ── Node Helpers ────────────────────────────────────────────────────────────
@@ -222,6 +302,69 @@ export function computeDegreeCentrality(nodes: GraphNode[], links: GraphLink[]):
     Object.entries(degreeMap).filter(([, d]) => d >= centralityThreshold).map(([id]) => id)
   );
   return { degreeMap, topCentralityIds, centralityThreshold };
+}
+
+/**
+ * Compute PageRank score for nodes in the graph (Damping factor d = 0.85, 20 iterations).
+ */
+export function computePageRank(nodes: GraphNode[], links: GraphLink[], damping = 0.85, iterations = 20): Map<string, number> {
+  const nodeCount = nodes.length;
+  if (nodeCount === 0) return new Map();
+
+  const rank = new Map<string, number>();
+  const outDegree = new Map<string, number>();
+  const inEdges = new Map<string, string[]>();
+
+  nodes.forEach(n => {
+    rank.set(n.id, 1 / nodeCount);
+    outDegree.set(n.id, 0);
+    inEdges.set(n.id, []);
+  });
+
+  links.forEach(l => {
+    const s = typeof l.source === 'object' ? (l.source as GraphNode).id : l.source;
+    const t = typeof l.target === 'object' ? (l.target as GraphNode).id : l.target;
+    if (rank.has(s) && rank.has(t)) {
+      outDegree.set(s, (outDegree.get(s) || 0) + 1);
+      inEdges.get(t)!.push(s);
+    }
+  });
+
+  for (let it = 0; it < iterations; it++) {
+    const nextRank = new Map<string, number>();
+    let sinkRankSum = 0;
+    nodes.forEach(n => {
+      if ((outDegree.get(n.id) || 0) === 0) {
+        sinkRankSum += rank.get(n.id) || 0;
+      }
+    });
+
+    nodes.forEach(n => {
+      let sum = 0;
+      const incoming = inEdges.get(n.id) || [];
+      incoming.forEach(src => {
+        const outDeg = outDegree.get(src) || 1;
+        sum += (rank.get(src) || 0) / outDeg;
+      });
+      const newRank = (1 - damping) / nodeCount + damping * (sum + sinkRankSum / nodeCount);
+      nextRank.set(n.id, newRank);
+    });
+
+    rank.clear();
+    nextRank.forEach((v, k) => rank.set(k, v));
+  }
+
+  // Normalize scores between 0 and 1
+  const maxRank = Math.max(...rank.values()) || 1;
+  const minRank = Math.min(...rank.values()) || 0;
+  const range = maxRank - minRank || 1;
+
+  const normalized = new Map<string, number>();
+  rank.forEach((v, k) => {
+    normalized.set(k, (v - minRank) / range);
+  });
+
+  return normalized;
 }
 
 // ── Neighborhood Computation ──────────────────────────────────────────────────

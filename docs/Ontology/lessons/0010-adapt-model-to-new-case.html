@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="本体建模第十课：把已经验证的模型用于新案例，判断哪些结构可以直接复用、哪些需要调整、哪些超出当前范围。"
+    />
+    <title>第十课：把模型迁移到新案例</title>
+    <link rel="stylesheet" href="../assets/course.css" />
+    <script src="../assets/quiz.js" defer></script>
+    <script src="../assets/mermaid.js" defer></script>
+  </head>
+  <body>
+    <main class="lesson-shell">
+      <header>
+        <p class="lesson-kicker">本体建模 · 第 10 课 · 约 10 分钟</p>
+        <h1>把模型迁移到新案例</h1>
+        <p class="lede">
+          迁移不是复制旧节点。今天只做一个判断：旧模型中的内容，到了新案例应该直接复用、按业务调整，还是留在范围之外。
+        </p>
+        <div class="win">
+          <strong>本课成果</strong>
+          <span>完成 9 次判断，并得到一张适用于图书借阅案例的模型图。</span>
+        </div>
+      </header>
+
+      <section>
+        <h2>先回忆第九课</h2>
+        <div class="retrieval">
+          <p>
+            模型没有“包裹B—存放于—仓库1”时，为什么判断为“缺内容”；模型把接收人写成王先生时，为什么判断为“有错误”？
+          </p>
+          <button class="secondary-button" data-reveal="recall-answer">
+            查看参考
+          </button>
+          <p class="model-answer" id="recall-answer">
+            前者没有可用的回答路径；后者有答案，但答案与材料冲突。两种问题要分开修正，并分别复测。
+          </p>
+        </div>
+      </section>
+
+      <section>
+        <h2>旧模型遇到新材料</h2>
+        <p>
+          第九课通过验证的是订单与包裹模型。现在换成图书借阅：
+        </p>
+        <div class="case-card">
+          馆藏目录3包含图书C。上午，图书C处于可借状态并存放在分馆A。赵老师负责分馆A。赵老师把图书C借给孙同学。借阅完成后，图书C被标记为已借出。
+        </div>
+
+        <div class="rule-grid">
+          <article class="rule-card">
+            <span class="rule-label">直接复用</span>
+            <p>结构或关系含义在新案例中仍然成立，例如“包含”和“存放于”。</p>
+          </article>
+          <article class="rule-card">
+            <span class="rule-label">需要调整</span>
+            <p>结构仍有用，但名称或连接必须改成新业务的真实说法。</p>
+          </article>
+          <article class="rule-card">
+            <span class="rule-label">超出范围</span>
+            <p>当前材料和要回答的问题都不需要，或者材料根本没有依据。</p>
+          </article>
+        </div>
+
+        <p>
+          这里复用的是<strong>结构和含义</strong>，不是把订单7、包裹B等旧实例原样搬进新模型。
+        </p>
+      </section>
+
+      <section data-quiz>
+        <h2>旧模型中的内容该怎么处理？</h2>
+        <p>
+          对照图书借阅材料，每次选择“直接复用”“需要调整”或“超出范围”。
+        </p>
+
+        <div class="question-list">
+          <article
+            class="question"
+            data-answer="reuse"
+            data-explanation="新材料明确说馆藏目录3包含图书C，“包含”的关系含义没有改变，只需换成新实例。"
+          >
+            <h3>1. 沿用“包含”关系，连接馆藏目录3与图书C</h3>
+            <div class="choices" role="group" aria-label="第 1 题">
+              <button class="choice" data-choice="reuse">直接复用</button>
+              <button class="choice" data-choice="adjust">需要调整</button>
+              <button class="choice" data-choice="scope">超出范围</button>
+            </div>
+            <p class="feedback" data-feedback aria-live="polite"></p>
+          </article>
+
+          <article
+            class="question"
+            data-answer="reuse"
+            data-explanation="新材料同样明确给出了物品与存放地点，“存放于”的含义可以直接复用。"
+          >
+            <h3>2. 沿用“存放于”关系，连接图书C与分馆A</h3>
+            <div class="choices" role="group" aria-label="第 2 题">
+              <button class="choice" data-choice="reuse">直接复用</button>
+              <button class="choice" data-choice="adjust">需要调整</button>
+              <button class="choice" data-choice="scope">超出范围</button>
+            </div>
+            <p class="feedback" data-feedback aria-live="polite"></p>
+          </article>
+
+          <article
+            class="question"
+            data-answer="adjust"
+            data-hint="过程仍然存在，但新材料描述的已经不是包裹交付。检查旧名称是否还能准确表达新业务。"
+            data-explanation="过程结构仍有用，但名称必须从“交付包裹”调整为“借出图书”。"
+          >
+            <h3>3. 旧过程名称“交付包裹”</h3>
+            <div class="choices" role="group" aria-label="第 3 题">
+              <button class="choice" data-choice="reuse">直接复用</button>
+              <button class="choice" data-choice="adjust">需要调整</button>
+              <button class="choice" data-choice="scope">超出范围</button>
+            </div>
+            <p class="feedback" data-feedback aria-live="polite"></p>
+          </article>
+
+          <article
+            class="question"
+            data-answer="adjust"
+            data-hint="参与者连接仍然有用，但图书借阅领域有更准确的角色名称。"
+            data-explanation="保留角色连接结构，但把“交付人、接收人”调整为“办理人、借阅人”。"
+          >
+            <h3>4. 旧角色名称“交付人、接收人”</h3>
+            <div class="choices" role="group" aria-label="第 4 题">
+              <button class="choice" data-choice="reuse">直接复用</button>
+              <button class="choice" data-choice="adjust">需要调整</button>
+              <button class="choice" data-choice="scope">超出范围</button>
+            </div>
+            <p class="feedback" data-feedback aria-live="polite"></p>
+          </article>
+
+          <article
+            class="question"
+            data-answer="reuse"
+            data-explanation="图书C仍是同一个对象，并且材料明确给出借阅前后的状态，状态变化结构可以直接复用。"
+          >
+            <h3>5. 沿用“变化前—过程—变化后”的状态结构</h3>
+            <div class="choices" role="group" aria-label="第 5 题">
+              <button class="choice" data-choice="reuse">直接复用</button>
+              <button class="choice" data-choice="adjust">需要调整</button>
+              <button class="choice" data-choice="scope">超出范围</button>
+            </div>
+            <p class="feedback" data-feedback aria-live="polite"></p>
+          </article>
+
+          <article
+            class="question"
+            data-answer="scope"
+            data-hint="材料只描述本次借出，没有说明归还期限，也没有出现逾期事实。"
+            data-explanation="“逾期未还”在现实中可能发生，但当前材料没有依据，也不是本次模型要回答的问题。"
+          >
+            <h3>6. 预先加入状态“逾期未还”</h3>
+            <div class="choices" role="group" aria-label="第 6 题">
+              <button class="choice" data-choice="reuse">直接复用</button>
+              <button class="choice" data-choice="adjust">需要调整</button>
+              <button class="choice" data-choice="scope">超出范围</button>
+            </div>
+            <p class="feedback" data-feedback aria-live="polite"></p>
+          </article>
+        </div>
+
+        <h2>再换成设备维修</h2>
+        <div class="case-card">
+          维修前，设备E处于停机状态。李工在车间2维修设备E。维修后，设备E处于待测试状态。
+        </div>
+
+        <div class="question-list">
+          <article
+            class="question"
+            data-answer="reuse"
+            data-explanation="材料明确给出了同一设备在维修前后的状态，状态变化结构仍然成立。"
+          >
+            <h3>7. 沿用“变化前—过程—变化后”的状态结构</h3>
+            <div class="choices" role="group" aria-label="第 7 题">
+              <button class="choice" data-choice="reuse">直接复用</button>
+              <button class="choice" data-choice="adjust">需要调整</button>
+              <button class="choice" data-choice="scope">超出范围</button>
+            </div>
+            <p class="feedback" data-feedback aria-live="polite"></p>
+          </article>
+
+          <article
+            class="question"
+            data-answer="adjust"
+            data-hint="过程结构可以保留，但“借出图书”无法描述李工正在做的事。"
+            data-explanation="过程名称要根据新材料调整为“维修设备E”。"
+          >
+            <h3>8. 上个案例的过程名称“借出图书”</h3>
+            <div class="choices" role="group" aria-label="第 8 题">
+              <button class="choice" data-choice="reuse">直接复用</button>
+              <button class="choice" data-choice="adjust">需要调整</button>
+              <button class="choice" data-choice="scope">超出范围</button>
+            </div>
+            <p class="feedback" data-feedback aria-live="polite"></p>
+          </article>
+
+          <article
+            class="question"
+            data-answer="scope"
+            data-hint="“待测试”不等于已经修复成功。只能记录材料明确支持的结果。"
+            data-explanation="材料只说明维修后处于待测试状态，不能提前加入“修复成功”。"
+          >
+            <h3>9. 额外加入状态“修复成功”</h3>
+            <div class="choices" role="group" aria-label="第 9 题">
+              <button class="choice" data-choice="reuse">直接复用</button>
+              <button class="choice" data-choice="adjust">需要调整</button>
+              <button class="choice" data-choice="scope">超出范围</button>
+            </div>
+            <p class="feedback" data-feedback aria-live="polite"></p>
+          </article>
+        </div>
+
+        <div class="quiz-summary">
+          <strong data-progress aria-live="polite">0/9 已完成。</strong>
+          <button class="secondary-button" data-reset>重新练习</button>
+        </div>
+      </section>
+
+      <section>
+        <h2>完成图书借阅模型</h2>
+        <div class="retrieval">
+          <label for="adaptation-list">
+            不看答案，分别写出一个“直接复用”“需要调整”和“超出范围”的内容：
+          </label>
+          <textarea
+            id="adaptation-list"
+            placeholder="直接复用：……&#10;需要调整：……&#10;超出范围：……"
+          ></textarea>
+          <button class="secondary-button" data-reveal="adaptation-answer">
+            查看迁移结果
+          </button>
+          <div class="model-answer" id="adaptation-answer">
+            <p>
+              <strong>直接复用：</strong>包含、存放于、负责，以及状态变化结构。<br />
+              <strong>需要调整：</strong>对象实例、过程名称和角色名称都改成图书借阅领域的说法。<br />
+              <strong>超出范围：</strong>逾期未还、归还日期和信用分等当前材料未提供的内容。
+            </p>
+
+            <div class="model-visual">
+              <h3>迁移后的图书借阅模型</h3>
+              <pre
+                class="mermaid"
+                aria-label="从订单交付模型迁移得到的图书借阅本体模型"
+              >
+flowchart LR
+  catalog["对象：馆藏目录3"]
+  book["对象：图书C"]
+  branch["对象：分馆A"]
+  zhao["对象：赵老师"]
+  sun["对象：孙同学"]
+  loan(["过程：借出图书"])
+  available["状态：可借"]
+  borrowed["状态：已借出"]
+
+  catalog -->|包含| book
+  book -->|存放于| branch
+  zhao -->|负责| branch
+  loan -->|办理人| zhao
+  loan -->|借阅物| book
+  loan -->|借阅人| sun
+  book ---|状态属于| available
+  available -->|变化前| loan
+  loan -->|变化后| borrowed
+  book ---|状态属于| borrowed
+
+  classDef object fill:#e4f0ec,stroke:#176b5b,color:#1f2925
+  classDef process fill:#f8eadc,stroke:#a85c22,color:#1f2925
+  classDef state fill:#f3f0e7,stroke:#65716b,color:#1f2925
+  class catalog,book,branch,zhao,sun object
+  class loan process
+  class available,borrowed state
+              </pre>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="completion">
+        <h2>怎样算完成本课</h2>
+        <ul>
+          <li>9 道题全部完成；</li>
+          <li>知道复用的是结构和含义，不是旧实例；</li>
+          <li>能在名称或连接不匹配时选择调整；</li>
+          <li>能把无依据、无当前用途的内容留在范围之外。</li>
+        </ul>
+      </section>
+
+      <p class="next-step">
+        上一课：
+        <a href="./0009-validate-model-with-questions.html">用问题检查模型是否可用</a>。随手查：
+        <a href="../reference/0010-reuse-adjust-scope.html">新案例里什么该复用</a>。推荐阅读：
+        <a
+          href="https://protege.stanford.edu/publications/ontology_development/ontology101-noy-mcguinness.html"
+          >Stanford Ontology Development 101</a
+        >
+        中关于复用现有本体和按使用目的确定范围的说明。遇到难以归类的内容，可以把旧模型、新材料和使用问题一起交给教学助手判断。
+      </p>
+    </main>
+  </body>
+</html>

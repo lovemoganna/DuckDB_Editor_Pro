@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="本体建模第五课：为对象在具体过程中的作用命名。"
+    />
+    <title>第五课：说清对象在过程中的作用</title>
+    <link rel="stylesheet" href="../assets/course.css" />
+    <script src="../assets/quiz.js" defer></script>
+    <script src="../assets/mermaid.js" defer></script>
+  </head>
+  <body>
+    <main class="lesson-shell">
+      <header>
+        <p class="lesson-kicker">本体建模 · 第 05 课 · 约 9 分钟</p>
+        <h1>说清对象在过程中的作用</h1>
+        <p class="lede">
+          今天只练一个动作：为每条已经确认的“对象—过程”连接，写出对象在这件事里的作用。
+        </p>
+        <div class="win">
+          <strong>本课成果</strong>
+          <span>完成 9 道判断题，并为上节课的模型补上角色名称。</span>
+        </div>
+      </header>
+
+      <section>
+        <h2>先回忆第四课</h2>
+        <div class="retrieval">
+          <p>
+            材料只说“小林离开仓库”，没有说包裹B也离开。应该把包裹B连接到“离开仓库”过程吗？
+          </p>
+          <button class="secondary-button" data-reveal="recall-answer">
+            查看参考
+          </button>
+          <p class="model-answer" id="recall-answer">
+            不连接。对象出现在同一段材料中，不代表它参与了每一个过程。
+          </p>
+        </div>
+      </section>
+
+      <section>
+        <h2>先为一次交付命名作用</h2>
+        <div class="case-card">周姐把包裹B交给小林。</div>
+
+        <p>
+          第四课已经确认：周姐、包裹B和小林都与这次交付相连。现在逐个问：
+          <strong>它在这件事里发挥什么作用？</strong>
+        </p>
+
+        <div class="rule-grid">
+          <article class="rule-card">
+            <span class="rule-label">周姐</span>
+            <p>执行交付，是交付人。</p>
+          </article>
+          <article class="rule-card">
+            <span class="rule-label">包裹B</span>
+            <p>被交付，是交付物。</p>
+          </article>
+          <article class="rule-card">
+            <span class="rule-label">小林</span>
+            <p>接收包裹，是接收人。</p>
+          </article>
+        </div>
+
+        <p>
+          这些在某个具体过程中发挥的作用叫<strong>角色</strong>。角色属于这一次连接，不是对象永久的身份：小林在交付中是接收人，在进入仓库时则是移动者。
+        </p>
+      </section>
+
+      <section data-quiz>
+        <h2>它在这个过程中是什么角色？</h2>
+        <p>
+          每次只看一个过程和一个对象。两个选项长度相同，请根据材料判断。
+        </p>
+
+        <div class="question-list">
+          <article
+            class="question"
+            data-answer="giver"
+            data-explanation="周姐执行了交付，所以她在这次交付中是交付人。"
+          >
+            <h3>1. “交付包裹”中的周姐</h3>
+            <div class="choices" role="group" aria-label="第 1 题">
+              <button class="choice" data-choice="giver">交付人</button>
+              <button class="choice" data-choice="receiver">接收人</button>
+            </div>
+            <p class="feedback" data-feedback aria-live="polite"></p>
+          </article>
+
+          <article
+            class="question"
+            data-answer="item"
+            data-explanation="包裹B是被交付的对象，所以它在这次交付中是交付物。"
+          >
+            <h3>2. “交付包裹”中的包裹B</h3>
+            <div class="choices" role="group" aria-label="第 2 题">
+              <button class="choice" data-choice="item">交付物</button>
+              <button class="choice" data-choice="giver">交付人</button>
+            </div>
+            <p class="feedback" data-feedback aria-live="polite"></p>
+          </article>
+
+          <article
+            class="question"
+            data-answer="receiver"
+            data-explanation="小林接收包裹，所以他在这次交付中是接收人。"
+          >
+            <h3>3. “交付包裹”中的小林</h3>
+            <div class="choices" role="group" aria-label="第 3 题">
+              <button class="choice" data-choice="receiver">接收人</button>
+              <button class="choice" data-choice="giver">交付人</button>
+            </div>
+            <p class="feedback" data-feedback aria-live="polite"></p>
+          </article>
+
+          <article
+            class="question"
+            data-answer="mover"
+            data-explanation="小林发生了位置变化，所以他在进入过程中是移动者。"
+          >
+            <h3>4. “进入仓库”中的小林</h3>
+            <div class="choices" role="group" aria-label="第 4 题">
+              <button class="choice" data-choice="mover">移动者</button>
+              <button class="choice" data-choice="destination">目的地</button>
+            </div>
+            <p class="feedback" data-feedback aria-live="polite"></p>
+          </article>
+
+          <article
+            class="question"
+            data-answer="destination"
+            data-explanation="仓库1是小林进入时到达的地点，所以它是目的地。"
+          >
+            <h3>5. “进入仓库”中的仓库1</h3>
+            <div class="choices" role="group" aria-label="第 5 题">
+              <button class="choice" data-choice="destination">目的地</button>
+              <button class="choice" data-choice="mover">移动者</button>
+            </div>
+            <p class="feedback" data-feedback aria-live="polite"></p>
+          </article>
+
+          <article
+            class="question"
+            data-answer="mover"
+            data-explanation="小林发生了位置变化，所以他在离开过程中仍是移动者。"
+          >
+            <h3>6. “离开仓库”中的小林</h3>
+            <div class="choices" role="group" aria-label="第 6 题">
+              <button class="choice" data-choice="mover">移动者</button>
+              <button class="choice" data-choice="origin">出发地</button>
+            </div>
+            <p class="feedback" data-feedback aria-live="polite"></p>
+          </article>
+
+          <article
+            class="question"
+            data-answer="origin"
+            data-explanation="仓库1是小林离开时的起点，所以它是出发地。"
+          >
+            <h3>7. “离开仓库”中的仓库1</h3>
+            <div class="choices" role="group" aria-label="第 7 题">
+              <button class="choice" data-choice="origin">出发地</button>
+              <button class="choice" data-choice="mover">移动者</button>
+            </div>
+            <p class="feedback" data-feedback aria-live="polite"></p>
+          </article>
+        </div>
+
+        <h2>换一个领域，再做一次</h2>
+        <div class="case-card">
+          王女士在诊室2接受检查。检查后，王女士进入观察状态。
+        </div>
+
+        <div class="question-list">
+          <article
+            class="question"
+            data-answer="examinee"
+            data-explanation="王女士接受检查，所以她在这次检查中是受检人。"
+          >
+            <h3>8. “接受检查”中的王女士</h3>
+            <div class="choices" role="group" aria-label="第 8 题">
+              <button class="choice" data-choice="examinee">受检人</button>
+              <button class="choice" data-choice="exam-place">检查地</button>
+            </div>
+            <p class="feedback" data-feedback aria-live="polite"></p>
+          </article>
+
+          <article
+            class="question"
+            data-answer="exam-place"
+            data-explanation="材料明确说检查在诊室2进行，所以诊室2在这次检查中是检查地。"
+          >
+            <h3>9. “接受检查”中的诊室2</h3>
+            <div class="choices" role="group" aria-label="第 9 题">
+              <button class="choice" data-choice="exam-place">检查地</button>
+              <button class="choice" data-choice="examinee">受检人</button>
+            </div>
+            <p class="feedback" data-feedback aria-live="polite"></p>
+          </article>
+        </div>
+
+        <div class="quiz-summary">
+          <strong data-progress aria-live="polite">0/9 已完成。</strong>
+          <button class="secondary-button" data-reset>重新练习</button>
+        </div>
+      </section>
+
+      <section>
+        <h2>为完整模型补上角色</h2>
+        <div class="retrieval">
+          <label for="role-list"
+            >不看答案，为“小林与包裹”案例的每条连接写出角色：</label
+          >
+          <textarea
+            id="role-list"
+            placeholder="进入仓库：小林—……；仓库1—……&#10;交付包裹：……&#10;离开仓库：……"
+          ></textarea>
+          <button class="secondary-button" data-reveal="role-answer">
+            查看模型与图示
+          </button>
+          <div class="model-answer" id="role-answer">
+            <p>
+              进入仓库：小林—移动者；仓库1—目的地。<br />
+              交付包裹：周姐—交付人；包裹B—交付物；小林—接收人。<br />
+              离开仓库：小林—移动者；仓库1—出发地。
+            </p>
+
+            <div class="model-visual">
+              <h3>角色属于连接，不属于对象本身</h3>
+              <pre
+                class="mermaid"
+                aria-label="小林与包裹案例中带有角色名称的对象和过程连接图"
+              >
+flowchart LR
+  x["对象：小林"]
+  w["对象：仓库1"]
+  z["对象：周姐"]
+  p["对象：包裹B"]
+  enter(["过程：进入仓库"])
+  deliver(["过程：交付包裹"])
+  leave(["过程：离开仓库"])
+
+  enter -->|移动者| x
+  enter -->|目的地| w
+  deliver -->|交付人| z
+  deliver -->|交付物| p
+  deliver -->|接收人| x
+  leave -->|移动者| x
+  leave -->|出发地| w
+
+  classDef object fill:#e4f0ec,stroke:#176b5b,color:#1f2925
+  classDef process fill:#f8eadc,stroke:#a85c22,color:#1f2925
+  class x,w,z,p object
+  class enter,deliver,leave process
+              </pre>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="completion">
+        <h2>怎样算完成本课</h2>
+        <ul>
+          <li>9 道题全部完成；</li>
+          <li>能为 7 条连接分别写出角色；</li>
+          <li>角色名称能回答“它在这件事里做什么”；</li>
+          <li>能解释为什么同一个对象可以在不同过程中承担不同角色。</li>
+        </ul>
+      </section>
+
+      <p class="next-step">
+        上一课：
+        <a href="./0004-connect-objects-to-processes.html"
+          >把对象连接到过程</a
+        >。随手查：
+        <a href="../reference/0005-process-role.html"
+          >怎样命名过程中的角色</a
+        >。完成后进入：
+        <a href="./0006-record-state-change.html"
+          >第六课：记录对象变化前后的状态</a
+        >。推荐阅读：
+        <a href="https://www.w3.org/TR/prov-o/#Role">W3C PROV-O：Role</a>
+        的定义。任何角色拿不准，都可以直接向你的教学助手追问。
+      </p>
+    </main>
+  </body>
+</html>

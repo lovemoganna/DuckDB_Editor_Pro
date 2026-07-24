@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>检查卡：怎样用问题验证模型</title>
+    <link rel="stylesheet" href="../assets/course.css" />
+  </head>
+  <body>
+    <main class="reference-shell">
+      <p class="lesson-kicker">随手查 · 09</p>
+      <h1>怎样用问题验证模型</h1>
+      <p class="lede">
+        不检查模型看起来是否丰富，只检查它能否依据材料回答实际问题。
+      </p>
+
+      <h2>三步完成</h2>
+      <ol class="decision-path">
+        <li><strong>写一个具体问题。</strong> 例如“包裹B存放在哪里？”</li>
+        <li><strong>只沿模型找答案。</strong> 不凭记忆，也不拿原材料替模型补内容。</li>
+        <li><strong>判断并复测。</strong> 选择可回答、缺内容或有错误；一次只修一处，再问同一个问题。</li>
+      </ol>
+
+      <table class="reference-table">
+        <thead>
+          <tr>
+            <th>问题与模型结果</th>
+            <th>判断</th>
+            <th>下一步</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>哪个订单包含包裹B？答：订单7</td>
+            <td><strong>可回答</strong></td>
+            <td>答案有连接支持且与材料一致，不修改。</td>
+          </tr>
+          <tr>
+            <td>包裹B存放在哪里？模型没有连接</td>
+            <td><strong>缺内容</strong></td>
+            <td>补“包裹B—存放于—仓库1”，再问一次。</td>
+          </tr>
+          <tr>
+            <td>谁接收了包裹B？答：王先生</td>
+            <td><strong>有错误</strong></td>
+            <td>改为小林，删除无依据对象，再问一次。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>不要顺手扩写</h2>
+      <p>
+        没有真实问题需要、或者材料没有依据的内容，不要为了让模型显得完整而增加。当前问题修好并通过复测，就停止修改。
+      </p>
+
+      <p class="source-note">
+        依据：
+        <a
+          href="https://protege.stanford.edu/publications/ontology_development/ontology101-noy-mcguinness.html"
+          >Stanford Ontology Development 101</a
+        >
+        建议先明确本体需要回答的问题，并在使用和讨论中持续检查、修正模型。
+      </p>
+
+      <p class="next-step">
+        返回：
+        <a href="../lessons/0009-validate-model-with-questions.html">第九课</a>。
+      </p>
+    </main>
+  </body>
+</html>
