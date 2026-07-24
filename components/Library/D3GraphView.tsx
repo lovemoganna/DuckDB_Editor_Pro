@@ -248,6 +248,7 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
   
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
+  const infoPanelRef = useRef<HTMLDivElement>(null);
   const simulationRef = useRef<d3.Simulation<GraphNode, GraphLink> | null>(null);
   const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
   const collapsedRef = useRef<Set<string>>(new Set());
@@ -535,6 +536,12 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
     setContextMenu(null);
     setScopeMode('all');
     setCollapsedNodes(new Set());
+    setSelectedNodeIds(new Set());
+    setPathTracerSource(null);
+    setPathTracerTarget(null);
+    setPathTraceResult(null);
+    pathTracerSourceRef.current = null;
+    pathTraceResultRef.current = null;
     setSearchTerm('');
     store.dispatch?.(ontologyActions.setSearch(''));
 
@@ -2321,6 +2328,9 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
     }
 
     setInfoContent(html);
+    if (infoPanelRef.current) {
+      infoPanelRef.current.scrollTop = 0;
+    }
   }
 
   // ==================== Search ====================
@@ -3218,7 +3228,7 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
 
       {/* ==================== RIGHT: Stats + Info ==================== */}
       {showInfo && graphData && (
-        <div style={{ position: 'absolute', top: 10, right: 10, zIndex: 1000, ...panelBase, padding: 10, minWidth: 250 }}>
+        <div ref={infoPanelRef} style={{ position: 'absolute', top: 10, right: 10, zIndex: 1000, ...panelBase, padding: 10, minWidth: 250, maxHeight: '75vh', overflowY: 'auto' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
             <strong style={{ fontSize: 13 }}>扫描统计</strong>
             <button onClick={() => setShowInfo(false)} style={panelBtnStyle}>隐藏</button>
@@ -3846,7 +3856,10 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
       {contextMenu && (
         <div
           className="nv-context-menu"
-          style={{ left: contextMenu.x, top: contextMenu.y }}
+          style={{
+            left: Math.min(contextMenu.x, (containerRef.current?.clientWidth ?? 800) - 180),
+            top: Math.min(contextMenu.y, (containerRef.current?.clientHeight ?? 600) - 240),
+          }}
           onClick={e => e.stopPropagation()}
         >
           <button
@@ -3913,6 +3926,23 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
           >
             🔄 折叠 / 展开关系
           </button>
+          {(contextMenu.node.fx != null || (contextMenu.node as any)._isLayoutFixed) && (
+            <button
+              className="nv-context-menu-item"
+              onClick={() => {
+                contextMenu.node.fx = null;
+                contextMenu.node.fy = null;
+                delete (contextMenu.node as any)._isLayoutFixed;
+                if (simulationRef.current) {
+                  simulationRef.current.alpha(0.3).restart();
+                }
+                setToast({ message: `已解除节点 "${contextMenu.node.label}" 的位置固定 🔓`, type: 'success' });
+                setContextMenu(null);
+              }}
+            >
+              🔓 解除位置固定 (Unpin)
+            </button>
+          )}
           <button
             className="nv-context-menu-item"
             onClick={() => {
