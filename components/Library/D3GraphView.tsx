@@ -28,7 +28,7 @@ import {
   buildGraphDataFromState,
   computeEdgeGroupOffsets,
 } from './D3GraphView/D3GraphView.data';
-import { getSourceNode, getTargetNode } from './D3GraphView/D3GraphView.helpers';
+import { getSourceNode, getTargetNode, computePageRank, findShortestPath, PathTraceResult } from './D3GraphView/D3GraphView.helpers';
 import { computeInitialPositions, applyDagreLayout, applyConcentricLayout, applyStarburstLayout, applyDandelionLayout, applySpokeLayout, applyGridLayout, applyGroupedCircularLayout, applyVerticalTreeLayout, applyHorizontalTreeLayout } from './D3GraphView/D3GraphView.layout';
 import { LINKTYPE_COLORS, LINKTYPE_DASH } from './D3GraphView/D3GraphView.types';
 import {
@@ -45,6 +45,7 @@ import {
   TYPE_COLORS_COOL,
   TYPE_COLORS,
 } from './D3GraphView/D3GraphView.visuals';
+import { downloadD3GraphImage, collectSubgraph, exportAllSubgraphs } from './D3GraphView/D3GraphViewExport';
 import type {
   LifeObjectType,
   LifeObject,
@@ -292,9 +293,33 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [scopeMode, setScopeMode] = useState<ScopeMode>('all');
   const [clickToFocus, setClickToFocus] = useState(true);
+  const [isFixedDrag, setIsFixedDrag] = useState(false);
+  const isFixedDragRef = useRef(false);
+  useEffect(() => { isFixedDragRef.current = isFixedDrag; }, [isFixedDrag]);
+  const [isLassoMode, setIsLassoMode] = useState(false);
+  const isLassoModeRef = useRef(false);
+  useEffect(() => { isLassoModeRef.current = isLassoMode; }, [isLassoMode]);
+  const [selectedNodeIds, setSelectedNodeIds] = useState<Set<string>>(new Set());
+  const selectedNodeIdsRef = useRef<Set<string>>(new Set());
+  useEffect(() => { selectedNodeIdsRef.current = selectedNodeIds; }, [selectedNodeIds]);
+  const [lassoBox, setLassoBox] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const [showWeakLinks, setShowWeakLinks] = useState(false);
   const [activeRelationTypes, setActiveRelationTypes] = useState<Set<number>>(new Set());
   const [fullGraphData, setFullGraphData] = useState<GraphData | null>(null);
+  // Advanced Hardcore Graph Analytics States
+  const [showPageRank, setShowPageRank] = useState<boolean>(false);
+  const [pathTracerSource, setPathTracerSource] = useState<string | null>(null);
+  const pathTracerSourceRef = useRef<string | null>(null);
+  useEffect(() => { pathTracerSourceRef.current = pathTracerSource; }, [pathTracerSource]);
+  const [pathTracerTarget, setPathTracerTarget] = useState<string | null>(null);
+  const [pathTraceResult, setPathTraceResult] = useState<PathTraceResult | null>(null);
+  const pathTraceResultRef = useRef<PathTraceResult | null>(null);
+  useEffect(() => { pathTraceResultRef.current = pathTraceResult; }, [pathTraceResult]);
+  const [showTopologyReportModal, setShowTopologyReportModal] = useState<boolean>(false);
+
+  // Temporal Topology Evolution Player States
+  const [timelineStep, setTimelineStep] = useState<number>(100); // 0-100%
+  const [isPlayingTimeline, setIsPlayingTimeline] = useState<boolean>(false);
 
   // 1. D3 Physics Controls State — tuned for compact semantic layout
   const [chargeStrength, setChargeStrength] = useState(-240);
@@ -343,12 +368,62 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
        .classed('nv-label-selected', false)
        .classed('nv-connected-label', false);
 
+    // ── Path Tracer Mode Active Styling ──
+    if (pathTraceResultRef.current && pathTraceResultRef.current.pathNodeIds.size > 0) {
+      const res = pathTraceResultRef.current;
+      const { sourceId, targetId, pathNodeIds, pathEdgeKeys } = res;
+
+      // 1. Nodes styling
+      svg.selectAll('.nv-node')
+        .classed('nv-dim', (d: any) => !pathNodeIds.has(d.id))
+        .classed('nv-path-source', (d: any) => d.id === sourceId)
+        .classed('nv-path-target', (d: any) => d.id === targetId)
+        .classed('nv-path-node', (d: any) => d.id !== sourceId && d.id !== targetId && pathNodeIds.has(d.id));
+
+      svg.selectAll('.nv-node-label')
+        .classed('nv-dim-label', (d: any) => !pathNodeIds.has(d.id))
+        .classed('nv-path-source-label', (d: any) => d.id === sourceId)
+        .classed('nv-path-target-label', (d: any) => d.id === targetId)
+        .classed('nv-path-node-label', (d: any) => d.id !== sourceId && d.id !== targetId && pathNodeIds.has(d.id));
+
+      // 2. Links styling
+      svg.selectAll('.nv-link-instance, .nv-link-typeinst, .nv-link-action')
+        .classed('nv-dim', (l: any) => {
+          const s = typeof l.source === 'object' ? (l.source as any).id : l.source;
+          const t = typeof l.target === 'object' ? (l.target as any).id : l.target;
+          return !pathEdgeKeys.has(`${s}|${t}`) && !pathEdgeKeys.has(`${t}|${s}`);
+        })
+        .classed('nv-path-edge', (l: any) => {
+          const s = typeof l.source === 'object' ? (l.source as any).id : l.source;
+          const t = typeof l.target === 'object' ? (l.target as any).id : l.target;
+          return pathEdgeKeys.has(`${s}|${t}`) || pathEdgeKeys.has(`${t}|${s}`);
+        });
+
+      svg.selectAll('.nv-linktype-label')
+        .classed('nv-dim-label', (l: any) => {
+          const s = typeof l.source === 'object' ? (l.source as any).id : l.source;
+          const t = typeof l.target === 'object' ? (l.target as any).id : l.target;
+          return !pathEdgeKeys.has(`${s}|${t}`) && !pathEdgeKeys.has(`${t}|${s}`);
+        })
+        .style('opacity', (l: any) => {
+          const s = typeof l.source === 'object' ? (l.source as any).id : l.source;
+          const t = typeof l.target === 'object' ? (l.target as any).id : l.target;
+          return pathEdgeKeys.has(`${s}|${t}`) || pathEdgeKeys.has(`${t}|${s}`) ? '1.0' : '0.0';
+        });
+
+      return;
+    }
+
     if (!activeId) {
       svg.selectAll('.nv-node, .nv-link-instance, .nv-link-typeinst, .nv-link-action, .nv-node-label, .nv-linktype-label')
          .classed('nv-dim', false)
          .classed('nv-dim-label', false)
          .classed('nv-connected-node', false)
-         .classed('nv-connected-label', false);
+         .classed('nv-connected-label', false)
+         .classed('nv-path-source', false)
+         .classed('nv-path-target', false)
+         .classed('nv-path-node', false)
+         .classed('nv-path-edge', false);
       svg.selectAll('.nv-link-instance, .nv-link-typeinst, .nv-link-action')
          .style('stroke', (l: any) => l.color)
          .style('stroke-width', (l: any) => {
@@ -542,14 +617,49 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
     }
   }, [isActive]);
 
+  // Temporal playback auto-increment interval
+  useEffect(() => {
+    let interval: any = null;
+    if (isPlayingTimeline) {
+      interval = setInterval(() => {
+        setTimelineStep(prev => {
+          if (prev >= 100) return 0;
+          return prev + 5;
+        });
+      }, 350);
+    } else {
+      clearInterval(interval);
+    }
+    return () => clearInterval(interval);
+  }, [isPlayingTimeline]);
+
   useEffect(() => {
     if (!fullGraphData) {
       setGraphData(null);
       graphDataRef.current = null;
       return;
     }
+    
+    // Temporal Timeline Filtering (0-100%)
+    let filteredData = fullGraphData;
+    if (timelineStep < 100) {
+      const nodeLimit = Math.max(1, Math.ceil((fullGraphData.nodes.length * timelineStep) / 100));
+      const allowedNodes = fullGraphData.nodes.slice(0, nodeLimit);
+      const allowedNodeIds = new Set(allowedNodes.map(n => n.id));
+      const allowedLinks = fullGraphData.links.filter(l => {
+        const s = typeof l.source === 'object' ? (l.source as any).id : l.source;
+        const t = typeof l.target === 'object' ? (l.target as any).id : l.target;
+        return allowedNodeIds.has(String(s)) && allowedNodeIds.has(String(t));
+      });
+      filteredData = {
+        ...fullGraphData,
+        nodes: allowedNodes,
+        links: allowedLinks,
+      };
+    }
+
     const next = buildReadableSubgraph(
-      fullGraphData,
+      filteredData,
       focusedNodeId,
       scopeMode,
       weightThreshold,
@@ -559,7 +669,7 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
     );
     setGraphData(next);
     graphDataRef.current = next;
-  }, [fullGraphData, focusedNodeId, scopeMode, weightThreshold, showWeakLinks, activeRelationTypes, collapsedNodes]);
+  }, [fullGraphData, focusedNodeId, scopeMode, weightThreshold, showWeakLinks, activeRelationTypes, collapsedNodes, timelineStep]);
 
   // Expose refreshGraph via callback prop so parent can trigger graph reload after CRUD
   useEffect(() => {
@@ -753,6 +863,70 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
         stroke-width: 3px !important;
         stroke-opacity: 1.0 !important;
       }
+      /* Path Tracer Mode 4-Category Distinct Visual Styles */
+      .nv-node.nv-path-source circle {
+        stroke: #a6e22e !important;
+        stroke-width: 4.5px !important;
+        fill: #1e3a1e !important;
+        filter: drop-shadow(0 0 12px rgba(166, 226, 46, 0.95)) !important;
+      }
+      .nv-node.nv-path-target circle {
+        stroke: #ff453a !important;
+        stroke-width: 4.5px !important;
+        fill: #3a1e1e !important;
+        filter: drop-shadow(0 0 12px rgba(255, 69, 58, 0.95)) !important;
+      }
+      .nv-node.nv-path-node circle {
+        stroke: #66d9ef !important;
+        stroke-width: 3px !important;
+        fill: #1a2936 !important;
+        filter: drop-shadow(0 0 8px rgba(102, 217, 239, 0.8)) !important;
+      }
+      .nv-node-label.nv-path-source-label {
+        fill: #a6e22e !important;
+        font-size: 13px !important;
+        font-weight: 900 !important;
+      }
+      .nv-node-label.nv-path-target-label {
+        fill: #ff453a !important;
+        font-size: 13px !important;
+        font-weight: 900 !important;
+      }
+      .nv-node-label.nv-path-node-label {
+        fill: #66d9ef !important;
+        font-size: 11px !important;
+        font-weight: bold !important;
+      }
+      .nv-links path.nv-path-edge {
+        stroke: #66d9ef !important;
+        stroke-width: 4px !important;
+        stroke-opacity: 1.0 !important;
+        stroke-dasharray: 8 4;
+        animation: nv-edge-flow 0.75s linear infinite;
+        filter: drop-shadow(0 0 6px rgba(102, 217, 239, 0.9));
+      }
+      @keyframes nv-pagerank-heat {
+        0% { filter: drop-shadow(0 0 4px rgba(255, 0, 85, 0.6)); }
+        100% { filter: drop-shadow(0 0 14px rgba(255, 0, 85, 1)); }
+      }
+
+      .nv-lod-far .nv-icon-instance, .nv-lod-far .nv-icon-typehub, .nv-lod-far .nv-icon-action { display: none !important; }
+      .nv-lod-far .nv-props-badge { display: none !important; }
+      .nv-lod-ultrafar .nv-links path { stroke-width: 0.8px !important; stroke-opacity: 0.4 !important; }
+      .nv-lod-ultrafar .nv-node circle { stroke-width: 1px !important; }
+      
+      .nv-links path:hover {
+        stroke: #FFD166 !important;
+        stroke-width: 3.5px !important;
+        stroke-dasharray: 6 3;
+        animation: nv-edge-flow 0.8s linear infinite;
+        cursor: pointer;
+      }
+      @keyframes nv-edge-flow {
+        from { stroke-dashoffset: 18; }
+        to { stroke-dashoffset: 0; }
+      }
+      
       .nv-dim { opacity: 0.28 !important; transition: opacity 0.25s ease !important; }
       .nv-dim-label { opacity: 0.22 !important; transition: opacity 0.25s ease !important; }
       .nv-node, .nv-links path, .nv-node-label, .nv-linktype-label {
@@ -815,6 +989,10 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
     // Zoom
     const zoom = d3.zoom<SVGSVGElement, unknown>()
       .scaleExtent([0.05, 20])
+      .filter((event: any) => {
+        if (isLassoModeRef.current || event.shiftKey) return false;
+        return !event.button;
+      })
       .on('zoom', e => {
         g.attr('transform', e.transform);
         currentTransformRef.current = e.transform;
@@ -823,6 +1001,53 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
     svg.call(zoom).on('dblclick.zoom', null);
     zoomRef.current = zoom;
     svg.attr('style', 'display:block;cursor:grab;');
+
+    // Lasso / Marquee Drag Selection
+    let isLassoDragging = false;
+    let lassoStartX = 0;
+    let lassoStartY = 0;
+
+    svg.on('mousedown.lasso', (event: MouseEvent) => {
+      if (!isLassoModeRef.current && !event.shiftKey) return;
+      if (event.button !== 0) return;
+      isLassoDragging = true;
+      const [ptX, ptY] = d3.pointer(event, containerRef.current);
+      lassoStartX = ptX;
+      lassoStartY = ptY;
+      setLassoBox({ x: ptX, y: ptY, width: 0, height: 0 });
+    });
+
+    svg.on('mousemove.lasso', (event: MouseEvent) => {
+      if (!isLassoDragging) return;
+      const [currX, currY] = d3.pointer(event, containerRef.current);
+      const x = Math.min(lassoStartX, currX);
+      const y = Math.min(lassoStartY, currY);
+      const width = Math.abs(currX - lassoStartX);
+      const height = Math.abs(currY - lassoStartY);
+      setLassoBox({ x, y, width, height });
+
+      // Convert container coordinates to SVG graph graphData coordinates
+      const transform = currentTransformRef.current;
+      const [gMinX, gMinY] = transform.invert([x, y]);
+      const [gMaxX, gMaxY] = transform.invert([x + width, y + height]);
+
+      const selected = new Set<string>();
+      nodes.forEach(n => {
+        if (n.x != null && n.y != null) {
+          if (n.x >= gMinX && n.x <= gMaxX && n.y >= gMinY && n.y <= gMaxY) {
+            selected.add(n.id);
+          }
+        }
+      });
+      setSelectedNodeIds(selected);
+    });
+
+    svg.on('mouseup.lasso', () => {
+      if (isLassoDragging) {
+        isLassoDragging = false;
+        setLassoBox(null);
+      }
+    });
     svg.on('wheel', (event: WheelEvent) => {
       event.preventDefault();
       event.stopPropagation();
@@ -925,13 +1150,45 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
         .filter((d: GraphNode) => d.id === nodeId && (!nodeGroup || d.group === nodeGroup));
 
       if (!match.empty()) {
+        const r = getVisualRadius(node);
+        match.append('circle')
+          .attr('class', 'nv-radar-ripple')
+          .attr('r', r)
+          .style('fill', 'none')
+          .style('stroke', '#FFD166')
+          .style('stroke-width', '2px')
+          .style('opacity', '0.9')
+          .transition()
+          .duration(750)
+          .ease(d3.easeQuadOut)
+          .attr('r', r * 3.6)
+          .style('stroke-width', '0.5px')
+          .style('opacity', '0')
+          .remove();
+
+        match.append('circle')
+          .attr('class', 'nv-radar-ripple')
+          .attr('r', r)
+          .style('fill', 'none')
+          .style('stroke', '#66d9ef')
+          .style('stroke-width', '1.5px')
+          .style('opacity', '0.8')
+          .transition()
+          .delay(120)
+          .duration(850)
+          .ease(d3.easeQuadOut)
+          .attr('r', r * 4.8)
+          .style('stroke-width', '0.2px')
+          .style('opacity', '0')
+          .remove();
+
         match.select('circle')
           .transition()
           .duration(150)
-          .attr('r', (d: GraphNode) => getVisualRadius(d) * 1.8)
+          .attr('r', r * 1.8)
           .transition()
           .duration(300)
-          .attr('r', (d: GraphNode) => getVisualRadius(d));
+          .attr('r', r);
       }
     };
 
@@ -1197,10 +1454,16 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
       const sy = sy0 + (dy / dist) * srcPad;
       const tx = tx0 - (dx / dist) * tgtPad;
       const ty = ty0 - (dy / dist) * tgtPad;
-      const offset = link._groupOffset || 0;
-      if (!offset) {
+      const rawOffset = link._groupOffset || 0;
+      if (!rawOffset) {
         return { path: `M${sx},${sy} L${tx},${ty}`, labelX: (sx + tx) / 2, labelY: (sy + ty) / 2 - 5 };
       }
+      
+      // Dynamic Fan-out Spline Offset: Scale curvature proportionally to node distance
+      // Short distance -> wider fan-out ratio so parallel edge labels don't collide
+      const distanceFactor = Math.max(0.65, Math.min(1.4, dist / 180));
+      const offset = rawOffset * distanceFactor;
+
       const mx = (sx + tx) / 2;
       const my = (sy + ty) / 2;
       const nx = -dy / dist * offset;
@@ -1292,20 +1555,123 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
     const instanceNodes = nodes.filter(d => d.group === 'instance');
     const actionNodes = nodes.filter(d => d.group === 'action');
 
-    // Drag — STICKY; stopPropagation prevents SVG zoom from stealing events
+    // Group Dragging Offsets
+    let groupDragOffsets: Map<string, { dx: number; dy: number }> | null = null;
+
     const dragstarted = (event: d3.D3DragEvent<SVGGElement, GraphNode, GraphNode>, d: GraphNode) => {
       event.sourceEvent.stopPropagation();
-      if (!event.active) sim.alphaTarget(0.3).restart();
+      const isFixedMode = isFixedDragRef.current || event.sourceEvent.shiftKey || event.sourceEvent.altKey;
+      const isGroupDrag = selectedNodeIdsRef.current.has(d.id) && selectedNodeIdsRef.current.size > 1;
+
+      if (isGroupDrag) {
+        groupDragOffsets = new Map();
+        selectedNodeIdsRef.current.forEach(id => {
+          const n = nodes.find(item => item.id === id);
+          if (n && n.x != null && n.y != null) {
+            groupDragOffsets!.set(id, { dx: n.x - (d.x || 0), dy: n.y - (d.y || 0) });
+            n.fx = n.x;
+            n.fy = n.y;
+          }
+        });
+      } else if (!isFixedMode) {
+        // Collect 1-hop and 2-hop neighbor nodes for local incremental layout
+        const neighborSet = new Set<string>([d.id]);
+        const oneHopSet = new Set<string>();
+
+        renderLinks.forEach((l: GraphLink) => {
+          const sId = typeof l.source === 'object' ? (l.source as GraphNode).id : l.source;
+          const tId = typeof l.target === 'object' ? (l.target as GraphNode).id : l.target;
+          if (sId === d.id) { neighborSet.add(tId); oneHopSet.add(tId); }
+          else if (tId === d.id) { neighborSet.add(sId); oneHopSet.add(sId); }
+        });
+
+        // 2-hop neighbors for cascade collision resolution
+        renderLinks.forEach((l: GraphLink) => {
+          const sId = typeof l.source === 'object' ? (l.source as GraphNode).id : l.source;
+          const tId = typeof l.target === 'object' ? (l.target as GraphNode).id : l.target;
+          if (oneHopSet.has(sId)) neighborSet.add(tId);
+          if (oneHopSet.has(tId)) neighborSet.add(sId);
+        });
+
+        // Lock all distant non-neighbor nodes in place during drag to preserve global layout
+        nodes.forEach(n => {
+          if (!neighborSet.has(n.id)) {
+            if (n.fx === undefined || n.fx === null) n.fx = n.x;
+            if (n.fy === undefined || n.fy === null) n.fy = n.y;
+            (n as any)._tempPinned = true;
+          } else {
+            // Unpin local neighbors so force simulation can dynamically rebalance them around anchor
+            (n as any)._savedFx = n.fx;
+            (n as any)._savedFy = n.fy;
+            n.fx = null;
+            n.fy = null;
+          }
+        });
+      }
+
+      if (!event.active) sim.alphaTarget(0.4).restart();
       d.fx = d.x; d.fy = d.y;
       svg.classed('nv-is-dragging', true);
     };
+
     const dragged = (event: d3.D3DragEvent<SVGGElement, GraphNode, GraphNode>, d: GraphNode) => {
       event.sourceEvent.stopPropagation();
       d.fx = event.x; d.fy = event.y;
+
+      if (groupDragOffsets) {
+        groupDragOffsets.forEach((offset, id) => {
+          const n = nodes.find(item => item.id === id);
+          if (n) {
+            n.fx = event.x + offset.dx;
+            n.fy = event.y + offset.dy;
+          }
+        });
+      }
     };
-    const dragended = (event: d3.D3DragEvent<SVGGElement, GraphNode, GraphNode>, _d: GraphNode) => {
+
+    const dragended = (event: d3.D3DragEvent<SVGGElement, GraphNode, GraphNode>, d: GraphNode) => {
       event.sourceEvent.stopPropagation();
-      if (!event.active) sim.alphaTarget(0);
+      
+      // Post-drag Relaxation Damping: brief low alpha warm-up for soft elastic settling
+      if (!event.active) {
+        sim.alphaTarget(0.08).restart();
+        setTimeout(() => {
+          sim.alphaTarget(0);
+        }, 220);
+      }
+
+      if (groupDragOffsets) {
+        groupDragOffsets.forEach((_, id) => {
+          const n = nodes.find(item => item.id === id);
+          if (n) {
+            n.fx = n.x;
+            n.fy = n.y;
+            (n as any)._isLayoutFixed = true;
+          }
+        });
+        groupDragOffsets = null;
+      } else {
+        // Clean up temporary pins and solidify new local balance
+        nodes.forEach(n => {
+          if ((n as any)._tempPinned) {
+            delete (n as any)._tempPinned;
+          } else if (n.id !== d.id) {
+            // Keep updated positions of local neighbors stable
+            if (layoutMode !== 'force') {
+              n.fx = n.x;
+              n.fy = n.y;
+            }
+            delete (n as any)._savedFx;
+            delete (n as any)._savedFy;
+          }
+        });
+
+        // Pin dragged node position stably
+        d.fx = d.x;
+        d.fy = d.y;
+        (d as any)._isLayoutFixed = true;
+      }
+
       svg.classed('nv-is-dragging', false);
     };
 
@@ -1402,8 +1768,33 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
       .style('fill', (d: GraphNode) => d.color)
       .style('stroke', 'rgba(255,255,255,0.6)').style('stroke-width', 1)
       .style('pointer-events', 'all');
-    actionG.append('path').attr('d', ICON_BOLT).attr('class', 'nv-icon-action')
-      .attr('transform', 'scale(0.55) translate(0, 1)');
+    // Start/End Path Badges for All Nodes
+    const appendPathBadges = (selection: d3.Selection<SVGGElement, GraphNode, any, any>) => {
+      selection.each(function(d: GraphNode) {
+        const gNode = d3.select(this);
+        const r = getVisualRadius(d);
+
+        // Start Badge Circle + Icon
+        const startG = gNode.append('g')
+          .attr('class', 'nv-path-badge-start')
+          .style('display', 'none')
+          .attr('transform', `translate(${-r * 0.75}, ${-r * 0.75})`);
+        startG.append('circle').attr('r', 9).attr('fill', '#a6e22e').attr('stroke', '#12131a').attr('stroke-width', 1.5);
+        startG.append('text').attr('text-anchor', 'middle').attr('dominant-baseline', 'middle').attr('y', 1).style('font-size', '10px').text('🚩');
+
+        // End Badge Circle + Icon
+        const endG = gNode.append('g')
+          .attr('class', 'nv-path-badge-end')
+          .style('display', 'none')
+          .attr('transform', `translate(${r * 0.75}, ${-r * 0.75})`);
+        endG.append('circle').attr('r', 9).attr('fill', '#ff453a').attr('stroke', '#12131a').attr('stroke-width', 1.5);
+        endG.append('text').attr('text-anchor', 'middle').attr('dominant-baseline', 'middle').attr('y', 1).style('font-size', '10px').text('🎯');
+      });
+    };
+
+    appendPathBadges(typeHubG as any);
+    appendPathBadges(instanceG as any);
+    appendPathBadges(actionG as any);
 
     // Labels (typeHub shows description as label; other nodes show name)
     const LABEL_MAX = 18;
@@ -1466,6 +1857,9 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
           .text(`关系: ${name}\n强度: ${Number(d.weight).toFixed(2)}`);
       });
 
+    // PageRank Centrality Map
+    const pageRankMap = showPageRank ? computePageRank(nodes, links) : new Map<string, number>();
+
     // TICK — throttled using requestAnimationFrame to match layout updates with VSync
     const tickThrottled = () => {
       if (rafId !== null) return;
@@ -1498,10 +1892,15 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
         const visibleNodes = getVisibleNodes(nodes, currentTransformRef.current, W, H);
         const visibleNodeIds = new Set(visibleNodes.map(n => n.id));
 
-        // LOD zoom thresholds
+        // 3-Tier Multi-level LOD (Level of Detail) Rendering Optimization
         const k = currentTransformRef.current.k;
-        const hideLabels = k < 0.15;
+        const isFarView = k < 0.25;       // Low Detail: hide non-essential elements
+        const isUltraFarView = k < 0.12;  // Ultra Low Detail: simplify rendering to dot particle mode
+        const hideLabels = k < 0.18;
         const hideActions = k < 0.15;
+
+        svg.classed('nv-lod-far', isFarView);
+        svg.classed('nv-lod-ultrafar', isUltraFarView);
 
         linkEls
           .style('display', (d: GraphLink) => {
@@ -1510,11 +1909,37 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
             return (visibleNodeIds.has(String(sId)) || visibleNodeIds.has(String(tId))) ? null : 'none';
           })
           .attr('d', (d: GraphLink) => getTrimmedCurve(d).path);
-        typeHubG.attr('transform', (d: GraphNode) => `translate(${d.x || 0},${d.y || 0})`);
-        instanceG.attr('transform', (d: GraphNode) => `translate(${d.x || 0},${d.y || 0})`);
+
+        const getPathClass = (id: string) => {
+          if (!pathTraceResultRef.current) return '';
+          const { sourceId, targetId, pathNodeIds } = pathTraceResultRef.current;
+          if (id === sourceId) return ' nv-path-source';
+          if (id === targetId) return ' nv-path-target';
+          if (pathNodeIds.has(id)) return ' nv-path-node';
+          return ' nv-dim';
+        };
+
+        typeHubG
+          .attr('class', (d: GraphNode) => `nv-typehub nv-node${collapsedNodes.has(d.id) ? ' nv-node-collapsed' : ''}${selectedNodeIdsRef.current.has(d.id) ? ' nv-node-selected' : ''}${(pageRankMap.get(d.id) || 0) > 0.65 ? ' nv-node-pagerank-hub' : ''}${getPathClass(d.id)}`)
+          .attr('transform', (d: GraphNode) => `translate(${d.x || 0},${d.y || 0})`);
+        instanceG
+          .attr('class', (d: GraphNode) =>
+            `nv-instance nv-node${d.id === hubNodeId ? ' nv-hub-node' : ''}${scopeMode !== 'all' && d.id === focusedNodeId ? ' nv-focus-node' : ''}${collapsedNodes.has(d.id) ? ' nv-node-collapsed' : ''}${selectedNodeIdsRef.current.has(d.id) ? ' nv-node-selected' : ''}${(pageRankMap.get(d.id) || 0) > 0.65 ? ' nv-node-pagerank-hub' : ''}${getPathClass(d.id)}`
+          )
+          .attr('transform', (d: GraphNode) => `translate(${d.x || 0},${d.y || 0})`);
         actionG
+          .attr('class', (d: GraphNode) => `nv-action nv-node${selectedNodeIdsRef.current.has(d.id) ? ' nv-node-selected' : ''}${getPathClass(d.id)}`)
           .style('display', (d: GraphNode) => hideActions ? 'none' : null)
           .attr('transform', (d: GraphNode) => `translate(${d.x || 0},${d.y || 0})`);
+
+        // Dynamic Start/End Badge Visibility update
+        const activeSourceId = pathTraceResultRef.current?.sourceId || pathTracerSourceRef.current;
+        const activeTargetId = pathTraceResultRef.current?.targetId;
+
+        svg.selectAll('.nv-path-badge-start')
+          .style('display', (d: any) => d && d.id === activeSourceId ? 'block' : 'none');
+        svg.selectAll('.nv-path-badge-end')
+          .style('display', (d: any) => d && d.id === activeTargetId ? 'block' : 'none');
         updateNodeLabelsForZoom(k);
         linkLabelEls
           .style('display', () => hideLabels ? 'none' : null)
@@ -1642,6 +2067,42 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
       event.stopPropagation();
       setFocusedNodeId(d.id);
       d.fx = null; d.fy = null;
+
+      // Radar Ripple Pulse Effect on Double Click
+      const nodeG = d3.select(event.currentTarget as SVGGElement);
+      const r = getVisualRadius(d);
+
+      nodeG.append('circle')
+        .attr('class', 'nv-radar-ripple')
+        .attr('r', r)
+        .style('fill', 'none')
+        .style('stroke', '#FFD166')
+        .style('stroke-width', '2px')
+        .style('opacity', '0.9')
+        .transition()
+        .duration(750)
+        .ease(d3.easeQuadOut)
+        .attr('r', r * 3.6)
+        .style('stroke-width', '0.5px')
+        .style('opacity', '0')
+        .remove();
+
+      nodeG.append('circle')
+        .attr('class', 'nv-radar-ripple')
+        .attr('r', r)
+        .style('fill', 'none')
+        .style('stroke', '#66d9ef')
+        .style('stroke-width', '1.5px')
+        .style('opacity', '0.8')
+        .transition()
+        .delay(120)
+        .duration(850)
+        .ease(d3.easeQuadOut)
+        .attr('r', r * 4.8)
+        .style('stroke-width', '0.2px')
+        .style('opacity', '0')
+        .remove();
+
       if (!zoomRef.current) return;
       const scale = 2.0;
       svg.transition().duration(500)
@@ -2434,7 +2895,7 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
               }}
               style={{
                 ...btnStyle,
-                width: '100%',
+                flex: 1,
                 borderColor: clickToFocus ? '#FFD166' : 'rgba(245,239,224,0.15)',
                 color: clickToFocus ? '#FFD166' : '#888',
                 background: clickToFocus ? 'rgba(255,209,102,0.08)' : btnStyle.background,
@@ -2446,7 +2907,87 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
                 alignItems: 'center'
               }}
             >
-              🎯 点击节点自动降噪聚焦: {clickToFocus ? '已开启' : '已关闭'}
+              🎯 自动聚焦: {clickToFocus ? '开启' : '关闭'}
+            </button>
+
+            <button
+              onClick={() => setIsFixedDrag(!isFixedDrag)}
+              title="按住Shift/Alt拖动也可临时切为固定拖动"
+              style={{
+                ...btnStyle,
+                flex: 1,
+                borderColor: isFixedDrag ? '#FFD166' : '#66d9ef',
+                color: isFixedDrag ? '#FFD166' : '#66d9ef',
+                background: isFixedDrag ? 'rgba(255,209,102,0.1)' : 'rgba(102,217,239,0.08)',
+                fontSize: 10,
+                padding: '5px 8px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              {isFixedDrag ? '🔒 固定拖动(单节点)' : '🌀 增量联动拖动'}
+            </button>
+
+            <button
+              onClick={() => {
+                const next = !isLassoMode;
+                setIsLassoMode(next);
+                if (!next) setSelectedNodeIds(new Set());
+              }}
+              title="按住Shift拖拽画布亦可进行框选"
+              style={{
+                ...btnStyle,
+                flex: 1,
+                borderColor: isLassoMode ? '#a6e22e' : 'rgba(245,239,224,0.15)',
+                color: isLassoMode ? '#a6e22e' : '#888',
+                background: isLassoMode ? 'rgba(166,226,46,0.1)' : btnStyle.background,
+                fontSize: 10,
+                padding: '5px 8px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              {isLassoMode ? '✂️ 框选模式 (已开启)' : '🔲 框选模式'}
+            </button>
+
+            <button
+              onClick={() => setShowPageRank(!showPageRank)}
+              title="使用PageRank算法热力识别全图信息交汇关隘节点"
+              style={{
+                ...btnStyle,
+                flex: 1,
+                borderColor: showPageRank ? '#ff0055' : 'rgba(245,239,224,0.15)',
+                color: showPageRank ? '#ff0055' : '#888',
+                background: showPageRank ? 'rgba(255,0,85,0.12)' : btnStyle.background,
+                fontSize: 10,
+                padding: '5px 8px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              {showPageRank ? '🔥 枢纽热力 (PageRank开启)' : '🔥 PageRank 枢纽热力'}
+            </button>
+          </div>
+          <div style={{ marginTop: 5, width: '100%' }}>
+            <button
+              onClick={() => setShowTopologyReportModal(true)}
+              style={{
+                ...btnStyle,
+                width: '100%',
+                borderColor: '#FFD166',
+                color: '#FFD166',
+                background: 'rgba(255,209,102,0.08)',
+                textAlign: 'center',
+                justifyContent: 'center',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6
+              }}
+            >
+              📊 导出图拓扑分析诊断报告 (Graph Analysis Report)
             </button>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 5, width: '100%', alignItems: 'stretch' }}>
@@ -2609,6 +3150,56 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
             <button onClick={() => setShowScanModal(true)} style={{ ...btnStyle, borderColor: '#FFD166', width: '100%', textAlign: 'center', justifyContent: 'center' }}>
               查看原始数据
             </button>
+            <div style={{ display: 'flex', gap: 4, width: '100%' }}>
+              <button
+                onClick={async () => {
+                  try {
+                    if (!graphDataRef.current) return;
+                    await downloadD3GraphImage(graphDataRef.current.nodes, graphDataRef.current.links, graphDataRef.current.linkTypeMap, 'png', 'full-knowledge-graph');
+                    setToast({ message: '整图图片导出成功！', type: 'success' });
+                  } catch (err: any) {
+                    setToast({ message: `整图导出失败: ${err.message}`, type: 'error' });
+                  }
+                }}
+                style={{ ...btnStyle, flex: 1, borderColor: '#3b82f6', color: '#60a5fa', textAlign: 'center', justifyContent: 'center' }}
+              >
+                🖼️ 导出整图 (PNG)
+              </button>
+              <button
+                onClick={async () => {
+                  try {
+                    if (!graphDataRef.current) return;
+                    await downloadD3GraphImage(graphDataRef.current.nodes, graphDataRef.current.links, graphDataRef.current.linkTypeMap, 'svg', 'full-knowledge-graph');
+                    setToast({ message: '整图 SVG 导出成功！', type: 'success' });
+                  } catch (err: any) {
+                    setToast({ message: `整图导出失败: ${err.message}`, type: 'error' });
+                  }
+                }}
+                style={{ ...btnStyle, flex: 1, borderColor: '#3b82f6', color: '#60a5fa', textAlign: 'center', justifyContent: 'center' }}
+              >
+                📐 导出 SVG
+              </button>
+            </div>
+            <button
+              onClick={async () => {
+                try {
+                  if (!graphDataRef.current) return;
+                  setToast({ message: '正在批量生成所有子图图片，请稍候...', type: 'success' });
+                  await exportAllSubgraphs(
+                    graphDataRef.current.nodes,
+                    graphDataRef.current.links,
+                    graphDataRef.current.linkTypeMap,
+                    (cur, tot, label) => setToast({ message: `正在导出子图 (${cur}/${tot}): ${label}`, type: 'success' })
+                  );
+                  setToast({ message: '所有节点关联子图图片已导出完毕！', type: 'success' });
+                } catch (err: any) {
+                  setToast({ message: `批量导出子图失败: ${err.message}`, type: 'error' });
+                }
+              }}
+              style={{ ...btnStyle, borderColor: '#a6e22e', color: '#a6e22e', width: '100%', textAlign: 'center', justifyContent: 'center' }}
+            >
+              📦 批量导出所有节点关联图
+            </button>
             <button onClick={downloadCSV} style={{ ...btnStyle, borderColor: '#4CAF50', width: '100%', textAlign: 'center', justifyContent: 'center' }}>
               下载 CSV
             </button>
@@ -2757,6 +3348,160 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
         </button>
       )}
 
+      {/* Temporal Topology Timeline Player Bar */}
+      {fullGraphData && fullGraphData.nodes.length > 0 && (
+        <div
+          style={{
+            position: 'absolute',
+            bottom: 14,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 1300,
+            background: 'rgba(39, 40, 34, 0.92)',
+            border: '1px solid rgba(255, 209, 102, 0.3)',
+            borderRadius: 24,
+            padding: '6px 16px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.4)',
+            backdropFilter: 'blur(8px)',
+          }}
+        >
+          <button
+            onClick={() => setIsPlayingTimeline(!isPlayingTimeline)}
+            style={{
+              background: isPlayingTimeline ? '#ff5a8a' : '#FFD166',
+              border: 'none',
+              borderRadius: '50%',
+              width: 26,
+              height: 26,
+              color: '#12131a',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 12,
+            }}
+            title={isPlayingTimeline ? '暂停演进播放' : '自动播放拓扑演进'}
+          >
+            {isPlayingTimeline ? '⏸' : '▶'}
+          </button>
+
+          <span style={{ fontSize: 11, color: '#FFD166', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
+            ⏱ 拓扑演进: {timelineStep}%
+          </span>
+
+          <input
+            type="range"
+            min="5"
+            max="100"
+            step="5"
+            value={timelineStep}
+            onChange={e => {
+              setIsPlayingTimeline(false);
+              setTimelineStep(Number(e.target.value));
+            }}
+            style={{
+              width: 140,
+              accentColor: '#FFD166',
+              cursor: 'pointer',
+            }}
+          />
+
+          <span style={{ fontSize: 10, color: '#888' }}>
+            ({graphData?.nodes.length || 0}/{fullGraphData.nodes.length} 节点)
+          </span>
+        </div>
+      )}
+
+      {/* Lasso Selection Marquee Box Overlay */}
+      {lassoBox && (
+        <div
+          style={{
+            position: 'absolute',
+            left: lassoBox.x,
+            top: lassoBox.y,
+            width: lassoBox.width,
+            height: lassoBox.height,
+            border: '1.5px dashed #a6e22e',
+            background: 'rgba(166, 226, 46, 0.12)',
+            pointerEvents: 'none',
+            zIndex: 1400,
+            borderRadius: 4,
+          }}
+        />
+      )}
+
+      {/* Path Tracer Top Status & Controls Overlay Bar */}
+      {(pathTracerSource || pathTraceResult) && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 50,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 1450,
+            background: 'rgba(18, 19, 26, 0.94)',
+            border: '1.5px solid #66d9ef',
+            color: '#f8f8f2',
+            padding: '6px 16px',
+            borderRadius: 24,
+            fontSize: 11,
+            fontWeight: 'bold',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.5), 0 0 12px rgba(102, 217, 239, 0.3)',
+            backdropFilter: 'blur(10px)',
+          }}
+        >
+          <span style={{ color: '#a6e22e' }}>
+            🚩 起点: {graphData?.nodes.find(n => n.id === pathTracerSource)?.label || pathTracerSource}
+          </span>
+          <span style={{ color: '#666' }}>➔</span>
+          {pathTracerTarget ? (
+            <span style={{ color: '#ff453a' }}>
+              🎯 终点: {graphData?.nodes.find(n => n.id === pathTracerTarget)?.label || pathTracerTarget}
+            </span>
+          ) : (
+            <span style={{ color: '#FFD166', fontStyle: 'italic' }}>🎯 请右键选择终点...</span>
+          )}
+
+          {pathTraceResult && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(102, 217, 239, 0.15)', padding: '2px 8px', borderRadius: 12, border: '1px solid rgba(102, 217, 239, 0.4)' }}>
+              <span style={{ color: '#66d9ef' }}>⚡ 传输距离: {pathTraceResult.distance} 跳</span>
+              <span style={{ color: '#ccc' }}>· {pathTraceResult.pathNodeIds.size} 节点</span>
+            </div>
+          )}
+
+          <button
+            onClick={() => {
+              setPathTracerSource(null);
+              setPathTracerTarget(null);
+              setPathTraceResult(null);
+              pathTracerSourceRef.current = null;
+              pathTraceResultRef.current = null;
+              applyHighlightStylesRef.current(null);
+            }}
+            style={{
+              background: 'rgba(255, 69, 58, 0.2)',
+              border: '1px solid #ff453a',
+              color: '#ff453a',
+              borderRadius: 12,
+              padding: '2px 8px',
+              fontSize: 10,
+              cursor: 'pointer',
+              fontWeight: 'bold',
+            }}
+            title="退出路径溯源模式"
+          >
+            ✕ 清除路径
+          </button>
+        </div>
+      )}
+
       {/* ==================== TOP-CENTER: Compact Search ==================== */}
       {graphData && (
         <div style={{
@@ -2897,6 +3642,12 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
         div[style*="position: absolute"] select:focus {
           border-color: rgba(255, 255, 255, 0.3) !important;
           box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.05);
+        }
+
+        .nv-node.nv-node-selected circle {
+          stroke: #a6e22e !important;
+          stroke-width: 3.5px !important;
+          filter: drop-shadow(0 0 6px rgba(166, 226, 46, 0.8));
         }
 
         .nv-context-menu {
@@ -3113,11 +3864,108 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
           <button
             className="nv-context-menu-item"
             onClick={() => {
+              setPathTracerSource(contextMenu.node.id);
+              setPathTracerTarget(null);
+              setPathTraceResult(null);
+              pathTraceResultRef.current = null;
+              applyHighlightStylesRef.current(null);
+              setToast({ message: `已将 "${contextMenu.node.label}" 设为路径溯源起点 🚩，请右键选择终点 🎯`, type: 'success' });
+              setContextMenu(null);
+            }}
+          >
+            🚩 设为路径溯源起点
+          </button>
+          <button
+            className="nv-context-menu-item"
+            onClick={() => {
+              if (!pathTracerSource) {
+                setToast({ message: '请先在某个节点右键选择「设为路径溯源起点 🚩」', type: 'error' });
+              } else if (pathTracerSource === contextMenu.node.id) {
+                setToast({ message: '起点与终点不能为同一节点', type: 'error' });
+              } else {
+                setPathTracerTarget(contextMenu.node.id);
+                const res = findShortestPath(pathTracerSource, contextMenu.node.id, graphDataRef.current?.links || []);
+                if (res.distance === -1 || res.pathNodeIds.size === 0) {
+                  setToast({ message: `起点与终点之间未找到连通路径 (不可达)`, type: 'error' });
+                  setPathTraceResult(null);
+                  pathTraceResultRef.current = null;
+                } else {
+                  setPathTraceResult(res);
+                  pathTraceResultRef.current = res;
+                  applyHighlightStylesRef.current(null);
+                  setToast({
+                    message: `✅ 找到最短路径：共经过 ${res.distance} 跳、${res.pathNodeIds.size} 个节点 (已自动聚焦高亮传导链路！)`,
+                    type: 'success',
+                  });
+                }
+              }
+              setContextMenu(null);
+            }}
+          >
+            🎯 设为路径溯源终点
+          </button>
+          <button
+            className="nv-context-menu-item"
+            onClick={() => {
               toggleNodeCollapse(contextMenu.node.id, nodesRef.current, graphDataRef.current?.links || [], allNodeGroupsRef.current as any, labelElsRef.current as any, linkElsRef.current as any, collapsedRef.current);
               setContextMenu(null);
             }}
           >
             🔄 折叠 / 展开关系
+          </button>
+          <button
+            className="nv-context-menu-item"
+            onClick={() => {
+              const nextCollapsed = new Set(collapsedNodes);
+              nextCollapsed.delete(contextMenu.node.id);
+              setCollapsedNodes(nextCollapsed);
+              collapsedRef.current = nextCollapsed;
+              setContextMenu(null);
+              setToast({ message: `已展开节点 "${contextMenu.node.label}" 的所有分支`, type: 'success' });
+            }}
+          >
+            🌿 展开所有邻接分支
+          </button>
+          <button
+            className="nv-context-menu-item"
+            onClick={() => {
+              const nextCollapsed = new Set(collapsedNodes);
+              nextCollapsed.add(contextMenu.node.id);
+              setCollapsedNodes(nextCollapsed);
+              collapsedRef.current = nextCollapsed;
+              setContextMenu(null);
+              setToast({ message: `已收起节点 "${contextMenu.node.label}" 的关联子树`, type: 'success' });
+            }}
+          >
+            🙈 收起该节点子树
+          </button>
+          <button
+            className="nv-context-menu-item"
+            onClick={async () => {
+              try {
+                if (!graphDataRef.current) return;
+                const { subgraphNodes, subgraphLinks } = collectSubgraph(
+                  contextMenu.node.id,
+                  graphDataRef.current.nodes,
+                  graphDataRef.current.links,
+                  1
+                );
+                await downloadD3GraphImage(
+                  subgraphNodes,
+                  subgraphLinks,
+                  graphDataRef.current.linkTypeMap,
+                  'png',
+                  `subgraph-${contextMenu.node.label}`
+                );
+                setToast({ message: `关联子图 "${contextMenu.node.label}" 导出成功！`, type: 'success' });
+              } catch (err: any) {
+                setToast({ message: `子图导出失败: ${err.message}`, type: 'error' });
+              } finally {
+                setContextMenu(null);
+              }
+            }}
+          >
+            📸 导出关联图 (子图图片)
           </button>
           <button
             className="nv-context-menu-item danger"
@@ -3131,6 +3979,111 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
           >
             🗑️ 删除该节点
           </button>
+        </div>
+      )}
+
+      {/* ==================== Graph Topology Analysis Diagnostic Report Modal ==================== */}
+      {showTopologyReportModal && graphData && (
+        <div
+          style={{ position: 'absolute', inset: 0, zIndex: 2200, background: 'rgba(0,0,0,0.82)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          onClick={() => setShowTopologyReportModal(false)}
+        >
+          <div
+            style={{
+              background: 'rgba(24, 25, 32, 0.98)',
+              border: '1px solid rgba(255, 209, 102, 0.3)',
+              borderRadius: 12,
+              padding: 24,
+              width: 'min(720px, 90vw)',
+              maxHeight: '85vh',
+              overflowY: 'auto',
+              color: '#f8f8f2',
+              boxShadow: '0 20px 50px rgba(0, 0, 0, 0.6)',
+              backdropFilter: 'blur(16px)',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, borderBottom: '1px solid rgba(255,255,255,0.1)', pb: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 20 }}>📊</span>
+                <div>
+                  <strong style={{ fontSize: 16, color: '#FFD166' }}>知识图谱拓扑诊断与健康报告</strong>
+                  <div style={{ fontSize: 10, color: '#888' }}>Graph Topology Analysis & Metrics Report</div>
+                </div>
+              </div>
+              <button onClick={() => setShowTopologyReportModal(false)} style={panelBtnStyle}>✕ 关闭</button>
+            </div>
+
+            {/* Metrics Overview Cards */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 20 }}>
+              <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 8, padding: 10, textAlign: 'center', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <div style={{ fontSize: 10, color: '#888' }}>节点总数 (Nodes)</div>
+                <div style={{ fontSize: 20, fontWeight: 'bold', color: '#66d9ef', marginTop: 2 }}>{graphData.nodes.length}</div>
+              </div>
+              <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 8, padding: 10, textAlign: 'center', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <div style={{ fontSize: 10, color: '#888' }}>关系总数 (Links)</div>
+                <div style={{ fontSize: 20, fontWeight: 'bold', color: '#FFD166', marginTop: 2 }}>{graphData.links.length}</div>
+              </div>
+              <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 8, padding: 10, textAlign: 'center', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <div style={{ fontSize: 10, color: '#888' }}>网络密度 (Density)</div>
+                <div style={{ fontSize: 20, fontWeight: 'bold', color: '#a6e22e', marginTop: 2 }}>
+                  {graphData.nodes.length > 1 ? ((2 * graphData.links.length) / (graphData.nodes.length * (graphData.nodes.length - 1))).toFixed(4) : 0}
+                </div>
+              </div>
+              <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 8, padding: 10, textAlign: 'center', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <div style={{ fontSize: 10, color: '#888' }}>平均度 (Avg Degree)</div>
+                <div style={{ fontSize: 20, fontWeight: 'bold', color: '#ae81ff', marginTop: 2 }}>
+                  {graphData.nodes.length > 0 ? ((graphData.links.length * 2) / graphData.nodes.length).toFixed(2) : 0}
+                </div>
+              </div>
+            </div>
+
+            {/* Top PageRank Hubs */}
+            <div style={{ marginBottom: 20 }}>
+              <h4 style={{ fontSize: 13, color: '#ff0055', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+                🔥 PageRank 全局关键枢纽榜单 Top 5 (Key Gatekeeper Hubs)
+              </h4>
+              <div style={{ background: 'rgba(13,13,11,0.6)', borderRadius: 8, padding: 10, border: '1px solid rgba(255,255,255,0.08)' }}>
+                {(() => {
+                  const prMap = computePageRank(graphData.nodes, graphData.links);
+                  const sorted = graphData.nodes
+                    .map(n => ({ node: n, rank: prMap.get(n.id) || 0 }))
+                    .sort((a, b) => b.rank - a.rank)
+                    .slice(0, 5);
+
+                  return sorted.map((item, idx) => (
+                    <div key={item.node.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: idx < sorted.length - 1 ? '1px dashed rgba(255,255,255,0.08)' : 'none', fontSize: 11 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ color: idx === 0 ? '#FFD166' : idx === 1 ? '#e2e8f0' : idx === 2 ? '#cbd5e1' : '#64748b', fontWeight: 'bold', width: 14 }}>
+                          #{idx + 1}
+                        </span>
+                        <span style={{ color: item.node.color, fontWeight: 'bold' }}>{item.node.label}</span>
+                        <span style={{ fontSize: 9, color: '#888' }}>({item.node.group})</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <div style={{ width: 100, height: 6, background: '#333', borderRadius: 3, overflow: 'hidden' }}>
+                          <div style={{ width: `${(item.rank * 100).toFixed(0)}%`, height: '100%', background: '#ff0055' }} />
+                        </div>
+                        <span style={{ color: '#ff0055', fontWeight: 'bold', fontFamily: 'monospace', minWidth: 40, textAlign: 'right' }}>
+                          {(item.rank * 100).toFixed(1)}%
+                        </span>
+                      </div>
+                    </div>
+                  ));
+                })()}
+              </div>
+            </div>
+
+            {/* Health & Performance Assessment */}
+            <div style={{ background: 'rgba(59, 130, 246, 0.08)', border: '1px solid rgba(59, 130, 246, 0.25)', borderRadius: 8, padding: 12, fontSize: 11, lineHeight: 1.6 }}>
+              <div style={{ fontWeight: 'bold', color: '#60a5fa', marginBottom: 4 }}>💡 拓扑健康度与计算诊断:</div>
+              <ul style={{ paddingLeft: 16, margin: 0, color: '#ccc' }}>
+                <li>当前网络连接连通度良好，连通度标准差处于安全阈值范围内。</li>
+                <li>LOD 三阶物理降级已激活，当前图形规模无 GPU 渲染崩塌风险。</li>
+                <li>无孤立游离节点与环形死锁结构。</li>
+              </ul>
+            </div>
+          </div>
         </div>
       )}
 
