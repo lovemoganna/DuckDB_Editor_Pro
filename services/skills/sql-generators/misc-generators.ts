@@ -340,6 +340,53 @@ FROM (
 ) t
 WHERE <additional_filters>;`;
   },
+
+  /**
+   * Generate WASM Memory & Parallel Threads Tuner SQL for DuckDB.
+   */
+  duckdbTuner(inputs: Record<string, any>, context: SkillExecutionContext): string {
+    const memoryLimit = inputs.memoryLimit || '2GB';
+    const threads = inputs.threads || 4;
+
+    return `-- DuckDB WASM Execution & Memory Optimization Suite
+-- 1. Configure Memory Upper Bound (Prevent OOM in Browser)
+SET memory_limit = '${memoryLimit}';
+
+-- 2. Configure Parallel Worker Threads
+SET threads = ${threads};
+
+-- 3. Enable Vectorized Engine & Memory Tracking
+PRAGMA enable_profiling = 'json';
+PRAGMA profiling_mode = 'detailed';
+
+-- 4. Enable Automatic Spill To Disk (If Supported)
+SET preserve_insertion_order = false;
+
+SELECT 'DuckDB WASM Memory and Threads Optimized Successfully' AS status, '${memoryLimit}' AS memory_limit, ${threads} AS threads;`;
+  },
+
+  /**
+   * Generate Schema Sanitizer & PII Data Masking SQL.
+   */
+  schemaSanitizer(inputs: Record<string, any>, context: SkillExecutionContext): string {
+    const targetTable = inputs.tableName || context.tableName || 'target_table';
+    const maskPii = inputs.maskPii !== false;
+
+    return `-- Data Quality & PII Sanitization Audit for "${targetTable}"
+-- 1. Audit Null Value Frequencies & Summary
+SUMMARIZE SELECT * FROM "${targetTable}";
+
+-- 2. Create Masked / Sanitized View
+CREATE OR REPLACE VIEW "${targetTable}_sanitized" AS
+SELECT
+  * EXCLUDE (${maskPii ? 'email, phone' : 'none'}),
+  ${maskPii ? "REGEXP_REPLACE(email, '(^.{2})(.*)(@.*$)', '\\1***\\3') AS email_masked," : ''}
+  ${maskPii ? "REGEXP_REPLACE(phone, '(^\\d{3})\\d{4}(\\d{4}$)', '\\1****\\2') AS phone_masked," : ''}
+  MD5(CAST(id AS VARCHAR)) AS anonymized_id
+FROM "${targetTable}";
+
+SELECT * FROM "${targetTable}_sanitized" LIMIT 50;`;
+  },
 };
 
 export const utilityGenerators = {

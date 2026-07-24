@@ -130,6 +130,8 @@ export async function registerAllGenerators(): Promise<void> {
   registry.set('optimization-explain', misc.optimizationGenerators.explain as GeneratorFn);
   registry.set('optimization-index', misc.optimizationGenerators.index);
   registry.set('optimization-query-rewrite', misc.optimizationGenerators.queryRewrite as GeneratorFn);
+  registry.set('optimization-duckdb-tuner', (misc.optimizationGenerators as any).duckdbTuner);
+  registry.set('optimization-schema-sanitizer', (misc.optimizationGenerators as any).schemaSanitizer);
 
   // Utility generators
   registry.set('utility-test-data', misc.utilityGenerators.testData);

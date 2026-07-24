@@ -93,12 +93,12 @@ const OntologyNodeInner: React.FC<OntologyNodeProps> = ({ id, data, selected }) 
 
   if (activePathNodesAndLinks) {
     if (isSelfActive || isUpstreamNode || isDownstreamNode) {
-      cardOpacity = 'opacity-100 scale-[1.02]';
+      cardOpacity = 'opacity-100 shadow-lg';
     } else {
       if (isFocusMode) {
         cardDisplayStyle = { display: 'none' };
       } else {
-        cardOpacity = 'opacity-20 scale-[0.96] hover:opacity-55 hover:scale-[0.98] transition-all duration-200';
+        cardOpacity = 'opacity-20 hover:opacity-70 transition-opacity duration-200';
       }
     }
   }
@@ -230,11 +230,11 @@ const OntologyNodeInner: React.FC<OntologyNodeProps> = ({ id, data, selected }) 
         </div>
       ) : (
         <>
-          {/* Card Hover Action Bar */}
-          <div className={`absolute -top-7 right-0 bg-zinc-950/90 border border-zinc-800 rounded px-1.5 py-0.5 flex gap-1 shadow-lg transition-all z-20 pointer-events-auto ${showMenu ? 'opacity-100 translate-y-7' : 'opacity-0 pointer-events-none'}`}>
+          {/* Card Hover Action Bar - Stable internal positioning to eliminate hover flickering */}
+          <div className={`absolute top-1.5 right-1.5 bg-zinc-950/95 border border-zinc-700/70 rounded-md px-1 py-0.5 flex gap-0.5 shadow-xl transition-all duration-150 z-20 pointer-events-auto ${showMenu ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'}`}>
             <button
               onClick={(e) => { e.stopPropagation(); onLockToggle(obj.id); }}
-              className="p-1 rounded text-slate-400 hover:text-amber-500 transition-colors"
+              className="p-1 rounded text-slate-400 hover:text-amber-400 hover:bg-zinc-800/80 transition-colors"
               title={isLocked ? "解锁节点" : "锁定节点"}
             >
               {isLocked ? (
@@ -245,14 +245,14 @@ const OntologyNodeInner: React.FC<OntologyNodeProps> = ({ id, data, selected }) 
             </button>
             <button
               onClick={(e) => { e.stopPropagation(); onEditOpen(obj); }}
-              className="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-monokai-cyan transition-colors"
+              className="p-1 hover:bg-zinc-800/80 rounded text-slate-400 hover:text-cyan-400 transition-colors"
               title="编辑设置"
             >
               <Settings className="w-3 h-3" />
             </button>
             <button
               onClick={(e) => { e.stopPropagation(); onDelete(obj.id); }}
-              className="p-1 hover:bg-monokai-pink/10 rounded text-slate-400 hover:text-monokai-pink transition-colors"
+              className="p-1 hover:bg-rose-950/40 rounded text-slate-400 hover:text-rose-400 transition-colors"
               title="删除节点"
             >
               <Trash2 className="w-3 h-3" />

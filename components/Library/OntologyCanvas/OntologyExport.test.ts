@@ -20,4 +20,32 @@ describe('Ontology graph export geometry', () => {
     expect(result.svg).toContain('depends on');
     expect(result.svg).not.toContain('react-flow__viewport');
   });
+
+  it('renders property lists in exported SVG for nodes with object or JSON string properties', () => {
+    const nodes = [
+      {
+        id: 'user_node',
+        position: { x: 0, y: 0 },
+        data: {
+          obj: {
+            id: 101,
+            name: 'User Entity',
+            object_type_id: 1,
+            properties: JSON.stringify({ user_id: 'INT', email: 'VARCHAR', status: 'ACTIVE' }),
+          },
+          type: { name: 'Core Domain' },
+        },
+      },
+    ];
+    const result = buildOntologyExportSvg(nodes, [], 'hierarchical');
+
+    expect(result.svg).toContain('user_id:');
+    expect(result.svg).toContain('INT');
+    expect(result.svg).toContain('email:');
+    expect(result.svg).toContain('VARCHAR');
+    expect(result.svg).toContain('status:');
+    expect(result.svg).toContain('ACTIVE');
+    expect(result.svg).toContain('class="node-prop"');
+  });
 });
+
