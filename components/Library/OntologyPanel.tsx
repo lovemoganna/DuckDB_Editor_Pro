@@ -17,6 +17,7 @@ import {
   Lightbulb, Zap, PanelRightDashed, AlignLeft, GripVertical, Target,
   List, Map, BarChart2, Pencil, Download, Upload, Brain, Wand2, BookOpen
 } from 'lucide-react';
+import { FlaskConical } from 'lucide-react';
 import CodeMirror from '@uiw/react-codemirror';
 import { sql as sqlLang } from '@codemirror/lang-sql';
 import { EditorView } from '@codemirror/view';
@@ -28,6 +29,7 @@ import { PatternLibraryPanel } from './PatternLibrary';
 import RightInspector from './OntologyPanelRightInspector';
 import D3GraphView from './D3GraphView';
 import OntologyCanvas from './OntologyCanvas';
+import { OntologySimulationLab } from './OntologySimulationLab';
 import OntologyInsightsPanel from './OntologyInsightsPanel';
 import { OntologyDataView } from './OntologyDataView';
 import { OntologyModelingWizard } from './OntologyModelingWizard';
@@ -964,6 +966,7 @@ const OntologyPanelContent: React.FC<{
   const d3GraphRefreshRef = useRef<(() => void) | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: string; id: number; label: string } | null>(null);
   const [modelingWizardOpen, setModelingWizardOpen] = useState(false);
+  const [simulationOpen, setSimulationOpen] = useState(false);
   const [reseedMessage, setReseedMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
   const handleReseedSupplement = useCallback(async () => {
@@ -990,9 +993,16 @@ const OntologyPanelContent: React.FC<{
   }, []);
 
   const openInspector = (mode: EditMode, target: any) => {
+    setSimulationOpen(false);
     setInspectorMode(mode);
     setInspectorTarget(target);
     dispatch(ontologyActions.setDrawerTab('crud')); // Snap to CRUD layer if editing
+  };
+
+  const openSimulationLab = () => {
+    setInspectorMode('none');
+    if (state.insightsOpen) dispatch(ontologyActions.toggleInsights());
+    setSimulationOpen(true);
   };
 
   const DRAWER_TABS: { id: DrawerTab; label: string; icon: React.ElementType; sub?: string }[] = [
@@ -1035,21 +1045,36 @@ const OntologyPanelContent: React.FC<{
 
         {/* AI Cmd Bar */}
         <div className="flex items-center gap-3">
-          <div className="relative group">
-            <Sparkles className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-monokai-amethyst/60 group-hover:text-monokai-amethyst transition-colors" />
-            <input type="text" value={aiInput} onChange={e => setAiInput(e.target.value)} placeholder="使用自然语言建立映射脉络..."
-              className="pl-9 pr-4 py-2.5 text-sm w-72 bg-monokai-sidebar/30 border border-monokai-accent/20 text-monokai-fg placeholder-monokai-comment/50 rounded-xl focus:outline-none focus:border-monokai-amethyst/60 focus:bg-monokai-sidebar/80 transition-all shadow-inner" />
-          </div>
+          {!simulationOpen && (
+            <>
+              <div className="relative group">
+                <Sparkles className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-monokai-amethyst/60 group-hover:text-monokai-amethyst transition-colors" />
+                <input type="text" value={aiInput} onChange={e => setAiInput(e.target.value)} placeholder="使用自然语言建立映射脉络..."
+                  className="pl-9 pr-4 py-2.5 text-sm w-72 bg-monokai-sidebar/30 border border-monokai-accent/20 text-monokai-fg placeholder-monokai-comment/50 rounded-xl focus:outline-none focus:border-monokai-amethyst/60 focus:bg-monokai-sidebar/80 transition-all shadow-inner" />
+              </div>
 
-          <button onClick={() => setModelingWizardOpen(true)}
-            className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-xl
-              bg-monokai-amethyst/15 text-monokai-amethyst hover:bg-monokai-amethyst/25 border border-monokai-amethyst/20
-              transition-all">
-            <Wand2 className="w-4 h-4" /> 本体建模
+              <button onClick={() => setModelingWizardOpen(true)}
+                className="flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl
+                  bg-monokai-amethyst/15 text-monokai-amethyst hover:bg-monokai-amethyst/25 border border-monokai-amethyst/20
+                  transition-all">
+                <Wand2 className="w-4 h-4" /> 本体建模
+              </button>
+            </>
+          )}
+
+          <button
+            onClick={() => simulationOpen ? setSimulationOpen(false) : openSimulationLab()}
+            aria-pressed={simulationOpen}
+            className={`flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl border transition-all ${
+              simulationOpen
+                ? 'bg-monokai-cyan/15 text-monokai-cyan border-monokai-cyan/30'
+                : 'bg-monokai-sidebar/30 text-monokai-comment border-transparent hover:bg-monokai-sidebar hover:text-white hover:border-monokai-accent/20'
+            }`}>
+            <FlaskConical className="w-4 h-4" /> 组合推演
           </button>
 
-          <button onClick={() => { setInspectorMode('none'); dispatch(ontologyActions.toggleInsights()); }} 
-            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-xl transition-all ${
+          <button onClick={() => { setSimulationOpen(false); setInspectorMode('none'); dispatch(ontologyActions.toggleInsights()); }}
+            className={`flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl transition-all ${
               state.insightsOpen ? 'bg-monokai-yellow/15 text-monokai-yellow' : 'bg-monokai-sidebar/30 text-monokai-comment hover:bg-monokai-sidebar hover:text-white border border-transparent hover:border-monokai-accent/20'
             }`}>
             <Lightbulb className="w-4 h-4" /> 聚合洞察
@@ -1171,8 +1196,22 @@ const OntologyPanelContent: React.FC<{
                 {activeTab === 'canvas' && <OntologyCanvas onInsert={onInsert} ontologyState={state} onInspect={openInspector} />}
               </div>
 
+              {/* RIGHT SIMULATION LAB — independent from the left tutorial drawer */}
+              {simulationOpen && (
+                <div
+                  style={{ width: 'clamp(480px, 68vw, 1080px)', maxWidth: 'calc(100% - 280px)' }}
+                  className="flex-shrink-0 border-l border-monokai-cyan/20 shadow-[-16px_0_40px_rgba(0,0,0,0.55)] z-30 relative"
+                >
+                  <OntologySimulationLab
+                    activeTemplateId={activeTemplateId}
+                    ontologyState={state}
+                    onClose={() => setSimulationOpen(false)}
+                  />
+                </div>
+              )}
+
               {/* RIGHT INSPECTOR PANEL */}
-              {inspectorMode !== 'none' && (
+              {!simulationOpen && inspectorMode !== 'none' && (
                 <div style={{ width: rightWidth }} className="flex-shrink-0 flex flex-col shadow-[-10px_0_30px_rgba(0,0,0,0.5)] z-20 relative bg-monokai-bg/90 backdrop-blur-2xl">
                    {/* Resizer Handle Right */}
                   <div onMouseDown={startResizingRight} onTouchStart={startResizingRight}
@@ -1184,7 +1223,7 @@ const OntologyPanelContent: React.FC<{
               )}
 
               {/* INSIGHTS PANEL (Alternative Right Pane) */}
-              {state.insightsOpen && inspectorMode === 'none' && (
+              {!simulationOpen && state.insightsOpen && inspectorMode === 'none' && (
                 <div style={{ width: rightWidth }} className="flex-shrink-0 flex flex-col bg-monokai-bg/90 border-l border-monokai-accent/20 shadow-[-10px_0_30px_rgba(0,0,0,0.5)] z-20 relative backdrop-blur-2xl">
                    {/* Resizer Handle Right for Insights */}
                   <div onMouseDown={startResizingRight} onTouchStart={startResizingRight}
