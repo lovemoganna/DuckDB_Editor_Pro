@@ -29,11 +29,12 @@ import {
   deleteInsight,
   type OntologyMapping,
 } from './ontologyStorage';
+import { RISK_INFERENCE_WORKSPACE } from './ontologyInferenceRiskTemplate';
 
 // ─── Mock duckDBService ─────────────────────────────────────────────────────────
 
 // vi.mock is hoisted — create mock with vi.hoisted() so it is available in the factory
-const { mockQuery } = vi.hoisted(() => {
+const { mockQuery, mockExecuteTransaction, mockOntologyInit } = vi.hoisted(() => {
   const fn = vi.fn() as any;
   fn.escapeLiteral = (v: unknown) => {
     if (v === null || v === undefined) return 'NULL';
@@ -41,15 +42,76 @@ const { mockQuery } = vi.hoisted(() => {
     if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';
     return `'${String(v).replace(/'/g, "''")}'`;
   };
-  return { mockQuery: fn };
+  return {
+    mockQuery: fn,
+    mockExecuteTransaction: vi.fn(),
+    mockOntologyInit: vi.fn(),
+  };
 });
 
+const inferenceMocks = vi.hoisted(() => ({
+  loadWorkspace: vi.fn(),
+  validateWorkspace: vi.fn(),
+  saveWorkspace: vi.fn(),
+}));
+
+const reasoningMocks = vi.hoisted(() => ({
+  loadCatalog: vi.fn(),
+  saveCatalog: vi.fn(),
+  createSnapshot: vi.fn(),
+  validateModel: vi.fn(),
+}));
+
 vi.mock('../duckdbService', () => ({
-  duckDBService: { query: mockQuery, escapeLiteral: mockQuery.escapeLiteral as (v: unknown) => string },
+  duckDBService: {
+    query: mockQuery,
+    executeTransaction: mockExecuteTransaction,
+    ontologyInit: mockOntologyInit,
+    escapeLiteral: mockQuery.escapeLiteral as (v: unknown) => string,
+  },
+}));
+
+vi.mock('./ontologyInferenceModule', () => ({
+  ontologyInferenceModule: inferenceMocks,
+}));
+
+vi.mock('./ontologyReasoningModule', () => ({
+  ontologyReasoningModule: reasoningMocks,
 }));
 
 beforeEach(() => {
   mockQuery.mockReset();
+  mockExecuteTransaction.mockReset();
+  mockOntologyInit.mockReset();
+  mockOntologyInit.mockResolvedValue(undefined);
+  inferenceMocks.loadWorkspace.mockReset();
+  inferenceMocks.validateWorkspace.mockReset();
+  inferenceMocks.saveWorkspace.mockReset();
+  inferenceMocks.loadWorkspace.mockResolvedValue({
+    features: [],
+    rules: [],
+    outcomes: [],
+  });
+  inferenceMocks.saveWorkspace.mockResolvedValue(undefined);
+  inferenceMocks.validateWorkspace.mockResolvedValue(undefined);
+  reasoningMocks.loadCatalog.mockReset();
+  reasoningMocks.saveCatalog.mockReset();
+  reasoningMocks.createSnapshot.mockReset();
+  reasoningMocks.validateModel.mockReset();
+  reasoningMocks.loadCatalog.mockResolvedValue({
+    propertyDefinitions: [],
+    rules: [],
+    actionDefinitions: [],
+  });
+  reasoningMocks.saveCatalog.mockResolvedValue(undefined);
+  reasoningMocks.createSnapshot.mockReturnValue({ snapshotId: 'import-snapshot' });
+  reasoningMocks.validateModel.mockReturnValue([]);
+  mockExecuteTransaction.mockImplementation(async (statements: string[]) => {
+    for (const statement of statements) {
+      await mockQuery(statement);
+    }
+    return [];
+  });
 });
 
 // ─── Test Fixtures ─────────────────────────────────────────────────────────────
@@ -86,26 +148,55 @@ const mockActions = [
   { id: 1, object_id: 1, name: 'send_email', description: 'Send email notification', status: 'pending', execute_at: null },
 ];
 
+const mockIntrospections = [
+  { id: 1, object_id: 1, question: 'Why?', answer: 'Because.', created_at: '2026-07-28' },
+];
+
+const mockInsights = [
+  { id: 1, object_id: 1, insight: 'Keep the boundary deep.', tag: 'architecture', created_at: '2026-07-28' },
+];
+
 // ─── exportOntologyToJSON ─────────────────────────────────────────────────────
 
 describe('exportOntologyToJSON', () => {
-  it('returns a JSON structure with version, exportedAt, and all 5 tables', async () => {
+  it('returns a v3 round-trip JSON structure with native reasoning and legacy inference definitions', async () => {
     mockQuery
       .mockResolvedValueOnce(mockObjectTypes)
       .mockResolvedValueOnce(mockObjects)
       .mockResolvedValueOnce(mockLinkTypes)
       .mockResolvedValueOnce(mockLinks)
-      .mockResolvedValueOnce(mockActions);
+      .mockResolvedValueOnce(mockActions)
+      .mockResolvedValueOnce(mockIntrospections)
+      .mockResolvedValueOnce(mockInsights);
+    inferenceMocks.loadWorkspace.mockResolvedValue(RISK_INFERENCE_WORKSPACE);
+    const nativeCatalog = {
+      propertyDefinitions: [{
+        id: 'property.user.status', logicalId: 'property.user.status', version: 1,
+        objectTypeId: 1, key: 'status', name: '状态', valueType: 'string', nullable: false,
+        status: 'active',
+      }],
+      rules: [],
+      actionDefinitions: [],
+    };
+    reasoningMocks.loadCatalog.mockResolvedValue(nativeCatalog);
 
     const result = await exportOntologyToJSON(mockMapping);
 
-    expect(result).toHaveProperty('version', '1.0');
+    expect(result).toHaveProperty('version', '3.0');
     expect(result).toHaveProperty('exportedAt');
     expect(result.objectTypes).toEqual(mockObjectTypes);
     expect(result.objects).toEqual(mockObjects);
     expect(result.linkTypes).toEqual(mockLinkTypes);
     expect(result.links).toEqual(mockLinks);
     expect(result.actions).toEqual(mockActions);
+    expect(result.introspections).toEqual(mockIntrospections);
+    expect(result.insights).toEqual(mockInsights);
+    expect(result.features).toEqual(RISK_INFERENCE_WORKSPACE.features);
+    expect(result.rules).toEqual(RISK_INFERENCE_WORKSPACE.rules);
+    expect(result.outcomes).toEqual(RISK_INFERENCE_WORKSPACE.outcomes);
+    expect(result.propertyDefinitions).toEqual(nativeCatalog.propertyDefinitions);
+    expect(result.ruleDefinitions).toEqual([]);
+    expect(result.actionDefinitions).toEqual([]);
   });
 
   it('returns empty arrays when tables are empty (null response)', async () => {
@@ -118,25 +209,113 @@ describe('exportOntologyToJSON', () => {
     expect(result.linkTypes).toEqual([]);
     expect(result.links).toEqual([]);
     expect(result.actions).toEqual([]);
+    expect(result.features).toEqual([]);
+    expect(result.rules).toEqual([]);
+    expect(result.outcomes).toEqual([]);
+    expect(result.propertyDefinitions).toEqual([]);
+    expect(result.ruleDefinitions).toEqual([]);
+    expect(result.actionDefinitions).toEqual([]);
   });
 
-  it('queries all 5 tables in parallel', async () => {
+  it('queries all 7 tables in parallel', async () => {
     mockQuery.mockResolvedValue([]);
 
     await exportOntologyToJSON(mockMapping);
 
-    expect(mockQuery).toHaveBeenCalledTimes(5);
+    expect(mockQuery).toHaveBeenCalledTimes(7);
     expect(mockQuery).toHaveBeenCalledWith('SELECT * FROM life_object_type');
     expect(mockQuery).toHaveBeenCalledWith('SELECT * FROM life_object');
     expect(mockQuery).toHaveBeenCalledWith('SELECT * FROM life_link');
     expect(mockQuery).toHaveBeenCalledWith('SELECT * FROM life_link_type');
     expect(mockQuery).toHaveBeenCalledWith('SELECT * FROM life_action');
+    expect(mockQuery).toHaveBeenCalledWith('SELECT * FROM life_introspection');
+    expect(mockQuery).toHaveBeenCalledWith('SELECT * FROM life_insight');
   });
 });
 
 // ─── importOntologyFromJSON ───────────────────────────────────────────────────
 
 describe('importOntologyFromJSON', () => {
+  it('imports v3 native property, rule and action definitions without parsing descriptions', async () => {
+    const nativeCatalog = {
+      propertyDefinitions: [{
+        id: 'property.user.status', logicalId: 'property.user.status', version: 1,
+        objectTypeId: 1, key: 'status', name: '状态', valueType: 'string' as const,
+        nullable: false, status: 'active' as const,
+      }],
+      ruleDefinitions: [],
+      actionDefinitions: [],
+    };
+
+    await importOntologyFromJSON(mockMapping, {
+      version: '3.0', objectTypes: [], objects: [], linkTypes: [], links: [], actions: [],
+      ...nativeCatalog,
+    });
+
+    expect(reasoningMocks.saveCatalog).toHaveBeenCalledWith({
+      propertyDefinitions: nativeCatalog.propertyDefinitions,
+      rules: [],
+      actionDefinitions: [],
+    });
+  });
+  it('validates native definitions before mutating ontology tables', async () => {
+    reasoningMocks.validateModel.mockReturnValue(['悬空属性引用']);
+
+    await expect(importOntologyFromJSON(mockMapping, {
+      version: '3.0',
+      objectTypes: [], objects: [], linkTypes: [], links: [], actions: [],
+      propertyDefinitions: [], ruleDefinitions: [], actionDefinitions: [],
+    })).rejects.toThrow('悬空属性引用');
+
+    expect(mockOntologyInit).not.toHaveBeenCalled();
+    expect(mockExecuteTransaction).not.toHaveBeenCalled();
+    expect(reasoningMocks.saveCatalog).not.toHaveBeenCalled();
+  });
+  it('imports v2 feature, rule and outcome definitions without inferring rules from insights', async () => {
+    await importOntologyFromJSON(mockMapping, {
+      version: '2.0',
+      objectTypes: [],
+      objects: [],
+      linkTypes: [],
+      links: [],
+      actions: [],
+      insights: [{
+        id: 1,
+        object_id: 1,
+        insight: '金额很高，也许值得观察',
+        tag: 'observation',
+        created_at: '2026-07-30',
+      }],
+      ...RISK_INFERENCE_WORKSPACE,
+    });
+
+    expect(inferenceMocks.saveWorkspace).toHaveBeenCalledWith({
+      ...RISK_INFERENCE_WORKSPACE,
+      dependencyFeatureIds: [],
+      dependencyRuleIds: [],
+    });
+  });
+
+  it('accepts a v1 payload without creating guessed feature or rule definitions', async () => {
+    await importOntologyFromJSON(mockMapping, {
+      version: '1.0',
+      objectTypes: [],
+      objects: [],
+      linkTypes: [],
+      links: [],
+      actions: [],
+      insights: [{
+        id: 1,
+        object_id: 1,
+        insight: '如果金额大于十万则高风险',
+        tag: 'legacy',
+        created_at: '2026-07-30',
+      }],
+    });
+
+    expect(inferenceMocks.saveWorkspace).not.toHaveBeenCalled();
+  });
+
   it('calls INSERT OR REPLACE for object types with correct escaped values', async () => {
     mockQuery.mockResolvedValue({});
 
@@ -183,6 +362,47 @@ describe('importOntologyFromJSON', () => {
     // Object properties should be serialized as JSON string
     expect(String(objCall![0])).toContain('price');
   });
+
+  it('rejects malformed structured payloads before starting an import transaction', async () => {
+    await expect(importOntologyFromJSON(mockMapping, {
+      objectTypes: [],
+      objects: [{
+        id: 5,
+        object_type_id: 1,
+        name: 'Broken',
+        properties: '{"unterminated":',
+        annotations: '',
+      }],
+      linkTypes: [],
+      links: [],
+      actions: [],
+    })).rejects.toThrow('objects.properties must be valid JSON');
+
+    expect(mockOntologyInit).not.toHaveBeenCalled();
+    expect(mockExecuteTransaction).not.toHaveBeenCalled();
+  });
+
+  it.each(['null', '[]'])(
+    'rejects non-object properties JSON (%s) before starting an import transaction',
+    async properties => {
+      await expect(importOntologyFromJSON(mockMapping, {
+        objectTypes: [],
+        objects: [{
+          id: 5,
+          object_type_id: 1,
+          name: 'Broken',
+          properties,
+          annotations: '',
+        }],
+        linkTypes: [],
+        links: [],
+        actions: [],
+      })).rejects.toThrow('objects.properties must be a JSON object');
+
+      expect(mockOntologyInit).not.toHaveBeenCalled();
+      expect(mockExecuteTransaction).not.toHaveBeenCalled();
+    },
+  );
 
   it('handles null/undefined descriptions gracefully', async () => {
     mockQuery.mockResolvedValue({});
@@ -253,6 +473,40 @@ describe('importOntologyFromJSON', () => {
     expect(mockQuery).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ['an empty id', { objectTypes: [{ id: '' as any, name: 'Unsafe', description: '' }] }],
+    ['a string weight', {
+      links: [{
+        id: 1,
+        link_type_id: 1,
+        source_object_id: 1,
+        target_object_id: 2,
+        weight: '0.5' as any,
+      }],
+    }],
+    ['an out-of-range weight', {
+      links: [{
+        id: 1,
+        link_type_id: 1,
+        source_object_id: 1,
+        target_object_id: 2,
+        weight: 1.5,
+      }],
+    }],
+  ])('rejects %s before writing ontology import SQL', async (_label, partial) => {
+    await expect(importOntologyFromJSON(mockMapping, {
+      objectTypes: [],
+      objects: [],
+      linkTypes: [],
+      links: [],
+      actions: [],
+      ...partial,
+    })).rejects.toThrow();
+
+    expect(mockOntologyInit).not.toHaveBeenCalled();
+    expect(mockExecuteTransaction).not.toHaveBeenCalled();
+  });
+
   it('applies default status "pending" when action status is undefined', async () => {
     mockQuery.mockResolvedValue({});
 
@@ -270,6 +524,46 @@ describe('importOntologyFromJSON', () => {
       (call) => String(call[0]).includes('life_action')
     );
     expect(String(actionCall![0])).toContain('pending');
+  });
+
+  it('preserves an unbound action with a null object id', async () => {
+    await importOntologyFromJSON(mockMapping, {
+      objectTypes: [],
+      objects: [],
+      linkTypes: [],
+      links: [],
+      actions: [
+        {
+          id: 2,
+          object_id: null as any,
+          name: 'Unbound task',
+          description: '',
+          status: 'pending',
+          execute_at: null,
+        },
+      ],
+    });
+
+    const statement = (mockExecuteTransaction.mock.calls[0][0] as string[])[0];
+    expect(statement).toContain("VALUES (2, NULL, 'Unbound task'");
+  });
+
+  it('initializes storage and imports introspections and insights in the same transaction', async () => {
+    await importOntologyFromJSON(mockMapping, {
+      objectTypes: [],
+      objects: [],
+      linkTypes: [],
+      links: [],
+      actions: [],
+      introspections: mockIntrospections,
+      insights: mockInsights,
+    });
+
+    expect(mockOntologyInit).toHaveBeenCalledOnce();
+    expect(mockExecuteTransaction).toHaveBeenCalledOnce();
+    const statements = mockExecuteTransaction.mock.calls[0][0] as string[];
+    expect(statements.some(statement => statement.includes('life_introspection'))).toBe(true);
+    expect(statements.some(statement => statement.includes('life_insight'))).toBe(true);
   });
 });
 
@@ -383,6 +677,30 @@ describe('validateDraftPayload', () => {
     expect(valid).toBe(false);
     expect(errors.some(e => e.includes('Insight 1'))).toBe(true);
   });
+
+  it.each([
+    ['object id', { objects: [{ id: '1; DROP TABLE life_object' as any, name: 'A', object_type_id: 1 }] }],
+    ['object type id', { objects: [{ id: 1, name: 'A', object_type_id: '1; DROP' as any }] }],
+    ['link type id', {
+      objects: [{ id: 1, name: 'A', object_type_id: 1 }],
+      links: [{ id: 1, link_type_id: Number.NaN, source_object_id: 1, target_object_id: 1 }],
+    }],
+    ['action id', {
+      objects: [{ id: 1, name: 'A', object_type_id: 1 }],
+      actions: [{ id: Number.POSITIVE_INFINITY, object_id: 1, name: 'A' }],
+    }],
+  ])('rejects an unsafe numeric %s in an AI draft', (_label, partial) => {
+    const payload = {
+      objects: [],
+      links: [],
+      actions: [],
+      introspections: [],
+      insights: [],
+      ...partial,
+    };
+
+    expect(validateDraftPayload(payload as any).valid).toBe(false);
+  });
 });
 
 // ─── executeOntologyDraft ────────────────────────────────────────────────────
@@ -415,6 +733,44 @@ describe('executeOntologyDraft', () => {
     });
     const objCall = mockQuery.mock.calls.find(c => String(c[0]).includes('life_object'));
     expect(String(objCall![0])).toContain('1'); // default type_id
+  });
+
+  it('does not reach the transaction boundary for unsafe numeric AI output', async () => {
+    await expect(executeOntologyDraft(mockMapping, {
+      objects: [{ id: 1, name: 'Unsafe', object_type_id: '1); DROP TABLE life_object; --' as any }],
+      links: [],
+      actions: [],
+      introspections: [],
+      insights: [],
+    })).rejects.toThrow('Invalid ontology draft');
+
+    expect(mockExecuteTransaction).not.toHaveBeenCalled();
+  });
+});
+
+describe('atomic ontology mutations', () => {
+  it('commits a multi-table import through one transaction boundary', async () => {
+    mockExecuteTransaction.mockResolvedValue([]);
+
+    await importOntologyFromJSON(mockMapping, {
+      objectTypes: [{ id: 1, name: 'Type', description: '' }],
+      objects: [{ id: 1, object_type_id: 1, name: 'Object', properties: '{}', annotations: '' }],
+      linkTypes: [],
+      links: [],
+      actions: [],
+    });
+
+    expect(mockExecuteTransaction).toHaveBeenCalledOnce();
+    expect(mockExecuteTransaction.mock.calls[0][0]).toHaveLength(2);
+  });
+
+  it('commits dependent node-tree deletes through one transaction boundary', async () => {
+    mockExecuteTransaction.mockResolvedValue([]);
+
+    await deleteOntologyNodeTree(mockMapping, 7);
+
+    expect(mockExecuteTransaction).toHaveBeenCalledOnce();
+    expect(mockExecuteTransaction.mock.calls[0][0]).toHaveLength(6);
   });
 });
 

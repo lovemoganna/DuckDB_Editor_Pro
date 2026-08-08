@@ -15,29 +15,40 @@ import {
   ChevronLeft, X, Search, RefreshCw, Play, ArrowRight, Loader2,
   Table2, Link2, Layers, AlertTriangle, Check, Plus, Edit3, Trash2,
   Lightbulb, Zap, PanelRightDashed, AlignLeft, GripVertical, Target,
-  List, Map, BarChart2, Pencil, Download, Upload, Brain, Wand2, BookOpen
+  List, Map, BarChart2, Pencil, Download, Upload, Brain, Wand2, BookOpen, GraduationCap
 } from 'lucide-react';
 import { FlaskConical } from 'lucide-react';
 import CodeMirror from '@uiw/react-codemirror';
 import { sql as sqlLang } from '@codemirror/lang-sql';
 import { EditorView } from '@codemirror/view';
 import { monokai } from '@uiw/codemirror-theme-monokai';
+import { toastService } from '../../services/toastService';
+import { useAppStore } from '../../hooks/store/useAppStore';
+import { Tab } from '../../types';
 
-import { useOntologyStore, ontologyActions, ONTOLOGY_SEED_INFOS, OntologyStoreProvider } from '../../hooks/useOntologyStore';
+import { useOntologyStore, ontologyActions, ONTOLOGY_SEED_INFOS, OntologyStoreState } from '../../hooks/useOntologyStore';
 import { ontologyAiService } from '../../services/ontologyAiService';
 import { PatternLibraryPanel } from './PatternLibrary';
 import RightInspector from './OntologyPanelRightInspector';
+import type { EditMode } from './OntologyPanel.types';
 import D3GraphView from './D3GraphView';
 import OntologyCanvas from './OntologyCanvas';
-import { OntologySimulationLab } from './OntologySimulationLab';
 import OntologyInsightsPanel from './OntologyInsightsPanel';
 import { OntologyDataView } from './OntologyDataView';
 import { OntologyModelingWizard } from './OntologyModelingWizard';
-import { duckDBService } from '../../services/duckdbService';
+import { OntologyReasoningCatalogEditor } from './OntologyReasoningCatalogEditor';
+import {
+  downloadOntologyJSON,
+  executeOntologyDraft,
+  importOntologyFromJSON,
+  type OntologyMapping,
+} from '../../services/ontology/ontologyStorage';
 import { ResultTable } from '../Learn/ResultTable';
 import { ResizableLayout } from '../ui/ResizableLayout';
 import { MappingConsole } from './MappingConsole';
 import { QuickClearMenu } from './QuickClearMenu';
+import { planOntologyCommand } from './ontologyCommandRouter';
+import { ConfirmDialogProvider } from '../ui/ConfirmDialog';
 
 // ============================================================
 // Types
@@ -52,8 +63,6 @@ interface ExecutionResult {
   loading: boolean;
   executionTime?: number;
 }
-
-type EditMode = 'none' | 'objectType' | 'object' | 'linkType' | 'link' | 'action';
 
 interface FormState {
   name: string; desc: string; objectTypeId: number; properties: string;
@@ -95,18 +104,19 @@ const VIEW_TABS: { id: ViewTab; label: string; icon: React.ElementType }[] = [
 const AIDraftModal: React.FC<{
   payload: any;
   jsonStr: string;
+  mapping: OntologyMapping;
   onCommit: () => void;
   onCancel: () => void;
-}> = ({ payload, jsonStr, onCommit, onCancel }) => {
+}> = ({ payload, jsonStr, mapping, onCommit, onCancel }) => {
   const [committing, setCommitting] = useState(false);
 
   const handleCommit = async () => {
     setCommitting(true);
     try {
-      await duckDBService.executeOntologyDraft(payload);
+      await executeOntologyDraft(mapping, payload);
       onCommit();
     } catch (e: any) {
-      alert(`提交失败: ${e.message}`);
+      toastService.error('提交失败', e.message);
     } finally {
       setCommitting(false);
     }
@@ -431,29 +441,7 @@ const CRUDList: React.FC<{
   const exportOntologyJSON = useCallback(async () => {
     setIsOperating(true);
     try {
-      const [objectTypes, objects, linkTypes, links, actions] = await Promise.all([
-        duckDBService.query(`SELECT * FROM ${state.mapping.objectTypeTable}`),
-        duckDBService.query(`SELECT * FROM ${state.mapping.objectTable}`),
-        duckDBService.query(`SELECT * FROM ${state.mapping.linkTypeTable}`),
-        duckDBService.query(`SELECT * FROM ${state.mapping.linkTable}`),
-        duckDBService.query(`SELECT * FROM ${state.mapping.actionTable}`),
-      ]);
-      const payload = {
-        version: '1.0',
-        exportedAt: new Date().toISOString(),
-        objectTypes: objectTypes || [],
-        objects: objects || [],
-        linkTypes: linkTypes || [],
-        links: links || [],
-        actions: actions || [],
-      };
-      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `ontology-export-${new Date().toISOString().slice(0, 10)}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
+      await downloadOntologyJSON(state.mapping);
       setImportSuccess('数据成功导出为 JSON 文件');
       setTimeout(() => setImportSuccess(null), 3000);
     } catch (e: any) {
@@ -479,36 +467,7 @@ const CRUDList: React.FC<{
       const data = JSON.parse(text);
       if (!data.objectTypes || !data.objects) throw new Error('无效的本体论 JSON 格式');
       
-      // Auto-initialize tables if they don't exist yet
-      await duckDBService.ontologyInit();
-
-      const esc = (val: any) => {
-        if (val === null || val === undefined) return 'NULL';
-        return `'${String(val).replace(/'/g, "''")}'`;
-      };
-
-      for (const ot of data.objectTypes || []) {
-        await duckDBService.query(`INSERT OR REPLACE INTO ${state.mapping.objectTypeTable} (id, name, description) VALUES (${ot.id}, ${esc(ot.name)}, ${esc(ot.description)})`);
-      }
-      for (const o of data.objects || []) {
-        const propsVal = typeof o.properties === 'object' ? JSON.stringify(o.properties) : (o.properties || '{}');
-        await duckDBService.query(`INSERT OR REPLACE INTO ${state.mapping.objectTable} (id, name, object_type_id, properties, annotations) VALUES (${o.id}, ${esc(o.name)}, ${o.object_type_id}, ${esc(propsVal)}, ${esc(o.annotations)})`);
-      }
-      for (const lt of data.linkTypes || []) {
-        await duckDBService.query(`INSERT OR REPLACE INTO ${state.mapping.linkTypeTable} (id, name, description) VALUES (${lt.id}, ${esc(lt.name)}, ${esc(lt.description)})`);
-      }
-      for (const l of data.links || []) {
-        await duckDBService.query(`INSERT OR REPLACE INTO ${state.mapping.linkTable} (id, source_object_id, link_type_id, target_object_id, weight) VALUES (${l.id}, ${l.source_object_id}, ${l.link_type_id}, ${l.target_object_id}, ${l.weight || 0.5})`);
-      }
-      for (const a of data.actions || []) {
-        await duckDBService.query(`INSERT OR REPLACE INTO ${state.mapping.actionTable} (id, object_id, name, description, status, execute_at) VALUES (${a.id}, ${a.object_id || 'NULL'}, ${esc(a.name)}, ${esc(a.description)}, ${esc(a.status || 'pending')}, ${a.execute_at ? esc(a.execute_at) : 'NULL'})`);
-      }
-      for (const intro of data.introspections || []) {
-        await duckDBService.query(`INSERT OR REPLACE INTO life_introspection (id, object_id, question, answer, created_at) VALUES (${intro.id}, ${intro.object_id}, ${esc(intro.question)}, ${esc(intro.answer)}, ${intro.created_at ? esc(intro.created_at) : 'NULL'})`);
-      }
-      for (const ins of data.insights || []) {
-        await duckDBService.query(`INSERT OR REPLACE INTO life_insight (id, object_id, insight, tag, created_at) VALUES (${ins.id}, ${ins.object_id}, ${esc(ins.insight)}, ${esc(ins.tag)}, ${ins.created_at ? esc(ins.created_at) : 'NULL'})`);
-      }
+      await importOntologyFromJSON(state.mapping, data);
       await store.refresh();
       setImportSuccess(`成功导入：${(data.objects || []).length}个节点，${(data.links || []).length}个关系`);
       setTimeout(() => setImportSuccess(null), 4000);
@@ -940,13 +899,13 @@ const OntologyPanelContent: React.FC<{
   const { state: rawState, dispatch, refresh, initOntology, reseedOntology, batchImportModelingResult, setPendingCommand,
     deleteObjectType, deleteObject, deleteLinkType, deleteLink, deleteAction, switchTemplate, activeTemplateId,
     deleteIntrospection, deleteInsight } = useOntologyStore();
-  const state = rawState ?? {
-    initState: 'loading', initting: false,
+  const state: OntologyStoreState = rawState ?? {
+    initState: 'loading', initting: false, activeTemplateId: 'ontology-lv1', patterns: [], patternsLoading: false,
     objectTypes: [], objects: [], linkTypes: [], links: [], actions: [],
     introspections: [], insights: [],
     activeTab: 'graph', drawerOpen: true, drawerTab: 'templates',
     insightsOpen: false, search: '', aiTopic: '', isGenerating: false,
-    draftPayload: null, draftJsonStr: '', error: null,
+    draftPayload: null, draftJsonStr: '', error: null, pendingCommand: null,
     stats: { objectTypes: 0, objects: 0, linkTypes: 0, links: 0, actions: 0, introspections: 0, insights: 0 },
     mapping: {
       objectTable: 'life_object',
@@ -954,7 +913,16 @@ const OntologyPanelContent: React.FC<{
       linkTable: 'life_link',
       linkTypeTable: 'life_link_type',
       actionTable: 'life_action',
+      introspectionTable: 'life_introspection',
+      insightTable: 'life_insight',
+      objectFields: {},
+      linkFields: {},
     },
+    canvasActiveLayer: 'foundation',
+    canvasAiFillLoading: false,
+    canvasSnapshots: [],
+    canvasPositions: {},
+    canvasLockedNodeIds: new Set<number>(),
   };
 
   const [aiInput, setAiInput] = useState('');
@@ -966,8 +934,49 @@ const OntologyPanelContent: React.FC<{
   const d3GraphRefreshRef = useRef<(() => void) | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: string; id: number; label: string } | null>(null);
   const [modelingWizardOpen, setModelingWizardOpen] = useState(false);
-  const [simulationOpen, setSimulationOpen] = useState(false);
+  const [reasoningCatalogOpen, setReasoningCatalogOpen] = useState(false);
   const [reseedMessage, setReseedMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+
+  useEffect(() => {
+    const command = state.pendingCommand;
+    if (!command) return;
+
+    const plan = planOntologyCommand(command);
+    setPendingCommand(null);
+
+    if (plan.view) {
+      dispatch(ontologyActions.setActiveTab(plan.view));
+    }
+    if (plan.drawer) {
+      dispatch(ontologyActions.setDrawerTab(plan.drawer));
+    }
+    if (plan.ensureDrawerOpen && !state.drawerOpen) {
+      dispatch(ontologyActions.toggleDrawer());
+    }
+    if (plan.inspectorMode) {
+      setInspectorTarget(null);
+      setInspectorMode(plan.inspectorMode);
+    }
+
+    if (plan.operation) {
+      const operation = plan.operation === 'init'
+        ? initOntology
+        : plan.operation === 'reseed'
+          ? reseedOntology
+          : refresh;
+      void Promise.resolve(operation()).catch((error) => {
+        console.error(`Ontology ${plan.operation} command failed`, error);
+      });
+    }
+  }, [
+    dispatch,
+    initOntology,
+    refresh,
+    reseedOntology,
+    setPendingCommand,
+    state.drawerOpen,
+    state.pendingCommand,
+  ]);
 
   const handleReseedSupplement = useCallback(async () => {
     setReseedMessage(null);
@@ -993,20 +1002,17 @@ const OntologyPanelContent: React.FC<{
   }, []);
 
   const openInspector = (mode: EditMode, target: any) => {
-    setSimulationOpen(false);
     setInspectorMode(mode);
     setInspectorTarget(target);
     dispatch(ontologyActions.setDrawerTab('crud')); // Snap to CRUD layer if editing
   };
 
   const openSimulationLab = () => {
-    setInspectorMode('none');
-    if (state.insightsOpen) dispatch(ontologyActions.toggleInsights());
-    setSimulationOpen(true);
+    useAppStore.getState().setActiveTab(Tab.COMPOSITIONAL_DEDUCTION);
   };
 
   const DRAWER_TABS: { id: DrawerTab; label: string; icon: React.ElementType; sub?: string }[] = [
-    { id: 'templates', label: '模式库', icon: BookOpen, sub: 'Palantir 建模模式' },
+    { id: 'templates', label: '本体教程', icon: GraduationCap, sub: '14 课建模实战路线' },
     { id: 'crud',     label: '实体库', icon: List, sub: 'Schema · Node · Edge' },
     { id: 'mapping',  label: '映射台', icon: Map, sub: '数据 → 本体' },
   ];
@@ -1045,8 +1051,7 @@ const OntologyPanelContent: React.FC<{
 
         {/* AI Cmd Bar */}
         <div className="flex items-center gap-3">
-          {!simulationOpen && (
-            <>
+          <>
               <div className="relative group">
                 <Sparkles className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-monokai-amethyst/60 group-hover:text-monokai-amethyst transition-colors" />
                 <input type="text" value={aiInput} onChange={e => setAiInput(e.target.value)} placeholder="使用自然语言建立映射脉络..."
@@ -1059,21 +1064,21 @@ const OntologyPanelContent: React.FC<{
                   transition-all">
                 <Wand2 className="w-4 h-4" /> 本体建模
               </button>
-            </>
-          )}
+          </>
 
           <button
-            onClick={() => simulationOpen ? setSimulationOpen(false) : openSimulationLab()}
-            aria-pressed={simulationOpen}
-            className={`flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl border transition-all ${
-              simulationOpen
-                ? 'bg-monokai-cyan/15 text-monokai-cyan border-monokai-cyan/30'
-                : 'bg-monokai-sidebar/30 text-monokai-comment border-transparent hover:bg-monokai-sidebar hover:text-white hover:border-monokai-accent/20'
-            }`}>
+            onClick={openSimulationLab}
+            className="flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl border transition-all bg-monokai-sidebar/30 text-monokai-comment border-transparent hover:bg-monokai-sidebar hover:text-white hover:border-monokai-accent/20">
             <FlaskConical className="w-4 h-4" /> 组合推演
           </button>
 
-          <button onClick={() => { setSimulationOpen(false); setInspectorMode('none'); dispatch(ontologyActions.toggleInsights()); }}
+          <button
+            onClick={() => setReasoningCatalogOpen(true)}
+            className="flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl border border-monokai-amethyst/20 bg-monokai-amethyst/10 px-4 py-2.5 text-sm font-medium text-monokai-amethyst transition-all hover:bg-monokai-amethyst/20">
+            <Brain className="w-4 h-4" /> 推演定义
+          </button>
+
+          <button onClick={() => { setInspectorMode('none'); dispatch(ontologyActions.toggleInsights()); }}
             className={`flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl transition-all ${
               state.insightsOpen ? 'bg-monokai-yellow/15 text-monokai-yellow' : 'bg-monokai-sidebar/30 text-monokai-comment hover:bg-monokai-sidebar hover:text-white border border-transparent hover:border-monokai-accent/20'
             }`}>
@@ -1197,21 +1202,8 @@ const OntologyPanelContent: React.FC<{
               </div>
 
               {/* RIGHT SIMULATION LAB — independent from the left tutorial drawer */}
-              {simulationOpen && (
-                <div
-                  style={{ width: 'clamp(480px, 68vw, 1080px)', maxWidth: 'calc(100% - 280px)' }}
-                  className="flex-shrink-0 border-l border-monokai-cyan/20 shadow-[-16px_0_40px_rgba(0,0,0,0.55)] z-30 relative"
-                >
-                  <OntologySimulationLab
-                    activeTemplateId={activeTemplateId}
-                    ontologyState={state}
-                    onClose={() => setSimulationOpen(false)}
-                  />
-                </div>
-              )}
-
               {/* RIGHT INSPECTOR PANEL */}
-              {!simulationOpen && inspectorMode !== 'none' && (
+              {inspectorMode !== 'none' && (
                 <div style={{ width: rightWidth }} className="flex-shrink-0 flex flex-col shadow-[-10px_0_30px_rgba(0,0,0,0.5)] z-20 relative bg-monokai-bg/90 backdrop-blur-2xl">
                    {/* Resizer Handle Right */}
                   <div onMouseDown={startResizingRight} onTouchStart={startResizingRight}
@@ -1223,7 +1215,7 @@ const OntologyPanelContent: React.FC<{
               )}
 
               {/* INSIGHTS PANEL (Alternative Right Pane) */}
-              {!simulationOpen && state.insightsOpen && inspectorMode === 'none' && (
+              {state.insightsOpen && inspectorMode === 'none' && (
                 <div style={{ width: rightWidth }} className="flex-shrink-0 flex flex-col bg-monokai-bg/90 border-l border-monokai-accent/20 shadow-[-10px_0_30px_rgba(0,0,0,0.5)] z-20 relative backdrop-blur-2xl">
                    {/* Resizer Handle Right for Insights */}
                   <div onMouseDown={startResizingRight} onTouchStart={startResizingRight}
@@ -1284,6 +1276,7 @@ const OntologyPanelContent: React.FC<{
         <AIDraftModal
           payload={state.draftPayload}
           jsonStr={state.draftJsonStr}
+          mapping={state.mapping}
           onCommit={async () => {
              // If payload contains mapping, apply it before refresh
              const mapping = (state.draftPayload as any)?.mapping;
@@ -1304,6 +1297,9 @@ const OntologyPanelContent: React.FC<{
           onImport={handleModelingImport}
         />
       )}
+      {reasoningCatalogOpen && (
+        <OntologyReasoningCatalogEditor source={{ ...state, activeTemplateId }} onClose={() => setReasoningCatalogOpen(false)} />
+      )}
     </div>
   );
 };
@@ -1313,7 +1309,11 @@ export const OntologyPanel: React.FC<{
   onTablesReady?: () => void;
   isActive?: boolean;
 }> = (props) => {
-  return React.createElement(OntologyStoreProvider, null, React.createElement(OntologyPanelContent, props));
+  return React.createElement(
+    ConfirmDialogProvider,
+    null,
+    React.createElement(OntologyPanelContent, props),
+  );
 };
 
 export default OntologyPanel;

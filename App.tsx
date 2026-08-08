@@ -9,7 +9,7 @@ import { LearnApp } from './components/Learn';
 import { AICooldownBanner } from './components/AICooldownBanner';
 import { MetricManager } from './components/MetricManager';
 import { SkillPanel } from './components/skills/SkillPanel';
-import { LibraryApp, OntologyApp } from './components/Library';
+import { CompositionalDeductionApp, LibraryApp, OntologyApp } from './components/Library';
 import { AnalysisHubPanel } from './components/AnalysisHub/AnalysisHubPanel';
 import { CommandPalette } from './components/CommandPalette';
 import { DataTab } from './components/DataTab';
@@ -597,6 +597,9 @@ const App: React.FC = () => {
             </div></ErrorBoundary>
             <ErrorBoundary section="Ontology"><div className={activeTab === Tab.ONTOLOGY ? 'flex flex-1 w-full h-full overflow-hidden' : 'hidden'}>
               <OntologyApp isOpen={true} isActive={activeTab === Tab.ONTOLOGY} onClose={() => setActiveTab(Tab.DASHBOARD)} onInsertToEditor={(sql) => { setPendingSql(sql); setActiveTab(Tab.SQL); }} onTablesReady={() => refreshTables()} />
+            </div></ErrorBoundary>
+            <ErrorBoundary section="Compositional Deduction"><div className={activeTab === Tab.COMPOSITIONAL_DEDUCTION ? 'flex flex-1 w-full h-full overflow-hidden' : 'hidden'}>
+              <CompositionalDeductionApp isOpen={true} isActive={activeTab === Tab.COMPOSITIONAL_DEDUCTION} onClose={() => setActiveTab(Tab.DASHBOARD)} />
             </div></ErrorBoundary>
           </div>
         </div>

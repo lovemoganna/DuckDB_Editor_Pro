@@ -130,6 +130,16 @@ export const NavigationHeader: React.FC<NavigationHeaderProps> = ({
         >
           <span>🕸️</span> Ontology
         </button>
+        <button
+          onClick={() => setActiveTab(Tab.COMPOSITIONAL_DEDUCTION)}
+          className={`h-9 px-3 flex items-center gap-2 text-sm font-medium transition-all rounded-md relative ${
+            activeTab === Tab.COMPOSITIONAL_DEDUCTION
+              ? 'bg-monokai-bg text-monokai-fg'
+              : 'text-monokai-cyan hover:text-monokai-fg hover:bg-monokai-cyan/20'
+          }`}
+        >
+          <span>🧪</span> Deduction
+        </button>
       </div>
       <div className="flex-1" />
     </div>

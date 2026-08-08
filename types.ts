@@ -405,6 +405,7 @@ export enum Tab {
   AI_SKILLS = 'ai_skills',
   LIBRARY = 'library',
   ONTOLOGY = 'ontology',
+  COMPOSITIONAL_DEDUCTION = 'compositional_deduction',
 }
 
 export type SemanticType = 'DIM' | 'MEA' | 'ID' | 'TIME' | 'ATTR' | 'RATIO' | 'CURR';

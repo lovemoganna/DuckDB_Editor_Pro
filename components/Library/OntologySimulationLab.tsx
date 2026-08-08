@@ -1,769 +1,627 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
   ArrowRight,
-  BookOpen,
-  Check,
+  Boxes,
   CheckCircle2,
-  Clock3,
-  Columns3,
-  Compass,
-  Copy,
   GitBranch,
+  Link2,
+  Play,
   Plus,
-  ShieldAlert,
+  RotateCcw,
+  ShieldCheck,
   Sparkles,
   Trash2,
   X,
-  Zap,
 } from 'lucide-react';
-import { ONTOLOGY_SEEDS } from '../../hooks/useOntologyStore';
-import { DEFAULT_PATTERNS } from './defaultPatterns';
 import {
-  buildScenarioComparison,
-  createDefaultScenario,
-  deriveSimulationRules,
-  OntologySimulationData,
-  parseSimulationProperties,
-  PropertyOperator,
-  runOntologySimulation,
-  SimulationResult,
-  SimulationScenario,
-} from './OntologySimulationEngine';
-
-const MAX_SCENARIOS = 3;
-
-const TUTORIAL_PRESETS = DEFAULT_PATTERNS.map(pattern => ({
-  id: pattern.id,
-  label: pattern.title,
-  data: ONTOLOGY_SEEDS[pattern.seedIds[0]] as OntologySimulationData,
-}));
+  ontologyReasoningModule,
+  type OntologyActionSelection,
+  type OntologyAssumption,
+  type OntologyProjectionSource,
+  type OntologyReasoningCatalog,
+  type OntologySimulationBranch,
+  type OntologySimulationReport,
+  type OntologySimulationScenario,
+} from '../../services/ontology/ontologyReasoningModule';
 
 export interface OntologySimulationLabProps {
-  activeTemplateId: string;
-  ontologyState: OntologySimulationData;
+  activeTemplateId?: string;
+  ontologyState: OntologyProjectionSource;
   onClose: () => void;
 }
 
-const displayValue = (value: unknown) => {
+const EMPTY_CATALOG: OntologyReasoningCatalog = {
+  propertyDefinitions: [],
+  rules: [],
+  actionDefinitions: [],
+};
+
+const displayValue = (value: unknown): string => {
   if (value === undefined) return '未设置';
-  if (value === null) return '空值';
-  if (typeof value === 'object') return JSON.stringify(value);
-  return String(value);
+  if (typeof value === 'string') return value;
+  return JSON.stringify(value);
 };
 
-const getStatusPresentation = (status: SimulationResult['status']) => {
-  if (status === 'possible') {
-    return {
-      label: '组合成立',
-      className: 'border-monokai-green/35 bg-monokai-green/10 text-monokai-green',
-      dotClassName: 'bg-monokai-green',
-    };
+const parseInputValue = (value: string): unknown => {
+  const trimmed = value.trim();
+  if (trimmed === 'true') return true;
+  if (trimmed === 'false') return false;
+  if (trimmed === 'null') return null;
+  if (trimmed && Number.isFinite(Number(trimmed))) return Number(trimmed);
+  if ((trimmed.startsWith('[') && trimmed.endsWith(']'))
+    || (trimmed.startsWith('{') && trimmed.endsWith('}'))) {
+    try { return JSON.parse(trimmed); } catch { return value; }
   }
-  if (status === 'conflicted') {
-    return {
-      label: '存在冲突',
-      className: 'border-monokai-yellow/35 bg-monokai-yellow/10 text-monokai-yellow',
-      dotClassName: 'bg-monokai-yellow',
-    };
-  }
-  return {
-    label: '已自动排除',
-    className: 'border-monokai-pink/35 bg-monokai-pink/10 text-monokai-pink',
-    dotClassName: 'bg-monokai-pink',
-  };
+  return value;
 };
 
-const getEvidencePresentation = (
-  evidenceLevel: SimulationResult['finalOutcome']['evidenceLevel'],
-) => {
-  if (evidenceLevel === 'direct') {
-    return { label: '现有事实', className: 'text-monokai-green' };
-  }
-  if (evidenceLevel === 'contested') {
-    return { label: '需裁决', className: 'text-monokai-yellow' };
-  }
-  return { label: '待补证', className: 'text-monokai-comment' };
-};
-
-const normalizeOntologyState = (
-  ontologyState: OntologySimulationData,
-  activeTemplateId: string,
-): OntologySimulationData => {
-  const activeSeed = TUTORIAL_PRESETS.find(preset => preset.id === activeTemplateId)?.data;
-  return {
-    _meta: ontologyState._meta ?? activeSeed?._meta ?? {
-      name: '当前本体',
-      description: '当前建模工作区中的实时对象、关系、动作与规则',
-    },
-    objectTypes: ontologyState.objectTypes ?? [],
-    objects: ontologyState.objects ?? [],
-    linkTypes: ontologyState.linkTypes ?? [],
-    links: ontologyState.links ?? [],
-    actions: ontologyState.actions ?? [],
-    introspections: ontologyState.introspections ?? [],
-    insights: ontologyState.insights ?? [],
-  };
-};
-
-const resolveSimulationSource = (
-  sourceKey: string,
-  currentData: OntologySimulationData,
-): OntologySimulationData => (
-  sourceKey === 'current'
-    ? currentData
-    : TUTORIAL_PRESETS.find(preset => preset.id === sourceKey)?.data ?? currentData
+const SectionHeader: React.FC<{
+  step: number;
+  title: string;
+  subtitle: string;
+}> = ({ step, title, subtitle }) => (
+  <div className="mb-4 flex items-start gap-3">
+    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-monokai-cyan/15 text-xs font-black text-monokai-cyan">
+      {step}
+    </span>
+    <div>
+      <h2 className="text-sm font-black text-monokai-fg">{step}. {title}</h2>
+      <p className="mt-1 text-xs leading-5 text-monokai-comment">{subtitle}</p>
+    </div>
+  </div>
 );
+
+const BranchResult: React.FC<{
+  branch: OntologySimulationBranch;
+  report: OntologySimulationReport;
+  ontologyState: OntologyProjectionSource;
+  catalog: OntologyReasoningCatalog;
+}> = ({ branch, report, ontologyState, catalog }) => {
+  const objectName = (id: number) => ontologyState.objects?.find(object => object.id === id)?.name ?? `#${id}`;
+  const propertyName = (id: string) => catalog.propertyDefinitions.find(property => property.id === id)?.name ?? id;
+  const derivedProperties = branch.properties.filter(fact => fact.origin !== 'ontology');
+  return (
+    <article className="rounded-2xl border border-white/10 bg-[#151722] p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="font-black text-monokai-fg">可能世界 {branch.id.replace('branch-', '')}</h3>
+        <span className="rounded-full bg-monokai-green/10 px-2 py-1 text-[10px] text-monokai-green">
+          {branch.path.length} 步可追溯路径
+        </span>
+      </div>
+
+      <div className="mt-4 grid gap-4 xl:grid-cols-2">
+        <div>
+          <h4 className="text-xs font-bold text-monokai-cyan">可能出现</h4>
+          <div className="mt-2 space-y-2">
+            {derivedProperties.length === 0 && branch.conclusions.length === 0 ? (
+              <p className="rounded-lg bg-black/20 p-3 text-xs text-monokai-comment">没有产生新的属性或派生结论。</p>
+            ) : null}
+            {derivedProperties.map(fact => (
+              <div key={`${fact.objectId}:${fact.propertyId}`} className="rounded-lg border border-monokai-cyan/15 bg-monokai-cyan/5 p-3 text-xs">
+                <strong>{objectName(fact.objectId)}</strong>
+                <span className="mx-2 text-monokai-comment">{propertyName(fact.propertyId)}</span>
+                <span className="text-monokai-cyan">{displayValue(fact.value)}</span>
+              </div>
+            ))}
+            {branch.conclusions.map(conclusion => (
+              <div key={conclusion} className="rounded-lg border border-monokai-amethyst/20 bg-monokai-amethyst/5 p-3 font-mono text-xs text-monokai-amethyst">
+                {conclusion}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <h4 className="text-xs font-bold text-monokai-yellow">为什么成立 · 规则路径</h4>
+          <ol className="mt-2 space-y-2">
+            {branch.path.length === 0 ? (
+              <li className="rounded-lg bg-black/20 p-3 text-xs text-monokai-comment">仅包含 Ontology 中已有事实。</li>
+            ) : branch.path.map((step, index) => (
+              <li key={`${index}:${step.label}`} className="flex gap-2 rounded-lg bg-black/20 p-3 text-xs">
+                <span className="text-monokai-comment">{index + 1}</span>
+                <div>
+                  <div className="font-bold text-monokai-fg">{step.label}</div>
+                  <div className="mt-1 text-monokai-comment">
+                    {Object.entries(step.binding).map(([name, id]) => `${name}=${objectName(id)}`).join(' · ') || '全局'}
+                  </div>
+                  {step.ruleVersion !== undefined && <div className="mt-1 font-mono text-[10px] text-monokai-amethyst">规则版本 v{step.ruleVersion}</div>}
+                  {step.evidence.map(item => <div key={item} className="mt-1 font-mono text-[10px] text-monokai-comment">依据：{item}</div>)}
+                  {step.changes.map(change => <div key={change} className="mt-1 text-monokai-green">{change}</div>)}
+                </div>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </div>
+
+      {report.conflicts.length > 0 && (
+        <div className="mt-4 rounded-xl border border-monokai-yellow/25 bg-monokai-yellow/5 p-3 text-xs text-monokai-yellow">
+          本次推演存在 {report.conflicts.length} 个规则冲突，系统已保留互斥结果分支及规则依据。
+        </div>
+      )}
+    </article>
+  );
+};
 
 export const OntologySimulationLab: React.FC<OntologySimulationLabProps> = ({
   activeTemplateId,
   ontologyState,
   onClose,
 }) => {
-  const currentData = useMemo(
-    () => normalizeOntologyState(ontologyState, activeTemplateId),
-    [activeTemplateId, ontologyState],
-  );
-  const [sourceKey, setSourceKey] = useState('current');
-  const activeData = useMemo(
-    () => resolveSimulationSource(sourceKey, currentData),
-    [currentData, sourceKey],
-  );
+  const source = useMemo(() => ({
+    ...ontologyState,
+    activeTemplateId: ontologyState.activeTemplateId ?? activeTemplateId,
+  }), [activeTemplateId, ontologyState]);
+  const [catalog, setCatalog] = useState<OntologyReasoningCatalog>(EMPTY_CATALOG);
+  const [loading, setLoading] = useState(true);
+  const [running, setRunning] = useState(false);
+  const [error, setError] = useState('');
+  const [report, setReport] = useState<OntologySimulationReport | null>(null);
+  const [assumptions, setAssumptions] = useState<OntologyAssumption[]>([]);
+  const [actionSelections, setActionSelections] = useState<OntologyActionSelection[]>([]);
+  const [focusObjectId, setFocusObjectId] = useState<number | null>(source.objects?.[0]?.id ?? null);
+  const [assumptionObjectId, setAssumptionObjectId] = useState<number | null>(source.objects?.[0]?.id ?? null);
+  const [assumptionPropertyId, setAssumptionPropertyId] = useState('');
+  const [assumptionValue, setAssumptionValue] = useState('');
+  const [relationSourceId, setRelationSourceId] = useState<number | null>(source.objects?.[0]?.id ?? null);
+  const [relationTargetId, setRelationTargetId] = useState<number | null>(source.objects?.[1]?.id ?? source.objects?.[0]?.id ?? null);
+  const [relationTypeId, setRelationTypeId] = useState<number | null>(source.linkTypes?.[0]?.id ?? null);
+  const [relationOperation, setRelationOperation] = useState<'add_relation' | 'remove_relation'>('add_relation');
+  const [targetMode, setTargetMode] = useState<'explore' | 'goal'>('explore');
+  const [targetObjectId, setTargetObjectId] = useState<number | null>(source.objects?.[0]?.id ?? null);
+  const [targetPropertyId, setTargetPropertyId] = useState('');
+  const [targetValue, setTargetValue] = useState('');
+  const [activeBranch, setActiveBranch] = useState(0);
+  const loadedSnapshotId = useRef<string | null>(null);
 
-  const scenarioCounter = useRef(1);
-  const [scenarios, setScenarios] = useState<SimulationScenario[]>(() => [
-    createDefaultScenario('scenario-1', currentData),
-  ]);
-
-  const results = useMemo(
-    () => scenarios.map(scenario => runOntologySimulation(activeData, scenario)),
-    [activeData, scenarios],
-  );
-  const comparison = useMemo(() => buildScenarioComparison(results), [results]);
-
-  const createScenario = (source?: SimulationScenario) => {
-    if (scenarios.length >= MAX_SCENARIOS) return;
-    scenarioCounter.current += 1;
-    const id = `scenario-${scenarioCounter.current}`;
-    const next = source
-      ? {
-          ...source,
-          id,
-          name: `场景 ${scenarioCounter.current}`,
-          selectedRuleIds: [...source.selectedRuleIds],
+  useEffect(() => {
+    let alive = true;
+    const load = async () => {
+      setLoading(true);
+      setError('');
+      try {
+        await ontologyReasoningModule.initialize();
+        const loaded = await ontologyReasoningModule.loadCatalog();
+        if (!alive) return;
+        const snapshot = ontologyReasoningModule.createSnapshot(source, loaded);
+        if (loadedSnapshotId.current && loadedSnapshotId.current !== snapshot.snapshotId) {
+          setAssumptions([]);
+          setActionSelections([]);
+          setReport(null);
+          setActiveBranch(0);
+          setFocusObjectId(source.objects?.[0]?.id ?? null);
+          setAssumptionObjectId(source.objects?.[0]?.id ?? null);
+          setTargetObjectId(source.objects?.[0]?.id ?? null);
+          setRelationSourceId(source.objects?.[0]?.id ?? null);
+          setRelationTargetId(source.objects?.[1]?.id ?? source.objects?.[0]?.id ?? null);
+          setRelationTypeId(source.linkTypes?.[0]?.id ?? null);
+          setRelationOperation('add_relation');
+          setTargetMode('explore');
+          setTargetValue('');
         }
-      : createDefaultScenario(id, activeData);
-    setScenarios(current => [...current, next]);
+        loadedSnapshotId.current = snapshot.snapshotId;
+        setCatalog(snapshot.catalog);
+      } catch (caught) {
+        if (alive) setError(caught instanceof Error ? caught.message : String(caught));
+      } finally {
+        if (alive) setLoading(false);
+      }
+    };
+    void load();
+    return () => { alive = false; };
+  }, [source]);
+
+  const availableProperties = useMemo(() => {
+    const object = source.objects?.find(item => item.id === assumptionObjectId);
+    return catalog.propertyDefinitions.filter(property =>
+      property.objectTypeId === object?.object_type_id && property.status === 'active');
+  }, [assumptionObjectId, catalog.propertyDefinitions, source.objects]);
+
+  useEffect(() => {
+    if (!availableProperties.some(property => property.id === assumptionPropertyId)) {
+      setAssumptionPropertyId(availableProperties[0]?.id ?? '');
+    }
+  }, [assumptionPropertyId, availableProperties]);
+
+  const availableTargetProperties = useMemo(() => {
+    const object = source.objects?.find(item => item.id === targetObjectId);
+    return catalog.propertyDefinitions.filter(property =>
+      property.objectTypeId === object?.object_type_id && property.status === 'active');
+  }, [catalog.propertyDefinitions, source.objects, targetObjectId]);
+
+  useEffect(() => {
+    if (!availableTargetProperties.some(property => property.id === targetPropertyId)) {
+      setTargetPropertyId(availableTargetProperties[0]?.id ?? '');
+    }
+  }, [availableTargetProperties, targetPropertyId]);
+
+  const addPropertyAssumption = () => {
+    if (assumptionObjectId === null || !assumptionPropertyId) return;
+    setAssumptions(current => [...current, {
+      kind: 'set_property',
+      objectId: assumptionObjectId,
+      propertyId: assumptionPropertyId,
+      value: parseInputValue(assumptionValue),
+    }]);
+    setAssumptionValue('');
   };
 
-  const updateScenario = (id: string, update: Partial<SimulationScenario>) => {
-    setScenarios(current =>
-      current.map(scenario => scenario.id === id ? { ...scenario, ...update } : scenario),
-    );
+  const addRelationAssumption = () => {
+    if (relationSourceId === null || relationTargetId === null || relationTypeId === null) return;
+    setAssumptions(current => [...current, {
+      kind: relationOperation,
+      sourceObjectId: relationSourceId,
+      linkTypeId: relationTypeId,
+      targetObjectId: relationTargetId,
+    }]);
   };
 
-  const removeScenario = (id: string) => {
-    setScenarios(current => current.length > 1
-      ? current.filter(scenario => scenario.id !== id)
-      : current,
-    );
-  };
-
-  const changeSource = (nextSourceKey: string) => {
-    const nextData = resolveSimulationSource(nextSourceKey, currentData);
-    scenarioCounter.current = 1;
-    setSourceKey(nextSourceKey);
-    setScenarios([createDefaultScenario('scenario-1', nextData)]);
-  };
-
-  const background = activeData._meta?.case_background
-    ?? activeData._meta?.description
-    ?? `当前本体包含 ${activeData.objects.length} 个对象与 ${activeData.links.length} 条关系。`;
-
-  return (
-    <section
-      aria-label="本体组合推演实验室"
-      className="h-full min-w-0 flex flex-col overflow-hidden bg-[#101119] text-monokai-fg"
-    >
-      <header className="shrink-0 border-b border-monokai-accent/15 bg-[#171824]">
-        <div className="flex items-start justify-between gap-4 px-5 py-4">
-          <div className="flex min-w-0 items-start gap-3">
-            <div className="mt-0.5 rounded-xl border border-monokai-cyan/30 bg-monokai-cyan/10 p-2 text-monokai-cyan">
-              <Compass className="h-5 w-5" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-sm font-bold tracking-wide text-monokai-fg">
-                  本体组合推演实验室
-                </h2>
-                <span className="rounded-full border border-monokai-cyan/25 bg-monokai-cyan/10 px-2 py-0.5 text-[10px] font-bold text-monokai-cyan">
-                  组合 · 推演 · 发现
-                </span>
-              </div>
-              <p className="mt-1 text-[11px] leading-relaxed text-monokai-comment">
-                组合已有对象、属性、关系、规则、动作与时间；这里只推演，不会改写本体。
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            aria-label="关闭推演实验室"
-            onClick={onClose}
-            className="rounded-lg p-2 text-monokai-comment transition-colors hover:bg-white/5 hover:text-white"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/5 px-5 py-3">
-          <label className="flex min-w-0 items-center gap-2 text-xs text-monokai-comment">
-            <BookOpen className="h-4 w-4 shrink-0 text-monokai-yellow" />
-            <span className="shrink-0">材料来源</span>
-            <select
-              aria-label="推演材料来源"
-              value={sourceKey}
-              onChange={event => changeSource(event.target.value)}
-              className="min-w-0 max-w-[340px] rounded-lg border border-monokai-accent/25 bg-[#0f1017] px-2.5 py-1.5 text-xs font-semibold text-monokai-fg outline-none focus:border-monokai-cyan"
-            >
-              <option value="current">当前本体</option>
-              {TUTORIAL_PRESETS.map(preset => (
-                <option key={preset.id} value={preset.id}>
-                  {preset.label}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <button
-            type="button"
-            aria-label="添加对比场景"
-            disabled={scenarios.length >= MAX_SCENARIOS}
-            onClick={() => createScenario()}
-            className="flex items-center gap-1.5 rounded-lg border border-monokai-amethyst/30 bg-monokai-amethyst/10 px-3 py-1.5 text-xs font-bold text-monokai-amethyst transition-colors hover:bg-monokai-amethyst/20 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            添加对比场景
-          </button>
-        </div>
-      </header>
-
-      <div className="shrink-0 border-b border-monokai-accent/10 bg-[#12131c] px-5 py-3">
-        <div className="flex items-start gap-2.5 rounded-xl border border-monokai-yellow/20 bg-monokai-yellow/[0.06] px-3 py-2.5">
-          <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-monokai-yellow" />
-          <div className="min-w-0">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-monokai-yellow">
-              {activeData._meta?.name ?? '当前推演材料'}
-            </div>
-            <p className="mt-0.5 line-clamp-2 text-[11px] leading-relaxed text-monokai-fg/75">
-              {background}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {scenarios.length > 1 && (
-        <ComparisonSummary
-          scenarioCount={scenarios.length}
-          comparison={comparison}
-          results={results}
-        />
-      )}
-
-      <div className="flex-1 overflow-x-auto overflow-y-hidden custom-scrollbar">
-        <div
-          className="grid h-full min-w-max grid-flow-col gap-4 p-4"
-          style={{ gridAutoColumns: scenarios.length === 1 ? 'minmax(480px, 1fr)' : '340px' }}
-        >
-          {scenarios.map((scenario, index) => (
-            <ScenarioCard
-              key={scenario.id}
-              index={index}
-              scenario={scenario}
-              result={results[index]}
-              data={activeData}
-              canRemove={scenarios.length > 1}
-              canCopy={scenarios.length < MAX_SCENARIOS}
-              onChange={update => updateScenario(scenario.id, update)}
-              onCopy={() => createScenario(scenario)}
-              onRemove={() => removeScenario(scenario.id)}
-            />
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-};
-
-interface ComparisonSummaryProps {
-  scenarioCount: number;
-  comparison: ReturnType<typeof buildScenarioComparison>;
-  results: SimulationResult[];
-}
-
-const ComparisonSummary: React.FC<ComparisonSummaryProps> = ({
-  scenarioCount,
-  comparison,
-  results,
-}) => (
-  <div className="shrink-0 border-b border-monokai-accent/10 bg-black/20 px-5 py-2.5">
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <div className="flex items-center gap-2 text-xs font-bold text-monokai-fg">
-        <Columns3 className="h-4 w-4 text-monokai-amethyst" />
-        <span>{scenarioCount} 个场景并排比较</span>
-      </div>
-      <div className="flex flex-wrap items-center gap-2 text-[10px]">
-        <span className="rounded-full bg-monokai-green/10 px-2 py-1 text-monokai-green">
-          成立 {comparison.possible}
-        </span>
-        <span className="rounded-full bg-monokai-yellow/10 px-2 py-1 text-monokai-yellow">
-          冲突 {comparison.conflicted}
-        </span>
-        <span className="rounded-full bg-monokai-pink/10 px-2 py-1 text-monokai-pink">
-          排除 {comparison.excluded}
-        </span>
-        <span className="rounded-full bg-white/5 px-2 py-1 text-monokai-comment">
-          状态变化 {comparison.totalStateChanges}
-        </span>
-      </div>
-    </div>
-    <div className="mt-2 flex gap-2 overflow-x-auto pb-0.5">
-      {results.map(result => {
-        const presentation = getStatusPresentation(result.status);
-        const evidence = getEvidencePresentation(result.finalOutcome.evidenceLevel);
-        return (
-          <div
-            key={result.scenarioId}
-            className={`flex min-w-[180px] items-center justify-between gap-3 rounded-lg border px-2.5 py-1.5 ${presentation.className}`}
-          >
-            <span className="truncate text-[10px] font-bold">{result.scenarioName}</span>
-            <span className={`shrink-0 text-[10px] ${evidence.className}`}>
-              {evidence.label}
-            </span>
-          </div>
-        );
-      })}
-    </div>
-  </div>
-);
-
-interface ScenarioCardProps {
-  index: number;
-  scenario: SimulationScenario;
-  result: SimulationResult;
-  data: OntologySimulationData;
-  canRemove: boolean;
-  canCopy: boolean;
-  onChange: (update: Partial<SimulationScenario>) => void;
-  onCopy: () => void;
-  onRemove: () => void;
-}
-
-const ScenarioCard: React.FC<ScenarioCardProps> = ({
-  index,
-  scenario,
-  result,
-  data,
-  canRemove,
-  canCopy,
-  onChange,
-  onCopy,
-  onRemove,
-}) => {
-  const sourceObject = data.objects.find(object => object.id === scenario.sourceObjectId);
-  const sourceProperties = Object.entries(parseSimulationProperties(sourceObject?.properties));
-  const rules = deriveSimulationRules(data);
-  const status = getStatusPresentation(result.status);
-
-  const changeSourceObject = (sourceObjectId: number) => {
-    const nextObject = data.objects.find(object => object.id === sourceObjectId);
-    const [firstProperty] = Object.entries(parseSimulationProperties(nextObject?.properties));
-    onChange({
-      sourceObjectId,
-      propertyKey: firstProperty?.[0] ?? null,
-      propertyValue: firstProperty?.[1] ?? '',
+  const toggleAction = (actionId: string) => {
+    const action = catalog.actionDefinitions.find(item => item.id === actionId);
+    if (!action) return;
+    setActionSelections(current => {
+      if (current.some(item => item.actionDefinitionId === actionId)) {
+        return current.filter(item => item.actionDefinitionId !== actionId);
+      }
+      const bindings = Object.fromEntries(action.variables.map(variable => [
+        variable.name,
+        source.objects?.find(object => object.object_type_id === variable.objectTypeId)?.id ?? -1,
+      ]));
+      return [...current, { actionDefinitionId: actionId, bindings, order: current.length + 1 }];
     });
   };
 
-  const toggleRule = (ruleId: string) => {
-    const selectedRuleIds = scenario.selectedRuleIds.includes(ruleId)
-      ? scenario.selectedRuleIds.filter(id => id !== ruleId)
-      : [...scenario.selectedRuleIds, ruleId];
-    onChange({ selectedRuleIds });
+  const updateActionSelection = (
+    actionDefinitionId: string,
+    update: (selection: OntologyActionSelection) => OntologyActionSelection,
+  ) => setActionSelections(current => current.map(selection =>
+    selection.actionDefinitionId === actionDefinitionId ? update(selection) : selection));
+
+  const runSimulation = async () => {
+    setRunning(true);
+    setError('');
+    try {
+      const snapshot = ontologyReasoningModule.createSnapshot(source, catalog);
+      const scenario: OntologySimulationScenario = {
+        assumptions,
+        actions: actionSelections,
+        focusObjectIds: focusObjectId === null ? undefined : [focusObjectId],
+        goal: targetMode === 'goal' && targetObjectId !== null && targetPropertyId
+          ? {
+              condition: {
+                kind: 'property',
+                variable: 'target',
+                propertyId: targetPropertyId,
+                operator: 'eq',
+                value: parseInputValue(targetValue),
+              },
+              bindings: { target: targetObjectId },
+            }
+          : undefined,
+      };
+      const next = ontologyReasoningModule.simulate(snapshot, scenario);
+      setReport(next);
+      setActiveBranch(0);
+      await ontologyReasoningModule.saveRun(snapshot, scenario, next);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : String(caught));
+    } finally {
+      setRunning(false);
+    }
   };
 
+  const replaySimulation = async () => {
+    if (!report) return;
+    setRunning(true);
+    setError('');
+    try {
+      const replayed = await ontologyReasoningModule.replayRun(report.runId);
+      setReport(replayed);
+      setActiveBranch(0);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : String(caught));
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  const selectedBranch = report?.branches[activeBranch] ?? report?.branches[0];
+  const activeRules = catalog.rules.filter(rule => rule.status === 'active');
+  const candidateProperties = catalog.propertyDefinitions.filter(property => property.status === 'candidate');
+  const conflictedProperties = catalog.propertyDefinitions.filter(property => property.status === 'conflicted');
+  const unmatchedRules = activeRules.filter(rule => rule.variables.some(variable =>
+    !(source.objects ?? []).some(object => object.object_type_id === variable.objectTypeId)));
+
   return (
-    <article
-      data-testid="simulation-scenario-card"
-      className="flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-monokai-accent/20 bg-[#171824] shadow-xl"
-    >
-      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-monokai-accent/15 px-4 py-3">
-        <div className="flex min-w-0 flex-1 items-center gap-2">
-          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-monokai-cyan/10 text-[10px] font-black text-monokai-cyan">
-            {String.fromCharCode(65 + index)}
-          </span>
-          <input
-            aria-label={`场景 ${index + 1} 名称`}
-            value={scenario.name}
-            onChange={event => onChange({ name: event.target.value })}
-            className="min-w-0 flex-1 border-b border-transparent bg-transparent text-xs font-bold text-monokai-fg outline-none focus:border-monokai-cyan/40"
-          />
-        </div>
-        <div className="flex shrink-0 items-center gap-1">
-          <button
-            type="button"
-            aria-label="复制场景"
-            disabled={!canCopy}
-            onClick={onCopy}
-            className="rounded-md p-1.5 text-monokai-comment transition-colors hover:bg-white/5 hover:text-monokai-cyan disabled:opacity-30"
-          >
-            <Copy className="h-3.5 w-3.5" />
-          </button>
-          <button
-            type="button"
-            aria-label="删除场景"
-            disabled={!canRemove}
-            onClick={onRemove}
-            className="rounded-md p-1.5 text-monokai-comment transition-colors hover:bg-monokai-pink/10 hover:text-monokai-pink disabled:opacity-30"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-y-auto custom-scrollbar">
-        <div className="space-y-4 p-4">
-          <section>
-            <div className="mb-2 flex items-center justify-between">
-              <h3 className="text-[10px] font-bold uppercase tracking-[0.16em] text-monokai-comment">
-                组合条件
-              </h3>
-              <span className={`flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[9px] font-bold ${status.className}`}>
-                <span className={`h-1.5 w-1.5 rounded-full ${status.dotClassName}`} />
-                {status.label}
-              </span>
+    <section aria-label="Ontology 原生组合推演" className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-[#0c0d12] text-monokai-fg">
+      <header className="flex shrink-0 items-center justify-between border-b border-white/10 bg-[#141622] px-6 py-4">
+        <div className="flex items-center gap-3">
+          <div className="rounded-xl border border-monokai-cyan/25 bg-monokai-cyan/10 p-2.5 text-monokai-cyan">
+            <GitBranch className="h-5 w-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-lg font-black">组合推演</h1>
+              <span className="rounded-full bg-monokai-green/10 px-2 py-0.5 text-[10px] text-monokai-green">Ontology 原生 · 只读</span>
             </div>
+            <p className="mt-1 text-xs text-monokai-comment">Ontology 描述世界，组合推演探索这个世界可能变成什么。</p>
+          </div>
+        </div>
+        <button type="button" aria-label="关闭组合推演" onClick={onClose} className="rounded-lg p-2 text-monokai-comment hover:bg-white/10 hover:text-white">
+          <X className="h-4 w-4" />
+        </button>
+      </header>
 
-            <div className="grid grid-cols-2 gap-2">
-              <SelectField
-                label="对象"
-                value={scenario.sourceObjectId ?? ''}
-                onChange={value => changeSourceObject(Number(value))}
-                accent="cyan"
-              >
-                <option value="">请选择</option>
-                {data.objects.map(object => (
-                  <option key={object.id} value={object.id}>{object.name}</option>
+      <main className="min-h-0 flex-1 overflow-auto p-5">
+        {error && <div role="alert" className="mb-4 rounded-xl border border-monokai-pink/30 bg-monokai-pink/10 p-3 text-xs text-monokai-pink">{error}</div>}
+        {loading ? (
+          <div className="flex h-48 items-center justify-center text-sm text-monokai-comment">正在读取当前 Ontology 快照…</div>
+        ) : (
+          <div className="grid gap-5 xl:grid-cols-[minmax(260px,0.8fr)_minmax(340px,1fr)_minmax(420px,1.4fr)]">
+            <section className="rounded-2xl border border-white/10 bg-[#12141e] p-4">
+              <SectionHeader step={1} title="选择世界" subtitle="直接读取当前 Ontology 对象、属性、关系和规则。" />
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                {[
+                  ['对象', source.objects?.length ?? 0],
+                  ['关系', source.links?.length ?? 0],
+                  ['激活属性', catalog.propertyDefinitions.filter(item => item.status === 'active').length],
+                  ['可执行规则', activeRules.length],
+                ].map(([label, count]) => (
+                  <div key={String(label)} className="rounded-xl bg-black/20 p-3">
+                    <div className="text-monokai-comment">{label}</div>
+                    <div className="mt-1 text-lg font-black text-monokai-fg">{count}</div>
+                  </div>
                 ))}
-              </SelectField>
+              </div>
 
-              <SelectField
-                label="关系"
-                value={scenario.linkTypeId ?? ''}
-                onChange={value => onChange({ linkTypeId: value ? Number(value) : null })}
-                accent="amethyst"
-              >
-                <option value="">请选择</option>
-                {data.linkTypes.map(type => (
-                  <option key={type.id} value={type.id}>{type.name}</option>
-                ))}
-              </SelectField>
-
-              <SelectField
-                label="属性"
-                value={scenario.propertyKey ?? ''}
-                onChange={value => {
-                  const property = sourceProperties.find(([key]) => key === value);
-                  onChange({
-                    propertyKey: value || null,
-                    propertyValue: property?.[1] ?? '',
-                  });
-                }}
-                accent="yellow"
-              >
-                <option value="">不设属性条件</option>
-                {sourceProperties.map(([key]) => (
-                  <option key={key} value={key}>{key}</option>
-                ))}
-              </SelectField>
-
-              <SelectField
-                label="目标"
-                value={scenario.targetObjectId ?? ''}
-                onChange={value => onChange({ targetObjectId: value ? Number(value) : null })}
-                accent="green"
-              >
-                <option value="">请选择</option>
-                {data.objects.map(object => (
-                  <option key={object.id} value={object.id}>{object.name}</option>
-                ))}
-              </SelectField>
-            </div>
-
-            {scenario.propertyKey && (
-              <div className="mt-2 grid grid-cols-[88px_1fr] gap-2">
-                <select
-                  aria-label="属性运算符"
-                  value={scenario.propertyOperator}
-                  onChange={event => onChange({ propertyOperator: event.target.value as PropertyOperator })}
-                  className="rounded-lg border border-monokai-accent/25 bg-[#101119] px-2 py-2 text-[11px] text-monokai-fg outline-none focus:border-monokai-yellow/60"
-                >
-                  <option value="equals">等于</option>
-                  <option value="not_equals">不等于</option>
+              <label className="mt-4 block text-xs text-monokai-comment">
+                聚焦对象
+                <select value={focusObjectId ?? ''} onChange={event => setFocusObjectId(event.target.value ? Number(event.target.value) : null)} className="mt-1 w-full rounded-lg border border-white/10 bg-[#0c0d12] px-3 py-2 text-monokai-fg">
+                  <option value="">全部对象</option>
+                  {(source.objects ?? []).map(object => <option key={object.id} value={object.id}>{object.name ?? `#${object.id}`}</option>)}
                 </select>
-                <input
-                  aria-label="属性条件值"
-                  value={displayValue(scenario.propertyValue)}
-                  onChange={event => onChange({ propertyValue: event.target.value })}
-                  className="min-w-0 rounded-lg border border-monokai-accent/25 bg-[#101119] px-2.5 py-2 text-[11px] text-monokai-fg outline-none focus:border-monokai-yellow/60"
-                />
-              </div>
-            )}
-
-            <div className="mt-2 grid grid-cols-[1fr_112px] gap-2">
-              <SelectField
-                label="动作"
-                value={scenario.actionId ?? ''}
-                onChange={value => onChange({ actionId: value ? Number(value) : null })}
-                accent="pink"
-              >
-                <option value="">只观察，不执行动作</option>
-                {(data.actions ?? []).map(action => (
-                  <option key={action.id} value={action.id}>{action.name}</option>
-                ))}
-              </SelectField>
-              <label className="block">
-                <span className="mb-1 block text-[9px] font-bold uppercase tracking-wider text-monokai-green">
-                  时间
-                </span>
-                <div className="flex items-center rounded-lg border border-monokai-accent/25 bg-[#101119] px-2">
-                  <Clock3 className="h-3 w-3 shrink-0 text-monokai-green" />
-                  <input
-                    aria-label="推演时间"
-                    type="number"
-                    min={0}
-                    max={168}
-                    value={scenario.timeOffsetHours}
-                    onChange={event => onChange({
-                      timeOffsetHours: Math.max(0, Math.min(168, Number(event.target.value) || 0)),
-                    })}
-                    className="min-w-0 flex-1 bg-transparent px-1 py-2 text-right text-[11px] text-monokai-fg outline-none"
-                  />
-                  <span className="text-[9px] text-monokai-comment">h</span>
-                </div>
               </label>
-            </div>
 
-            <div className="mt-3">
-              <div className="mb-1.5 flex items-center justify-between">
-                <span className="text-[9px] font-bold uppercase tracking-wider text-monokai-yellow">
-                  规则
-                </span>
-                <span className="text-[9px] text-monokai-comment">
-                  可多选 · 来自教程洞察与反思
-                </span>
+              <div className="mt-4 space-y-2">
+                {(source.objects ?? []).slice(0, 12).map(object => (
+                  <div key={object.id} className="flex items-center gap-2 rounded-lg border border-white/[0.06] p-2 text-xs">
+                    <Boxes className="h-3.5 w-3.5 text-monokai-cyan" />
+                    <span>{object.name ?? `#${object.id}`}</span>
+                  </div>
+                ))}
               </div>
-              {rules.length > 0 ? (
-                <div className="flex flex-wrap gap-1.5">
-                  {rules.map(rule => {
-                    const selected = scenario.selectedRuleIds.includes(rule.id);
+
+              {candidateProperties.length > 0 && (
+                <details className="mt-4 rounded-xl border border-monokai-yellow/20 bg-monokai-yellow/5 p-3">
+                  <summary className="cursor-pointer text-xs font-bold text-monokai-yellow">从真实 JSON 发现 {candidateProperties.length} 个候选属性</summary>
+                  <div className="mt-2 space-y-2">
+                    {candidateProperties.map(property => (
+                      <div key={property.id} className="text-xs">{property.name} · {property.valueType}</div>
+                    ))}
+                    <p className="pt-1 text-[11px] leading-5 text-monokai-comment">请在 Ontology 主模块确认稳定属性 ID；组合推演不会修改定义。</p>
+                  </div>
+                </details>
+              )}
+              {conflictedProperties.length > 0 && (
+                <div className="mt-3 rounded-xl border border-monokai-pink/20 bg-monokai-pink/5 p-3 text-xs text-monokai-pink">
+                  {conflictedProperties.length} 个属性存在类型冲突，确认前不能用于规则。
+                </div>
+              )}
+              {activeRules.length > 0 && (
+                <div className="mt-4 space-y-2">
+                  <div className="text-xs font-bold text-monokai-amethyst">Ontology 提供的规则</div>
+                  {activeRules.map(rule => <div key={rule.id} className="rounded-lg bg-monokai-amethyst/5 p-2 text-xs">{rule.name}</div>)}
+                </div>
+              )}
+            </section>
+
+            <section className="rounded-2xl border border-white/10 bg-[#12141e] p-4">
+              <SectionHeader step={2} title="设置场景" subtitle="用假设覆盖事实，再选择结构化动作及顺序；不会写回 Ontology。" />
+
+              <div className="rounded-xl border border-white/[0.08] bg-black/15 p-3">
+                <div className="text-xs font-bold text-monokai-fg">属性假设</div>
+                <div className="mt-3 grid gap-2">
+                  <select aria-label="假设对象" value={assumptionObjectId ?? ''} onChange={event => setAssumptionObjectId(event.target.value ? Number(event.target.value) : null)} className="rounded-lg border border-white/10 bg-[#0c0d12] px-3 py-2 text-xs">
+                    {(source.objects ?? []).map(object => <option key={object.id} value={object.id}>{object.name ?? object.id}</option>)}
+                  </select>
+                  <select aria-label="假设属性" value={assumptionPropertyId} onChange={event => setAssumptionPropertyId(event.target.value)} className="rounded-lg border border-white/10 bg-[#0c0d12] px-3 py-2 text-xs">
+                    {availableProperties.map(property => <option key={property.id} value={property.id}>{property.name}</option>)}
+                  </select>
+                  <input aria-label="假设值" value={assumptionValue} onChange={event => setAssumptionValue(event.target.value)} placeholder="例如 paid、100、true" className="rounded-lg border border-white/10 bg-[#0c0d12] px-3 py-2 text-xs" />
+                  <button type="button" aria-label="添加属性假设" onClick={addPropertyAssumption} disabled={!assumptionPropertyId} className="flex items-center justify-center gap-1 rounded-lg border border-monokai-cyan/25 bg-monokai-cyan/10 px-3 py-2 text-xs font-bold text-monokai-cyan disabled:opacity-40">
+                    <Plus className="h-3.5 w-3.5" /> 添加属性假设
+                  </button>
+                </div>
+              </div>
+
+              {(source.linkTypes?.length ?? 0) > 0 && (source.objects?.length ?? 0) > 0 && (
+                <div className="mt-3 rounded-xl border border-white/[0.08] bg-black/15 p-3">
+                  <div className="text-xs font-bold text-monokai-fg">关系假设</div>
+                  <div className="mt-3 grid gap-2">
+                    <select aria-label="关系假设操作" value={relationOperation} onChange={event => setRelationOperation(event.target.value as 'add_relation' | 'remove_relation')} className="rounded-lg border border-white/10 bg-[#0c0d12] px-3 py-2 text-xs">
+                      <option value="add_relation">假设关系存在</option>
+                      <option value="remove_relation">假设关系不存在</option>
+                    </select>
+                    <select aria-label="关系源对象" value={relationSourceId ?? ''} onChange={event => setRelationSourceId(event.target.value ? Number(event.target.value) : null)} className="rounded-lg border border-white/10 bg-[#0c0d12] px-3 py-2 text-xs">
+                      {(source.objects ?? []).map(object => <option key={object.id} value={object.id}>{object.name ?? object.id}</option>)}
+                    </select>
+                    <select aria-label="关系类型" value={relationTypeId ?? ''} onChange={event => setRelationTypeId(event.target.value ? Number(event.target.value) : null)} className="rounded-lg border border-white/10 bg-[#0c0d12] px-3 py-2 text-xs">
+                      {(source.linkTypes ?? []).map(linkType => <option key={linkType.id} value={linkType.id}>{linkType.name}</option>)}
+                    </select>
+                    <select aria-label="关系目标对象" value={relationTargetId ?? ''} onChange={event => setRelationTargetId(event.target.value ? Number(event.target.value) : null)} className="rounded-lg border border-white/10 bg-[#0c0d12] px-3 py-2 text-xs">
+                      {(source.objects ?? []).map(object => <option key={object.id} value={object.id}>{object.name ?? object.id}</option>)}
+                    </select>
+                    <button type="button" aria-label="添加关系假设" onClick={addRelationAssumption} className="flex items-center justify-center gap-1 rounded-lg border border-monokai-cyan/25 bg-monokai-cyan/10 px-3 py-2 text-xs font-bold text-monokai-cyan">
+                      <Link2 className="h-3.5 w-3.5" /> 添加关系假设
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="mt-3 space-y-2">
+                {assumptions.map((assumption, index) => (
+                  <div key={index} className="flex items-center justify-between gap-2 rounded-lg border border-monokai-cyan/15 bg-monokai-cyan/5 p-2 text-xs">
+                    <span>{assumption.kind === 'add_relation' || assumption.kind === 'remove_relation'
+                      ? `${assumption.sourceObjectId} -[${assumption.linkTypeId}]-&gt; ${assumption.targetObjectId} · ${assumption.kind === 'add_relation' ? '存在' : '不存在'}`
+                      : assumption.kind === 'set_property'
+                        ? `${assumption.objectId}.${assumption.propertyId} = ${displayValue(assumption.value)}`
+                        : `${assumption.objectId}.${assumption.propertyId} 未设置`}</span>
+                    <button type="button" aria-label={`删除假设 ${index + 1}`} onClick={() => setAssumptions(current => current.filter((_, itemIndex) => itemIndex !== index))}><Trash2 className="h-3.5 w-3.5" /></button>
+                  </div>
+                ))}
+              </div>
+
+              {catalog.actionDefinitions.filter(action => action.status === 'active').length > 0 && (
+                <fieldset className="mt-4 space-y-2">
+                  <legend className="text-xs font-bold text-monokai-fg">动作序列</legend>
+                  {catalog.actionDefinitions.filter(action => action.status === 'active').map(action => {
+                    const selection = actionSelections.find(item => item.actionDefinitionId === action.id);
                     return (
-                      <button
-                        type="button"
-                        key={rule.id}
-                        aria-pressed={selected}
-                        title={rule.description}
-                        onClick={() => toggleRule(rule.id)}
-                        className={`flex max-w-full items-center gap-1 rounded-md border px-2 py-1 text-[9px] transition-colors ${
-                          selected
-                            ? 'border-monokai-yellow/40 bg-monokai-yellow/10 text-monokai-yellow'
-                            : 'border-monokai-accent/20 bg-white/[0.02] text-monokai-comment hover:text-monokai-fg'
-                        }`}
-                      >
-                        {selected && <Check className="h-2.5 w-2.5 shrink-0" />}
-                        <span className="truncate">{rule.title}</span>
-                      </button>
+                      <div key={action.id} className="rounded-lg border border-white/[0.06] p-2 text-xs">
+                        <label className="flex items-center gap-2">
+                          <input type="checkbox" checked={Boolean(selection)} onChange={() => toggleAction(action.id)} />
+                          {action.name}
+                        </label>
+                        {selection && (
+                          <div className="mt-2 grid gap-2 pl-5">
+                            <label className="flex items-center justify-between gap-2 text-monokai-comment">
+                              顺序
+                              <input aria-label={`${action.name} 顺序`} type="number" min={1} value={selection.order} onChange={event => updateActionSelection(action.id, current => ({ ...current, order: Number(event.target.value) || 1 }))} className="w-20 rounded border border-white/10 bg-[#0c0d12] px-2 py-1 text-monokai-fg" />
+                            </label>
+                            {action.variables.map(variable => (
+                              <label key={variable.name} className="flex items-center justify-between gap-2 text-monokai-comment">
+                                {variable.name}
+                                <select aria-label={`${action.name} ${variable.name} 绑定`} value={selection.bindings[variable.name] ?? ''} onChange={event => updateActionSelection(action.id, current => ({ ...current, bindings: { ...current.bindings, [variable.name]: Number(event.target.value) } }))} className="max-w-40 rounded border border-white/10 bg-[#0c0d12] px-2 py-1 text-monokai-fg">
+                                  {(source.objects ?? []).filter(object => object.object_type_id === variable.objectTypeId).map(object => <option key={object.id} value={object.id}>{object.name ?? object.id}</option>)}
+                                </select>
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     );
                   })}
-                </div>
-              ) : (
-                <p className="rounded-lg border border-dashed border-monokai-accent/20 px-2 py-1.5 text-[10px] text-monokai-comment">
-                  当前材料没有洞察或反思规则。
-                </p>
+                </fieldset>
               )}
-            </div>
-          </section>
 
-          <SimulationResultPanel result={result} />
-        </div>
-      </div>
-    </article>
-  );
-};
-
-interface SelectFieldProps {
-  label: string;
-  value: string | number;
-  onChange: (value: string) => void;
-  accent: 'cyan' | 'amethyst' | 'yellow' | 'green' | 'pink';
-  children: React.ReactNode;
-}
-
-const accentClasses = {
-  cyan: 'text-monokai-cyan focus:border-monokai-cyan/60',
-  amethyst: 'text-monokai-amethyst focus:border-monokai-amethyst/60',
-  yellow: 'text-monokai-yellow focus:border-monokai-yellow/60',
-  green: 'text-monokai-green focus:border-monokai-green/60',
-  pink: 'text-monokai-pink focus:border-monokai-pink/60',
-};
-
-const SelectField: React.FC<SelectFieldProps> = ({
-  label,
-  value,
-  onChange,
-  accent,
-  children,
-}) => (
-  <label className="block min-w-0">
-    <span className={`mb-1 block text-[9px] font-bold uppercase tracking-wider ${accentClasses[accent].split(' ')[0]}`}>
-      {label}
-    </span>
-    <select
-      aria-label={label}
-      value={value}
-      onChange={event => onChange(event.target.value)}
-      className={`w-full min-w-0 rounded-lg border border-monokai-accent/25 bg-[#101119] px-2 py-2 text-[11px] text-monokai-fg outline-none ${accentClasses[accent]}`}
-    >
-      {children}
-    </select>
-  </label>
-);
-
-const SimulationResultPanel: React.FC<{ result: SimulationResult }> = ({ result }) => {
-  const evidence = getEvidencePresentation(result.finalOutcome.evidenceLevel);
-  const ruleConflictCount = result.conflicts.filter(conflict => conflict.kind === 'rule').length;
-  const evidenceConflictCount = result.conflicts.filter(conflict => conflict.kind === 'evidence').length;
-
-  if (result.status === 'excluded') {
-    return (
-      <section className="rounded-xl border border-monokai-pink/30 bg-monokai-pink/[0.06] p-3">
-        <div className="flex items-center gap-2 text-xs font-bold text-monokai-pink">
-          <ShieldAlert className="h-4 w-4" />
-          组合在推演前被排除
-        </div>
-        <div className="mt-2 space-y-1.5">
-          {result.exclusions.map(issue => (
-            <div key={issue.code} className="rounded-lg bg-black/20 px-2.5 py-2">
-              <div className="text-[10px] font-bold text-monokai-pink">{issue.title}</div>
-              <p className="mt-0.5 text-[10px] leading-relaxed text-monokai-fg/70">{issue.detail}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-    );
-  }
-
-  return (
-    <section className="space-y-3">
-      <div>
-        <h3 className="mb-2 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-monokai-cyan">
-          <GitBranch className="h-3.5 w-3.5" />
-          状态如何一步步变化
-        </h3>
-        <div className="relative space-y-2 pl-5 before:absolute before:bottom-3 before:left-[7px] before:top-3 before:w-px before:bg-monokai-cyan/20">
-          {result.timeline.map(step => (
-            <div key={step.id} className="relative rounded-lg border border-monokai-accent/15 bg-[#101119] p-2.5">
-              <span className="absolute -left-[18px] top-3 flex h-3.5 w-3.5 items-center justify-center rounded-full border border-monokai-cyan/40 bg-[#171824] text-[7px] font-bold text-monokai-cyan">
-                {step.index}
-              </span>
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-[10px] font-bold text-monokai-fg">{step.title}</span>
-                <span className="text-[9px] font-mono text-monokai-comment">t+{step.atHours}h</span>
-              </div>
-              <p className="mt-0.5 text-[10px] leading-relaxed text-monokai-comment">
-                {step.description}
-              </p>
-              {step.changes.map(change => (
-                <div
-                  key={`${change.objectId}-${change.property}`}
-                  className="mt-2 flex flex-wrap items-center gap-1.5 rounded-md bg-monokai-cyan/[0.06] px-2 py-1.5 text-[9px]"
-                >
-                  <span className="font-semibold text-monokai-fg">{change.objectName}.{change.property}</span>
-                  <span className="text-monokai-comment">{displayValue(change.before)}</span>
-                  <ArrowRight className="h-2.5 w-2.5 text-monokai-cyan" />
-                  <span className="font-bold text-monokai-cyan">{displayValue(change.after)}</span>
+              <fieldset className="mt-4 rounded-xl border border-white/[0.08] p-3">
+                <legend className="px-1 text-xs font-bold text-monokai-fg">目标问题</legend>
+                <div className="flex gap-4 text-xs">
+                  <label><input type="radio" checked={targetMode === 'explore'} onChange={() => setTargetMode('explore')} /> 探索全部可能</label>
+                  <label><input type="radio" checked={targetMode === 'goal'} onChange={() => setTargetMode('goal')} /> 指定目标属性</label>
                 </div>
-              ))}
-            </div>
-          ))}
-        </div>
-      </div>
+                {targetMode === 'goal' && (
+                  <div className="mt-3 grid gap-2">
+                    <select aria-label="目标对象" value={targetObjectId ?? ''} onChange={event => setTargetObjectId(event.target.value ? Number(event.target.value) : null)} className="rounded-lg border border-white/10 bg-[#0c0d12] px-3 py-2 text-xs">
+                      {(source.objects ?? []).map(object => <option key={object.id} value={object.id}>{object.name ?? object.id}</option>)}
+                    </select>
+                    <select aria-label="目标属性" value={targetPropertyId} onChange={event => setTargetPropertyId(event.target.value)} className="rounded-lg border border-white/10 bg-[#0c0d12] px-3 py-2 text-xs">
+                      {availableTargetProperties.map(property => <option key={property.id} value={property.id}>{property.name}</option>)}
+                    </select>
+                    <input aria-label="目标值" value={targetValue} onChange={event => setTargetValue(event.target.value)} placeholder="期望值" className="rounded-lg border border-white/10 bg-[#0c0d12] px-3 py-2 text-xs" />
+                  </div>
+                )}
+              </fieldset>
 
-      <div className="grid grid-cols-2 gap-2">
-        <div className="rounded-xl border border-monokai-yellow/20 bg-monokai-yellow/[0.04] p-2.5">
-          <div className="flex items-center gap-1.5 text-[10px] font-bold text-monokai-yellow">
-            <Zap className="h-3.5 w-3.5" />
-            触发规则 {result.triggeredRules.length}
-          </div>
-          <div className="mt-1.5 space-y-1">
-            {result.triggeredRules.length > 0 ? result.triggeredRules.map(rule => (
-              <div key={rule.id} title={rule.description} className="truncate text-[9px] text-monokai-fg/75">
-                · {rule.title}
+              <button type="button" aria-label="开始推演" onClick={() => void runSimulation()} disabled={running} className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-monokai-cyan px-4 py-3 text-sm font-black text-[#0c0d12] disabled:opacity-50">
+                {running ? <RotateCcw className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+                {running ? '正在推演…' : '开始推演'}
+              </button>
+              <div className="mt-3 flex items-center gap-2 text-[11px] text-monokai-comment">
+                <ShieldCheck className="h-3.5 w-3.5 text-monokai-green" /> 始终在隔离世界中运行，不修改真实对象和关系。
               </div>
-            )) : (
-              <div className="text-[9px] text-monokai-comment">没有规则被触发</div>
-            )}
-          </div>
-        </div>
+            </section>
 
-        <div className={`rounded-xl border p-2.5 ${
-          result.conflicts.length > 0
-            ? 'border-monokai-pink/25 bg-monokai-pink/[0.05]'
-            : 'border-monokai-green/20 bg-monokai-green/[0.04]'
-        }`}>
-          <div className={`flex items-center gap-1.5 text-[10px] font-bold ${
-            result.conflicts.length > 0 ? 'text-monokai-pink' : 'text-monokai-green'
-          }`}>
-            {result.conflicts.length > 0
-              ? <AlertTriangle className="h-3.5 w-3.5" />
-              : <CheckCircle2 className="h-3.5 w-3.5" />}
-            推演冲突 {result.conflicts.length}
-          </div>
-          <div className="mt-1.5 space-y-1">
-            <div className="text-[9px] text-monokai-comment">
-              规则互斥 {ruleConflictCount} · 证据冲突 {evidenceConflictCount}
-            </div>
-            {result.conflicts.length > 0 ? result.conflicts.map(conflict => (
-              <div key={conflict.code} title={conflict.detail} className="truncate text-[9px] text-monokai-fg/75">
-                · {conflict.title}
-              </div>
-            )) : (
-              <div className="text-[9px] text-monokai-comment">当前组合没有发现冲突</div>
-            )}
-          </div>
-        </div>
-      </div>
+            <section className="rounded-2xl border border-white/10 bg-[#12141e] p-4">
+              <SectionHeader step={3} title="解释结果" subtitle="查看已存在事实、可能结果、成立路径、缺失条件和反事实建议。" />
 
-      <div className="rounded-xl border border-monokai-amethyst/25 bg-gradient-to-r from-monokai-amethyst/[0.08] to-monokai-cyan/[0.06] p-3">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="text-[9px] font-bold uppercase tracking-wider text-monokai-amethyst">
-              最终可能结果
-            </div>
-            <div className="mt-0.5 text-[11px] font-bold text-monokai-fg">
-              {result.finalOutcome.title}
-            </div>
-            <p className="mt-0.5 text-[10px] leading-relaxed text-monokai-comment">
-              {result.finalOutcome.summary}
-            </p>
+              {!report && (
+                <div className="flex min-h-56 flex-col items-center justify-center rounded-xl border border-dashed border-white/10 p-6 text-center">
+                  <Sparkles className="h-7 w-7 text-monokai-amethyst" />
+                  <p className="mt-3 text-sm font-bold">等待推演</p>
+                  <p className="mt-2 max-w-sm text-xs leading-5 text-monokai-comment">系统将仅使用当前 Ontology 快照和你选择的假设。</p>
+                </div>
+              )}
+
+              {activeRules.length === 0 && (
+                <div className="mb-4 rounded-xl border border-monokai-yellow/25 bg-monokai-yellow/5 p-4 text-xs leading-6 text-monokai-yellow">
+                  <strong>当前 Ontology 还没有可执行的结构化规则。</strong>
+                  <div>系统只能回答“什么已经存在”；不会从动作描述或说明文字中猜测规则。</div>
+                </div>
+              )}
+
+              {report && (
+                <>
+                  {report.modelIssues.length > 0 && (
+                    <div className="mb-4 rounded-xl border border-monokai-pink/25 bg-monokai-pink/5 p-3 text-xs text-monokai-pink">
+                      <div className="flex items-center gap-2 font-bold"><AlertTriangle className="h-4 w-4" /> Ontology 暂不可完整推演</div>
+                      {report.modelIssues.map(issue => <div key={issue} className="mt-1">{issue}</div>)}
+                    </div>
+                  )}
+                  <div className="mb-4 grid grid-cols-3 gap-2 text-center text-xs">
+                    <div className="rounded-lg bg-black/20 p-2"><div className="text-monokai-comment">已有事实</div><strong>{report.existingProperties.length + report.existingRelations.length}</strong></div>
+                    <div className="rounded-lg bg-black/20 p-2"><div className="text-monokai-comment">可能分支</div><strong>{report.branches.length}</strong></div>
+                    <div className="rounded-lg bg-black/20 p-2"><div className="text-monokai-comment">缺失条件</div><strong>{report.missingConditions.length}</strong></div>
+                  </div>
+                  <button type="button" aria-label="按原始快照重放" onClick={() => void replaySimulation()} disabled={running} className="mb-4 rounded-lg border border-white/10 px-3 py-2 text-xs text-monokai-cyan disabled:opacity-50">
+                    按原始快照重放
+                  </button>
+                  {unmatchedRules.length > 0 && (
+                    <div className="mb-4 rounded-lg bg-monokai-yellow/10 p-3 text-xs text-monokai-yellow">无匹配对象：{unmatchedRules.map(rule => rule.name).join('、')}</div>
+                  )}
+                  {report.goalResults.length > 0 && (
+                    <div className="mb-4 rounded-xl border border-monokai-cyan/20 bg-monokai-cyan/5 p-3 text-xs">
+                      <div className="font-bold text-monokai-cyan">目标结论</div>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {report.goalResults.map(result => <span key={result.branchId} className="rounded bg-black/20 px-2 py-1">{result.branchId} · {result.truth}</span>)}
+                      </div>
+                      {report.goalResults.every(result => result.truth !== 'TRUE') && (
+                        <div className="mt-2 text-monokai-yellow">目标当前不可达；UNKNOWN 表示仍缺事实，FALSE 表示存在相反事实。</div>
+                      )}
+                    </div>
+                  )}
+                  {report.truncated && <div className="mb-4 rounded-lg bg-monokai-yellow/10 p-3 text-xs text-monokai-yellow">分支或迭代达到安全上限，结果不是穷举。</div>}
+                  {report.branches.length > 1 && (
+                    <div className="mb-3 flex gap-2 overflow-x-auto">
+                      {report.branches.map((branch, index) => (
+                        <button key={branch.id} type="button" onClick={() => setActiveBranch(index)} className={index === activeBranch ? 'rounded-lg bg-monokai-cyan px-3 py-1.5 text-xs font-bold text-black' : 'rounded-lg bg-white/5 px-3 py-1.5 text-xs'}>
+                          分支 {index + 1}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {selectedBranch && <BranchResult branch={selectedBranch} report={report} ontologyState={source} catalog={catalog} />}
+                  {report.missingConditions.length > 0 && (
+                    <details className="mt-4 rounded-xl border border-white/10 p-3" open>
+                      <summary className="cursor-pointer text-xs font-bold text-monokai-yellow">还缺什么条件</summary>
+                      <div className="mt-2 space-y-2">
+                        {report.missingConditions.slice(0, 10).map((missing, index) => (
+                          <div key={`${missing.ruleId}:${index}`} className="flex items-start gap-2 text-xs text-monokai-comment">
+                            <ArrowRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-monokai-yellow" />
+                            <span>{missing.ruleName}：{missing.description} · {missing.truth}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </details>
+                  )}
+                  {report.counterfactuals.length > 0 && (
+                    <details className="mt-3 rounded-xl border border-white/10 p-3">
+                      <summary className="cursor-pointer text-xs font-bold text-monokai-amethyst">改变哪个条件会得到不同结果</summary>
+                      {report.counterfactuals.map(item => <div key={`${item.ruleId}:${item.description}`} className="mt-2 rounded-lg bg-monokai-amethyst/5 p-2 text-xs">{item.description}</div>)}
+                    </details>
+                  )}
+                </>
+              )}
+            </section>
           </div>
-          <div className="shrink-0 text-right">
-            <div className="text-[8px] uppercase text-monokai-comment">依据</div>
-            <div className={`text-sm font-black ${evidence.className}`}>
-              {evidence.label}
-            </div>
-          </div>
-        </div>
-      </div>
+        )}
+      </main>
+
+      <footer className="flex shrink-0 items-center justify-between border-t border-white/10 bg-[#141622] px-6 py-2.5 text-[10px] text-monokai-comment">
+        <span className="flex items-center gap-1"><CheckCircle2 className="h-3.5 w-3.5 text-monokai-green" /> UNKNOWN 不会被当作 FALSE</span>
+        <span className="flex items-center gap-1"><Link2 className="h-3.5 w-3.5 text-monokai-cyan" /> 所有结论都可回溯到对象、关系和规则版本</span>
+      </footer>
     </section>
   );
 };
