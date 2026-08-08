@@ -15,7 +15,21 @@ import type {
   LifeLinkType,
   LifeLink,
   LifeAction,
+  LifeIntrospection,
+  LifeInsight,
 } from '../../hooks/useOntologyStore';
+import type {
+  FeatureDefinition,
+  OutcomeDefinition,
+  RuleDefinition,
+} from './ontologyInferenceEngine';
+import { ontologyInferenceModule } from './ontologyInferenceModule';
+import type {
+  OntologyActionDefinition,
+  OntologyPropertyDefinition,
+  OntologyRuleDefinition as NativeOntologyRuleDefinition,
+} from './ontologyReasoningModule';
+import { ontologyReasoningModule } from './ontologyReasoningModule';
 
 // ============================================================
 // Types
@@ -34,21 +48,46 @@ export interface OntologyMapping {
 }
 
 export interface OntologyExportData {
-  version: string;
+  version: '3.0';
   exportedAt: string;
   objectTypes: LifeObjectType[];
   objects: LifeObject[];
   linkTypes: LifeLinkType[];
   links: LifeLink[];
   actions: LifeAction[];
+  introspections: LifeIntrospection[];
+  insights: LifeInsight[];
+  features: FeatureDefinition[];
+  rules: RuleDefinition[];
+  outcomes: OutcomeDefinition[];
+  inferenceDependencies: {
+    featureVersionIds: string[];
+    ruleVersionIds: string[];
+  };
+  propertyDefinitions: OntologyPropertyDefinition[];
+  ruleDefinitions: NativeOntologyRuleDefinition[];
+  actionDefinitions: OntologyActionDefinition[];
 }
 
 export interface ImportOntologyPayload {
+  version?: '1.0' | '2.0' | '3.0' | string;
   objectTypes?: LifeObjectType[];
   objects?: LifeObject[];
   linkTypes?: LifeLinkType[];
   links?: LifeLink[];
   actions?: LifeAction[];
+  introspections?: LifeIntrospection[];
+  insights?: LifeInsight[];
+  features?: FeatureDefinition[];
+  rules?: RuleDefinition[];
+  outcomes?: OutcomeDefinition[];
+  inferenceDependencies?: {
+    featureVersionIds?: string[];
+    ruleVersionIds?: string[];
+  };
+  propertyDefinitions?: OntologyPropertyDefinition[];
+  ruleDefinitions?: NativeOntologyRuleDefinition[];
+  actionDefinitions?: OntologyActionDefinition[];
 }
 
 // ============================================================
@@ -60,21 +99,50 @@ function safeStr(value: string | null | undefined): string {
   return duckDBService.escapeLiteral(value);
 }
 
-function safeNumber(value: unknown, col: string, fallback?: number): string {
+function safeNumber(
+  value: unknown,
+  col: string,
+  fallback?: number,
+  range?: { min: number; max: number },
+): string {
   const candidate = value == null && fallback !== undefined ? fallback : value;
-  const num = typeof candidate === 'number' ? candidate : Number(candidate);
-  if (!Number.isFinite(num)) {
+  if (typeof candidate !== 'number' || !Number.isFinite(candidate)) {
     throw new Error(`Invalid numeric value for ${col}`);
   }
-  return String(num);
+  if (range && (candidate < range.min || candidate > range.max)) {
+    throw new Error(`${col} must be between ${range.min} and ${range.max}`);
+  }
+  return String(candidate);
 }
 
 function safeId(value: unknown, col: string): string {
-  const num = typeof value === 'number' ? value : Number(value);
-  if (!Number.isInteger(num) || num < 0) {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {
     throw new Error(`Invalid id value for ${col}`);
   }
-  return String(num);
+  return String(value);
+}
+
+function safeNullableId(value: unknown, col: string): string {
+  return value == null ? 'NULL' : safeId(value, col);
+}
+
+function normalizeJSON(value: unknown, col: string): string {
+  const source = typeof value === 'string' ? value : JSON.stringify(value ?? {});
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(source);
+  } catch {
+    throw new Error(`${col} must be valid JSON`);
+  }
+  if (
+    parsed === null
+    || typeof parsed !== 'object'
+    || Array.isArray(parsed)
+    || Object.getPrototypeOf(parsed) !== Object.prototype
+  ) {
+    throw new Error(`${col} must be a JSON object`);
+  }
+  return JSON.stringify(parsed);
 }
 
 function safeBool(value: string | null | undefined, fallback = 'NULL'): string {
@@ -89,22 +157,52 @@ function safeBool(value: string | null | undefined, fallback = 'NULL'): string {
 export async function exportOntologyToJSON(
   mapping: OntologyMapping
 ): Promise<OntologyExportData> {
-  const [objectTypes, objects, linkTypes, links, actions] = await Promise.all([
+  const introspectionTable =
+    mapping.introspectionTable ?? `${mapping.objectTable.split('_')[0]}_introspection`;
+  const insightTable =
+    mapping.insightTable ?? `${mapping.objectTable.split('_')[0]}_insight`;
+  const [
+    objectTypes,
+    objects,
+    linkTypes,
+    links,
+    actions,
+    introspections,
+    insights,
+    inferenceWorkspace,
+    reasoningCatalog,
+  ] = await Promise.all([
     duckDBService.query(`SELECT * FROM ${mapping.objectTypeTable}`),
     duckDBService.query(`SELECT * FROM ${mapping.objectTable}`),
     duckDBService.query(`SELECT * FROM ${mapping.linkTypeTable}`),
     duckDBService.query(`SELECT * FROM ${mapping.linkTable}`),
     duckDBService.query(`SELECT * FROM ${mapping.actionTable}`),
+    duckDBService.query(`SELECT * FROM ${introspectionTable}`),
+    duckDBService.query(`SELECT * FROM ${insightTable}`),
+    ontologyInferenceModule.loadWorkspace(),
+    ontologyReasoningModule.loadCatalog(),
   ]);
 
   return {
-    version: '1.0',
+    version: '3.0',
     exportedAt: new Date().toISOString(),
     objectTypes: objectTypes || [],
     objects: objects || [],
     linkTypes: linkTypes || [],
     links: links || [],
     actions: actions || [],
+    introspections: introspections || [],
+    insights: insights || [],
+    features: inferenceWorkspace.features,
+    rules: inferenceWorkspace.rules,
+    outcomes: inferenceWorkspace.outcomes,
+    inferenceDependencies: {
+      featureVersionIds: inferenceWorkspace.dependencyFeatureIds ?? [],
+      ruleVersionIds: inferenceWorkspace.dependencyRuleIds ?? [],
+    },
+    propertyDefinitions: reasoningCatalog.propertyDefinitions,
+    ruleDefinitions: reasoningCatalog.rules,
+    actionDefinitions: reasoningCatalog.actionDefinitions,
   };
 }
 
@@ -131,9 +229,11 @@ export async function importOntologyFromJSON(
   mapping: OntologyMapping,
   payload: ImportOntologyPayload
 ): Promise<{ objectCount: number; linkCount: number }> {
+  const statements: string[] = [];
+
   // --- Object Types ---
   for (const ot of payload.objectTypes || []) {
-    await duckDBService.query(
+    statements.push(
       `INSERT OR REPLACE INTO ${mapping.objectTypeTable} (id, name, description) ` +
         `VALUES (${safeId(ot.id, 'objectTypes.id')}, ${safeStr(ot.name)}, ${safeStr(ot.description ?? null)})`
     );
@@ -141,11 +241,10 @@ export async function importOntologyFromJSON(
 
   // --- Objects ---
   for (const o of payload.objects || []) {
-    const props =
-      typeof o.properties === 'string' ? o.properties : JSON.stringify(o.properties || {});
+    const props = normalizeJSON(o.properties ?? {}, 'objects.properties');
     const annots =
       typeof o.annotations === 'string' ? o.annotations : JSON.stringify(o.annotations || '');
-    await duckDBService.query(
+    statements.push(
       `INSERT OR REPLACE INTO ${mapping.objectTable} ` +
         `(id, object_type_id, name, properties, annotations) ` +
         `VALUES (${safeId(o.id, 'objects.id')}, ${safeId(o.object_type_id, 'objects.object_type_id')}, ${safeStr(o.name)}, ${safeStr(props)}, ${safeStr(annots)})`
@@ -154,7 +253,7 @@ export async function importOntologyFromJSON(
 
   // --- Link Types ---
   for (const lt of payload.linkTypes || []) {
-    await duckDBService.query(
+    statements.push(
       `INSERT OR REPLACE INTO ${mapping.linkTypeTable} (id, name, description) ` +
         `VALUES (${safeId(lt.id, 'linkTypes.id')}, ${safeStr(lt.name)}, ${safeStr(lt.description ?? null)})`
     );
@@ -162,21 +261,96 @@ export async function importOntologyFromJSON(
 
   // --- Links ---
   for (const l of payload.links || []) {
-    await duckDBService.query(
+    statements.push(
       `INSERT OR REPLACE INTO ${mapping.linkTable} ` +
         `(id, link_type_id, source_object_id, target_object_id, weight) ` +
-        `VALUES (${safeId(l.id, 'links.id')}, ${safeId(l.link_type_id, 'links.link_type_id')}, ${safeId(l.source_object_id, 'links.source_object_id')}, ${safeId(l.target_object_id, 'links.target_object_id')}, ${safeNumber(l.weight, 'links.weight', 0.5)})`
+        `VALUES (${safeId(l.id, 'links.id')}, ${safeId(l.link_type_id, 'links.link_type_id')}, ${safeId(l.source_object_id, 'links.source_object_id')}, ${safeId(l.target_object_id, 'links.target_object_id')}, ${safeNumber(l.weight, 'links.weight', 0.5, { min: 0, max: 1 })})`
     );
   }
 
   // --- Actions ---
   for (const a of payload.actions || []) {
     const execAt = a.execute_at ? safeStr(a.execute_at) : 'NULL';
-    await duckDBService.query(
+    statements.push(
       `INSERT OR REPLACE INTO ${mapping.actionTable} ` +
         `(id, object_id, name, description, status, execute_at) ` +
-        `VALUES (${safeId(a.id, 'actions.id')}, ${safeId(a.object_id, 'actions.object_id')}, ${safeStr(a.name)}, ${safeStr(a.description ?? null)}, ${safeStr(a.status ?? 'pending')}, ${execAt})`
+        `VALUES (${safeId(a.id, 'actions.id')}, ${safeNullableId(a.object_id, 'actions.object_id')}, ${safeStr(a.name)}, ${safeStr(a.description ?? null)}, ${safeStr(a.status ?? 'pending')}, ${execAt})`
     );
+  }
+
+  const introspectionTable =
+    mapping.introspectionTable ?? `${mapping.objectTable.split('_')[0]}_introspection`;
+  for (const introspection of payload.introspections || []) {
+    const createdAt = introspection.created_at
+      ? safeStr(introspection.created_at)
+      : 'CURRENT_TIMESTAMP';
+    statements.push(
+      `INSERT OR REPLACE INTO ${introspectionTable} ` +
+        `(id, object_id, question, answer, created_at) ` +
+        `VALUES (${safeId(introspection.id, 'introspections.id')}, ${safeId(introspection.object_id, 'introspections.object_id')}, ${safeStr(introspection.question)}, ${safeStr(introspection.answer ?? null)}, ${createdAt})`
+    );
+  }
+
+  const insightTable =
+    mapping.insightTable ?? `${mapping.objectTable.split('_')[0]}_insight`;
+  for (const insight of payload.insights || []) {
+    const createdAt = insight.created_at ? safeStr(insight.created_at) : 'CURRENT_TIMESTAMP';
+    statements.push(
+      `INSERT OR REPLACE INTO ${insightTable} ` +
+        `(id, object_id, insight, tag, created_at) ` +
+        `VALUES (${safeId(insight.id, 'insights.id')}, ${safeId(insight.object_id, 'insights.object_id')}, ${safeStr(insight.insight)}, ${safeStr(insight.tag ?? null)}, ${createdAt})`
+    );
+  }
+
+  const hasInferenceDefinitions = payload.features !== undefined
+    || payload.rules !== undefined
+    || payload.outcomes !== undefined;
+  const inferenceWorkspace = hasInferenceDefinitions
+    ? {
+      features: payload.features ?? [],
+      rules: payload.rules ?? [],
+      outcomes: payload.outcomes ?? [],
+      dependencyFeatureIds: payload.inferenceDependencies?.featureVersionIds ?? [],
+      dependencyRuleIds: payload.inferenceDependencies?.ruleVersionIds ?? [],
+    }
+    : null;
+  if (inferenceWorkspace) {
+    await ontologyInferenceModule.validateWorkspace(inferenceWorkspace);
+  }
+  const hasReasoningDefinitions = payload.propertyDefinitions !== undefined
+    || payload.ruleDefinitions !== undefined
+    || payload.actionDefinitions !== undefined;
+  const reasoningCatalog = hasReasoningDefinitions
+    ? {
+      propertyDefinitions: payload.propertyDefinitions ?? [],
+      rules: payload.ruleDefinitions ?? [],
+      actionDefinitions: payload.actionDefinitions ?? [],
+    }
+    : null;
+  if (reasoningCatalog) {
+    const snapshot = ontologyReasoningModule.createSnapshot({
+      activeTemplateId: 'ontology-import',
+      objectTypes: payload.objectTypes ?? [],
+      objects: payload.objects ?? [],
+      linkTypes: payload.linkTypes ?? [],
+      links: payload.links ?? [],
+      actions: payload.actions ?? [],
+    }, reasoningCatalog);
+    const issues = ontologyReasoningModule.validateModel(snapshot);
+    if (issues.length > 0) throw new Error(`Ontology 推演定义无效：${issues.join('；')}`);
+  }
+
+  if (inferenceWorkspace) {
+    await ontologyInferenceModule.saveWorkspace(inferenceWorkspace);
+  }
+  if (reasoningCatalog) {
+    await ontologyReasoningModule.saveCatalog(reasoningCatalog);
+  }
+
+  await duckDBService.ontologyInit();
+
+  if (statements.length > 0) {
+    await duckDBService.executeTransaction(statements);
   }
 
   return {
@@ -260,33 +434,55 @@ export function validateDraftPayload(payload: OntologyDraftPayload): {
   errors: string[];
 } {
   const errors: string[] = [];
+  const validateId = (value: unknown, label: string) => {
+    if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {
+      errors.push(`${label} must be a non-negative integer, got: ${String(value)}`);
+      return false;
+    }
+    return true;
+  };
 
-  // Validate object_type_ids are positive
+  // Validate every numeric value before any SQL is constructed. AI payloads
+  // are runtime data even though the TypeScript shape declares numbers.
   for (const obj of payload.objects || []) {
-    if (typeof obj.id !== 'number' || obj.id < 0) {
-      errors.push(`Object id must be a non-negative number, got: ${obj.id}`);
+    validateId(obj.id, 'Object id');
+    if (obj.object_type_id !== undefined) {
+      validateId(obj.object_type_id, `Object ${String(obj.id)} object_type_id`);
     }
   }
 
   // Validate link endpoint IDs and weight range
   const validObjectIds = new Set((payload.objects || []).map(o => o.id));
   for (const link of payload.links || []) {
-    if (typeof link.id !== 'number' || link.id < 0) {
-      errors.push(`Link id must be a non-negative number, got: ${link.id}`);
+    validateId(link.id, 'Link id');
+    if (link.link_type_id !== undefined) {
+      validateId(link.link_type_id, `Link ${String(link.id)} link_type_id`);
     }
+    validateId(link.source_object_id, `Link ${String(link.id)} source_object_id`);
+    validateId(link.target_object_id, `Link ${String(link.id)} target_object_id`);
     if (!validObjectIds.has(link.source_object_id)) {
       errors.push(`Link ${link.id}: source_object_id ${link.source_object_id} does not exist in objects`);
     }
     if (!validObjectIds.has(link.target_object_id)) {
       errors.push(`Link ${link.id}: target_object_id ${link.target_object_id} does not exist in objects`);
     }
-    if (link.weight !== undefined && (link.weight < 0 || link.weight > 1)) {
+    if (
+      link.weight !== undefined
+      && (
+        typeof link.weight !== 'number'
+        || !Number.isFinite(link.weight)
+        || link.weight < 0
+        || link.weight > 1
+      )
+    ) {
       errors.push(`Link ${link.id}: weight ${link.weight} must be between 0 and 1`);
     }
   }
 
   // Validate action object_ids
   for (const action of payload.actions || []) {
+    validateId(action.id, 'Action id');
+    validateId(action.object_id, `Action ${String(action.id)} object_id`);
     if (!validObjectIds.has(action.object_id)) {
       errors.push(`Action ${action.id}: object_id ${action.object_id} does not exist in objects`);
     }
@@ -294,6 +490,8 @@ export function validateDraftPayload(payload: OntologyDraftPayload): {
 
   // Validate introspection object_ids
   for (const intro of payload.introspections || []) {
+    validateId(intro.id, 'Introspection id');
+    validateId(intro.object_id, `Introspection ${String(intro.id)} object_id`);
     if (!validObjectIds.has(intro.object_id)) {
       errors.push(`Introspection ${intro.id}: object_id ${intro.object_id} does not exist in objects`);
     }
@@ -301,6 +499,8 @@ export function validateDraftPayload(payload: OntologyDraftPayload): {
 
   // Validate insight object_ids
   for (const ins of payload.insights || []) {
+    validateId(ins.id, 'Insight id');
+    validateId(ins.object_id, `Insight ${String(ins.id)} object_id`);
     if (!validObjectIds.has(ins.object_id)) {
       errors.push(`Insight ${ins.id}: object_id ${ins.object_id} does not exist in objects`);
     }
@@ -324,9 +524,11 @@ function buildChunkedInsert(
     const values = chunk.map(row => {
       return columns.map(col => {
         const v = row[col];
-        if (col === 'id') return v != null ? v.toString() : 'NULL';
-        if (col === 'weight') return v != null ? v.toString() : '0.5';
-        if (col === 'object_type_id' || col === 'link_type_id' || col === 'source_object_id' || col === 'target_object_id' || col === 'object_id') return v != null ? v.toString() : 'NULL';
+        if (col === 'id') return safeId(v, `${table}.id`);
+        if (col === 'weight') return safeNumber(v, `${table}.weight`, 0.5);
+        if (col === 'object_type_id' || col === 'link_type_id' || col === 'source_object_id' || col === 'target_object_id' || col === 'object_id') {
+          return safeNullableId(v, `${table}.${col}`);
+        }
         if (v == null) return 'NULL';
         return duckDBService.escapeLiteral(typeof v === 'object' ? JSON.stringify(v) : String(v));
       }).join(', ');
@@ -340,6 +542,11 @@ export async function executeOntologyDraft(
   mapping: OntologyMapping,
   payload: OntologyDraftPayload
 ): Promise<void> {
+  const validation = validateDraftPayload(payload);
+  if (!validation.valid) {
+    throw new Error(`Invalid ontology draft: ${validation.errors.join('; ')}`);
+  }
+
   const stmts: string[] = [];
 
   // Objects
@@ -395,9 +602,9 @@ export async function executeOntologyDraft(
   }));
   stmts.push(...buildChunkedInsert(mapping.insightTable ?? `${mapping.objectTable.split('_')[0]}_insight`, insightCols, insightRows, mapping));
 
-  // Execute all statements sequentially (DDL/DML ordering matters for FK constraints)
-  for (const stmt of stmts) {
-    await duckDBService.query(stmt);
+  // DuckDBRuntime preserves statement order and rolls the entire draft back on failure.
+  if (stmts.length > 0) {
+    await duckDBService.executeTransaction(stmts);
   }
 }
 
@@ -493,15 +700,16 @@ export async function deleteOntologyNodeTree(
     mapping.canvasStateTable ?? `${ns}_canvas_state`,
     mapping.objectTable,
   ];
-  for (const table of tables) {
+  const statements = tables.map(table => {
     if (table === mapping.linkTable) {
-      await duckDBService.query(`DELETE FROM "${table}" WHERE source_object_id = ${objectId} OR target_object_id = ${objectId}`);
-    } else if (table === mapping.objectTable) {
-      await duckDBService.query(`DELETE FROM "${table}" WHERE id = ${objectId}`);
-    } else {
-      await duckDBService.query(`DELETE FROM "${table}" WHERE object_id = ${objectId}`);
+      return `DELETE FROM "${table}" WHERE source_object_id = ${objectId} OR target_object_id = ${objectId}`;
     }
-  }
+    if (table === mapping.objectTable) {
+      return `DELETE FROM "${table}" WHERE id = ${objectId}`;
+    }
+    return `DELETE FROM "${table}" WHERE object_id = ${objectId}`;
+  });
+  await duckDBService.executeTransaction(statements);
 }
 
 export async function updateOntologyAction(
