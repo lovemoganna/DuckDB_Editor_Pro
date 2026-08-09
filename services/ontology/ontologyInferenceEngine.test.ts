@@ -804,4 +804,132 @@ describe('ontology inference engine', () => {
       { [timeFeature.id]: new Date('2026-07-30T12:00:00Z') },
     ).value).toBe('TRUE');
   });
+
+  it('compiles Ontology JSON properties and directed relations as native feature sources', () => {
+    const propertyFeature: FeatureDefinition = {
+      ...riskFeatures[1],
+      id: 'feature.ontology.order.amount.v1',
+      logicalId: 'feature.ontology.order.amount',
+      source: {
+        kind: 'ontology_property',
+        table: 'life_object',
+        jsonColumn: 'properties',
+        propertyKey: 'amount',
+      },
+    };
+    const relationFeature: FeatureDefinition = {
+      ...riskFeatures[0],
+      id: 'feature.ontology.order.has_payment.v1',
+      logicalId: 'feature.ontology.order.has_payment',
+      source: {
+        kind: 'ontology_relation',
+        table: 'life_object',
+        objectIdColumn: 'id',
+        linkTable: 'life_link',
+        linkTypeId: 7,
+        direction: 'incoming',
+      },
+    };
+
+    expect(compileFeatureExpression(propertyFeature)).toContain(
+      `TRY_CAST(json_extract_string("properties", '$."amount"') AS DOUBLE)`,
+    );
+    expect(compileFeatureExpression(relationFeature)).toContain(
+      'CASE WHEN EXISTS (SELECT 1 FROM "life_link" AS "__ontology_link"',
+    );
+    expect(compileFeatureExpression(relationFeature)).toContain(
+      '"__ontology_link"."target_object_id" = "__population"."id"',
+    );
+  });
+
+  it('separates established, possible and excluded combinations and explains ranking', () => {
+    const report = runInference({
+      features: [riskFeatures[0], riskFeatures[2]],
+      rules: [{
+        ...highRiskRule,
+        id: 'rule.allowed.v1',
+        logicalId: 'rule.allowed',
+        name: '可成立组合',
+        root: {
+          kind: 'and',
+          nodeId: 'allowed-root',
+          children: [
+            { kind: 'condition', nodeId: 'fast', featureId: riskFeatures[0].id, operator: 'is_true' },
+            { kind: 'condition', nodeId: 'address', featureId: riskFeatures[2].id, operator: 'eq', value: '高风险' },
+          ],
+        },
+      }],
+      outcomes: [],
+      selectedFeatureIds: [riskFeatures[0].id, riskFeatures[2].id],
+      selectedRuleIds: ['rule.allowed.v1'],
+      rows: [
+        { [riskFeatures[0].id]: true, [riskFeatures[2].id]: '高风险' },
+        { [riskFeatures[0].id]: false, [riskFeatures[2].id]: '低风险' },
+      ],
+      topK: 20,
+      beamWidth: 20,
+      executedSql: 'SELECT real ontology facts',
+      params: [],
+      ranking: {
+        featureReliability: {
+          [riskFeatures[0].id]: 0.9,
+          [riskFeatures[2].id]: 0.8,
+        },
+        manualWeights: { [riskFeatures[0].id]: 0.2 },
+      },
+    });
+
+    expect(report.establishedCandidates).toHaveLength(1);
+    expect(report.establishedCandidates[0].status).toBe('ESTABLISHED');
+    expect(report.excludedCandidates.length).toBeGreaterThan(0);
+    expect(report.excludedCandidates[0].status).toBe('EXCLUDED');
+    expect(report.rankedCandidates[0].ranking).toMatchObject({
+      evidenceCoverage: expect.any(Number),
+      reliability: expect.any(Number),
+      conditionSatisfaction: expect.any(Number),
+      conflictPenalty: expect.any(Number),
+      unknownPenalty: expect.any(Number),
+      historicalValidation: expect.any(Number),
+      manualWeight: expect.any(Number),
+      score: expect.any(Number),
+      reasons: expect.any(Array),
+    });
+  });
+
+  it('keeps conflicting real evidence possible instead of trusting the first row', () => {
+    const report = runInference({
+      features: [riskFeatures[0], riskFeatures[2]],
+      rules: [{
+        ...highRiskRule,
+        id: 'rule.conflicting.v1',
+        logicalId: 'rule.conflicting',
+        root: {
+          kind: 'condition',
+          nodeId: 'address-condition',
+          featureId: riskFeatures[2].id,
+          operator: 'eq',
+          value: '高风险',
+        },
+      }],
+      outcomes: [],
+      selectedFeatureIds: [riskFeatures[0].id],
+      selectedRuleIds: ['rule.conflicting.v1'],
+      rows: [
+        { [riskFeatures[0].id]: true, [riskFeatures[2].id]: '高风险' },
+        { [riskFeatures[0].id]: true, [riskFeatures[2].id]: '低风险' },
+      ],
+      topK: 10,
+      beamWidth: 10,
+      executedSql: 'SELECT real ontology facts',
+      params: [],
+    });
+
+    expect(report.possibleCandidates).toHaveLength(1);
+    expect(report.possibleCandidates[0].ruleResults[0]).toMatchObject({
+      trueCount: 1,
+      falseCount: 1,
+      trace: { value: 'UNKNOWN' },
+    });
+    expect(report.possibleCandidates[0].ranking.conflictPenalty).toBe(1);
+  });
 });
