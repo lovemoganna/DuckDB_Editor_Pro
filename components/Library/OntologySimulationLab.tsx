@@ -24,6 +24,7 @@ import {
   type OntologySimulationReport,
   type OntologySimulationScenario,
 } from '../../services/ontology/ontologyReasoningModule';
+import { OntologyCombinationExplorer } from './OntologyCombinationExplorer';
 
 export interface OntologySimulationLabProps {
   activeTemplateId?: string;
@@ -358,6 +359,8 @@ export const OntologySimulationLab: React.FC<OntologySimulationLabProps> = ({
         {loading ? (
           <div className="flex h-48 items-center justify-center text-sm text-monokai-comment">正在读取当前 Ontology 快照…</div>
         ) : (
+          <>
+          <OntologyCombinationExplorer source={source} catalog={catalog} />
           <div className="grid gap-5 xl:grid-cols-[minmax(260px,0.8fr)_minmax(340px,1fr)_minmax(420px,1.4fr)]">
             <section className="rounded-2xl border border-white/10 bg-[#12141e] p-4">
               <SectionHeader step={1} title="选择世界" subtitle="直接读取当前 Ontology 对象、属性、关系和规则。" />
@@ -615,6 +618,7 @@ export const OntologySimulationLab: React.FC<OntologySimulationLabProps> = ({
               )}
             </section>
           </div>
+          </>
         )}
       </main>
 

@@ -9,8 +9,8 @@ import {
   type OntologyPropertyDefinition,
   type OntologyRuleDefinition,
 } from './ontologyReasoningModule';
-import lesson0006 from '../../data/ontology/seed-lesson-0006.json';
-import lesson0013 from '../../data/ontology/seed-lesson-0013.json';
+import ecommerceSeed from '../../data/ontology/seed-ecommerce.json';
+import healthSeed from '../../data/ontology/seed-health-tracker.json';
 
 const properties: OntologyPropertyDefinition[] = [
   {
@@ -382,44 +382,54 @@ describe('OntologyReasoningModule public seam', () => {
   });
 
   it('runs the same generic engine against two structurally different real ontology seeds', () => {
-    const stateTransitionCatalog = {
+    const ecommerceCatalog = {
       propertyDefinitions: [{
-        id: 'property.lesson.order.status', logicalId: 'property.lesson.order.status', version: 1,
-        objectTypeId: 1, key: 'status', name: '订单状态', valueType: 'string' as const,
+        id: 'property.ecommerce.product.price', logicalId: 'property.ecommerce.product.price', version: 1,
+        objectTypeId: 1, key: 'price', name: '商品价格', valueType: 'number' as const,
         nullable: false, status: 'active' as const,
       }],
       rules: [{
-        id: 'rule.lesson.payment-linked.v1', logicalId: 'rule.lesson.payment-linked', version: 1,
-        name: '支付事件已驱动订单', status: 'active' as const, priority: 0,
-        variables: [{ name: 'event', objectTypeId: 2 }, { name: 'order', objectTypeId: 1 }],
+        id: 'rule.ecommerce.channel-product.v1', logicalId: 'rule.ecommerce.channel-product', version: 1,
+        name: '渠道关联有价格商品', status: 'active' as const, priority: 0,
+        variables: [{ name: 'channel', objectTypeId: 3 }, { name: 'product', objectTypeId: 1 }],
         when: {
           kind: 'and' as const,
           children: [
-            { kind: 'relation' as const, sourceVariable: 'event', linkTypeId: 1, targetVariable: 'order', operator: 'exists' as const },
-            { kind: 'property' as const, variable: 'order', propertyId: 'property.lesson.order.status', operator: 'eq' as const, value: 'Paid' },
+            { kind: 'relation' as const, sourceVariable: 'channel', linkTypeId: 1, targetVariable: 'product', operator: 'exists' as const },
+            { kind: 'property' as const, variable: 'product', propertyId: 'property.ecommerce.product.price', operator: 'gt' as const, value: 0 },
           ],
         },
-        effects: [{ kind: 'assert_conclusion' as const, predicate: 'payment_transition_observed', variables: ['order'] }],
+        effects: [{ kind: 'assert_conclusion' as const, predicate: 'channel_product_observed', variables: ['product'] }],
       }],
       actionDefinitions: [],
     };
-    const conflictCatalog = {
-      propertyDefinitions: [],
+    const healthCatalog = {
+      propertyDefinitions: [{
+        id: 'property.health.metric.current', logicalId: 'property.health.metric.current', version: 1,
+        objectTypeId: 1, key: 'current', name: '当前指标', valueType: 'number' as const,
+        nullable: false, status: 'active' as const,
+      }],
       rules: [{
-        id: 'rule.lesson.court-evidence.v1', logicalId: 'rule.lesson.court-evidence', version: 1,
-        name: '存在司法证据', status: 'active' as const, priority: 0,
-        variables: [{ name: 'supplier', objectTypeId: 1 }, { name: 'notice', objectTypeId: 3 }],
-        when: { kind: 'relation' as const, sourceVariable: 'supplier', linkTypeId: 2, targetVariable: 'notice', operator: 'exists' as const },
-        effects: [{ kind: 'assert_conclusion' as const, predicate: 'court_evidence_present', variables: ['supplier'] }],
+        id: 'rule.health.habit-metric.v1', logicalId: 'rule.health.habit-metric', version: 1,
+        name: '习惯关联已记录指标', status: 'active' as const, priority: 0,
+        variables: [{ name: 'habit', objectTypeId: 2 }, { name: 'metric', objectTypeId: 1 }],
+        when: {
+          kind: 'and' as const,
+          children: [
+            { kind: 'relation' as const, sourceVariable: 'habit', linkTypeId: 1, targetVariable: 'metric', operator: 'exists' as const },
+            { kind: 'property' as const, variable: 'metric', propertyId: 'property.health.metric.current', operator: 'gt' as const, value: 0 },
+          ],
+        },
+        effects: [{ kind: 'assert_conclusion' as const, predicate: 'habit_metric_observed', variables: ['metric'] }],
       }],
       actionDefinitions: [],
     };
 
-    const transition = simulateOntology(createOntologySnapshot(lesson0006, stateTransitionCatalog), { assumptions: [], actions: [] });
-    const conflict = simulateOntology(createOntologySnapshot(lesson0013, conflictCatalog), { assumptions: [], actions: [] });
+    const ecommerce = simulateOntology(createOntologySnapshot(ecommerceSeed, ecommerceCatalog), { assumptions: [], actions: [] });
+    const health = simulateOntology(createOntologySnapshot(healthSeed, healthCatalog), { assumptions: [], actions: [] });
 
-    expect(transition.branches[0].conclusions).toContain('payment_transition_observed|1');
-    expect(conflict.branches[0].conclusions).toContain('court_evidence_present|1');
+    expect(ecommerce.branches[0].conclusions).toContain('channel_product_observed|1');
+    expect(health.branches[0].conclusions).toContain('habit_metric_observed|1');
   });
 
   it('rejects inactive property references and reports derived-rule cycles', () => {

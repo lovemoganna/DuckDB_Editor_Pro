@@ -1,3 +1,9 @@
+import type {
+  FeatureConditionAstNode,
+  FeatureRuleAst,
+  RuleReferenceAstNode,
+} from './ontologyRuleAst';
+
 export type TruthValue = 'TRUE' | 'FALSE' | 'UNKNOWN';
 
 export type FeatureValueType =
@@ -46,6 +52,22 @@ export interface ComputedFeatureSource {
   allowedFunctions: string[];
 }
 
+export interface OntologyPropertyFeatureSource {
+  kind: 'ontology_property';
+  table: string;
+  jsonColumn: string;
+  propertyKey: string;
+}
+
+export interface OntologyRelationFeatureSource {
+  kind: 'ontology_relation';
+  table: string;
+  objectIdColumn: string;
+  linkTable: string;
+  linkTypeId: number;
+  direction: 'outgoing' | 'incoming';
+}
+
 export interface FeatureDefinition {
   id: string;
   logicalId: string;
@@ -54,7 +76,11 @@ export interface FeatureDefinition {
   description: string;
   valueType: FeatureValueType;
   objectTypeId: number;
-  source: ColumnFeatureSource | ComputedFeatureSource;
+  source:
+    | ColumnFeatureSource
+    | ComputedFeatureSource
+    | OntologyPropertyFeatureSource
+    | OntologyRelationFeatureSource;
   nullSemantics: string;
   status: 'candidate' | 'active' | 'archived';
   window?: {
@@ -65,34 +91,11 @@ export interface FeatureDefinition {
   domain?: unknown[];
 }
 
-export interface LogicNode {
-  kind: 'and' | 'or';
-  nodeId: string;
-  children: RuleAst[];
-}
-
-export interface NotNode {
-  kind: 'not';
-  nodeId: string;
-  child: RuleAst;
-}
-
-export interface ConditionNode {
-  kind: 'condition';
-  nodeId: string;
-  featureId: string;
-  operator: ConditionOperator;
-  value?: unknown;
-  secondValue?: unknown;
-}
-
-export interface RuleRefNode {
-  kind: 'ruleRef';
-  nodeId: string;
-  ruleId: string;
-}
-
-export type RuleAst = LogicNode | NotNode | ConditionNode | RuleRefNode;
+export type RuleAst = FeatureRuleAst<ConditionOperator>;
+export type LogicNode = Extract<RuleAst, { kind: 'and' | 'or' }>;
+export type NotNode = Extract<RuleAst, { kind: 'not' }>;
+export type ConditionNode = FeatureConditionAstNode<ConditionOperator>;
+export type RuleRefNode = RuleReferenceAstNode;
 
 export interface RuleDefinition {
   id: string;
@@ -197,6 +200,12 @@ export interface InferenceRequest {
   executedSql: string;
   params: unknown[];
   compilationFingerprint?: string;
+  ranking?: {
+    featureReliability?: Record<string, number>;
+    historicalValidation?: Record<string, number>;
+    manualWeights?: Record<string, number>;
+    weights?: Partial<RankingWeights>;
+  };
 }
 
 export interface SituationState {
@@ -228,6 +237,30 @@ export interface SituationCandidate {
   expertPriorProbability?: number;
   evidenceKind: 'empirical_frequency' | 'empirical_probability' | 'logical_only';
   ruleResults: InferenceRuleResult[];
+  status: 'ESTABLISHED' | 'POSSIBLE' | 'EXCLUDED';
+  ranking: CandidateRanking;
+}
+
+export interface RankingWeights {
+  evidenceCoverage: number;
+  reliability: number;
+  conditionSatisfaction: number;
+  conflictPenalty: number;
+  unknownPenalty: number;
+  historicalValidation: number;
+  manualWeight: number;
+}
+
+export interface CandidateRanking {
+  evidenceCoverage: number;
+  reliability: number;
+  conditionSatisfaction: number;
+  conflictPenalty: number;
+  unknownPenalty: number;
+  historicalValidation: number;
+  manualWeight: number;
+  score: number;
+  reasons: string[];
 }
 
 export interface InferenceReport {
@@ -237,6 +270,10 @@ export interface InferenceReport {
   unknownPopulation: number;
   unknownRate: number;
   candidates: SituationCandidate[];
+  rankedCandidates: SituationCandidate[];
+  establishedCandidates: SituationCandidate[];
+  possibleCandidates: SituationCandidate[];
+  excludedCandidates: SituationCandidate[];
   outcomeCandidates: SituationCandidate[];
   unknownReasons: Array<{
     featureId: string;
@@ -254,10 +291,29 @@ export interface InferenceReport {
   compilationFingerprint: string;
   featureVersionIds: string[];
   ruleVersionIds: string[];
+  sourceSnapshot?: {
+    snapshotId: string;
+    ontologyId: string;
+    objectTypeId: number;
+    objectIds: number[];
+  };
 }
 
 const isUnknown = (value: unknown): value is null | undefined =>
   value === null || value === undefined;
+
+const clamp = (value: number, minimum: number, maximum: number): number =>
+  Math.min(maximum, Math.max(minimum, Number.isFinite(value) ? value : minimum));
+
+const DEFAULT_RANKING_WEIGHTS: RankingWeights = {
+  evidenceCoverage: 0.2,
+  reliability: 0.2,
+  conditionSatisfaction: 0.25,
+  conflictPenalty: 0.15,
+  unknownPenalty: 0.15,
+  historicalValidation: 0.05,
+  manualWeight: 0.1,
+};
 
 const truth = (value: boolean): TruthValue => value ? 'TRUE' : 'FALSE';
 
@@ -903,6 +959,30 @@ const CONTROLLED_COMPUTED_FUNCTIONS = new Set([
 export function compileFeatureExpression(feature: FeatureDefinition): string {
   if (feature.source.kind === 'column') {
     return quoteIdentifier(feature.source.column);
+  }
+  if (feature.source.kind === 'ontology_property') {
+    const pathKey = feature.source.propertyKey
+      .replace(/\\/g, '\\\\')
+      .replace(/"/g, '\\"');
+    const extracted = `json_extract_string(${quoteIdentifier(feature.source.jsonColumn)}, '$."${pathKey}"')`;
+    if (feature.valueType === 'number') return `TRY_CAST(${extracted} AS DOUBLE)`;
+    if (feature.valueType === 'boolean') return `TRY_CAST(${extracted} AS BOOLEAN)`;
+    if (feature.valueType === 'timestamp') return `TRY_CAST(${extracted} AS TIMESTAMP)`;
+    return extracted;
+  }
+  if (feature.source.kind === 'ontology_relation') {
+    if (!Number.isSafeInteger(feature.source.linkTypeId)) {
+      throw new Error(`Ontology relation feature ${feature.name} has an invalid link type`);
+    }
+    const linkAlias = quoteIdentifier('__ontology_link');
+    const populationAlias = quoteIdentifier('__population');
+    const subjectColumn = feature.source.direction === 'outgoing'
+      ? 'source_object_id'
+      : 'target_object_id';
+    return `CASE WHEN EXISTS (SELECT 1 FROM ${quoteIdentifier(feature.source.linkTable)} AS ${linkAlias}`
+      + ` WHERE ${linkAlias}.${quoteIdentifier('link_type_id')} = ${feature.source.linkTypeId}`
+      + ` AND ${linkAlias}.${quoteIdentifier(subjectColumn)} = ${populationAlias}.${quoteIdentifier(feature.source.objectIdColumn)})`
+      + ' THEN TRUE ELSE NULL END';
   }
   const expression = feature.source.expression.trim();
   if (
@@ -1621,6 +1701,87 @@ const buildLogicalSituations = (
   };
 };
 
+function classifyAndRankCandidate(
+  candidate: SituationCandidate,
+  request: InferenceRequest,
+): SituationCandidate {
+  const ruleTruths = candidate.ruleResults.map(result => result.trace.value);
+  const status: SituationCandidate['status'] = ruleTruths.includes('FALSE')
+    ? 'EXCLUDED'
+    : (ruleTruths.length > 0 && ruleTruths.every(value => value === 'TRUE'))
+      || (ruleTruths.length === 0 && candidate.count > 0)
+      ? 'ESTABLISHED'
+      : 'POSSIBLE';
+  const ruleCount = Math.max(1, ruleTruths.length);
+  const evidenceCoverage = candidate.count > 0 ? 1 : 0;
+  const configuredReliability = candidate.states.map(state =>
+    request.ranking?.featureReliability?.[state.featureId],
+  ).filter((value): value is number => typeof value === 'number');
+  const reliability = configuredReliability.length > 0
+    ? configuredReliability.reduce((sum, value) => sum + clamp(value, 0, 1), 0)
+      / configuredReliability.length
+    : candidate.count > 0 ? 1 : 0.5;
+  const conditionSatisfaction = ruleTruths.filter(value => value === 'TRUE').length / ruleCount;
+  const conflictPenalty = candidate.ruleResults.filter(result =>
+    result.trueCount > 0 && result.falseCount > 0,
+  ).length / ruleCount;
+  const unknownPenalty = ruleTruths.filter(value => value === 'UNKNOWN').length / ruleCount;
+  const historicalValidation = clamp(
+    request.ranking?.historicalValidation?.[candidate.id] ?? 0,
+    0,
+    1,
+  );
+  const stateWeights = candidate.states.map(state =>
+    request.ranking?.manualWeights?.[`${state.featureId}:${stableValue(state.value)}`]
+      ?? request.ranking?.manualWeights?.[state.featureId]
+      ?? 0,
+  );
+  const manualWeight = stateWeights.length > 0
+    ? clamp(stateWeights.reduce((sum, value) => sum + value, 0) / stateWeights.length, -1, 1)
+    : 0;
+  const weights: RankingWeights = {
+    ...DEFAULT_RANKING_WEIGHTS,
+    ...request.ranking?.weights,
+  };
+  const numerator = evidenceCoverage * weights.evidenceCoverage
+    + reliability * weights.reliability
+    + conditionSatisfaction * weights.conditionSatisfaction
+    + historicalValidation * weights.historicalValidation
+    + manualWeight * weights.manualWeight
+    - conflictPenalty * weights.conflictPenalty
+    - unknownPenalty * weights.unknownPenalty;
+  const denominator = Object.values(weights)
+    .reduce((sum, weight) => sum + Math.abs(weight), 0) || 1;
+  const score = Math.round(clamp(100 * numerator / denominator, 0, 100) * 100) / 100;
+  const reasons = [
+    candidate.count > 0
+      ? `由 ${candidate.count} 个真实对象状态支持`
+      : '逻辑候选，尚无真实对象状态支持',
+    ruleTruths.length === 0
+      ? 'Ontology 尚未定义可执行约束'
+      : `${ruleTruths.filter(value => value === 'TRUE').length}/${ruleTruths.length} 条约束成立`,
+  ];
+  if (unknownPenalty > 0) reasons.push(`${Math.round(unknownPenalty * 100)}% 约束因事实缺失而未知`);
+  if (conflictPenalty > 0) reasons.push('历史对象对同一规则给出冲突证据');
+  if (status === 'EXCLUDED') reasons.push('至少一条约束明确不成立');
+  if (manualWeight !== 0) reasons.push(`人工权重 ${manualWeight > 0 ? '+' : ''}${manualWeight.toFixed(2)}`);
+  return {
+    ...candidate,
+    status,
+    ranking: {
+      evidenceCoverage,
+      reliability,
+      conditionSatisfaction,
+      conflictPenalty,
+      unknownPenalty,
+      historicalValidation,
+      manualWeight,
+      score,
+      reasons,
+    },
+  };
+}
+
 export function runInference(request: InferenceRequest): InferenceReport {
   const topK = Math.max(1, Math.floor(request.topK ?? 20));
   const beamWidth = Math.max(topK, Math.floor(request.beamWidth ?? 200));
@@ -1676,27 +1837,23 @@ export function runInference(request: InferenceRequest): InferenceReport {
   let unknownPopulation = 0;
   for (const row of request.rows) {
     const values = selectedFeatures.map(feature => row[feature.id]);
-    if (values.some(isUnknown)) {
+    const classifiedStates = classifiers.map((classifier, index) =>
+      isUnknown(values[index]) ? undefined : classifier.classify(values[index]),
+    );
+    classifiedStates.forEach((state, index) => {
+      if (state && state.key !== 'UNKNOWN') observedStates[index].set(state.key, state);
+    });
+    if (values.some(isUnknown) || classifiedStates.some(state => !state || state.key === 'UNKNOWN')) {
       unknownPopulation += 1;
       values.forEach((value, index) => {
-        if (isUnknown(value)) recordUnknownReason(selectedFeatures[index]);
+        if (isUnknown(value) || classifiedStates[index]?.key === 'UNKNOWN') {
+          recordUnknownReason(selectedFeatures[index]);
+        }
       });
       continue;
     }
-    const classifiedStates = classifiers.map((classifier, index) =>
-      classifier.classify(values[index]),
-    );
-    if (classifiedStates.some(state => state.key === 'UNKNOWN')) {
-      unknownPopulation += 1;
-      classifiedStates.forEach((state, index) => {
-        if (state.key === 'UNKNOWN') recordUnknownReason(selectedFeatures[index]);
-      });
-      continue;
-    }
-    classifiedStates.forEach((state, index) =>
-      observedStates[index].set(state.key, state),
-    );
-    const key = classifiedStates.map(state => state.key).join('|');
+    const knownStates = classifiedStates as ClassifiedFeatureState[];
+    const key = knownStates.map(state => state.key).join('|');
     const existing = situations.get(key);
     if (existing) {
       existing.rows.push(row);
@@ -1704,7 +1861,7 @@ export function runInference(request: InferenceRequest): InferenceReport {
     }
     situations.set(key, {
       key,
-      states: classifiedStates.map(({ key: _key, ...state }) => state),
+      states: knownStates.map(({ key: _key, ...state }) => state),
       rows: [row],
     });
   }
@@ -1733,13 +1890,26 @@ export function runInference(request: InferenceRequest): InferenceReport {
       const evaluations = situation.rows.map(row =>
         evaluateRule(rule, request.features, row, { rules: request.rules }),
       );
+      const representativeTrace = evaluateRule(
+        rule,
+        request.features,
+        representative,
+        { rules: request.rules },
+      );
+      const aggregateTruth: TruthValue = evaluations.length === 0
+        ? representativeTrace.value
+        : evaluations.every(item => item.value === 'TRUE')
+          ? 'TRUE'
+          : evaluations.every(item => item.value === 'FALSE')
+            ? 'FALSE'
+            : 'UNKNOWN';
       return {
         ruleId: rule.id,
         ruleName: rule.name,
         trueCount: evaluations.filter(item => item.value === 'TRUE').length,
         falseCount: evaluations.filter(item => item.value === 'FALSE').length,
         unknownCount: evaluations.filter(item => item.value === 'UNKNOWN').length,
-        trace: evaluateRule(rule, request.features, representative, { rules: request.rules }),
+        trace: { ...representativeTrace, value: aggregateTruth },
       };
     });
     const candidate: SituationCandidate = {
@@ -1756,6 +1926,18 @@ export function runInference(request: InferenceRequest): InferenceReport {
           ? 'empirical_probability'
           : 'empirical_frequency',
       ruleResults,
+      status: 'POSSIBLE',
+      ranking: {
+        evidenceCoverage: 0,
+        reliability: 0,
+        conditionSatisfaction: 0,
+        conflictPenalty: 0,
+        unknownPenalty: 0,
+        historicalValidation: 0,
+        manualWeight: 0,
+        score: 0,
+        reasons: [],
+      },
     };
     if (outcome?.labelBinding && situation.rows.length > 0) {
       const labelledRows = situation.rows.filter(row => !isUnknown(row.__outcome));
@@ -1789,7 +1971,7 @@ export function runInference(request: InferenceRequest): InferenceReport {
       }
       candidate.expertPriorProbability = odds / (1 + odds);
     }
-    return candidate;
+    return classifyAndRankCandidate(candidate, request);
   });
   const rankCandidates = (
     values: SituationCandidate[],
@@ -1815,6 +1997,21 @@ export function runInference(request: InferenceRequest): InferenceReport {
         || left.id.localeCompare(right.id),
     )
     : [];
+  const rankedCandidates = rankCandidates(
+    allCandidates,
+    (left, right) =>
+      right.ranking.score - left.ranking.score
+      || right.count - left.count
+      || left.id.localeCompare(right.id),
+  );
+  const byStatus = (status: SituationCandidate['status']): SituationCandidate[] =>
+    allCandidates
+      .filter(candidate => candidate.status === status)
+      .sort((left, right) =>
+        right.ranking.score - left.ranking.score
+        || right.count - left.count
+        || left.id.localeCompare(right.id),
+      );
   const totalCandidateCount = Math.max(rankedSituations.length, logical.theoreticalCount);
 
   return {
@@ -1824,6 +2021,10 @@ export function runInference(request: InferenceRequest): InferenceReport {
     unknownPopulation,
     unknownRate: request.rows.length > 0 ? unknownPopulation / request.rows.length : 0,
     candidates,
+    rankedCandidates,
+    establishedCandidates: byStatus('ESTABLISHED'),
+    possibleCandidates: byStatus('POSSIBLE'),
+    excludedCandidates: byStatus('EXCLUDED'),
     outcomeCandidates,
     unknownReasons: [...unknownReasonCounts.entries()].map(([featureId, count]) => {
       const feature = featureMap.get(featureId)!;

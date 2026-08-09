@@ -492,7 +492,7 @@ export function createOntologyInferenceModule(
       : request.mode === 'test'
         ? 1000
         : null;
-    const sql = `SELECT\n  ${selections.join(',\n  ')}\nFROM ${quoteIdentifier(table)}${
+    const sql = `SELECT\n  ${selections.join(',\n  ')}\nFROM ${quoteIdentifier(table)} AS ${quoteIdentifier('__population')}${
       limit ? `\nORDER BY ALL\nLIMIT ${limit}` : ''
     }`;
     const rows = await database.queryWithParams(sql, params);

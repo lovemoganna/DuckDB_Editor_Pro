@@ -1,4 +1,10 @@
 import { duckDBService } from '../duckdbService';
+import type {
+  BoundOntologyRuleAst,
+  OntologyPropertyOperator,
+} from './ontologyRuleAst';
+
+export type { OntologyPropertyOperator } from './ontologyRuleAst';
 
 export type OntologyTruthValue = 'TRUE' | 'FALSE' | 'UNKNOWN';
 export type OntologyPropertyValueType =
@@ -27,46 +33,7 @@ export interface OntologyRuleVariable {
   objectTypeId: number;
 }
 
-export type OntologyPropertyOperator =
-  | 'eq'
-  | 'neq'
-  | 'gt'
-  | 'gte'
-  | 'lt'
-  | 'lte'
-  | 'contains'
-  | 'is_missing'
-  | 'is_present';
-
-export type OntologyCondition =
-  | {
-      kind: 'and' | 'or';
-      children: OntologyCondition[];
-    }
-  | {
-      kind: 'not';
-      child: OntologyCondition;
-    }
-  | {
-      kind: 'property';
-      variable: string;
-      propertyId: string;
-      operator: OntologyPropertyOperator;
-      value?: unknown;
-    }
-  | {
-      kind: 'relation';
-      sourceVariable: string;
-      linkTypeId: number;
-      targetVariable: string;
-      operator: 'exists' | 'not_exists';
-    }
-  | {
-      kind: 'derived';
-      predicate: string;
-      variables: string[];
-      operator: 'exists' | 'not_exists';
-    };
+export type OntologyCondition = BoundOntologyRuleAst;
 
 export type OntologyEffect =
   | {
@@ -1174,7 +1141,13 @@ const buildProofs = (world: World): OntologySimulationBranch['proofs'] => {
     ...world.conclusions,
   ];
   return targets.map(target => {
-    const producerIndex = world.path.findLastIndex(step => step.changes.some(change => change.includes(target)));
+    let producerIndex = -1;
+    for (let index = world.path.length - 1; index >= 0; index -= 1) {
+      if (world.path[index].changes.some(change => change.includes(target))) {
+        producerIndex = index;
+        break;
+      }
+    }
     return {
       target,
       steps: producerIndex >= 0 ? world.path.slice(0, producerIndex + 1).map(step => structuredClone(step)) : [],
