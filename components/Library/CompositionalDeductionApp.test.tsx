@@ -2,150 +2,119 @@ import React from 'react';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CompositionalDeductionApp } from './CompositionalDeductionApp';
+import type { DeductionRequest, SemanticReconstruction } from '../../services/deduction/deductionTypes';
 
-const store = vi.hoisted(() => ({
-  state: {
-    activeTemplateId: 'ontology-real',
-    objectTypes: [{ id: 1, name: '订单' }],
-    objects: [
-      { id: 10, object_type_id: 1, name: '订单 A', properties: { status: 'pending' } },
-      { id: 11, object_type_id: 1, name: '订单 B', properties: { status: 'paid' } },
+const engine = vi.hoisted(() => ({
+  reconstructSemantics: vi.fn(),
+  cancelSemanticReconstruction: vi.fn(() => true),
+}));
+
+vi.mock('../../services/deduction/semanticReconstructionEngine', () => engine);
+
+const resultFor = (request: DeductionRequest): SemanticReconstruction => ({
+  version: 1,
+  input: request.input,
+  features: [
+    { id: 'F1', kind: 'entity', statement: '对象是客户', classification: 'fact', certainty: 'confirmed', entity: '客户', evidence: [{ quote: '客户', start: 0, end: 2 }] },
+    { id: 'F2', kind: 'condition', statement: '年龄大于等于18岁', classification: 'fact', certainty: 'confirmed', attribute: '年龄', value: '18岁', evidence: [{ quote: '年龄大于等于18岁', start: 3, end: 12 }] },
+  ],
+  relations: [{
+    id: 'R1', fromFeatureIds: ['F1'], toFeatureIds: ['F2'], type: 'condition', operator: 'AND',
+    statement: '客户需满足年龄条件', certainty: 'confirmed', evidence: [{ quote: '客户年龄大于等于18岁', start: 0, end: 12 }],
+  }],
+  contexts: [],
+  structure: {
+    id: 'N1', type: 'operator', label: 'AND', operator: 'AND', children: [
+      { id: 'N2', type: 'feature', label: '对象是客户', featureId: 'F1', children: [] },
+      { id: 'N3', type: 'feature', label: '年龄大于等于18岁', featureId: 'F2', children: [] },
     ],
-    linkTypes: [{ id: 3, name: '后续订单' }],
-    links: [{ id: 30, link_type_id: 3, source_object_id: 10, target_object_id: 11 }], actions: [],
   },
-  activeTemplateId: 'ontology-real',
-}));
-
-vi.mock('../../hooks/useOntologyStore', () => ({ useOntologyStore: () => store }));
-
-const reasoning = vi.hoisted(() => ({
-  initialize: vi.fn(), loadCatalog: vi.fn(), createSnapshot: vi.fn(),
-  simulate: vi.fn(), saveRun: vi.fn(), replayRun: vi.fn(),
-}));
-
-vi.mock('../../services/ontology/ontologyReasoningModule', () => ({ ontologyReasoningModule: reasoning }));
-
-const catalog = {
-  propertyDefinitions: [{
-    id: 'property.order.status', logicalId: 'property.order.status', version: 1,
-    objectTypeId: 1, key: 'status', name: '订单状态', valueType: 'string',
-    nullable: false, status: 'active',
-  }],
-  rules: [], actionDefinitions: [{
-    id: 'action.ship', logicalId: 'action.ship', version: 1, name: '发货', status: 'active',
-    variables: [{ name: 'order', objectTypeId: 1 }], effects: [],
-  }],
-};
-
-const report = {
-  runId: 'run-1', generatedAt: '2026-08-12T00:00:00Z', snapshotId: 'snapshot-1',
-  modelIssues: [], existingProperties: [{ objectId: 10, propertyId: 'property.order.status', value: 'pending', origin: 'ontology' }],
-  existingRelations: [{ sourceObjectId: 10, linkTypeId: 3, targetObjectId: 11, origin: 'ontology' }],
-  branches: [{
-    id: 'branch-1',
-    properties: [{ objectId: 10, propertyId: 'property.order.status', value: 'shipped', origin: 'derived', sourceId: 'rule.ship' }],
-    relations: [{ sourceObjectId: 10, linkTypeId: 3, targetObjectId: 11, origin: 'derived', sourceId: 'rule.ship' }],
-    conclusions: ['ready|10'], path: [], proofs: [{
-      target: 'conclusion:ready|10',
-      steps: [{ kind: 'rule', label: '可发货', ruleId: 'rule.ship', ruleVersion: 1, binding: { order: 10 }, evidence: ['object:10'], changes: ['派生结论 ready|10'] }],
+  coreMeaning: { text: '表达客户需满足年龄条件。', supportingFeatureIds: ['F1', 'F2'], supportingRelationIds: ['R1'] },
+  ...(request.externalMappingRequested ? {
+    externalMappings: [{
+      id: 'M1', targetKind: 'feature', targetId: 'F2', sourceId: 'S1', correspondingObject: '申请人年龄',
+      correspondingContent: '年龄须满18岁', matchLevel: '直接对应',
+      basis: { quote: '年龄须满18岁', start: 0, end: 7, sourceId: 'S1' }, validationNote: '对象和条件一致',
     }],
-  }],
-  conflicts: [], missingConditions: [], counterfactuals: [], goalResults: [], truncated: false,
-  limits: { maxRuleIterations: 20, maxBranches: 200, maxCounterfactualDistance: 3 },
-};
+  } : {}),
+  punchline: { text: '对象与条件通过明确约束组合。', supportingFeatureIds: ['F1', 'F2'], supportingRelationIds: ['R1'] },
+  validation: { status: 'valid', issues: [] },
+});
 
-describe('CompositionalDeductionApp', () => {
+describe('CompositionalDeductionApp — 特征组合与语义还原器', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-    reasoning.initialize.mockResolvedValue(undefined);
-    reasoning.loadCatalog.mockResolvedValue(catalog);
-    reasoning.createSnapshot.mockReturnValue({ snapshotId: 'snapshot-1', catalog });
-    reasoning.simulate.mockReturnValue(report);
-    reasoning.saveRun.mockResolvedValue(undefined);
-    reasoning.replayRun.mockResolvedValue(report);
+    localStorage.clear();
+    engine.reconstructSemantics.mockReset();
+    engine.reconstructSemantics.mockImplementation(async (request: DeductionRequest) => resultFor(request));
+    engine.cancelSemanticReconstruction.mockClear();
   });
+
   afterEach(cleanup);
 
-  it('uses the native snapshot simulator and persists an immutable run', async () => {
-    render(<CompositionalDeductionApp isOpen />);
-    await screen.findByText('订单 A (#10)');
-    fireEvent.click(screen.getByRole('button', { name: '开始推演' }));
-
-    await waitFor(() => expect(reasoning.simulate).toHaveBeenCalled());
-    expect(reasoning.simulate.mock.calls[0][2]).toEqual({
-      maxRuleIterations: 20, maxBranches: 200, maxCounterfactualDistance: 3,
-    });
-    expect(reasoning.saveRun).toHaveBeenCalledWith(
-      expect.objectContaining({ snapshotId: 'snapshot-1' }),
-      expect.objectContaining({ assumptions: [], actions: [] }),
-      report,
-    );
-    expect(screen.getByText(/系统只能回答当前已存在的事实/)).toBeTruthy();
-    expect(screen.getByText(/订单 A · 订单状态 = pending/)).toBeTruthy();
-    expect(screen.getAllByText(/订单 A -\[后续订单\]-> 订单 B/).length).toBeGreaterThan(0);
-    expect(screen.getByText(/订单 A · 订单状态 = shipped/)).toBeTruthy();
-    expect(screen.getAllByText(/ready\(订单 A\)/).length).toBeGreaterThan(0);
-    expect(screen.getByText('逐结论证明')).toBeTruthy();
-  });
-
-  it('lets the user bind every action variable to a concrete real object', async () => {
-    render(<CompositionalDeductionApp isOpen />);
-    await screen.findByText('订单 A (#10)');
-    fireEvent.click(screen.getByRole('checkbox', { name: /发货/ }));
-    fireEvent.change(screen.getByRole('combobox', { name: '发货 · order 绑定对象' }), { target: { value: '11' } });
-    fireEvent.click(screen.getByRole('button', { name: '开始推演' }));
-    await waitFor(() => expect(reasoning.simulate).toHaveBeenCalled());
-    expect(reasoning.simulate.mock.calls.at(-1)?.[1].actions[0].bindings).toEqual({ order: 11 });
-  });
-
-  it('supports relation and derived-conclusion goals with independent bindings', async () => {
-    render(<CompositionalDeductionApp isOpen />);
-    await screen.findByText('订单 A (#10)');
-    fireEvent.click(screen.getByRole('checkbox', { name: '指定目标' }));
-    fireEvent.change(screen.getByRole('combobox', { name: '目标类型' }), { target: { value: 'relation' } });
-    fireEvent.change(screen.getByRole('combobox', { name: '目标关系源对象' }), { target: { value: '11' } });
-    fireEvent.click(screen.getByRole('button', { name: '开始推演' }));
-    await waitFor(() => expect(reasoning.simulate).toHaveBeenCalled());
-    expect(reasoning.simulate.mock.calls.at(-1)?.[1].goal).toEqual({
-      condition: { kind: 'relation', sourceVariable: 'source', linkTypeId: 3, targetVariable: 'target', operator: 'exists' },
-      bindings: { source: 11, target: 11 },
-    });
-
-    fireEvent.change(screen.getByRole('combobox', { name: '目标类型' }), { target: { value: 'derived' } });
-    fireEvent.change(screen.getByRole('textbox', { name: '目标结论名称' }), { target: { value: 'approved' } });
-    fireEvent.click(screen.getByRole('checkbox', { name: '订单 A' }));
-    fireEvent.click(screen.getByRole('button', { name: '开始推演' }));
-    await waitFor(() => expect(reasoning.simulate).toHaveBeenCalledTimes(2));
-    expect(reasoning.simulate.mock.calls.at(-1)?.[1].goal.condition.kind).toBe('derived');
-    expect(reasoning.simulate.mock.calls.at(-1)?.[1].goal.condition.predicate).toBe('approved');
-  });
-
-  it('adds a real property assumption without mutating the ontology store', async () => {
-    render(<CompositionalDeductionApp isOpen />);
-    await screen.findByText('订单 A (#10)');
-    fireEvent.change(screen.getByRole('textbox', { name: '假设值' }), { target: { value: 'paid' } });
-    fireEvent.click(screen.getByRole('button', { name: /添加属性假设/ }));
-    fireEvent.click(screen.getByRole('button', { name: '开始推演' }));
-
-    await waitFor(() => expect(reasoning.simulate).toHaveBeenCalled());
-    expect(reasoning.simulate.mock.calls.at(-1)?.[1].assumptions).toEqual([{
-      kind: 'set_property', objectId: 10, propertyId: 'property.order.status', value: 'paid',
-    }]);
-    expect(store.state.objects[0].properties.status).toBe('pending');
-  });
-
-  it('replays a saved run from its original snapshot', async () => {
-    render(<CompositionalDeductionApp isOpen />);
-    await screen.findByText('订单 A (#10)');
-    fireEvent.click(screen.getByRole('button', { name: '开始推演' }));
-    const replayButton = await screen.findByRole('button', { name: '按原始快照重放' });
-    fireEvent.click(replayButton);
-    await waitFor(() => expect(reasoning.replayRun).toHaveBeenCalledWith('run-1'));
-  });
-
-  it('does not render while closed', () => {
+  it('preserves the public isOpen rendering contract', () => {
     const { container } = render(<CompositionalDeductionApp isOpen={false} />);
     expect(container.firstChild).toBeNull();
+  });
+
+  it('uses text input as the primary experience and blocks an empty run', () => {
+    render(<CompositionalDeductionApp isOpen />);
+    expect(screen.getByRole('heading', { name: '特征组合与语义还原器' })).toBeTruthy();
+    expect(screen.getByLabelText('原始输入')).toBeTruthy();
+    expect(screen.getByRole('button', { name: '开始语义还原' }).hasAttribute('disabled')).toBe(true);
+    expect(screen.queryByText('Ontology 特征选择')).toBeNull();
+  });
+
+  it('renders the fixed result sections in order and omits external mapping by default', async () => {
+    render(<CompositionalDeductionApp isOpen />);
+    fireEvent.change(screen.getByLabelText('原始输入'), { target: { value: '客户年龄大于等于18岁' } });
+    fireEvent.click(screen.getByRole('button', { name: '开始语义还原' }));
+
+    await screen.findByText('表达客户需满足年龄条件。');
+    const headings = screen.getAllByRole('heading', { level: 2 }).map(node => node.textContent);
+    expect(headings).toEqual(['1. 原始输入', '2. 特征', '3. 关系', '4. 结构', '5. 核心语义', '7. 一针见血解读']);
+    expect(screen.queryByRole('heading', { name: '6. 外部映射' })).toBeNull();
+    expect(screen.getAllByText('AI 分类：事实')).toHaveLength(2);
+    expect(screen.getByText('原文证据：客户')).toBeTruthy();
+  });
+
+  it('requires named evidence and shows external mapping only when requested', async () => {
+    render(<CompositionalDeductionApp isOpen />);
+    fireEvent.change(screen.getByLabelText('原始输入'), { target: { value: '客户年龄大于等于18岁' } });
+    fireEvent.click(screen.getByRole('checkbox', { name: '需要外部映射' }));
+    expect(screen.getByRole('button', { name: '开始语义还原' }).hasAttribute('disabled')).toBe(true);
+
+    fireEvent.change(screen.getByLabelText('依据名称 1'), { target: { value: '注册规则' } });
+    fireEvent.change(screen.getByLabelText('依据内容 1'), { target: { value: '年龄须满18岁' } });
+    fireEvent.click(screen.getByRole('button', { name: '开始语义还原' }));
+
+    await screen.findByRole('heading', { name: '6. 外部映射' });
+    expect(screen.getByText('直接对应')).toBeTruthy();
+    expect(engine.reconstructSemantics).toHaveBeenCalledWith(expect.objectContaining({
+      externalMappingRequested: true,
+      sources: [expect.objectContaining({ title: '注册规则', content: '年龄须满18岁' })],
+    }));
+  });
+
+  it('persists a successful run and restores it from recent history', async () => {
+    render(<CompositionalDeductionApp isOpen />);
+    fireEvent.change(screen.getByLabelText('原始输入'), { target: { value: '客户年龄大于等于18岁' } });
+    fireEvent.click(screen.getByRole('button', { name: '开始语义还原' }));
+    await screen.findByText('表达客户需满足年龄条件。');
+
+    fireEvent.click(screen.getByRole('button', { name: '清空输入' }));
+    expect((screen.getByLabelText('原始输入') as HTMLTextAreaElement).value).toBe('');
+    fireEvent.click(screen.getByRole('button', { name: /恢复记录：客户年龄大于等于18岁/ }));
+    await waitFor(() => expect((screen.getByLabelText('原始输入') as HTMLTextAreaElement).value).toBe('客户年龄大于等于18岁'));
+    expect(screen.getByText('表达客户需满足年龄条件。')).toBeTruthy();
+  });
+
+  it('preserves input and exposes a clear error when AI reconstruction fails', async () => {
+    engine.reconstructSemantics.mockRejectedValueOnce(new Error('AI API Key not configured'));
+    render(<CompositionalDeductionApp isOpen />);
+    fireEvent.change(screen.getByLabelText('原始输入'), { target: { value: '不可丢失的输入' } });
+    fireEvent.click(screen.getByRole('button', { name: '开始语义还原' }));
+
+    expect((await screen.findByRole('alert')).textContent).toContain('AI API Key not configured');
+    expect((screen.getByLabelText('原始输入') as HTMLTextAreaElement).value).toBe('不可丢失的输入');
   });
 });
