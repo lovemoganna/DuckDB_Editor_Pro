@@ -131,6 +131,31 @@ describe('OntologyReasoningModule public seam', () => {
     expect(report.branches[0].path).toEqual(expect.arrayContaining([
       expect.objectContaining({ ruleId: paidRule.id, binding: { payment: 20, order: 10 } }),
     ]));
+    expect(report.branches[0].proofs).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        target: 'property:10|property.order.status',
+        steps: [expect.objectContaining({ ruleId: paidRule.id })],
+      }),
+    ]));
+  });
+
+  it('builds exact proofs for derived relations and conclusions without unrelated path steps', () => {
+    const relationRule: OntologyRuleDefinition = {
+      ...paidRule,
+      id: 'rule.order.ready.v1', logicalId: 'rule.order.ready', name: '支付后形成结果',
+      effects: [
+        { kind: 'add_relation', sourceVariable: 'order', linkTypeId: 1, targetVariable: 'payment' },
+        { kind: 'assert_conclusion', predicate: 'ready', variables: ['order'] },
+      ],
+    };
+    const report = simulateOntology(createOntologySnapshot(ontologyState, {
+      propertyDefinitions: properties, rules: [paidRule, relationRule], actionDefinitions: [],
+    }), { assumptions: [], actions: [] });
+
+    expect(report.branches[0].proofs).toEqual(expect.arrayContaining([
+      expect.objectContaining({ target: 'relation:10|1|20', steps: [expect.objectContaining({ ruleId: relationRule.id })] }),
+      expect.objectContaining({ target: 'conclusion:ready|10', steps: [expect.objectContaining({ ruleId: relationRule.id })] }),
+    ]));
   });
 
   it('evaluates a concrete target conclusion in every resulting world', () => {
@@ -324,6 +349,47 @@ describe('OntologyReasoningModule public seam', () => {
     });
 
     expect(() => simulateOntology(snapshot, { assumptions: [], actions: [] })).not.toThrow();
+  });
+
+  it('reports removed properties, relations and conclusions with exact proof targets', () => {
+    const removeRule: OntologyRuleDefinition = {
+      ...paidRule,
+      id: 'rule.remove.v1', logicalId: 'rule.remove', name: '撤销结果',
+      effects: [
+        { kind: 'unset_property', variable: 'order', propertyId: 'property.order.status' },
+        { kind: 'remove_relation', sourceVariable: 'payment', linkTypeId: 1, targetVariable: 'order' },
+        { kind: 'retract_conclusion', predicate: 'obsolete', variables: ['order'] },
+      ],
+    };
+    const report = simulateOntology(createOntologySnapshot(ontologyState, {
+      propertyDefinitions: properties, rules: [removeRule], actionDefinitions: [],
+    }), { assumptions: [], actions: [{
+      actionDefinitionId: 'missing-action', bindings: {}, order: 1,
+    }] });
+
+    expect(report.branches[0].removedProperties).toContain('10|property.order.status');
+    expect(report.branches[0].removedRelations).toContain('20|1|10');
+    expect(report.branches[0].retractedConclusions).toContain('obsolete|10');
+    expect(report.branches[0].proofs.map(proof => proof.target)).toEqual(expect.arrayContaining([
+      'removed:property:10|property.order.status',
+      'removed:relation:20|1|10',
+      'removed:conclusion:obsolete|10',
+    ]));
+  });
+
+  it('rejects action bindings that do not reference a real object of the declared type', () => {
+    const action: OntologyActionDefinition = {
+      id: 'action.invalid.v1', logicalId: 'action.invalid', version: 1, name: '绑定测试', status: 'active',
+      variables: [{ name: 'order', objectTypeId: 1 }], effects: [
+        { kind: 'set_property', variable: 'order', propertyId: 'property.order.status', value: 'paid' },
+      ],
+    };
+    const report = simulateOntology(createOntologySnapshot(ontologyState, {
+      propertyDefinitions: properties, rules: [], actionDefinitions: [action],
+    }), { assumptions: [], actions: [{ actionDefinitionId: action.id, bindings: { order: -1 }, order: 1 }] });
+
+    expect(report.modelIssues.some(issue => issue.includes('真实对象'))).toBe(true);
+    expect(report.branches[0].properties.some(fact => fact.objectId === -1)).toBe(false);
   });
 
   it('discovers stable property candidates from real JSON and flags incompatible values', () => {

@@ -200,6 +200,9 @@ export interface OntologyPathStep {
   binding: Record<string, number>;
   evidence: string[];
   changes: string[];
+  evidenceTargets?: string[];
+  producedTargets?: string[];
+  removedTargets?: string[];
 }
 
 export interface OntologyMissingCondition {
@@ -230,10 +233,14 @@ export interface OntologySimulationBranch {
   properties: OntologyPropertyFact[];
   relations: OntologyRelationFact[];
   conclusions: string[];
+  removedProperties: string[];
+  removedRelations: string[];
+  retractedConclusions: string[];
   path: OntologyPathStep[];
   proofs: Array<{
     target: string;
     steps: OntologyPathStep[];
+    initialEvidence?: string[];
   }>;
 }
 
@@ -608,11 +615,15 @@ interface Evaluation {
   truth: OntologyTruthValue;
   missing: Array<Omit<OntologyMissingCondition, 'ruleId' | 'ruleName' | 'binding'>>;
   evidence: string[];
+  evidenceTargets: string[];
 }
 
 const propertySlot = (objectId: number, propertyId: string): string => `${objectId}|${propertyId}`;
 const relationSlot = (source: number, type: number, target: number): string => `${source}|${type}|${target}`;
 const conclusionSlot = (predicate: string, ids: number[]): string => `${predicate}|${ids.join('|')}`;
+const propertyTarget = (slot: string): string => `property:${slot}`;
+const relationTarget = (slot: string): string => `relation:${slot}`;
+const conclusionTarget = (slot: string): string => `conclusion:${slot}`;
 
 const cloneWorld = (world: World): World => ({
   properties: new Map([...world.properties].map(([key, fact]) => [key, structuredClone(fact)])),
@@ -666,6 +677,7 @@ const evaluateCondition = (
       evidence: truth === 'TRUE'
         ? [fact?.sourceId ? `${fact.sourceId} -> ${slot}=${String(fact.value)}` : `显式缺失 ${slot}`]
         : [],
+      evidenceTargets: truth === 'TRUE' && fact ? [propertyTarget(slot)] : [],
       missing: truth === 'TRUE' ? [] : [{
         truth,
         objectId,
@@ -693,6 +705,7 @@ const evaluateCondition = (
       evidence: truth === 'TRUE'
         ? [exists ? `${world.relations.get(slot)?.sourceId ?? 'relation'} -> ${slot}` : `显式不存在关系 ${slot}`]
         : [],
+      evidenceTargets: truth === 'TRUE' && exists ? [relationTarget(slot)] : [],
       missing: truth === 'TRUE' ? [] : [{
         truth,
         sourceObjectId: source,
@@ -712,13 +725,14 @@ const evaluateCondition = (
       : explicitlyRetracted
         ? condition.operator === 'exists' ? 'FALSE' : 'TRUE'
         : 'UNKNOWN';
-    return { truth, evidence: truth === 'TRUE' ? [`派生结论 ${key}`] : [], missing: truth === 'TRUE' ? [] : [{ truth, description: key }] };
+    return { truth, evidence: truth === 'TRUE' ? [`派生结论 ${key}`] : [], evidenceTargets: truth === 'TRUE' && exists ? [conclusionTarget(key)] : [], missing: truth === 'TRUE' ? [] : [{ truth, description: key }] };
   }
   if (condition.kind === 'not') {
     const child = evaluateCondition(condition.child, world, binding, properties);
     return {
       truth: child.truth === 'TRUE' ? 'FALSE' : child.truth === 'FALSE' ? 'TRUE' : 'UNKNOWN',
       evidence: child.truth === 'FALSE' ? child.evidence : [],
+      evidenceTargets: child.truth === 'FALSE' ? child.evidenceTargets : [],
       missing: child.truth === 'FALSE' ? [] : child.missing,
     };
   }
@@ -730,6 +744,7 @@ const evaluateCondition = (
     return {
       truth,
       evidence: truth === 'TRUE' ? children.flatMap(child => child.evidence) : [],
+      evidenceTargets: truth === 'TRUE' ? children.flatMap(child => child.evidenceTargets) : [],
       missing: children.flatMap(child => child.truth === 'TRUE' ? [] : child.missing),
     };
   }
@@ -738,11 +753,11 @@ const evaluateCondition = (
     : children.every(child => child.truth === 'FALSE') ? 'FALSE' : 'UNKNOWN';
   if (truth === 'TRUE') {
     const satisfied = children.find(child => child.truth === 'TRUE');
-    return { truth, evidence: satisfied?.evidence ?? [], missing: [] };
+    return { truth, evidence: satisfied?.evidence ?? [], evidenceTargets: satisfied?.evidenceTargets ?? [], missing: [] };
   }
   const alternatives = children.filter(child => child.missing.length > 0)
     .sort((left, right) => left.missing.length - right.missing.length);
-  return { truth, evidence: [], missing: alternatives[0]?.missing ?? [] };
+  return { truth, evidence: [], evidenceTargets: [], missing: alternatives[0]?.missing ?? [] };
 };
 
 const enumerateBindings = (
@@ -770,6 +785,13 @@ interface EffectProposal {
   rule: OntologyRuleDefinition;
   signature: string;
   evidence: string[];
+  evidenceTargets: string[];
+}
+
+interface EffectChange {
+  label: string;
+  target: string;
+  removed: boolean;
 }
 
 const effectSlotAndValue = (
@@ -805,7 +827,7 @@ const applyEffect = (
   binding: Record<string, number>,
   origin: OntologyPropertyFact['origin'],
   sourceId: string,
-): string | null => {
+): EffectChange | null => {
   if (effect.kind === 'set_property' || effect.kind === 'unset_property') {
     const objectId = binding[effect.variable];
     const slot = propertySlot(objectId, effect.propertyId);
@@ -814,7 +836,7 @@ const applyEffect = (
       if (!world.properties.has(slot) && world.missingProperties.has(slot)) return null;
       world.properties.delete(slot);
       world.missingProperties.add(slot);
-      return `${objectId}.${effect.propertyId}: ${String(before)} → 未设置`;
+      return { label: `${objectId}.${effect.propertyId}: ${String(before)} → 未设置`, target: propertyTarget(slot), removed: true };
     }
     if (Object.is(before, effect.value)) return null;
     world.missingProperties.delete(slot);
@@ -825,7 +847,7 @@ const applyEffect = (
       origin,
       sourceId,
     });
-    return `${objectId}.${effect.propertyId}: ${String(before)} → ${String(effect.value)}`;
+    return { label: `${objectId}.${effect.propertyId}: ${String(before)} → ${String(effect.value)}`, target: propertyTarget(slot), removed: false };
   }
   if (effect.kind === 'add_relation' || effect.kind === 'remove_relation') {
     const sourceObjectId = binding[effect.sourceVariable];
@@ -835,7 +857,7 @@ const applyEffect = (
       if (!world.relations.has(slot) && world.missingRelations.has(slot)) return null;
       world.relations.delete(slot);
       world.missingRelations.add(slot);
-      return `移除关系 ${slot}`;
+      return { label: `移除关系 ${slot}`, target: relationTarget(slot), removed: true };
     }
     if (world.relations.has(slot)) return null;
     world.missingRelations.delete(slot);
@@ -846,7 +868,7 @@ const applyEffect = (
       origin,
       sourceId,
     });
-    return `新增关系 ${slot}`;
+    return { label: `新增关系 ${slot}`, target: relationTarget(slot), removed: false };
   }
   const conclusionEffect = effect as {
     kind: 'assert_conclusion' | 'retract_conclusion';
@@ -858,12 +880,12 @@ const applyEffect = (
     if (!world.conclusions.has(slot) && world.retractedConclusions.has(slot)) return null;
     world.conclusions.delete(slot);
     world.retractedConclusions.add(slot);
-    return `撤销结论 ${slot}`;
+    return { label: `撤销结论 ${slot}`, target: conclusionTarget(slot), removed: true };
   }
   if (world.conclusions.has(slot)) return null;
   world.retractedConclusions.delete(slot);
   world.conclusions.add(slot);
-  return `派生结论 ${slot}`;
+  return { label: `派生结论 ${slot}`, target: conclusionTarget(slot), removed: false };
 };
 
 const worldFingerprint = (world: World): string => stableHash(json({
@@ -899,7 +921,7 @@ const runRuleClosure = (
             const signature = `${rule.id}|${json(binding)}|${effectIndex}|${worldFingerprint(world)}`;
             if (world.handled.has(signature)) return;
             const slotAndValue = effectSlotAndValue(effect, binding);
-            proposals.push({ ...slotAndValue, effect, binding, rule, signature, evidence: evaluation.evidence });
+            proposals.push({ ...slotAndValue, effect, binding, rule, signature, evidence: evaluation.evidence, evidenceTargets: evaluation.evidenceTargets });
           });
         }
       }
@@ -937,7 +959,10 @@ const runRuleClosure = (
                 ruleVersion: choice.rule.version,
                 binding: choice.binding,
                 evidence: choice.evidence,
-                changes: [change],
+                evidenceTargets: choice.evidenceTargets,
+                changes: [change.label],
+                producedTargets: change.removed ? [] : [change.target],
+                removedTargets: change.removed ? [change.target] : [],
               });
               changed = true;
             }
@@ -956,7 +981,10 @@ const runRuleClosure = (
                 ruleVersion: choice.rule.version,
                 binding: choice.binding,
                 evidence: choice.evidence,
-                changes: [change],
+                evidenceTargets: choice.evidenceTargets,
+                changes: [change.label],
+                producedTargets: change.removed ? [] : [change.target],
+                removedTargets: change.removed ? [change.target] : [],
               });
               changed = true;
             }
@@ -1038,7 +1066,7 @@ const createInitialWorld = (snapshot: OntologySnapshot): World => {
 const applyAssumptions = (world: World, assumptions: OntologyAssumption[]): void => {
   assumptions.forEach((assumption, index) => {
     const binding: Record<string, number> = {};
-    let change: string | null = null;
+    let change: EffectChange | null = null;
     if (assumption.kind === 'set_property') {
       binding.subject = assumption.objectId;
       change = applyEffect(world, {
@@ -1064,7 +1092,11 @@ const applyAssumptions = (world: World, assumptions: OntologyAssumption[]): void
         targetVariable: 'target',
       }, binding, 'assumption', `assumption:${index}`);
     }
-    if (change) world.path.push({ kind: 'assumption', label: `假设 ${index + 1}`, binding, evidence: [`scenario.assumptions[${index}]`], changes: [change] });
+    if (change) world.path.push({
+      kind: 'assumption', label: `假设 ${index + 1}`, binding,
+      evidence: [`scenario.assumptions[${index}]`], evidenceTargets: [], changes: [change.label],
+      producedTargets: change.removed ? [] : [change.target], removedTargets: change.removed ? [change.target] : [],
+    });
   });
 };
 
@@ -1079,7 +1111,7 @@ const applyAction = (
   const propertyMap = new Map(snapshot.catalog.propertyDefinitions.map(item => [item.id, item]));
   const evaluation = action.precondition
     ? evaluateCondition(action.precondition, world, selection.bindings, propertyMap)
-    : { truth: 'TRUE' as const, missing: [], evidence: [] };
+    : { truth: 'TRUE' as const, missing: [], evidence: [], evidenceTargets: [] };
   if (evaluation.truth !== 'TRUE') {
     world.path.push({
       kind: 'blocked_action',
@@ -1087,6 +1119,7 @@ const applyAction = (
       actionDefinitionId: action.id,
       binding: selection.bindings,
       evidence: evaluation.evidence,
+      evidenceTargets: evaluation.evidenceTargets,
       changes: evaluation.missing.map(item => item.description),
     });
     return;
@@ -1097,14 +1130,17 @@ const applyAction = (
     selection.bindings,
     'action',
     action.id,
-  )).filter((item): item is string => Boolean(item));
+  )).filter((item): item is EffectChange => Boolean(item));
   world.path.push({
     kind: 'action',
     label: action.name,
     actionDefinitionId: action.id,
     binding: selection.bindings,
     evidence: evaluation.evidence,
-    changes,
+    evidenceTargets: evaluation.evidenceTargets,
+    changes: changes.map(change => change.label),
+    producedTargets: changes.filter(change => !change.removed).map(change => change.target),
+    removedTargets: changes.filter(change => change.removed).map(change => change.target),
   });
 };
 
@@ -1138,20 +1174,46 @@ const buildProofs = (world: World): OntologySimulationBranch['proofs'] => {
   const targets = [
     ...[...world.properties.values()]
       .filter(fact => fact.origin !== 'ontology')
-      .map(fact => `${fact.objectId}.${fact.propertyId}`),
-    ...world.conclusions,
+      .map(fact => propertyTarget(propertySlot(fact.objectId, fact.propertyId))),
+    ...[...world.relations.values()]
+      .filter(fact => fact.origin !== 'ontology')
+      .map(fact => relationTarget(relationSlot(fact.sourceObjectId, fact.linkTypeId, fact.targetObjectId))),
+    ...[...world.conclusions].map(conclusionTarget),
+    ...[...world.missingProperties].map(slot => `removed:${propertyTarget(slot)}`),
+    ...[...world.missingRelations].map(slot => `removed:${relationTarget(slot)}`),
+    ...[...world.retractedConclusions].map(slot => `removed:${conclusionTarget(slot)}`),
   ];
   return targets.map(target => {
-    let producerIndex = -1;
+    const isRemoval = target.startsWith('removed:');
+    const baseTarget = isRemoval ? target.slice('removed:'.length) : target;
+    const required = new Set<string>([baseTarget]);
+    const selected: OntologyPathStep[] = [];
+    let seekingRemoval = isRemoval;
     for (let index = world.path.length - 1; index >= 0; index -= 1) {
-      if (world.path[index].changes.some(change => change.includes(target))) {
-        producerIndex = index;
-        break;
-      }
+      const step = world.path[index];
+      const outputs = seekingRemoval ? step.removedTargets ?? [] : step.producedTargets ?? [];
+      if (!outputs.some(produced => required.has(produced))) continue;
+      selected.unshift(structuredClone(step));
+      (step.evidenceTargets ?? []).forEach(evidenceTarget => required.add(evidenceTarget));
+      outputs.forEach(produced => required.delete(produced));
+      seekingRemoval = false;
+      if (required.size === 0) break;
     }
+    const initialEvidence = [...required].filter(requiredTarget => {
+      if (requiredTarget.startsWith('property:')) {
+        const slot = requiredTarget.slice('property:'.length);
+        return world.properties.get(slot)?.origin === 'ontology';
+      }
+      if (requiredTarget.startsWith('relation:')) {
+        const slot = requiredTarget.slice('relation:'.length);
+        return world.relations.get(slot)?.origin === 'ontology';
+      }
+      return false;
+    });
     return {
       target,
-      steps: producerIndex >= 0 ? world.path.slice(0, producerIndex + 1).map(step => structuredClone(step)) : [],
+      steps: selected,
+      ...(initialEvidence.length > 0 ? { initialEvidence } : {}),
     };
   });
 };
@@ -1162,21 +1224,47 @@ export function simulateOntology(
   requestedLimits: OntologySimulationLimits = {},
 ): OntologySimulationReport {
   const limits = { ...DEFAULT_LIMITS, ...requestedLimits };
-  const modelIssues = validateOntologySnapshot(snapshot);
+  const snapshotIssues = validateOntologySnapshot(snapshot);
+  const scenarioIssues: string[] = [];
+  const validActionSelections = scenario.actions.filter(selection => {
+    const action = snapshot.catalog.actionDefinitions.find(item =>
+      item.id === selection.actionDefinitionId && item.status === 'active');
+    if (!action) {
+      scenarioIssues.push(`动作 ${selection.actionDefinitionId} 不存在或未激活`);
+      return false;
+    }
+    const invalid = action.variables.find(variable => {
+      const object = snapshot.objects.find(item => item.id === selection.bindings[variable.name]);
+      return !object || object.objectTypeId !== variable.objectTypeId;
+    });
+    if (invalid) {
+      scenarioIssues.push(`动作 ${action.name} 的变量 ${invalid.name} 必须绑定到匹配类型的真实对象`);
+      return false;
+    }
+    return true;
+  });
+  if (scenario.goal) {
+    Object.entries(scenario.goal.bindings).forEach(([variable, objectId]) => {
+      if (!snapshot.objects.some(object => object.id === objectId)) {
+        scenarioIssues.push(`目标变量 ${variable} 必须绑定到真实对象`);
+      }
+    });
+  }
+  const modelIssues = [...snapshotIssues, ...scenarioIssues];
   const initial = createInitialWorld(snapshot);
   const existingProperties = [...initial.properties.values()].map(item => structuredClone(item));
   const existingRelations = [...initial.relations.values()].map(item => structuredClone(item));
   applyAssumptions(initial, scenario.assumptions);
   const conflicts: OntologyConflict[] = [];
-  let closure = modelIssues.length === 0
+  let closure = snapshotIssues.length === 0
     ? runRuleClosure([initial], snapshot, limits, conflicts, scenario.focusObjectIds)
     : { worlds: [initial], truncated: false };
-  for (const selection of [...scenario.actions].sort((left, right) => left.order - right.order)) {
+  for (const selection of [...validActionSelections].sort((left, right) => left.order - right.order)) {
     closure.worlds.forEach(world => {
       applyAction(world, selection, snapshot);
       world.handled.clear();
     });
-    const next = modelIssues.length === 0
+    const next = snapshotIssues.length === 0
       ? runRuleClosure(closure.worlds, snapshot, limits, conflicts, scenario.focusObjectIds)
       : { worlds: closure.worlds, truncated: false };
     closure = { worlds: next.worlds, truncated: closure.truncated || next.truncated };
@@ -1207,7 +1295,7 @@ export function simulateOntology(
     return null;
   };
   const counterfactuals: OntologyCounterfactual[] = [];
-  if (limits.maxCounterfactualDistance > 0 && modelIssues.length === 0) {
+  if (limits.maxCounterfactualDistance > 0 && snapshotIssues.length === 0) {
     const atomic = new Map<string, { missing: OntologyMissingCondition; edit: OntologyAssumption }>();
     missingConditions.forEach(missing => {
       const edit = toAssumption(missing);
@@ -1272,6 +1360,9 @@ export function simulateOntology(
       properties: [...world.properties.values()],
       relations: [...world.relations.values()],
       conclusions: [...world.conclusions],
+      removedProperties: [...world.missingProperties],
+      removedRelations: [...world.missingRelations],
+      retractedConclusions: [...world.retractedConclusions],
       path: world.path,
       proofs: buildProofs(world),
     })),
