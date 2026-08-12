@@ -932,4 +932,83 @@ describe('ontology inference engine', () => {
     });
     expect(report.possibleCandidates[0].ranking.conflictPenalty).toBe(1);
   });
+
+  it('returns concrete missing conditions instead of only an unknown rule name', () => {
+    const rule: RuleDefinition = {
+      ...highRiskRule,
+      id: 'rule.missing-condition.v1',
+      logicalId: 'rule.missing-condition',
+      root: {
+        kind: 'condition',
+        nodeId: 'missing-address',
+        featureId: riskFeatures[2].id,
+        operator: 'eq',
+        value: 'high',
+      },
+    };
+    const report = runInference({
+      features: [riskFeatures[0], riskFeatures[2]],
+      rules: [rule],
+      outcomes: [],
+      selectedFeatureIds: [riskFeatures[0].id],
+      selectedRuleIds: [rule.id],
+      rows: [{ [riskFeatures[0].id]: true }],
+      topK: 10,
+      beamWidth: 10,
+      executedSql: 'SELECT real ontology facts',
+      params: [],
+    });
+
+    expect(report.possibleCandidates[0].missingConditions).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        ruleId: rule.id,
+        featureId: riskFeatures[2].id,
+        value: 'UNKNOWN',
+        reason: expect.any(String),
+      }),
+    ]));
+  });
+
+  it('returns bounded minimal counterfactual edits that lead to a different result', () => {
+    const rule: RuleDefinition = {
+      ...highRiskRule,
+      id: 'rule.counterfactual.v1',
+      logicalId: 'rule.counterfactual',
+      root: {
+        kind: 'and',
+        nodeId: 'counterfactual-root',
+        children: [
+          { kind: 'condition', nodeId: 'fast', featureId: riskFeatures[0].id, operator: 'is_true' },
+          { kind: 'condition', nodeId: 'address', featureId: riskFeatures[2].id, operator: 'eq', value: 'high' },
+        ],
+      },
+    };
+    const features = [
+      { ...riskFeatures[0], domain: [true, false] },
+      { ...riskFeatures[2], domain: ['high', 'low'] },
+    ];
+    const report = runInference({
+      features,
+      rules: [rule],
+      outcomes: [],
+      selectedFeatureIds: features.map(feature => feature.id),
+      selectedRuleIds: [rule.id],
+      rows: [{ [riskFeatures[0].id]: true, [riskFeatures[2].id]: 'high' }],
+      topK: 20,
+      beamWidth: 20,
+      executedSql: 'SELECT real ontology facts',
+      params: [],
+    });
+
+    const excluded = report.excludedCandidates.find(candidate =>
+      candidate.counterfactuals.some(suggestion => suggestion.targetStatus === 'ESTABLISHED'),
+    );
+    expect(excluded).toBeDefined();
+    expect(excluded!.counterfactuals[0]).toMatchObject({
+      targetStatus: 'ESTABLISHED',
+      editDistance: 1,
+      changes: [expect.objectContaining({ featureId: expect.any(String) })],
+    });
+    expect(excluded!.counterfactuals.every(suggestion => suggestion.editDistance <= 3)).toBe(true);
+  });
 });

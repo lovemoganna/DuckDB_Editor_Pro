@@ -48,8 +48,7 @@ export function createOntologySituationModel(
   const propertyFeatures: FeatureDefinition[] = snapshot.catalog.propertyDefinitions
     .filter(property =>
       property.objectTypeId === options.objectTypeId
-      && property.status !== 'conflicted'
-      && property.status !== 'archived',
+      && property.status === 'active',
     )
     .map(property => ({
       id: property.id,

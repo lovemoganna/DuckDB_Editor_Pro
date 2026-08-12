@@ -443,6 +443,7 @@ export function createOntologySnapshot(
       name: object.name ?? `#${object.id}`,
       properties: parseProperties(object.properties),
     })),
+
     linkTypes: source.linkTypes ?? [],
     links: (source.links ?? []).map(link => ({
       id: link.id,

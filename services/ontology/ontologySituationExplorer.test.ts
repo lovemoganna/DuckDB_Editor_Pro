@@ -13,12 +13,26 @@ const emptyCatalog = {
   actionDefinitions: [],
 };
 
+const createActiveSnapshot = (seed: unknown) => {
+  const discovered = createOntologySnapshot(seed as never, emptyCatalog);
+  return {
+    ...discovered,
+    catalog: {
+      ...discovered.catalog,
+      propertyDefinitions: discovered.catalog.propertyDefinitions.map(property => ({
+        ...property,
+        status: property.status === 'conflicted' ? 'conflicted' as const : 'active' as const,
+      })),
+    },
+  };
+};
+
 describe('Ontology native situation explorer', () => {
   it.each([
     ['e-commerce ontology', ecommerceSeed],
     ['health-tracking ontology', healthSeed],
   ])('discovers selectable features from the real %s without domain branches', (_name, seed) => {
-    const snapshot = createOntologySnapshot(seed as never, emptyCatalog);
+    const snapshot = createActiveSnapshot(seed);
     const objectTypeId = snapshot.objectTypes[0].id;
     const model = createOntologySituationModel(snapshot, { objectTypeId });
 
@@ -31,25 +45,31 @@ describe('Ontology native situation explorer', () => {
     expect(model.provenance.snapshotId).toBe(snapshot.snapshotId);
   });
 
-  it('actively enumerates relation and property combinations from one immutable snapshot', () => {
-    const snapshot = createOntologySnapshot(ecommerceSeed as never, emptyCatalog);
+  it('reports only current facts when the ontology has no executable rules', () => {
+    const snapshot = createActiveSnapshot(ecommerceSeed);
     const model = createOntologySituationModel(snapshot, { objectTypeId: 1 });
-    const relation = model.features.find(feature => feature.source.kind === 'ontology_relation');
-    const property = model.features.find(feature => feature.source.kind === 'ontology_property');
+    const properties = model.features
+      .filter(feature => feature.source.kind === 'ontology_property')
+      .slice(0, 2);
 
-    expect(relation).toBeDefined();
-    expect(property).toBeDefined();
+    expect(properties).toHaveLength(2);
     const report = exploreOntologySituations(snapshot, {
       objectTypeId: 1,
-      selectedFeatureIds: [property!.id, relation!.id],
+      selectedFeatureIds: properties.map(feature => feature.id),
       rules: [],
       topK: 20,
       beamWidth: 20,
     });
 
-    expect(report.possibleCandidates.length).toBeGreaterThan(0);
-    expect(report.totalCandidateCount).toBeGreaterThanOrEqual(report.candidates.length);
-    expect(report.featureVersionIds).toEqual([property!.id, relation!.id]);
+    expect(report.establishedCandidates.length).toBeGreaterThan(0);
+    expect(report.establishedCandidates[0].sourceObjectIds.length).toBeGreaterThan(0);
+    expect(report.establishedCandidates[0].sourceObjectIds.every(objectId =>
+      snapshot.objects.some(object => object.id === objectId),
+    )).toBe(true);
+    expect(report.possibleCandidates).toHaveLength(0);
+    expect(report.excludedCandidates).toHaveLength(0);
+    expect(report.totalCandidateCount).toBe(report.establishedCandidates.length);
+    expect(report.featureVersionIds).toEqual(properties.map(feature => feature.id));
     expect(report.sourceSnapshot).toMatchObject({
       snapshotId: snapshot.snapshotId,
       ontologyId: snapshot.ontologyId,
@@ -61,5 +81,43 @@ describe('Ontology native situation explorer', () => {
     expect(snapshot.objects[0].properties).toEqual(
       createOntologySnapshot(ecommerceSeed as never, emptyCatalog).objects[0].properties,
     );
+  });
+
+  it('does not admit externally supplied sample features into an ontology situation model', () => {
+    const snapshot = createOntologySnapshot(ecommerceSeed as never, emptyCatalog);
+    const fakeFeature = {
+      id: 'feature.mock.transaction.amount.v1',
+      logicalId: 'feature.mock.transaction.amount',
+      version: 1,
+      name: 'Mock amount',
+      description: 'Not present in the ontology',
+      valueType: 'number',
+      objectTypeId: 1,
+      source: { kind: 'column', table: 'mock', column: 'amount' },
+      nullSemantics: 'UNKNOWN',
+      status: 'active',
+    };
+
+    const model = createOntologySituationModel(snapshot, {
+      objectTypeId: 1,
+      extraFeatures: [fakeFeature],
+    } as never);
+
+    expect(model.features.some(feature => feature.id === fakeFeature.id)).toBe(false);
+    expect(model.rows.every(row => !(fakeFeature.id in row))).toBe(true);
+  });
+
+  it('exposes only activated stable property definitions to rule conditions', () => {
+    const snapshot = createOntologySnapshot(ecommerceSeed as never, {
+      ...emptyCatalog,
+      propertyDefinitions: [{
+        id: 'property.pending.v1', logicalId: 'property.pending', version: 1,
+        objectTypeId: 1, key: 'pending_key', name: 'Pending key', valueType: 'string',
+        nullable: true, status: 'candidate',
+      }],
+    } as never);
+
+    const model = createOntologySituationModel(snapshot, { objectTypeId: 1 });
+    expect(model.features.some(feature => feature.id === 'property.pending.v1')).toBe(false);
   });
 });

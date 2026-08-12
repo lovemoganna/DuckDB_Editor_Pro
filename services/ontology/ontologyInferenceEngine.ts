@@ -224,10 +224,38 @@ export interface InferenceRuleResult {
   trace: EvaluationTrace;
 }
 
+export interface CandidateMissingCondition {
+  ruleId: string;
+  ruleName: string;
+  nodeId: string;
+  featureId?: string;
+  label: string;
+  value: 'UNKNOWN';
+  reason: string;
+  actual?: unknown;
+  expected?: unknown;
+}
+
+export interface CandidateCounterfactualChange {
+  featureId: string;
+  featureName: string;
+  from: unknown;
+  to: unknown;
+}
+
+export interface CandidateCounterfactual {
+  targetCandidateId: string;
+  targetStatus: SituationCandidate['status'];
+  targetScore: number;
+  editDistance: number;
+  changes: CandidateCounterfactualChange[];
+}
+
 export interface SituationCandidate {
   id: string;
   rank: number;
   states: SituationState[];
+  sourceObjectIds: number[];
   count: number;
   probability: number;
   probabilityInterval: [number, number];
@@ -239,6 +267,8 @@ export interface SituationCandidate {
   ruleResults: InferenceRuleResult[];
   status: 'ESTABLISHED' | 'POSSIBLE' | 'EXCLUDED';
   ranking: CandidateRanking;
+  missingConditions: CandidateMissingCondition[];
+  counterfactuals: CandidateCounterfactual[];
 }
 
 export interface RankingWeights {
@@ -565,7 +595,7 @@ export function evaluateRule(
   );
 }
 
-const operatorLabels: Record<ConditionOperator, string> = {
+export const OPERATOR_LABELS: Record<ConditionOperator, string> = {
   is_true: '是',
   is_false: '否',
   eq: '等于',
@@ -589,7 +619,9 @@ const operatorLabels: Record<ConditionOperator, string> = {
   is_not_null: '不为空',
 };
 
-const operatorsByType: Record<FeatureValueType, ConditionOperator[]> = {
+const operatorLabels = OPERATOR_LABELS;
+
+export const OPERATORS_BY_TYPE: Record<FeatureValueType, ConditionOperator[]> = {
   boolean: ['is_true', 'is_false', 'eq', 'neq', 'is_null', 'is_not_null'],
   number: ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'between', 'is_null', 'is_not_null'],
   string: ['eq', 'neq', 'in', 'not_in', 'is_null', 'is_not_null'],
@@ -608,12 +640,17 @@ const operatorsByType: Record<FeatureValueType, ConditionOperator[]> = {
   ],
 };
 
-const valueFreeOperators = new Set<ConditionOperator>([
+const operatorsByType = OPERATORS_BY_TYPE;
+
+export const VALUE_FREE_OPERATORS = new Set<ConditionOperator>([
   'is_true',
   'is_false',
   'is_null',
   'is_not_null',
 ]);
+
+const valueFreeOperators = VALUE_FREE_OPERATORS;
+
 
 const displayValue = (value: unknown): string => {
   if (Array.isArray(value)) return JSON.stringify(value);
@@ -1782,6 +1819,68 @@ function classifyAndRankCandidate(
   };
 }
 
+function collectMissingConditions(
+  ruleResults: InferenceRuleResult[],
+): CandidateMissingCondition[] {
+  const collectLeaves = (trace: EvaluationTrace): EvaluationTrace[] => {
+    if (trace.value !== 'UNKNOWN') return [];
+    const unknownChildren = (trace.children ?? []).flatMap(collectLeaves);
+    return unknownChildren.length > 0 ? unknownChildren : [trace];
+  };
+  return ruleResults.flatMap(result => collectLeaves(result.trace).map(trace => ({
+    ruleId: result.ruleId,
+    ruleName: result.ruleName,
+    nodeId: trace.nodeId,
+    featureId: trace.featureId,
+    label: trace.label,
+    value: 'UNKNOWN' as const,
+    reason: trace.reason ?? 'The required fact is unknown in the current ontology snapshot',
+    actual: trace.actual,
+    expected: trace.expected,
+  })));
+}
+
+function buildCounterfactuals(
+  source: SituationCandidate,
+  candidates: SituationCandidate[],
+): CandidateCounterfactual[] {
+  const targetPriority: Record<SituationCandidate['status'], number> = {
+    ESTABLISHED: 0,
+    POSSIBLE: 1,
+    EXCLUDED: 2,
+  };
+  return candidates
+    .filter(target => target.id !== source.id && target.status !== source.status)
+    .map(target => {
+      const targetStates = new Map(target.states.map(state => [state.featureId, state]));
+      const changes = source.states.flatMap<CandidateCounterfactualChange>(state => {
+        const targetState = targetStates.get(state.featureId);
+        if (!targetState || stableValue(state.value) === stableValue(targetState.value)) return [];
+        return [{
+          featureId: state.featureId,
+          featureName: state.featureName,
+          from: state.value,
+          to: targetState.value,
+        }];
+      });
+      return {
+        targetCandidateId: target.id,
+        targetStatus: target.status,
+        targetScore: target.ranking.score,
+        editDistance: changes.length,
+        changes,
+      };
+    })
+    .filter(suggestion => suggestion.editDistance > 0 && suggestion.editDistance <= 3)
+    .sort((left, right) =>
+      left.editDistance - right.editDistance
+      || targetPriority[left.targetStatus] - targetPriority[right.targetStatus]
+      || right.targetScore - left.targetScore
+      || left.targetCandidateId.localeCompare(right.targetCandidateId),
+    )
+    .slice(0, 5);
+}
+
 export function runInference(request: InferenceRequest): InferenceReport {
   const topK = Math.max(1, Math.floor(request.topK ?? 20));
   const beamWidth = Math.max(topK, Math.floor(request.beamWidth ?? 200));
@@ -1869,20 +1968,22 @@ export function runInference(request: InferenceRequest): InferenceReport {
   const knownPopulation = request.rows.length - unknownPopulation;
   const rankedSituations = [...situations.values()]
     .sort((left, right) => right.rows.length - left.rows.length || left.key.localeCompare(right.key));
-  const logical = buildLogicalSituations(
-    classifiers,
-    observedStates,
-    selectedRules,
-    request.features,
-    request.rules,
-    new Set(rankedSituations.map(situation => situation.key)),
-    beamWidth,
-  );
+  const logical = selectedRules.length === 0
+    ? { situations: [], theoreticalCount: rankedSituations.length }
+    : buildLogicalSituations(
+        classifiers,
+        observedStates,
+        selectedRules,
+        request.features,
+        request.rules,
+        new Set(rankedSituations.map(situation => situation.key)),
+        beamWidth,
+      );
   const considered = [
     ...rankedSituations.slice(0, beamWidth),
     ...logical.situations.slice(0, Math.max(0, beamWidth - rankedSituations.length)),
   ];
-  const allCandidates = considered.map((situation, index): SituationCandidate => {
+  const candidatesWithoutCounterfactuals = considered.map((situation, index): SituationCandidate => {
     const representative = situation.rows[0] ?? Object.fromEntries(
       situation.states.map(state => [state.featureId, state.value]),
     );
@@ -1916,6 +2017,9 @@ export function runInference(request: InferenceRequest): InferenceReport {
       id: `situation-${fnv1a(situation.key)}`,
       rank: index + 1,
       states: situation.states,
+      sourceObjectIds: situation.rows
+        .map(row => row.__objectId)
+        .filter((objectId): objectId is number => typeof objectId === 'number'),
       count: situation.rows.length,
       probability: knownPopulation > 0 ? situation.rows.length / knownPopulation : 0,
       probabilityInterval: wilsonInterval(situation.rows.length, knownPopulation),
@@ -1938,6 +2042,8 @@ export function runInference(request: InferenceRequest): InferenceReport {
         score: 0,
         reasons: [],
       },
+      missingConditions: collectMissingConditions(ruleResults),
+      counterfactuals: [],
     };
     if (outcome?.labelBinding && situation.rows.length > 0) {
       const labelledRows = situation.rows.filter(row => !isUnknown(row.__outcome));
@@ -1973,6 +2079,10 @@ export function runInference(request: InferenceRequest): InferenceReport {
     }
     return classifyAndRankCandidate(candidate, request);
   });
+  const allCandidates = candidatesWithoutCounterfactuals.map(candidate => ({
+    ...candidate,
+    counterfactuals: buildCounterfactuals(candidate, candidatesWithoutCounterfactuals),
+  }));
   const rankCandidates = (
     values: SituationCandidate[],
     compare: (left: SituationCandidate, right: SituationCandidate) => number,

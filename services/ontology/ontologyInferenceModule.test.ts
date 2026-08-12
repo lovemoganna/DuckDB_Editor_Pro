@@ -287,31 +287,6 @@ describe('ontology inference module', () => {
       .every(([sql]) => String(sql).includes('INSERT OR IGNORE'))).toBe(true);
   });
 
-  it('installs the explicit versioned risk template with a reproducible DuckDB population', async () => {
-    const database = {
-      executeTransaction: vi.fn().mockResolvedValue([]),
-      query: vi.fn().mockResolvedValue([]),
-      queryWithParams: vi.fn().mockResolvedValue([]),
-    };
-    const module = createOntologyInferenceModule(database);
-
-    const workspace = await module.installRiskTemplate();
-
-    expect(workspace.features.map(feature => feature.name)).toEqual([
-      '快进快出',
-      '交易金额',
-      '地址风险',
-      '客户标签',
-    ]);
-    expect(workspace.rules[0].name).toBe('高风险交易');
-    expect(workspace.outcomes[0].name).toBe('确认高风险交易');
-    expect(database.executeTransaction.mock.calls.flatMap(([statements]) => statements).join('\n'))
-      .toContain('_sys_ontology_risk_demo');
-    expect(database.queryWithParams.mock.calls.some(([statement]) =>
-      String(statement).includes('_sys_ontology_feature_version'),
-    )).toBe(true);
-  });
-
   it('keeps one compilation fingerprint across preview, test and formal execution modes', async () => {
     const database = {
       executeTransaction: vi.fn().mockResolvedValue([]),

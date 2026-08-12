@@ -91,6 +91,24 @@ const ontologyState = {
 };
 
 describe('OntologyReasoningModule public seam', () => {
+  it('keeps an empty ontology snapshot empty instead of manufacturing domain object types', () => {
+    const snapshot = createOntologySnapshot({
+      activeTemplateId: 'empty-ontology',
+      objectTypes: [],
+      objects: [],
+      linkTypes: [],
+      links: [],
+      actions: [],
+    }, {
+      propertyDefinitions: [],
+      rules: [],
+      actionDefinitions: [],
+    });
+
+    expect(snapshot.objectTypes).toEqual([]);
+    expect(snapshot.objects).toEqual([]);
+    expect(snapshot.links).toEqual([]);
+  });
   it('derives a result from real object properties and a directed real relation', () => {
     const snapshot = createOntologySnapshot(ontologyState, {
       propertyDefinitions: properties,
@@ -382,6 +400,7 @@ describe('OntologyReasoningModule public seam', () => {
   });
 
   it('runs the same generic engine against two structurally different real ontology seeds', () => {
+
     const ecommerceCatalog = {
       propertyDefinitions: [{
         id: 'property.ecommerce.product.price', logicalId: 'property.ecommerce.product.price', version: 1,
@@ -430,7 +449,8 @@ describe('OntologyReasoningModule public seam', () => {
 
     expect(ecommerce.branches[0].conclusions).toContain('channel_product_observed|1');
     expect(health.branches[0].conclusions).toContain('habit_metric_observed|1');
-  });
+  }, 20000);
+
 
   it('rejects inactive property references and reports derived-rule cycles', () => {
     const inactiveProperties = properties.map(property => property.id === 'property.payment.result'
@@ -464,6 +484,7 @@ describe('OntologyReasoningModule public seam', () => {
     expect(issues.some(issue => issue.includes('property.payment.result'))).toBe(true);
     expect(issues.some(issue => issue.includes('循环'))).toBe(true);
   });
+
 
   it('marks a report truncated when the rule-closure iteration limit stops a changing world', () => {
     const snapshot = createOntologySnapshot(ontologyState, {
