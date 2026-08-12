@@ -58,6 +58,14 @@ const CompositionalDeductionContent: React.FC<{ onClose?: () => void }> = ({ onC
   const [relationTypeId, setRelationTypeId] = useState<number | null>(source.linkTypes?.[0]?.id ?? null);
   const [relationKind, setRelationKind] = useState<'add_relation' | 'remove_relation'>('add_relation');
   const [goalEnabled, setGoalEnabled] = useState(false);
+  const [goalKind, setGoalKind] = useState<'property' | 'relation' | 'derived'>('property');
+  const [goalObjectId, setGoalObjectId] = useState<number | null>(source.objects?.[0]?.id ?? null);
+  const [goalPropertyId, setGoalPropertyId] = useState('');
+  const [goalRelationSourceId, setGoalRelationSourceId] = useState<number | null>(source.objects?.[0]?.id ?? null);
+  const [goalRelationTargetId, setGoalRelationTargetId] = useState<number | null>(source.objects?.[1]?.id ?? source.objects?.[0]?.id ?? null);
+  const [goalRelationTypeId, setGoalRelationTypeId] = useState<number | null>(source.linkTypes?.[0]?.id ?? null);
+  const [goalPredicate, setGoalPredicate] = useState('');
+  const [goalConclusionObjectIds, setGoalConclusionObjectIds] = useState<number[]>([]);
   const [goalValue, setGoalValue] = useState('');
   const previousSnapshotId = useRef<string | null>(null);
 
@@ -80,6 +88,11 @@ const CompositionalDeductionContent: React.FC<{ onClose?: () => void }> = ({ onC
           setRelationSourceId(source.objects?.[0]?.id ?? null);
           setRelationTargetId(source.objects?.[1]?.id ?? source.objects?.[0]?.id ?? null);
           setRelationTypeId(source.linkTypes?.[0]?.id ?? null);
+          setGoalObjectId(source.objects?.[0]?.id ?? null);
+          setGoalRelationSourceId(source.objects?.[0]?.id ?? null);
+          setGoalRelationTargetId(source.objects?.[1]?.id ?? source.objects?.[0]?.id ?? null);
+          setGoalRelationTypeId(source.linkTypes?.[0]?.id ?? null);
+          setGoalConclusionObjectIds([]);
         }
         previousSnapshotId.current = snapshot.snapshotId;
         setCatalog(loaded);
@@ -105,6 +118,19 @@ const CompositionalDeductionContent: React.FC<{ onClose?: () => void }> = ({ onC
     }
   }, [activeProperties, propertyId]);
 
+  const goalProperties = useMemo(() => {
+    const object = source.objects?.find(item => item.id === goalObjectId);
+    return catalog.propertyDefinitions.filter(definition =>
+      definition.status === 'active' && definition.objectTypeId === object?.object_type_id,
+    );
+  }, [catalog.propertyDefinitions, goalObjectId, source.objects]);
+
+  useEffect(() => {
+    if (!goalProperties.some(definition => definition.id === goalPropertyId)) {
+      setGoalPropertyId(goalProperties[0]?.id ?? '');
+    }
+  }, [goalProperties, goalPropertyId]);
+
   const addPropertyAssumption = () => {
     if (objectId === null || !propertyId) return;
     setAssumptions(current => [...current, {
@@ -124,28 +150,59 @@ const CompositionalDeductionContent: React.FC<{ onClose?: () => void }> = ({ onC
   const toggleAction = (actionDefinitionId: string) => {
     const definition = catalog.actionDefinitions.find(item => item.id === actionDefinitionId);
     if (!definition) return;
+    const bindings = Object.fromEntries(definition.variables.map(variable => [
+      variable.name,
+      source.objects?.find(object => object.object_type_id === variable.objectTypeId)?.id,
+    ]));
+    if (Object.values(bindings).some(id => id === undefined)) {
+      setError(`动作“${definition.name}”没有可绑定的真实对象，无法加入场景。`);
+      return;
+    }
+    setError('');
     setActions(current => current.some(item => item.actionDefinitionId === actionDefinitionId)
       ? current.filter(item => item.actionDefinitionId !== actionDefinitionId)
       : [...current, {
           actionDefinitionId,
           order: current.length + 1,
-          bindings: Object.fromEntries(definition.variables.map(variable => [
-            variable.name,
-            source.objects?.find(object => object.object_type_id === variable.objectTypeId)?.id ?? -1,
-          ])),
+          bindings: bindings as Record<string, number>,
         }]);
+  };
+
+  const updateActionBinding = (actionDefinitionId: string, variable: string, objectId: number) => {
+    setActions(current => current.map(selection => selection.actionDefinitionId === actionDefinitionId
+      ? { ...selection, bindings: { ...selection.bindings, [variable]: objectId } }
+      : selection));
+  };
+
+  const createGoal = (): OntologySimulationScenario['goal'] => {
+    if (!goalEnabled) return undefined;
+    if (goalKind === 'property' && goalObjectId !== null && goalPropertyId) {
+      return {
+        condition: { kind: 'property', variable: 'target', propertyId: goalPropertyId, operator: 'eq', value: parseValue(goalValue) },
+        bindings: { target: goalObjectId },
+      };
+    }
+    if (goalKind === 'relation' && goalRelationSourceId !== null && goalRelationTargetId !== null && goalRelationTypeId !== null) {
+      return {
+        condition: { kind: 'relation', sourceVariable: 'source', linkTypeId: goalRelationTypeId, targetVariable: 'target', operator: 'exists' },
+        bindings: { source: goalRelationSourceId, target: goalRelationTargetId },
+      };
+    }
+    if (goalKind === 'derived' && goalPredicate.trim() && goalConclusionObjectIds.length > 0) {
+      const variables = goalConclusionObjectIds.map((_id, index) => `subject${index + 1}`);
+      return {
+        condition: { kind: 'derived', predicate: goalPredicate.trim(), variables, operator: 'exists' },
+        bindings: Object.fromEntries(variables.map((variable, index) => [variable, goalConclusionObjectIds[index]])),
+      };
+    }
+    return undefined;
   };
 
   const createScenario = (): OntologySimulationScenario => ({
     assumptions,
     actions,
     focusObjectIds: focusObjectId === null ? undefined : [focusObjectId],
-    goal: goalEnabled && objectId !== null && propertyId
-      ? {
-          condition: { kind: 'property', variable: 'target', propertyId, operator: 'eq', value: parseValue(goalValue) },
-          bindings: { target: objectId },
-        }
-      : undefined,
+    goal: createGoal(),
   });
 
   const run = async () => {
@@ -182,6 +239,45 @@ const CompositionalDeductionContent: React.FC<{ onClose?: () => void }> = ({ onC
 
   const objectName = (id: number) => source.objects?.find(object => object.id === id)?.name ?? `#${id}`;
   const propertyName = (id: string) => catalog.propertyDefinitions.find(item => item.id === id)?.name ?? id;
+  const relationName = (id: number) => source.linkTypes?.find(item => item.id === id)?.name ?? `关系 #${id}`;
+  const formatProperty = (fact: { objectId: number; propertyId: string; value: unknown }) =>
+    `${objectName(fact.objectId)} · ${propertyName(fact.propertyId)} = ${String(fact.value)}`;
+  const formatRelation = (fact: { sourceObjectId: number; linkTypeId: number; targetObjectId: number }) =>
+    `${objectName(fact.sourceObjectId)} -[${relationName(fact.linkTypeId)}]-> ${objectName(fact.targetObjectId)}`;
+  const formatConclusion = (conclusion: string) => {
+    const [predicate, ...ids] = conclusion.split('|');
+    return `${predicate}(${ids.map(id => objectName(Number(id))).join(', ')})`;
+  };
+  const formatProofTarget = (target: string) => {
+    const removed = target.startsWith('removed:');
+    const normalized = removed ? target.slice('removed:'.length) : target;
+    if (normalized.startsWith('conclusion:')) return `${removed ? '已撤销：' : ''}${formatConclusion(normalized.slice('conclusion:'.length))}`;
+    if (normalized.startsWith('property:')) {
+      const [id, ...propertyParts] = normalized.slice('property:'.length).split('|');
+      return `${removed ? '已撤销：' : ''}${objectName(Number(id))} · ${propertyName(propertyParts.join('|'))}`;
+    }
+    if (normalized.startsWith('relation:')) {
+      const [sourceId, linkTypeId, targetId] = normalized.slice('relation:'.length).split('|').map(Number);
+      return `${removed ? '已移除：' : ''}${formatRelation({ sourceObjectId: sourceId, linkTypeId, targetObjectId: targetId })}`;
+    }
+    return target;
+  };
+  const branchDifferences = (
+    branch: OntologySimulationReport['branches'][number],
+    baseline: OntologySimulationReport['branches'][number],
+  ) => {
+    const facts = (candidate: typeof branch) => new Set([
+      ...candidate.properties.map(formatProperty),
+      ...candidate.relations.map(formatRelation),
+      ...candidate.conclusions.map(formatConclusion),
+    ]);
+    const current = facts(branch);
+    const base = facts(baseline);
+    return {
+      onlyHere: [...current].filter(item => !base.has(item)),
+      onlyBaseline: [...base].filter(item => !current.has(item)),
+    };
+  };
   const activeRules = catalog.rules.filter(rule => rule.status === 'active');
   const activeActions = catalog.actionDefinitions.filter(action => action.status === 'active');
 
@@ -244,9 +340,41 @@ const CompositionalDeductionContent: React.FC<{ onClose?: () => void }> = ({ onC
               <div className="mt-3 space-y-1 text-[10px]">
                 {assumptions.map((assumption, index) => <div key={`${assumption.kind}:${index}`} className="flex justify-between rounded bg-black/20 p-2"><span>{JSON.stringify(assumption)}</span><button aria-label={`删除假设 ${index + 1}`} onClick={() => setAssumptions(current => current.filter((_, i) => i !== index))}><Trash2 className="h-3 w-3" /></button></div>)}
               </div>
-              {activeActions.length > 0 && <fieldset className="mt-4 border-t border-white/10 pt-4 text-xs"><legend className="font-bold">动作与顺序</legend>{activeActions.map(action => { const selected = actions.find(item => item.actionDefinitionId === action.id); return <label key={action.id} className="mt-2 flex items-center gap-2"><input type="checkbox" checked={Boolean(selected)} onChange={() => toggleAction(action.id)} />{action.name}{selected && <input aria-label={`${action.name} 顺序`} type="number" min={1} value={selected.order} onChange={event => setActions(current => current.map(item => item.actionDefinitionId === action.id ? {...item, order: Number(event.target.value)} : item))} className="ml-auto w-14 bg-black/30 p-1" />}</label>; })}</fieldset>}
-              <label className="mt-4 flex items-center gap-2 text-xs"><input type="checkbox" checked={goalEnabled} onChange={event => setGoalEnabled(event.target.checked)} />指定当前对象/属性的目标值</label>
-              {goalEnabled && <input aria-label="目标值" value={goalValue} onChange={event => setGoalValue(event.target.value)} className="mt-2 w-full rounded-lg bg-black/30 p-2 text-xs" />}
+              {activeActions.filter(action => action.variables.some(variable =>
+                !(source.objects ?? []).some(object => object.object_type_id === variable.objectTypeId),
+              )).map(action => <div key={`unavailable:${action.id}`} className="mt-2 rounded bg-monokai-yellow/10 p-2 text-[10px] text-monokai-yellow">动作“{action.name}”缺少匹配类型的真实对象，当前不可执行。</div>)}
+              {activeActions.length > 0 && <fieldset className="mt-4 border-t border-white/10 pt-4 text-xs">
+                <legend className="font-bold">动作与顺序</legend>
+                {activeActions.map(action => {
+                  const selected = actions.find(item => item.actionDefinitionId === action.id);
+                  return <div key={action.id} className="mt-2 rounded-lg bg-black/20 p-2">
+                    <label className="flex items-center gap-2"><input type="checkbox" disabled={action.variables.some(variable => !(source.objects ?? []).some(object => object.object_type_id === variable.objectTypeId))} checked={Boolean(selected)} onChange={() => toggleAction(action.id)} />{action.name}{selected && <input aria-label={`${action.name} 顺序`} type="number" min={1} value={selected.order} onChange={event => setActions(current => current.map(item => item.actionDefinitionId === action.id ? {...item, order: Number(event.target.value)} : item))} className="ml-auto w-14 bg-black/30 p-1" />}</label>
+                    {selected && action.variables.map(variable => <label key={variable.name} className="mt-2 block text-[10px] text-monokai-comment">变量 {variable.name}
+                      <select aria-label={`${action.name} · ${variable.name} 绑定对象`} value={selected.bindings[variable.name]} onChange={event => updateActionBinding(action.id, variable.name, Number(event.target.value))} className="mt-1 w-full rounded bg-black/30 p-1.5 text-xs text-monokai-fg">
+                        {(source.objects ?? []).filter(object => object.object_type_id === variable.objectTypeId).map(object => <option key={object.id} value={object.id}>{object.name} (#{object.id})</option>)}
+                      </select>
+                    </label>)}
+                  </div>;
+                })}
+              </fieldset>}
+              <label className="mt-4 flex items-center gap-2 text-xs"><input aria-label="指定目标" type="checkbox" checked={goalEnabled} onChange={event => setGoalEnabled(event.target.checked)} />指定目标</label>
+              {goalEnabled && <div className="mt-2 grid gap-2 rounded-lg bg-black/20 p-2">
+                <select aria-label="目标类型" value={goalKind} onChange={event => setGoalKind(event.target.value as typeof goalKind)} className="rounded-lg bg-black/30 p-2 text-xs"><option value="property">属性值</option><option value="relation">关系存在</option><option value="derived">派生结论</option></select>
+                {goalKind === 'property' && <>
+                  <select aria-label="目标对象" value={goalObjectId ?? ''} onChange={event => setGoalObjectId(Number(event.target.value))} className="rounded-lg bg-black/30 p-2 text-xs">{(source.objects ?? []).map(object => <option key={object.id} value={object.id}>{object.name}</option>)}</select>
+                  <select aria-label="目标属性" value={goalPropertyId} onChange={event => setGoalPropertyId(event.target.value)} className="rounded-lg bg-black/30 p-2 text-xs">{goalProperties.map(property => <option key={property.id} value={property.id}>{property.name}</option>)}</select>
+                  <input aria-label="目标值" value={goalValue} onChange={event => setGoalValue(event.target.value)} className="rounded-lg bg-black/30 p-2 text-xs" />
+                </>}
+                {goalKind === 'relation' && <>
+                  <select aria-label="目标关系源对象" value={goalRelationSourceId ?? ''} onChange={event => setGoalRelationSourceId(Number(event.target.value))} className="rounded-lg bg-black/30 p-2 text-xs">{(source.objects ?? []).map(object => <option key={object.id} value={object.id}>{object.name}</option>)}</select>
+                  <select aria-label="目标关系类型" value={goalRelationTypeId ?? ''} onChange={event => setGoalRelationTypeId(Number(event.target.value))} className="rounded-lg bg-black/30 p-2 text-xs">{(source.linkTypes ?? []).map(type => <option key={type.id} value={type.id}>{type.name}</option>)}</select>
+                  <select aria-label="目标关系目标对象" value={goalRelationTargetId ?? ''} onChange={event => setGoalRelationTargetId(Number(event.target.value))} className="rounded-lg bg-black/30 p-2 text-xs">{(source.objects ?? []).map(object => <option key={object.id} value={object.id}>{object.name}</option>)}</select>
+                </>}
+                {goalKind === 'derived' && <>
+                  <input aria-label="目标结论名称" value={goalPredicate} onChange={event => setGoalPredicate(event.target.value)} placeholder="结构化结论谓词" className="rounded-lg bg-black/30 p-2 text-xs" />
+                  <fieldset><legend className="text-[10px] text-monokai-comment">结论对象（按规则变量顺序）</legend>{(source.objects ?? []).map(object => <label key={object.id} className="mr-3 inline-flex items-center gap-1"><input type="checkbox" checked={goalConclusionObjectIds.includes(object.id)} onChange={event => setGoalConclusionObjectIds(current => event.target.checked ? [...current, object.id] : current.filter(id => id !== object.id))} />{object.name}</label>)}</fieldset>
+                </>}
+              </div>}
               <button type="button" aria-label="开始推演" onClick={() => void run()} disabled={running} className="mt-5 w-full rounded-xl bg-monokai-cyan p-3 text-sm font-black text-black">{running ? <RotateCcw className="mr-1 inline h-4 w-4 animate-spin" /> : <Play className="mr-1 inline h-4 w-4" />}开始推演</button>
               <p className="mt-2 text-[10px] text-monokai-green"><ShieldCheck className="mr-1 inline h-3.5 w-3.5" />隔离快照，只读运行</p>
             </section>
@@ -257,10 +385,17 @@ const CompositionalDeductionContent: React.FC<{ onClose?: () => void }> = ({ onC
               {activeRules.length === 0 && <div className="mt-4 rounded-xl bg-monokai-yellow/10 p-3 text-xs text-monokai-yellow">没有结构化规则：系统只能回答当前已存在的事实，不会从名称或描述猜测变化。</div>}
               {report && <div className="mt-4 space-y-4 text-xs">
                 <div className="grid grid-cols-3 gap-2 text-center"><div className="rounded bg-black/20 p-2">已有事实<br/><strong>{report.existingProperties.length + report.existingRelations.length}</strong></div><div className="rounded bg-black/20 p-2">世界分支<br/><strong>{report.branches.length}</strong></div><div className="rounded bg-black/20 p-2">缺失条件<br/><strong>{report.missingConditions.length}</strong></div></div>
+                <div><h3 className="font-bold">已经存在</h3><div className="mt-1 space-y-1 text-monokai-comment">{report.existingProperties.map(fact => <div key={`${fact.objectId}:${fact.propertyId}`}>{formatProperty(fact)} · 来源 {fact.sourceId ?? `object:${fact.objectId}`}</div>)}{report.existingRelations.map(fact => <div key={`${fact.sourceObjectId}:${fact.linkTypeId}:${fact.targetObjectId}`}>{formatRelation(fact)} · 来源 {fact.sourceId ?? 'Ontology 关系'}</div>)}</div></div>
                 <button type="button" onClick={() => void replay()} className="rounded border border-white/10 px-3 py-2 text-monokai-cyan">按原始快照重放</button>
                 {report.modelIssues.map(issue => <div key={issue} className="rounded bg-monokai-pink/10 p-2 text-monokai-pink"><AlertTriangle className="mr-1 inline h-3.5 w-3.5" />{issue}</div>)}
                 {report.truncated && <div className="rounded bg-monokai-yellow/10 p-2 text-monokai-yellow">达到 20 轮或 200 分支安全上限，结果已明确截断。</div>}
-                {report.branches.map(branch => <article key={branch.id} className="rounded-xl border border-white/10 p-3"><h3 className="font-bold">可能世界 {branch.id}</h3><div className="mt-2 text-monokai-comment">{branch.path.length === 0 ? '仅包含当前 Ontology 已有事实。' : `${branch.path.length} 步证明路径`}</div>{branch.path.map((step, index) => <div key={`${index}:${step.label}`} className="mt-2 rounded bg-black/20 p-2"><strong>{index + 1}. {step.label}</strong><div>绑定：{Object.entries(step.binding).map(([name,id]) => `${name}=${objectName(id)}`).join(' · ') || '全局'}</div>{step.evidence.map(evidence => <div key={evidence}>依据：{evidence}</div>)}{step.changes.map(change => <div key={change} className="text-monokai-green">{change}</div>)}</div>)}</article>)}
+                {report.branches.map((branch, branchIndex) => {
+                  const differences = branchIndex === 0 ? null : branchDifferences(branch, report.branches[0]);
+                  return <article key={branch.id} className="rounded-xl border border-white/10 p-3"><h3 className="font-bold">可能世界 {branch.id}</h3><div className="mt-2 text-monokai-comment">{branch.path.length === 0 ? '仅包含当前 Ontology 已有事实。' : `${branch.path.length} 步推演路径`}</div><div className="mt-2 rounded bg-black/20 p-2"><strong>最终世界</strong>{branch.properties.map(fact => <div key={`${fact.objectId}:${fact.propertyId}`}>{formatProperty(fact)} · {fact.origin}</div>)}{branch.relations.map(fact => <div key={`${fact.sourceObjectId}:${fact.linkTypeId}:${fact.targetObjectId}`}>{formatRelation(fact)} · {fact.origin}</div>)}{branch.conclusions.map(conclusion => <div key={conclusion}>{formatConclusion(conclusion)} · derived</div>)}</div>{differences && <div className="mt-2 rounded bg-monokai-amethyst/10 p-2"><strong>与 branch-1 的差异</strong>{differences.onlyHere.map(item => <div key={`add:${item}`} className="text-monokai-green">仅本分支：{item}</div>)}{differences.onlyBaseline.map(item => <div key={`remove:${item}`} className="text-monokai-pink">仅 branch-1：{item}</div>)}</div>}{branch.path.map((step, index) => <div key={`${index}:${step.label}`} className="mt-2 rounded bg-black/20 p-2"><strong>{index + 1}. {step.label}</strong><div>绑定：{Object.entries(step.binding).map(([name,id]) => `${name}=${objectName(id)}`).join(' · ') || '全局'}</div>{step.evidence.map(evidence => <div key={evidence}>依据：{evidence}</div>)}{step.changes.map(change => <div key={change} className="text-monokai-green">{change}</div>)}</div>)}{branch.proofs.length > 0 && <div className="mt-3"><h4 className="font-bold text-monokai-cyan">逐结论证明</h4>{branch.proofs.map(proof => <div key={proof.target} className="mt-1 rounded border border-monokai-cyan/20 p-2"><strong>{formatProofTarget(proof.target)}</strong>{proof.initialEvidence?.map(evidence => <div key={evidence} className="text-monokai-comment">初始事实：{formatProofTarget(evidence)}</div>)}{proof.steps.map((step, index) => <div key={`${proof.target}:${index}`} className="text-monokai-comment">{index + 1}. {step.label} v{step.ruleVersion ?? '-'} · {step.evidence.join('；') || '场景输入'}</div>)}</div>)}</div>}</article>;
+                })}
+                {report.branches.some(branch =>
+                  (branch.removedProperties?.length ?? 0) + (branch.removedRelations?.length ?? 0) + (branch.retractedConclusions?.length ?? 0) > 0,
+                ) && <div><h3 className="font-bold text-monokai-pink">已撤销或移除</h3>{report.branches.map(branch => <div key={`removed:${branch.id}`} className="mt-1">{branch.removedProperties?.map(slot => <div key={`rp:${slot}`}>{branch.id} · {formatProofTarget(`removed:property:${slot}`)}</div>)}{branch.removedRelations?.map(slot => <div key={`rr:${slot}`}>{branch.id} · {formatProofTarget(`removed:relation:${slot}`)}</div>)}{branch.retractedConclusions?.map(slot => <div key={`rc:${slot}`}>{branch.id} · {formatProofTarget(`removed:conclusion:${slot}`)}</div>)}</div>)}</div>}
                 {report.missingConditions.length > 0 && <div><h3 className="font-bold text-monokai-yellow">还缺什么条件</h3>{report.missingConditions.slice(0, 12).map((item,index) => <div key={`${item.ruleId}:${index}`} className="mt-1">{item.ruleName}：{item.description} · {item.truth}</div>)}</div>}
                 {report.counterfactuals.length > 0 && <div><h3 className="font-bold text-monokai-amethyst">改变条件会得到什么</h3>{report.counterfactuals.map(item => <div key={`${item.ruleId}:${item.description}`} className="mt-1">距离 {item.distance}：{item.description}</div>)}</div>}
                 {report.goalResults.length > 0 && <div><h3 className="font-bold text-monokai-cyan">目标结论</h3>{report.goalResults.map(item => <div key={item.branchId}>{item.branchId} · {item.truth}</div>)}</div>}
