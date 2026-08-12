@@ -11,10 +11,6 @@ import {
   type RuleDefinition,
   type TruthValue,
 } from './ontologyInferenceEngine';
-import {
-  RISK_INFERENCE_WORKSPACE,
-  RISK_TEMPLATE_DATA_STATEMENTS,
-} from './ontologyInferenceRiskTemplate';
 
 export interface OntologyInferenceDatabase {
   executeTransaction(statements: string[]): Promise<unknown>;
@@ -55,7 +51,6 @@ export interface OntologyInferenceModule {
   loadWorkspace(): Promise<InferenceWorkspace>;
   validateWorkspace(workspace: InferenceWorkspace): Promise<void>;
   saveWorkspace(workspace: InferenceWorkspace): Promise<void>;
-  installRiskTemplate(): Promise<InferenceWorkspace>;
   discoverCandidateFeatures(
     workspace: InferenceWorkspace,
     objectTypeIds: number[],
@@ -694,12 +689,6 @@ export function createOntologyInferenceModule(
       };
     },
     saveWorkspace,
-    async installRiskTemplate() {
-      await initialize();
-      await database.executeTransaction(RISK_TEMPLATE_DATA_STATEMENTS);
-      await saveWorkspace(RISK_INFERENCE_WORKSPACE);
-      return structuredClone(RISK_INFERENCE_WORKSPACE);
-    },
     async discoverCandidateFeatures(workspace, objectTypeIds) {
       await initialize();
       const relevantObjectTypeIds = new Set(objectTypeIds);
