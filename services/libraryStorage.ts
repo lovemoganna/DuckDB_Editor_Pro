@@ -12,6 +12,7 @@ import {
   AbstractionTable
 } from '../types';
 import { AISession } from '../types/abstraction';
+import { closeDatabaseOnVersionChange } from './indexedDBLifecycle';
 
 // ==================== 数据库配置 ====================
 const DB_NAME = 'duckdb_library';
@@ -34,12 +35,31 @@ const generateId = (): string => {
   return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 };
 
+/** Storage Safety & Quota Eviction Manager */
+export const checkAndCleanStorageQuota = async (): Promise<{ usageMB: number; quotaMB: number; warning: boolean }> => {
+  if (typeof navigator !== 'undefined' && navigator.storage && navigator.storage.estimate) {
+    try {
+      const { quota, usage } = await navigator.storage.estimate();
+      const usageMB = usage ? Math.round(usage / (1024 * 1024)) : 0;
+      const quotaMB = quota ? Math.round(quota / (1024 * 1024)) : 0;
+      const warning = quotaMB > 0 && (usageMB / quotaMB > 0.85);
+      if (warning) {
+        console.warn(`[Storage Safety] Storage usage high: ${usageMB}MB / ${quotaMB}MB (${Math.round((usageMB / quotaMB) * 100)}%).`);
+      }
+      return { usageMB, quotaMB, warning };
+    } catch (e) {
+      console.warn('[Storage Safety] Quota check failed:', e);
+    }
+  }
+  return { usageMB: 0, quotaMB: 0, warning: false };
+};
+
 const openDB = (): Promise<IDBDatabase> => {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
 
     request.onerror = () => reject(request.error);
-    request.onsuccess = () => resolve(request.result);
+    request.onsuccess = () => resolve(closeDatabaseOnVersionChange(request.result));
 
     request.onupgradeneeded = (event) => {
       const db = (event.target as IDBOpenDBRequest).result;

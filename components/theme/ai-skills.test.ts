@@ -24,9 +24,9 @@ import type { SkillCategory } from '../../types';
 const ALL_CATEGORIES: SkillCategory[] = ['modeling', 'wrangling', 'insights', 'optimization', 'engineering'];
 
 describe('CATEGORY_DESIGN — completeness', () => {
-  it('should have all 5 skill categories defined', () => {
+  it('should have all skill categories defined', () => {
     expect(ALL_CATEGORIES.every(cat => cat in CATEGORY_DESIGN)).toBe(true);
-    expect(Object.keys(CATEGORY_DESIGN)).toHaveLength(5);
+    expect(Object.keys(CATEGORY_DESIGN)).toHaveLength(6);
   });
 
   it('should have label, icon, emoji, colors, sqlOperations for each category', () => {

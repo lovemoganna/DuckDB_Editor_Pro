@@ -234,11 +234,11 @@ export function inferLinkTypes(
         linkTypes.push({
           id: `lt::${table.name}_${col.name}`,
           name: `${fromName} 关联 ${toName}`,
-          description: `每个「${fromName}」都关联一个「${toName}」`,
+          description: `每个「${fromName}」都可能关联一个「${toName}」`,
           fromObjectTypeId: getOtId(table.name),
           toObjectTypeId: getOtId(target.name),
-          confidence: 0.95,
-          reason: `发现字段 '${col.name}' 引用了「${toName}」`,
+          confidence: 0.60,
+          reason: `字段命名启发式推断 '${col.name}' (未声明明确外键约束)`,
         });
       }
 
@@ -248,11 +248,11 @@ export function inferLinkTypes(
         linkTypes.push({
           id: `lt::${target.name}_back_${table.name}`,
           name: `${toName} 被 ${fromName} 引用`,
-          description: `反向关系：每个「${fromName}」都关联一个「${toName}」`,
+          description: `反向候选关系：每个「${fromName}」可能关联「${toName}」`,
           fromObjectTypeId: getOtId(target.name),
           toObjectTypeId: getOtId(table.name),
-          confidence: 0.85,
-          reason: `由外键 '${col.name}' 逆向推断`,
+          confidence: 0.55,
+          reason: `由字段命名启发式 '${col.name}' 逆向候选推断`,
         });
       }
     }
@@ -279,11 +279,11 @@ export function inferLinkTypes(
           linkTypes.push({
             id: `lt::junction_${table.name}_left`,
             name: `${leftName} 和 ${rightName} 有关联`,
-            description: `通过「${table.name}」这张中间表，连接「${leftName}」和「${rightName}」`,
+            description: `通过「${table.name}」中间表候选连接「${leftName}」和「${rightName}」`,
             fromObjectTypeId: getOtId(leftTarget.name),
             toObjectTypeId: getOtId(rightTarget.name),
-            confidence: 0.9,
-            reason: `「${table.name}」是关系表，两个字段分别指向「${leftName}」和「${rightName}」`,
+            confidence: 0.70,
+            reason: `中间表命名模式推断「${table.name}」连接「${leftName}」和「${rightName}」`,
           });
         }
       }

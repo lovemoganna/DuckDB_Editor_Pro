@@ -104,12 +104,12 @@ export const DuckDBGuide: React.FC<DuckDBGuideProps> = ({
 
   // 当前分类的设计色（自然语言输入区顶边强调色）
   const currentCatDesign = activeCategory === 'all'
-    ? { primary: '#ae81ff', accentBorder: 'border-t-monokai-amethyst' }
+    ? { primary: 'var(--monokai-purple)', accentBorder: 'border-t-monokai-amethyst' }
     : (() => {
         const d = CATEGORY_DESIGN[activeCategory as any];
         return d
           ? { primary: d.colors.primary, accentBorder: `border-t-[${d.colors.primary}]` }
-          : { primary: '#ae81ff', accentBorder: 'border-t-monokai-amethyst' };
+          : { primary: 'var(--monokai-purple)', accentBorder: 'border-t-monokai-amethyst' };
       })();
 
   return (
@@ -119,7 +119,7 @@ export const DuckDBGuide: React.FC<DuckDBGuideProps> = ({
       <div className="shrink-0">
 
         {/* ─── Header ───────────────────────────────────────────── */}
-        <div className="flex items-center justify-between mb-3 mx-5 mt-5 px-4 py-3 bg-[#1e1f1c] border border-[#3e3d32] relative overflow-hidden">
+        <div className="flex items-center justify-between mb-3 mx-5 mt-5 px-4 py-3 bg-monokai-bg border border-monokai-border relative overflow-hidden">
           {/* 左侧渐变装饰条 */}
           <div
             className="absolute left-0 top-0 bottom-0 w-[3px]"
@@ -128,7 +128,7 @@ export const DuckDBGuide: React.FC<DuckDBGuideProps> = ({
           <div className="flex items-center gap-3 pl-2">
             {/* 图标容器：发光效果 */}
             <div
-              className="w-10 h-10 flex items-center justify-center border border-[#49483e]"
+              className="w-10 h-10 flex items-center justify-center border border-monokai-border-strong"
               style={{
                 background: `${currentCatDesign.primary}18`,
                 boxShadow: `0 0 12px ${currentCatDesign.primary}30`,
@@ -152,15 +152,15 @@ export const DuckDBGuide: React.FC<DuckDBGuideProps> = ({
                 <span
                   className="px-1.5 py-0.5 text-[10px] font-mono font-normal rounded border"
                   style={{
-                    background: '#e6db7418',
-                    color: '#e6db74',
-                    borderColor: '#e6db7440',
+                    background: 'color-mix(in srgb, var(--monokai-yellow) 9%, transparent)',
+                    color: 'var(--monokai-yellow)',
+                    borderColor: 'color-mix(in srgb, var(--monokai-yellow) 25%, transparent)',
                   }}
                 >
                   {handbookCount} 官方
                 </span>
                 {tableName && (
-                  <span className="px-1.5 py-0.5 text-[10px] bg-[#a6e22e]/15 text-monokai-green rounded border border-[#a6e22e]/30 font-mono font-normal">
+                  <span className="px-1.5 py-0.5 text-[10px] bg-monokai-accent/15 text-monokai-green rounded border border-monokai-accent/30 font-mono font-normal">
                     {tableName}
                   </span>
                 )}
@@ -172,7 +172,7 @@ export const DuckDBGuide: React.FC<DuckDBGuideProps> = ({
           {/* 右侧滚动提示 */}
           <div
             className="flex items-center gap-2 px-3 py-2 max-w-[240px] shrink-0 border"
-            style={{ background: '#272822', borderColor: '#3e3d32' }}
+            style={{ background: 'var(--monokai-elevated)', borderColor: 'var(--monokai-border)' }}
           >
             <div className="w-1.5 h-1.5 rounded-full shrink-0 animate-pulse" style={{ background: currentCatDesign.primary }} />
             <div className="overflow-hidden flex-1">
@@ -198,10 +198,10 @@ export const DuckDBGuide: React.FC<DuckDBGuideProps> = ({
                   onClick={() => setActiveCategory(cat)}
                   className="shrink-0 px-3 py-1.5 text-xs border transition-all duration-200 cursor-pointer"
                   style={{
-                    background: isActive ? '#ae81ff20' : '#272822',
-                    borderColor: isActive ? '#ae81ff' + '60' : '#3e3d32',
-                    color: isActive ? '#ae81ff' : '#75715e',
-                    boxShadow: isActive ? '0 0 8px #ae81ff30' : 'none',
+                    background: isActive ? 'color-mix(in srgb, var(--monokai-purple) 12%, transparent)' : 'var(--monokai-elevated)',
+                    borderColor: isActive ? 'color-mix(in srgb, var(--monokai-purple) 38%, transparent)' : 'var(--monokai-border)',
+                    color: isActive ? 'var(--monokai-purple)' : 'var(--monokai-comment)',
+                    boxShadow: isActive ? '0 0 8px color-mix(in srgb, var(--monokai-purple) 19%, transparent)' : 'none',
                   }}
                 >
                   所有
@@ -215,9 +215,9 @@ export const DuckDBGuide: React.FC<DuckDBGuideProps> = ({
                 onClick={() => setActiveCategory(cat)}
                 className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs border transition-all duration-200 cursor-pointer"
                 style={{
-                  background: isActive ? `${design.colors.primary}20` : '#272822',
-                  borderColor: isActive ? `${design.colors.primary}60` : '#3e3d32',
-                  color: isActive ? design.colors.primary : '#75715e',
+                  background: isActive ? `${design.colors.primary}20` : 'var(--monokai-elevated)',
+                  borderColor: isActive ? `${design.colors.primary}60` : 'var(--monokai-border)',
+                  color: isActive ? design.colors.primary : 'var(--monokai-comment)',
                   boxShadow: isActive ? `0 0 8px ${design.colors.primary}30` : 'none',
                 }}
               >
@@ -229,7 +229,7 @@ export const DuckDBGuide: React.FC<DuckDBGuideProps> = ({
 
           <button
             onClick={handleBrowseAll}
-            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs border border-monokai-amethyst/40 text-monokai-amethyst hover:border-monokai-amethyst/70 hover:text-monokai-fg transition-all duration-200 ml-auto cursor-pointer"
+            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs border border-monokai-amethyst/40 text-monokai-amethyst hover:border-monokai-border-strong hover:text-monokai-fg transition-all duration-200 ml-auto cursor-pointer"
           >
             <LayoutGrid className="w-3 h-3" />
             详情模式
@@ -242,11 +242,11 @@ export const DuckDBGuide: React.FC<DuckDBGuideProps> = ({
           <div className="flex items-center gap-1.5 mx-5 mb-3 overflow-x-auto custom-scrollbar pb-0.5">
             {([{ layer: 'all', label: '全部' }, ...COGNITIVE_LAYERS] as const).map(l => {
               const isActive = activeHandbookLayer === l.layer;
-              const layerColor = l.layer === 'all' ? '#e6db74'
-                : l.layer === 'perception' ? '#66d9ef'
-                : l.layer === 'strategy' ? '#ae81ff'
-                : l.layer === 'execution' ? '#a6e22e'
-                : '#f1fa8c';
+              const layerColor = l.layer === 'all' ? 'var(--monokai-yellow)'
+                : l.layer === 'perception' ? 'var(--monokai-cyan)'
+                : l.layer === 'strategy' ? 'var(--monokai-purple)'
+                : l.layer === 'execution' ? 'var(--monokai-accent)'
+                : 'var(--monokai-yellow)';
               const count = l.layer === 'all'
                 ? handbookCount
                 : allSkills.filter((s: any) => s.category === 'handbook' && (s as any)._layer === l.layer).length;
@@ -256,9 +256,9 @@ export const DuckDBGuide: React.FC<DuckDBGuideProps> = ({
                   onClick={() => setActiveHandbookLayer(l.layer)}
                   className="shrink-0 flex items-center gap-1 px-2.5 py-1 text-[10px] border transition-all duration-200 cursor-pointer"
                   style={{
-                    background: isActive ? `${layerColor}20` : '#1e1f1c',
-                    borderColor: isActive ? `${layerColor}60` : '#3e3d32',
-                    color: isActive ? layerColor : '#75715e',
+                    background: isActive ? `${layerColor}20` : 'var(--monokai-bg)',
+                    borderColor: isActive ? `${layerColor}60` : 'var(--monokai-border)',
+                    color: isActive ? layerColor : 'var(--monokai-comment)',
                   }}
                 >
                   <span>{l.label}</span>
@@ -283,10 +283,10 @@ export const DuckDBGuide: React.FC<DuckDBGuideProps> = ({
             const handbookLayerMeta = handbookLayer
               ? COGNITIVE_LAYERS.find(l => l.layer === handbookLayer)
               : undefined;
-            const layerColor = handbookLayerMeta?.color === 'cyan' ? '#66d9ef'
-              : handbookLayerMeta?.color === 'amethyst' ? '#ae81ff'
-              : handbookLayerMeta?.color === 'green' ? '#a6e22e'
-              : handbookLayerMeta?.color === 'yellow' ? '#f1fa8c'
+            const layerColor = handbookLayerMeta?.color === 'cyan' ? 'var(--monokai-cyan)'
+              : handbookLayerMeta?.color === 'amethyst' ? 'var(--monokai-purple)'
+              : handbookLayerMeta?.color === 'green' ? 'var(--monokai-accent)'
+              : handbookLayerMeta?.color === 'yellow' ? 'var(--monokai-yellow)'
               : design.colors.primary;
             const layerLabel = handbookLayerMeta?.label;
 
@@ -296,8 +296,8 @@ export const DuckDBGuide: React.FC<DuckDBGuideProps> = ({
                 onClick={() => handleBrowseSkill(skill)}
                 className="group relative flex items-start gap-2 px-3 py-2.5 border cursor-pointer transition-all duration-200 text-left rounded-lg"
                 style={{
-                  background: isActive ? `${design.colors.primary}15` : '#1e1f1c',
-                  borderColor: isActive ? `${design.colors.primary}60` : '#3e3d32',
+                  background: isActive ? `${design.colors.primary}15` : 'var(--monokai-bg)',
+                  borderColor: isActive ? `${design.colors.primary}60` : 'var(--monokai-border)',
                   boxShadow: isActive ? `0 0 10px ${design.colors.primary}20` : 'none',
                 }}
               >
@@ -310,7 +310,7 @@ export const DuckDBGuide: React.FC<DuckDBGuideProps> = ({
                   className="w-8 h-8 rounded flex items-center justify-center shrink-0 border transition-all duration-200"
                   style={{
                     background: `${design.colors.primary}15`,
-                    borderColor: isActive ? `${design.colors.primary}50` : '#3e3d32',
+                    borderColor: isActive ? `${design.colors.primary}50` : 'var(--monokai-border)',
                   }}
                 >
                   <Icon className="w-4 h-4 transition-colors duration-200" style={{ color: design.colors.primary }} />
@@ -357,9 +357,9 @@ export const DuckDBGuide: React.FC<DuckDBGuideProps> = ({
       <div className="flex-1 overflow-y-auto custom-scrollbar mx-5 mb-5">
         {/* ─── NL Input Section ──────────────────────────────────── */}
         <div
-          className="mt-3 mb-4 p-4 border border-[#3e3d32] relative overflow-hidden"
+          className="mt-3 mb-4 p-4 border border-monokai-border relative overflow-hidden"
           style={{
-            background: '#1e1f1c',
+            background: 'var(--monokai-bg)',
             borderTopWidth: '2px',
             borderTopColor: currentCatDesign.primary,
           }}
@@ -387,12 +387,12 @@ export const DuckDBGuide: React.FC<DuckDBGuideProps> = ({
               placeholder={tableName
                 ? `针对 ${tableName} 描述需求，例如：统计每月的订单数量`
                 : '描述你的 SQL 需求，例如：创建一个用户表'}
-              className="flex-1 px-3 py-2 text-xs bg-[#272822] border border-[#49483e] text-monokai-fg placeholder-monokai-comment/50 focus:outline-none focus:border-[#75715e] font-sans"
+              className="flex-1 px-3 py-2 text-xs bg-monokai-elevated border border-monokai-border-strong text-monokai-fg placeholder-monokai-comment/50 focus:outline-none focus:border-monokai-comment font-sans"
             />
             <button
               onClick={() => onAnalyze(nlInput, { tableName: tableName || '', columns: [] })}
               disabled={isAnalyzingOrExecuting || !nlInput.trim()}
-              className="px-3 py-2 text-xs border text-monokai-comment hover:text-monokai-fg hover:border-[#75715e] disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5 font-sans cursor-pointer"
+              className="px-3 py-2 text-xs border text-monokai-comment hover:text-monokai-fg hover:border-monokai-comment disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5 font-sans cursor-pointer"
             >
               {isAnalyzingOrExecuting ? (
                 <><Loader2 className="w-3.5 h-3.5 animate-spin" /> 分析中</>
@@ -405,9 +405,15 @@ export const DuckDBGuide: React.FC<DuckDBGuideProps> = ({
               disabled={isAnalyzingOrExecuting || !nlInput.trim()}
               className="px-4 py-2 text-xs font-sans cursor-pointer transition-all duration-200 flex items-center gap-1.5 border"
               style={{
-                background: isAnalyzingOrExecuting || !nlInput.trim() ? '#ae81ff30' : '#ae81ff',
-                borderColor: isAnalyzingOrExecuting || !nlInput.trim() ? '#ae81ff40' : '#ae81ff',
-                color: isAnalyzingOrExecuting || !nlInput.trim() ? '#ae81ff80' : '#1e1f1c',
+                background: isAnalyzingOrExecuting || !nlInput.trim()
+                  ? 'color-mix(in srgb, var(--monokai-purple) 19%, transparent)'
+                  : 'var(--monokai-purple)',
+                borderColor: isAnalyzingOrExecuting || !nlInput.trim()
+                  ? 'color-mix(in srgb, var(--monokai-purple) 25%, transparent)'
+                  : 'var(--monokai-purple)',
+                color: isAnalyzingOrExecuting || !nlInput.trim()
+                  ? 'color-mix(in srgb, var(--monokai-purple) 50%, transparent)'
+                  : 'var(--monokai-bg)',
                 opacity: isAnalyzingOrExecuting || !nlInput.trim() ? 0.5 : 1,
               }}
             >
@@ -421,7 +427,7 @@ export const DuckDBGuide: React.FC<DuckDBGuideProps> = ({
           {intentAnalysis && (
             <div
               className="mt-3 p-2.5 border"
-              style={{ background: '#272822', borderColor: '#3e3d32' }}
+              style={{ background: 'var(--monokai-elevated)', borderColor: 'var(--monokai-border)' }}
             >
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-[10px] text-monokai-comment font-mono">意图识别:</span>
@@ -429,20 +435,20 @@ export const DuckDBGuide: React.FC<DuckDBGuideProps> = ({
                   className="text-[10px] px-1.5 py-0.5 border font-mono"
                   style={{
                     background: intentAnalysis.confidence >= 0.8
-                      ? '#a6e22e18'
+                      ? 'color-mix(in srgb, var(--monokai-accent) 9%, transparent)'
                       : intentAnalysis.confidence >= 0.5
-                      ? '#e6db7418'
-                      : '#f9267218',
+                      ? 'color-mix(in srgb, var(--monokai-yellow) 9%, transparent)'
+                      : 'color-mix(in srgb, var(--monokai-pink) 9%, transparent)',
                     color: intentAnalysis.confidence >= 0.8
-                      ? '#a6e22e'
+                      ? 'var(--monokai-accent)'
                       : intentAnalysis.confidence >= 0.5
-                      ? '#e6db74'
-                      : '#f92672',
+                      ? 'var(--monokai-yellow)'
+                      : 'var(--monokai-pink)',
                     borderColor: intentAnalysis.confidence >= 0.8
-                      ? '#a6e22e40'
+                      ? 'color-mix(in srgb, var(--monokai-accent) 25%, transparent)'
                       : intentAnalysis.confidence >= 0.5
-                      ? '#e6db7440'
-                      : '#f9267240',
+                      ? 'color-mix(in srgb, var(--monokai-yellow) 25%, transparent)'
+                      : 'color-mix(in srgb, var(--monokai-pink) 25%, transparent)',
                   }}
                 >
                   {intentAnalysis.intent} · {Math.round(intentAnalysis.confidence * 100)}%

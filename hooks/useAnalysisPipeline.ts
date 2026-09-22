@@ -165,7 +165,9 @@ export function useAnalysisPipeline(callbacks: PipelineCallbacks) {
               ctx.anomalies.push(res);
               setResult(buildResult(ctx));
             }
-          } catch (e) { }
+          } catch (e) {
+            console.warn(`[Pipeline] IQR detection failed for column ${col}:`, e);
+          }
         }
 
         const featureProposals = featureEngineeringService.suggestFeatures(ctx.semanticResult.semanticColumns);

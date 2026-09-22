@@ -87,6 +87,53 @@ export const SandboxAIPanel: React.FC = () => {
         </div>
       </div>
 
+      {/* 高频 Prompt 预设胶囊 */}
+      <div className="px-4 pt-1 pb-2">
+        <label className="text-[10px] font-medium text-monokai-fg-muted mb-1 block">🔥 高频 DuckDB 分析场景</label>
+        <div className="flex flex-wrap gap-1.5">
+          <button
+            type="button"
+            onClick={() => {
+              setPrompt('统计近30天每日新增用户数与累积用户数');
+              setOperation('AGGREGATE');
+            }}
+            className="px-2 py-0.5 text-[10px] rounded bg-monokai-surface hover:bg-monokai-amethyst/20 text-monokai-amethyst border border-monokai-amethyst/30 transition-all cursor-pointer"
+          >
+            🔥 近30天聚合统计
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setPrompt('基于 user_id 比对订单表与用户表的全量关联数据');
+              setOperation('JOIN');
+            }}
+            className="px-2 py-0.5 text-[10px] rounded bg-monokai-surface hover:bg-monokai-cyan/20 text-monokai-cyan border border-monokai-cyan/30 transition-all cursor-pointer"
+          >
+            🔗 多表 LEFT JOIN 比对
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setPrompt('使用 ROW_NUMBER() 按用户分组并按创建时间倒序去重');
+              setOperation('WINDOW');
+            }}
+            className="px-2 py-0.5 text-[10px] rounded bg-monokai-surface hover:bg-monokai-green/20 text-monokai-green border border-monokai-green/30 transition-all cursor-pointer"
+          >
+            📊 ROW_NUMBER 窗口去重
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setPrompt('使用 WITH CTE 声明多层级联的指标预处理逻辑');
+              setOperation('CTE');
+            }}
+            className="px-2 py-0.5 text-[10px] rounded bg-monokai-surface hover:bg-monokai-yellow/20 text-monokai-yellow border border-monokai-yellow/30 transition-all cursor-pointer"
+          >
+            📈 CTE 链式级联计算
+          </button>
+        </div>
+      </div>
+
       {/* 输入 */}
       <div className="p-4 space-y-3">
         <textarea

@@ -73,7 +73,7 @@ describe('CompositionalDeductionApp — 特征组合与语义还原器', () => {
     const headings = screen.getAllByRole('heading', { level: 2 }).map(node => node.textContent);
     expect(headings).toEqual(['1. 原始输入', '2. 特征', '3. 关系', '4. 结构', '5. 核心语义', '7. 一针见血解读']);
     expect(screen.queryByRole('heading', { name: '6. 外部映射' })).toBeNull();
-    expect(screen.getAllByText('AI 分类：事实')).toHaveLength(2);
+    expect(screen.getAllByText('事实')).toHaveLength(2);
     expect(screen.getByText('原文证据：客户')).toBeTruthy();
   });
 
@@ -117,4 +117,19 @@ describe('CompositionalDeductionApp — 特征组合与语义还原器', () => {
     expect((await screen.findByRole('alert')).textContent).toContain('AI API Key not configured');
     expect((screen.getByLabelText('原始输入') as HTMLTextAreaElement).value).toBe('不可丢失的输入');
   });
+
+  it('supports one-click insertion of DuckDB SQL query into editor', async () => {
+    const onInsertToEditor = vi.fn();
+    render(<CompositionalDeductionApp isOpen onInsertToEditor={onInsertToEditor} />);
+    fireEvent.change(screen.getByLabelText('原始输入'), { target: { value: '客户年龄大于等于18岁' } });
+    fireEvent.click(screen.getByRole('button', { name: '开始语义还原' }));
+
+    await screen.findByText('表达客户需满足年龄条件。');
+    const runSqlBtn = screen.getByRole('button', { name: '在编辑器中运行' });
+    fireEvent.click(runSqlBtn);
+
+    expect(onInsertToEditor).toHaveBeenCalledWith(expect.stringContaining('SELECT *'));
+    expect(onInsertToEditor).toHaveBeenCalledWith(expect.stringContaining('年龄 = \'18岁\''));
+  });
 });
+

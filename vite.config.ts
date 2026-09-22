@@ -1,11 +1,138 @@
-import { defineConfig } from 'vite';
+import { defineConfig, Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
+import fs from 'fs';
+
+function snippetFsPlugin(): Plugin {
+  return {
+    name: 'snippet-fs-plugin',
+    configureServer(server) {
+      server.middlewares.use(async (req, res, next) => {
+        const rawUrl = req.url || '';
+        const url = new URL(rawUrl, `http://${req.headers.host || 'localhost'}`);
+        if (!url.pathname.includes('/api/snippets') && !url.pathname.includes('/api/docs')) {
+          return next();
+        }
+
+        if (url.pathname.includes('/api/docs')) {
+          const docsDir = path.resolve(__dirname, 'docs');
+          if (req.method === 'GET') {
+            try {
+              if (!fs.existsSync(docsDir)) {
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({ success: true, docs: [] }));
+                return;
+              }
+              const files = fs.readdirSync(docsDir).filter((f: string) => f.endsWith('.md'));
+              const docs = files.map((file: string) => {
+                const fullPath = path.join(docsDir, file);
+                const content = fs.readFileSync(fullPath, 'utf-8');
+                return { filename: file, content };
+              });
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ success: true, docs }));
+            } catch (err: any) {
+              res.statusCode = 500;
+              res.end(JSON.stringify({ success: false, error: err.message }));
+            }
+            return;
+          }
+          return next();
+        }
+
+        const snippetsDir = path.resolve(__dirname, 'snippets');
+        if (!fs.existsSync(snippetsDir)) {
+          fs.mkdirSync(snippetsDir, { recursive: true });
+        }
+
+        if (req.method === 'GET') {
+          try {
+            const files = fs.readdirSync(snippetsDir).filter((f: string) => f.endsWith('.md'));
+            const snippets = files.map((file: string) => {
+              const fullPath = path.join(snippetsDir, file);
+              const content = fs.readFileSync(fullPath, 'utf-8');
+              return { filename: file, content };
+            });
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ success: true, snippets }));
+          } catch (err: any) {
+            res.statusCode = 500;
+            res.end(JSON.stringify({ success: false, error: err.message }));
+          }
+          return;
+        }
+
+        if (req.method === 'POST') {
+          let body = '';
+          req.on('data', (chunk: Buffer) => {
+            body += chunk.toString();
+          });
+          req.on('end', () => {
+            try {
+              const { filename, id, content } = JSON.parse(body);
+              const safeName =
+                (filename || id || `snippet-${Date.now()}`)
+                  .replace(/[^a-zA-Z0-9_\u4e00-\u9fa5-]/g, '_')
+                  .replace(/\.md$/, '') + '.md';
+              const filePath = path.join(snippetsDir, safeName);
+              fs.writeFileSync(filePath, content, 'utf-8');
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ success: true, filename: safeName }));
+            } catch (err: any) {
+              res.statusCode = 500;
+              res.end(JSON.stringify({ success: false, error: err.message }));
+            }
+          });
+          return;
+        }
+
+        if (req.method === 'DELETE') {
+          try {
+            const targetId = url.searchParams.get('id');
+            const targetFile = url.searchParams.get('filename');
+            const files = fs.readdirSync(snippetsDir).filter((f: string) => f.endsWith('.md'));
+            let deleted = false;
+            for (const file of files) {
+              const fullPath = path.join(snippetsDir, file);
+              if (targetFile && file === targetFile) {
+                fs.unlinkSync(fullPath);
+                deleted = true;
+                break;
+              }
+              const content = fs.readFileSync(fullPath, 'utf-8');
+              if (
+                targetId &&
+                (file.startsWith(targetId) ||
+                  content.includes(`id: "${targetId}"`) ||
+                  content.includes(`id: ${targetId}`))
+              ) {
+                fs.unlinkSync(fullPath);
+                deleted = true;
+                break;
+              }
+            }
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ success: true, deleted }));
+          } catch (err: any) {
+            res.statusCode = 500;
+            res.end(JSON.stringify({ success: false, error: err.message }));
+          }
+          return;
+        }
+
+        next();
+      });
+    },
+  };
+}
 
 // https://vite.dev/config/
 export default defineConfig({
   base: '/DuckDB_Editor_Pro/',
-  plugins: [react()],
+  plugins: [react(), snippetFsPlugin()],
+  define: {
+    'process.env': {},
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './'),
@@ -18,6 +145,7 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
+    emptyOutDir: false,
     sourcemap: false,
     chunkSizeWarningLimit: 1000,
     rollupOptions: {
@@ -57,9 +185,11 @@ export default defineConfig({
           // AI / storage
           'vendor-ai': ['@google/genai'],
           // Utilities
-          'vendor-utils': ['lodash', 'uuid', 'idb', 'xlsx', 'html2canvas'],
+          'vendor-utils': ['lodash', 'uuid', 'idb', 'html2canvas'],
           // Recharts
           'vendor-recharts': ['recharts'],
+          // Parser-backed SQL lineage; isolate the large ANTLR runtime from the main shell.
+          'vendor-sql-parser': ['dt-sql-parser'],
         },
       },
     },

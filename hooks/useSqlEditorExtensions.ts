@@ -15,6 +15,7 @@
 import { useMemo, useCallback } from 'react';
 import {
   autocompletion,
+  moveCompletionSelection,
   type CompletionContext,
   type CompletionResult,
 } from '@codemirror/autocomplete';
@@ -29,6 +30,9 @@ import {
 import { sql, SQLDialect, PostgreSQL } from '@codemirror/lang-sql';
 import { linter, type Diagnostic } from '@codemirror/lint';
 import { useSqlEditorStore } from './store/useSqlEditorStore';
+import { duckDBService } from '../services/duckdbService';
+import { sqlAutocompleteTheme } from '../themes/sqlAutocompleteTheme';
+import { createSqlCompletionSource } from '../services/sql/sqlCompletionEngine';
 
 // DuckDB dialect — Postgres base + DuckDB-specific keywords
 const DUCKDB_DIALECT = SQLDialect.define({
@@ -61,6 +65,14 @@ export interface UseSqlEditorExtensionsOptions {
   onCancel?: () => void;
   /** Navigate query history. */
   onNavigateHistory?: (direction: 'up' | 'down') => boolean;
+  /** Format SQL (Ctrl+Shift+F). */
+  onFormatSql?: () => void;
+  /** Clear editor content (Ctrl+L). */
+  onClear?: () => void;
+  /** Materialize modal (Ctrl+Shift+M). */
+  onMaterialize?: () => void;
+  /** Save query modal (Ctrl+S). */
+  onSaveModal?: () => void;
 }
 
 const SQL_KEYWORDS = [
@@ -136,10 +148,12 @@ const DUCKDB_FUNCTIONS = [
 
 function getTableAliases(sqlText: string): Record<string, string> {
   const aliases: Record<string, string> = {};
-  const aliasRegex = /(?:from|join)\s+([a-zA-Z0-9_.]+)(?:\s+as)?\s+([a-zA-Z0-9_]+)/gi;
+  // Enhanced AST regex matching: handles AS aliases, CTE declarations, and JOIN conditions
+  const aliasRegex = /(?:from|join|with)\s+([a-zA-Z0-9_.]+)(?:\s+as)?\s+([a-zA-Z0-9_]+)/gi;
   const sqlKeywords = new Set([
     'as', 'join', 'left', 'right', 'inner', 'outer', 'cross', 'natural', 'full',
-    'where', 'group', 'order', 'limit', 'on', 'using', 'union', 'select', 'and', 'or', 'set'
+    'where', 'group', 'order', 'limit', 'on', 'using', 'union', 'select', 'and', 'or', 'set',
+    'read_csv', 'read_csv_auto', 'read_parquet', 'read_json', 'read_json_auto', 'range'
   ]);
   let match;
   while ((match = aliasRegex.exec(sqlText)) !== null) {
@@ -152,13 +166,27 @@ function getTableAliases(sqlText: string): Record<string, string> {
   return aliases;
 }
 
-
-
 function buildSqlLinter(schemaTree: Record<string, { name: string; type: string }[]>) {
-  return (view: any): Diagnostic[] => {
+  return async (view: any): Promise<Diagnostic[]> => {
     const diagnostics: Diagnostic[] = [];
     const docText = view.state.doc.toString();
     if (!docText.trim()) return diagnostics;
+
+    // 0. DuckDB AST Syntax Validation (WASM AST Engine)
+    try {
+      const astResult = await duckDBService.validateSqlAst(docText);
+      if (!astResult.valid && astResult.error) {
+        // Extract offset or line number if DuckDB AST error message provides it
+        diagnostics.push({
+          from: 0,
+          to: docText.length,
+          severity: 'error',
+          message: `[DuckDB AST 语法错误] ${astResult.error}`
+        });
+      }
+    } catch (e) {
+      // Ignore AST failure fallback to schema linting
+    }
 
     // 1. Extract CTE names (WITH cte_name AS (...)) and temporary tables
     const cteNames = new Set<string>();
@@ -184,8 +212,10 @@ function buildSqlLinter(schemaTree: Record<string, { name: string; type: string 
       }
     }
 
-    // 2. Validate FROM and JOIN tables
+    // 2. Validate FROM and JOIN tables (excluding DuckDB TVFs like read_csv_auto, read_parquet)
     const tableRegex = /(?:from|join)\s+([a-zA-Z0-9_.]+)/gi;
+    const tvfList = new Set(['read_csv', 'read_csv_auto', 'read_parquet', 'read_json', 'read_json_auto', 'range', 'generate_series']);
+
     while ((match = tableRegex.exec(docText)) !== null) {
       const fullTableName = match[1];
       const start = match.index + match[0].indexOf(fullTableName);
@@ -199,8 +229,8 @@ function buildSqlLinter(schemaTree: Record<string, { name: string; type: string 
         tableOnly = tableNameClean.substring(dotIdx + 1);
       }
 
-      // Check if it exists in schema or CTEs
-      if (!schemaTables.has(tableNameClean) && !schemaTables.has(tableOnly) && !cteNames.has(tableOnly)) {
+      // Check if it is a TVF, schema table, or CTE
+      if (!tvfList.has(tableOnly) && !schemaTables.has(tableNameClean) && !schemaTables.has(tableOnly) && !cteNames.has(tableOnly)) {
         diagnostics.push({
           from: start,
           to: end,
@@ -254,23 +284,6 @@ function buildSqlLinter(schemaTree: Record<string, { name: string; type: string 
   };
 }
 
-import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
-import { tags as t } from '@lezer/highlight';
-
-const customMonokaiHighlight = HighlightStyle.define([
-  { tag: t.keyword, color: '#f92672', fontWeight: 'bold' },
-  { tag: t.string, color: '#e6db74' },
-  { tag: t.number, color: '#ae81ff' },
-  { tag: t.bool, color: '#ae81ff' },
-  { tag: t.null, color: '#ae81ff' },
-  { tag: t.comment, color: '#75715e', fontStyle: 'italic' },
-  { tag: [t.variableName, t.name, t.propertyName], color: '#f8f8f2' },
-  { tag: t.function(t.variableName), color: '#66d9ef' },
-  { tag: t.operator, color: '#f92672' },
-  { tag: t.className, color: '#a6e22e' },
-  { tag: t.typeName, color: '#66d9ef', fontStyle: 'italic' },
-  { tag: t.invalid, color: '#f44747' },
-]);
 
 /**
  * Returns all CodeMirror 6 extensions for the SQL editor.
@@ -443,20 +456,65 @@ export function useSqlEditorExtensions(options: UseSqlEditorExtensionsOptions = 
       }
     ];
 
+    const extraKeybindings: KeyBinding[] = [
+      ...(options.onFormatSql
+        ? [
+            { key: 'Alt-Shift-f', run: () => { options.onFormatSql?.(); return true; } },
+            { key: 'Alt-Shift-F', run: () => { options.onFormatSql?.(); return true; } },
+            { key: 'Meta-Shift-f', run: () => { options.onFormatSql?.(); return true; } },
+            { key: 'Meta-Shift-F', run: () => { options.onFormatSql?.(); return true; } },
+            { key: 'Mod-Shift-f', run: () => { options.onFormatSql?.(); return true; } },
+            { key: 'Mod-Shift-F', run: () => { options.onFormatSql?.(); return true; } },
+            { key: 'Ctrl-Shift-f', run: () => { options.onFormatSql?.(); return true; } },
+            { key: 'Ctrl-Shift-F', run: () => { options.onFormatSql?.(); return true; } },
+          ]
+        : []),
+      ...(options.onClear
+        ? [
+            { key: 'Mod-l', run: () => { options.onClear?.(); return true; } },
+            { key: 'Mod-L', run: () => { options.onClear?.(); return true; } },
+            { key: 'Ctrl-l', run: () => { options.onClear?.(); return true; } },
+            { key: 'Ctrl-L', run: () => { options.onClear?.(); return true; } },
+          ]
+        : []),
+      ...(options.onMaterialize
+        ? [
+            { key: 'Mod-Shift-m', run: () => { options.onMaterialize?.(); return true; } },
+            { key: 'Mod-Shift-M', run: () => { options.onMaterialize?.(); return true; } },
+            { key: 'Ctrl-Shift-m', run: () => { options.onMaterialize?.(); return true; } },
+            { key: 'Ctrl-Shift-M', run: () => { options.onMaterialize?.(); return true; } },
+          ]
+        : []),
+      ...(options.onSaveModal
+        ? [
+            { key: 'Mod-s', run: () => { options.onSaveModal?.(); return true; } },
+            { key: 'Mod-S', run: () => { options.onSaveModal?.(); return true; } },
+            { key: 'Ctrl-s', run: () => { options.onSaveModal?.(); return true; } },
+            { key: 'Ctrl-S', run: () => { options.onSaveModal?.(); return true; } },
+          ]
+        : []),
+    ];
+
+    const completionSource = createSqlCompletionSource(() => schemaTree as any);
+
     return [
       sql({
         dialect: DUCKDB_DIALECT,
         schema: formattedSchema
       }),
-      syntaxHighlighting(customMonokaiHighlight),
-      history(),
       autocompletion({
+        override: [completionSource],
         defaultKeymap: true,
         activateOnTyping: true,
-        icons: false,
       }),
+      sqlAutocompleteTheme,
+      history(),
       linter(buildSqlLinter(schemaTree), { delay: 500 }),
       keymap.of([
+        // M-n / M-p: move autocomplete selection (before history so popup wins)
+        { key: 'Alt-n', run: moveCompletionSelection(true) },
+        { key: 'Alt-p', run: moveCompletionSelection(false) },
+        ...extraKeybindings,
         ...historyKeys,
         ...emacsKeys,
         ...executeKey,
@@ -466,7 +524,7 @@ export function useSqlEditorExtensions(options: UseSqlEditorExtensionsOptions = 
         indentWithTab
       ]),
     ];
-  }, [schemaTree, options.onExecute, options.onCancel, options.onNavigateHistory]);
+  }, [schemaTree, options.onExecute, options.onCancel, options.onNavigateHistory, options.onFormatSql, options.onClear, options.onMaterialize, options.onSaveModal]);
 
   return extensions;
 }

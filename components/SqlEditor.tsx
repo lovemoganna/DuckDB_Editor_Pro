@@ -5,6 +5,7 @@ import { Play, Save, FolderOpen, X, Plus, Clock, Database, ChevronRight, Chevron
 import { duckDBService } from '../services/duckdbService';
 import { dbService } from '../services/dbService';
 import { aiService } from '../services/aiService';
+import { toastService } from '../services/toastService';
 import { useSqlExecution } from '../hooks/useSqlExecution';
 import { useSqlAiAssistant } from '../hooks/useSqlAiAssistant';
 import { useSqlEditorExtensions } from '../hooks/useSqlEditorExtensions';
@@ -37,7 +38,16 @@ import { format } from 'sql-formatter';
 import { ChartDashboard } from './ChartDashboard';
 import { ChartBuilder } from './ChartBuilder';
 import { SkillAssistant } from './SkillAssistant';
-import { SqlEditorHistory, SqlEditorTabs, SqlEditorToolbar, SaveQueryModal, MaterializeModal } from './SqlEditor/index';
+import {
+    SqlEditorHistory,
+    SqlEditorTabs,
+    SqlEditorToolbar,
+    SaveQueryModal,
+    MaterializeModal,
+    AiDiffProposalModal,
+    AiResultInsightsModal,
+} from './SqlEditor/index';
+import { AiCapabilityPromptModal } from './AiCapabilityLibrary/AiCapabilityPromptModal';
 import { SqlEditorHelpPanel } from './SqlEditor/SqlEditorHelpPanel';
 import { SqlEditorResultTable } from './SqlEditor/SqlEditorResultTable';
 import { SqlEditorExplainView } from './SqlEditor/SqlEditorExplainView';
@@ -224,6 +234,12 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
     const setShowMaterializeMenu = useSqlEditorStore((s) => s.setShowMaterializeMenu);
     const showSkillAssistant = useSqlEditorStore((s) => s.showSkillAssistant);
     const setShowSkillAssistant = useSqlEditorStore((s) => s.setShowSkillAssistant);
+    const aiProposal = useSqlEditorStore((s) => s.aiProposal);
+    const setAiProposal = useSqlEditorStore((s) => s.setAiProposal);
+    const aiResultInsights = useSqlEditorStore((s) => s.aiResultInsights);
+    const setAiResultInsights = useSqlEditorStore((s) => s.setAiResultInsights);
+    const aiCapabilityPromptModal = useSqlEditorStore((s) => s.aiCapabilityPromptModal);
+    const setAiCapabilityPromptModal = useSqlEditorStore((s) => s.setAiCapabilityPromptModal);
     const autoRefreshInterval = useSqlEditorStore((s) => s.autoRefreshInterval);
     const setAutoRefreshInterval = useSqlEditorStore((s) => s.setAutoRefreshInterval);
 
@@ -453,7 +469,7 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
     });
 
     /** Thin wrapper preserving original signature `execute(explain)`. */
-    const execute = (explain = false) => runExecute(explain, selectionRef.current.trim() || undefined, cursorOffsetRef.current);
+    const execute = (explain = false, overrideSql?: string) => runExecute(explain, overrideSql ?? (selectionRef.current.trim() || undefined), cursorOffsetRef.current);
 
     /** Thin wrapper preserving original handleKeyDown signature. */
     const handleKeyDown = (e: React.KeyboardEvent) =>
@@ -479,10 +495,11 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
             setShowMaterializeModal(false);
             refreshSchema();
             updateActiveTab({ loading: false });
-            alert(`Successfully created ${materializeType}: ${materializeName}`);
+            toastService.success(`成功创建${materializeType === 'VIEW' ? '视图' : '数据表'}: ${materializeName}`);
+            window.dispatchEvent(new CustomEvent('duckdb-schema-changed'));
             onRun(); // Refresh global
         } catch (e: any) {
-            alert(`Failed to create ${materializeType}: ${e.message}`);
+            toastService.error(`创建${materializeType === 'VIEW' ? '视图' : '数据表'}失败: ${e.message}`);
             updateActiveTab({ loading: false });
         }
     };
@@ -546,8 +563,18 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
 
     useEffect(() => {
         const tab = useSqlEditorStore.getState().getActiveTab();
-        if (!tab || !tab.code || tab.code === savedContentRef.current) return;
+        if (!tab || tab.code === savedContentRef.current) return;
         if (autoSaveRef.current) clearTimeout(autoSaveRef.current);
+        if (!tab.code) {
+            savedContentRef.current = '';
+            setLastSavedAt(Date.now());
+            try {
+                const drafts = JSON.parse(localStorage.getItem('sql-editor-drafts') || '{}');
+                drafts[tab.id] = { code: '', savedAt: Date.now() };
+                localStorage.setItem('sql-editor-drafts', JSON.stringify(drafts));
+            } catch { /* ignore */ }
+            return;
+        }
         autoSaveRef.current = setTimeout(() => {
             savedContentRef.current = tab.code;
             setLastSavedAt(Date.now());
@@ -559,14 +586,14 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
         }, 3000);
     }, [activeTabId]);
 
-    // Restore draft on tab switch if the tab has no code
+    // Restore draft on tab switch only if draft is explicitly present and tab code is undefined
     useEffect(() => {
         const tab = useSqlEditorStore.getState().getActiveTab();
-        if (!tab || tab.code) return;
+        if (!tab || typeof tab.code !== 'undefined') return;
         try {
             const drafts = JSON.parse(localStorage.getItem('sql-editor-drafts') || '{}');
             const draft = drafts[tab.id];
-            if (draft && draft.code) {
+            if (draft && typeof draft.code === 'string') {
                 updateActiveTab({ code: draft.code });
                 savedContentRef.current = draft.code;
             }
@@ -775,20 +802,65 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
 
     const filteredHistory = history.filter(h => h.sql.toLowerCase().includes(historyFilter.toLowerCase()));
 
-    return (
-        <div className="flex flex-col h-full gap-4 relative">
-            {/* Toast 状态提示 */}
-            {toast && (
-                <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] flex items-center gap-2 px-4 py-2.5 rounded-lg shadow-2xl text-sm font-medium transition-all animate-[fadeIn_0.2s] border ${toast.type === 'success' ? 'bg-monokai-green/20 border-monokai-green/50 text-monokai-green' :
-                        toast.type === 'warning' ? 'bg-monokai-yellow/20 border-monokai-yellow/50 text-monokai-yellow' :
-                            'bg-monokai-blue/20 border-monokai-blue/50 text-monokai-blue'
-                    }`}>
-                    {toast.type === 'success' ? <Check className="w-4 h-4 shrink-0" /> :
-                        toast.type === 'warning' ? <AlertTriangle className="w-4 h-4 shrink-0" /> :
-                            <Info className="w-4 h-4 shrink-0" />}
-                    <span>{toast.message}</span>
-                </div>
+    const renderViewSwitcher = () => (
+        <div className="flex items-center gap-1 bg-monokai-bg/90 p-0.5 rounded-lg border border-monokai-border/70 shrink-0 select-none shadow-xs">
+            <button 
+                onClick={() => updateActiveTab({ viewMode: 'table' })} 
+                className={`flex items-center gap-1.5 px-2.5 py-1 text-[10.5px] font-mono font-bold uppercase tracking-wider rounded-md transition-all cursor-pointer ${
+                    activeTab.viewMode === 'table' 
+                        ? 'bg-monokai-surface text-monokai-yellow shadow-xs border border-monokai-border' 
+                        : 'text-monokai-comment hover:text-monokai-fg hover:bg-monokai-surface/60 border border-transparent'
+                }`}
+                title="数据网格结果"
+            >
+                <Table size={11} className={activeTab.viewMode === 'table' ? 'text-monokai-yellow' : 'text-monokai-comment'} />
+                <span>Table</span>
+            </button>
+            <button 
+                onClick={() => updateActiveTab({ viewMode: 'chart' })} 
+                disabled={!activeTab.result || activeTab.result.rows.length === 0 || activeTab.result.isExplain} 
+                className={`flex items-center gap-1.5 px-2.5 py-1 text-[10.5px] font-mono font-bold uppercase tracking-wider rounded-md transition-all cursor-pointer ${
+                    activeTab.viewMode === 'chart' 
+                        ? 'bg-monokai-surface text-monokai-pink shadow-xs border border-monokai-border' 
+                        : 'text-monokai-comment hover:text-monokai-pink disabled:opacity-30 disabled:cursor-not-allowed border border-transparent'
+                }`}
+                title="可视化图表"
+            >
+                <BarChart2 size={11} className={activeTab.viewMode === 'chart' ? 'text-monokai-pink' : 'text-monokai-comment'} />
+                <span>Chart</span>
+            </button>
+            {activeTab.result?.isExplain && (
+                <button 
+                    onClick={() => updateActiveTab({ viewMode: 'explain' })} 
+                    className={`flex items-center gap-1.5 px-2.5 py-1 text-[10.5px] font-mono font-bold uppercase tracking-wider rounded-md transition-all cursor-pointer ${
+                        activeTab.viewMode === 'explain'
+                            ? 'bg-monokai-surface text-monokai-amethyst shadow-xs border border-monokai-border'
+                            : 'text-monokai-comment hover:text-monokai-amethyst border border-transparent'
+                    }`}
+                    title="执行计划 DAG 与拓扑"
+                >
+                    <FileText size={11} className={activeTab.viewMode === 'explain' ? 'text-monokai-amethyst' : 'text-monokai-comment'} />
+                    <span>Plan</span>
+                </button>
             )}
+            <button 
+                onClick={() => updateActiveTab({ viewMode: 'profiling' })} 
+                disabled={!activeTab.code.trim()} 
+                className={`flex items-center gap-1.5 px-2.5 py-1 text-[10.5px] font-mono font-bold uppercase tracking-wider rounded-md transition-all cursor-pointer ${
+                    activeTab.viewMode === 'profiling' 
+                        ? 'bg-monokai-surface text-monokai-blue shadow-xs border border-monokai-border' 
+                        : 'text-monokai-comment hover:text-monokai-blue disabled:opacity-30 disabled:cursor-not-allowed border border-transparent'
+                }`}
+                title="算子级性能耗时剖析"
+            >
+                <Zap size={11} className={activeTab.viewMode === 'profiling' ? 'text-monokai-blue' : 'text-monokai-comment'} />
+                <span>Profiling</span>
+            </button>
+        </div>
+    );
+
+    return (
+        <div className="context-ide-sql flex flex-col h-full gap-0 overflow-hidden bg-monokai-bg relative" data-context-ide="sql">
             <SaveQueryModal
                 isOpen={showSaveModal}
                 onClose={() => setShowSaveModal(false)}
@@ -802,63 +874,63 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
             />
             {/* AI 解释弹窗 */}
             {showAiExplanation && (
-                <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm animate-[fadeIn_0.2s]">
-                    <div className="bg-monokai-sidebar border border-monokai-accent rounded-xl shadow-2xl w-[600px] max-h-[80vh] overflow-hidden animate-[slideIn_0.25s_ease-out]">
+                <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-150 p-4">
+                    <div className="bg-monokai-sidebar border border-monokai-border rounded-xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col text-monokai-fg">
                         {/* 头部 */}
-                        <div className="flex items-center justify-between px-5 py-4 bg-monokai-bg border-b border-monokai-accent">
+                        <div className="flex items-center justify-between px-5 py-4 bg-monokai-bg/90 border-b border-monokai-border shrink-0">
                             <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-lg bg-monokai-amethyst/20 flex items-center justify-center">
-                                    <Zap className="w-4 h-4 text-monokai-amethyst" />
+                                <div className="w-8 h-8 rounded-lg bg-monokai-amethyst/15 border border-monokai-border flex items-center justify-center">
+                                    <Sparkles className="w-4 h-4 text-monokai-amethyst" />
                                 </div>
                                 <div>
-                                    <h3 className="text-base font-bold text-monokai-fg">SQL 解释</h3>
-                                    <p className="text-[10px] text-monokai-comment">当前查询的作用和计算逻辑</p>
+                                    <h3 className="text-sm font-bold text-monokai-fg">AI SQL 逻辑解读与诊断</h3>
+                                    <p className="text-[10px] text-monokai-comment">深度剖析当前查询计算逻辑、关键过滤项与执行意图</p>
                                 </div>
                             </div>
                             <button
                                 onClick={() => setShowAiExplanation(false)}
-                                className="w-7 h-7 rounded-lg hover:bg-monokai-accent flex items-center justify-center text-monokai-comment hover:text-monokai-fg transition-colors"
+                                className="w-7 h-7 rounded-lg hover:bg-monokai-surface flex items-center justify-center text-monokai-comment hover:text-monokai-pink transition-colors cursor-pointer"
                             >
                                 <X size={16} />
                             </button>
                         </div>
 
                         {/* 原始 SQL */}
-                        <div className="px-5 py-3 bg-monokai-bg/50 border-b border-monokai-accent/50">
-                            <div className="flex items-center gap-2 mb-2">
-                                <Code className="w-3 h-3 text-monokai-comment" />
-                                <span className="text-[10px] font-medium text-monokai-comment">原始 SQL</span>
+                        <div className="px-5 py-3 bg-monokai-bg/60 border-b border-monokai-border/60 shrink-0">
+                            <div className="flex items-center gap-1.5 mb-1.5">
+                                <Code className="w-3.5 h-3.5 text-monokai-comment" />
+                                <span className="text-[10.5px] font-mono font-semibold text-monokai-comment uppercase tracking-wider">原始 SQL</span>
                             </div>
-                            <pre className="text-xs text-monokai-fg/80 font-mono whitespace-pre-wrap bg-monokai-bg p-3 rounded-lg border border-monokai-accent/30 max-h-24 overflow-auto">
+                            <pre className="text-xs text-monokai-fg/85 font-mono whitespace-pre-wrap bg-monokai-surface/60 p-2.5 rounded-lg border border-monokai-border/60 max-h-24 overflow-auto custom-scrollbar">
                                 {activeTab.code}
                             </pre>
                         </div>
 
                         {/* 解释内容 */}
-                        <div className="p-5 overflow-auto max-h-[50vh] text-sm text-monokai-fg">
+                        <div className="p-5 overflow-auto flex-1 text-sm text-monokai-fg leading-relaxed custom-scrollbar bg-monokai-sidebar/40">
                             <ReactMarkdown 
                                 remarkPlugins={[remarkGfm]}
                                 components={{
-                                    h1: ({children}) => <h1 className="text-lg font-bold text-monokai-amethyst mb-3 mt-2">{children}</h1>,
-                                    h2: ({children}) => <h2 className="text-base font-bold text-monokai-blue mb-2 mt-3">{children}</h2>,
-                                    h3: ({children}) => <h3 className="text-sm font-semibold text-monokai-amethyst mb-1 mt-2">{children}</h3>,
-                                    p: ({children}) => <p className="mb-2 leading-relaxed">{children}</p>,
-                                    ul: ({children}) => <ul className="list-disc list-inside mb-2 space-y-1 ml-2">{children}</ul>,
-                                    ol: ({children}) => <ol className="list-decimal list-inside mb-2 space-y-1 ml-2">{children}</ol>,
-                                    li: ({children}) => <li className="text-monokai-fg/90 mb-1">{children}</li>,
+                                    h1: ({children}) => <h1 className="text-base font-bold text-monokai-amethyst mb-2.5 mt-2 border-b border-monokai-border/40 pb-1">{children}</h1>,
+                                    h2: ({children}) => <h2 className="text-sm font-bold text-monokai-blue mb-2 mt-3">{children}</h2>,
+                                    h3: ({children}) => <h3 className="text-xs font-semibold text-monokai-yellow mb-1 mt-2">{children}</h3>,
+                                    p: ({children}) => <p className="mb-2.5 leading-relaxed text-xs text-monokai-fg/90">{children}</p>,
+                                    ul: ({children}) => <ul className="list-disc list-inside mb-2.5 space-y-1 ml-2 text-xs">{children}</ul>,
+                                    ol: ({children}) => <ol className="list-decimal list-inside mb-2.5 space-y-1 ml-2 text-xs">{children}</ol>,
+                                    li: ({children}) => <li className="text-monokai-fg/90">{children}</li>,
                                     strong: ({children}) => <strong className="text-monokai-pink font-semibold">{children}</strong>,
-                                    em: ({children}) => <em className="text-monokai-yellow">{children}</em>,
-                                    code: ({className, children, ...props}) => {
+                                    em: ({children}) => <em className="text-monokai-yellow not-italic font-mono">{children}</em>,
+                                    code: ({className, children}) => {
                                         const match = /language-(\w+)/.exec(className || '');
                                         const isInline = !match && !className;
                                         if (isInline) {
-                                            return <code className="bg-monokai-bg px-1.5 py-0.5 rounded text-monokai-amethyst text-xs font-mono">{children}</code>;
+                                            return <code className="bg-monokai-bg px-1.5 py-0.5 rounded text-monokai-amethyst text-xs font-mono border border-monokai-border/40">{children}</code>;
                                         }
-                                        return <code className="block bg-monokai-bg p-3 rounded-lg border border-monokai-accent/30 text-xs font-mono overflow-x-auto mb-2" {...props}>{children}</code>;
+                                        return <code className="block bg-monokai-bg p-3 rounded-lg border border-monokai-border/60 text-xs font-mono overflow-x-auto mb-2 text-monokai-fg">{children}</code>;
                                     },
                                     pre: ({children}) => <pre className="mb-2">{children}</pre>,
-                                    a: ({href, children}) => <a href={href} className="text-monokai-blue hover:underline">{children}</a>,
-                                    blockquote: ({children}) => <blockquote className="border-l-4 border-monokai-amethyst pl-3 italic text-monokai-comment mb-2">{children}</blockquote>,
+                                    a: ({href, children}) => <a href={href} className="text-monokai-blue hover:underline font-medium">{children}</a>,
+                                    blockquote: ({children}) => <blockquote className="border-l-4 border-monokai-border pl-3 italic text-monokai-comment mb-2.5 bg-monokai-bg/40 py-1 rounded-r">{children}</blockquote>,
                                 }}
                             >
                                 {aiExplanation}
@@ -866,8 +938,18 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
                         </div>
 
                         {/* 底部按钮 */}
-                        <div className="flex justify-between items-center px-5 py-4 bg-monokai-bg border-t border-monokai-accent">
-                            <div className="flex gap-2">
+                        <div className="flex justify-between items-center px-5 py-3.5 bg-monokai-bg/90 border-t border-monokai-border shrink-0">
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => {
+                                        navigator.clipboard.writeText(aiExplanation);
+                                        showToast('已复制 AI 解释内容到剪贴板', 'success');
+                                    }}
+                                    className="px-3 py-1.5 text-xs font-medium text-monokai-fg bg-monokai-surface hover:bg-monokai-surface/80 border border-monokai-border/60 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5"
+                                >
+                                    <Copy size={12} className="text-monokai-comment" />
+                                    <span>复制解释</span>
+                                </button>
                                 {aiExplanationHistory.length > 0 && (
                                     <button
                                         onClick={async () => {
@@ -876,7 +958,7 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
                                                 setAiExplanationHistory([]);
                                             }
                                         }}
-                                        className="px-3 py-1.5 text-xs font-medium text-monokai-red hover:bg-monokai-red/20 rounded-lg transition-colors"
+                                        className="px-3 py-1.5 text-xs font-medium text-monokai-pink/80 hover:text-monokai-pink hover:bg-monokai-pink/15 rounded-lg transition-colors cursor-pointer"
                                     >
                                         清除历史
                                     </button>
@@ -884,9 +966,9 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
                             </div>
                             <button
                                 onClick={() => setShowAiExplanation(false)}
-                                className="px-4 py-2 text-sm font-medium text-monokai-comment hover:text-monokai-fg hover:bg-monokai-accent rounded-lg transition-colors"
+                                className="px-4 py-1.5 text-xs font-bold text-monokai-bg bg-monokai-amethyst hover:brightness-110 rounded-lg transition-all cursor-pointer shadow-xs active:scale-95"
                             >
-                                关闭
+                                我知道了
                             </button>
                         </div>
                     </div>
@@ -900,31 +982,66 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
                 setMaterializeName={setMaterializeName}
                 onConfirm={handleMaterialize}
             />
+            <AiDiffProposalModal
+                isOpen={Boolean(aiProposal?.isOpen)}
+                title={aiProposal?.title || 'AI 差异优化提案'}
+                explanation={aiProposal?.explanation || ''}
+                originalSql={aiProposal?.originalSql || ''}
+                proposedSql={aiProposal?.proposedSql || ''}
+                onApply={(finalSql) => {
+                    updateActiveTab({ code: finalSql });
+                    setAiProposal(null);
+                    showToast('已成功应用 AI 优化代码', 'success');
+                }}
+                onClose={() => setAiProposal(null)}
+            />
+            <AiResultInsightsModal
+                isOpen={Boolean(aiResultInsights?.isOpen)}
+                result={aiResultInsights?.result || null}
+                insightMarkdown={aiResultInsights?.insightMarkdown || ''}
+                isLoading={Boolean(aiResultInsights?.isLoading)}
+                onClose={() => setAiResultInsights(null)}
+            />
+            <AiCapabilityPromptModal
+                modalData={aiCapabilityPromptModal}
+                onClose={() => setAiCapabilityPromptModal(null)}
+            />
 
 
-            <div className="flex flex-1 min-h-0 gap-4">
+            <div className="flex flex-1 min-h-0">
                 {/* Sidebar (Schema/History) */}
                 {
                     !isZenMode && (
-                        <div className="w-64 bg-monokai-bg border-r border-monokai-accent/60 flex flex-col shrink-0 overflow-hidden relative group/sidebar animate-in slide-in-from-left duration-200">
+                        <div className="w-64 bg-monokai-sidebar border-r border-monokai-border flex flex-col shrink-0 overflow-hidden relative select-none animate-in slide-in-from-left duration-150">
                             {/* Tab Navigation */}
-                            <div className="flex gap-0.5 p-1 bg-monokai-surface/50 border-b border-monokai-accent/40">
+                            <div className="flex p-1 bg-monokai-surface/60 border-b border-monokai-border/80 shrink-0 gap-0.5">
                                 {([
-                                    { key: 'schema', icon: <Database size={10} />, label: 'Schema' },
-                                    { key: 'history', icon: <Clock size={10} />, label: 'History' },
-                                    { key: 'saved', icon: <Save size={10} />, label: 'Saved' },
-                                    { key: 'help', icon: <HelpCircle size={10} />, label: 'Help' },
-                                ] as const).map(({ key, icon, label }) => (
+                                    { key: 'schema', icon: <Database size={11} />, label: 'Schema', count: Object.keys(schemaTree).length },
+                                    { key: 'history', icon: <Clock size={11} />, label: 'History', count: history.length },
+                                    { key: 'saved', icon: <Save size={11} />, label: 'Saved', count: savedQueries.length },
+                                    { key: 'help', icon: <HelpCircle size={11} />, label: 'Help', count: undefined },
+                                ] as const).map(({ key, icon, label, count }) => (
                                     <button
                                         key={key}
                                         onClick={() => setActiveSidebarTab(key)}
-                                        className={`flex-1 flex flex-col items-center gap-0.5 py-1.5 text-[9px] font-bold rounded transition-all ${activeSidebarTab === key
-                                                ? 'bg-monokai-bg text-monokai-accent shadow-sm'
-                                                : 'text-monokai-comment/50 hover:text-monokai-comment hover:bg-monokai-bg/60'
-                                            }`}
+                                        className={`flex-1 flex items-center justify-center gap-1 py-1 text-[10.5px] font-mono font-medium rounded-md transition-all cursor-pointer ${
+                                            activeSidebarTab === key
+                                                ? 'bg-monokai-bg text-monokai-yellow shadow-xs border border-monokai-border font-semibold'
+                                                : 'text-monokai-comment hover:text-monokai-fg hover:bg-monokai-surface/80 border border-transparent'
+                                        }`}
+                                        title={`${label}${count !== undefined ? ` (${count})` : ''}`}
                                     >
                                         {icon}
                                         <span>{label}</span>
+                                        {count !== undefined && count > 0 && (
+                                            <span className={`text-[8.5px] px-1 rounded ${
+                                                activeSidebarTab === key
+                                                    ? 'bg-monokai-yellow/20 text-monokai-yellow'
+                                                    : 'bg-monokai-surface text-monokai-comment'
+                                            }`}>
+                                                {count}
+                                            </span>
+                                        )}
                                     </button>
                                 ))}
                             </div>
@@ -947,6 +1064,19 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
                                         onDeleteSavedQuery={deleteSavedQuery}
                                     />
                                 )}
+                                {activeSidebarTab === 'saved' && (
+                                    <SqlEditorHistory
+                                        activeSidebarTab={activeSidebarTab}
+                                        history={history}
+                                        savedQueries={savedQueries}
+                                        historyFilter={historyFilter}
+                                        onHistoryFilterChange={e => setHistoryFilter(e.target.value)}
+                                        onClearHistory={clearHistory}
+                                        onHistoryItemClick={(sql) => insertText(sql)}
+                                        onSavedQueryClick={(sql) => updateActiveTab({ code: sql })}
+                                        onDeleteSavedQuery={deleteSavedQuery}
+                                    />
+                                )}
                                 {activeSidebarTab === 'help' && (
                                     <SqlEditorHelpPanel
                                         selectedSqlType={selectedSqlType}
@@ -955,32 +1085,14 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
                                     />
                                 )}
                             </div>
-
-                            {/* Collapsible toggle handle */}
-                            <button
-                                onClick={onToggleZen}
-                                className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 w-4.5 h-12 bg-monokai-sidebar border border-monokai-accent/40 rounded-r hover:bg-monokai-surface hover:text-monokai-amethyst flex items-center justify-center text-monokai-comment transition-all z-50 shadow-lg cursor-pointer hover:w-6 group-hover/sidebar:opacity-100 opacity-0"
-                                title="Collapse Sidebar"
-                            >
-                                <ChevronLeft size={10} className="relative -left-0.5" />
-                            </button>
                         </div>
                     )
                 }
 
-                <div className="flex flex-col gap-0 flex-1 min-w-0 relative group/editor">
-                    {isZenMode && (
-                        <button
-                            onClick={onToggleZen}
-                            className="absolute left-0 top-1/2 -translate-y-1/2 w-4.5 h-12 bg-monokai-sidebar border border-l-0 border-monokai-accent/45 rounded-r hover:bg-monokai-surface hover:text-monokai-amethyst flex items-center justify-center text-monokai-comment transition-all z-55 shadow-lg cursor-pointer hover:w-6 opacity-45 hover:opacity-100"
-                            title="Expand Sidebar"
-                        >
-                            <ChevronRight size={10} className="relative" />
-                        </button>
-                    )}
+                <div className="flex flex-col gap-0 flex-1 min-w-0 relative">
                     {/* Editor Area with Tabs */}
                     <div
-                        className="flex flex-col gap-0 min-h-[100px] border border-monokai-accent rounded-t-lg bg-monokai-bg overflow-hidden shadow-2xl relative"
+                        className="flex flex-col gap-0 min-h-[100px] border-b border-monokai-border bg-monokai-bg overflow-hidden relative"
                         style={{ height: `${editorHeightPercent}%` }}
                         ref={editorContainerRef}
                     >
@@ -1077,15 +1189,12 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
                                     }),
                                     EditorView.lineWrapping,
                                     EditorView.theme({
-                                        "&": { backgroundColor: "#272822", color: "#f8f8f2", fontFamily: "'Victor Mono', 'Noto Sans SC', monospace", fontSize: "12px" },
+                                        "&": { backgroundColor: "#272822", color: "#f8f8f2", fontFamily: "'Victor Mono', 'JetBrains Mono', Consolas, Menlo, Monaco, monospace", fontSize: "12px" },
                                         ".cm-gutters": { backgroundColor: "#272822", color: "#75715e", border: "none", fontSize: "12px" },
                                         ".cm-activeLine": { backgroundColor: "rgba(73, 72, 62, .15)" },
                                         ".cm-activeLineGutter": { backgroundColor: "rgba(73, 72, 62, .15)" },
-                                        ".cm-content": { fontFamily: "'Victor Mono', 'Noto Sans SC', monospace", fontSize: "12px" },
-                                        ".cm-line": { fontFamily: "'Victor Mono', 'Noto Sans SC', monospace", fontSize: "12px" },
-                                        ".cm-tooltip-autocomplete": { fontFamily: "'Victor Mono', 'Noto Sans SC', monospace", fontSize: "12px" },
-                                        ".cm-completionLabel": { fontFamily: "'Victor Mono', 'Noto Sans SC', monospace", fontSize: "12px" },
-                                        ".cm-completionDetail": { fontFamily: "'Victor Mono', 'Noto Sans SC', monospace", fontSize: "12px", color: "#75715e" }
+                                        ".cm-content": { fontFamily: "'Victor Mono', 'JetBrains Mono', Consolas, Menlo, Monaco, monospace", fontSize: "12px", lineHeight: "1.6", fontVariantLigatures: "none" },
+                                        ".cm-line": { fontFamily: "'Victor Mono', 'JetBrains Mono', Consolas, Menlo, Monaco, monospace", fontSize: "12px", lineHeight: "1.6" },
                                     }, { dark: true })
                                 ]}
                                 onChange={(value) => updateActiveTab({ code: value })}
@@ -1104,100 +1213,60 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
                     {/* Resizer Handle */}
                     <div
                         onMouseDown={startDragging}
-                        className="h-2 bg-monokai-bg hover:bg-monokai-blue cursor-row-resize z-20 flex items-center justify-center transition-colors group"
+                        onDoubleClick={() => setEditorHeightPercent(50)}
+                        className="h-1.5 bg-monokai-sidebar hover:bg-monokai-blue/40 active:bg-monokai-blue/60 cursor-row-resize z-20 flex items-center justify-center transition-colors group select-none border-t border-b border-monokai-border/40"
+                        title="拖拽调整编辑器与结果区比例 (双击重置为 50/50)"
                     >
-                        <div className="w-8 h-1 rounded-full bg-monokai-accent group-hover:bg-white"></div>
+                        <div className="w-8 h-0.5 rounded-full bg-monokai-comment/40 group-hover:bg-monokai-blue transition-colors"></div>
                     </div>
 
                     {/* Results Area */}
-                    <div className="flex flex-col gap-0 flex-1 min-h-0 border border-monokai-accent rounded-b-lg bg-monokai-bg relative">
-                        {/* View Toggles */}
-                        <div className="flex justify-between items-center bg-monokai-surface p-2 border-b border-monokai-accent shrink-0">
-                            <div className="flex gap-1 bg-monokai-bg p-0.5 rounded border border-monokai-accent/30">
-                                <button onClick={() => updateActiveTab({ viewMode: 'table' })} className={`px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded ${activeTab.viewMode === 'table' ? 'bg-monokai-accent text-monokai-fg shadow-sm' : 'text-monokai-comment hover:text-monokai-fg'}`}>Table</button>
-                                <button onClick={() => updateActiveTab({ viewMode: 'chart' })} disabled={!activeTab.result || activeTab.result.rows.length === 0 || activeTab.result.isExplain} className={`px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded ${activeTab.viewMode === 'chart' ? 'bg-monokai-accent text-monokai-pink shadow-sm' : 'text-monokai-comment hover:text-monokai-pink disabled:opacity-30'}`}>Chart</button>
-                                {activeTab.result?.isExplain && <button onClick={() => updateActiveTab({ viewMode: 'explain' })} className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded bg-monokai-amethyst text-monokai-fg">Plan</button>}
-                                <button onClick={() => updateActiveTab({ viewMode: 'profiling' })} disabled={!activeTab.code.trim()} className={`px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded ${activeTab.viewMode === 'profiling' ? 'bg-monokai-accent text-monokai-fg shadow-sm' : 'text-monokai-comment hover:text-monokai-fg disabled:opacity-30'}`}>Profiling</button>
-                            </div>
-                            {activeTab.viewMode === 'chart' && (
+                    <div className="flex flex-col gap-0 flex-1 min-h-0 bg-monokai-bg relative overflow-hidden">
+                        {/* Unified Result Header for non-table views, error, or empty/loading states */}
+                        {!(activeTab.viewMode === 'table' && activeTab.result && !activeTab.result.error) && (
+                            <div className="h-9 flex items-center justify-between px-3 bg-monokai-sidebar/95 border-b border-monokai-border shrink-0 select-none">
                                 <div className="flex items-center gap-2">
-                                    {/* Source indicator for metric charts */}
-                                    {activeTab.charts?.some(c => c.source === 'metric') && (
-                                        <span className="text-xs bg-monokai-amethyst/20 text-monokai-amethyst px-2 py-0.5 rounded flex items-center gap-1">
-                                            <BarChart2 size={10} />
-                                            指标图表
-                                        </span>
-                                    )}
-                                    <button
-                                        onClick={() => { setEditingChartId(null); setShowChartBuilder(true); }}
-                                        className="ml-2 px-3 py-1 bg-monokai-green text-monokai-bg font-bold rounded text-[10px] uppercase tracking-wider hover:opacity-90 flex items-center gap-1 transition-transform active:scale-95"
-                                    >
-                                        <Plus size={12} /> New Visualization
-                                    </button>
-                                    <button
-                                        onClick={() => onRun()}
-                                        className="px-2 py-1 bg-monokai-blue/20 text-monokai-blue hover:bg-monokai-blue hover:text-monokai-bg rounded text-[10px] flex items-center gap-1"
-                                        title="刷新图表数据"
-                                    >
-                                        <RefreshCw size={12} /> 刷新
-                                    </button>
-                                    <select
-                                        value={autoRefreshInterval}
-                                        onChange={(e) => setAutoRefreshInterval(Number(e.target.value))}
-                                        className="px-2 py-1 bg-monokai-bg border border-monokai-accent/30 rounded text-[10px] text-monokai-comment"
-                                        title="自动刷新间隔"
-                                    >
-                                        <option value={0}>自动刷新: 关闭</option>
-                                        <option value={5}>5秒</option>
-                                        <option value={10}>10秒</option>
-                                        <option value={30}>30秒</option>
-                                        <option value={60}>1分钟</option>
-                                        <option value={300}>5分钟</option>
-                                    </select>
+                                    {renderViewSwitcher()}
                                 </div>
-                            )}
-
-                            {activeTab.result && !activeTab.result.error && !activeTab.result.isExplain && (
-                                <div className="flex items-center gap-2">
-                                    <div className="flex items-center gap-2 bg-monokai-sidebar border border-monokai-accent/30 rounded px-2 py-0.5 mr-2">
-                                        <Search size={12} className="text-monokai-comment shrink-0" />
-                                        <input
-                                            className="bg-transparent border-none outline-none text-xs text-monokai-fg placeholder-monokai-comment/50 w-32 focus:w-48 transition-all"
-                                            placeholder="Filter results..."
-                                            value={activeTab.filterTerm}
-                                            onChange={(e) => updateActiveTab({ filterTerm: e.target.value, page: 0 })}
-                                        />
-                                        {activeTab.filterTerm && <button onClick={() => updateActiveTab({ filterTerm: '' })} className="text-monokai-pink hover:text-monokai-fg"><X size={12} /></button>}
-                                    </div>
-
-                                    {maxPage > 0 && activeTab.viewMode === 'table' && (
-                                        <div className="flex items-center gap-1 mr-2 bg-monokai-bg rounded px-1 border border-monokai-accent/30">
-                                            <button onClick={() => updateActiveTab({ page: Math.max(0, activeTab.page - 1) })} disabled={activeTab.page === 0} className="text-monokai-comment hover:text-monokai-fg disabled:opacity-30 px-2 py-0.5"><ChevronLeft size={14} /></button>
-                                            <span className="text-[10px] font-mono w-12 text-center text-monokai-fg">{activeTab.page + 1}/{maxPage + 1}</span>
-                                            <button onClick={() => updateActiveTab({ page: Math.min(maxPage, activeTab.page + 1) })} disabled={activeTab.page === maxPage} className="text-monokai-comment hover:text-monokai-fg disabled:opacity-30 px-2 py-0.5"><ChevronRight size={14} /></button>
-                                        </div>
-                                    )}
-                                    <div className="flex border border-monokai-accent/30 rounded overflow-hidden">
-                                        <button onClick={() => copyToClipboard('tsv')} className="text-[10px] bg-monokai-sidebar hover:bg-monokai-accent px-2 py-1 border-r border-monokai-accent/30 flex items-center" title="Copy TSV"><Copy size={11} className="text-monokai-comment" /></button>
-                                        <button onClick={() => copyToClipboard('md')} className="text-[10px] bg-monokai-sidebar hover:bg-monokai-accent px-2 py-1 border-r border-monokai-accent/30 flex items-center" title="Copy MD"><FileText size={11} className="text-monokai-comment" /></button>
-                                        <button onClick={() => copyToClipboard('html')} className="text-[10px] bg-monokai-sidebar hover:bg-monokai-accent px-2 py-1 flex items-center" title="Copy HTML"><Globe size={11} className="text-monokai-comment" /></button>
-                                    </div>
-                                    <div className="relative">
-                                        <button onClick={() => setShowExportMenu(!showExportMenu)} className="text-[10px] bg-monokai-blue/10 text-monokai-blue hover:bg-monokai-blue hover:text-monokai-bg px-2 py-1 rounded font-bold transition-colors">Export ▼</button>
-                                        {showExportMenu && (
-                                            <div className="absolute right-0 bottom-full mb-1 bg-monokai-sidebar border border-monokai-accent p-1 rounded shadow-xl z-30 min-w-[100px] flex flex-col gap-0.5">
-                                                <button onClick={() => downloadResult('csv')} className="text-xs text-left px-2 py-1 hover:bg-monokai-accent rounded text-monokai-fg">CSV</button>
-                                                <button onClick={() => downloadResult('excel')} className="text-xs text-left px-2 py-1 hover:bg-monokai-accent rounded text-monokai-fg">Excel (.xlsx/.xls)</button>
-                                                <button onClick={() => downloadResult('json')} className="text-xs text-left px-2 py-1 hover:bg-monokai-accent rounded text-monokai-fg">JSON</button>
-                                                <button onClick={() => downloadResult('parquet')} className="text-xs text-left px-2 py-1 hover:bg-monokai-accent rounded text-monokai-orange">Parquet</button>
-                                                <button onClick={() => handleExportHtmlReport()} className="text-xs text-left px-2 py-1 hover:bg-monokai-accent rounded text-monokai-green font-bold">HTML Report</button>
-                                            </div>
+                                {activeTab.viewMode === 'chart' && (
+                                    <div className="flex items-center gap-2">
+                                        {/* Source indicator for metric charts */}
+                                        {activeTab.charts?.some(c => c.source === 'metric') && (
+                                            <span className="text-[11px] bg-monokai-purple/20 text-monokai-purple px-2 py-0.5 rounded flex items-center gap-1">
+                                                <BarChart2 size={11} />
+                                                指标图表
+                                            </span>
                                         )}
-                                        {showExportMenu && <div className="fixed inset-0 z-20" onClick={() => setShowExportMenu(false)} />}
+                                        <button
+                                            onClick={() => { setEditingChartId(null); setShowChartBuilder(true); }}
+                                            className="px-2.5 py-1 bg-monokai-green text-monokai-bg font-semibold rounded text-xs hover:opacity-90 flex items-center gap-1 transition-transform active:scale-95 cursor-pointer"
+                                        >
+                                            <Plus size={13} /> 新建可视化
+                                        </button>
+                                        <button
+                                            onClick={() => onRun()}
+                                            className="px-2.5 py-1 bg-monokai-blue/20 text-monokai-blue hover:bg-monokai-blue hover:text-monokai-bg rounded text-xs flex items-center gap-1 transition-colors cursor-pointer"
+                                            title="刷新图表数据"
+                                        >
+                                            <RefreshCw size={12} /> 刷新
+                                        </button>
+                                        <select
+                                            value={autoRefreshInterval}
+                                            onChange={(e) => setAutoRefreshInterval(Number(e.target.value))}
+                                            className="px-2 py-1 bg-monokai-bg border border-monokai-border rounded text-xs text-monokai-comment outline-none cursor-pointer"
+                                            title="自动刷新间隔"
+                                        >
+                                            <option value={0}>自动刷新: 关闭</option>
+                                            <option value={5}>5秒</option>
+                                            <option value={10}>10秒</option>
+                                            <option value={30}>30秒</option>
+                                            <option value={60}>1分钟</option>
+                                            <option value={300}>5分钟</option>
+                                        </select>
                                     </div>
-                                </div>
-                            )}
-                        </div>
+                                )}
+                            </div>
+                        )}
 
                         <div className="flex-1 bg-monokai-surface overflow-hidden relative">
                             {/* ... Result Content ... */}
@@ -1212,17 +1281,29 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
                                 />
                             ) : activeTab.loading ? (
                                 <div className="p-4 text-monokai-comment text-center h-full flex items-center justify-center flex-col gap-4">
-                                    <div className="w-12 h-12 border-4 border-monokai-blue border-t-transparent rounded-full animate-spin"></div>
-                                    <div className="animate-pulse tracking-widest text-xs uppercase font-bold">Executing Query...</div>
+                                    <div className="w-10 h-10 border-3 border-monokai-blue border-t-transparent rounded-full animate-spin"></div>
+                                    <div className="tracking-wider text-xs font-mono text-monokai-comment">Executing Query...</div>
                                 </div>
                             ) : !activeTab.result ? (
-                                <div className="p-4 text-monokai-comment/30 text-center h-full flex items-center justify-center flex-col gap-4 select-none">
-                                    <Terminal size={48} className="animate-bounce" />
-                                    <div className="text-sm">Cmd/Ctrl + Enter to run</div>
-                                    <div className="flex gap-2 text-xs">
-                                        <span className="bg-monokai-sidebar px-2 py-1 rounded border border-monokai-accent">SELECT</span>
-                                        <span className="bg-monokai-sidebar px-2 py-1 rounded border border-monokai-accent">FROM</span>
-                                        <span className="bg-monokai-sidebar px-2 py-1 rounded border border-monokai-accent">WHERE</span>
+                                <div className="p-6 text-center h-full flex items-center justify-center flex-col gap-3 select-none">
+                                    <div className="w-12 h-12 rounded-xl bg-monokai-sidebar border border-monokai-border/60 flex items-center justify-center text-monokai-comment/60 shadow-inner">
+                                        <Terminal size={22} className="text-monokai-comment/80" />
+                                    </div>
+                                    <div className="text-xs text-monokai-comment flex items-center gap-1.5 font-medium">
+                                        <span>按</span>
+                                        <kbd className="px-1.5 py-0.5 text-[11px] font-mono bg-monokai-sidebar border border-monokai-border rounded text-monokai-fg shadow-xs">
+                                            Ctrl
+                                        </kbd>
+                                        <span>+</span>
+                                        <kbd className="px-1.5 py-0.5 text-[11px] font-mono bg-monokai-sidebar border border-monokai-border rounded text-monokai-fg shadow-xs">
+                                            Enter
+                                        </kbd>
+                                        <span>执行查询或选中代码</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-[11px] text-monokai-comment/60">
+                                        <span>常用技巧：支持</span>
+                                        <span className="font-mono text-monokai-comment/90">:param</span>
+                                        <span>动态参数与智能补全</span>
                                     </div>
                                 </div>
                             ) : activeTab.viewMode === 'explain' ? (
@@ -1237,6 +1318,10 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
                                     pageSize={PAGE_SIZE}
                                     onFilterTermChange={(v) => updateActiveTab({ filterTerm: v, page: 0 })}
                                     onPageChange={(v) => updateActiveTab({ page: v })}
+                                    onOpenExplain={activeTab.result.isExplain ? () => updateActiveTab({ viewMode: 'explain' }) : undefined}
+                                    onExportParquet={() => downloadResult('parquet')}
+                                    onExportHtml={() => handleExportHtmlReport()}
+                                    viewSwitcher={renderViewSwitcher()}
                                 />
                             ) : (
                                 <div className="h-full flex flex-col p-4 bg-monokai-surface">
@@ -1294,83 +1379,111 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
                         </div>
                     </div>
 
-                    {/* Footer Status Bar */}
-                    {
-                        activeTab.result && !activeTab.result.error && (
-                            <div className="bg-monokai-surface border-t border-monokai-accent px-4 py-1.5 flex justify-between items-center text-[10px] font-mono text-monokai-comment select-none">
-                                <div className="flex gap-6">
-                                    <div className="flex items-center gap-1.5">
-                                        <span className="w-2 h-2 rounded-full bg-monokai-green shadow-[0_0_5px_rgba(166,226,46,0.5)]"></span>
-                                        <span className="text-monokai-green font-bold">Success</span>
-                                    </div>
-                                    {hasMismatchedBrackets && (
-                                        <div className="flex items-center gap-1 text-monokai-orange font-bold text-[9px] bg-monokai-orange/10 border border-monokai-orange/30 px-2 py-0.5 rounded animate-pulse">
-                                            <AlertTriangle size={10} className="shrink-0" />
-                                            <span>括号不匹配</span>
-                                        </div>
-                                    )}
+                    {/* Permanent Telemetry Status Bar */}
+                    <div className="h-7.5 bg-monokai-sidebar/95 backdrop-blur-xs border-t border-monokai-border/70 px-3 flex justify-between items-center text-[11px] font-mono text-monokai-comment select-none shrink-0 z-20">
+                        <div className="flex items-center gap-3.5">
+                            {/* Engine & Query Status Indicator */}
+                            {activeTab.loading ? (
+                                <div className="flex items-center gap-1.5 text-monokai-blue bg-monokai-blue/10 border border-monokai-border px-2 py-0.5 rounded-md">
+                                    <span className="w-2 h-2 rounded-full bg-monokai-blue animate-ping"></span>
+                                    <span className="font-semibold text-[10.5px]">Executing...</span>
+                                </div>
+                            ) : activeTab.result?.error ? (
+                                <div className="flex items-center gap-1.5 text-monokai-pink bg-monokai-pink/10 border border-monokai-border px-2 py-0.5 rounded-md">
+                                    <span className="w-2 h-2 rounded-full bg-monokai-pink"></span>
+                                    <span className="font-semibold text-[10.5px]">Query Error</span>
+                                </div>
+                            ) : activeTab.result ? (
+                                <div className="flex items-center gap-1.5 text-monokai-green bg-monokai-green/10 border border-monokai-border px-2 py-0.5 rounded-md shadow-xs">
+                                    <span className="w-2 h-2 rounded-full bg-monokai-green shadow-[0_0_6px_rgba(166,226,46,0.8)]"></span>
+                                    <span className="font-semibold text-[10.5px]">Success</span>
+                                </div>
+                            ) : (
+                                <div className="flex items-center gap-1.5 text-monokai-comment bg-monokai-surface/60 border border-monokai-border/50 px-2 py-0.5 rounded-md">
+                                    <span className="w-2 h-2 rounded-full bg-monokai-comment/50"></span>
+                                    <span className="text-[10.5px]">Ready</span>
+                                </div>
+                            )}
+
+                            {hasMismatchedBrackets && (
+                                <div className="flex items-center gap-1 text-monokai-orange font-medium text-[10px] bg-monokai-orange/15 border border-monokai-border px-2 py-0.5 rounded-md ">
+                                    <AlertTriangle size={11} className="shrink-0 text-monokai-orange" />
+                                    <span>括号未闭合</span>
+                                </div>
+                            )}
+
+                            {activeTab.result && !activeTab.result.error && (
+                                <div className="flex items-center gap-3 bg-monokai-bg/60 border border-monokai-border/60 px-2.5 py-0.5 rounded-md text-[10.5px]">
                                     <div className="flex items-center gap-1.5">
                                         <Table size={11} className="text-monokai-comment" />
-                                        <span className="text-monokai-fg">
-                                            <span className="text-monokai-fg font-bold">{filteredRows.length}</span> rows
-                                            {filteredRows.length !== allRows.length && <span className="opacity-50"> (filtered from {allRows.length})</span>}
+                                        <span className="text-monokai-fg font-medium">
+                                            <span className="font-bold tabular-nums">{filteredRows.length.toLocaleString()}</span> 行
+                                            {filteredRows.length !== allRows.length && <span className="opacity-50"> (全 {allRows.length.toLocaleString()})</span>}
                                         </span>
                                     </div>
+                                    <span className="text-monokai-border/80">•</span>
                                     <div className="flex items-center gap-1.5">
                                         <Clock size={11} className="text-monokai-comment" />
-                                        <span className="text-monokai-fg"><span className="text-monokai-fg font-bold">{activeTab.result.executionTime.toFixed(2)}</span> ms</span>
+                                        <span className="text-monokai-fg font-medium">
+                                            <span className="font-bold text-monokai-yellow tabular-nums">{activeTab.result.executionTime.toFixed(1)}</span> ms
+                                        </span>
                                     </div>
+                                    <span className="text-monokai-border/80">•</span>
                                     <div className="flex items-center gap-1.5">
                                         <Layout size={11} className="text-monokai-comment" />
-                                        <span className="text-monokai-fg">{activeTab.result.columns.length} columns</span>
-                                    </div>
-                                    {dbStats && (
-                                        <div className="flex items-center gap-1.5 border-l border-monokai-accent/30 pl-3">
-                                            <Database size={11} className="text-monokai-comment" />
-                                            <span>RAM: <strong className="text-monokai-cyan">{dbStats.memoryUsage}</strong> / {dbStats.memoryLimit}</span>
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="flex items-center gap-3">
-                                    {/* AI 优化快捷入口 */}
-                                    {activeTab.code.trim() && (
-                                        <div className="flex items-center gap-1">
-                                            <button
-                                                onClick={() => handleAiContinueOptimize('improve')}
-                                                disabled={isAiLoading}
-                                                className="flex items-center gap-1 px-2 py-0.5 bg-monokai-green/10 hover:bg-monokai-green/20 text-monokai-green/80 hover:text-monokai-green rounded transition-colors text-[9px]"
-                                                title="优化 SQL"
-                                            >
-                                                <Sparkles size={10} />
-                                                优化
-                                            </button>
-                                            <button
-                                                onClick={() => handleAiContinueOptimize('explain')}
-                                                disabled={isAiLoading}
-                                                className="flex items-center gap-1 px-2 py-0.5 bg-monokai-amethyst/10 hover:bg-monokai-amethyst/20 text-monokai-amethyst/80 hover:text-monokai-amethyst rounded transition-colors text-[9px]"
-                                                title="解释 SQL"
-                                            >
-                                                <Lightbulb size={10} />
-                                                解释
-                                            </button>
-                                            <button
-                                                onClick={() => handleAiContinueOptimize('adapt')}
-                                                disabled={isAiLoading}
-                                                className="flex items-center gap-1 px-2 py-0.5 bg-monokai-blue/10 hover:bg-monokai-blue/20 text-monokai-blue/80 hover:text-monokai-blue rounded transition-colors text-[9px]"
-                                                title="适配 DuckDB"
-                                            >
-                                                <Wand2 size={10} />
-                                                适配
-                                            </button>
-                                        </div>
-                                    )}
-                                    <div className="opacity-50 hover:opacity-100 transition-opacity">
-                                        DuckDB WASM
+                                        <span className="text-monokai-fg font-medium tabular-nums">{activeTab.result.columns.length} 列</span>
                                     </div>
                                 </div>
+                            )}
+
+                            {dbStats && (
+                                <div className="hidden sm:flex items-center gap-1.5 border-l border-monokai-border/60 pl-3 text-[10.5px]">
+                                    <Database size={11} className="text-monokai-comment" />
+                                    <span>RAM: <strong className="text-monokai-cyan font-bold tabular-nums">{dbStats.memoryUsage}</strong> / {dbStats.memoryLimit}</span>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="flex items-center gap-2.5">
+                            {/* AI 优化快捷入口 */}
+                            {activeTab.code.trim() && (
+                                <div className="hidden md:flex items-center gap-1 bg-monokai-surface/40 p-0.5 rounded-lg border border-monokai-border/40">
+                                    <button
+                                        onClick={() => handleAiContinueOptimize('improve')}
+                                        disabled={isAiLoading}
+                                        className="flex items-center gap-1 px-2 py-0.5 bg-monokai-green/10 hover:bg-monokai-green/20 text-monokai-green border border-monokai-border rounded transition-all text-[10.5px] font-semibold cursor-pointer active:scale-95"
+                                        title="优化 SQL 结构与性能"
+                                    >
+                                        <Sparkles size={11} />
+                                        <span>优化</span>
+                                    </button>
+                                    <button
+                                        onClick={() => handleAiContinueOptimize('explain')}
+                                        disabled={isAiLoading}
+                                        className="flex items-center gap-1 px-2 py-0.5 bg-monokai-amethyst/10 hover:bg-monokai-amethyst/20 text-monokai-amethyst border border-monokai-border rounded transition-all text-[10.5px] font-semibold cursor-pointer active:scale-95"
+                                        title="AI 深入解释 SQL"
+                                    >
+                                        <Lightbulb size={11} />
+                                        <span>解释</span>
+                                    </button>
+                                    <button
+                                        onClick={() => handleAiContinueOptimize('adapt')}
+                                        disabled={isAiLoading}
+                                        className="flex items-center gap-1 px-2 py-0.5 bg-monokai-blue/10 hover:bg-monokai-blue/20 text-monokai-blue border border-monokai-border rounded transition-all text-[10.5px] font-semibold cursor-pointer active:scale-95"
+                                        title="适配 DuckDB 语法与函数"
+                                    >
+                                        <Wand2 size={11} />
+                                        <span>适配</span>
+                                    </button>
+                                </div>
+                            )}
+                            <div className="flex items-center gap-2 text-[10px] text-monokai-comment bg-monokai-bg/60 border border-monokai-border/60 px-2 py-0.5 rounded-md">
+                                <span className="w-1.5 h-1.5 rounded-full bg-monokai-green"></span>
+                                <span>DuckDB WASM</span>
+                                <span className="border-l border-monokai-border/60 pl-1.5 font-mono text-[9.5px]">UTF-8</span>
                             </div>
-                        )
-                    }
+                        </div>
+                    </div>
                 </div >
             </div>
         </div>

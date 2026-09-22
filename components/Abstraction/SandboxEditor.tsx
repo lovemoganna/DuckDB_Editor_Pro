@@ -28,13 +28,21 @@ export const SandboxEditor: React.FC = () => {
       <div className="flex items-center justify-between px-4 py-2 bg-monokai-surface border-b border-monokai-border">
         <span className="text-xs text-monokai-fg-muted">SQL 编辑器</span>
         <div className="flex items-center gap-3">
+          {!sandboxSql.trim() && (
+            <button
+              onClick={() => setSql(`-- DuckDB WASM Quick Analysis Sample\nSELECT 100 - 1 AS calc_result, version() AS engine_version, current_timestamp AS run_at;`)}
+              className="px-2.5 py-1 text-[11px] font-bold rounded-md bg-monokai-amethyst/20 text-monokai-amethyst border border-monokai-amethyst/40 hover:bg-monokai-amethyst/30 transition-colors flex items-center gap-1 cursor-pointer"
+            >
+              🪄 填入示例分析 SQL
+            </button>
+          )}
           <span className="text-[10px] text-monokai-fg-muted/60">
             Ctrl+Enter 执行
           </span>
           <button
             onClick={handleExecute}
             disabled={isExecuting || !sandboxSql.trim()}
-            className="px-3 py-1 text-xs font-medium rounded-md bg-monokai-green text-white hover:bg-monokai-green/80 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="px-3 py-1 text-xs font-medium rounded-md bg-monokai-green text-white hover:bg-monokai-green/80 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
           >
             {isExecuting ? '执行中...' : '执行'}
           </button>

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Save, X } from 'lucide-react';
+import { Save, Sparkles, BookOpen } from 'lucide-react';
 import {
   ontologyInferenceModule,
   type InferenceWorkspace,
@@ -10,11 +10,19 @@ import {
   type OntologyReasoningCatalog,
 } from '../../services/ontology/ontologyReasoningModule';
 import { createOntologySituationModel } from '../../services/ontology/ontologySituationExplorer';
+import { ModalShell, SegmentedTabs, ActionButton, type SegmentedTab } from '../ui/Workbench';
 
 interface OntologyReasoningCatalogEditorProps {
   source: OntologyProjectionSource;
   onClose: () => void;
 }
+
+type DefinitionTab = 'world' | 'combination';
+
+const DEFINITION_TABS: readonly SegmentedTab<DefinitionTab>[] = [
+  { value: 'world', label: '世界变化规则', icon: BookOpen },
+  { value: 'combination', label: '特征组合规则', icon: Sparkles },
+];
 
 export const OntologyReasoningCatalogEditor: React.FC<OntologyReasoningCatalogEditorProps> = ({
   source,
@@ -22,7 +30,7 @@ export const OntologyReasoningCatalogEditor: React.FC<OntologyReasoningCatalogEd
 }) => {
   const [worldText, setWorldText] = useState('');
   const [combinationText, setCombinationText] = useState('');
-  const [activeDefinition, setActiveDefinition] = useState<'world' | 'combination'>('world');
+  const [activeDefinition, setActiveDefinition] = useState<DefinitionTab>('world');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -108,35 +116,76 @@ export const OntologyReasoningCatalogEditor: React.FC<OntologyReasoningCatalogEd
   };
 
   return (
-    <div role="dialog" aria-label="推演定义编辑器" className="absolute inset-0 z-50 flex items-center justify-center bg-black/70 p-6 backdrop-blur-sm">
-      <section className="flex h-[min(820px,92vh)] w-[min(1040px,94vw)] flex-col overflow-hidden rounded-2xl border border-monokai-amethyst/30 bg-[#11131d] shadow-2xl">
-        <header className="flex items-center justify-between border-b border-white/10 px-5 py-4">
-          <div>
-            <h2 className="font-black text-monokai-fg">Ontology 推演定义</h2>
-            <p className="mt-1 text-xs text-monokai-comment">在 Ontology 主模块维护稳定属性、世界变化规则，以及供组合探索验证的特征规则。</p>
+    <ModalShell
+      open={true}
+      title="Ontology 推演定义"
+      description="在 Ontology 主模块维护稳定属性、世界变化规则，以及供组合探索验证的特征规则"
+      size="xl"
+      onClose={onClose}
+      footer={
+        <div className="flex items-center justify-between w-full">
+          <span className="text-xs text-monokai-comment">同一 logicalId + version 不可覆盖；修改定义时请递增版本</span>
+          <div className="flex items-center gap-2.5">
+            <ActionButton variant="ghost" onClick={onClose}>
+              取消
+            </ActionButton>
+            <ActionButton
+              variant="primary"
+              loading={saving}
+              disabled={!loaded}
+              icon={Save}
+              onClick={() => void save()}
+            >
+              校验并保存
+            </ActionButton>
           </div>
-          <button type="button" aria-label="关闭推演定义编辑器" onClick={onClose} className="rounded-lg p-2 text-monokai-comment hover:bg-white/10"><X className="h-4 w-4" /></button>
-        </header>
-        <div className="flex min-h-0 flex-1 flex-col p-5">
-          <div className="mb-3 flex gap-2">
-            <button type="button" onClick={() => setActiveDefinition('world')} className={activeDefinition === 'world' ? 'rounded-lg bg-monokai-amethyst px-3 py-2 text-xs font-bold text-black' : 'rounded-lg bg-white/5 px-3 py-2 text-xs'}>世界变化规则</button>
-            <button type="button" onClick={() => setActiveDefinition('combination')} className={activeDefinition === 'combination' ? 'rounded-lg bg-monokai-amethyst px-3 py-2 text-xs font-bold text-black' : 'rounded-lg bg-white/5 px-3 py-2 text-xs'}>特征组合规则</button>
+        </div>
+      }
+    >
+      <div className="flex flex-col h-[65vh] min-h-[420px] space-y-3">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <SegmentedTabs<DefinitionTab>
+            value={activeDefinition}
+            items={DEFINITION_TABS}
+            onChange={setActiveDefinition}
+            aria-label="推演定义切换"
+            tone="accent"
+            size="sm"
+          />
+          <div className="text-xs font-mono font-medium text-monokai-cyan">{summary}</div>
+        </div>
+
+        {error && (
+          <div role="alert" className="rounded-lg bg-monokai-pink/10 border border-monokai-pink/30 p-3 text-xs text-monokai-pink">
+            {error}
           </div>
-          <div className="mb-2 text-xs text-monokai-cyan">{summary}</div>
-          {error && <div role="alert" className="mb-3 rounded-lg bg-monokai-pink/10 p-3 text-xs text-monokai-pink">{error}</div>}
+        )}
+
+        <div className="flex-1 min-h-0 rounded-xl border border-monokai-border overflow-hidden bg-monokai-bg flex flex-col">
           {activeDefinition === 'world' ? (
-            <textarea aria-label="Ontology 世界变化定义 JSON" value={worldText} onChange={event => setWorldText(event.target.value)} disabled={!loaded} spellCheck={false} className="min-h-0 flex-1 resize-none rounded-xl border border-white/10 bg-[#090a0f] p-4 font-mono text-xs leading-5 text-monokai-fg outline-none focus:border-monokai-amethyst/50" />
+            <textarea
+              aria-label="Ontology 世界变化定义 JSON"
+              value={worldText}
+              onChange={event => setWorldText(event.target.value)}
+              disabled={!loaded}
+              spellCheck={false}
+              className="flex-1 min-h-0 w-full resize-none p-4 font-mono text-xs leading-relaxed text-monokai-fg bg-transparent outline-none focus:ring-1 focus:ring-monokai-accent/40"
+            />
           ) : (
-            <textarea aria-label="Ontology 特征组合定义 JSON" value={combinationText} onChange={event => setCombinationText(event.target.value)} disabled={!loaded} spellCheck={false} className="min-h-0 flex-1 resize-none rounded-xl border border-white/10 bg-[#090a0f] p-4 font-mono text-xs leading-5 text-monokai-fg outline-none focus:border-monokai-amethyst/50" />
+            <textarea
+              aria-label="Ontology 特征组合定义 JSON"
+              value={combinationText}
+              onChange={event => setCombinationText(event.target.value)}
+              disabled={!loaded}
+              spellCheck={false}
+              className="flex-1 min-h-0 w-full resize-none p-4 font-mono text-xs leading-relaxed text-monokai-fg bg-transparent outline-none focus:ring-1 focus:ring-monokai-accent/40"
+            />
           )}
         </div>
-        <footer className="flex items-center justify-between border-t border-white/10 px-5 py-4 text-xs text-monokai-comment">
-          <span>同一 logicalId + version 不可覆盖；修改定义时请递增版本。</span>
-          <button type="button" onClick={() => void save()} disabled={!loaded || saving} className="flex items-center gap-2 rounded-lg bg-monokai-amethyst px-4 py-2 font-bold text-black disabled:opacity-50"><Save className="h-4 w-4" />{saving ? '保存中…' : '校验并保存'}</button>
-        </footer>
-      </section>
-    </div>
+      </div>
+    </ModalShell>
   );
 };
 
 export default OntologyReasoningCatalogEditor;
+

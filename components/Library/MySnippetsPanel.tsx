@@ -25,6 +25,8 @@ import {
   X
 } from 'lucide-react';
 import { CodeSnippet } from '../../types';
+import { CodeHighlightBlock } from '../ui/CodeHighlightBlock';
+import { duckDBService } from '../../services/duckdbService';
 
 // AI 填充建议列表
 const AI_SNIPPET_SUGGESTIONS = [
@@ -162,21 +164,66 @@ export const MySnippetsPanel: React.FC<MySnippetsPanelProps> = ({
     setShowAISuggestions(false);
   }, [onFilterChange]);
 
-  // AI 一键填充（智能推荐收藏片段）
-  const handleAIFill = useCallback(() => {
+  // AI 一键填充（基于真实 DuckDB Schema 与高频分析模板生成）
+  const handleAIFill = useCallback(async () => {
     setIsAIFilling(true);
     setAiSuggestions([]);
     setShowAISuggestions(false);
 
-    // 模拟 AI 生成延迟
-    setTimeout(() => {
-      // 随机选择 2-3 个建议
-      const shuffled = [...AI_SNIPPET_SUGGESTIONS].sort(() => 0.5 - Math.random());
-      const selected = shuffled.slice(0, Math.floor(Math.random() * 2) + 2);
-      setAiSuggestions(selected);
-      setIsAIFilling(false);
+    try {
+      const currentTables = await duckDBService.getTables().catch(() => []);
+      const generatedSuggestions: typeof AI_SNIPPET_SUGGESTIONS = [];
+
+      if (currentTables.length > 0) {
+        const sampleTable = currentTables[0];
+        const schema = await duckDBService.getTableSchema(sampleTable).catch(() => []);
+        const colNames = schema.map(c => c.name);
+        const firstCol = colNames[0] || 'id';
+        const secondCol = colNames[1] || colNames[0] || 'val';
+
+        generatedSuggestions.push({
+          title: `探索分析: ${sampleTable}`,
+          sql: `-- 针对当前数据库表 ${sampleTable} 的快速全量剖析
+SELECT 
+  COUNT(*) AS total_rows,
+  COUNT(DISTINCT "${firstCol}") AS unique_${firstCol},
+  COUNT(DISTINCT "${secondCol}") AS unique_${secondCol}
+FROM "${sampleTable}";`,
+          description: `基于当前表 ${sampleTable} 自动生成的聚合探查 SQL`,
+          tags: `${sampleTable},探查,聚合`,
+        });
+
+        generatedSuggestions.push({
+          title: `分布统计: ${sampleTable}`,
+          sql: `-- 分析 ${sampleTable}.${secondCol} 分布情况
+SELECT 
+  "${secondCol}",
+  COUNT(*) AS cnt,
+  ROUND(COUNT(*) * 100.0 / SUM(COUNT(*)) OVER (), 2) AS percentage
+FROM "${sampleTable}"
+GROUP BY "${secondCol}"
+ORDER BY cnt DESC
+LIMIT 10;`,
+          description: `基于当前表 ${sampleTable} 的分组占比统计`,
+          tags: `${sampleTable},分布,占比`,
+        });
+      }
+
+      // Merge with base templates to provide 3 rich recommendations
+      for (const item of AI_SNIPPET_SUGGESTIONS) {
+        if (generatedSuggestions.length >= 3) break;
+        generatedSuggestions.push(item);
+      }
+
+      setAiSuggestions(generatedSuggestions);
       setShowAISuggestions(true);
-    }, 700);
+    } catch (e) {
+      console.error('Failed to generate snippet suggestions:', e);
+      setAiSuggestions(AI_SNIPPET_SUGGESTIONS.slice(0, 3));
+      setShowAISuggestions(true);
+    } finally {
+      setIsAIFilling(false);
+    }
   }, []);
 
   // 采用 AI 建议
@@ -269,64 +316,64 @@ export const MySnippetsPanel: React.FC<MySnippetsPanelProps> = ({
 
       {/* 添加表单 */}
       {showAddForm && (
-        <div className="mb-4 p-4 bg-monokai-sidebar border border-monokai-accent rounded-lg">
-          <h4 className="text-sm font-medium text-monokai-fg mb-3">添加新代码片段</h4>
+        <div className="mb-4 p-4 bg-monokai-surface/90 rounded-xl shadow-md">
+          <h4 className="text-xs font-semibold text-monokai-fg mb-3">添加新代码片段</h4>
           <div className="space-y-3">
             <input
               type="text"
               placeholder="标题"
               value={newSnippet.title}
               onChange={(e) => setNewSnippet(prev => ({ ...prev, title: e.target.value }))}
-              className="w-full px-3 py-2 bg-monokai-bg border border-monokai-accent rounded text-sm text-monokai-fg placeholder-monokai-comment focus:outline-none focus:border-monokai-yellow"
+              className="w-full px-3 py-2 bg-monokai-bg rounded-lg text-xs text-monokai-fg placeholder-monokai-comment focus:outline-none focus:ring-1 focus:ring-monokai-yellow/70"
             />
             <textarea
               placeholder="SQL 语句"
               value={newSnippet.sql}
               onChange={(e) => setNewSnippet(prev => ({ ...prev, sql: e.target.value }))}
               rows={5}
-              className="w-full px-3 py-2 bg-monokai-bg border border-monokai-accent rounded text-sm text-monokai-fg placeholder-monokai-comment focus:outline-none focus:border-monokai-yellow font-mono resize-none"
+              className="w-full px-3 py-2 bg-monokai-bg rounded-lg text-xs text-monokai-fg placeholder-monokai-comment focus:outline-none focus:ring-1 focus:ring-monokai-yellow/70 font-mono resize-none"
             />
             <input
               type="text"
               placeholder="描述（可选）"
               value={newSnippet.description}
               onChange={(e) => setNewSnippet(prev => ({ ...prev, description: e.target.value }))}
-              className="w-full px-3 py-2 bg-monokai-bg border border-monokai-accent rounded text-sm text-monokai-fg placeholder-monokai-comment focus:outline-none focus:border-monokai-yellow"
+              className="w-full px-3 py-2 bg-monokai-bg rounded-lg text-xs text-monokai-fg placeholder-monokai-comment focus:outline-none focus:ring-1 focus:ring-monokai-yellow/70"
             />
             <input
               type="text"
               placeholder="标签，逗号分隔"
               value={newSnippet.tags}
               onChange={(e) => setNewSnippet(prev => ({ ...prev, tags: e.target.value }))}
-              className="w-full px-3 py-2 bg-monokai-bg border border-monokai-accent rounded text-sm text-monokai-fg placeholder-monokai-comment focus:outline-none focus:border-monokai-yellow"
+              className="w-full px-3 py-2 bg-monokai-bg rounded-lg text-xs text-monokai-fg placeholder-monokai-comment focus:outline-none focus:ring-1 focus:ring-monokai-yellow/70"
             />
-            <label className="flex items-center gap-2 text-sm text-monokai-fg cursor-pointer">
+            <label className="flex items-center gap-2 text-xs text-monokai-fg cursor-pointer select-none">
               <input
                 type="checkbox"
                 checked={newSnippet.favorite}
                 onChange={(e) => setNewSnippet(prev => ({ ...prev, favorite: e.target.checked }))}
-                className="w-4 h-4 rounded border-monokai-accent text-monokai-yellow focus:ring-monokai-yellow"
+                className="w-3.5 h-3.5 rounded border-0 text-monokai-yellow focus:ring-monokai-yellow bg-monokai-bg"
               />
-              <Star className={`w-4 h-4 ${newSnippet.favorite ? 'fill-monokai-yellow text-monokai-yellow' : 'text-monokai-comment'}`} />
-              收藏此片段
+              <Star className={`w-3.5 h-3.5 ${newSnippet.favorite ? 'fill-monokai-yellow text-monokai-yellow' : 'text-monokai-comment'}`} />
+              <span>收藏此代码片段</span>
             </label>
             <div className="flex gap-2">
               <button
                 onClick={handleAdd}
-                className="flex-1 px-3 py-2 bg-monokai-yellow text-white rounded text-sm hover:bg-monokai-yellow/80 transition-colors"
+                className="flex-1 px-3 py-1.5 bg-monokai-yellow text-monokai-bg font-semibold rounded-lg text-xs hover:bg-monokai-yellow/90 transition-colors cursor-pointer"
               >
-                保存
+                保存片段
               </button>
               <button
                 onClick={handleQuickClear}
-                className="flex items-center gap-1 px-3 py-2 bg-monokai-accent/20 text-monokai-comment rounded text-sm hover:bg-monokai-accent/30 transition-colors"
+                className="flex items-center gap-1 px-3 py-1.5 bg-monokai-surface text-monokai-comment rounded-lg text-xs hover:text-monokai-fg transition-colors cursor-pointer"
                 title="快速清除（Esc）"
               >
-                <RotateCcw className="w-4 h-4" />
+                <RotateCcw className="w-3.5 h-3.5" />
               </button>
               <button
                 onClick={() => setShowAddForm(false)}
-                className="px-3 py-2 bg-monokai-accent/20 text-monokai-comment rounded text-sm hover:bg-monokai-accent/30 transition-colors"
+                className="px-3 py-1.5 bg-monokai-surface text-monokai-comment rounded-lg text-xs hover:text-monokai-fg transition-colors cursor-pointer"
               >
                 取消
               </button>
@@ -340,13 +387,13 @@ export const MySnippetsPanel: React.FC<MySnippetsPanelProps> = ({
         {snippets.map(snippet => (
           <div
             key={snippet.id}
-            className="p-4 bg-monokai-sidebar border border-monokai-accent rounded-lg hover:border-monokai-yellow/50 transition-colors"
+            className="p-4 bg-monokai-surface/90 rounded-xl transition-colors shadow-xs"
           >
             {/* 片段头部 */}
             <div className="flex items-start justify-between mb-2">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
-                  <h4 className="text-sm font-medium text-monokai-fg">{snippet.title}</h4>
+                  <h4 className="text-xs font-semibold text-monokai-fg">{snippet.title}</h4>
                   <button
                     onClick={() => onToggleFavorite(snippet.id)}
                     className="p-0.5 hover:bg-monokai-accent/20 rounded transition-colors"
@@ -407,27 +454,25 @@ export const MySnippetsPanel: React.FC<MySnippetsPanelProps> = ({
 
             {/* 展开的 SQL */}
             {expandedSnippet === snippet.id && (
-              <div className="mt-3 p-3 bg-monokai-bg border border-monokai-accent rounded">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-medium text-monokai-fg">完整 SQL</span>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handleInsert(snippet.sql)}
-                      className="text-xs text-monokai-yellow hover:underline"
-                    >
-                      插入编辑器
-                    </button>
-                    <button
-                      onClick={() => handleCopy(snippet)}
-                      className="text-xs text-monokai-comment hover:text-monokai-fg"
-                    >
-                      复制
-                    </button>
-                  </div>
+              <div className="mt-3 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-monokai-fg">完整 SQL 代码</span>
+                  <button
+                    type="button"
+                    onClick={() => handleInsert(snippet.sql)}
+                    className="text-xs text-monokai-yellow hover:underline cursor-pointer"
+                  >
+                    插入编辑器
+                  </button>
                 </div>
-                <pre className="text-xs text-monokai-comment font-mono whitespace-pre-wrap max-h-60 overflow-y-auto">
-                  {snippet.sql}
-                </pre>
+                <CodeHighlightBlock
+                  code={snippet.sql}
+                  language="sql"
+                  title={snippet.title}
+                  maxHeight="240px"
+                  allowFormat={true}
+                  onCopy={() => handleCopy(snippet)}
+                />
               </div>
             )}
           </div>
@@ -473,7 +518,7 @@ export const MySnippetsPanel: React.FC<MySnippetsPanelProps> = ({
                 {aiSuggestions.map((suggestion, idx) => (
                   <div
                     key={idx}
-                    className="p-4 bg-monokai-sidebar border border-monokai-yellow/20 rounded-lg hover:border-monokai-yellow/50 transition-colors cursor-pointer"
+                    className="p-4 bg-monokai-sidebar border border-monokai-yellow/20 rounded-lg hover:border-monokai-border-strong transition-colors cursor-pointer"
                     onClick={() => handleApplySuggestion(suggestion)}
                   >
                     <div className="flex items-start justify-between mb-2">

@@ -3,7 +3,8 @@ import { DeepInsight } from '../types';
 export type AIStage = 'p1_semantic' | 'p3_causal' | 'p4_insights' | 'sql_lifecycle' | 'sql_batch' | 'core_analysis' | 'deep_intelligence'
     | 'semantic' | 'quality' | 'ops' | 'causal' | 'insights' | 'narrative' | 'probe'
     | 'regex_gen' | 'fix_error' | 'smart_pivot' | 'unit_test' | 'ontology'
-    | 'unified'; // v6.0: Single mega-call for all core stages
+    | 'unified' | 'sql_explain' | 'sql_analyze'
+    | 'sql_column_profile' | 'sql_columns_profile'; // v6.2: Workbench AI Column Profiling stages
 
 export interface ValidationResult {
     isValid: boolean;
@@ -239,6 +240,136 @@ export class AIValidator {
                     missingFields.push('deep_intelligence_format_missing');
                 }
                 break;
+
+            // ============================================================
+            // Workbench AI Assistant: SQL Explanation
+            // ============================================================
+            case 'sql_explain':
+                // Expect JSON { oneLiner, logicSteps: [], involvedObjects: [], outputFields: [], keyConditions: [] }
+                if (!data || typeof data !== 'object') {
+                    missingFields.push('explain_data_missing');
+                    break;
+                }
+                if (!data.oneLiner || typeof data.oneLiner !== 'string') {
+                    missingFields.push('oneLiner');
+                }
+                if (!Array.isArray(data.logicSteps)) {
+                    missingFields.push('logicSteps_array');
+                } else if (data.logicSteps.length === 0) {
+                    missingFields.push('logicSteps_empty');
+                }
+                if (!Array.isArray(data.involvedObjects)) {
+                    missingFields.push('involvedObjects_array');
+                }
+                if (!Array.isArray(data.outputFields)) {
+                    missingFields.push('outputFields_array');
+                }
+                if (!Array.isArray(data.keyConditions)) {
+                    missingFields.push('keyConditions_array');
+                }
+                break;
+
+            // ============================================================
+            // Workbench AI Assistant: SQL Analysis (Risks + Perf + Suggestion)
+            // ============================================================
+            case 'sql_analyze':
+                // Expect JSON { severity, summary, logicRisks: [], perfConcerns: [], resultInsights: [], suggestedSql, suggestionRationale }
+                if (!data || typeof data !== 'object') {
+                    missingFields.push('analyze_data_missing');
+                    break;
+                }
+                if (!data.severity || !['LOW', 'MEDIUM', 'HIGH'].includes(data.severity)) {
+                    missingFields.push('severity');
+                }
+                if (!data.summary || typeof data.summary !== 'string') {
+                    missingFields.push('summary');
+                }
+                if (!Array.isArray(data.logicRisks)) {
+                    missingFields.push('logicRisks_array');
+                }
+                if (!Array.isArray(data.perfConcerns)) {
+                    missingFields.push('perfConcerns_array');
+                }
+                if (!Array.isArray(data.resultInsights)) {
+                    missingFields.push('resultInsights_array');
+                }
+                // suggestedSql is optional - allow empty array if model chooses to skip
+                if (data.suggestedSql !== undefined && typeof data.suggestedSql !== 'string') {
+                    missingFields.push('suggestedSql_type');
+                }
+                break;
+
+            // ============================================================
+            // Workbench AI Assistant: Column Profiling (single column)
+            // ============================================================
+            case 'sql_column_profile':
+                // Expect JSON { semanticType, businessMeaning, usageHints: [], qualityRisks: [], suggestedActions: [] }
+                if (!data || typeof data !== 'object') {
+                    missingFields.push('column_profile_data_missing');
+                    break;
+                }
+                if (!data.semanticType || !['identifier', 'measure', 'dimension', 'time', 'flag', 'free_text', 'unknown'].includes(data.semanticType)) {
+                    missingFields.push('semanticType');
+                }
+                if (!data.businessMeaning || typeof data.businessMeaning !== 'string') {
+                    missingFields.push('businessMeaning');
+                }
+                if (!Array.isArray(data.usageHints)) {
+                    missingFields.push('usageHints_array');
+                }
+                if (!Array.isArray(data.qualityRisks)) {
+                    missingFields.push('qualityRisks_array');
+                }
+                if (!Array.isArray(data.suggestedActions)) {
+                    missingFields.push('suggestedActions_array');
+                }
+                break;
+
+            // ============================================================
+            // Workbench AI Assistant: Column Profiling (batch ≤8 columns)
+            // ============================================================
+            case 'sql_columns_profile':
+                // Expect JSON { overallSummary, profiles: [ColumnAiProfile] }
+                if (!data || typeof data !== 'object') {
+                    missingFields.push('columns_profile_data_missing');
+                    break;
+                }
+                if (!data.overallSummary || typeof data.overallSummary !== 'string') {
+                    missingFields.push('overallSummary');
+                }
+                if (!Array.isArray(data.profiles)) {
+                    missingFields.push('profiles_array');
+                    break;
+                }
+                if (data.profiles.length === 0) {
+                    missingFields.push('profiles_empty');
+                } else {
+                    data.profiles.forEach((p: any, idx: number) => {
+                        if (!p || typeof p !== 'object') {
+                            missingFields.push(`profiles[${idx}]_type`);
+                            return;
+                        }
+                        if (!p.columnName || typeof p.columnName !== 'string') {
+                            missingFields.push(`profiles[${idx}].columnName`);
+                        }
+                        if (!p.semanticType || !['identifier', 'measure', 'dimension', 'time', 'flag', 'free_text', 'unknown'].includes(p.semanticType)) {
+                            missingFields.push(`profiles[${idx}].semanticType`);
+                        }
+                        if (!p.businessMeaning || typeof p.businessMeaning !== 'string') {
+                            missingFields.push(`profiles[${idx}].businessMeaning`);
+                        }
+                        if (!Array.isArray(p.usageHints)) {
+                            missingFields.push(`profiles[${idx}].usageHints`);
+                        }
+                        if (!Array.isArray(p.qualityRisks)) {
+                            missingFields.push(`profiles[${idx}].qualityRisks`);
+                        }
+                        if (!Array.isArray(p.suggestedActions)) {
+                            missingFields.push(`profiles[${idx}].suggestedActions`);
+                        }
+                    });
+                }
+                break;
         }
 
         return {
@@ -247,6 +378,17 @@ export class AIValidator {
             missingFields,
             data: this.applyMVO(stage, data)
         };
+    }
+
+    /**
+     * Builds a concise self-healing prompt targeting missing JSON schema fields
+     */
+    static buildRepairPrompt(missingFields: string[], rawResponse: string): string {
+        return `上一次生成的 JSON 格式校验不完整，缺少必须字段: ${missingFields.join(', ')}。
+请仅输出纠正后的标准 JSON，不要包含任何 markdown 解释或额外前导文字。
+
+原错误输出截断:
+${rawResponse.slice(0, 300)}`;
     }
 
     private static applyMVO(stage: AIStage, data: any): any {
@@ -266,6 +408,37 @@ export class AIValidator {
                     causalGraph: data.causalGraph || { nodes: [], edges: [], engineeredFeatures: [] },
                     insights: data.insights || [],
                     narrative: data.narrative || ""
+                };
+            case 'sql_explain':
+                return {
+                    oneLiner: data.oneLiner || '无法生成此查询的一句话解释。',
+                    logicSteps: Array.isArray(data.logicSteps) ? data.logicSteps : [],
+                    involvedObjects: Array.isArray(data.involvedObjects) ? data.involvedObjects : [],
+                    outputFields: Array.isArray(data.outputFields) ? data.outputFields : [],
+                    keyConditions: Array.isArray(data.keyConditions) ? data.keyConditions : []
+                };
+            case 'sql_analyze':
+                return {
+                    severity: data.severity || 'MEDIUM',
+                    summary: data.summary || '无法生成此查询的分析摘要。',
+                    logicRisks: Array.isArray(data.logicRisks) ? data.logicRisks : [],
+                    perfConcerns: Array.isArray(data.perfConcerns) ? data.perfConcerns : [],
+                    resultInsights: Array.isArray(data.resultInsights) ? data.resultInsights : [],
+                    suggestedSql: typeof data.suggestedSql === 'string' ? data.suggestedSql : '',
+                    suggestionRationale: data.suggestionRationale || ''
+                };
+            case 'sql_column_profile':
+                return {
+                    semanticType: data.semanticType || 'unknown',
+                    businessMeaning: data.businessMeaning || '业务含义待人工标注。',
+                    usageHints: Array.isArray(data.usageHints) ? data.usageHints : [],
+                    qualityRisks: Array.isArray(data.qualityRisks) ? data.qualityRisks : [],
+                    suggestedActions: Array.isArray(data.suggestedActions) ? data.suggestedActions : []
+                };
+            case 'sql_columns_profile':
+                return {
+                    overallSummary: data.overallSummary || '',
+                    profiles: Array.isArray(data.profiles) ? data.profiles : []
                 };
             default:
                 return data;

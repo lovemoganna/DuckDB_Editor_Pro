@@ -31,36 +31,37 @@ import {
 export const Colors = {
   // Quality Semantics
   quality: {
-    excellent: '#10B981',  // 绿 - A级
-    good: '#F59E0B',       // 黄 - B级
-    warning: '#F97316',   // 橙 - C级
-    error: '#EF4444',      // 红 - D级
+    excellent: '#a6e22e',  // Monokai 绿 - A级
+    good: '#e6db74',       // Monokai 黄 - B级
+    warning: '#fd971f',    // Monokai 橙 - C级
+    error: '#f92672',      // Monokai 粉红 - D级
   },
   // Semantic Type Semantics
   semantic: {
-    dim: '#3B82F6',       // 蓝 - 维度
-    mea: '#10B981',        // 绿 - 指标
-    time: '#ae81ff',       // 紫 - 时间
-    id: '#EC4899',         // 粉 - ID
-    text: '#6B7280',       // 灰 - 文本
-    curr: '#F59E0B',       // 橙 - 金额
-    pii: '#EF4444',        // 红 - PII
+    dim: '#66d9ef',        // Monokai 青 - 维度
+    mea: '#a6e22e',        // Monokai 绿 - 指标
+    time: '#ae81ff',       // Monokai 紫 - 时间
+    id: '#f92672',         // Monokai 粉 - ID
+    text: '#75715e',       // Monokai 灰 - 文本
+    curr: '#e6db74',       // Monokai 橙黄 - 金额
+    pii: '#f92672',        // Monokai 红 - PII
   },
   // State Semantics
   state: {
-    success: '#10B981',
-    warning: '#F59E0B',
-    error: '#EF4444',
-    info: '#3B82F6',
-    neutral: '#6B7280',
+    success: '#a6e22e',
+    warning: '#e6db74',
+    error: '#f92672',
+    info: '#66d9ef',
+    neutral: '#75715e',
   },
   // Confidence Semantics
   confidence: {
-    high: '#10B981',
-    medium: '#F59E0B',
-    low: '#EF4444',
+    high: '#a6e22e',
+    medium: '#e6db74',
+    low: '#f92672',
   },
 };
+
 
 // ============================================================
 // Helper Functions
@@ -142,22 +143,18 @@ export const CoreHeroCard: React.FC<{
   const gradeColor = qualityScore !== undefined ? getQualityColor(qualityScore) : '#6B7280';
 
   return (
-    <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-6 text-white shadow-2xl border border-slate-700/50 relative overflow-hidden">
-      {/* Background decoration */}
-      <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-blue-500/10 to-transparent rounded-full -translate-y-1/2 translate-x-1/2" />
-      <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-monokai-amethyst/10 to-transparent rounded-full translate-y-1/2 -translate-x-1/2" />
-
+    <div className="bg-monokai-surface rounded-lg p-5 text-monokai-fg shadow-xs border border-monokai-border relative overflow-hidden">
       <div className="relative flex items-start justify-between">
         {/* Left: Dataset Info */}
         <div className="flex-1">
           <div className="flex items-center gap-3 mb-3">
-            <div className="p-2 bg-white/10 rounded-lg backdrop-blur-sm">
-              <DatabaseIcon size={20} className="text-blue-400" />
+            <div className="p-2 bg-monokai-bg rounded-md border border-monokai-border">
+              <DatabaseIcon size={18} className="text-monokai-accent" />
             </div>
             <div>
-              <h2 className="text-xl font-bold tracking-tight">{tableName}</h2>
+              <h2 className="text-lg font-bold tracking-tight text-monokai-fg">{tableName}</h2>
               {userIntent && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-500/20 text-blue-300 text-xs rounded-full font-medium">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-monokai-cyan/15 text-monokai-cyan text-xs rounded font-medium border border-monokai-cyan/30">
                   <Target size={10} />
                   {userIntent}
                 </span>
@@ -166,22 +163,22 @@ export const CoreHeroCard: React.FC<{
           </div>
 
           {overview && (
-            <p className="text-slate-400 text-sm leading-relaxed max-w-xl mb-4 line-clamp-2">
+            <p className="text-monokai-fg-muted text-xs leading-relaxed max-w-xl mb-4 line-clamp-2">
               {overview}
             </p>
           )}
 
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-2">
-              <Layers size={14} className="text-slate-500" />
-              <span className="text-slate-300 text-sm">
-                <span className="font-bold text-white">{formatNumber(rowCount)}</span> 行
+              <Layers size={14} className="text-monokai-comment" />
+              <span className="text-monokai-fg-muted text-xs">
+                <span className="font-bold text-monokai-fg font-mono">{formatNumber(rowCount)}</span> 行
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <Table size={14} className="text-slate-500" />
-              <span className="text-slate-300 text-sm">
-                <span className="font-bold text-white">{columnCount}</span> 列
+              <Table size={14} className="text-monokai-comment" />
+              <span className="text-monokai-fg-muted text-xs">
+                <span className="font-bold text-monokai-fg font-mono">{columnCount}</span> 列
               </span>
             </div>
           </div>
@@ -191,20 +188,20 @@ export const CoreHeroCard: React.FC<{
         {grade && (
           <div className="flex flex-col items-center">
             <div
-              className="w-16 h-16 rounded-2xl flex items-center justify-center border-4 shadow-2xl"
+              className="w-14 h-14 rounded-lg flex items-center justify-center border-2 shadow-xs"
               style={{
                 backgroundColor: `${gradeColor}15`,
                 borderColor: gradeColor,
               }}
             >
               <span
-                className="text-3xl font-black tracking-wider"
+                className="text-2xl font-black tracking-wider"
                 style={{ color: gradeColor }}
               >
                 {grade}
               </span>
             </div>
-            <span className="text-xs text-slate-500 mt-1 font-medium">质量等级</span>
+            <span className="text-[11px] text-monokai-comment mt-1 font-medium">质量等级</span>
           </div>
         )}
       </div>
@@ -317,19 +314,19 @@ export const ReasoningToggle: React.FC<{
   if (!reasoning) return null;
 
   return (
-    <div className="mt-2 border border-amber-200/30 rounded-lg overflow-hidden">
+    <div className="mt-2 border border-monokai-border rounded-lg overflow-hidden">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between px-3 py-2 bg-amber-50/50 hover:bg-amber-50 transition-colors text-left"
+        className="w-full flex items-center justify-between px-3 py-2 bg-monokai-surface/60 hover:bg-monokai-surface transition-colors text-left"
       >
-        <div className="flex items-center gap-2 text-xs text-amber-700 font-medium">
+        <div className="flex items-center gap-2 text-xs text-monokai-yellow font-medium">
           <BrainCircuit size={12} />
           {label}
         </div>
-        {expanded ? <ChevronUp size={14} className="text-amber-500" /> : <ChevronDown size={14} className="text-amber-500" />}
+        {expanded ? <ChevronUp size={14} className="text-monokai-comment" /> : <ChevronDown size={14} className="text-monokai-comment" />}
       </button>
       {expanded && (
-        <div className="px-3 py-2 bg-monokai-surface text-xs text-monokai-fg leading-relaxed border-t border-monokai-yellow/20">
+        <div className="px-3 py-2 bg-monokai-bg text-xs text-monokai-fg leading-relaxed border-t border-monokai-border">
           {reasoning}
         </div>
       )}
@@ -355,13 +352,13 @@ export const AssumptionBadge: React.FC<{
         <ConfidenceBadge score={confidence} showScore={true} size="sm" />
       )}
       {assumption && (
-        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 text-blue-600 text-[10px] rounded font-medium">
+        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-monokai-cyan/15 text-monokai-cyan border border-monokai-cyan/30 text-[10px] rounded font-medium">
           <Lightbulb size={9} />
           前提
         </span>
       )}
       {limitation && (
-        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-orange-50 text-orange-600 text-[10px] rounded font-medium">
+        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-monokai-orange/15 text-monokai-orange border border-monokai-orange/30 text-[10px] rounded font-medium">
           <AlertTriangle size={9} />
           限制
         </span>
@@ -371,7 +368,8 @@ export const AssumptionBadge: React.FC<{
 };
 
 /**
- * Empty State - Standardized empty state display
+ * Empty State - domain wrapper keeping ReactNode icon (Workbench EmptyState uses LucideIcon).
+ * Prefer `components/ui/Workbench` EmptyState for new surfaces.
  */
 export const EmptyState: React.FC<{
   icon: React.ReactNode;
@@ -380,15 +378,15 @@ export const EmptyState: React.FC<{
   action?: React.ReactNode;
 }> = ({ icon, title, description, action }) => {
   return (
-    <div className="flex flex-col items-center justify-center py-12 text-center">
-      <div className="w-12 h-12 rounded-full bg-monokai-sidebar flex items-center justify-center text-monokai-comment mb-4">
+    <div className="flex flex-col items-center justify-center py-12 text-center font-sans">
+      <div className="w-12 h-12 rounded-lg bg-monokai-sidebar flex items-center justify-center text-monokai-comment mb-3.5">
         {icon}
       </div>
-      <h3 className="text-sm font-bold text-monokai-fg mb-1">{title}</h3>
+      <h3 className="text-sm font-semibold text-monokai-fg">{title}</h3>
       {description && (
-        <p className="text-xs text-monokai-comment mb-4 max-w-sm">{description}</p>
+        <p className="mt-1.5 text-xs text-monokai-comment max-w-sm leading-relaxed">{description}</p>
       )}
-      {action}
+      {action && <div className="mt-4">{action}</div>}
     </div>
   );
 };
@@ -441,8 +439,8 @@ export const SectionCard: React.FC<{
             <span
               className="px-1.5 py-0.5 text-[10px] font-bold rounded-full"
               style={{
-                backgroundColor: badgeColor ? `${badgeColor}15` : '#F3F4F6',
-                color: badgeColor || '#6B7280',
+                backgroundColor: badgeColor ? `${badgeColor}15` : 'rgba(255,255,255,0.08)',
+                color: badgeColor || '#d8d7cc',
               }}
             >
               {badge}

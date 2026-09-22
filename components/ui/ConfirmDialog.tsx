@@ -9,21 +9,23 @@
  *   const ok = await confirm({ title: '确认删除？', message: '...' });
  */
 
-import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 import { AlertTriangle, Info } from 'lucide-react';
 
 // ─── Types ───────────────────────────────────────────────────
 
-interface ConfirmOptions {
-  title: string;
+export interface ConfirmOptions {
+  title?: string;
   message?: string;
   confirmText?: string;
   cancelText?: string;
   variant?: 'danger' | 'warning' | 'info';
 }
 
-interface ConfirmDialogContextValue {
-  confirm: (options: ConfirmOptions) => Promise<boolean>;
+export type ConfirmInput = ConfirmOptions | string;
+
+export interface ConfirmDialogContextValue {
+  confirm: (options: ConfirmInput) => Promise<boolean>;
 }
 
 // ─── Context ─────────────────────────────────────────────────
@@ -35,7 +37,10 @@ export function useConfirmDialog(): ConfirmDialogContextValue {
   if (!ctx) {
     // Fallback to native confirm if provider not mounted (backward compat)
     return {
-      confirm: async (opts) => window.confirm(opts.message || opts.title),
+      confirm: async (opts) => {
+        if (typeof opts === 'string') return window.confirm(opts);
+        return window.confirm(opts.message || opts.title || '确认操作？');
+      },
     };
   }
   return ctx;
@@ -49,15 +54,19 @@ export const ConfirmDialogProvider: React.FC<{ children: React.ReactNode }> = ({
     options: ConfirmOptions;
   }>({
     open: false,
-    options: { title: '' },
+    options: { title: '操作确认' },
   });
 
   const resolverRef = useRef<((value: boolean) => void) | null>(null);
 
-  const confirm = useCallback((options: ConfirmOptions): Promise<boolean> => {
+  const confirm = useCallback((options: ConfirmInput): Promise<boolean> => {
+    const normalized: ConfirmOptions = typeof options === 'string'
+      ? { title: '操作确认', message: options, variant: 'warning' }
+      : { title: options.title || '操作确认', ...options };
+
     return new Promise<boolean>((resolve) => {
       resolverRef.current = resolve;
-      setState({ open: true, options });
+      setState({ open: true, options: normalized });
     });
   }, []);
 
@@ -69,21 +78,34 @@ export const ConfirmDialogProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const { open, options } = state;
 
+  // ESC key to close modal - Critical fix for UX accessibility
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        handleClose(false);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [open, handleClose]);
+
   const variantStyles = {
     danger: {
-      iconBg: 'bg-red-500/15',
-      iconColor: 'text-red-400',
-      confirmBg: 'bg-red-600 hover:bg-red-500',
+      iconBg: 'bg-monokai-pink/12',
+      iconColor: 'text-monokai-pink',
+      confirmBg: 'bg-monokai-pink text-white hover:brightness-110',
     },
     warning: {
-      iconBg: 'bg-amber-500/15',
-      iconColor: 'text-amber-400',
-      confirmBg: 'bg-amber-600 hover:bg-amber-500',
+      iconBg: 'bg-monokai-yellow/12',
+      iconColor: 'text-monokai-yellow',
+      confirmBg: 'bg-monokai-yellow text-monokai-bg hover:brightness-110',
     },
     info: {
-      iconBg: 'bg-blue-500/15',
-      iconColor: 'text-blue-400',
-      confirmBg: 'bg-blue-600 hover:bg-blue-500',
+      iconBg: 'bg-monokai-accent/12',
+      iconColor: 'text-monokai-accent',
+      confirmBg: 'bg-monokai-accent text-monokai-bg hover:bg-monokai-accent-hover',
     },
   };
   const variant = options.variant || 'warning';
@@ -101,11 +123,11 @@ export const ConfirmDialogProvider: React.FC<{ children: React.ReactNode }> = ({
           onClick={() => handleClose(false)}
         >
           {/* Backdrop */}
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <div className="absolute inset-0 bg-black/65" />
 
           {/* Dialog */}
           <div
-            className="relative z-10 w-full max-w-md mx-4 rounded-xl border border-[#444] bg-[#1e1f1c] shadow-2xl animate-in fade-in zoom-in-95 duration-200"
+            className="relative z-10 mx-4 w-full max-w-md rounded-lg border border-monokai-border bg-monokai-surface shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
@@ -114,11 +136,11 @@ export const ConfirmDialogProvider: React.FC<{ children: React.ReactNode }> = ({
                 <IconComp className={`w-5 h-5 ${styles.iconColor}`} />
               </div>
               <div className="min-w-0 flex-1">
-                <h3 className="text-[15px] font-semibold text-[#f8f8f2] leading-snug">
-                  {options.title}
+                <h3 className="text-[15px] font-semibold text-monokai-fg leading-snug">
+                  {options.title || '操作确认'}
                 </h3>
                 {options.message && (
-                  <p className="mt-1.5 text-[13px] text-[#a6a6a6] leading-relaxed whitespace-pre-line">
+                  <p className="mt-1.5 text-[13px] text-monokai-comment leading-relaxed whitespace-pre-line">
                     {options.message}
                   </p>
                 )}
@@ -128,7 +150,7 @@ export const ConfirmDialogProvider: React.FC<{ children: React.ReactNode }> = ({
             {/* Actions */}
             <div className="flex items-center justify-end gap-2.5 p-4 pt-2">
               <button
-                className="px-4 py-1.5 text-[13px] font-medium text-[#ccc] bg-[#333] hover:bg-[#444] rounded-lg transition-colors cursor-pointer"
+                className="px-4 py-1.5 text-[13px] font-medium text-monokai-fg bg-monokai-bg hover:bg-monokai-sidebar border border-monokai-border rounded-lg transition-colors cursor-pointer"
                 onClick={() => handleClose(false)}
                 autoFocus
               >

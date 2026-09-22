@@ -69,7 +69,7 @@ export const CATEGORY_DESIGN: Record<SkillCategory, CategoryDesign> = {
       bg: 'bg-[#66d9ef]/[8%]',
       bgSubtle: 'bg-[#66d9ef]/[5%]',
       iconBg: 'bg-[#66d9ef]/[15%]',
-      border: 'border-[#66d9ef]/[20%]',
+      border: 'border-monokai-border',
       text: 'text-[#66d9ef]',
       icon: 'text-[#66d9ef]',
       gradientFrom: 'from-[#66d9ef]/[10%]',
@@ -86,7 +86,7 @@ export const CATEGORY_DESIGN: Record<SkillCategory, CategoryDesign> = {
       bg: 'bg-[#a6e22e]/[8%]',
       bgSubtle: 'bg-[#a6e22e]/[5%]',
       iconBg: 'bg-[#a6e22e]/[15%]',
-      border: 'border-[#a6e22e]/[20%]',
+      border: 'border-monokai-border',
       text: 'text-[#a6e22e]',
       icon: 'text-[#a6e22e]',
       gradientFrom: 'from-[#a6e22e]/[10%]',
@@ -103,7 +103,7 @@ export const CATEGORY_DESIGN: Record<SkillCategory, CategoryDesign> = {
       bg: 'bg-[#ae81ff]/[8%]',
       bgSubtle: 'bg-[#ae81ff]/[5%]',
       iconBg: 'bg-[#ae81ff]/[15%]',
-      border: 'border-[#ae81ff]/[20%]',
+      border: 'border-monokai-border',
       text: 'text-[#ae81ff]',
       icon: 'text-[#ae81ff]',
       gradientFrom: 'from-[#ae81ff]/[10%]',
@@ -120,7 +120,7 @@ export const CATEGORY_DESIGN: Record<SkillCategory, CategoryDesign> = {
       bg: 'bg-[#fd971f]/[8%]',
       bgSubtle: 'bg-[#fd971f]/[5%]',
       iconBg: 'bg-[#fd971f]/[15%]',
-      border: 'border-[#fd971f]/[20%]',
+      border: 'border-monokai-border',
       text: 'text-[#fd971f]',
       icon: 'text-[#fd971f]',
       gradientFrom: 'from-[#fd971f]/[10%]',
@@ -137,7 +137,7 @@ export const CATEGORY_DESIGN: Record<SkillCategory, CategoryDesign> = {
       bg: 'bg-[#8be9fd]/[8%]',
       bgSubtle: 'bg-[#8be9fd]/[5%]',
       iconBg: 'bg-[#8be9fd]/[15%]',
-      border: 'border-[#8be9fd]/[20%]',
+      border: 'border-monokai-border',
       text: 'text-[#8be9fd]',
       icon: 'text-[#8be9fd]',
       gradientFrom: 'from-[#8be9fd]/[10%]',
@@ -154,7 +154,7 @@ export const CATEGORY_DESIGN: Record<SkillCategory, CategoryDesign> = {
       bg: 'bg-[#e6db74]/[8%]',
       bgSubtle: 'bg-[#e6db74]/[5%]',
       iconBg: 'bg-[#e6db74]/[15%]',
-      border: 'border-[#e6db74]/[20%]',
+      border: 'border-monokai-border',
       text: 'text-[#e6db74]',
       icon: 'text-[#e6db74]',
       gradientFrom: 'from-[#e6db74]/[10%]',
@@ -176,17 +176,17 @@ export interface IntentDesign {
 }
 
 export const INTENT_DESIGN: Record<string, IntentDesign> = {
-  select:       { label: '数据查询',   color: 'text-[#66d9ef]',  bg: 'bg-[#66d9ef]/[20%]',  border: 'border-[#66d9ef]/[30%]' },
-  insert:       { label: '数据插入',   color: 'text-[#a6e22e]', bg: 'bg-[#a6e22e]/[20%]',  border: 'border-[#a6e22e]/[30%]' },
-  update:       { label: '数据更新',   color: 'text-[#e6db74]', bg: 'bg-[#e6db74]/[20%]',  border: 'border-[#e6db74]/[30%]' },
-  delete:       { label: '数据删除',   color: 'text-[#f92672]', bg: 'bg-[#f92672]/[20%]',  border: 'border-[#f92672]/[30%]' },
-  aggregation:  { label: '聚合统计',   color: 'text-[#ae81ff]', bg: 'bg-[#ae81ff]/[20%]',  border: 'border-[#ae81ff]/[30%]' },
-  join:         { label: '多表关联',   color: 'text-[#f92672]', bg: 'bg-[#f92672]/[20%]',  border: 'border-[#f92672]/[30%]' },
-  window:       { label: '窗口函数',   color: 'text-[#8be9fd]', bg: 'bg-[#8be9fd]/[20%]',  border: 'border-[#8be9fd]/[30%]' },
-  transformation:{ label: '数据转换',  color: 'text-[#fd971f]', bg: 'bg-[#fd971f]/[20%]',  border: 'border-[#fd971f]/[30%]' },
-  analysis:     { label: '数据分析',   color: 'text-[#ae81ff]', bg: 'bg-[#ae81ff]/[20%]',  border: 'border-[#ae81ff]/[30%]' },
-  optimization:  { label: 'SQL 优化',   color: 'text-[#e6db74]', bg: 'bg-[#e6db74]/[20%]',  border: 'border-[#e6db74]/[30%]' },
-  utility:      { label: '工具生成',   color: 'text-[#75715e]', bg: 'bg-[#75715e]/[20%]',  border: 'border-[#75715e]/[30%]' },
+  select:       { label: '数据查询',   color: 'text-[#66d9ef]',  bg: 'bg-[#66d9ef]/[20%]',  border: 'border-monokai-border' },
+  insert:       { label: '数据插入',   color: 'text-[#a6e22e]', bg: 'bg-[#a6e22e]/[20%]',  border: 'border-monokai-border' },
+  update:       { label: '数据更新',   color: 'text-[#e6db74]', bg: 'bg-[#e6db74]/[20%]',  border: 'border-monokai-border' },
+  delete:       { label: '数据删除',   color: 'text-[#f92672]', bg: 'bg-[#f92672]/[20%]',  border: 'border-monokai-border' },
+  aggregation:  { label: '聚合统计',   color: 'text-[#ae81ff]', bg: 'bg-[#ae81ff]/[20%]',  border: 'border-monokai-border' },
+  join:         { label: '多表关联',   color: 'text-[#f92672]', bg: 'bg-[#f92672]/[20%]',  border: 'border-monokai-border' },
+  window:       { label: '窗口函数',   color: 'text-[#8be9fd]', bg: 'bg-[#8be9fd]/[20%]',  border: 'border-monokai-border' },
+  transformation:{ label: '数据转换',  color: 'text-[#fd971f]', bg: 'bg-[#fd971f]/[20%]',  border: 'border-monokai-border' },
+  analysis:     { label: '数据分析',   color: 'text-[#ae81ff]', bg: 'bg-[#ae81ff]/[20%]',  border: 'border-monokai-border' },
+  optimization:  { label: 'SQL 优化',   color: 'text-[#e6db74]', bg: 'bg-[#e6db74]/[20%]',  border: 'border-monokai-border' },
+  utility:      { label: '工具生成',   color: 'text-[#75715e]', bg: 'bg-[#75715e]/[20%]',  border: 'border-monokai-border' },
 };
 
 // Backward-compatible aliases
@@ -201,10 +201,10 @@ export const CATEGORY_META = CATEGORY_DESIGN;
 // ============================================================
 
 export const SEMANTIC_DESIGN = {
-  success: { primary: '#a6e22e', bg: 'bg-[#a6e22e]/[12%]', border: 'border-[#a6e22e]/[30%]', text: 'text-[#a6e22e]' },
-  error:   { primary: '#f92672', bg: 'bg-[#f92672]/[12%]',   border: 'border-[#f92672]/[30%]',   text: 'text-[#f92672]' },
-  warning: { primary: '#e6db74', bg: 'bg-[#e6db74]/[12%]', border: 'border-[#e6db74]/[30%]', text: 'text-[#e6db74]' },
-  info:    { primary: '#66d9ef', bg: 'bg-[#66d9ef]/[12%]',  border: 'border-[#66d9ef]/[30%]',   text: 'text-[#66d9ef]' },
+  success: { primary: '#a6e22e', bg: 'bg-[#a6e22e]/[12%]', border: 'border-monokai-border', text: 'text-[#a6e22e]' },
+  error:   { primary: '#f92672', bg: 'bg-[#f92672]/[12%]',   border: 'border-rose-500/40',   text: 'text-[#f92672]' },
+  warning: { primary: '#e6db74', bg: 'bg-[#e6db74]/[12%]', border: 'border-amber-500/30', text: 'text-[#e6db74]' },
+  info:    { primary: '#66d9ef', bg: 'bg-[#66d9ef]/[12%]',  border: 'border-monokai-border',   text: 'text-[#66d9ef]' },
 } as const;
 
 // ============================================================
@@ -305,15 +305,15 @@ export const SKILL_CARD_BASE = [
 
 export const SKILL_CARD_DEFAULT = [
   'bg-monokai-bg',
-  'border-monokai-accent/40',
-  'hover:border-monokai-accent/70',
+  'border-monokai-border',
+  'hover:border-white/15',
 ].join(' ');
 
 export function SKILL_CARD_SELECTED(category: SkillCategory) {
   const c = CATEGORY_DESIGN[category].colors;
   return [
     c.bgSubtle,
-    c.border,
+    'border-monokai-border',
     'border-t-2',
     `border-t-[${c.primary}]`,
     'shadow-md shadow-monokai-bg/50',
@@ -327,39 +327,40 @@ export const SKILL_ICON_SIZE = 'w-9 h-9';
 // SPACING SYSTEM (4px base) — from monokai.ts
 // ============================================================
 
+/** Spacing — mirrors index.css --space-* (8px grid). Prefer Tailwind spacing / CSS vars. */
 export const SPACING = {
   0: '0',
-  1: '4px',
-  2: '8px',
-  3: '12px',
-  4: '16px',
-  5: '20px',
-  6: '24px',
-  8: '32px',
+  1: 'var(--space-1)',  // 4px
+  2: 'var(--space-2)',  // 8px
+  3: 'var(--space-3)',  // 12px
+  4: 'var(--space-4)',  // 16px
+  5: 'var(--space-5)',  // 24px
+  6: 'var(--space-6)',  // 32px
+  8: 'var(--space-8)',  // 48px
 } as const;
 
 // ============================================================
-// TYPOGRAPHY SCALE — from monokai.ts
+// TYPOGRAPHY SCALE — compact density (body = 12px)
 // ============================================================
 
 export const TYPOGRAPHY = {
-  xs: '11px',
-  sm: '13px',
-  base: '15px',
-  lg: '18px',
-  xl: '22px',
+  xs: '11px',   // meta
+  sm: '12px',   // body / text-xs
+  base: '14px', // text-sm
+  lg: '16px',
+  xl: '18px',
 } as const;
 
 // ============================================================
-// RADIUS SYSTEM — from monokai.ts
+// RADIUS SYSTEM — mirrors index.css --radius-*
 // ============================================================
 
 export const RADIUS = {
-  sm: '6px',
-  md: '8px',
-  lg: '12px',
-  xl: '16px',
-  full: '9999px',
+  sm: 'var(--radius-sm)',
+  md: 'var(--radius-md)',
+  lg: 'var(--radius-lg)',
+  xl: 'var(--radius-xl)',
+  full: 'var(--radius-full)',
 } as const;
 
 // ============================================================
@@ -408,29 +409,26 @@ export const BRAND_THEME = BRAND_DESIGN;
 // ============================================================
 
 /**
- * Flat Design color constants.
- * Layer 3 (deepest): #272822 — content area, list backgrounds
- * Layer 2:          #1e1f1c — panels, cards, form areas
- * Layer 1:          #3e3d32 — borders, dividers, sidebar
- * Border accent:    #49483e — interactive element borders
- * Muted text:      #75715e — comments, placeholders, labels
- * Foreground:      #f8f8f2 — primary text
+ * Flat Design color constants — mapped to Monokai SSOT (index.css).
+ * Layer 0 (bg):       --monokai-bg
+ * Layer 1 (surface):  --monokai-surface / sidebar
+ * Layer 2 (elevated): --monokai-elevated
  */
 export const FLAT = {
   /** Deepest background (content lists, deepest panels) */
-  deepBg:    '#272822',
+  deepBg:    'var(--monokai-bg)',
   /** Surface background (panels, cards, form areas) */
-  surface:   '#1e1f1c',
+  surface:   'var(--monokai-surface)',
   /** Elevated surface (tab bar, toolbar backgrounds) */
-  elevated:  '#3e3d32',
+  elevated:  'var(--monokai-elevated)',
   /** Primary border (interactive element borders) */
-  border:    '#3e3d32',
+  border:    'var(--monokai-border)',
   /** Accent border (active/selected borders) */
-  borderAccent: '#49483e',
+  borderAccent: 'var(--monokai-border-strong)',
   /** Muted text (comments, placeholders) */
-  muted:     '#75715e',
+  muted:     'var(--monokai-comment)',
   /** Primary foreground text */
-  fg:        '#f8f8f2',
+  fg:        'var(--monokai-fg)',
 } as const;
 
 // ============================================================

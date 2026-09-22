@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { duckDBService } from '../../services/duckdbService';
 import { ontologyAiService, SuggestionItem, IntrospectionGuidance } from '../../services/ontologyAiService';
+import { ActionButton, IconButton, Badge } from '../ui/Workbench';
 
 interface LifeObject {
   id: number;
@@ -234,7 +235,7 @@ const OntologyInsightsPanel: React.FC<OntologyInsightsPanelProps> = ({
   };
 
   const TABS = [
-    { id: 'overview' as const, label: '总览', icon: <TrendingUp className="w-3 h-3" />, color: '#ae81ff' },
+    { id: 'overview' as const, label: '总览', icon: <TrendingUp className="w-3 h-3" />, color: '#66d9ef' },
     { id: 'suggestions' as const, label: `建议 (${suggestions.length})`, icon: <Lightbulb className="w-3 h-3" />, color: '#fbbf24' },
     { id: 'introspect' as const, label: '反思', icon: <Brain className="w-3 h-3" />, color: '#38bdf8' },
     { id: 'insights' as const, label: `洞察 (${insights.length})`, icon: <Lightbulb className="w-3 h-3" />, color: '#4ade80' },
@@ -243,102 +244,101 @@ const OntologyInsightsPanel: React.FC<OntologyInsightsPanelProps> = ({
   const SEVERITY_COLORS = { high: '#f87171', medium: '#fbbf24', low: '#38bdf8' };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#161622', borderRadius: 12, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)' }}>
+    <div className="flex flex-col h-full bg-monokai-bg border border-monokai-border rounded-lg overflow-hidden text-monokai-fg">
       {/* Header */}
-      <div style={{ padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(0,0,0,0.2)', display: 'flex', alignItems: 'center', gap: 10 }}>
-        <div style={{ width: 30, height: 30, borderRadius: 8, background: 'linear-gradient(135deg, #66d9ef, #66d9ef)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <TrendingUp className="w-4 h-4 text-white" />
+      <div className="p-3 border-b border-monokai-border bg-monokai-sidebar/60 flex items-center gap-2.5">
+        <div className="w-8 h-8 rounded-md bg-monokai-cyan/15 text-monokai-cyan flex items-center justify-center border border-monokai-cyan/30 shrink-0">
+          <TrendingUp className="w-4 h-4 text-monokai-cyan" />
         </div>
         <div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: '#f1f5f9' }}>本体洞察面板</div>
-          <div style={{ fontSize: 9, color: '#64748b' }}>结构分析 · 反思引导 · 洞察记录</div>
+          <div className="text-xs font-bold text-monokai-fg">本体洞察面板</div>
+          <div className="text-[10px] text-monokai-comment">结构分析 · 反思引导 · 洞察记录</div>
         </div>
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', padding: '6px 10px', gap: 2, borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(0,0,0,0.1)', overflowX: 'auto' }}>
+      <div className="flex p-1.5 gap-1 border-b border-monokai-border bg-monokai-sidebar/40 overflow-x-auto">
         {TABS.map(t => (
-          <button key={t.id} onClick={() => setActiveTab(t.id)} style={{
-            padding: '4px 10px', borderRadius: 6, border: 'none', cursor: 'pointer',
-            background: activeTab === t.id ? `${t.color}20` : 'transparent',
-            color: activeTab === t.id ? t.color : '#6b7280',
-            fontSize: 11, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4,
-            whiteSpace: 'nowrap' as const,
-          }}>
-            {t.icon} {t.label}
+          <button
+            key={t.id}
+            onClick={() => setActiveTab(t.id)}
+            className={`px-2.5 py-1 rounded-md text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
+              activeTab === t.id
+                ? 'bg-monokai-surface text-monokai-cyan border border-monokai-cyan/30 shadow-xs'
+                : 'text-monokai-comment hover:text-monokai-fg hover:bg-monokai-surface/50 border border-transparent'
+            }`}
+          >
+            {t.icon} <span>{t.label}</span>
           </button>
         ))}
       </div>
 
       {/* Content */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: 12 }}>
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-3 text-xs">
         {loadError && !needsInit && (
-          <div style={{ marginBottom: 10, padding: '8px 12px', background: 'rgba(251, 191, 36, 0.1)', border: '1px solid rgba(251, 191, 36, 0.3)', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <AlertCircle className="w-4 h-4" style={{ color: '#fbbf24', flexShrink: 0 }} />
-            <span style={{ fontSize: 11, color: '#fbbf24' }}>{loadError}</span>
+          <div className="p-2.5 bg-monokai-yellow/10 border border-monokai-yellow/30 rounded-lg flex items-center gap-2 text-xs text-monokai-yellow">
+            <AlertCircle className="w-4 h-4 shrink-0 text-monokai-yellow" />
+            <span>{loadError}</span>
           </div>
         )}
         {needsInit && (
-          <div style={{ marginBottom: 10, padding: '12px 16px', background: 'rgba(167, 139, 250, 0.08)', border: '1px solid rgba(167, 139, 250, 0.25)', borderRadius: 10, textAlign: 'center' }}>
-            <div style={{ fontSize: 12, color: '#bda2ff', fontWeight: 600, marginBottom: 4 }}>本体论尚未初始化</div>
-            <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 10, lineHeight: 1.6 }}>
+          <div className="p-4 bg-monokai-surface/60 border border-monokai-border rounded-lg text-center space-y-2">
+            <div className="text-xs font-semibold text-monokai-fg">本体论尚未初始化</div>
+            <div className="text-xs text-monokai-comment leading-relaxed">
               点击下方按钮初始化并导入种子数据后，即可使用 AI 洞察分析功能。
             </div>
-            <button
-              onClick={async () => {
-                setInitting(true);
-                try {
-                  await duckDBService.ontologyInit();
-                  await duckDBService.ontologySeed();
-                  setNeedsInit(false);
-                  await checkAndInit();
-                } catch (e: any) { console.error('[Insights] Init failed:', e); }
-                setInitting(false);
-              }}
-              disabled={initting}
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: 6,
-                padding: '6px 14px', borderRadius: 8,
-                background: initting ? 'rgba(167,139,250,0.5)' : 'rgba(167,139,250,0.2)',
-                border: '1px solid rgba(167,139,250,0.4)',
-                cursor: initting ? 'not-allowed' : 'pointer',
-                color: '#bda2ff', fontSize: 12, fontWeight: 600,
-              }}
-            >
-              {initting ? <><div className="animate-spin" style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#bda2ff', borderRadius: '50%' }} /> 初始化中...</> : <><Sparkles className="w-3.5 h-3.5" /> 一键初始化</>}
-            </button>
+            <div className="pt-1 flex justify-center">
+              <ActionButton
+                variant="primary"
+                size="sm"
+                icon={Sparkles}
+                loading={initting}
+                onClick={async () => {
+                  setInitting(true);
+                  try {
+                    await duckDBService.ontologyInit();
+                    await duckDBService.ontologySeed();
+                    setNeedsInit(false);
+                    await checkAndInit();
+                  } catch (e: any) { console.error('[Insights] Init failed:', e); }
+                  setInitting(false);
+                }}
+              >
+                一键初始化
+              </ActionButton>
+            </div>
           </div>
         )}
         {activeTab === 'overview' && (
-          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
+          <div className="flex flex-col gap-2.5">
             {/* Stats */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+            <div className="grid grid-cols-2 gap-2">
               {[
-                { label: '对象', value: objects.length, color: '#ae81ff' },
-                { label: '关系', value: links.length, color: '#22c55e' },
-                { label: '类型', value: objectTypes.length, color: '#38bdf8' },
-                { label: '建议', value: suggestions.length, color: '#fbbf24' },
+                { label: '对象', value: objects.length, color: 'text-monokai-cyan' },
+                { label: '关系', value: links.length, color: 'text-monokai-accent' },
+                { label: '类型', value: objectTypes.length, color: 'text-monokai-yellow' },
+                { label: '建议', value: suggestions.length, color: 'text-monokai-orange' },
               ].map(item => (
-                <div key={item.label} style={{ padding: '8px 10px', background: `${item.color}10`, border: `1px solid ${item.color}25`, borderRadius: 10, textAlign: 'center' }}>
-                  <div style={{ fontSize: 20, fontWeight: 700, color: item.color }}>{item.value}</div>
-                  <div style={{ fontSize: 9, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: 2 }}>{item.label}</div>
+                <div key={item.label} className="p-2.5 bg-monokai-surface/60 border border-monokai-border rounded-lg text-center">
+                  <div className={`text-lg font-bold font-mono ${item.color}`}>{item.value}</div>
+                  <div className="text-[10px] text-monokai-comment uppercase tracking-wider font-semibold mt-0.5">{item.label}</div>
                 </div>
               ))}
             </div>
 
             {/* Type coverage */}
-            <div style={{ padding: 10, background: 'rgba(255,255,255,0.03)', borderRadius: 10, border: '1px solid rgba(255,255,255,0.06)' }}>
-              <div style={{ fontSize: 10, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, fontWeight: 600 }}>类型覆盖</div>
+            <div className="p-3 bg-monokai-surface/60 border border-monokai-border rounded-lg space-y-2">
+              <div className="text-xs text-monokai-comment font-semibold uppercase tracking-wider mb-1">类型覆盖</div>
               {typeClusters.map(tc => {
                 const pct = parseInt(tc.coverage) || 0;
                 return (
-                  <div key={tc.typeId} style={{ marginBottom: 6 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
-                      <span style={{ fontSize: 11, color: '#e5e7eb' }}>{tc.typeName}</span>
-                      <span style={{ fontSize: 10, color: '#6b7280' }}>{tc.count} ({tc.coverage})</span>
+                  <div key={tc.typeId} className="space-y-1">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-monokai-fg font-medium">{tc.typeName}</span>
+                      <span className="text-monokai-comment font-mono">{tc.count} ({tc.coverage})</span>
                     </div>
-                    <div style={{ height: 4, background: 'rgba(255,255,255,0.08)', borderRadius: 2, overflow: 'hidden' }}>
-                      <div style={{ height: '100%', width: `${pct}%`, background: '#ae81ff', borderRadius: 2, transition: 'width 0.3s' }} />
+                    <div className="h-1.5 bg-monokai-bg rounded-full overflow-hidden border border-monokai-border/40">
+                      <div className="h-full bg-monokai-cyan rounded-full transition-all duration-300" style={{ width: `${pct}%` }} />
                     </div>
                   </div>
                 );
@@ -347,12 +347,12 @@ const OntologyInsightsPanel: React.FC<OntologyInsightsPanelProps> = ({
 
             {/* Top suggestions preview */}
             {suggestions.slice(0, 3).length > 0 && (
-              <div style={{ padding: 10, background: 'rgba(255,255,255,0.03)', borderRadius: 10, border: '1px solid rgba(255,255,255,0.06)' }}>
-                <div style={{ fontSize: 10, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, fontWeight: 600 }}>待处理建议</div>
+              <div className="p-3 bg-monokai-surface/60 border border-monokai-border rounded-lg space-y-2">
+                <div className="text-xs text-monokai-comment font-semibold uppercase tracking-wider">待处理建议</div>
                 {suggestions.slice(0, 3).map((s, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 6, marginBottom: 6 }}>
-                    <div style={{ width: 6, height: 6, borderRadius: '50%', background: SEVERITY_COLORS[s.severity], flexShrink: 0, marginTop: 4 }} />
-                    <span style={{ fontSize: 11, color: '#9ca3af', lineHeight: 1.4 }}>{s.message}</span>
+                  <div key={i} className="flex items-start gap-2">
+                    <div className={`w-1.5 h-1.5 rounded-full shrink-0 mt-1.5 ${s.severity === 'high' ? 'bg-monokai-pink' : s.severity === 'medium' ? 'bg-monokai-yellow' : 'bg-monokai-cyan'}`} />
+                    <span className="text-xs text-monokai-fg/80 leading-relaxed">{s.message}</span>
                   </div>
                 ))}
               </div>
@@ -361,10 +361,15 @@ const OntologyInsightsPanel: React.FC<OntologyInsightsPanelProps> = ({
         )}
 
         {activeTab === 'suggestions' && (
-          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
-            {/* P1-2/P3-1: AI Suggestions — trigger button */}
-            <div style={{ display: 'flex', gap: 6 }}>
-              <button
+          <div className="flex flex-col gap-2.5">
+            {/* AI Suggestions — trigger button */}
+            <div className="flex gap-2">
+              <ActionButton
+                variant="secondary"
+                size="sm"
+                icon={Sparkles}
+                loading={loadingAISuggestions}
+                disabled={objects.length === 0}
                 onClick={async () => {
                   setLoadingAISuggestions(true);
                   setAiSuggestionsError(null);
@@ -379,86 +384,73 @@ const OntologyInsightsPanel: React.FC<OntologyInsightsPanelProps> = ({
                   }
                   setLoadingAISuggestions(false);
                 }}
-                disabled={loadingAISuggestions || objects.length === 0}
-                style={{
-                  flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                  padding: '6px 14px', borderRadius: 8, cursor: objects.length === 0 ? 'not-allowed' : 'pointer',
-                  background: loadingAISuggestions ? 'rgba(251,191,36,0.3)' : 'rgba(251,191,36,0.15)',
-                  border: '1px solid rgba(251,191,36,0.4)',
-                  color: '#fbbf24', fontSize: 12, fontWeight: 600,
-                }}
               >
-                {loadingAISuggestions ? <><div style={{ width: 12, height: 12, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fbbf24', borderRadius: '50%', animation: 'spin 1s linear infinite' }} /> 分析中...</> : <><Sparkles className="w-3.5 h-3.5" /> 图谱分析</>}
-              </button>
+                图谱智能分析
+              </ActionButton>
               {aiSuggestions.length > 0 && (
-                <button onClick={() => setAiSuggestions([])}
-                  style={{ padding: '6px 8px', borderRadius: 8, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#6b7280', cursor: 'pointer' }}>
-                  <X className="w-3.5 h-3.5" />
-                </button>
+                <IconButton
+                  icon={X}
+                  label="清除建议"
+                  size="sm"
+                  onClick={() => setAiSuggestions([])}
+                />
               )}
             </div>
             {aiSuggestionsError && (
-              <div style={{ padding: '8px 12px', background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.3)', borderRadius: 8, fontSize: 11, color: '#fbbf24' }}>
+              <div className="p-2.5 bg-monokai-pink/10 border border-monokai-pink/30 rounded-lg text-xs text-monokai-pink">
                 {aiSuggestionsError}
               </div>
             )}
             {/* AI suggestions results */}
             {aiSuggestions.length > 0 && (
-              <div>
-                <div style={{ fontSize: 10, color: '#4ade80', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6, fontWeight: 600 }}>
+              <div className="space-y-2">
+                <div className="text-xs text-monokai-accent font-semibold uppercase tracking-wider">
                   分析建议 ({aiSuggestions.length})
                 </div>
-                {aiSuggestions.map((item, i) => {
-                  const TYPE_COLORS: Record<string, string> = {
-                    object: '#ae81ff', link: '#22c55e', action: '#fbbf24', introspection: '#38bdf8'
-                  };
-                  const color = TYPE_COLORS[item.type] || '#4ade80';
-                  return (
-                    <div key={i} style={{ padding: 10, background: `${color}08`, border: `1px solid ${color}25`, borderRadius: 10, marginBottom: 6 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                        <span style={{ padding: '1px 6px', background: `${color}20`, color, fontSize: 9, borderRadius: 4, fontWeight: 700, textTransform: 'uppercase' }}>{item.type}</span>
-                        <span style={{ fontSize: 12, fontWeight: 600, color: '#f1f5f9' }}>{item.title}</span>
-                        <span style={{ marginLeft: 'auto', fontSize: 10, color: '#6b7280', fontFamily: 'monospace' }}>{(item.confidence * 100).toFixed(0)}%</span>
-                      </div>
-                      <div style={{ fontSize: 11, color: '#9ca3af', lineHeight: 1.5 }}>{item.description}</div>
+                {aiSuggestions.map((item, i) => (
+                  <div key={i} className="p-3 bg-monokai-surface/60 border border-monokai-border rounded-lg space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="info" size="sm">{item.type}</Badge>
+                      <span className="text-xs font-semibold text-monokai-fg flex-1">{item.title}</span>
+                      <span className="text-xs font-mono text-monokai-comment">{(item.confidence * 100).toFixed(0)}%</span>
                     </div>
-                  );
-                })}
+                    <div className="text-xs text-monokai-fg/80 leading-relaxed">{item.description}</div>
+                  </div>
+                ))}
               </div>
             )}
-            <div style={{ fontSize: 10, color: '#6b7280', lineHeight: 1.6, marginBottom: 4 }}>
+            <div className="text-[10px] text-monokai-comment leading-relaxed">
               基于当前图谱结构自动分析，识别潜在问题和优化机会
             </div>
             {suggestions.length === 0 && (
-              <div style={{ textAlign: 'center', padding: 20, color: '#4ade80', fontSize: 12 }}>
+              <div className="text-center py-6 text-monokai-accent text-xs">
                 ✓ 图谱结构健康，没有发现明显问题
               </div>
             )}
             {suggestions.map((s, i) => {
-              const color = SEVERITY_COLORS[s.severity];
               const ICONS: Record<string, React.ReactNode> = {
-                isolated: <AlertCircle className="w-4 h-4" />,
-                hub: <Star className="w-4 h-4" />,
-                cross_type: <ArrowRight className="w-4 h-4" />,
-                weight_imbalance: <TrendingUp className="w-4 h-4" />,
+                isolated: <AlertCircle className="w-4 h-4 text-monokai-pink" />,
+                hub: <Star className="w-4 h-4 text-monokai-yellow" />,
+                cross_type: <ArrowRight className="w-4 h-4 text-monokai-cyan" />,
+                weight_imbalance: <TrendingUp className="w-4 h-4 text-monokai-orange" />,
               };
               return (
-                <div key={i} style={{ padding: 12, background: `${color}08`, border: `1px solid ${color}25`, borderRadius: 10 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                    <div style={{ width: 28, height: 28, borderRadius: 8, background: `${color}20`, display: 'flex', alignItems: 'center', justifyContent: 'center', color, flexShrink: 0 }}>
-                      {ICONS[s.type] || <Lightbulb className="w-4 h-4" />}
+                <div key={i} className="p-3 bg-monokai-surface/60 border border-monokai-border rounded-lg space-y-2">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-md bg-monokai-surface border border-monokai-border flex items-center justify-center shrink-0">
+                      {ICONS[s.type] || <Lightbulb className="w-4 h-4 text-monokai-yellow" />}
                     </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 11, fontWeight: 600, color }}>{s.severity === 'high' ? '高优先级' : s.severity === 'medium' ? '中优先级' : '低优先级'} — {s.type === 'isolated' ? '孤立节点' : s.type === 'hub' ? 'Hub 节点' : s.type === 'cross_type' ? '跨类型关系' : '权重不平衡'}</div>
+                    <div className="text-xs font-semibold text-monokai-fg">
+                      {s.severity === 'high' ? '高优先级' : s.severity === 'medium' ? '中优先级' : '低优先级'} — {s.type === 'isolated' ? '孤立节点' : s.type === 'hub' ? 'Hub 节点' : s.type === 'cross_type' ? '跨类型关系' : '权重不平衡'}
                     </div>
                   </div>
-                  <div style={{ fontSize: 12, color: '#d1d5db', lineHeight: 1.5 }}>{s.message}</div>
+                  <div className="text-xs text-monokai-fg/80 leading-relaxed">{s.message}</div>
                   {s.objectIds && s.objectIds.length > 0 && (
-                    <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap' as const, gap: 4 }}>
+                    <div className="flex flex-wrap gap-1 pt-1">
                       {s.objectIds.slice(0, 5).map(id => {
                         const obj = objects.find(o => o.id === id);
                         return obj ? (
-                          <span key={id} style={{ padding: '2px 8px', background: `${color}15`, border: `1px solid ${color}30`, borderRadius: 12, fontSize: 10, color }}>
+                          <span key={id} className="px-2 py-0.5 rounded text-[10px] font-mono bg-monokai-bg border border-monokai-border text-monokai-cyan">
                             {obj.name}
                           </span>
                         ) : null;
@@ -472,14 +464,14 @@ const OntologyInsightsPanel: React.FC<OntologyInsightsPanelProps> = ({
         )}
 
         {activeTab === 'introspect' && (
-          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
-            {/* P2-2: AI Introspection Guidance */}
-            <div style={{ padding: 10, background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.2)', borderRadius: 10 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                <Brain className="w-4 h-4 text-monokai-yellow" style={{ color: '#fbbf24' }} />
-                <span style={{ fontSize: 11, fontWeight: 700, color: '#fbbf24' }}>AI 反思引导</span>
+          <div className="flex flex-col gap-3">
+            {/* AI Introspection Guidance */}
+            <div className="p-3 bg-monokai-surface/60 border border-monokai-border rounded-lg space-y-2.5">
+              <div className="flex items-center gap-2">
+                <Brain className="w-4 h-4 text-monokai-yellow" />
+                <span className="text-xs font-semibold text-monokai-yellow">AI 反思引导</span>
               </div>
-              <div style={{ display: 'flex', gap: 6 }}>
+              <div className="flex gap-2">
                 <input
                   type="text"
                   value={introspectionTopic}
@@ -499,9 +491,13 @@ const OntologyInsightsPanel: React.FC<OntologyInsightsPanelProps> = ({
                     }
                   }}
                   placeholder="输入反思主题，如：工作与生活的平衡..."
-                  style={{ flex: 1, padding: '6px 10px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(251,191,36,0.2)', borderRadius: 6, color: '#e5e7eb', fontSize: 11, outline: 'none' }}
+                  className="flex-1 px-2.5 py-1.5 bg-monokai-sidebar border border-monokai-border rounded-md text-xs text-monokai-fg placeholder-monokai-comment focus:outline-none focus:border-monokai-accent"
                 />
-                <button
+                <ActionButton
+                  variant="secondary"
+                  size="sm"
+                  loading={loadingAIIntrospection}
+                  disabled={!introspectionTopic.trim()}
                   onClick={async () => {
                     if (!introspectionTopic.trim()) return;
                     setLoadingAIIntrospection(true);
@@ -515,35 +511,37 @@ const OntologyInsightsPanel: React.FC<OntologyInsightsPanelProps> = ({
                     }
                     setLoadingAIIntrospection(false);
                   }}
-                  disabled={loadingAIIntrospection || !introspectionTopic.trim()}
-                  style={{ padding: '6px 12px', borderRadius: 6, background: 'rgba(251,191,36,0.2)', border: '1px solid rgba(251,191,36,0.4)', color: '#fbbf24', cursor: !introspectionTopic.trim() ? 'not-allowed' : 'pointer', fontSize: 11, fontWeight: 600, opacity: !introspectionTopic.trim() ? 0.5 : 1 }}
                 >
-                  {loadingAIIntrospection ? '...' : '生成'}
-                </button>
+                  生成
+                </ActionButton>
               </div>
-              {aiIntrospectionError && <div style={{ fontSize: 10, color: '#fbbf24', marginTop: 4 }}>{aiIntrospectionError}</div>}
+              {aiIntrospectionError && <div className="text-xs text-monokai-pink">{aiIntrospectionError}</div>}
               {aiIntrospection && (
-                <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <div style={{ fontSize: 10, color: '#4ade80', fontWeight: 600 }}>引导问题</div>
+                <div className="space-y-2 pt-1 border-t border-monokai-border/60">
+                  <div className="text-xs text-monokai-accent font-semibold">引导问题</div>
                   {aiIntrospection.questions?.map((q, i) => (
-                    <div key={i} style={{ padding: 8, background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.2)', borderRadius: 8 }}>
-                      <div style={{ fontSize: 11, color: '#fbbf24', fontWeight: 600, marginBottom: 2 }}>Q{i + 1}: {q.question}</div>
-                      <div style={{ fontSize: 10, color: '#6b7280', fontStyle: 'italic' }}>提示：{q.hint}</div>
+                    <div key={i} className="p-2.5 bg-monokai-bg border border-monokai-border rounded-md space-y-1.5">
+                      <div className="text-xs font-semibold text-monokai-yellow">Q{i + 1}: {q.question}</div>
+                      <div className="text-xs text-monokai-comment italic">提示：{q.hint}</div>
                       {q.relatedConcepts?.length > 0 && (
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
+                        <div className="flex flex-wrap gap-1 pt-1">
                           {q.relatedConcepts.map((c, j) => (
-                            <span key={j} style={{ padding: '1px 6px', background: 'rgba(167,139,250,0.2)', color: '#ae81ff', fontSize: 9, borderRadius: 4 }}>{c}</span>
+                            <span key={j} className="px-1.5 py-0.5 bg-monokai-surface text-monokai-cyan text-[10px] rounded border border-monokai-border/60">{c}</span>
                           ))}
                         </div>
                       )}
-                      {/* Quick-fill button */}
-                      <button onClick={() => {
-                        setIntrospectionQ(q.question);
-                        setSelectedObject(objects[0] || null);
-                      }}
-                        style={{ marginTop: 4, padding: '2px 8px', background: 'rgba(56,189,248,0.15)', border: '1px solid rgba(56,189,248,0.3)', color: '#38bdf8', fontSize: 9, borderRadius: 4, cursor: 'pointer' }}>
-                        填充问题
-                      </button>
+                      <div className="pt-1">
+                        <ActionButton
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setIntrospectionQ(q.question);
+                            setSelectedObject(objects[0] || null);
+                          }}
+                        >
+                          填充至反思表单
+                        </ActionButton>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -551,12 +549,12 @@ const OntologyInsightsPanel: React.FC<OntologyInsightsPanelProps> = ({
             </div>
 
             {/* Select object */}
-            <div>
-              <div style={{ fontSize: 10, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6, fontWeight: 600 }}>选择反思对象</div>
+            <div className="space-y-1.5">
+              <label className="text-xs text-monokai-comment font-semibold uppercase tracking-wider">选择反思对象</label>
               <select
                 value={selectedObject?.id || ''}
                 onChange={e => setSelectedObject(objects.find(o => o.id === parseInt(e.target.value)) || null)}
-                style={{ width: '100%', padding: '6px 10px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, color: '#e5e7eb', fontSize: 12, outline: 'none' }}
+                className="w-full px-2.5 py-1.5 bg-monokai-sidebar border border-monokai-border rounded-md text-xs text-monokai-fg focus:outline-none focus:border-monokai-accent"
               >
                 <option value="">— 选择对象 —</option>
                 {objects.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
@@ -566,35 +564,50 @@ const OntologyInsightsPanel: React.FC<OntologyInsightsPanelProps> = ({
             {selectedObject && (
               <>
                 {/* New introspection */}
-                <div style={{ padding: 10, background: 'rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.2)', borderRadius: 10 }}>
-                  <div style={{ fontSize: 10, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, fontWeight: 600 }}>添加反思</div>
-                  <div style={{ marginBottom: 6 }}>
-                    <div style={{ fontSize: 10, color: '#6b7280', marginBottom: 4 }}>核心问题</div>
-                    <textarea value={introspectionQ} onChange={e => setIntrospectionQ(e.target.value)} placeholder="例如：这个对象与我的核心目标有什么关系？"
-                      style={{ width: '100%', padding: '6px 8px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(56,189,248,0.2)', borderRadius: 6, color: '#e5e7eb', fontSize: 11, outline: 'none', resize: 'vertical', minHeight: 50, fontFamily: 'inherit', boxSizing: 'border-box' }} />
+                <div className="p-3 bg-monokai-surface/60 border border-monokai-border rounded-lg space-y-2.5">
+                  <div className="text-xs text-monokai-cyan font-semibold uppercase tracking-wider">添加反思</div>
+                  <div className="space-y-1">
+                    <label className="text-xs text-monokai-comment font-medium">核心问题</label>
+                    <textarea
+                      value={introspectionQ}
+                      onChange={e => setIntrospectionQ(e.target.value)}
+                      placeholder="例如：这个对象与我的核心目标有什么关系？"
+                      rows={2}
+                      className="w-full p-2 bg-monokai-sidebar border border-monokai-border rounded-md text-xs text-monokai-fg placeholder-monokai-comment focus:outline-none focus:border-monokai-accent resize-none"
+                    />
                   </div>
-                  <div style={{ marginBottom: 6 }}>
-                    <div style={{ fontSize: 10, color: '#6b7280', marginBottom: 4 }}>思考回答</div>
-                    <textarea value={introspectionA} onChange={e => setIntrospectionA(e.target.value)} placeholder="你的反思回答..."
-                      style={{ width: '100%', padding: '6px 8px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(56,189,248,0.2)', borderRadius: 6, color: '#e5e7eb', fontSize: 11, outline: 'none', resize: 'vertical', minHeight: 60, fontFamily: 'inherit', boxSizing: 'border-box' }} />
+                  <div className="space-y-1">
+                    <label className="text-xs text-monokai-comment font-medium">思考回答</label>
+                    <textarea
+                      value={introspectionA}
+                      onChange={e => setIntrospectionA(e.target.value)}
+                      placeholder="你的反思回答..."
+                      rows={3}
+                      className="w-full p-2 bg-monokai-sidebar border border-monokai-border rounded-md text-xs text-monokai-fg placeholder-monokai-comment focus:outline-none focus:border-monokai-accent resize-none"
+                    />
                   </div>
-                  <button onClick={handleAddIntrospection} disabled={saving || !introspectionQ.trim() || !introspectionA.trim()} style={{
-                    padding: '5px 12px', borderRadius: 8, background: '#38bdf8', border: 'none', cursor: saving ? 'not-allowed' : 'pointer',
-                    color: '#fff', fontSize: 11, fontWeight: 600, opacity: saving || !introspectionQ.trim() || !introspectionA.trim() ? 0.5 : 1,
-                  }}>
-                    {saving ? '保存中...' : '保存反思'}
-                  </button>
+                  <div className="flex justify-end">
+                    <ActionButton
+                      variant="primary"
+                      size="sm"
+                      disabled={saving || !introspectionQ.trim() || !introspectionA.trim()}
+                      loading={saving}
+                      onClick={handleAddIntrospection}
+                    >
+                      保存反思
+                    </ActionButton>
+                  </div>
                 </div>
 
                 {/* History */}
                 {introspections.filter(i => i.object_id === selectedObject.id).length > 0 && (
-                  <div>
-                    <div style={{ fontSize: 10, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6, fontWeight: 600 }}>历史反思</div>
+                  <div className="space-y-2">
+                    <div className="text-xs text-monokai-comment font-semibold uppercase tracking-wider">历史反思</div>
                     {introspections.filter(i => i.object_id === selectedObject.id).map(intr => (
-                      <div key={intr.id} style={{ padding: 10, background: 'rgba(255,255,255,0.03)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.06)', marginBottom: 6 }}>
-                        <div style={{ fontSize: 10, color: '#38bdf8', fontWeight: 600, marginBottom: 4, fontStyle: 'italic' }}>Q: {intr.question}</div>
-                        <div style={{ fontSize: 11, color: '#d1d5db', lineHeight: 1.5, marginBottom: 4 }}>A: {intr.answer}</div>
-                        <div style={{ fontSize: 9, color: '#475569' }}>{intr.created_at}</div>
+                      <div key={intr.id} className="p-3 bg-monokai-surface/60 border border-monokai-border rounded-lg space-y-1.5">
+                        <div className="text-xs text-monokai-cyan font-semibold">Q: {intr.question}</div>
+                        <div className="text-xs text-monokai-fg/85 leading-relaxed">A: {intr.answer}</div>
+                        <div className="text-[10px] text-monokai-comment font-mono">{intr.created_at}</div>
                       </div>
                     ))}
                   </div>
@@ -603,7 +616,7 @@ const OntologyInsightsPanel: React.FC<OntologyInsightsPanelProps> = ({
             )}
 
             {!selectedObject && (
-              <div style={{ textAlign: 'center', padding: 20, color: '#6b7280', fontSize: 12 }}>
+              <div className="text-center py-6 text-monokai-comment text-xs">
                 请选择上方对象开始反思
               </div>
             )}
@@ -611,61 +624,77 @@ const OntologyInsightsPanel: React.FC<OntologyInsightsPanelProps> = ({
         )}
 
         {activeTab === 'insights' && (
-          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
+          <div className="flex flex-col gap-3">
             {/* Add insight */}
-            <div style={{ padding: 10, background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.2)', borderRadius: 10 }}>
-              <div style={{ fontSize: 10, color: '#4ade80', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, fontWeight: 600 }}>记录洞察</div>
-              <div style={{ marginBottom: 6 }}>
+            <div className="p-3 bg-monokai-surface/60 border border-monokai-border rounded-lg space-y-2.5">
+              <div className="text-xs text-monokai-accent font-semibold uppercase tracking-wider">记录洞察</div>
+              <div>
                 <select
                   value={selectedObject?.id || ''}
                   onChange={e => setSelectedObject(objects.find(o => o.id === parseInt(e.target.value)) || null)}
-                  style={{ width: '100%', padding: '6px 10px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(74,222,128,0.2)', borderRadius: 8, color: '#e5e7eb', fontSize: 11, outline: 'none' }}
+                  className="w-full px-2.5 py-1.5 bg-monokai-sidebar border border-monokai-border rounded-md text-xs text-monokai-fg focus:outline-none focus:border-monokai-accent"
                 >
                   <option value="">关联到哪个对象</option>
                   {objects.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
                 </select>
               </div>
-              <div style={{ marginBottom: 6 }}>
-                <textarea value={insightText} onChange={e => setInsightText(e.target.value)} placeholder="你的洞察..."
-                  style={{ width: '100%', padding: '6px 8px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(74,222,128,0.2)', borderRadius: 6, color: '#e5e7eb', fontSize: 11, outline: 'none', resize: 'vertical', minHeight: 60, fontFamily: 'inherit', boxSizing: 'border-box' }} />
+              <div>
+                <textarea
+                  value={insightText}
+                  onChange={e => setInsightText(e.target.value)}
+                  placeholder="你的洞察..."
+                  rows={3}
+                  className="w-full p-2 bg-monokai-sidebar border border-monokai-border rounded-md text-xs text-monokai-fg placeholder-monokai-comment focus:outline-none focus:border-monokai-accent resize-none"
+                />
               </div>
-              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                <input value={insightTag} onChange={e => setInsightTag(e.target.value)} placeholder="标签 (如: 重要, 待验证)"
-                  style={{ flex: 1, padding: '5px 8px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(74,222,128,0.2)', borderRadius: 6, color: '#e5e7eb', fontSize: 11, outline: 'none' }} />
-                <button onClick={handleAddInsight} disabled={saving || !insightText.trim()} style={{
-                  padding: '5px 12px', borderRadius: 8, background: '#4ade80', border: 'none', cursor: saving ? 'not-allowed' : 'pointer',
-                  color: '#0d0d14', fontSize: 11, fontWeight: 600, opacity: saving || !insightText.trim() ? 0.5 : 1,
-                }}>
-                  {saving ? '...' : '保存'}
-                </button>
+              <div className="flex gap-2 items-center">
+                <input
+                  value={insightTag}
+                  onChange={e => setInsightTag(e.target.value)}
+                  placeholder="标签 (如: 重要, 待验证)"
+                  className="flex-1 px-2.5 py-1.5 bg-monokai-sidebar border border-monokai-border rounded-md text-xs text-monokai-fg placeholder-monokai-comment focus:outline-none focus:border-monokai-accent"
+                />
+                <ActionButton
+                  variant="primary"
+                  size="sm"
+                  disabled={saving || !insightText.trim()}
+                  loading={saving}
+                  onClick={handleAddInsight}
+                >
+                  保存
+                </ActionButton>
               </div>
             </div>
 
             {/* Insights list */}
-            <div>
-              <div style={{ fontSize: 10, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6, fontWeight: 600 }}>洞察记录 ({insights.length})</div>
-              {insights.length === 0 && <div style={{ textAlign: 'center', padding: 20, color: '#6b7280', fontSize: 12 }}>暂无洞察 — 从上方记录第一个</div>}
+            <div className="space-y-2">
+              <div className="text-xs text-monokai-comment font-semibold uppercase tracking-wider">洞察记录 ({insights.length})</div>
+              {insights.length === 0 && <div className="text-center py-6 text-monokai-comment text-xs">暂无洞察 — 从上方记录第一个</div>}
               {insights.map(ins => (
-                <div key={ins.id} style={{ padding: 10, background: 'rgba(255,255,255,0.03)', borderRadius: 10, border: '1px solid rgba(255,255,255,0.06)', marginBottom: 6 }}>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <div key={ins.id} className="p-3 bg-monokai-surface/60 border border-monokai-border rounded-lg space-y-1.5">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-1.5">
                       {ins.tag && (
-                        <span style={{ padding: '2px 7px', background: 'rgba(167,139,250,0.15)', border: '1px solid rgba(167,139,250,0.3)', borderRadius: 12, fontSize: 9, color: '#bda2ff' }}>
-                          <Tag className="w-2.5 h-2.5 inline" /> {ins.tag}
-                        </span>
+                        <Badge variant="danger" size="sm">
+                          <Tag className="w-2.5 h-2.5 inline mr-1" />{ins.tag}
+                        </Badge>
                       )}
                       {ins.object_name && (
-                        <span style={{ fontSize: 10, color: '#6b7280' }}>
+                        <span className="text-xs text-monokai-cyan font-mono">
                           → {ins.object_name}
                         </span>
                       )}
                     </div>
-                    <button onClick={() => handleDeleteInsight(ins.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280', opacity: 0.5, padding: 0 }}>
-                      <Trash2 className="w-3 h-3" />
-                    </button>
+                    <IconButton
+                      icon={Trash2}
+                      label="删除洞察"
+                      tone="danger"
+                      size="sm"
+                      onClick={() => handleDeleteInsight(ins.id)}
+                    />
                   </div>
-                  <div style={{ fontSize: 12, color: '#d1d5db', lineHeight: 1.5, marginBottom: 4 }}>{ins.insight}</div>
-                  <div style={{ fontSize: 9, color: '#475569' }}>{ins.created_at}</div>
+                  <div className="text-xs text-monokai-fg/85 leading-relaxed">{ins.insight}</div>
+                  <div className="text-[10px] text-monokai-comment font-mono">{ins.created_at}</div>
                 </div>
               ))}
             </div>

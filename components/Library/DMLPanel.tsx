@@ -11,6 +11,7 @@ import { sql } from '@codemirror/lang-sql';
 import { EditorView } from '@codemirror/view';
 import { monokai } from '@uiw/codemirror-theme-monokai';
 import { duckDBService } from '../../services/duckdbService';
+import { toastService } from '../../services/toastService';
 import { ResultTable } from '../Learn/ResultTable';
 
 interface DMLPanelProps {
@@ -286,18 +287,6 @@ export const DMLPanel: React.FC<DMLPanelProps> = ({
 
   // 执行 SQL
   const handleExecute = useCallback(async (id: string, sql: string) => {
-    const isMutation = /insert|delete|update|truncate/i.test(sql);
-    if (isMutation) {
-      const confirmRun = window.confirm("【执行安全确认】\n提示：此操作是一个 DML (数据操纵) 语句，执行后将直接插入、更新或删除当前数据库的数据。\n\n您确定要在当前数据库中运行这段代码吗？");
-      if (!confirmRun) {
-        setExecutionResults(prev => ({
-          ...prev,
-          [id]: { data: null, error: "执行已被取消 (用户未确认风险)", loading: false }
-        }));
-        return;
-      }
-    }
-
     setExecutionResults(prev => ({
       ...prev,
       [id]: { data: null, error: null, loading: true }
@@ -305,17 +294,26 @@ export const DMLPanel: React.FC<DMLPanelProps> = ({
 
     const startTime = performance.now();
     try {
-      const res = await duckDBService.query(sql);
+      const isMutation = /insert|delete|update|truncate/i.test(sql);
+      let res: any;
+      if (isMutation) {
+        res = await duckDBService.executeAndAudit(sql, 'DML', null, `Executed DML snippet (${id})`);
+        window.dispatchEvent(new CustomEvent('duckdb-schema-changed'));
+      } else {
+        res = await duckDBService.query(sql);
+      }
       const endTime = performance.now();
       setExecutionResults(prev => ({
         ...prev,
         [id]: { data: res, error: null, loading: false, executionTime: endTime - startTime }
       }));
+      toastService.success('DML 语句执行成功', `耗时 ${(endTime - startTime).toFixed(1)}ms`);
     } catch (e: any) {
       setExecutionResults(prev => ({
         ...prev,
         [id]: { data: null, error: e.message, loading: false }
       }));
+      toastService.error('DML 执行遇到错误', e.message);
     }
   }, []);
 
@@ -363,15 +361,15 @@ export const DMLPanel: React.FC<DMLPanelProps> = ({
   };
 
   return (
-    <div className="h-full overflow-y-auto p-4">
+    <div className="h-full overflow-y-auto p-4 custom-scrollbar">
       {/* 一键展开/折叠按钮 */}
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-3.5 flex items-center justify-between">
         <span className="text-xs text-monokai-comment">
           共 {DML_DATA.length} 个分类，{DML_DATA.reduce((acc, item) => acc + item.snippets.length, 0)} 个代码块
         </span>
         <button
           onClick={toggleAll}
-          className="px-3 py-1.5 text-xs rounded bg-monokai-accent/20 text-monokai-accent hover:bg-monokai-accent/30 transition-colors"
+          className="px-2.5 py-1 text-xs rounded-md border border-monokai-border/80 bg-monokai-surface text-monokai-fg-muted hover:text-monokai-fg hover:border-monokai-border transition-colors cursor-pointer"
         >
           {allExpanded ? '全部折叠' : '全部展开'}
         </button>
@@ -380,26 +378,26 @@ export const DMLPanel: React.FC<DMLPanelProps> = ({
         {DML_DATA.map((item) => (
           <div
             key={item.id}
-            className="bg-monokai-sidebar border border-monokai-accent rounded-lg overflow-hidden"
+            className="rounded-lg border border-monokai-border/60 bg-monokai-surface/90 overflow-hidden shadow-xs transition-colors"
           >
             {/* 卡片头部 - 可展开/折叠 */}
             <div 
-              className="px-4 py-2 bg-monokai-bg border-b border-monokai-accent flex items-center justify-between cursor-pointer hover:bg-monokai-accent/10"
+              className="px-3.5 py-2.5 bg-monokai-sidebar/70 border-b border-monokai-border/40 flex items-center justify-between cursor-pointer hover:bg-monokai-sidebar transition-colors"
               onClick={() => toggleExpand(item.id)}
             >
               <div className="flex items-center gap-2">
-                {item.category === '插入' && <Plus className="w-4 h-4 text-monokai-green" />}
-                {item.category === '修改' && <Edit className="w-4 h-4 text-monokai-blue" />}
-                {item.category === '删除' && <Trash2 className="w-4 h-4 text-monokai-red" />}
-                {item.category === '高级' && <Database className="w-4 h-4 text-monokai-amethyst" />}
-                {item.category === '导出' && <Database className="w-4 h-4 text-monokai-yellow" />}
-                <span className="font-medium text-monokai-fg">{item.title}</span>
-                <span className="text-xs px-2 py-0.5 rounded bg-monokai-orange/20 text-monokai-orange">
+                {item.category === '插入' && <Plus className="w-4 h-4 text-monokai-green shrink-0" />}
+                {item.category === '修改' && <Edit className="w-4 h-4 text-monokai-cyan shrink-0" />}
+                {item.category === '删除' && <Trash2 className="w-4 h-4 text-monokai-pink shrink-0" />}
+                {item.category === '高级' && <Database className="w-4 h-4 text-monokai-amethyst shrink-0" />}
+                {item.category === '导出' && <Database className="w-4 h-4 text-monokai-yellow shrink-0" />}
+                <span className="font-semibold text-xs text-monokai-fg">{item.title}</span>
+                <span className="text-[10px] font-mono font-medium px-2 py-0.5 rounded border border-monokai-orange/30 bg-monokai-orange/10 text-monokai-orange">
                   {item.category}
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-xs text-monokai-comment">
+                <span className="text-xs text-monokai-comment font-mono">
                   {item.snippets.length} 个片段
                 </span>
                 {expandedItems.has(item.id) ? (
@@ -411,8 +409,8 @@ export const DMLPanel: React.FC<DMLPanelProps> = ({
             </div>
 
             {/* 描述 */}
-            <div className="px-4 py-2 bg-monokai-bg/50 border-b border-monokai-accent">
-              <p className="text-xs text-monokai-comment">{item.description}</p>
+            <div className="px-3.5 py-2 bg-monokai-bg/60 border-b border-monokai-border/40">
+              <p className="text-xs text-monokai-comment leading-relaxed">{item.description}</p>
             </div>
 
             {/* 展开的片段列表 */}
@@ -421,10 +419,10 @@ export const DMLPanel: React.FC<DMLPanelProps> = ({
                 {item.snippets.map((snippet, idx) => (
                   <div 
                     key={idx}
-                    className="bg-monokai-bg rounded border border-monokai-accent/50 overflow-hidden"
+                    className="bg-monokai-bg rounded-md border border-monokai-border/60 overflow-hidden shadow-xs"
                   >
                     {/* 片段标题栏 */}
-                    <div className="px-3 py-2 bg-monokai-accent/10 flex items-center justify-between">
+                    <div className="px-3 py-2 bg-monokai-surface/80 border-b border-monokai-border/40 flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-medium text-monokai-fg">{snippet.label}</span>
                         {snippet.description && (
@@ -443,14 +441,14 @@ export const DMLPanel: React.FC<DMLPanelProps> = ({
                                 handleExecute(resultId, snippet.sql);
                               }}
                               disabled={result?.loading}
-                              className={`p-1 rounded transition-colors ${
+                              className={`p-1.5 rounded-md transition-colors cursor-pointer ${
                                 result?.loading
                                   ? 'bg-monokai-yellow/20 text-monokai-yellow cursor-wait'
                                   : result?.error
-                                  ? 'hover:bg-monokai-pink/30 text-monokai-pink'
+                                  ? 'hover:bg-monokai-pink/20 text-monokai-pink'
                                   : result?.data
-                                  ? 'hover:bg-monokai-green/30 text-monokai-green'
-                                  : 'hover:bg-monokai-green/30 text-monokai-comment hover:text-monokai-green'
+                                  ? 'hover:bg-monokai-green/20 text-monokai-green'
+                                  : 'hover:bg-monokai-elevated text-monokai-comment hover:text-monokai-green'
                               }`}
                               title={result?.loading ? '执行中...' : '执行 SQL'}
                             >
@@ -469,7 +467,7 @@ export const DMLPanel: React.FC<DMLPanelProps> = ({
                               e.stopPropagation();
                               onInsert(snippet.sql);
                             }}
-                            className="p-1 rounded hover:bg-monokai-blue/30 text-monokai-comment hover:text-monokai-blue transition-colors"
+                            className="p-1.5 rounded-md hover:bg-monokai-elevated text-monokai-comment hover:text-monokai-cyan transition-colors cursor-pointer"
                             title="插入到 SQL 编辑器"
                           >
                             <ArrowRight className="w-3.5 h-3.5" />
@@ -481,7 +479,7 @@ export const DMLPanel: React.FC<DMLPanelProps> = ({
                             e.stopPropagation();
                             onCopy?.(`${item.id}-${idx}`, snippet.sql);
                           }}
-                          className="p-1 rounded hover:bg-monokai-accent/30 text-monokai-comment hover:text-monokai-fg transition-colors"
+                          className="p-1.5 rounded-md hover:bg-monokai-elevated text-monokai-comment hover:text-monokai-fg transition-colors cursor-pointer"
                           title="复制 SQL"
                         >
                           {copiedId === `${item.id}-${idx}` ? (
@@ -494,7 +492,7 @@ export const DMLPanel: React.FC<DMLPanelProps> = ({
                     </div>
                     
                     {/* CodeMirror 代码块 */}
-                    <div className="border-t border-monokai-accent/30">
+                    <div>
                       <CodeMirror
                         value={snippet.sql}
                         height="auto"
@@ -503,9 +501,17 @@ export const DMLPanel: React.FC<DMLPanelProps> = ({
                           sql(),
                           EditorView.lineWrapping,
                           EditorView.theme({
-                            "&": { fontSize: "12px" },
-                            ".cm-content": { fontSize: "12px" },
-                            ".cm-line": { fontSize: "12px" }
+                            "&": { fontSize: "11.5px", backgroundColor: "transparent" },
+                            ".cm-content": { 
+                              fontSize: "11.5px", 
+                              fontFamily: "var(--font-mono)", 
+                              lineHeight: "1.55", 
+                              padding: "6px 8px" 
+                            },
+                            ".cm-line": { 
+                              fontSize: "11.5px", 
+                              fontFamily: "var(--font-mono)" 
+                            }
                           })
                         ]}
                         editable={false}

@@ -6,6 +6,7 @@
 
 import { AISkill } from '../types';
 import { OntologyCommand } from '../hooks/useOntologyStore';
+import { WORKSPACE_FEATURES } from '../services/workspaceNavigation';
 
 // ============================================================
 // Command types
@@ -33,21 +34,17 @@ export interface CommandGroup {
 // Built-in commands
 // ============================================================
 
-export const BUILT_IN_COMMANDS: CommandItem[] = [
-  // Navigation
-  { id: 'nav-dashboard', type: 'navigation', label: '回到主页', description: '切换到 Dashboard', tab: 'dashboard' },
-  { id: 'nav-data', type: 'navigation', label: '数据视图', description: '切换到 Data Tab', tab: 'data' },
-  { id: 'nav-structure', type: 'navigation', label: '结构视图', description: '切换到 Schema Tab', tab: 'structure' },
-  { id: 'nav-sql', type: 'navigation', label: 'SQL 编辑器', description: '切换到 SQL Tab', tab: 'sql' },
-  { id: 'nav-metrics', type: 'navigation', label: '指标管理', description: '切换到 Metrics Tab', tab: 'metrics' },
-  { id: 'nav-audit', type: 'navigation', label: '审计日志', description: '切换到 Logs Tab', tab: 'audit' },
-  { id: 'nav-skills', type: 'navigation', label: 'AI 技能', description: '切换到 AI Skills Tab', tab: 'ai_skills' },
-  { id: 'nav-library', type: 'navigation', label: '知识库', description: '切换到 Library Tab', tab: 'library' },
-  { id: 'nav-ontology', type: 'navigation', label: '本体论', description: '切换到 Ontology Tab', tab: 'ontology' },
-  { id: 'nav-analysis-hub', type: 'navigation', label: '分析中心', description: '切换到 Analysis Hub', tab: 'analysis_hub' },
-  { id: 'nav-extensions', type: 'navigation', label: '插件中心', description: '切换到 Extensions Tab', tab: 'extensions' },
-  { id: 'nav-tutorials', type: 'navigation', label: '学习中心', description: '切换到 Learn Tab', tab: 'tutorials' },
+const NAVIGATION_COMMANDS: CommandItem[] = WORKSPACE_FEATURES.map(feature => ({
+  id: `nav-${(feature.tab || '').replaceAll('_', '-')}`,
+  type: 'navigation',
+  label: feature.label,
+  description: `切换到 ${feature.label}`,
+  icon: feature.icon,
+  tab: feature.tab,
+}));
 
+export const BUILT_IN_COMMANDS: CommandItem[] = [
+  ...NAVIGATION_COMMANDS,
   // Actions
   { id: 'action-create-table', type: 'action', label: '新建数据表', description: '打开创建表对话框', shortcut: 'Ctrl+N' },
   { id: 'action-import', type: 'action', label: '导入数据', description: '打开导入向导', shortcut: 'Ctrl+I' },

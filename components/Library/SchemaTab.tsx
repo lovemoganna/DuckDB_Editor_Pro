@@ -290,11 +290,11 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({
                     <div key={col.name} className="flex items-center gap-2 py-1 px-2 rounded hover:bg-monokai-sidebar/40 transition-colors">
                       <div className="w-1.5 h-1.5 rounded-full shrink-0 bg-monokai-comment/30" />
                       <span className="text-[11px] font-mono text-monokai-fg truncate flex-1">{col.name}</span>
-                      {col.pk && (
+                      {Boolean(col.pk) && (
                         <span className="text-[9px] px-1 py-0.5 rounded bg-monokai-yellow/10 text-monokai-yellow shrink-0">PK</span>
                       )}
                       <span className="text-[10px] text-monokai-comment/60 shrink-0 font-mono">{col.type}</span>
-                      {col.notnull && (
+                      {Boolean(col.notnull) && (
                         <span className="ml-1 text-[9px] px-1 py-0.5 rounded bg-monokai-red/10 text-monokai-red/70 shrink-0">NOT NULL</span>
                       )}
                     </div>

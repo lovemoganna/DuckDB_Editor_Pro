@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx';
+import { workbookIO, WorkbookSheet } from '../services/workbookIO';
 
 /** Prepend UTF-8 BOM so Excel correctly recognizes the encoding. */
 export function encodeCSV(content: string): Blob {
@@ -25,32 +25,19 @@ export function downloadArrayAsCSV(rows: (string | number | boolean | null | und
   downloadCSV(arrayToCSV(rows), filename);
 }
 
-interface ExcelSheet {
-  name: string;
-  headers: string[];
-  rows: (string | number | boolean | null | undefined)[][];
-}
-
-export function downloadExcel(sheets: ExcelSheet[], filename: string): void {
-  const wb = XLSX.utils.book_new();
-  for (const sheet of sheets) {
-    const data = [sheet.headers, ...sheet.rows];
-    const ws = XLSX.utils.aoa_to_sheet(data);
-    XLSX.utils.book_append_sheet(wb, ws, sheet.name);
-  }
-  XLSX.writeFile(wb, filename);
+export function downloadExcel(sheets: WorkbookSheet[], filename: string): Promise<void> {
+  return workbookIO.downloadWorkbook(sheets, filename);
 }
 
 export function downloadObjectsAsExcel<T extends Record<string, unknown>>(
   objects: T[],
   filename: string,
   sheetName = 'Sheet1'
-): void {
+): Promise<void> {
   if (objects.length === 0) {
-    downloadExcel([{ name: sheetName, headers: [], rows: [] }], filename);
-    return;
+    return downloadExcel([{ name: sheetName, headers: [], rows: [] }], filename);
   }
   const headers = Object.keys(objects[0]);
   const rows = objects.map(obj => headers.map(h => obj[h] ?? null));
-  downloadExcel([{ name: sheetName, headers, rows: rows as (string | number | boolean | null | undefined)[][] }], filename);
+  return downloadExcel([{ name: sheetName, headers, rows: rows as (string | number | boolean | null | undefined)[][] }], filename);
 }

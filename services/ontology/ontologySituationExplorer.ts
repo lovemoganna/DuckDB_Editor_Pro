@@ -153,3 +153,122 @@ export function exploreOntologySituations(
   });
   return { ...report, sourceSnapshot: model.provenance };
 }
+
+export interface FeatureCombinationState {
+  featureId: string;
+  featureName: string;
+  value: unknown;
+}
+
+export interface FeatureCombination {
+  id: string;
+  states: FeatureCombinationState[];
+  matchingObjectIds: number[];
+  matchCount: number;
+  coverageRate: number;
+}
+
+export function crossFeatureCombinations(
+  model: OntologySituationModel,
+  selectedFeatureIds: string[],
+  options?: { maxCombinations?: number; minCoverage?: number },
+): FeatureCombination[] {
+  const maxCombinations = options?.maxCombinations ?? 500;
+  const minCoverage = options?.minCoverage ?? 0;
+  const selectedFeatures = model.features.filter(f => selectedFeatureIds.includes(f.id));
+  if (selectedFeatures.length === 0) return [];
+
+  // Extract unique values per feature from actual data
+  const featureValues = new Map<string, { feature: typeof selectedFeatures[0]; values: unknown[] }>();
+  for (const feature of selectedFeatures) {
+    const uniqueValues = new Set<string>();
+    const values: unknown[] = [];
+    for (const row of model.rows) {
+      const val = row[feature.id];
+      if (val === undefined || val === null) continue;
+      const key = JSON.stringify(val);
+      if (!uniqueValues.has(key)) {
+        uniqueValues.add(key);
+        values.push(val);
+      }
+    }
+    if (values.length > 0) {
+      featureValues.set(feature.id, { feature, values });
+    }
+  }
+
+  // Generate cartesian product with pruning
+  const entries = [...featureValues.entries()];
+  if (entries.length === 0) return [];
+
+  const combinations: FeatureCombination[] = [];
+  const generate = (index: number, current: FeatureCombinationState[]) => {
+    if (combinations.length >= maxCombinations) return;
+    if (index === entries.length) {
+      // Find matching objects
+      const matchingObjectIds = model.rows
+        .filter(row => current.every(state => {
+          const val = row[state.featureId];
+          return val !== undefined && val !== null && JSON.stringify(val) === JSON.stringify(state.value);
+        }))
+        .map(row => row.__objectId as number)
+        .filter((id): id is number => id !== undefined);
+      const coverageRate = model.rows.length > 0 ? matchingObjectIds.length / model.rows.length : 0;
+      if (coverageRate >= minCoverage) {
+        combinations.push({
+          id: `combo-${combinations.length + 1}`,
+          states: [...current],
+          matchingObjectIds,
+          matchCount: matchingObjectIds.length,
+          coverageRate,
+        });
+      }
+      return;
+    }
+    const [featureId, { feature, values }] = entries[index];
+    for (const value of values) {
+      generate(index + 1, [...current, {
+        featureId,
+        featureName: feature.name,
+        value,
+      }]);
+    }
+  };
+  generate(0, []);
+
+  // Sort by match count descending (most common combinations first)
+  combinations.sort((a, b) => b.matchCount - a.matchCount);
+  return combinations;
+}
+
+export interface RankedScenario {
+  candidateId: string;
+  rank: number;
+  score: number;
+  isTopCandidate: boolean;
+  medal?: 'gold' | 'silver' | 'bronze';
+  summaryLabel: string;
+}
+
+export function rankScenarios(
+  report: InferenceReport,
+  options?: { topN?: number },
+): RankedScenario[] {
+  const topN = options?.topN ?? 3;
+  const medals: Array<'gold' | 'silver' | 'bronze'> = ['gold', 'silver', 'bronze'];
+
+  return report.rankedCandidates.map((candidate, index) => {
+    const rank = index + 1;
+    const statesSummary = candidate.states
+      .map(s => `${s.featureName}=${typeof s.value === 'string' ? s.value : JSON.stringify(s.value)}`)
+      .join(' + ');
+    return {
+      candidateId: candidate.id,
+      rank,
+      score: candidate.ranking.score,
+      isTopCandidate: rank <= topN,
+      medal: rank <= medals.length ? medals[rank - 1] : undefined,
+      summaryLabel: `#${rank} ${statesSummary} (${candidate.status === 'ESTABLISHED' ? '已成立' : candidate.status === 'POSSIBLE' ? '可能' : '已排除'})`,
+    };
+  });
+}

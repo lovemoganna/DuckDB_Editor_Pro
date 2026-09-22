@@ -10,6 +10,7 @@
 
 import { useState, useCallback, useRef } from 'react';
 import { ontologyAiService } from '../services/ontologyAiService';
+import { aiService } from '../services/aiService';
 import { MECELayer } from './useOntologyStore';
 
 // ============================================================
@@ -193,6 +194,7 @@ export function useAIFill() {
 
   const abortFill = useCallback((mode: AIFillMode) => {
     abortRef.current?.abort();
+    aiService.cancelActiveRequest();
     setStates(prev => ({
       ...prev,
       [mode]: { ...prev[mode], isLoading: false, error: '已取消' }

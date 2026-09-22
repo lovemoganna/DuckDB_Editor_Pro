@@ -27,7 +27,7 @@ const CANVAS_HELP: HelpSection[] = [
   {
     title: '适用场景',
     icon: <Lightbulb className="w-3.5 h-3.5" />,
-    color: '#4ade80',
+    color: 'var(--monokai-accent)',
     items: [
       '设计数据管道拓扑（ETL/ELT 工作流）',
       '规划多表 JOIN 顺序与依赖关系',
@@ -39,7 +39,7 @@ const CANVAS_HELP: HelpSection[] = [
   {
     title: '常见错误',
     icon: <AlertTriangle className="w-3.5 h-3.5" />,
-    color: '#fb923c',
+    color: 'var(--monokai-orange)',
     items: [
       '节点间形成循环依赖（DAG 检测失败）',
       'Transform 节点未配置 SQL 变换逻辑',
@@ -51,7 +51,7 @@ const CANVAS_HELP: HelpSection[] = [
   {
     title: '最佳实践',
     icon: <Wand2 className="w-3.5 h-3.5" />,
-    color: '#ae81ff',
+    color: 'var(--monokai-purple)',
     items: [
       '先用 AI 一键填充生成基础拓扑，再手动微调',
       'Transform 节点应至少有一个输入边、一个输出边',
@@ -66,7 +66,7 @@ const GRAPH_HELP: HelpSection[] = [
   {
     title: '适用场景',
     icon: <Lightbulb className="w-3.5 h-3.5" />,
-    color: '#4ade80',
+    color: 'var(--monokai-accent)',
     items: [
       '全局关系可视化与概念图谱浏览',
       '发现高耦合节点（度数异常高）',
@@ -78,7 +78,7 @@ const GRAPH_HELP: HelpSection[] = [
   {
     title: '常见错误',
     icon: <AlertTriangle className="w-3.5 h-3.5" />,
-    color: '#fb923c',
+    color: 'var(--monokai-orange)',
     items: [
       '节点过多（>100）导致力导向布局卡顿',
       '边权重未归一化（混入 >1 的值）',
@@ -90,7 +90,7 @@ const GRAPH_HELP: HelpSection[] = [
   {
     title: '最佳实践',
     icon: <Wand2 className="w-3.5 h-3.5" />,
-    color: '#ae81ff',
+    color: 'var(--monokai-purple)',
     items: [
       '先在 MECE 基础层构建对象，再在图谱中观察关系',
       'AI 图谱生成后，先 Fit All 查看全貌再精细操作',
@@ -144,10 +144,10 @@ export const CANVAS_MECE_LAYER_DESIGN: Record<MECELayer, MECELayerDesign> = {
     label: 'Foundation',
     labelZh: '基础层',
     description: '定义对象类型（Object Type）和实例（Object Instance），是本体论的根基。',
-    color: '#ae81ff',
-    textClass: 'text-[#ae81ff]',
-    bgClass: 'bg-[#ae81ff]/[8%]',
-    borderClass: 'border-[#ae81ff]/[20%]',
+    color: 'var(--monokai-purple)',
+    textClass: 'text-monokai-amethyst',
+    bgClass: 'bg-monokai-amethyst/[8%]',
+    borderClass: 'border-monokai-amethyst/[20%]',
     icon: 'Database',
     applicableScenario: '设计数据表结构、定义概念维度、批量导入实体',
     commonMistakes: [
@@ -160,10 +160,10 @@ export const CANVAS_MECE_LAYER_DESIGN: Record<MECELayer, MECELayerDesign> = {
     label: 'Relations',
     labelZh: '关系层',
     description: '建立对象之间的关系（Link）和关系类型（Link Type），描绘语义连接。',
-    color: '#38bdf8',
-    textClass: 'text-[#38bdf8]',
-    bgClass: 'bg-[#38bdf8]/[8%]',
-    borderClass: 'border-[#38bdf8]/[20%]',
+    color: 'var(--monokai-cyan)',
+    textClass: 'text-monokai-cyan',
+    bgClass: 'bg-monokai-cyan/[8%]',
+    borderClass: 'border-monokai-cyan/[20%]',
     icon: 'GitBranch',
     applicableScenario: '建立实体间依赖、构建概念图谱、权重关系建模',
     commonMistakes: [
@@ -176,10 +176,10 @@ export const CANVAS_MECE_LAYER_DESIGN: Record<MECELayer, MECELayerDesign> = {
     label: 'Methodology',
     labelZh: '方法论层',
     description: '提供建模范式的建议和分步实施计划，引导结构化思考。',
-    color: '#4ade80',
-    textClass: 'text-[#4ade80]',
-    bgClass: 'bg-[#4ade80]/[8%]',
-    borderClass: 'border-[#4ade80]/[20%]',
+    color: 'var(--monokai-accent)',
+    textClass: 'text-monokai-accent',
+    bgClass: 'bg-monokai-accent/10',
+    borderClass: 'border-monokai-accent/20',
     icon: 'Lightbulb',
     applicableScenario: '选择建模范式、规划实施路径、获取 AI 建议',
     commonMistakes: [
@@ -192,10 +192,10 @@ export const CANVAS_MECE_LAYER_DESIGN: Record<MECELayer, MECELayerDesign> = {
     label: 'Patterns',
     labelZh: '模式层',
     description: '生成高级 SQL 模式（递归 CTE、聚合视图、时序版本化），驱动分析能力。',
-    color: '#fb923c',
-    textClass: 'text-[#fb923c]',
-    bgClass: 'bg-[#fb923c]/[8%]',
-    borderClass: 'border-[#fb923c]/[20%]',
+    color: 'var(--monokai-orange)',
+    textClass: 'text-monokai-orange',
+    bgClass: 'bg-monokai-orange/10',
+    borderClass: 'border-monokai-orange/20',
     icon: 'Layers',
     applicableScenario: '递归路径分析、时序数据建模、复杂聚合视图',
     commonMistakes: [
@@ -208,10 +208,10 @@ export const CANVAS_MECE_LAYER_DESIGN: Record<MECELayer, MECELayerDesign> = {
     label: 'Domains',
     labelZh: '领域层',
     description: '生成完整的领域模型，包含类型、关系、种子数据和视图，一站式交付。',
-    color: '#fbbf24',
-    textClass: 'text-[#fbbf24]',
-    bgClass: 'bg-[#fbbf24]/[8%]',
-    borderClass: 'border-[#fbbf24]/[20%]',
+    color: 'var(--monokai-yellow)',
+    textClass: 'text-monokai-yellow',
+    bgClass: 'bg-monokai-yellow/10',
+    borderClass: 'border-monokai-yellow/20',
     icon: 'Globe',
     applicableScenario: '快速启动新领域、批量生成完整本体论模板',
     commonMistakes: [
@@ -339,7 +339,7 @@ export const CanvasHelpPanel: React.FC<CanvasHelpPanelProps> = ({ config, onClos
       {/* Header */}
       <div style={{ padding: '14px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
         <HelpCircle className="w-4 h-4 text-indigo-400" />
-        <span style={{ fontSize: 13, fontWeight: 700, color: '#f1f5f9' }}>
+        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--monokai-fg)' }}>
           {config.type === 'canvas' ? '画布使用指南' : '图谱使用指南'}
         </span>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
@@ -348,9 +348,9 @@ export const CanvasHelpPanel: React.FC<CanvasHelpPanelProps> = ({ config, onClos
             style={{
               padding: '3px 10px', borderRadius: 6, fontSize: 10, fontWeight: 600,
               border: '1px solid', cursor: 'pointer', transition: 'all 0.2s',
-              background: activeTab === 'guide' ? 'rgba(99,102,241,0.2)' : 'transparent',
-              borderColor: activeTab === 'guide' ? 'rgba(99,102,241,0.5)' : 'rgba(255,255,255,0.1)',
-              color: activeTab === 'guide' ? '#a5b4fc' : '#64748b',
+              background: activeTab === 'guide' ? 'color-mix(in srgb, var(--monokai-cyan) 20%, transparent)' : 'transparent',
+              borderColor: activeTab === 'guide' ? 'color-mix(in srgb, var(--monokai-cyan) 50%, transparent)' : 'var(--monokai-border)',
+              color: activeTab === 'guide' ? 'var(--monokai-cyan)' : 'var(--monokai-comment)',
             }}
           >
             指南
@@ -360,9 +360,9 @@ export const CanvasHelpPanel: React.FC<CanvasHelpPanelProps> = ({ config, onClos
             style={{
               padding: '3px 10px', borderRadius: 6, fontSize: 10, fontWeight: 600,
               border: '1px solid', cursor: 'pointer', transition: 'all 0.2s',
-              background: activeTab === 'prompts' ? 'rgba(167,139,250,0.2)' : 'transparent',
-              borderColor: activeTab === 'prompts' ? 'rgba(167,139,250,0.5)' : 'rgba(255,255,255,0.1)',
-              color: activeTab === 'prompts' ? '#bda2ff' : '#64748b',
+              background: activeTab === 'prompts' ? 'color-mix(in srgb, var(--monokai-purple) 20%, transparent)' : 'transparent',
+              borderColor: activeTab === 'prompts' ? 'color-mix(in srgb, var(--monokai-purple) 50%, transparent)' : 'var(--monokai-border)',
+              color: activeTab === 'prompts' ? 'var(--monokai-purple)' : 'var(--monokai-comment)',
             }}
           >
             AI 提示词
@@ -372,15 +372,15 @@ export const CanvasHelpPanel: React.FC<CanvasHelpPanelProps> = ({ config, onClos
             style={{
               padding: '3px 10px', borderRadius: 6, fontSize: 10, fontWeight: 600,
               border: '1px solid', cursor: 'pointer', transition: 'all 0.2s',
-              background: activeTab === 'mece' ? 'rgba(251,146,60,0.2)' : 'transparent',
-              borderColor: activeTab === 'mece' ? 'rgba(251,146,60,0.5)' : 'rgba(255,255,255,0.1)',
-              color: activeTab === 'mece' ? '#fbbf24' : '#64748b',
+              background: activeTab === 'mece' ? 'color-mix(in srgb, var(--monokai-orange) 20%, transparent)' : 'transparent',
+              borderColor: activeTab === 'mece' ? 'color-mix(in srgb, var(--monokai-orange) 50%, transparent)' : 'var(--monokai-border)',
+              color: activeTab === 'mece' ? 'var(--monokai-yellow)' : 'var(--monokai-comment)',
             }}
           >
             MECE 层
           </button>
           {onClose && (
-            <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', padding: 2 }}>
+            <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--monokai-comment)', padding: 2 }}>
               <X className="w-4 h-4" />
             </button>
           )}
@@ -403,7 +403,7 @@ export const CanvasHelpPanel: React.FC<CanvasHelpPanelProps> = ({ config, onClos
                   {section.items.map((item, j) => (
                     <div key={j} style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
                       <span style={{ color: section.color, fontSize: 11, fontWeight: 700, lineHeight: '18px' }}>•</span>
-                      <span style={{ fontSize: 11, color: '#94a3b8', lineHeight: '18px' }}>{item}</span>
+                      <span style={{ fontSize: 11, color: 'var(--monokai-fg-muted)', lineHeight: '18px' }}>{item}</span>
                     </div>
                   ))}
                 </div>
@@ -414,7 +414,7 @@ export const CanvasHelpPanel: React.FC<CanvasHelpPanelProps> = ({ config, onClos
           <div className="space-y-4">
             {/* MECE 层导航 */}
             <div>
-              <div style={{ fontSize: 10, color: '#fbbf24', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
+              <div style={{ fontSize: 10, color: 'var(--monokai-yellow)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
                 MECE 五层导航
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
@@ -434,7 +434,7 @@ export const CanvasHelpPanel: React.FC<CanvasHelpPanelProps> = ({ config, onClos
                       <div style={{ fontSize: 10, fontWeight: 700, color: design.color }}>
                         {design.labelZh}
                       </div>
-                      <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 2 }}>
+                      <div style={{ fontSize: 10, color: 'var(--monokai-fg-muted)', marginTop: 2 }}>
                         {design.label}
                       </div>
                     </div>
@@ -451,18 +451,18 @@ export const CanvasHelpPanel: React.FC<CanvasHelpPanelProps> = ({ config, onClos
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                     <span style={{ color: design.color }}>{design.labelZh} / {design.label}</span>
                   </div>
-                  <div style={{ padding: '10px 12px', background: 'rgba(0,0,0,0.3)', borderRadius: 10, border: `1px solid ${design.borderClass}`, fontSize: 11, color: '#94a3b8', lineHeight: 1.7, marginBottom: 8 }}>
+                  <div style={{ padding: '10px 12px', background: 'rgba(0,0,0,0.3)', borderRadius: 10, border: `1px solid ${design.borderClass}`, fontSize: 11, color: 'var(--monokai-fg-muted)', lineHeight: 1.7, marginBottom: 8 }}>
                     {design.description}
                   </div>
-                  <div style={{ fontSize: 10, color: '#4ade80', fontWeight: 600, marginBottom: 4 }}>适用场景</div>
-                  <div style={{ paddingLeft: 10, marginBottom: 8, fontSize: 11, color: '#94a3b8', lineHeight: 1.6 }}>
+                  <div style={{ fontSize: 10, color: 'var(--monokai-accent)', fontWeight: 600, marginBottom: 4 }}>适用场景</div>
+                  <div style={{ paddingLeft: 10, marginBottom: 8, fontSize: 11, color: 'var(--monokai-fg-muted)', lineHeight: 1.6 }}>
                     {design.applicableScenario}
                   </div>
-                  <div style={{ fontSize: 10, color: '#fb923c', fontWeight: 600, marginBottom: 4 }}>常见错误</div>
-                  <div style={{ paddingLeft: 10, marginBottom: 8, fontSize: 11, color: '#94a3b8', lineHeight: 1.6 }}>
+                  <div style={{ fontSize: 10, color: 'var(--monokai-orange)', fontWeight: 600, marginBottom: 4 }}>常见错误</div>
+                  <div style={{ paddingLeft: 10, marginBottom: 8, fontSize: 11, color: 'var(--monokai-fg-muted)', lineHeight: 1.6 }}>
                     {design.commonMistakes.map((m, i) => <div key={i} style={{ marginBottom: 3 }}>• {m}</div>)}
                   </div>
-                  <div style={{ padding: '8px 10px', borderRadius: 8, background: 'rgba(0,0,0,0.2)', fontSize: 11, color: '#ae81ff', lineHeight: 1.6 }}>
+                  <div style={{ padding: '8px 10px', borderRadius: 8, background: 'rgba(0,0,0,0.2)', fontSize: 11, color: 'var(--monokai-purple)', lineHeight: 1.6 }}>
                     示例：{CANVAS_MECE_PROMPTS.example(layer)}
                   </div>
                 </div>
@@ -474,10 +474,10 @@ export const CanvasHelpPanel: React.FC<CanvasHelpPanelProps> = ({ config, onClos
             {config.type === 'canvas' ? (
               <>
                 <div>
-                  <div style={{ fontSize: 10, color: '#ae81ff', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
+                  <div style={{ fontSize: 10, color: 'var(--monokai-purple)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
                     AI 一键填充提示词
                   </div>
-                  <div style={{ padding: '10px 12px', background: 'rgba(0,0,0,0.3)', borderRadius: 10, border: '1px solid rgba(167,139,250,0.15)', fontSize: 11, color: '#94a3b8', lineHeight: 1.7 }}>
+                  <div style={{ padding: '10px 12px', background: 'rgba(0,0,0,0.3)', borderRadius: 10, border: '1px solid rgba(167,139,250,0.15)', fontSize: 11, color: 'var(--monokai-fg-muted)', lineHeight: 1.7 }}>
                     {existingObjects.length > 0 ? (
                       <>基于已有对象 [{existingObjects.slice(0, 3).join(', ')}{existingObjects.length > 3 ? '...' : ''}]，生成数据处理拓扑，包含 Source/Transform/Sink 节点及依赖边。</>
                     ) : (
@@ -486,10 +486,10 @@ export const CanvasHelpPanel: React.FC<CanvasHelpPanelProps> = ({ config, onClos
                   </div>
                 </div>
                 <div>
-                  <div style={{ fontSize: 10, color: '#fb923c', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
+                  <div style={{ fontSize: 10, color: 'var(--monokai-orange)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
                     二次优化提示词
                   </div>
-                  <div style={{ padding: '10px 12px', background: 'rgba(0,0,0,0.3)', borderRadius: 10, border: '1px solid rgba(251,146,60,0.15)', fontSize: 11, color: '#94a3b8', lineHeight: 1.7 }}>
+                  <div style={{ padding: '10px 12px', background: 'rgba(0,0,0,0.3)', borderRadius: 10, border: '1px solid rgba(251,146,60,0.15)', fontSize: 11, color: 'var(--monokai-fg-muted)', lineHeight: 1.7 }}>
                     输入类似「增加一个过滤节点」「改为时序聚合」等，AI 将更新拓扑 SQL 片段。
                   </div>
                 </div>
@@ -497,18 +497,18 @@ export const CanvasHelpPanel: React.FC<CanvasHelpPanelProps> = ({ config, onClos
             ) : (
               <>
                 <div>
-                  <div style={{ fontSize: 10, color: '#ae81ff', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
+                  <div style={{ fontSize: 10, color: 'var(--monokai-purple)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
                     AI 图谱生成提示词
                   </div>
-                  <div style={{ padding: '10px 12px', background: 'rgba(0,0,0,0.3)', borderRadius: 10, border: '1px solid rgba(167,139,250,0.15)', fontSize: 11, color: '#94a3b8', lineHeight: 1.7 }}>
+                  <div style={{ padding: '10px 12px', background: 'rgba(0,0,0,0.3)', borderRadius: 10, border: '1px solid rgba(167,139,250,0.15)', fontSize: 11, color: 'var(--monokai-fg-muted)', lineHeight: 1.7 }}>
                     输入领域主题（如「电商订单」「家庭财务」），AI 生成 5-10 个核心概念节点和关系边，包含布局坐标。
                   </div>
                 </div>
                 <div>
-                  <div style={{ fontSize: 10, color: '#fb923c', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
+                  <div style={{ fontSize: 10, color: 'var(--monokai-orange)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
                     展开节点提示词
                   </div>
-                  <div style={{ padding: '10px 12px', background: 'rgba(0,0,0,0.3)', borderRadius: 10, border: '1px solid rgba(251,146,60,0.15)', fontSize: 11, color: '#94a3b8', lineHeight: 1.7 }}>
+                  <div style={{ padding: '10px 12px', background: 'rgba(0,0,0,0.3)', borderRadius: 10, border: '1px solid rgba(251,146,60,0.15)', fontSize: 11, color: 'var(--monokai-fg-muted)', lineHeight: 1.7 }}>
                     选中某节点后，输入「围绕 [节点名] 展开更多关系」，AI 将追加相关概念节点和边。
                   </div>
                 </div>

@@ -83,10 +83,10 @@ export class IntentAnalyzer {
       if (aiResult.confidence > keywordResult.confidence) {
         return aiResult;
       }
-      return { ...keywordResult, reasoning: `${keywordResult.reasoning} (AI 校验通过)` };
+      return { ...keywordResult, reasoning: `${keywordResult.reasoning} (AI 语义分析置信度较低，采用规则候选)` };
     } catch (error) {
       console.warn('AI intent analysis failed, using fallback:', error);
-      return keywordResult;
+      return { ...keywordResult, reasoning: `${keywordResult.reasoning} (AI 服务不可用，已自动降级)` };
     }
   }
 

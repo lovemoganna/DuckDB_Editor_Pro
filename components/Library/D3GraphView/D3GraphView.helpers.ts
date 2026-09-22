@@ -430,7 +430,7 @@ export function getBaseNodeInfoHtml(d: GraphNode, data: { nodes: GraphNode[]; li
         const shortVal = vStr.length > 40 ? vStr.slice(0, 40) + '…' : vStr;
         const escapedVal = vStr.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
         html += `<div style="font-size:9.5px;line-height:1.6">`;
-        html += `<span style="color:#ae81ff;font-weight:bold" title="${k}">${k}</span>`;
+        html += `<span style="color:#66d9ef;font-weight:bold" title="${k}">${k}</span>`;
         html += `<span style="color:#ccc">: </span>`;
         html += `<span style="color:#eee" title="${escapedVal}">${shortVal}</span>`;
         html += `</div>`;
@@ -439,7 +439,7 @@ export function getBaseNodeInfoHtml(d: GraphNode, data: { nodes: GraphNode[]; li
         html += `<div style="font-size:9.5px;line-height:1.6;margin-top:3px;border-top:1px dashed rgba(255,255,255,0.05);padding-top:3px">`;
         html += `<span style="color:#a6e22e;font-weight:bold">分类层级</span>`;
         html += `<span style="color:#ccc">: </span>`;
-        html += `<span style="color:#ae81ff">${parsed._taxonomy}</span>`;
+        html += `<span style="color:#66d9ef">${parsed._taxonomy}</span>`;
         html += `</div>`;
       }
       html += `</div>`;

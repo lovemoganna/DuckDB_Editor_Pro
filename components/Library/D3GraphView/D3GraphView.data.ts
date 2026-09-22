@@ -12,7 +12,7 @@ import { duckDBService } from '../../../services/duckdbService';
 import type { GraphNode, GraphLink, GraphData, LifeObjectType, LifeLinkType, LifeLink } from './D3GraphView.types';
 import { TYPE_COLORS_WARM, TYPE_COLORS_INSTANCE, LINKTYPE_COLORS } from './D3GraphView.types';
 import { detectCommunities } from '../../../services/graphClusteringService';
-import { computeInitialPositions } from './D3GraphView.layout';
+import { computeInitialPositions } from '../../../services/graphLayoutService';
 
 // ── Property Parsing ────────────────────────────────────────────────────────
 

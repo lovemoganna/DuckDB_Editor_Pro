@@ -62,8 +62,7 @@ export const LearningPathPanel: React.FC<LearningPathPanelProps> = ({
   const handleAIRecommend = useCallback(() => {
     setIsAIRecommending(true);
 
-    // 模拟 AI 推荐延迟
-    setTimeout(() => {
+    try {
       // 找到最近完成但未完全掌握的学习阶段
       const completedStages = stages.filter(s => s.isUnlocked && s.nodes.some(n => n.isCompleted));
       const unlockedStages = stages.filter(s => s.isUnlocked);
@@ -75,7 +74,6 @@ export const LearningPathPanel: React.FC<LearningPathPanelProps> = ({
         if (incompleteNode) {
           setAiRecommendation(`建议继续学习「${currentStage.title}」中的「${incompleteNode.title}」`);
           setSelectedNode(incompleteNode);
-          setIsAIRecommending(false);
           return;
         }
       }
@@ -87,14 +85,14 @@ export const LearningPathPanel: React.FC<LearningPathPanelProps> = ({
         if (firstNode) {
           setAiRecommendation(`建议从「${firstStage.title}」开始学习「${firstNode.title}」`);
           setSelectedNode(firstNode);
-          setIsAIRecommending(false);
           return;
         }
       }
 
       setAiRecommendation('已完成所有学习内容！恭喜你！');
+    } finally {
       setIsAIRecommending(false);
-    }, 500);
+    }
   }, [stages]);
 
   // 快速重置学习进度
@@ -270,7 +268,7 @@ export const LearningPathPanel: React.FC<LearningPathPanelProps> = ({
                       className={`p-3 border rounded-lg transition-colors ${
                         node.isCompleted
                           ? 'border-monokai-green/30 bg-monokai-green/5'
-                          : 'border-monokai-accent/20 hover:border-monokai-amethyst/30'
+                          : 'border-monokai-accent/20 hover:border-monokai-border-strong'
                       }`}
                     >
                       <div className="flex items-start gap-3">
@@ -280,7 +278,7 @@ export const LearningPathPanel: React.FC<LearningPathPanelProps> = ({
                           className={`mt-0.5 w-5 h-5 rounded-full flex items-center justify-center transition-colors ${
                             node.isCompleted
                               ? 'bg-monokai-green text-white'
-                              : 'border-2 border-monokai-accent hover:border-monokai-amethyst'
+                              : 'border-2 border-monokai-accent hover:border-monokai-border-strong'
                           }`}
                         >
                           {node.isCompleted && <Check className="w-3 h-3" />}

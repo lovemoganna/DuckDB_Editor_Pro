@@ -84,28 +84,28 @@ export const SpotlightSearch: React.FC = () => {
       {/* Click outside to close */}
       <div className="absolute inset-0" onClick={() => setIsSpotlightActive(false)} />
       
-      <div className="relative w-full max-w-2xl bg-monokai-bg border border-monokai-accent shadow-2xl rounded-lg overflow-hidden flex flex-col">
+      <div className="relative w-full max-w-2xl bg-monokai-bg border border-monokai-border shadow-2xl rounded-md overflow-hidden flex flex-col">
         {/* Search Input */}
-        <div className="flex items-center px-4 py-3 border-b border-monokai-accent/50 bg-monokai-sidebar">
+        <div className="flex items-center px-4 py-3 border-b border-monokai-border bg-monokai-surface">
           <Search className="w-5 h-5 text-monokai-comment flex-shrink-0" />
           <input
             ref={inputRef}
             type="text"
-            className="flex-1 bg-transparent border-none text-monokai-fg px-3 py-2 text-lg focus:outline-none placeholder-monokai-comment"
+            className="flex-1 bg-transparent border-none text-monokai-fg px-3 py-1.5 text-base focus:outline-none placeholder-monokai-comment"
             placeholder="搜寻 AI 赋能指令... (例如: 查询重复数据)"
             value={localQuery}
             onChange={(e) => setLocalQuery(e.target.value)}
             onKeyDown={handleInputKeyDown}
           />
-          <div className="flex items-center gap-1 opacity-50">
-            <kbd className="px-2 py-1 rounded bg-monokai-bg text-monokai-comment text-xs font-mono border border-monokai-accent/30 flex items-center gap-1">
+          <div className="flex items-center gap-1 opacity-60">
+            <kbd className="px-2 py-0.5 rounded bg-monokai-bg text-monokai-comment text-xs font-mono border border-monokai-border flex items-center gap-1">
               <Command className="w-3 h-3" /> J
             </kbd>
           </div>
         </div>
 
         {/* Results List */}
-        <div className="max-h-80 overflow-y-auto custom-scrollbar p-2">
+        <div className="max-h-80 overflow-y-auto custom-scrollbar p-2 space-y-0.5">
           {results.length === 0 ? (
             <div className="p-8 text-center text-monokai-comment flex flex-col items-center">
               <Sparkles className="w-8 h-8 mb-3 opacity-30" />
@@ -116,20 +116,20 @@ export const SpotlightSearch: React.FC = () => {
               <div
                 key={skill.id}
                 onClick={() => executeSelection(skill)}
-                className={`flex items-center gap-3 p-3 cursor-pointer border-l-2 transition-all duration-150 ${
+                className={`flex items-center gap-3 p-2.5 rounded-md cursor-pointer transition-all duration-150 ${
                   idx === selectedIndex 
-                    ? 'border-monokai-blue bg-monokai-accent/20' 
-                    : 'border-transparent hover:bg-monokai-sidebar/50'
+                    ? 'bg-monokai-elevated text-monokai-fg' 
+                    : 'hover:bg-monokai-surface text-monokai-fg-muted hover:text-monokai-fg'
                 }`}
               >
-                <div className="w-8 h-8 rounded bg-monokai-sidebar/80 flex items-center justify-center flex-shrink-0 border border-monokai-accent/30">
-                  <span className="text-xl">{skill.icon || '⚡'}</span>
+                <div className="w-8 h-8 rounded-md bg-monokai-surface flex items-center justify-center flex-shrink-0 border border-monokai-border">
+                  <span className="text-lg">{skill.icon || '⚡'}</span>
                 </div>
                 <div>
-                  <h4 className="text-sm font-medium text-monokai-fg">{skill.name}</h4>
-                  <p className="text-xs text-monokai-comment truncate max-w-lg mt-0.5">{skill.description}</p>
+                  <h4 className="text-xs font-semibold text-monokai-fg">{skill.name}</h4>
+                  <p className="text-[11px] text-monokai-comment truncate max-w-lg mt-0.5">{skill.description}</p>
                 </div>
-                <div className="ml-auto text-[10px] uppercase font-mono text-monokai-comment px-2 py-0.5 rounded bg-monokai-sidebar border border-monokai-accent/20">
+                <div className="ml-auto text-[10px] uppercase font-mono text-monokai-comment px-2 py-0.5 rounded bg-monokai-surface border border-monokai-border">
                   {skill.category}
                 </div>
               </div>
@@ -138,7 +138,7 @@ export const SpotlightSearch: React.FC = () => {
         </div>
         
         {/* Footer */}
-        <div className="bg-monokai-sidebar/80 px-4 py-2 border-t border-monokai-accent/30 flex items-center justify-between text-xs text-monokai-comment">
+        <div className="bg-monokai-sidebar px-4 py-2 border-t border-monokai-border flex items-center justify-between text-xs text-monokai-comment">
           <span>用 <span className="font-mono">↑</span> <span className="font-mono">↓</span> 导航，<span className="font-mono">Enter</span> 选择</span>
           <span>按 <span className="font-mono">Esc</span> 退出聚光灯</span>
         </div>

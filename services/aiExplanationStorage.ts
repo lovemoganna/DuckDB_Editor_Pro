@@ -1,5 +1,6 @@
 // AI Explanation Storage Service
 // 使用 IndexedDB 存储 AI SQL 解释历史
+import { closeDatabaseOnVersionChange } from './indexedDBLifecycle';
 
 const DB_NAME = 'duckdb_ai_explanations';
 const DB_VERSION = 1;
@@ -18,7 +19,7 @@ const openDB = (): Promise<IDBDatabase> => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
 
     request.onerror = () => reject(request.error);
-    request.onsuccess = () => resolve(request.result);
+    request.onsuccess = () => resolve(closeDatabaseOnVersionChange(request.result));
 
     request.onupgradeneeded = (event) => {
       const db = (event.target as IDBOpenDBRequest).result;

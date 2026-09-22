@@ -1,8 +1,9 @@
 import React from 'react';
-import { Clock, Database, Bookmark } from 'lucide-react';
+import { Clock, Database, Bookmark, Trash2, Code2 } from 'lucide-react';
 import { SqlEditorHistory } from './SqlEditorHistory';
 import { TableTree } from '../TableTree';
 import type { QueryHistoryItem, SavedQuery } from '../../types';
+import { useSqlEditorStore } from '../../hooks/store/useSqlEditorStore';
 
 interface SqlEditorSidebarProps {
   activeSidebarTab: 'schema' | 'history' | 'saved';
@@ -31,16 +32,18 @@ export const SqlEditorSidebar: React.FC<SqlEditorSidebarProps> = ({
   onDeleteSavedQuery,
   onInsertCode,
 }) => {
+  const schemaTree = useSqlEditorStore(state => state.schemaTree);
+
   return (
-    <div className="w-64 border-r border-monokai-accent/30 bg-monokai-bg flex flex-col shrink-0 overflow-hidden">
+    <div className="w-64 border-r border-monokai-border bg-monokai-sidebar/80 flex flex-col shrink-0 overflow-hidden select-none">
       {/* Sidebar Tabs */}
-      <div className="flex border-b border-monokai-accent/30 bg-monokai-surface shrink-0">
+      <div className="flex border-b border-monokai-border bg-monokai-sidebar shrink-0 p-1 gap-1">
         <button
           onClick={() => setActiveSidebarTab('schema')}
-          className={`flex-1 py-2 text-xs font-medium flex items-center justify-center gap-1.5 transition-colors border-b-2 ${
+          className={`flex-1 py-1.5 px-2 text-xs font-mono font-medium flex items-center justify-center gap-1.5 transition-all rounded-md cursor-pointer ${
             activeSidebarTab === 'schema'
-              ? 'border-monokai-yellow text-monokai-yellow bg-monokai-bg'
-              : 'border-transparent text-monokai-comment hover:text-monokai-fg'
+              ? 'bg-monokai-surface text-monokai-yellow shadow-xs'
+              : 'text-monokai-comment hover:text-monokai-fg hover:bg-monokai-surface/50'
           }`}
         >
           <Database size={13} />
@@ -48,10 +51,10 @@ export const SqlEditorSidebar: React.FC<SqlEditorSidebarProps> = ({
         </button>
         <button
           onClick={() => setActiveSidebarTab('history')}
-          className={`flex-1 py-2 text-xs font-medium flex items-center justify-center gap-1.5 transition-colors border-b-2 ${
+          className={`flex-1 py-1.5 px-2 text-xs font-mono font-medium flex items-center justify-center gap-1.5 transition-all rounded-md cursor-pointer ${
             activeSidebarTab === 'history'
-              ? 'border-monokai-yellow text-monokai-yellow bg-monokai-bg'
-              : 'border-transparent text-monokai-comment hover:text-monokai-fg'
+              ? 'bg-monokai-surface text-monokai-yellow shadow-xs'
+              : 'text-monokai-comment hover:text-monokai-fg hover:bg-monokai-surface/50'
           }`}
         >
           <Clock size={13} />
@@ -59,10 +62,10 @@ export const SqlEditorSidebar: React.FC<SqlEditorSidebarProps> = ({
         </button>
         <button
           onClick={() => setActiveSidebarTab('saved')}
-          className={`flex-1 py-2 text-xs font-medium flex items-center justify-center gap-1.5 transition-colors border-b-2 ${
+          className={`flex-1 py-1.5 px-2 text-xs font-mono font-medium flex items-center justify-center gap-1.5 transition-all rounded-md cursor-pointer ${
             activeSidebarTab === 'saved'
-              ? 'border-monokai-yellow text-monokai-yellow bg-monokai-bg'
-              : 'border-transparent text-monokai-comment hover:text-monokai-fg'
+              ? 'bg-monokai-surface text-monokai-yellow shadow-xs'
+              : 'text-monokai-comment hover:text-monokai-fg hover:bg-monokai-surface/50'
           }`}
         >
           <Bookmark size={13} />
@@ -71,51 +74,27 @@ export const SqlEditorSidebar: React.FC<SqlEditorSidebarProps> = ({
       </div>
 
       {/* Content Area */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-hidden bg-monokai-bg">
         {activeSidebarTab === 'schema' && (
-          <div className="h-full overflow-y-auto">
-            <TableTree onSelectTable={(name) => onInsertCode(`SELECT * FROM ${name} LIMIT 10;`)} />
+          <div className="h-full overflow-y-auto custom-scrollbar p-1">
+            <TableTree tables={Object.keys(schemaTree)} onInsert={onInsertCode} />
           </div>
         )}
-        {activeSidebarTab === 'history' && (
+        {(activeSidebarTab === 'history' || activeSidebarTab === 'saved') && (
           <SqlEditorHistory
+            activeSidebarTab={activeSidebarTab}
             history={history}
+            savedQueries={savedQueries}
             historyFilter={historyFilter}
-            setHistoryFilter={setHistoryFilter}
-            onSelectQuery={onSelectQuery}
+            onHistoryFilterChange={event => setHistoryFilter(event.target.value)}
             onClearHistory={onClearHistory}
+            onHistoryItemClick={onSelectQuery}
+            onSavedQueryClick={onSelectSavedQuery}
+            onDeleteSavedQuery={(id) => onDeleteSavedQuery(id)}
           />
-        )}
-        {activeSidebarTab === 'saved' && (
-          <div className="h-full overflow-y-auto p-2 space-y-2">
-            {savedQueries.length === 0 ? (
-              <div className="text-xs text-monokai-comment p-4 text-center">No saved queries</div>
-            ) : (
-              savedQueries.map((sq) => (
-                <div
-                  key={sq.id}
-                  onClick={() => onSelectSavedQuery(sq.sql)}
-                  className="p-2 bg-monokai-surface hover:bg-monokai-accent/30 rounded border border-monokai-accent/30 cursor-pointer transition-colors group"
-                >
-                  <div className="flex items-center justify-between font-medium text-xs text-monokai-fg mb-1">
-                    <span>{sq.name}</span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDeleteSavedQuery(sq.id);
-                      }}
-                      className="opacity-0 group-hover:opacity-100 text-monokai-pink text-[10px] hover:underline"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                  <div className="text-[11px] font-mono text-monokai-comment truncate">{sq.sql}</div>
-                </div>
-              ))
-            )}
-          </div>
         )}
       </div>
     </div>
   );
 };
+

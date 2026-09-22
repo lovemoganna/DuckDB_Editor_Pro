@@ -1,0 +1,167 @@
+{
+  "_meta": {
+    "name": "第 13 课：处理相互冲突的材料",
+    "description": "多来源矛盾事实不强行二选一，通过双信源节点与置信度解耦呈现并由仲裁器裁决",
+    "case_background": "【案例背景材料】供应商 X 科技公司在自报财报中声称净利润增长 20%，但第三方数据源接入法院公开执行公告，显示其存在被执行案款 ￥1,500 万。",
+    "core_concept": "Conflict Resolution & Weight Arbitration",
+    "version": "1.0.0",
+    "author": "system",
+    "created_at": "2026-07-25",
+    "scenario": "lesson-0013",
+    "complexity": "hard"
+  },
+  "objectTypes": [
+    {
+      "id": 1,
+      "name": "调查对象与信源",
+      "description": "尽调目标企业及权威级别不同的异构信息来源"
+    },
+    {
+      "id": 2,
+      "name": "声明事实与仲裁",
+      "description": "企业自报事实、司法涉诉事实、仲裁器与准入决策结论"
+    }
+  ],
+  "objects": [
+    {
+      "id": 1,
+      "object_type_id": 1,
+      "name": "供应商·X科技",
+      "properties": "{\"统一代码\":\"91110108MA01****\",\"资本\":\"￥5,000万\",\"状态\":\"准入尽调中\"}",
+      "annotations": "尽调目标企业"
+    },
+    {
+      "id": 2,
+      "object_type_id": 1,
+      "name": "信源·企业自报",
+      "properties": "{\"来源性质\":\"供应商自行填报\",\"材料\":\"自报年报\",\"固有权重\":0.4}",
+      "annotations": "内部弱信源"
+    },
+    {
+      "id": 3,
+      "object_type_id": 1,
+      "name": "信源·司法公开",
+      "properties": "{\"来源性质\":\"中国执行信息网\",\"材料\":\"生效判决执行\",\"固有权重\":0.98}",
+      "annotations": "官方权威强信源"
+    },
+    {
+      "id": 4,
+      "object_type_id": 2,
+      "name": "声明·利润增20%",
+      "properties": "{\"内容\":\"净利润同比增长20%\",\"特征\":\"无外部审计背书\",\"置信度\":0.35}",
+      "annotations": "自报利好事实"
+    },
+    {
+      "id": 5,
+      "object_type_id": 2,
+      "name": "涉诉·被执行1500万",
+      "properties": "{\"案号\":\"(2026)京01执988号\",\"标的额\":\"￥1500万\",\"置信度\":0.95}",
+      "annotations": "官方涉诉事实"
+    },
+    {
+      "id": 6,
+      "object_type_id": 2,
+      "name": "风控仲裁引擎",
+      "properties": "{\"算法\":\"信源权重加权仲裁\",\"规则\":\"司法事实绝对优先\",\"耗时\":\"12ms\"}",
+      "annotations": "冲突仲裁器"
+    },
+    {
+      "id": 7,
+      "object_type_id": 2,
+      "name": "暂缓准入结论",
+      "properties": "{\"评级\":\"D-高危供应商\",\"决议\":\"暂缓准入·观察名单\",\"要求\":\"提供结案证明\"}",
+      "annotations": "最终仲裁决议"
+    }
+  ],
+  "linkTypes": [
+    {
+      "id": 1,
+      "name": "采集报送材料",
+      "description": "系统采集供应商自行填报的审计材料"
+    },
+    {
+      "id": 2,
+      "name": "接入司法底网",
+      "description": "系统直连最高法执行公开网权威司法接口"
+    },
+    {
+      "id": 3,
+      "name": "自报声明",
+      "description": "企业信源声明净利润大幅增长事实"
+    },
+    {
+      "id": 4,
+      "name": "公示案款",
+      "description": "司法信源公示大额未执行案款"
+    },
+    {
+      "id": 5,
+      "name": "提交仲裁",
+      "description": "利好声明送交风控仲裁引擎加权裁决"
+    },
+    {
+      "id": 6,
+      "name": "权威呈递",
+      "description": "高危司法涉诉事实呈递仲裁引擎"
+    },
+    {
+      "id": 7,
+      "name": "判定准入等级",
+      "description": "仲裁引擎输出暂缓准入终态决策"
+    }
+  ],
+  "links": [
+    {
+      "id": 1,
+      "link_type_id": 1,
+      "source_object_id": 1,
+      "target_object_id": 2,
+      "weight": 1
+    },
+    {
+      "id": 2,
+      "link_type_id": 2,
+      "source_object_id": 1,
+      "target_object_id": 3,
+      "weight": 1
+    },
+    {
+      "id": 3,
+      "link_type_id": 3,
+      "source_object_id": 2,
+      "target_object_id": 4,
+      "weight": 0.8
+    },
+    {
+      "id": 4,
+      "link_type_id": 4,
+      "source_object_id": 3,
+      "target_object_id": 5,
+      "weight": 1
+    },
+    {
+      "id": 5,
+      "link_type_id": 5,
+      "source_object_id": 4,
+      "target_object_id": 6,
+      "weight": 0.6
+    },
+    {
+      "id": 6,
+      "link_type_id": 6,
+      "source_object_id": 5,
+      "target_object_id": 6,
+      "weight": 1
+    },
+    {
+      "id": 7,
+      "link_type_id": 7,
+      "source_object_id": 6,
+      "target_object_id": 7,
+      "weight": 1
+    }
+  ],
+  "actions": [],
+  "introspections": [],
+  "insights": []
+}

@@ -5,7 +5,7 @@
  * 实现 MECE 原则的信息架构
  */
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   X,
   Search,
@@ -34,9 +34,11 @@ import {
   Layers,
   Loader2
 } from 'lucide-react';
+import { PanelHeader, PageHeader, ActionButton, SearchInput } from '../ui/Workbench';
 
 // 子组件
 import { ReferenceCardsPanel } from './ReferenceCardsPanel';
+
 import { SqlTemplatesPanel } from './SqlTemplatesPanel';
 import { LearningPathPanel } from './LearningPathPanel';
 import { MySnippetsPanel } from './MySnippetsPanel';
@@ -47,6 +49,7 @@ import { DQLPanel } from './DQLPanel';
 import { FunctionsPanel } from './FunctionsPanel';
 import { DCLTCLPanel } from './DCLTCLPanel';
 import { OptimizationPanel } from './OptimizationPanel';
+import { AiCapabilitiesPanel } from '../Knowledge/AiCapabilitiesPanel';
 
 import { LibraryTab, ReferenceCard, SqlTemplate, LearningStage, CodeSnippet } from '../../types';
 import {
@@ -87,6 +90,7 @@ const TAB_CONFIG = [
 ];
 
 const TAB_COLORS: Record<string, { bg: string; border: string; text: string; gradient: string }> = {
+  'ai-capabilities': { bg: 'bg-monokai-amethyst/10', border: 'border-monokai-amethyst', text: 'text-monokai-amethyst', gradient: 'from-monokai-amethyst to-monokai-pink' },
   meta: { bg: 'bg-monokai-blue/10', border: 'border-monokai-blue', text: 'text-monokai-blue', gradient: 'from-monokai-blue to-monokai-accent' },
   ddl: { bg: 'bg-monokai-green/10', border: 'border-monokai-green', text: 'text-monokai-green', gradient: 'from-monokai-green to-monokai-green' },
   dml: { bg: 'bg-monokai-orange/10', border: 'border-monokai-orange', text: 'text-monokai-orange', gradient: 'from-monokai-orange to-monokai-yellow' },
@@ -97,6 +101,12 @@ const TAB_COLORS: Record<string, { bg: string; border: string; text: string; gra
 };
 
 const ZONE_DESCRIPTIONS: Record<LibraryTab, { title: string; description: string; scenarios: string[]; warnings: string[] }> = {
+  'ai-capabilities': {
+    title: 'AI 能力库 (Capability Hub)',
+    description: '统一定义与管理可复用的 AI 核心能力（SQL 生成、诊断修复、性能重构、结果集解读等）。',
+    scenarios: ['管理系统可复用 Prompt', '在编辑器中一键调用 AI 能力', '场景解耦与上下文绑定'],
+    warnings: ['由 Knowledge 集中管理能力，由业务模块（SQL 编辑器）提供实时上下文']
+  },
   meta: {
     title: '元知识区',
     description: 'SQL 基础概念总览：语言分类(DDL/DML/DQL/DCL/TCL)、OLTP 与 OLAP 引擎区别、查询逻辑执行顺序、数据类型体系、方言差异速查、SQL 标准演进。',
@@ -151,13 +161,34 @@ export const LibraryApp: React.FC<LibraryAppProps> = ({
   const [activeTab, setActiveTab] = useState<LibraryTab>('meta');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [showHelpPanel, setShowHelpPanel] = useState(false);
+  const helpTriggerRef = useRef<HTMLButtonElement>(null);
+  const helpPanelRef = useRef<HTMLDivElement>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [isAiLoading, setIsAiLoading] = useState(false);
 
   // 全局 App 状态
   const { currentTable, aiApiKey, addNotification } = useAppStore();
+
+  useEffect(() => {
+    if (!showHelpPanel) return;
+
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    helpPanelRef.current?.focus();
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      setShowHelpPanel(false);
+      window.setTimeout(() => helpTriggerRef.current?.focus(), 0);
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      if (previouslyFocused && document.contains(previouslyFocused)) previouslyFocused.focus();
+    };
+  }, [showHelpPanel]);
 
   // AI 一键填充逻辑
   const handleAiFill = useCallback(async () => {
@@ -398,72 +429,58 @@ export const LibraryApp: React.FC<LibraryAppProps> = ({
   };
 
   return (
-    <div className="flex h-full w-full overflow-hidden border border-monokai-accent rounded-xl bg-monokai-bg">
+    <div className="library-workbench flex h-full w-full overflow-hidden bg-monokai-bg">
       {/* 左侧边栏 - Tab 导航 */}
-      <div className="w-40 sm:w-48 md:w-56 flex-shrink-0 border-r border-monokai-accent flex flex-col bg-monokai-sidebar">
+      <div className="library-navigation w-40 sm:w-48 md:w-56 flex-shrink-0 flex flex-col bg-monokai-sidebar border-r border-monokai-border shadow-xs">
         {/* 头部 */}
-        <div className="p-3 border-b border-monokai-accent">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-monokai-blue to-monokai-accent flex items-center justify-center shadow-lg shadow-monokai-blue/25">
-                <Library className="w-4 h-4 text-white" />
-              </div>
-              <h2 className="text-base font-bold text-monokai-fg">
-                知识库
-              </h2>
-            </div>
+        {/* Left Sidebar Header */}
+        <PanelHeader
+          title="知识库体系 (Library)"
+          icon={Library}
+          actions={
             <button
               onClick={onClose}
-              className="p-1 rounded hover:bg-monokai-accent/20 text-monokai-comment hover:text-monokai-fg transition-colors"
+              className="p-1 rounded-md hover:bg-monokai-surface text-monokai-comment hover:text-monokai-fg transition-colors cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
-          </div>
+          }
+        />
 
-          {/* 全局搜索 */}
-          <div className="relative">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-monokai-comment" />
-            <input
-              type="text"
-              placeholder="搜索..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-8 pr-8 py-1.5 text-sm bg-monokai-bg border border-monokai-accent rounded-lg text-monokai-fg placeholder-monokai-comment focus:outline-none focus:border-monokai-blue"
-            />
-            {searchQuery && (
-              <button
-                onClick={handleQuickClear}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-monokai-accent/30 text-monokai-comment"
-                title="清除搜索"
-              >
-                <RotateCcw className="w-3 h-3" />
-              </button>
-            )}
-          </div>
+        {/* Global Search Bar */}
+        <div className="p-3 bg-monokai-surface/30 border-b border-monokai-border">
+          <SearchInput
+            value={searchQuery}
+            onChange={setSearchQuery}
+            onClear={handleQuickClear}
+            placeholder="搜索知识库内容..."
+            className="w-full"
+          />
         </div>
 
         {/* Tab 列表 */}
-        <div className="flex-1 overflow-y-auto p-2 space-y-1">
+        <div role="tablist" aria-label="知识库分类" className="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar">
           {TAB_CONFIG.map(tab => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
-            const colors = TAB_COLORS[tab.id];
 
             return (
               <button
                 key={tab.id}
+                role="tab"
+                aria-selected={isActive}
                 onClick={() => setActiveTab(tab.id)}
-                className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left transition-all ${
+                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-left transition-all cursor-pointer font-sans select-none ${
                   isActive
-                    ? `${colors.bg} border ${colors.border}`
-                    : 'hover:bg-monokai-accent/20'
+                    ? 'bg-monokai-elevated text-monokai-fg font-medium shadow-xs border-l-2 border-monokai-accent'
+                    : 'hover:bg-monokai-surface text-monokai-fg-muted hover:text-monokai-fg'
                 }`}
               >
-                <Icon className={`w-4 h-4 ${isActive ? colors.text : 'text-monokai-comment'}`} />
-                <span className={`text-sm ${isActive ? 'text-monokai-fg font-medium' : 'text-monokai-comment'}`}>
+                <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-monokai-accent' : 'text-monokai-comment'}`} />
+                <span className="text-xs font-medium tracking-tight">
                   {tab.label}
                 </span>
-                {isActive && <ChevronRight className="w-3 h-3 ml-auto text-monokai-comment" />}
+                {isActive && <ChevronRight className="w-3.5 h-3.5 ml-auto text-monokai-comment" />}
               </button>
             );
           })}
@@ -471,77 +488,62 @@ export const LibraryApp: React.FC<LibraryAppProps> = ({
       </div>
 
       {/* 中间内容区 */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="library-content flex-1 flex flex-col overflow-hidden bg-monokai-bg font-sans">
         {/* 内容区头部 */}
-        <div className="p-4 border-b border-monokai-accent flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            {currentTabConfig && (
-              <>
-                <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${currentColors.gradient} flex items-center justify-center`}>
-                  <currentTabConfig.icon className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold text-monokai-fg">{currentTabConfig.label}</h3>
-                  <p className="text-xs text-monokai-comment">
-                    {activeTab === 'meta' && 'SQL 基础概念总览'}
-                    {activeTab === 'ddl' && '数据定义语言'}
-                    {activeTab === 'dml' && '数据操纵语言'}
-                    {activeTab === 'dql' && '数据查询语言'}
-                    {activeTab === 'functions' && '内置函数大全'}
-                    {activeTab === 'dcl' && '权限与事务控制'}
-                    {activeTab === 'optimization' && '查询性能优化'}
-                  </p>
-                </div>
-              </>
-            )}
-          </div>
+        {currentTabConfig && (
+          <PageHeader
+            title={currentTabConfig.label}
+            description={
+              activeTab === 'meta' ? 'SQL 基础概念总览与执行原理' :
+              activeTab === 'ddl' ? '数据定义语言 (Data Definition Language)' :
+              activeTab === 'dml' ? '数据操纵语言 (Data Manipulation Language)' :
+              activeTab === 'dql' ? '数据查询语言 (Data Query Language)' :
+              activeTab === 'functions' ? 'DuckDB 内置函数大全与范式' :
+              activeTab === 'dcl' ? '权限、安全策略与事务控制 (DCL/TCL)' :
+              '查询执行计划优化与性能重构'
+            }
+            icon={currentTabConfig.icon}
+            actions={
+              <div className="flex items-center gap-2">
+                <button
+                  ref={helpTriggerRef}
+                  onClick={() => setShowHelpPanel(v => !v)}
+                  aria-haspopup="dialog"
+                  aria-expanded={showHelpPanel}
+                  className={`p-1.5 rounded-md transition-colors cursor-pointer ${
+                    showHelpPanel
+                      ? 'bg-monokai-elevated text-monokai-fg border border-monokai-border'
+                      : 'text-monokai-comment hover:text-monokai-fg hover:bg-monokai-surface'
+                  }`}
+                  title="背景说明与使用指南"
+                >
+                  <Info className="w-4 h-4" />
+                </button>
 
-          <div className="flex items-center gap-2">
-            {/* 帮助按钮 - 类似 MetricManager */}
-            <button
-              onClick={() => setShowHelpPanel(v => !v)}
-              className={`p-1.5 rounded transition-colors ${
-                showHelpPanel
-                  ? 'bg-monokai-yellow/20 text-monokai-yellow'
-                  : 'text-monokai-comment hover:text-monokai-yellow hover:bg-monokai-yellow/10'
-              }`}
-              title="背景说明与使用指南"
-            >
-              <Info className="w-4 h-4" />
-            </button>
-
-            {/* AI 一键填充按钮 */}
-            <button
-              onClick={handleAiFill}
-              disabled={isAiLoading}
-              className={`flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-monokai-amethyst to-monokai-pink rounded-lg text-white text-sm font-medium transition-all ${
-                isAiLoading ? 'opacity-50 cursor-not-allowed' : 'hover:scale-[1.02] hover:shadow-lg active:scale-95'
-              }`}
-              title={currentTable ? `为当前选中的表 "${currentTable}" 智能生成 SQL 模板` : '请先在侧边栏选择数据表'}
-            >
-              {isAiLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>生成中...</span>
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-4 h-4" />
-                  <span>AI 填充</span>
-                </>
-              )}
-            </button>
-          </div>
-        </div>
+                <ActionButton
+                  variant="primary"
+                  size="md"
+                  icon={isAiLoading ? Loader2 : Sparkles}
+                  onClick={handleAiFill}
+                  disabled={isAiLoading}
+                  title={currentTable ? `为当前选中的表 "${currentTable}" 智能生成 SQL 模板` : '请先在侧边栏选择数据表'}
+                >
+                  {isAiLoading ? '生成中...' : 'AI 填充'}
+                </ActionButton>
+              </div>
+            }
+          />
+        )}
 
         {/* 主内容区 */}
         <div className="flex-1 overflow-hidden">
           {isLoading ? (
             <div className="flex items-center justify-center h-full">
-              <div className="animate-spin w-8 h-8 border-2 border-monokai-blue border-t-transparent rounded-full" />
+              <div className="animate-spin w-8 h-8 border-2 border-monokai-border-strong border-t-transparent rounded-full" />
             </div>
           ) : (
             <>
+
               {activeTab === 'meta' && (
                 <MetaKnowledgePanel
                   onCopy={handleCopyToClipboard}
@@ -598,23 +600,30 @@ export const LibraryApp: React.FC<LibraryAppProps> = ({
 
       {/* 右侧信息面板 */}
       {showHelpPanel && (
-        <div className="w-52 sm:w-64 md:w-72 border-l border-monokai-accent bg-monokai-sidebar p-4 overflow-y-auto">
-          <h4 className="text-sm font-bold text-monokai-fg mb-3 flex items-center gap-2">
-            <Info className="w-4 h-4" />
+        <div
+          ref={helpPanelRef}
+          role="dialog"
+          aria-modal="true"
+          aria-label="背景说明与使用指南"
+          tabIndex={-1}
+          className="library-help-panel w-56 sm:w-64 md:w-72 border-l border-monokai-border bg-monokai-sidebar p-4 overflow-y-auto outline-none custom-scrollbar"
+        >
+          <h4 className="text-sm font-semibold text-monokai-fg mb-3 flex items-center gap-2">
+            <Info className="w-4 h-4 text-monokai-blue shrink-0" />
             {zoneInfo.title}
           </h4>
 
-          <p className="text-xs text-monokai-comment mb-4">
+          <p className="text-xs text-monokai-fg-muted mb-4 leading-relaxed">
             {zoneInfo.description}
           </p>
 
           <div className="mb-4">
             <h5 className="text-xs font-medium text-monokai-fg mb-2">典型使用场景</h5>
-            <ul className="space-y-1">
+            <ul className="space-y-1.5">
               {zoneInfo.scenarios.map((scenario, idx) => (
-                <li key={idx} className="text-xs text-monokai-comment flex items-start gap-1">
-                  <ChevronRight className="w-3 h-3 mt-0.5 text-monokai-green flex-shrink-0" />
-                  <span>{scenario}</span>
+                <li key={idx} className="text-xs text-monokai-comment flex items-start gap-1.5">
+                  <ChevronRight className="w-3.5 h-3.5 mt-0.5 text-monokai-green shrink-0" />
+                  <span className="leading-snug">{scenario}</span>
                 </li>
               ))}
             </ul>
@@ -622,118 +631,118 @@ export const LibraryApp: React.FC<LibraryAppProps> = ({
 
           <div>
             <h5 className="text-xs font-medium text-monokai-fg mb-2">使用提醒</h5>
-            <ul className="space-y-1">
+            <ul className="space-y-1.5">
               {zoneInfo.warnings.map((warning, idx) => (
-                <li key={idx} className="text-xs text-monokai-orange flex items-start gap-1">
-                  <span className="text-monokai-orange">⚠</span>
-                  <span>{warning}</span>
+                <li key={idx} className="text-xs text-monokai-orange flex items-start gap-1.5">
+                  <span className="text-monokai-orange font-bold">⚠</span>
+                  <span className="leading-snug">{warning}</span>
                 </li>
               ))}
             </ul>
           </div>
 
           {/* 快捷操作提示 */}
-          <div className="mt-4 p-3 bg-monokai-bg rounded-lg border border-monokai-accent">
-            <h5 className="text-xs font-medium text-monokai-fg mb-2 flex items-center gap-1">
-              <Sparkles className="w-3 h-3 text-monokai-blue" />
+          <div className="mt-4 p-3 bg-monokai-bg rounded-lg border border-monokai-border/60">
+            <h5 className="text-xs font-medium text-monokai-fg mb-2 flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-monokai-blue" />
               快捷操作
             </h5>
             <div className="space-y-1.5">
               <div className="flex items-center justify-between text-xs">
-                <span className="text-monokai-comment">AI 一键填充</span>
-                <kbd className="px-1.5 py-0.5 bg-monokai-sidebar rounded text-[10px] text-monokai-fg">点击按钮</kbd>
+                <span className="text-monokai-fg-muted">AI 一键填充</span>
+                <kbd className="px-1.5 py-0.5 bg-monokai-surface rounded border border-monokai-border/60 text-[10px] text-monokai-fg font-mono">点击按钮</kbd>
               </div>
               <div className="flex items-center justify-between text-xs">
-                <span className="text-monokai-comment">快速清除</span>
-                <kbd className="px-1.5 py-0.5 bg-monokai-sidebar rounded text-[10px] text-monokai-fg">清除按钮</kbd>
+                <span className="text-monokai-fg-muted">快速清除</span>
+                <kbd className="px-1.5 py-0.5 bg-monokai-surface rounded border border-monokai-border/60 text-[10px] text-monokai-fg font-mono">清除按钮</kbd>
               </div>
               <div className="flex items-center justify-between text-xs">
-                <span className="text-monokai-comment">复制内容</span>
-                <kbd className="px-1.5 py-0.5 bg-monokai-sidebar rounded text-[10px] text-monokai-fg">点击图标</kbd>
+                <span className="text-monokai-fg-muted">复制内容</span>
+                <kbd className="px-1.5 py-0.5 bg-monokai-surface rounded border border-monokai-border/60 text-[10px] text-monokai-fg font-mono">点击图标</kbd>
               </div>
               <div className="flex items-center justify-between text-xs">
-                <span className="text-monokai-comment">插入编辑器</span>
-                <kbd className="px-1.5 py-0.5 bg-monokai-sidebar rounded text-[10px] text-monokai-fg">点击插入</kbd>
+                <span className="text-monokai-fg-muted">插入编辑器</span>
+                <kbd className="px-1.5 py-0.5 bg-monokai-surface rounded border border-monokai-border/60 text-[10px] text-monokai-fg font-mono">点击插入</kbd>
               </div>
             </div>
           </div>
 
           {/* 与 AI 二次优化提示 */}
-          <div className="mt-4 p-3 bg-monokai-amethyst/10 rounded-lg border border-monokai-amethyst/30">
+          <div className="mt-3.5 p-3 bg-monokai-surface/60 rounded-lg border border-monokai-border/60">
             <div className="flex items-center gap-2 mb-2">
               <Sparkles className="w-4 h-4 text-monokai-amethyst" />
               <span className="text-xs font-medium text-monokai-amethyst">与 AI 协作</span>
             </div>
-            <p className="text-xs text-monokai-comment mb-3">
+            <p className="text-xs text-monokai-comment mb-3 leading-relaxed">
               基于此模块说明，让 AI 为你定制更贴合业务的内容。
             </p>
             {/* 各面板的具体提示 */}
             {activeTab === 'meta' && (
               <div className="space-y-2">
-                <p className="text-xs text-monokai-fg bg-monokai-bg p-2 rounded">
+                <p className="text-xs text-monokai-fg-muted bg-monokai-bg p-2 rounded-md border border-monokai-border/40 hover:text-monokai-fg hover:border-monokai-border transition-colors">
                   💡 「解释 OLTP 和 OLAP 的区别，以及如何选择数据库引擎」
                 </p>
-                <p className="text-xs text-monokai-fg bg-monokai-bg p-2 rounded">
+                <p className="text-xs text-monokai-fg-muted bg-monokai-bg p-2 rounded-md border border-monokai-border/40 hover:text-monokai-fg hover:border-monokai-border transition-colors">
                   💡 「详细说明 SQL 查询的逻辑执行顺序及其影响」
                 </p>
               </div>
             )}
             {activeTab === 'ddl' && (
               <div className="space-y-2">
-                <p className="text-xs text-monokai-fg bg-monokai-bg p-2 rounded">
+                <p className="text-xs text-monokai-fg-muted bg-monokai-bg p-2 rounded-md border border-monokai-border/40 hover:text-monokai-fg hover:border-monokai-border transition-colors">
                   💡 「帮我生成一个创建用户表的 DDL，包含常见约束」
                 </p>
-                <p className="text-xs text-monokai-fg bg-monokai-bg p-2 rounded">
+                <p className="text-xs text-monokai-fg-muted bg-monokai-bg p-2 rounded-md border border-monokai-border/40 hover:text-monokai-fg hover:border-monokai-border transition-colors">
                   💡 「解释物化视图和普通视图的区别及适用场景」
                 </p>
               </div>
             )}
             {activeTab === 'dml' && (
               <div className="space-y-2">
-                <p className="text-xs text-monokai-fg bg-monokai-bg p-2 rounded">
+                <p className="text-xs text-monokai-fg-muted bg-monokai-bg p-2 rounded-md border border-monokai-border/40 hover:text-monokai-fg hover:border-monokai-border transition-colors">
                   💡 「帮我写一个 MERGE 语句实现upsert功能」
                 </p>
-                <p className="text-xs text-monokai-fg bg-monokai-bg p-2 rounded">
+                <p className="text-xs text-monokai-fg-muted bg-monokai-bg p-2 rounded-md border border-monokai-border/40 hover:text-monokai-fg hover:border-monokai-border transition-colors">
                   💡 「比较 DELETE、TRUNCATE、DROP 的区别」
                 </p>
               </div>
             )}
             {activeTab === 'dql' && (
               <div className="space-y-2">
-                <p className="text-xs text-monokai-fg bg-monokai-bg p-2 rounded">
+                <p className="text-xs text-monokai-fg-muted bg-monokai-bg p-2 rounded-md border border-monokai-border/40 hover:text-monokai-fg hover:border-monokai-border transition-colors">
                   💡 「帮我写一个获取每个部门工资最高员工的查询」
                 </p>
-                <p className="text-xs text-monokai-fg bg-monokai-bg p-2 rounded">
+                <p className="text-xs text-monokai-fg-muted bg-monokai-bg p-2 rounded-md border border-monokai-border/40 hover:text-monokai-fg hover:border-monokai-border transition-colors">
                   💡 「解释窗口函数和聚合函数的区别」
                 </p>
               </div>
             )}
             {activeTab === 'functions' && (
               <div className="space-y-2">
-                <p className="text-xs text-monokai-fg bg-monokai-bg p-2 rounded">
+                <p className="text-xs text-monokai-fg-muted bg-monokai-bg p-2 rounded-md border border-monokai-border/40 hover:text-monokai-fg hover:border-monokai-border transition-colors">
                   💡 「各数据库的日期函数有什么区别？」
                 </p>
-                <p className="text-xs text-monokai-fg bg-monokai-bg p-2 rounded">
+                <p className="text-xs text-monokai-fg-muted bg-monokai-bg p-2 rounded-md border border-monokai-border/40 hover:text-monokai-fg hover:border-monokai-border transition-colors">
                   💡 「帮我写一个解析 JSON 字段的 SQL」
                 </p>
               </div>
             )}
             {activeTab === 'dcl' && (
               <div className="space-y-2">
-                <p className="text-xs text-monokai-fg bg-monokai-bg p-2 rounded">
+                <p className="text-xs text-monokai-fg-muted bg-monokai-bg p-2 rounded-md border border-monokai-border/40 hover:text-monokai-fg hover:border-monokai-border transition-colors">
                   💡 「解释事务的 ACID 特性」
                 </p>
-                <p className="text-xs text-monokai-fg bg-monokai-bg p-2 rounded">
+                <p className="text-xs text-monokai-fg-muted bg-monokai-bg p-2 rounded-md border border-monokai-border/40 hover:text-monokai-fg hover:border-monokai-border transition-colors">
                   💡 「说明不同隔离级别解决的问题」
                 </p>
               </div>
             )}
             {activeTab === 'optimization' && (
               <div className="space-y-2">
-                <p className="text-xs text-monokai-fg bg-monokai-bg p-2 rounded">
+                <p className="text-xs text-monokai-fg-muted bg-monokai-bg p-2 rounded-md border border-monokai-border/40 hover:text-monokai-fg hover:border-monokai-border transition-colors">
                   💡 「帮我分析一个慢查询并给出优化建议」
                 </p>
-                <p className="text-xs text-monokai-fg bg-monokai-bg p-2 rounded">
+                <p className="text-xs text-monokai-fg-muted bg-monokai-bg p-2 rounded-md border border-monokai-border/40 hover:text-monokai-fg hover:border-monokai-border transition-colors">
                   💡 「解释复合索引的最左前缀原则」
                 </p>
               </div>

@@ -8,6 +8,7 @@
 
 import React, { useState, useEffect } from 'react';
 import type { GraphNode } from './D3GraphView/D3GraphView.types';
+import { toastService } from '../../services/toastService';
 
 // ── Shared Styles ────────────────────────────────────────────────────────────
 
@@ -82,10 +83,10 @@ export const CreateNodeModal: React.FC<CreateNodeModalProps> = ({
   }, [visible, objectTypes, objectTypeId]);
 
   const handleSubmit = async () => {
-    if (!name.trim()) { alert('请输入节点名称'); return; }
-    if (group === 'instance' && !objectTypeId) { alert('请先选择一个对象类型'); return; }
+    if (!name.trim()) { toastService.warning('请输入节点名称'); return; }
+    if (group === 'instance' && !objectTypeId) { toastService.warning('请先选择一个对象类型'); return; }
     if (group === 'instance') {
-      try { JSON.parse(props); } catch { alert('附加属性必须是有效的 JSON 字符串'); return; }
+      try { JSON.parse(props); } catch { toastService.error('附加属性必须是有效的 JSON 字符串'); return; }
     }
     setSaving(true);
     try {
@@ -236,8 +237,8 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({
         </h3>
 
         <div style={{ fontSize: 12, marginBottom: 16, background: 'rgba(0,0,0,0.2)', padding: 10, borderRadius: 6, border: '1px solid rgba(255,255,255,0.05)' }}>
-          <div>源实体: <strong style={{ color: '#ae81ff' }}>{linkNodes.source.label}</strong></div>
-          <div style={{ marginTop: 4 }}>目标实体: <strong style={{ color: '#66d9ef' }}>{linkNodes.target.label}</strong></div>
+          <div>源实体: <strong style={{ color: '#66d9ef' }}>{linkNodes.source.label}</strong></div>
+          <div style={{ marginTop: 4 }}>目标实体: <strong style={{ color: '#a6e22e' }}>{linkNodes.target.label}</strong></div>
         </div>
 
         <div style={{ marginBottom: 14 }}>
@@ -316,8 +317,8 @@ export const EditNodeModal: React.FC<EditNodeModalProps> = ({
 
   const handleSubmit = async () => {
     if (!node) return;
-    if (!name.trim()) { alert('请输入节点名称'); return; }
-    try { JSON.parse(props); } catch { alert('属性必须是有效的 JSON 字符串'); return; }
+    if (!name.trim()) { toastService.warning('请输入节点名称'); return; }
+    try { JSON.parse(props); } catch { toastService.error('属性必须是有效的 JSON 字符串'); return; }
     setSaving(true);
     try {
       await onSave({ node, name, props });
@@ -331,7 +332,7 @@ export const EditNodeModal: React.FC<EditNodeModalProps> = ({
   return (
     <div style={MODAL_OVERLAY}>
       <div style={{ ...MODAL_BOX, width: 400 }}>
-        <h3 style={{ margin: '0 0 16px 0', fontSize: 15, fontWeight: 'bold', color: '#ae81ff' }}>
+        <h3 style={{ margin: '0 0 16px 0', fontSize: 15, fontWeight: 'bold', color: '#66d9ef' }}>
           ✏️ 修改实体属性
         </h3>
 
@@ -354,9 +355,9 @@ export const EditNodeModal: React.FC<EditNodeModalProps> = ({
             取消
           </button>
           <button onClick={handleSubmit} disabled={saving}
-            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(174,129,255,0.25)')}
-            onMouseLeave={e => (e.currentTarget.style.background = 'rgba(174,129,255,0.15)')}
-            style={{ ...BTN_PRIMARY_BASE, background: 'rgba(174,129,255,0.15)', border: '1px solid rgba(174,129,255,0.3)', color: '#ae81ff', opacity: saving ? 0.6 : 1 }}>
+            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(102,217,239,0.25)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'rgba(102,217,239,0.15)')}
+            style={{ ...BTN_PRIMARY_BASE, background: 'rgba(102,217,239,0.15)', border: '1px solid rgba(102,217,239,0.3)', color: '#66d9ef', opacity: saving ? 0.6 : 1 }}>
             {saving ? '保存中...' : '保存修改'}
           </button>
         </div>

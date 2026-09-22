@@ -189,33 +189,33 @@ export const MetaKnowledgePanel: React.FC<MetaKnowledgePanelProps> = ({
   };
 
   return (
-    <div className="h-full overflow-y-auto p-4">
+    <div className="h-full overflow-y-auto p-4 custom-scrollbar">
       {/* 一键展开/折叠按钮 */}
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-3.5 flex items-center justify-between">
         <span className="text-xs text-monokai-comment">
           共 {META_KNOWLEDGE_DATA.length} 个知识点
         </span>
         <button
           onClick={toggleAll}
-          className="px-3 py-1.5 text-xs rounded bg-monokai-accent/20 text-monokai-accent hover:bg-monokai-accent/30 transition-colors"
+          className="px-2.5 py-1 text-xs rounded-md border border-monokai-border/80 bg-monokai-surface text-monokai-fg-muted hover:text-monokai-fg hover:border-monokai-border transition-colors cursor-pointer"
         >
           {allExpanded ? '全部折叠' : '全部展开'}
         </button>
       </div>
-      <div className="space-y-4">
+      <div className="space-y-3">
         {META_KNOWLEDGE_DATA.map((item) => (
           <div
             key={item.id}
-            className="bg-monokai-sidebar border border-monokai-accent rounded-lg overflow-hidden"
+            className="rounded-lg border border-monokai-border/60 bg-monokai-surface/90 overflow-hidden shadow-xs transition-colors"
           >
             <div 
-              className="px-4 py-3 bg-monokai-bg border-b border-monokai-accent flex items-center justify-between cursor-pointer hover:bg-monokai-accent/10"
+              className="px-3.5 py-2.5 bg-monokai-sidebar/70 border-b border-monokai-border/40 flex items-center justify-between cursor-pointer hover:bg-monokai-sidebar transition-colors"
               onClick={() => toggleExpand(item.id)}
             >
               <div className="flex items-center gap-2">
-                <BookOpen className="w-4 h-4 text-monokai-blue" />
-                <span className="font-medium text-monokai-fg">{item.title}</span>
-                <span className="text-xs px-2 py-0.5 rounded bg-monokai-blue/20 text-monokai-blue">
+                <BookOpen className="w-4 h-4 text-monokai-cyan shrink-0" />
+                <span className="font-medium text-xs text-monokai-fg">{item.title}</span>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded border border-monokai-cyan/30 bg-monokai-cyan/10 text-monokai-cyan font-medium">
                   {item.category}
                 </span>
               </div>
@@ -228,13 +228,13 @@ export const MetaKnowledgePanel: React.FC<MetaKnowledgePanelProps> = ({
               </div>
             </div>
             {expandedItems.has(item.id) && (
-              <div className="p-4">
-                <div className="markdown-body" style={{ fontSize: '12px' }}>
+              <div className="p-3.5 bg-monokai-bg">
+                <div className="markdown-body text-xs text-monokai-fg-muted leading-relaxed">
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>
                     {item.content}
                   </ReactMarkdown>
                 </div>
-                <div className="flex items-center gap-1 mt-3 pt-3 border-t border-monokai-accent">
+                <div className="flex items-center justify-end gap-2 mt-3 pt-3 border-t border-monokai-border/40">
                   {/* 插入编辑器按钮 */}
                   {onInsert && (
                     <button
@@ -242,10 +242,11 @@ export const MetaKnowledgePanel: React.FC<MetaKnowledgePanelProps> = ({
                         e.stopPropagation();
                         onInsert(item.syntax || '');
                       }}
-                      className="p-1.5 rounded hover:bg-monokai-blue/30 text-monokai-comment hover:text-monokai-blue transition-colors"
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-md border border-monokai-border/60 bg-monokai-surface text-monokai-fg-muted hover:text-monokai-cyan hover:border-monokai-cyan/40 transition-colors cursor-pointer"
                       title="插入到 SQL 编辑器"
                     >
-                      <ArrowRight className="w-4 h-4" />
+                      <ArrowRight className="w-3.5 h-3.5" />
+                      <span>带入 SQL</span>
                     </button>
                   )}
                   <button
@@ -253,18 +254,24 @@ export const MetaKnowledgePanel: React.FC<MetaKnowledgePanelProps> = ({
                       e.stopPropagation();
                       onCopy?.(item.id, item.content);
                     }}
-                    className="p-1.5 rounded hover:bg-monokai-accent/30 text-monokai-comment hover:text-monokai-fg transition-colors"
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-md border border-monokai-border/60 bg-monokai-surface text-monokai-fg-muted hover:text-monokai-fg hover:border-monokai-border transition-colors cursor-pointer"
                     title="复制内容"
                   >
                     {copiedId === item.id ? (
-                      <Check className="w-4 h-4 text-monokai-green" />
+                      <>
+                        <Check className="w-3.5 h-3.5 text-monokai-green" />
+                        <span className="text-monokai-green font-medium">已复制</span>
+                      </>
                     ) : (
-                      <Copy className="w-4 h-4" />
+                      <>
+                        <Copy className="w-3.5 h-3.5" />
+                        <span>复制</span>
+                      </>
                     )}
                   </button>
                 </div>
                 {item.syntax && (
-                  <div className="mt-3 pt-3 border-t border-monokai-accent">
+                  <div className="mt-3 pt-3 border-t border-monokai-border/40">
                     <SqlCodeBlock code={item.syntax} />
                   </div>
                 )}

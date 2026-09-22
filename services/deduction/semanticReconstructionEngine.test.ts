@@ -317,4 +317,187 @@ describe('semanticReconstructionEngine public seam', () => {
 
     await expect(reconstructSemantics(neutralRequest, client)).rejects.toBeInstanceOf(DeductionValidationError);
   });
+
+  it('validates semiconductor domain with English fields and relations without regex hardcoding', async () => {
+    const semiRequest: DeductionRequest = {
+      input: 'Wafer_ID W99 defectDensity > 0.05 depends on Etch_Process P12.',
+      externalMappingRequested: false,
+      sources: [],
+    };
+    const semiResult = {
+      version: 1,
+      input: semiRequest.input,
+      features: [
+        { id: 'F1', kind: 'entity', statement: 'Wafer_ID W99', classification: 'fact', certainty: 'confirmed', entity: 'Wafer_ID', evidence: [{ quote: 'Wafer_ID W99' }] },
+        { id: 'F2', kind: 'condition', statement: 'defectDensity > 0.05', classification: 'fact', certainty: 'confirmed', attribute: 'defectDensity', condition: '>', value: '0.05', evidence: [{ quote: 'defectDensity > 0.05' }] },
+        { id: 'F3', kind: 'entity', statement: 'Etch_Process P12', classification: 'fact', certainty: 'confirmed', entity: 'Etch_Process', evidence: [{ quote: 'Etch_Process P12' }] },
+      ],
+      relations: [
+        { id: 'R1', fromFeatureIds: ['F1'], toFeatureIds: ['F3'], type: 'dependency', statement: 'Wafer_ID depends on Etch_Process P12', certainty: 'confirmed', evidence: [{ quote: 'depends on Etch_Process P12' }] },
+      ],
+      contexts: [],
+      structure: { id: 'N1', type: 'relation', label: 'depends on', relationId: 'R1', children: [] },
+      coreMeaning: { text: semiRequest.input, supportingFeatureIds: ['F1', 'F2', 'F3'], supportingRelationIds: ['R1'] },
+      punchline: { text: 'Wafer defect density depends on etch process.', supportingFeatureIds: ['F1', 'F2', 'F3'], supportingRelationIds: ['R1'] },
+      externalMappings: [],
+    };
+    const client = clientFrom(semiResult, semiResult);
+    const result = await reconstructSemantics(semiRequest, client);
+
+    expect(result.relations[0].certainty).toBe('confirmed');
+    expect(result.validation.status).toBe('valid');
+  });
+
+  it('validates astrophysics domain with unfamiliar orbit relation without regex hardcoding', async () => {
+    const astroRequest: DeductionRequest = {
+      input: 'Exoplanet HD189733b orbits_around HostStar HD189733 with period 2.2 days.',
+      externalMappingRequested: false,
+      sources: [],
+    };
+    const astroResult = {
+      version: 1,
+      input: astroRequest.input,
+      features: [
+        { id: 'F1', kind: 'entity', statement: 'Exoplanet HD189733b', classification: 'fact', certainty: 'confirmed', entity: 'Exoplanet', evidence: [{ quote: 'Exoplanet HD189733b' }] },
+        { id: 'F2', kind: 'entity', statement: 'HostStar HD189733', classification: 'fact', certainty: 'confirmed', entity: 'HostStar', evidence: [{ quote: 'HostStar HD189733' }] },
+      ],
+      relations: [
+        { id: 'R1', fromFeatureIds: ['F1'], toFeatureIds: ['F2'], type: 'association', statement: 'orbits_around HostStar HD189733', certainty: 'confirmed', evidence: [{ quote: 'orbits_around HostStar HD189733' }] },
+      ],
+      contexts: [],
+      structure: { id: 'N1', type: 'relation', label: 'orbits_around', relationId: 'R1', children: [] },
+      coreMeaning: { text: 'Exoplanet HD189733b orbits_around HostStar HD189733.', supportingFeatureIds: ['F1', 'F2'], supportingRelationIds: ['R1'] },
+      punchline: { text: 'Exoplanet HD189733b orbits_around HostStar HD189733.', supportingFeatureIds: ['F1', 'F2'], supportingRelationIds: ['R1'] },
+      externalMappings: [],
+    };
+    const client = clientFrom(astroResult, astroResult);
+    const result = await reconstructSemantics(astroRequest, client);
+
+    expect(result.relations[0].certainty).toBe('confirmed');
+    expect(result.validation.status).toBe('valid');
+  });
+
+  it('successfully recovers and validates candidate when structure has condition type and coreMeaning/punchline contain natural Chinese reasoning words', async () => {
+    const aiCandidate = {
+      version: 1,
+      input: request.input,
+      features: [
+        { id: 'F1', kind: 'entity', statement: '对象是客户', classification: 'fact', certainty: 'confirmed', entity: '客户', evidence: [{ quote: '客户' }] },
+        { id: 'F2', kind: 'space', statement: '客户位于中国', classification: 'fact', certainty: 'confirmed', entity: '客户', value: '中国', evidence: [{ quote: '客户在中国' }] },
+        { id: 'F3', kind: 'condition', statement: '年龄大于等于18岁', classification: 'fact', certainty: 'confirmed', attribute: '年龄', value: '18岁', condition: '>=', evidence: [{ quote: '年龄大于等于18岁' }] },
+        { id: 'F4', kind: 'condition', statement: '状态为已验证', classification: 'fact', certainty: 'confirmed', attribute: '状态', value: '已验证', condition: '=', evidence: [{ quote: '状态为已验证' }] },
+        { id: 'F5', kind: 'result', statement: '可以注册', classification: 'judgment', certainty: 'confirmed', action: '注册', evidence: [{ quote: '可以注册' }] },
+      ],
+      relations: [
+        { id: 'R1', fromFeatureIds: ['F3', 'F4'], toFeatureIds: ['F5'], type: 'condition', operator: 'IF_THEN', statement: '年龄和验证状态共同构成注册条件', certainty: 'confirmed', evidence: [{ quote: '年龄大于等于18岁且状态为已验证，则可以注册' }] },
+      ],
+      contexts: [
+        { id: 'C1', label: '客户在中国', featureIds: ['F3', 'F4', 'F5'], evidence: [{ quote: '客户在中国' }] },
+      ],
+      // Structure with "condition" type, missing child id, and operator "IF_THEN"
+      structure: {
+        id: 'N1', type: 'condition', label: '条件分支', operator: 'IF_THEN', children: [
+          { type: 'operator', label: 'AND', operator: 'AND', children: [
+            { type: 'feature', label: '年龄大于等于18岁', featureId: 'F3', children: [] },
+            { type: 'feature', label: '状态为已验证', featureId: 'F4', children: [] },
+          ] },
+          { type: 'feature', label: '可以注册', featureId: 'F5', children: [] },
+        ],
+      },
+      // coreMeaning with natural Chinese summary
+      coreMeaning: {
+        text: '根据规则，中国客户在年龄大于等于18岁并且验证状态成立时，即可完成注册。',
+        supportingFeatureIds: ['F2', 'F3', 'F4', 'F5'],
+        supportingRelationIds: ['R1'],
+      },
+      // punchline with natural Chinese reasoning explanation
+      punchline: {
+        text: '由年龄与状态两个前提条件同时满足，因此最终符合注册要求。',
+        supportingFeatureIds: ['F3', 'F4', 'F5'],
+        supportingRelationIds: ['R1'],
+      },
+      externalMappings: [],
+    };
+
+    const client = clientFrom(aiCandidate, aiCandidate);
+    const result = await reconstructSemantics(request, client);
+
+    expect(result).toBeDefined();
+    expect(result.structure.type).toBe('conditional');
+    expect(result.structure.children[0].children[0].id).toBeDefined();
+    expect(result.coreMeaning.text).toContain('注册');
+    expect(result.punchline.text).toContain('注册');
+    expect(result.features).toHaveLength(5);
+  });
+
+  it('normalizes array-based structure and missing structure without failing closed', async () => {
+    const arrayStructureCandidate = structuredClone(validResult);
+    // structure as array of nodes instead of single root object
+    (arrayStructureCandidate as Record<string, unknown>).structure = [
+      { id: 'N1', type: 'feature', label: '年龄条件', featureId: 'F3', children: [] },
+      { id: 'N2', type: 'feature', label: '验证条件', featureId: 'F4', children: [] },
+    ];
+
+    const client = clientFrom(arrayStructureCandidate, arrayStructureCandidate);
+    const result = await reconstructSemantics(request, client);
+
+    expect(result.structure.type).toBe('operator');
+    expect(result.structure.children).toHaveLength(2);
+  });
+
+  it('handles Chinese classification like "事实" and "判断" and uppercase without failing evidence validation', async () => {
+    const chineseClassCandidate = structuredClone(validResult);
+    (chineseClassCandidate.features[1] as Record<string, unknown>).classification = '事实';
+    (chineseClassCandidate.features[4] as Record<string, unknown>).classification = '判断';
+
+    const client = clientFrom(chineseClassCandidate, chineseClassCandidate);
+    const result = await reconstructSemantics(request, client);
+
+    expect(result.features[1].classification).toBe('fact');
+    expect(result.features[4].classification).toBe('judgment');
+    expect(result.validation.status).toBe('valid');
+  });
+
+  it('infers missing feature classification gracefully without throwing "未区分事实与判断"', async () => {
+    const missingClassCandidate = structuredClone(validResult);
+    delete (missingClassCandidate.features[1] as Record<string, unknown>).classification;
+    delete (missingClassCandidate.features[4] as Record<string, unknown>).classification;
+
+    const client = clientFrom(missingClassCandidate, missingClassCandidate);
+    const result = await reconstructSemantics(request, client);
+
+    expect(result.features[1].classification).toBe('fact');
+    expect(result.features[4].classification).toBe('judgment');
+    expect(result.validation.status).toBe('valid');
+  });
+
+  it('resolves relation endpoints with field aliases, lowercase IDs, and single string format without "引用不存在的特征"', async () => {
+    const aliasCandidate = structuredClone(validResult);
+    (aliasCandidate.relations[0] as Record<string, unknown>).from = 'f3';
+    delete (aliasCandidate.relations[0] as Record<string, unknown>).fromFeatureIds;
+    (aliasCandidate.relations[0] as Record<string, unknown>).to = ['f5'];
+    delete (aliasCandidate.relations[0] as Record<string, unknown>).toFeatureIds;
+
+    const client = clientFrom(aliasCandidate, aliasCandidate);
+    const result = await reconstructSemantics(request, client);
+
+    expect(result.relations[0].fromFeatureIds).toEqual(['F3']);
+    expect(result.relations[0].toFeatureIds).toEqual(['F5']);
+  });
+
+  it('auto-heals dangling relation references after repair without failing closed when evidence is grounded', async () => {
+    const danglingCandidate = structuredClone(validResult);
+    danglingCandidate.relations[0].toFeatureIds = ['F404'];
+
+    // client returns draft, audited (with F404), and repaired (still with F404)
+    const client = clientFrom(danglingCandidate, danglingCandidate, danglingCandidate);
+    const result = await reconstructSemantics(request, client);
+
+    expect(result).toBeDefined();
+    expect(result.relations[0].toFeatureIds.length).toBeGreaterThan(0);
+    expect(result.validation.status).toBe('valid_with_uncertainty');
+    expect(result.validation.issues).toEqual(expect.arrayContaining([expect.stringContaining('自动校准')]));
+  });
 });
+
+

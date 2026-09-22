@@ -50,12 +50,12 @@ export const TableList: React.FC<TableListProps> = ({ onInsert }) => {
             placeholder="搜索模板..."
             value={filters.searchQuery}
             onChange={(e) => updateFilters({ searchQuery: e.target.value })}
-            className="w-full pl-8 pr-8 py-2 text-sm bg-monokai-surface border border-monokai-border rounded-lg text-monokai-fg placeholder-monokai-fg-muted/60 focus:outline-none focus:border-monokai-amethyst transition-colors"
+            className="w-full pl-8 pr-8 py-2 text-sm bg-monokai-surface border border-monokai-border rounded-lg text-monokai-fg placeholder-monokai-fg-muted/60 focus:outline-none focus:border-monokai-accent transition-colors"
           />
           {filters.searchQuery && (
             <button
               onClick={() => updateFilters({ searchQuery: '' })}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded text-monokai-fg-muted hover:text-monokai-fg"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-monokai-fg-muted hover:text-monokai-fg"
             >
               <X className="w-3 h-3" />
             </button>
@@ -64,9 +64,9 @@ export const TableList: React.FC<TableListProps> = ({ onInsert }) => {
 
         <button
           onClick={() => openAddForm()}
-          className="w-full flex items-center justify-center gap-1.5 py-2 text-sm font-medium bg-gradient-to-r from-monokai-amethyst/20 to-monokai-blue/20 text-monokai-amethyst border border-monokai-amethyst/30 rounded-lg hover:from-monokai-amethyst/30 hover:to-monokai-blue/30 transition-all"
+          className="w-full flex items-center justify-center gap-1.5 py-2 text-sm font-medium bg-monokai-surface hover:bg-monokai-sidebar text-monokai-fg border border-monokai-border rounded-lg transition-colors cursor-pointer shadow-xs"
         >
-          <Plus className="w-4 h-4" />
+          <Plus className="w-4 h-4 text-monokai-accent" />
           新增模板
         </button>
       </div>
@@ -78,7 +78,7 @@ export const TableList: React.FC<TableListProps> = ({ onInsert }) => {
           <div className="flex items-center justify-between mb-1">
             <span className="text-[10px] font-semibold text-monokai-fg-muted uppercase tracking-wider">领域</span>
             {(filters.domain !== 'all' || filters.isFavorite) && (
-              <button onClick={resetFilters} className="text-[10px] text-monokai-amethyst hover:underline">
+              <button onClick={resetFilters} className="text-[10px] text-monokai-accent hover:underline cursor-pointer">
                 重置
               </button>
             )}
@@ -86,10 +86,10 @@ export const TableList: React.FC<TableListProps> = ({ onInsert }) => {
           <div className="flex flex-wrap gap-1">
             <button
               onClick={() => updateFilters({ domain: 'all', isFavorite: false })}
-              className={`px-2 py-0.5 text-[10px] rounded-full transition-colors ${
+              className={`px-2 py-0.5 text-[10px] rounded-full transition-colors cursor-pointer ${
                 filters.domain === 'all' && !filters.isFavorite
-                  ? 'bg-monokai-amethyst/20 text-monokai-amethyst border border-monokai-amethyst/40'
-                  : 'bg-monokai-surface text-monokai-fg-muted border border-monokai-border hover:border-monokai-fg-muted'
+                  ? 'bg-monokai-surface text-monokai-accent border border-monokai-border font-medium shadow-xs'
+                  : 'bg-monokai-surface/60 text-monokai-fg-muted border border-monokai-border hover:text-monokai-fg'
               }`}
             >
               全部
@@ -98,10 +98,10 @@ export const TableList: React.FC<TableListProps> = ({ onInsert }) => {
               <button
                 key={d}
                 onClick={() => updateFilters({ domain: d, isFavorite: false })}
-                className={`px-2 py-0.5 text-[10px] rounded-full transition-colors ${
+                className={`px-2 py-0.5 text-[10px] rounded-full transition-colors cursor-pointer ${
                   filters.domain === d
-                    ? 'bg-monokai-amethyst/20 text-monokai-amethyst border border-monokai-amethyst/40'
-                    : 'bg-monokai-surface text-monokai-fg-muted border border-monokai-border hover:border-monokai-fg-muted'
+                    ? 'bg-monokai-surface text-monokai-accent border border-monokai-border font-medium shadow-xs'
+                    : 'bg-monokai-surface/60 text-monokai-fg-muted border border-monokai-border hover:text-monokai-fg'
                 }`}
               >
                 {d}
@@ -109,10 +109,10 @@ export const TableList: React.FC<TableListProps> = ({ onInsert }) => {
             ))}
             <button
               onClick={() => updateFilters({ domain: 'all', isFavorite: true })}
-              className={`flex items-center gap-0.5 px-2 py-0.5 text-[10px] rounded-full transition-colors ${
+              className={`flex items-center gap-0.5 px-2 py-0.5 text-[10px] rounded-full transition-colors cursor-pointer ${
                 filters.isFavorite
-                  ? 'bg-monokai-yellow/20 text-monokai-yellow border border-monokai-yellow/40'
-                  : 'bg-monokai-surface text-monokai-fg-muted border border-monokai-border hover:border-monokai-fg-muted'
+                  ? 'bg-monokai-surface text-amber-400 border border-monokai-border font-medium shadow-xs'
+                  : 'bg-monokai-surface/60 text-monokai-fg-muted border border-monokai-border hover:text-monokai-fg'
               }`}
             >
               <Star className="w-2.5 h-2.5 fill-current" />
@@ -127,10 +127,10 @@ export const TableList: React.FC<TableListProps> = ({ onInsert }) => {
           <div className="flex flex-wrap gap-1">
             <button
               onClick={() => updateFilters({ operation: 'all' })}
-              className={`px-2 py-0.5 text-[10px] rounded-full transition-colors ${
+              className={`px-2 py-0.5 text-[10px] rounded-full transition-colors cursor-pointer ${
                 filters.operation === 'all'
-                  ? 'bg-monokai-amethyst/20 text-monokai-amethyst border border-monokai-amethyst/40'
-                  : 'bg-monokai-surface text-monokai-fg-muted border border-monokai-border hover:border-monokai-fg-muted'
+                  ? 'bg-monokai-surface text-monokai-accent border border-monokai-border font-medium shadow-xs'
+                  : 'bg-monokai-surface/60 text-monokai-fg-muted border border-monokai-border hover:text-monokai-fg'
               }`}
             >
               全部

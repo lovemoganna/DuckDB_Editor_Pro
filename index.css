@@ -1,8 +1,169 @@
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ============================================================
+   GLOBAL DESIGN SYSTEM FIXES
+   修复模块间设计脱节问题
+   ============================================================ */
+
+/* SVG 元素默认不拦截点击事件 - 防止图标遮挡按钮 */
+svg,
+[data-svg-icon] {
+  pointer-events: none;
+}
+
+/* 确保交互性元素不被子元素遮挡（排除 React Flow 节点，其必须保持 absolute） */
+button,
+[role="button"]:not(.react-flow__node),
+[role="tab"],
+[role="menuitem"],
+a,
+select,
+input[type="checkbox"],
+input[type="radio"] {
+  position: relative;
+  z-index: 1;
+}
+
+/* Z-Index 层级规范 - 确保模态框等覆盖所有内容 */
+.modal-backdrop { z-index: 9998; }
+.modal-content { z-index: 9999; }
+.toast-container { z-index: 10000; }
+
+/* ============================================================
+   ONTOLOGY STUDIO EDGE ANIMATIONS
+   - 全部基数常驻慢速 dash 流，强化"连线存在"的视觉感知
+   - N:M / 多跳路径高亮态使用更快的节奏
+   ============================================================ */
+@keyframes ontology-edge-dash-flow-slow {
+  from { stroke-dashoffset: 20; }
+  to   { stroke-dashoffset: 0;  }
+}
+
+@keyframes ontology-edge-dash-flow-fast {
+  from { stroke-dashoffset: 16; }
+  to   { stroke-dashoffset: 0;  }
+}
+
+.animate-edge-flow-slow {
+  animation: ontology-edge-dash-flow-slow 1.6s linear infinite;
+}
+
+.animate-edge-flow-fast {
+  animation: ontology-edge-dash-flow-fast 0.8s linear infinite;
+}
+
+/* 在用户偏好减少动画时关掉 edge 流（可访问性兜底） */
+@media (prefers-reduced-motion: reduce) {
+  .react-flow__edge-path,
+  .react-flow__edge .react-flow__edge-path,
+  path[style*="ontology-edge-dash-flow"] {
+    animation: none !important;
+  }
+}
+
+/* ============================================================
+   DATAFLOW CANVAS EDGE ANIMATIONS
+   - 血缘高亮路径流光动画
+   - ancestor (绿色上游) 和 descendant (青色下游) 链路脉冲
+   ============================================================ */
+@keyframes dataflow-dash-flow {
+  from { stroke-dashoffset: 24; }
+  to   { stroke-dashoffset: 0;  }
+}
+
+.dataflow-animated-edge {
+  stroke-dasharray: 6 3;
+  animation: dataflow-dash-flow 0.6s linear infinite;
+}
+
+.dataflow-edge-pulse-flow {
+  stroke-dasharray: 8 10;
+  animation: dataflow-dash-flow 0.9s linear infinite;
+}
+
+/* 减少动画偏好时关闭 DataFlow 流光 */
+@media (prefers-reduced-motion: reduce) {
+  .dataflow-animated-edge,
+  .dataflow-edge-pulse-flow {
+    animation: none !important;
+    stroke-dasharray: none !important;
+  }
+}
+
+/* ============================================================
+   REACTFLOW CANVAS MONOKAI OVERRIDES
+   修复 ReactFlow 默认控件与 Monokai 配色冲突
+   ============================================================ */
+.react-flow__controls {
+  background: #252623 !important;
+  border: 1px solid #3a3b36 !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4) !important;
+}
+
+.react-flow__controls-button {
+  background: #252623 !important;
+  border-bottom: 1px solid #3a3b36 !important;
+  color: #75715e !important;
+  fill: #75715e !important;
+}
+
+.react-flow__controls-button:hover {
+  background: #2d2e29 !important;
+  color: #f8f8f2 !important;
+  fill: #f8f8f2 !important;
+}
+
+.react-flow__minimap {
+  background: var(--monokai-bg) !important;
+}
+
+/* DataFlow 画布点状背景 */
+.dataflow-reactflow-canvas .react-flow__background {
+  background-color: var(--monokai-bg);
+}
+
+/*
+ * 全局 [role=button]{position:relative} 会覆盖 React Flow 节点的 absolute，
+ * 导致节点按文档流堆叠、连线锚点与视觉错位。所有 RF 画布统一强制 absolute。
+ */
+.react-flow__node {
+  position: absolute !important;
+}
+.react-flow__nodes {
+  position: absolute !important;
+}
+
+/*
+ * DataFlow 作用域密度：统一正文/表单/列表节奏，不改布局骨架。
+ */
+.dataflow-shell {
+  font-size: 12px;
+  line-height: 1.35;
+}
+.dataflow-shell input,
+.dataflow-shell select,
+.dataflow-shell textarea {
+  font-size: 11px;
+  line-height: 1.3;
+}
+.dataflow-shell table {
+  font-size: 10px;
+  line-height: 1.3;
+}
+.dataflow-shell .react-flow__controls-button {
+  background: var(--monokai-surface);
+  border-bottom-color: var(--monokai-border);
+  fill: var(--monokai-comment);
+}
+.dataflow-shell .react-flow__controls-button:hover {
+  background: var(--monokai-elevated);
+  fill: var(--monokai-fg);
+}
 
 /* ============================================================
    DUAL FONT SYSTEM
@@ -11,9 +172,39 @@
    ============================================================ */
 
 :root {
+  /*
+   * DESIGN TOKEN SSOT — all visual values originate here.
+   * Rules: use monokai-* / CSS vars only; no new bg-[#…];
+   * overlays via ModalShell/DrawerShell; spacing = 8px grid;
+   * body/UI copy defaults to text-xs (12px) for density.
+   */
+  /* ── Monokai Pro Cyber Developer IDE Palette ── */
+  --monokai-bg: #1e1f1c;
+  --monokai-sidebar: #252623;
+  --monokai-surface: #252623;
+  --monokai-elevated: #2d2e29;
+  --monokai-hover: #34352f;
+  --monokai-border: #3a3b36;
+  --monokai-border-subtle: #2d2e29;
+  --monokai-border-strong: #55574f;
+  --monokai-fg: #f8f8f2;
+  --monokai-fg-muted: #d8d7cc;
+  --monokai-comment: #75715e;
+  --monokai-accent: #a6e22e;
+  --monokai-accent-hover: #b8ec48;
+  --monokai-cyan: #66d9ef;
+  --monokai-pink: #f92672;
+  --monokai-yellow: #e6db74;
+  --monokai-orange: #fd971f;
+  --monokai-purple: #ae81ff;
+  --monokai-edge-idle: #a8a48f;
+  --monokai-edge-muted: #49483e;
+  --monokai-handle-ring: #10110e;
+
   /* Typography */
-  --font-sans: 'IBM Plex Sans', 'Noto Sans SC', system-ui, -apple-system, sans-serif;
-  --font-mono: 'JetBrains Mono', 'Victor Mono', 'Consolas', monospace;
+  --font-sans: 'Noto Sans SC', 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+  --font-mono: 'Victor Mono', 'JetBrains Mono', 'Consolas', monospace;
+  --font-sql-editor: 'Victor Mono', 'JetBrains Mono', 'Consolas', monospace;
 
   /* 8px Grid Spacing */
   --space-1: 4px;
@@ -46,9 +237,17 @@
 }
 
 @layer base {
-  /* Default to monospace for body (legacy compatibility) */
+  *, ::before, ::after {
+    border-color: var(--monokai-border);
+  }
+
+  /* UI chrome defaults: sans + compact body type */
   body {
-    font-family: var(--font-mono);
+    font-family: var(--font-sans);
+    font-size: 12px;
+    line-height: 16px;
+    color: var(--monokai-fg);
+    background-color: var(--monokai-bg);
   }
 
   /* Font utility classes */
@@ -60,13 +259,13 @@
     font-family: var(--font-mono);
   }
 
-  /* Typography scale */
+  /* Typography scale — body defaults to 12px (text-xs) for density */
   .text-heading {
     font-family: var(--font-sans);
     font-size: 18px;
     font-weight: 600;
     line-height: 1.3;
-    color: #f8f8f2;
+    color: var(--monokai-fg);
   }
 
   .text-subheading {
@@ -74,15 +273,15 @@
     font-size: 14px;
     font-weight: 600;
     line-height: 1.4;
-    color: #f8f8f2;
+    color: var(--monokai-fg);
   }
 
   .text-body {
     font-family: var(--font-sans);
-    font-size: 14px;
+    font-size: 12px;
     font-weight: 400;
-    line-height: 1.5;
-    color: #f8f8f2;
+    line-height: 16px;
+    color: var(--monokai-fg);
   }
 
   .text-caption {
@@ -90,7 +289,7 @@
     font-size: 12px;
     font-weight: 400;
     line-height: 1.4;
-    color: #75715e;
+    color: var(--monokai-comment);
   }
 
   .text-micro {
@@ -98,9 +297,221 @@
     font-size: 10px;
     font-weight: 500;
     line-height: 1.2;
-    color: #75715e;
+    color: var(--monokai-comment);
   }
+}
 
+/* ============================================================
+   SQL Workbench chrome — denser type + element cohesion
+   Scoped to .sql-workbench so the rest of the app is untouched.
+   ============================================================ */
+.sql-workbench {
+  --wb-text: 11px;
+  --wb-text-sm: 12px;
+  --wb-caption: 10px;
+  --wb-micro: 9px;
+  --wb-radius: var(--radius-md);
+  --wb-radius-sm: var(--radius-sm);
+  font-size: var(--wb-text);
+  line-height: 1.45;
+  color: var(--monokai-fg);
+}
+
+.sql-workbench .text-xs {
+  font-size: var(--wb-text);
+  line-height: 1.45;
+}
+
+.sql-workbench .text-sm {
+  font-size: var(--wb-text-sm);
+  line-height: 1.4;
+}
+
+.sql-workbench .text-base {
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.sql-workbench .text-\[11px\] {
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.sql-workbench .text-\[10px\] {
+  font-size: var(--wb-caption);
+  line-height: 1.35;
+}
+
+.sql-workbench .text-\[9px\] {
+  font-size: var(--wb-micro);
+  line-height: 1.25;
+}
+
+/* Shared chrome primitives inside SQL workbench */
+.sql-workbench .wb-panel-header {
+  display: flex;
+  height: 2.5rem; /* 40px — unified left/right/center panel headers */
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+  border-bottom: 1px solid var(--monokai-border);
+  background: var(--monokai-surface);
+  font-family: var(--font-sans);
+}
+
+.sql-workbench .wb-panel-title {
+  font-size: var(--wb-text);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--monokai-fg);
+}
+
+.sql-workbench .wb-kbd {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.125rem 0.375rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--monokai-border);
+  background: var(--monokai-surface);
+  font-family: var(--font-mono);
+  font-size: var(--wb-micro);
+  font-weight: 700;
+  color: var(--monokai-comment);
+  line-height: 1.2;
+}
+
+.sql-workbench .wb-code-block {
+  border-radius: var(--radius-md);
+  border: 1px solid var(--monokai-border);
+  background: var(--monokai-elevated);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--monokai-fg-muted);
+}
+
+.sql-workbench .wb-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-align: left;
+}
+
+.sql-workbench .wb-table th {
+  padding: 0.375rem 0.625rem;
+  border-bottom: 1px solid var(--monokai-border);
+  color: var(--monokai-comment);
+  font-weight: 600;
+  font-family: var(--font-sans);
+  font-size: var(--wb-caption);
+}
+
+.sql-workbench .wb-table td {
+  padding: 0.375rem 0.625rem;
+  border-bottom: 1px solid var(--monokai-border-subtle);
+  color: var(--monokai-fg-muted);
+}
+
+.sql-workbench .wb-divider {
+  border: 0;
+  border-top: 1px solid var(--monokai-border-subtle);
+}
+
+.sql-workbench .wb-link {
+  color: var(--monokai-cyan);
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 0.15s ease, text-decoration-color 0.15s ease;
+}
+
+.sql-workbench .wb-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.sql-workbench ul:not([role]):not(.cm-tooltip-autocomplete ul) {
+  list-style: disc;
+  padding-left: 1.25rem;
+  margin: 0.35rem 0;
+}
+
+.sql-workbench ol:not([role]) {
+  list-style: decimal;
+  padding-left: 1.25rem;
+  margin: 0.35rem 0;
+}
+
+.sql-workbench li + li {
+  margin-top: 0.15rem;
+}
+
+.sql-workbench hr {
+  border: 0;
+  border-top: 1px solid var(--monokai-border-subtle);
+  margin: 0.75rem 0;
+}
+
+.sql-workbench img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--monokai-border);
+}
+
+.sql-workbench .wb-hint {
+  font-size: var(--wb-caption);
+  line-height: 1.4;
+  color: var(--monokai-comment);
+}
+
+.sql-workbench a:not([class*='btn']):not([role='tab']):not([role='button']) {
+  color: var(--monokai-cyan);
+}
+
+.sql-workbench a:not([class*='btn']):not([role='tab']):not([role='button']):hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.sql-workbench blockquote {
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  border-left: 2px solid var(--monokai-yellow);
+  background: color-mix(in srgb, var(--monokai-yellow) 8%, transparent);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  color: var(--monokai-fg-muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.sql-workbench pre:not(.cm-content) {
+  margin: 0;
+  padding: 0.625rem 0.75rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--monokai-border);
+  background: var(--monokai-bg);
+  font-family: var(--font-sql-editor);
+  font-size: 11px;
+  line-height: 1.5;
+  overflow-x: auto;
+  color: var(--monokai-fg);
+}
+
+.sql-workbench code:not(.cm-content *):not(pre code) {
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  background: var(--monokai-elevated);
+  border: 1px solid var(--monokai-border-subtle);
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  color: var(--monokai-yellow);
+}
+
+@layer base {
   /* Skill card specific */
   .skill-card {
     padding: var(--space-4);
@@ -220,6 +631,72 @@
   background-color: #3e3d32;
 }
 
+/* Query result grid: content-hugging columns, centered Noto Sans SC cells */
+.overflow-auto .result-data-grid table {
+  margin: 0;
+  width: max-content;
+  border-collapse: collapse;
+}
+.overflow-auto .result-data-grid table.w-full {
+  width: 100%;
+}
+.overflow-auto .result-data-grid th,
+.overflow-auto .result-data-grid td {
+  text-align: center !important;
+  /* Beat global .overflow-auto th/td olive box (#49483e / #3e3d32) */
+  background-color: transparent !important;
+  border: none !important;
+  border-right: 1px solid rgba(58, 59, 54, 0.35) !important;
+  padding: 0.375rem 0.5rem !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+.overflow-auto .result-data-grid thead th {
+  /* Soft surface wash between toolbar and body — not olive #3e3d32 */
+  background-color: color-mix(in srgb, var(--monokai-surface) 26%, var(--monokai-bg)) !important;
+  box-shadow: none !important;
+}
+.overflow-auto .result-data-grid thead th:hover {
+  background-color: color-mix(in srgb, var(--monokai-surface) 40%, var(--monokai-bg)) !important;
+}
+.overflow-auto .result-data-grid thead th.result-th-selected,
+.overflow-auto .result-data-grid thead th.result-th-selected:hover {
+  background-color: color-mix(in srgb, #e6db74 7%, var(--monokai-bg)) !important;
+  box-shadow: inset 0 -1px 0 0 rgba(230, 219, 116, 0.45) !important;
+}
+.overflow-auto .result-data-grid thead tr {
+  border-bottom: 1px solid rgba(58, 59, 54, 0.4) !important;
+  box-shadow: none !important;
+}
+.overflow-auto .result-data-grid tbody td {
+  background-color: transparent !important;
+}
+.overflow-auto .result-data-grid tbody tr:hover td {
+  background-color: transparent !important;
+}
+
+/* Pivot grid: content-hugging columns, centered Noto Sans SC cells */
+.overflow-auto .result-pivot-grid,
+.overflow-auto .result-pivot-grid th,
+.overflow-auto .result-pivot-grid td {
+  font-family: 'Noto Sans SC', 'IBM Plex Sans', system-ui, sans-serif;
+  text-align: center;
+}
+.overflow-auto .result-pivot-grid table {
+  margin: 0;
+  width: max-content;
+}
+.overflow-auto .result-pivot-grid thead th {
+  background-color: color-mix(in srgb, var(--monokai-surface) 26%, var(--monokai-bg)) !important;
+}
+.result-pivot-toolbar,
+.result-pivot-toolbar label,
+.result-pivot-toolbar select,
+.result-pivot-toolbar button,
+.result-pivot-truncate {
+  font-family: 'Noto Sans SC', 'IBM Plex Sans', system-ui, sans-serif;
+}
+
 /* 分割线 */
 .overflow-auto hr {
   border-color: #49483e;
@@ -286,22 +763,34 @@ body {
 }
 
 /* =====================
-   CodeMirror 编辑器字体设置
+   CodeMirror 编辑器字体设置 — Victor Mono（关闭花体连笔）
    ===================== */
 .cm-editor {
-    font-family: var(--font-mono);
+    font-family: var(--font-sql-editor, var(--font-mono));
+    font-variant-ligatures: none;
+    font-feature-settings: "liga" 0, "calt" 0, "ss01" 0;
 }
 
 .cm-editor .cm-content {
-    font-family: var(--font-mono);
+    font-family: var(--font-sql-editor, var(--font-mono));
+    font-variant-ligatures: none;
+    font-feature-settings: "liga" 0, "calt" 0, "ss01" 0;
 }
 
 .cm-editor .cm-line {
-    font-family: var(--font-mono);
+    font-family: var(--font-sql-editor, var(--font-mono));
 }
 
 .cm-editor .cm-gutters {
-    font-family: var(--font-mono);
+    font-family: var(--font-sql-editor, var(--font-mono));
+}
+
+.custom-codemirror .cm-editor,
+.custom-codemirror .cm-content,
+.custom-codemirror .cm-line,
+.custom-codemirror .cm-gutters {
+    font-family: var(--font-sql-editor, var(--font-mono)) !important;
+    font-variant-ligatures: none;
 }
 
 /* =====================
@@ -309,27 +798,27 @@ body {
    ===================== */
 .cm-tooltip-autocomplete {
     font-family: var(--font-mono);
-    font-size: 10px !important;
+    font-size: 8px !important;
 }
 
 .cm-tooltip-autocomplete > ul {
     font-family: var(--font-mono);
-    font-size: 10px !important;
+    font-size: 8px !important;
 }
 
 .cm-tooltip-autocomplete > ul > li {
     font-family: var(--font-mono);
-    font-size: 10px !important;
+    font-size: 8px !important;
 }
 
 .cm-completionLabel {
     font-family: var(--font-mono);
-    font-size: 10px !important;
+    font-size: 8px !important;
 }
 
 .cm-completionDetail {
     font-family: var(--font-mono);
-    font-size: 10px !important;
+    font-size: 8px !important;
 }
 
 .cm-tooltip.cm-completionInfo {
@@ -530,174 +1019,188 @@ button:hover, .btn:hover {
 }
 
 @layer utilities {
+    .custom-scrollbar {
+        scrollbar-width: thin;
+        scrollbar-color: #49483e #1e1f1c;
+    }
+
     .custom-scrollbar::-webkit-scrollbar {
-        width: 10px;
-        height: 10px;
+        width: 8px;
+        height: 8px;
     }
 
     .custom-scrollbar::-webkit-scrollbar-track {
-        @apply bg-monokai-sidebar border-l border-monokai-accent;
+        background: #1e1f1c;
+        border: none;
     }
 
     .custom-scrollbar::-webkit-scrollbar-thumb {
-        @apply bg-monokai-accent rounded-sm border-2 border-monokai-sidebar;
+        background: #3e3d32;
+        border-radius: 4px;
+        border: 2px solid #1e1f1c;
     }
 
     .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-        @apply bg-monokai-comment;
+        background: #75715e;
     }
 
     .custom-scrollbar::-webkit-scrollbar-corner {
-        @apply bg-monokai-sidebar;
+        background: #1e1f1c;
     }
 }
 
-/* Markdown 渲染样式 */
+/* Markdown 渲染样式 - 统一紧凑排版与语义主题 */
 .markdown-body {
-    color: #ccc;
-    line-height: 1.7;
-    font-size: 15px;
+    color: var(--monokai-fg-muted, #d8d7cc);
+    line-height: 1.6;
+    font-size: 12px;
+    font-family: var(--font-sans);
 }
 
 .markdown-body h1 {
-    font-size: 2em;
-    font-weight: bold;
-    color: #fff;
-    margin-top: 1.5em;
-    margin-bottom: 0.8em;
-    padding-bottom: 0.3em;
-    border-bottom: 1px solid #444;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--monokai-fg, #f8f8f2);
+    margin-top: 1.2em;
+    margin-bottom: 0.5em;
+    padding-bottom: 0.25em;
+    border-bottom: 1px solid var(--monokai-border, #3a3b36);
 }
 
 .markdown-body h2 {
-    font-size: 1.5em;
-    font-weight: bold;
-    color: #fff;
-    margin-top: 1.5em;
-    margin-bottom: 0.6em;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--monokai-fg, #f8f8f2);
+    margin-top: 1em;
+    margin-bottom: 0.4em;
     padding-bottom: 0.2em;
-    border-bottom: 1px solid #333;
+    border-bottom: 1px solid var(--monokai-border-subtle, #2d2e29);
 }
 
 .markdown-body h3 {
-    font-size: 1.25em;
-    font-weight: bold;
-    color: #f8f8f2;
-    margin-top: 1.3em;
-    margin-bottom: 0.5em;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--monokai-fg, #f8f8f2);
+    margin-top: 0.8em;
+    margin-bottom: 0.3em;
 }
 
 .markdown-body h4, .markdown-body h5, .markdown-body h6 {
-    font-weight: bold;
-    color: #f8f8f2;
-    margin-top: 1em;
-    margin-bottom: 0.5em;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--monokai-fg, #f8f8f2);
+    margin-top: 0.6em;
+    margin-bottom: 0.3em;
 }
 
 .markdown-body p {
-    margin-bottom: 1em;
+    margin-bottom: 0.75em;
 }
 
 .markdown-body a {
-    color: #66d9ef;
+    color: var(--monokai-cyan, #66d9ef);
     text-decoration: none;
+    transition: color 0.15s ease;
 }
 
 .markdown-body a:hover {
     text-decoration: underline;
+    color: var(--monokai-blue, #66d9ef);
 }
 
 .markdown-body strong {
-    color: #fff;
-    font-weight: bold;
+    color: var(--monokai-fg, #f8f8f2);
+    font-weight: 600;
 }
 
 .markdown-body em {
-    color: #ae81ff;
+    color: var(--monokai-purple, #ae81ff);
     font-style: italic;
 }
 
 .markdown-body code.inline-code {
-    background: #2b2b2b;
-    color: #f8f8f2;
-    padding: 0.2em 0.4em;
-    border-radius: 3px;
+    background: var(--monokai-elevated, #2d2e29);
+    color: var(--monokai-fg, #f8f8f2);
+    padding: 0.15em 0.35em;
+    border-radius: 4px;
+    border: 1px solid var(--monokai-border-subtle, #3a3b36);
     font-family: var(--font-mono);
     font-size: 0.9em;
 }
 
 .markdown-body pre {
-    background: #1e1f1c;
-    border: 1px solid #444;
+    background: var(--monokai-bg, #1e1f1c);
+    border: 1px solid var(--monokai-border, #3a3b36);
     border-radius: 6px;
-    padding: 1em;
+    padding: 0.75em 1em;
     overflow-x: auto;
-    margin: 1em 0;
+    margin: 0.75em 0;
 }
 
 .markdown-body pre code {
-    color: #f8f8f2;
+    color: var(--monokai-fg, #f8f8f2);
     font-family: var(--font-mono);
-    font-size: 14px;
-    line-height: 1.5;
+    font-size: 11.5px;
+    line-height: 1.55;
 }
 
-/* 代码块样式 */
+/* 代码块包装器 */
 .code-block-wrapper {
     position: relative;
-    margin: 1.5em 0;
-    border-radius: 8px;
+    margin: 1em 0;
+    border-radius: 6px;
     overflow: hidden;
-    border: 1px solid #444;
-    background: #1e1f1c;
+    border: 1px solid var(--monokai-border, #3a3b36);
+    background: var(--monokai-bg, #1e1f1c);
 }
 
 .code-block-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 8px 16px;
-    background: #2a2b24;
-    border-bottom: 1px solid #444;
+    padding: 6px 12px;
+    background: var(--monokai-surface, #252623);
+    border-bottom: 1px solid var(--monokai-border, #3a3b36);
 }
 
 .code-lang {
-    font-size: 12px;
-    color: #888;
+    font-size: 11px;
+    color: var(--monokai-comment, #75715e);
     font-family: var(--font-mono);
     text-transform: uppercase;
 }
 
 .copy-btn, .run-code-btn {
-    font-size: 12px;
-    padding: 4px 12px;
+    font-size: 11px;
+    padding: 3px 10px;
     border-radius: 4px;
     border: none;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.15s;
 }
 
 .copy-btn {
-    background: #444;
-    color: #ccc;
+    background: var(--monokai-elevated, #2d2e29);
+    color: var(--monokai-fg-muted, #d8d7cc);
+    border: 1px solid var(--monokai-border, #3a3b36);
 }
 
 .copy-btn:hover {
-    background: #555;
-    color: #fff;
+    background: var(--monokai-surface, #252623);
+    color: var(--monokai-fg, #f8f8f2);
 }
 
 .run-code-btn {
     position: absolute;
-    right: 16px;
-    bottom: 16px;
-    background: #a6e22e;
-    color: #1e1f1c;
-    font-weight: bold;
+    right: 12px;
+    bottom: 12px;
+    background: var(--monokai-accent, #a6e22e);
+    color: var(--monokai-bg, #1e1f1c);
+    font-weight: 600;
 }
 
 .run-code-btn:hover {
-    background: #b8f040;
+    background: var(--monokai-accent-hover, #b8ec48);
     transform: translateY(-1px);
 }
 
@@ -705,61 +1208,67 @@ button:hover, .btn:hover {
 .markdown-body table {
     width: 100%;
     border-collapse: collapse;
-    margin: 1em 0;
+    margin: 0.75em 0;
+    font-size: 11.5px;
+    border: 1px solid var(--monokai-border, #3a3b36);
+    border-radius: 6px;
+    overflow: hidden;
 }
 
 .markdown-body th, .markdown-body td {
-    border: 1px solid #444;
-    padding: 8px 12px;
+    border: 1px solid var(--monokai-border-subtle, #2d2e29);
+    padding: 6px 10px;
     text-align: left;
 }
 
 .markdown-body th {
-    background: #2a2b24;
-    color: #fff;
-    font-weight: bold;
+    background: var(--monokai-surface, #252623);
+    color: var(--monokai-fg, #f8f8f2);
+    font-weight: 600;
+    font-size: 11.5px;
 }
 
 .markdown-body tr:nth-child(even) {
-    background: #22241e;
+    background: var(--monokai-elevated, #2d2e29);
 }
 
 .markdown-body tr:hover {
-    background: #2a2b24;
+    background: var(--monokai-surface, #252623);
 }
 
 /* 列表样式 */
 .markdown-body ul, .markdown-body ol {
-    margin: 1em 0;
-    padding-left: 2em;
+    margin: 0.5em 0;
+    padding-left: 1.25em;
 }
 
 .markdown-body li {
-    margin: 0.3em 0;
+    margin: 0.25em 0;
 }
 
 .markdown-body ul li::marker {
-    color: #66d9ef;
+    color: var(--monokai-cyan, #66d9ef);
 }
 
 .markdown-body ol li::marker {
-    color: #a6e22e;
+    color: var(--monokai-accent, #a6e22e);
 }
 
 /* 区块引用 */
 .markdown-body blockquote {
-    border-left: 4px solid #66d9ef;
-    background: #2a2b24;
-    margin: 1em 0;
-    padding: 0.5em 1em;
-    color: #aaa;
+    border-left: 3px solid var(--monokai-cyan, #66d9ef);
+    background: var(--monokai-surface, #252623);
+    margin: 0.75em 0;
+    padding: 0.5em 0.85em;
+    color: var(--monokai-fg-muted, #d8d7cc);
+    border-radius: 0 6px 6px 0;
 }
 
 /* 水平线 */
 .markdown-body hr {
     border: none;
-    border-top: 1px solid #444;
-    margin: 2em 0;
+    border-top: 1px solid var(--monokai-border, #3a3b36);
+    margin: 1.5em 0;
 }
 
 /* TOC 导航高亮效果 */
@@ -1545,10 +2054,230 @@ body.is-resizing .resizable-width-indicator {
   }
 }
 
-@keyframes dash {
-  to {
-    stroke-dashoffset: -20;
+/* ============================================================
+   GRADIENT TECH THEME - Animation Keyframes
+   Modern gradient tech design system animations
+   ============================================================ */
+
+/* Pulse animation for status indicators */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
   }
+  50% {
+    opacity: 0.7;
+    transform: scale(0.95);
+  }
+}
+
+/* Glow pulse for active states */
+@keyframes glow-pulse {
+  0%, 100% {
+    opacity: 0.3;
+    filter: blur(8px);
+  }
+  50% {
+    opacity: 0.5;
+    filter: blur(12px);
+  }
+}
+
+/* Subtle float animation for decorative elements */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+/* Gradient shift animation */
+@keyframes gradient-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* Shine sweep effect for buttons */
+@keyframes shine {
+  0% {
+    left: -100%;
+    opacity: 0;
+  }
+  50% {
+    opacity: 0.3;
+  }
+  100% {
+    left: 200%;
+    opacity: 0;
+  }
+}
+
+/* Scale in animation */
+@keyframes scale-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Fade in from below */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Modern Focus Ring */
+@keyframes focus-ring-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.5);
+  }
+}
+
+/* Status dot glow */
+@keyframes status-glow {
+  0%, 100% {
+    box-shadow: 0 0 6px currentColor;
+  }
+  50% {
+    box-shadow: 0 0 12px currentColor, 0 0 4px currentColor;
+  }
+}
+
+/* ============================================================
+   MODERN ANIMATION UTILITIES
+   ============================================================ */
+
+/* Animation utility classes */
+.animate-pulse-slow {
+  animation: pulse 3s ease-in-out infinite;
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+.animate-gradient-shift {
+  animation: gradient-shift 8s ease infinite;
+  background-size: 200% 200%;
+}
+
+.animate-scale-in {
+  animation: scale-in 0.2s ease-out forwards;
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.3s ease-out forwards;
+}
+
+.animate-focus-ring {
+  animation: focus-ring-pulse 2s ease-in-out infinite;
+}
+
+/* Shine effect for buttons */
+.animate-shine::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.1),
+    transparent
+  );
+  animation: shine 3s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* Status indicator with glow */
+.status-indicator-glow {
+  position: relative;
+}
+
+.status-indicator-glow::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  opacity: 0.5;
+  animation: glow-pulse 2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* Glass morphism effect */
+.glass {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.glass-dark {
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Gradient border effect */
+.gradient-border {
+  position: relative;
+}
+
+.gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  padding: 1px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, #10b981, #8b5cf6, #f43f5e);
+  background-size: 200% 200%;
+  animation: gradient-shift 4s ease infinite;
+  -webkit-mask: 
+    linear-gradient(#fff 0 0) content-box, 
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+/* Modern button press effect */
+.btn-press {
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.btn-press:active {
+  transform: scale(0.97);
+}
+
+/* Smooth hover transitions for interactive elements */
+.transition-modern {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Canvas relation link particle flowing animation */
@@ -1556,3 +2285,166 @@ body.is-resizing .resizable-width-indicator {
   animation: dash 0.8s linear infinite;
 }
 
+
+/* Responsive SQL workbench: side panels become temporary overlays on compact screens. */
+@media (max-width: 767px) {
+  .sql-workbench-left,
+  .sql-workbench-right {
+    position: absolute !important;
+    top: 0;
+    bottom: 0;
+    z-index: 80;
+    width: min(88vw, 340px) !important;
+    box-shadow: var(--shadow-lg);
+  }
+
+  .sql-workbench-left { left: 0; }
+  .sql-workbench-right { right: 0; }
+}
+/* Compact top bar: two independently scrollable rows with viewport-bound menus. */
+@media (max-width: 767px) {
+  .studio-topbar {
+    height: auto !important;
+    min-height: 82px;
+    flex-direction: column;
+    align-items: stretch !important;
+    justify-content: center !important;
+    gap: 2px;
+    padding: 4px 8px !important;
+  }
+
+  .studio-topbar-primary,
+  .studio-topbar-tools {
+    width: 100%;
+    min-width: 0;
+    flex: 0 0 auto !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    scrollbar-width: none;
+  }
+
+  .studio-topbar-tools {
+    margin-left: 0 !important;
+    padding-bottom: 2px;
+  }
+
+  .studio-topbar-primary::-webkit-scrollbar,
+  .studio-topbar-tools::-webkit-scrollbar { display: none; }
+
+  .studio-domain-menu,
+  .studio-topbar-popover {
+    position: fixed !important;
+    top: 82px !important;
+    left: 12px !important;
+    right: 12px !important;
+    width: auto !important;
+    max-height: 60dvh;
+    overflow-y: auto;
+  }
+}
+/* Analysis surfaces: preserve the desktop split while making both work areas reachable on phones. */
+@media (max-width: 767px) {
+  .metric-manager {
+    flex-direction: column;
+    overflow-y: auto !important;
+  }
+
+  .metric-builder-sidebar {
+    width: 100% !important;
+    min-height: 500px;
+    max-height: 68dvh;
+    border-right: 0 !important;
+    border-bottom: 1px solid var(--border-default);
+  }
+
+  .metric-workspace {
+    width: 100%;
+    min-height: 420px;
+    flex: 0 0 auto !important;
+  }
+
+  [role="dialog"] {
+    padding: 8px !important;
+  }
+
+  [role="dialog"] > :first-child {
+    max-height: calc(100dvh - 16px) !important;
+    border-radius: 8px !important;
+  }
+}
+@media (max-width: 767px) {
+  .audit-export-menu {
+    position: fixed !important;
+    top: 132px !important;
+    left: 12px !important;
+    right: 12px !important;
+    width: auto !important;
+  }
+}
+/* Knowledge and AI workbenches: stack fixed desktop columns on compact screens. */
+@media (max-width: 767px) {
+  .library-workbench,
+  .learn-workbench,
+  .skill-browser {
+    flex-direction: column;
+    overflow-y: auto !important;
+  }
+
+  .library-navigation,
+  .learn-navigation,
+  .skill-catalog {
+    width: 100% !important;
+    min-height: 220px;
+    max-height: 38dvh;
+    border-right: 0 !important;
+    border-bottom: 1px solid var(--border-default);
+  }
+
+  .library-content,
+  .skill-output {
+    width: 100%;
+    min-height: 420px;
+    flex: 0 0 auto !important;
+  }
+
+  .library-help-panel {
+    position: fixed;
+    top: 82px;
+    right: 0;
+    bottom: 0;
+    z-index: 70;
+    width: min(88vw, 320px) !important;
+    box-shadow: var(--shadow-lg);
+  }
+
+  .skill-parameters {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    min-height: 440px;
+    flex: 0 0 auto !important;
+  }
+
+  .preset-template-modal { height: calc(100dvh - 16px) !important; }
+  .preset-template-body { flex-direction: column; overflow-y: auto !important; }
+  .preset-template-sidebar {
+    width: 100% !important;
+    min-height: 230px;
+    max-height: 42%;
+    border-right: 0 !important;
+    border-bottom: 1px solid var(--border-default);
+  }
+}
+@media (max-width: 767px) {
+  .ontology-right-panel {
+    position: absolute !important;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40 !important;
+    width: min(88vw, 360px) !important;
+    box-shadow: var(--shadow-lg);
+  }
+
+  .ontology-right-resizer { display: none !important; }
+}

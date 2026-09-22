@@ -1,6 +1,13 @@
 // Tutorial Metadata Registry
 // 教程元数据注册中心 - 用于管理所有教程的元信息
 
+import publishManifest from '../docs/tutorials.publish.json';
+import tutorial001 from '../docs/001 内嵌DuckDB教程_简单.md?raw';
+import tutorial002 from '../docs/002 内嵌DuckDB教程_简单.md?raw';
+import tutorial003 from '../docs/003 DuckDB教程_自定义上传.md?raw';
+import tutorial004 from '../docs/004 DuckDB教程_自定义上传.md?raw';
+import quickTutorial from '../docs/Quick_Tutorial.md?raw';
+
 export interface TutorialSection {
   id: string;
   title: string;
@@ -51,7 +58,13 @@ const extractSectionsFromContent = (content: string): TutorialSection[] => {
 // ============================================
 // 1. 动态加载所有内嵌教程 (Vite Glob Import)
 // ============================================
-const mdFiles = import.meta.glob('../docs/*.md', { as: 'raw', eager: true });
+const mdFiles: Record<string, string> = {
+  '001 内嵌DuckDB教程_简单.md': tutorial001,
+  '002 内嵌DuckDB教程_简单.md': tutorial002,
+  '003 DuckDB教程_自定义上传.md': tutorial003,
+  '004 DuckDB教程_自定义上传.md': tutorial004,
+  'Quick_Tutorial.md': quickTutorial,
+};
 
 export const EMBEDDED_CONTENT: Record<string, string> = {};
 
@@ -115,17 +128,21 @@ function extractDescription(content: string) {
 // 自动生成内置教程列表
 const builtinTutorials: TutorialMetadata[] = [];
 let fileIndex = 0;
+const publishedByFile = new Map(
+  publishManifest.tutorials.map(tutorial => [tutorial.file, tutorial]),
+);
 
 for (const [path, contentRaw] of Object.entries(mdFiles)) {
-  const filename = path.split('/').pop()?.replace('.md', '') || 'unknown';
+  const publishedFile = path.split('/').pop() || '';
+  const publishDefinition = publishedByFile.get(publishedFile);
+  if (!publishDefinition) continue;
+
+  const filename = publishedFile.replace('.md', '') || 'unknown';
   const content = contentRaw as string;
   const { metadata, content: body } = parseFrontmatter(content);
 
   // 生成唯一 ID：优先使用 metadata.id，否则使用文件名（保留数字前缀以确保唯一性）
-  const id = metadata.id || filename.toLowerCase()
-    .replace(/\s+/g, '-')
-    .replace(/[^\u4e00-\u9fa5a-z0-9-]/g, '')
-    .replace(/^-+|-+$/g, '');
+  const id = publishDefinition.id;
 
   // 提取章节
   const sections = extractSectionsFromContent(body);
@@ -144,6 +161,10 @@ for (const [path, contentRaw] of Object.entries(mdFiles)) {
     prerequisites: metadata.prerequisites ? metadata.prerequisites.split(',').map((t: string) => t.trim()) : [],
     learningOutcomes: metadata.learningOutcomes ? metadata.learningOutcomes.split('|').map((t: string) => t.trim()) : [],
   };
+
+  tutorial.category = publishDefinition.category;
+  tutorial.difficulty = publishDefinition.difficulty as TutorialMetadata['difficulty'];
+  tutorial.order = publishDefinition.order;
 
   builtinTutorials.push(tutorial);
   EMBEDDED_CONTENT[id] = body;

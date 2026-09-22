@@ -19,12 +19,12 @@ export interface SqlEditorHelpPanelProps {
 }
 
 const CATEGORY_TABS = [
-  { key: 'select', label: 'SELECT', color: 'border-monokai-blue text-monokai-blue' },
-  { key: 'join', label: 'JOIN', color: 'border-monokai-green text-monokai-green' },
-  { key: 'aggregate', label: '聚合统计', color: 'border-monokai-amethyst text-monokai-amethyst' },
-  { key: 'transform', label: '数据清洗', color: 'border-monokai-orange text-monokai-orange' },
-  { key: 'external', label: '外部数据', color: 'border-monokai-yellow text-monokai-yellow' },
-  { key: 'performance', label: '性能调优', color: 'border-monokai-pink text-monokai-pink' },
+  { key: 'select', label: 'SELECT', color: 'border-monokai-border text-monokai-blue' },
+  { key: 'join', label: 'JOIN', color: 'border-monokai-border text-monokai-green' },
+  { key: 'aggregate', label: '聚合统计', color: 'border-monokai-border text-monokai-amethyst' },
+  { key: 'transform', label: '数据清洗', color: 'border-monokai-border text-monokai-orange' },
+  { key: 'external', label: '外部数据', color: 'border-monokai-border text-monokai-yellow' },
+  { key: 'performance', label: '性能调优', color: 'border-monokai-border text-monokai-pink' },
   { key: 'utilities', label: '实用工具', color: 'border-monokai-comment text-monokai-comment' },
 ];
 
@@ -86,10 +86,10 @@ export const SqlEditorHelpPanel: React.FC<SqlEditorHelpPanelProps> = ({
             <button
               key={tab.key}
               onClick={() => onSelectedSqlTypeChange(tab.key)}
-              className={`px-2 py-1 text-[9px] font-bold uppercase rounded-sm border shrink-0 transition-all cursor-pointer ${
+              className={`px-2.5 py-1 text-[9.5px] font-bold uppercase rounded-md border shrink-0 transition-all cursor-pointer ${
                 isActive
-                  ? `bg-monokai-surface ${tab.color} shadow-sm border-current`
-                  : 'bg-monokai-bg/40 border-monokai-border/30 text-monokai-comment hover:text-monokai-fg hover:border-monokai-border/80'
+                  ? `bg-monokai-surface ${tab.color} shadow-xs border-current ring-1 ring-current/20`
+                  : 'bg-monokai-bg/60 border-monokai-border/40 text-monokai-comment hover:text-monokai-fg hover:border-monokai-border/80'
               }`}
             >
               {tab.label}
@@ -119,7 +119,7 @@ export const SqlEditorHelpPanel: React.FC<SqlEditorHelpPanelProps> = ({
                 <div className="flex items-center gap-1.5">
                   <Sparkles size={11} className="text-monokai-amethyst" />
                   <span className="text-[10px] font-bold uppercase tracking-widest text-monokai-amethyst/90">AI Prompts</span>
-                  <span className="text-[8px] bg-monokai-amethyst/10 text-monokai-amethyst border border-monokai-amethyst/20 px-1 rounded-sm font-mono">{help.aiHints.length}</span>
+                  <span className="text-[8px] bg-monokai-amethyst/10 text-monokai-amethyst border border-monokai-border px-1 rounded-sm font-mono">{help.aiHints.length}</span>
                 </div>
                 {openSections.aiHints ? <ChevronDown size={11} className="text-monokai-comment/50" /> : <ChevronRight size={11} className="text-monokai-comment/50" />}
               </button>
@@ -131,14 +131,14 @@ export const SqlEditorHelpPanel: React.FC<SqlEditorHelpPanelProps> = ({
                     return (
                       <div
                         key={idx}
-                        className="group flex items-start gap-1 px-2 py-1.5 bg-monokai-surface border border-monokai-border/30 rounded-sm hover:border-monokai-amethyst/40 transition-colors relative"
+                        className="group flex items-start gap-1 px-2 py-1.5 bg-monokai-surface border border-monokai-border/30 rounded-sm hover:border-monokai-border-strong transition-colors relative"
                       >
                         <span className="text-monokai-amethyst/40 mt-0.5 shrink-0">→</span>
                         <span className="flex-1 text-[10px] text-monokai-fg/80 leading-relaxed pr-6 font-mono select-text">{s}</span>
                         <div className="absolute right-1.5 top-1.5 flex gap-1">
                           <button
                             onClick={() => fillAiPrompt(s, id)}
-                            className="p-1 rounded bg-monokai-bg border border-monokai-border/40 hover:border-monokai-amethyst/60 hover:text-monokai-amethyst text-monokai-comment transition-all shrink-0 hover:scale-105 active:scale-95 cursor-pointer"
+                            className="p-1 rounded bg-monokai-bg border border-monokai-border/40 hover:border-monokai-border-strong hover:text-monokai-amethyst text-monokai-comment transition-all shrink-0 hover:scale-105 active:scale-95 cursor-pointer"
                             title="填入并复制到 AI 输入框"
                           >
                             {isCopied ? <Check size={9} className="text-monokai-green animate-bounce" /> : <Copy size={9} />}
@@ -160,7 +160,7 @@ export const SqlEditorHelpPanel: React.FC<SqlEditorHelpPanelProps> = ({
                 <div className="flex items-center gap-1.5">
                   <Code size={11} className="text-monokai-blue" />
                   <span className="text-[10px] font-bold uppercase tracking-widest text-monokai-blue/90">DuckDB Syntax</span>
-                  <span className="text-[8px] bg-monokai-blue/10 text-monokai-blue border border-monokai-blue/20 px-1 rounded-sm font-mono">{help.duckdbSpecific.length}</span>
+                  <span className="text-[8px] bg-monokai-blue/10 text-monokai-blue border border-monokai-border px-1 rounded-sm font-mono">{help.duckdbSpecific.length}</span>
                 </div>
                 {openSections.duckdbSpecific ? <ChevronDown size={11} className="text-monokai-comment/50" /> : <ChevronRight size={11} className="text-monokai-comment/50" />}
               </button>
@@ -173,7 +173,7 @@ export const SqlEditorHelpPanel: React.FC<SqlEditorHelpPanelProps> = ({
                     return (
                       <div
                         key={idx}
-                        className="rounded border border-monokai-border/40 overflow-hidden bg-monokai-surface relative group/card hover:border-monokai-blue/40 transition-colors"
+                        className="rounded border border-monokai-border/40 overflow-hidden bg-monokai-surface relative group/card hover:border-monokai-border-strong transition-colors"
                       >
                         <div className="px-2.5 py-1.5 bg-monokai-bg/60 pr-12">
                           <code className="text-[9px] font-mono text-monokai-blue leading-relaxed select-text" dangerouslySetInnerHTML={{ __html: highlightSql(code.trim()) }} />
@@ -186,14 +186,14 @@ export const SqlEditorHelpPanel: React.FC<SqlEditorHelpPanelProps> = ({
                         <div className="absolute right-1.5 top-1.5 flex gap-1">
                           <button
                             onClick={() => handleCopyFeedback(code.trim(), id)}
-                            className="p-1 rounded bg-monokai-bg/80 border border-monokai-border/40 hover:border-monokai-blue/60 hover:text-monokai-blue text-monokai-comment transition-all shrink-0 hover:scale-105 active:scale-95 cursor-pointer opacity-0 group-hover/card:opacity-100"
+                            className="p-1 rounded bg-monokai-bg/80 border border-monokai-border/40 hover:border-monokai-border-strong hover:text-monokai-blue text-monokai-comment transition-all shrink-0 hover:scale-105 active:scale-95 cursor-pointer opacity-0 group-hover/card:opacity-100"
                             title="复制语句"
                           >
                             {isCopied ? <Check size={9} className="text-monokai-green animate-bounce" /> : <Copy size={9} />}
                           </button>
                           <button
                             onClick={() => handleInsert(code.trim(), id)}
-                            className="p-1 rounded bg-monokai-bg/80 border border-monokai-border/40 hover:border-monokai-green/60 hover:text-monokai-green text-monokai-comment transition-all shrink-0 hover:scale-105 active:scale-95 cursor-pointer"
+                            className="p-1 rounded bg-monokai-bg/80 border border-monokai-border/40 hover:border-monokai-border-strong hover:text-monokai-green text-monokai-comment transition-all shrink-0 hover:scale-105 active:scale-95 cursor-pointer"
                             title="插入到光标位置"
                           >
                             {isCopied ? <Check size={9} className="text-monokai-green animate-bounce" /> : <CornerDownRight className="w-2.5 h-2.5" />}
@@ -215,13 +215,13 @@ export const SqlEditorHelpPanel: React.FC<SqlEditorHelpPanelProps> = ({
                 <div className="flex items-center gap-1.5">
                   <AlertTriangle size={11} className="text-monokai-pink" />
                   <span className="text-[10px] font-bold uppercase tracking-widest text-monokai-pink/90">Pitfalls</span>
-                  <span className="text-[8px] bg-monokai-pink/10 text-monokai-pink border border-monokai-pink/20 px-1 rounded-sm font-mono">{help.commonErrors.length}</span>
+                  <span className="text-[8px] bg-monokai-pink/10 text-monokai-pink border border-monokai-border px-1 rounded-sm font-mono">{help.commonErrors.length}</span>
                 </div>
                 {openSections.commonErrors ? <ChevronDown size={11} className="text-monokai-comment/50" /> : <ChevronRight size={11} className="text-monokai-comment/50" />}
               </button>
               {openSections.commonErrors && (
                 <div className="px-3 pb-3 pt-0.5 bg-monokai-bg/30">
-                  <div className="space-y-1 bg-monokai-pink/5 border border-monokai-pink/20 rounded p-2">
+                  <div className="space-y-1 bg-monokai-pink/5 border border-monokai-border rounded p-2">
                     {help.commonErrors.map((s, idx) => (
                       <div key={idx} className="text-[9px] text-monokai-comment leading-relaxed flex items-start gap-1.5 px-1 py-0.5">
                         <span className="text-monokai-pink font-bold shrink-0">!</span>
@@ -242,7 +242,7 @@ export const SqlEditorHelpPanel: React.FC<SqlEditorHelpPanelProps> = ({
                 <div className="flex items-center gap-1.5">
                   <Target size={11} className="text-monokai-green" />
                   <span className="text-[10px] font-bold uppercase tracking-widest text-monokai-green/90">Scenarios</span>
-                  <span className="text-[8px] bg-monokai-green/10 text-monokai-green border border-monokai-green/20 px-1 rounded-sm font-mono">{help.scenarios.length}</span>
+                  <span className="text-[8px] bg-monokai-green/10 text-monokai-green border border-monokai-border px-1 rounded-sm font-mono">{help.scenarios.length}</span>
                 </div>
                 {openSections.scenarios ? <ChevronDown size={11} className="text-monokai-comment/50" /> : <ChevronRight size={11} className="text-monokai-comment/50" />}
               </button>
@@ -295,7 +295,7 @@ export const SqlEditorHelpPanel: React.FC<SqlEditorHelpPanelProps> = ({
                         <li
                           key={idx}
                           onClick={isActionable ? () => fillAiPrompt(stepText, id) : undefined}
-                          className={`text-[9px] font-mono text-monokai-comment leading-relaxed flex items-start gap-1.5 ${isActionable ? 'cursor-pointer hover:text-monokai-orange hover:bg-monokai-orange/5 border border-transparent hover:border-monokai-orange/20 rounded px-2 py-1 transition-all' : 'px-2 py-1'}`}
+                          className={`text-[9px] font-mono text-monokai-comment leading-relaxed flex items-start gap-1.5 ${isActionable ? 'cursor-pointer hover:text-monokai-orange hover:bg-monokai-orange/5 border border-transparent hover:border-monokai-border-strong rounded px-2 py-1 transition-all' : 'px-2 py-1'}`}
                         >
                           <span className="text-monokai-accent/60 shrink-0 mt-0.5 w-3 text-right">{idx + 1}</span>
                           <span className="flex-1 select-text">{stepText}</span>
@@ -321,8 +321,8 @@ export const SqlEditorHelpPanel: React.FC<SqlEditorHelpPanelProps> = ({
                 className="w-full px-3 py-2 flex items-center justify-between text-left hover:bg-monokai-surface/30 transition-colors cursor-pointer"
               >
                 <div className="flex items-center gap-1.5">
-                  <Wand2 size={11} className="text-monokai-accent" />
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-monokai-accent/90">Example Flows</span>
+                  <Wand2 size={11} className="text-monokai-blue" />
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-monokai-blue">Example Flows</span>
                 </div>
                 {openSections.exampleFlows ? <ChevronDown size={11} className="text-monokai-comment/50" /> : <ChevronRight size={11} className="text-monokai-comment/50" />}
               </button>
@@ -335,17 +335,17 @@ export const SqlEditorHelpPanel: React.FC<SqlEditorHelpPanelProps> = ({
                       <button
                         key={idx}
                         onClick={() => fillAiPrompt(`${flow.name}：${flow.description}`, id)}
-                        className="w-full text-left flex items-start gap-2 px-2.5 py-2 bg-monokai-surface border border-monokai-border/20 rounded hover:border-monokai-accent/40 hover:bg-monokai-accent/5 transition-colors group relative pr-6"
+                        className="w-full text-left flex items-start gap-2 px-2.5 py-2 bg-monokai-surface border border-monokai-border/20 rounded hover:border-monokai-border-strong hover:bg-monokai-blue/5 transition-colors group relative pr-6 cursor-pointer"
                       >
-                        <span className="text-monokai-accent/50 group-hover:text-monokai-accent mt-0.5 shrink-0">▸</span>
+                        <span className="text-monokai-blue/50 group-hover:text-monokai-blue mt-0.5 shrink-0">▸</span>
                         <div className="min-w-0 flex-1">
-                          <div className="text-[10px] font-bold text-monokai-fg/90 group-hover:text-monokai-accent transition-colors">{flow.name}</div>
+                          <div className="text-[10px] font-bold text-monokai-fg/90 group-hover:text-monokai-blue transition-colors">{flow.name}</div>
                           <div className="text-[9px] text-monokai-comment mt-0.5 truncate">{flow.description}</div>
                         </div>
                         {isCopied ? (
                           <Check size={9} className="text-monokai-green shrink-0 absolute right-1.5 top-3" />
                         ) : (
-                          <Copy size={9} className="text-monokai-comment/30 group-hover:text-monokai-accent shrink-0 absolute right-1.5 top-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                          <Copy size={9} className="text-monokai-comment/30 group-hover:text-monokai-blue shrink-0 absolute right-1.5 top-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                         )}
                       </button>
                     );

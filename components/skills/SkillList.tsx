@@ -142,9 +142,9 @@ export const SkillList: React.FC<SkillListProps> = ({
   };
 
   return (
-    <div className="h-full flex flex-col bg-[#1e1f1c] select-none font-mono">
+    <div className="h-full flex flex-col bg-monokai-bg select-none font-mono">
       {/* Enhanced Header */}
-      <div className="px-4 pt-4 pb-3 border-b border-[#3e3d32]">
+      <div className="px-4 pt-4 pb-3 border-b border-monokai-border">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-monokai-amethyst/20 to-monokai-pink/20 border border-monokai-amethyst/30 flex items-center justify-center">
@@ -160,7 +160,7 @@ export const SkillList: React.FC<SkillListProps> = ({
             className={`flex items-center gap-1.5 px-3 py-1.5 text-[10px] uppercase font-bold rounded transition-all ${
               isPipelineMode
                 ? 'bg-monokai-green/20 border border-monokai-green/50 text-monokai-green shadow-[0_0_8px_rgba(166,226,46,0.2)]'
-                : 'bg-[#272822] border border-[#3e3d32] text-monokai-comment hover:border-monokai-green/50 hover:text-monokai-green'
+                : 'bg-monokai-elevated border border-monokai-border text-monokai-comment hover:border-monokai-border-strong hover:text-monokai-green'
             }`}
           >
             <Layers className="w-3 h-3" />
@@ -176,7 +176,7 @@ export const SkillList: React.FC<SkillListProps> = ({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="搜索技能..."
-            className="w-full pl-9 pr-8 py-2 text-xs bg-[#272822] border border-[#3e3d32] text-monokai-fg placeholder-monokai-comment/40 rounded-lg focus:outline-none focus:border-monokai-amethyst/60 focus:bg-[#272822] transition-all"
+            className="w-full pl-9 pr-8 py-2 text-xs bg-monokai-elevated border border-monokai-border text-monokai-fg placeholder-monokai-comment/40 rounded-lg focus:outline-none focus:border-monokai-accent focus:bg-monokai-elevated transition-all"
           />
           {searchQuery && (
             <button
@@ -197,7 +197,7 @@ export const SkillList: React.FC<SkillListProps> = ({
               className={`flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] rounded transition-all ${
                 sortMode !== 'default'
                   ? 'bg-monokai-amethyst/15 border border-monokai-amethyst/40 text-monokai-amethyst'
-                  : 'bg-[#272822] border border-[#3e3d32] text-monokai-comment hover:border-[#49483e]'
+                  : 'bg-monokai-elevated border border-monokai-border text-monokai-comment hover:border-monokai-border-strong'
               }`}
             >
               <SortAsc className="w-3 h-3" />
@@ -205,7 +205,7 @@ export const SkillList: React.FC<SkillListProps> = ({
               <ChevronDown className={`w-3 h-3 transition-transform ${showSortMenu ? 'rotate-180' : ''}`} />
             </button>
             {showSortMenu && (
-              <div className="absolute left-0 top-full mt-1 w-32 bg-[#272822] border border-[#3e3d32] rounded-lg shadow-xl z-50 py-1">
+              <div className="absolute left-0 top-full mt-1 w-32 bg-monokai-elevated border border-monokai-border rounded-lg shadow-xl z-50 py-1">
                 {[
                   { mode: 'default' as SortMode, label: '默认顺序', icon: Layers },
                   { mode: 'name' as SortMode, label: '按名称', icon: SortAsc },
@@ -219,7 +219,7 @@ export const SkillList: React.FC<SkillListProps> = ({
                     className={`w-full flex items-center gap-2 px-3 py-1.5 text-[10px] transition-colors ${
                       sortMode === mode
                         ? 'bg-monokai-amethyst/20 text-monokai-amethyst'
-                        : 'text-monokai-comment hover:bg-[#3e3d32] hover:text-monokai-fg'
+                        : 'text-monokai-comment hover:bg-monokai-border hover:text-monokai-fg'
                     }`}
                   >
                     <Icon className="w-3 h-3" />
@@ -233,9 +233,9 @@ export const SkillList: React.FC<SkillListProps> = ({
           {/* Filter Tags */}
           <div className="flex items-center gap-1">
             {[
-              { tag: 'requires-table' as FilterTag, icon: Table2, label: '表', color: '#66d9ef' },
-              { tag: 'requires-columns' as FilterTag, icon: Columns, label: '列', color: '#66d9ef' },
-              { tag: 'favorites' as FilterTag, icon: Star, label: '收藏', color: '#f1fa8c' },
+              { tag: 'requires-table' as FilterTag, icon: Table2, label: '表', color: 'var(--monokai-cyan)' },
+              { tag: 'requires-columns' as FilterTag, icon: Columns, label: '列', color: 'var(--monokai-cyan)' },
+              { tag: 'favorites' as FilterTag, icon: Star, label: '收藏', color: 'var(--monokai-yellow)' },
             ].map(({ tag, icon: Icon, label, color }) => {
               const isActive = filterTags.includes(tag);
               return (
@@ -245,7 +245,7 @@ export const SkillList: React.FC<SkillListProps> = ({
                   className={`flex items-center gap-1 px-2 py-1 text-[10px] rounded transition-all border ${
                     isActive
                       ? 'border'
-                      : 'bg-[#272822] border-[#3e3d32] text-monokai-comment hover:border-[#49483e]'
+                      : 'bg-monokai-elevated border-monokai-border text-monokai-comment hover:border-monokai-border-strong'
                   }`}
                   style={isActive ? {
                     backgroundColor: `${color}20`,
@@ -274,7 +274,7 @@ export const SkillList: React.FC<SkillListProps> = ({
       </div>
 
       {/* Category Tabs */}
-      <div className="px-3 py-2 border-b border-[#3e3d32]/50 bg-[#1e1e1c]">
+      <div className="px-3 py-2 border-b border-monokai-border/50 bg-monokai-bg">
         <div className="flex items-center gap-1 overflow-x-auto custom-scrollbar pb-1">
           {/* All category */}
           <button
@@ -282,12 +282,12 @@ export const SkillList: React.FC<SkillListProps> = ({
             className={`shrink-0 px-3 py-1.5 text-[10px] rounded-lg font-medium transition-all ${
               selectedCategory === 'all'
                 ? 'border shadow-sm'
-                : 'bg-[#272822] border border-transparent text-monokai-comment hover:border-[#3e3d32] hover:text-monokai-fg'
+                : 'bg-monokai-elevated border border-transparent text-monokai-comment hover:border-monokai-border hover:text-monokai-fg'
             }`}
             style={selectedCategory === 'all' ? {
               backgroundColor: 'rgba(166,226,46,0.15)',
               borderColor: 'rgba(166,226,46,0.4)',
-              color: '#a6e22e',
+              color: 'var(--monokai-accent)',
               boxShadow: '0 0 6px rgba(166,226,46,0.15)',
             } : undefined}
           >
@@ -299,7 +299,7 @@ export const SkillList: React.FC<SkillListProps> = ({
             const design = CATEGORY_DESIGN[category];
             const isSelected = selectedCategory === category;
             const count = skillsByCategory[category]?.length || 0;
-            const color = design?.colors.primary || '#ae81ff';
+            const color = design?.colors.primary || 'var(--monokai-purple)';
 
             return (
               <button
@@ -308,7 +308,7 @@ export const SkillList: React.FC<SkillListProps> = ({
                 className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-[10px] rounded-lg font-medium transition-all ${
                   isSelected
                     ? 'border shadow-sm'
-                    : 'bg-[#272822] border border-transparent hover:border-[#3e3d32]'
+                    : 'bg-monokai-elevated border border-transparent hover:border-monokai-border'
                 }`}
                 style={isSelected ? {
                   backgroundColor: `${color}15`,
@@ -316,7 +316,7 @@ export const SkillList: React.FC<SkillListProps> = ({
                   color: color,
                   boxShadow: `0 0 8px ${color}20`,
                 } : {
-                  color: '#75715e',
+                  color: 'var(--monokai-comment)',
                 }}
               >
                 <span>{design?.emoji}</span>
@@ -329,7 +329,7 @@ export const SkillList: React.FC<SkillListProps> = ({
       </div>
 
       {/* Skill List */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar bg-[#1e1f1c]">
+      <div className="flex-1 overflow-y-auto custom-scrollbar bg-monokai-bg">
         {selectedCategory === 'all' ? (
           <div className="p-2">
             {(Object.entries(skillsByCategory) as [SkillCategory, AISkill[]][])
@@ -345,7 +345,7 @@ export const SkillList: React.FC<SkillListProps> = ({
                     {/* Category Header */}
                     <button
                       onClick={() => toggleCategory(category)}
-                      className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-[#272822]/50 transition-colors group"
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-monokai-elevated/50 transition-colors group"
                     >
                       <div
                         className="w-6 h-6 rounded flex items-center justify-center text-xs"
@@ -444,11 +444,11 @@ export const SkillList: React.FC<SkillListProps> = ({
       </div>
 
       {/* Footer */}
-      <div className="px-4 py-3 border-t border-[#3e3d32] bg-[#1e1e1c]">
+      <div className="px-4 py-3 border-t border-monokai-border bg-monokai-bg">
         <div className="flex items-center justify-between">
           <button
             onClick={onShowImportModal}
-            className="flex items-center gap-2 px-3 py-2 text-[11px] bg-monokai-green/10 border border-monokai-green/30 text-monokai-green rounded-lg hover:bg-monokai-green/20 hover:border-monokai-green/50 transition-all"
+            className="flex items-center gap-2 px-3 py-2 text-[11px] bg-monokai-green/10 border border-monokai-green/30 text-monokai-green rounded-lg hover:bg-monokai-green/20 hover:border-monokai-border-strong transition-all"
           >
             <Download className="w-4 h-4" />
             导入技能

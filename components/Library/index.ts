@@ -12,5 +12,12 @@ export { MySnippetsPanel } from './MySnippetsPanel';
 export { OntologyPanel } from './OntologyPanel';
 export { OntologyApp } from './OntologyApp';
 export { CompositionalDeductionApp } from './CompositionalDeductionApp';
+export { DeductionWorkbench } from './DeductionWorkbench';
+export { RuleTreeEditor } from './RuleTreeEditor';
+export { RulePreviewPanel } from './RulePreviewPanel';
+export { RuleManagerPanel } from './RuleManagerPanel';
 export { default as OntologyCanvas } from './OntologyCanvas';
 export { default as OntologyInsightsPanel } from './OntologyInsightsPanel';
+export { PatternLibraryPanel } from './PatternLibraryPanel';
+export { CRUDList } from './CRUDList';
+

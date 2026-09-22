@@ -229,4 +229,19 @@ describe('OntologyCombinationExplorer', () => {
     fireEvent.change(tagFilterSelect, { target: { value: 'untagged_only' } });
     expect(tagFilterSelect.value).toBe('untagged_only');
   });
+
+  it('supports pushing candidate condition to SQL editor and creating DuckDB view', async () => {
+    render(<OntologyCombinationExplorer source={source} catalog={catalog} rules={[]} />);
+
+    fireEvent.click(screen.getByRole('button', { name: '生成并验证组合' }));
+
+    await waitFor(() => expect(screen.getAllByText('SQL 验证').length).toBeGreaterThan(0));
+    expect(screen.getAllByText('建视图').length).toBeGreaterThan(0);
+
+    const sqlVerifyBtn = screen.getAllByRole('button', { name: /SQL 验证/ })[0];
+    fireEvent.click(sqlVerifyBtn);
+
+    const buildViewBtn = screen.getAllByRole('button', { name: /建视图/ })[0];
+    fireEvent.click(buildViewBtn);
+  });
 });

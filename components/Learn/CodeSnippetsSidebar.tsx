@@ -2,6 +2,17 @@ import React, { useState, useEffect, useMemo } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
 import { sql } from '@codemirror/lang-sql';
 import { dracula } from '@uiw/codemirror-theme-dracula';
+import {
+  Code2,
+  X,
+  Search,
+  FileText,
+  Copy,
+  Check,
+  Trash2,
+  Clock,
+  Play,
+} from 'lucide-react';
 import { CodeSnippet, getAllSnippets, deleteSnippet, searchSnippets, getAllTags } from '../../services/codeSnippetsStorage';
 
 interface CodeSnippetsSidebarProps {
@@ -101,43 +112,44 @@ export const CodeSnippetsSidebar: React.FC<CodeSnippetsSidebarProps> = ({
       {/* 遮罩层 */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/30 z-40"
+          className="fixed inset-0 bg-black/50 z-40 backdrop-blur-xs"
           onClick={onClose}
         />
       )}
 
-      <div className={`fixed inset-y-0 right-0 w-96 bg-[#21222c] border-l border-monokai-accent/30 shadow-2xl z-50 flex flex-col transform transition-transform duration-300 ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+      <div data-learn-sidebar role="dialog" aria-modal="true" aria-label="教程辅助侧栏" className={`fixed inset-y-0 right-0 w-96 max-w-full bg-monokai-sidebar border-l border-monokai-border shadow-2xl z-50 flex flex-col transform transition-transform duration-300 ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}>
         {/* 头部 */}
-        <div className="flex items-center justify-between p-4 border-b border-monokai-accent/30 bg-[#282a36]/50">
+        <div className="flex items-center justify-between p-4 border-b border-monokai-border bg-monokai-sidebar shrink-0">
           <h3 className="text-sm font-bold text-monokai-fg flex items-center gap-2">
-            <span className="i-lucide-code w-4 h-4 text-monokai-blue" />
-            代码片段
-            <span className="text-[10px] text-monokai-comment font-normal ml-1">({snippets.length})</span>
+            <Code2 className="w-4 h-4 text-monokai-blue" />
+            <span>代码片段</span>
+            <span className="text-[10px] text-monokai-comment font-mono ml-1">({snippets.length})</span>
           </h3>
           <button
             onClick={onClose}
-            className="text-monokai-comment hover:text-monokai-fg transition-colors p-1 rounded hover:bg-monokai-accent/20"
+            className="text-monokai-comment hover:text-monokai-fg transition-colors p-1 rounded-md hover:bg-monokai-surface"
           >
-            <span className="i-lucide-x w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* 搜索栏 */}
-        <div className="p-3 border-b border-monokai-accent/20 bg-[#21222c]/80">
+        <div className="p-3 border-b border-monokai-border bg-monokai-surface/60 shrink-0">
           <div className="relative mb-2">
+            <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-monokai-comment pointer-events-none" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="搜索代码片段..."
-              className="w-full bg-monokai-bg border border-monokai-accent/50 rounded-lg px-3 py-2 text-sm text-monokai-fg placeholder-monokai-comment focus:outline-none focus:border-monokai-blue"
+              className="w-full bg-monokai-bg border border-monokai-border rounded-lg pl-8 pr-7 py-1.5 text-xs text-monokai-fg placeholder-monokai-comment focus:outline-none focus:border-monokai-accent transition-colors"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-monokai-comment hover:text-monokai-fg"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-monokai-comment hover:text-monokai-fg"
               >
-                <span className="i-lucide-x w-4 h-4" />
+                <X className="w-3.5 h-3.5" />
               </button>
             )}
           </div>
@@ -147,10 +159,10 @@ export const CodeSnippetsSidebar: React.FC<CodeSnippetsSidebarProps> = ({
             <div className="flex flex-wrap gap-1">
               <button
                 onClick={() => setSelectedTag(null)}
-                className={`text-[10px] px-2 py-1 rounded transition-colors ${
+                className={`text-[10px] px-2 py-0.5 rounded transition-colors ${
                   selectedTag === null
-                    ? 'bg-monokai-blue text-white'
-                    : 'bg-monokai-accent/20 text-monokai-comment hover:bg-monokai-accent/40'
+                    ? 'bg-monokai-accent text-monokai-bg font-bold'
+                    : 'bg-monokai-bg text-monokai-comment hover:text-monokai-fg border border-monokai-border'
                 }`}
               >
                 全部
@@ -159,17 +171,17 @@ export const CodeSnippetsSidebar: React.FC<CodeSnippetsSidebarProps> = ({
                 <button
                   key={tag}
                   onClick={() => setSelectedTag(tag === selectedTag ? null : tag)}
-                  className={`text-[10px] px-2 py-1 rounded transition-colors ${
+                  className={`text-[10px] px-2 py-0.5 rounded transition-colors ${
                     selectedTag === tag
-                      ? 'bg-monokai-blue text-white'
-                      : 'bg-monokai-accent/20 text-monokai-comment hover:bg-monokai-accent/40'
+                      ? 'bg-monokai-accent text-monokai-bg font-bold'
+                      : 'bg-monokai-bg text-monokai-comment hover:text-monokai-fg border border-monokai-border'
                   }`}
                 >
                   {tag}
                 </button>
               ))}
               {allTags.length > 8 && (
-                <span className="text-[10px] text-monokai-comment self-center">
+                <span className="text-[10px] text-monokai-comment self-center font-mono">
                   +{allTags.length - 8}
                 </span>
               )}
@@ -178,20 +190,20 @@ export const CodeSnippetsSidebar: React.FC<CodeSnippetsSidebarProps> = ({
         </div>
 
         {/* 代码片段列表 */}
-        <div className="flex-1 overflow-y-auto p-3 space-y-3 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto p-3 space-y-2.5 custom-scrollbar bg-monokai-bg">
           {snippets.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center text-monokai-comment py-8">
-              <div className="w-16 h-16 rounded-full bg-monokai-blue/10 flex items-center justify-center mb-3">
-                <span className="i-lucide-code w-8 h-8 text-monokai-blue/50" />
+              <div className="w-12 h-12 rounded-full bg-monokai-blue/10 flex items-center justify-center mb-3">
+                <Code2 className="w-6 h-6 text-monokai-blue/60" />
               </div>
-              <p className="text-sm font-medium">暂无代码片段</p>
-              <p className="text-xs mt-1 opacity-60">点击 SQL 代码块上的心形图标添加收藏</p>
+              <p className="text-xs font-medium">暂无代码片段</p>
+              <p className="text-[11px] mt-1 opacity-60">点击 SQL 代码块上的心形图标添加收藏</p>
             </div>
           ) : (
             snippets.map(snippet => (
               <div
                 key={snippet.id}
-                className="bg-[#282a36]/50 rounded-xl border border-monokai-accent/20 hover:border-monokai-blue/30 transition-all group"
+                className="bg-monokai-surface rounded-xl border border-monokai-border hover:border-monokai-accent/40 transition-all group shadow-xs"
               >
                 {/* 头部信息 */}
                 <div
@@ -208,7 +220,7 @@ export const CodeSnippetsSidebar: React.FC<CodeSnippetsSidebarProps> = ({
                         }}
                         className="text-[10px] text-monokai-blue hover:text-monokai-amethyst transition-colors flex items-center gap-1 mb-1"
                       >
-                        <span className="i-lucide-file-text w-3 h-3" />
+                        <FileText className="w-3 h-3" />
                         <span className="truncate">{snippet.tutorialTitle}</span>
                       </button>
 
@@ -225,7 +237,7 @@ export const CodeSnippetsSidebar: React.FC<CodeSnippetsSidebarProps> = ({
                           {snippet.tags.map(tag => (
                             <span
                               key={tag}
-                              className="text-[10px] px-1.5 py-0.5 rounded bg-monokai-accent/20 text-monokai-comment"
+                              className="text-[10px] px-1.5 py-0.2 rounded bg-monokai-bg text-monokai-comment border border-monokai-border/60"
                             >
                               {tag}
                             </span>
@@ -244,30 +256,30 @@ export const CodeSnippetsSidebar: React.FC<CodeSnippetsSidebarProps> = ({
                         className={`p-1.5 rounded transition-colors ${
                           copiedId === snippet.id
                             ? 'text-monokai-green bg-monokai-green/10'
-                            : 'text-monokai-comment hover:text-monokai-fg hover:bg-monokai-accent/10'
+                            : 'text-monokai-comment hover:text-monokai-fg hover:bg-monokai-bg'
                         }`}
                         title="复制代码"
                       >
                         {copiedId === snippet.id ? (
-                          <span className="i-lucide-check w-4 h-4" />
+                          <Check className="w-3.5 h-3.5" />
                         ) : (
-                          <span className="i-lucide-copy w-4 h-4" />
+                          <Copy className="w-3.5 h-3.5" />
                         )}
                       </button>
                       <button
                         onClick={(e) => handleDelete(snippet.id, e)}
-                        className="p-1.5 text-monokai-comment hover:text-monokai-red hover:bg-monokai-red/10 rounded transition-colors"
+                        className="p-1.5 text-monokai-comment hover:text-monokai-pink hover:bg-monokai-pink/10 rounded transition-colors"
                         title="删除"
                       >
-                        <span className="i-lucide-trash-2 w-4 h-4" />
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>
 
                   {/* 时间信息 */}
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] text-monokai-comment flex items-center gap-1">
-                      <span className="i-lucide-clock w-3 h-3" />
+                    <span className="text-[10px] text-monokai-comment flex items-center gap-1 font-mono">
+                      <Clock className="w-3 h-3" />
                       {new Date(snippet.createdAt).toLocaleDateString()}
                     </span>
                     <span className="text-[10px] text-monokai-comment">
@@ -278,8 +290,8 @@ export const CodeSnippetsSidebar: React.FC<CodeSnippetsSidebarProps> = ({
 
                 {/* 代码预览区域 */}
                 {expandedSnippet === snippet.id && (
-                  <div className="border-t border-monokai-accent/20 p-2 bg-[#21222c]/50">
-                    <div className="rounded overflow-hidden border border-monokai-accent/30">
+                  <div className="border-t border-monokai-border p-2 bg-monokai-bg/60">
+                    <div className="rounded-lg overflow-hidden border border-monokai-border">
                       <CodeMirror
                         value={snippet.code}
                         extensions={[sql()]}
@@ -290,7 +302,7 @@ export const CodeSnippetsSidebar: React.FC<CodeSnippetsSidebarProps> = ({
                           foldGutter: false,
                           highlightActiveLine: false
                         }}
-                        className="text-xs max-h-40"
+                        className="text-xs max-h-40 font-mono"
                       />
                     </div>
 
@@ -298,10 +310,10 @@ export const CodeSnippetsSidebar: React.FC<CodeSnippetsSidebarProps> = ({
                     {onTryCode && (
                       <button
                         onClick={() => handleOpenInEditor(snippet.code)}
-                        className="mt-2 w-full py-2 bg-monokai-green/10 hover:bg-monokai-green/20 border border-monokai-green/30 rounded-lg text-monokai-green text-xs font-medium transition-colors flex items-center justify-center gap-1.5"
+                        className="mt-2 w-full py-1.5 bg-monokai-accent text-monokai-bg hover:bg-monokai-accent-hover rounded-md text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
                       >
-                        <span className="i-lucide-play w-3.5 h-3.5" />
-                        在编辑器中运行
+                        <Play className="w-3 h-3" />
+                        <span>在编辑器中运行</span>
                       </button>
                     )}
                   </div>
@@ -312,7 +324,7 @@ export const CodeSnippetsSidebar: React.FC<CodeSnippetsSidebarProps> = ({
         </div>
 
         {/* 统计 */}
-        <div className="p-3 border-t border-monokai-accent/30 text-xs text-monokai-comment flex justify-between">
+        <div className="p-3 border-t border-monokai-border bg-monokai-sidebar text-xs text-monokai-comment flex justify-between font-mono shrink-0">
           <span>共收藏 {snippets.length} 个代码片段</span>
           {(searchQuery || selectedTag) && (
             <button

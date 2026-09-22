@@ -21,7 +21,7 @@ export interface OntologySvgExport {
   routes: Array<{ edge: Edge; route: OrthogonalRoute }>;
 }
 
-const PALETTE = ['#a1a1aa', '#66d9ef', '#a6e22e', '#e6db74', '#fd971f', '#f92672', '#ae81ff'];
+const PALETTE = ['#a1a1aa', '#66d9ef', '#a6e22e', '#e6db74', '#fd971f', '#f92672', '#38bdf8'];
 
 const escapeXml = (value: unknown) => String(value ?? '')
   .replace(/&/g, '&amp;')
@@ -71,10 +71,12 @@ const renderProperties = (node: Node, rect: GraphRect) => {
     const properties = typeof raw === 'string' ? JSON.parse(raw || '{}') : (raw ?? {});
     const entries = Object.entries(properties);
     if (entries.length === 0) return '';
-    return entries.slice(0, 6).map(([key, value], index) => `
-      <text x="16" y="${82 + index * 18}" class="node-prop">
+    const isExpanded = Boolean(node.data?.isExpanded) || rect.height > 100;
+    const maxEntries = isExpanded ? Math.min(entries.length, 6) : Math.min(entries.length, 3);
+    return entries.slice(0, maxEntries).map(([key, value], index) => `
+      <text x="16" y="${46 + index * 13}" class="node-prop">
         <tspan class="node-prop-key">${escapeXml(key)}:</tspan>
-        <tspan dx="6" class="node-prop-val">${escapeXml(String(value))}</tspan>
+        <tspan dx="4" class="node-prop-val">${escapeXml(String(value))}</tspan>
       </text>`).join('');
   } catch {
     return '';
@@ -87,17 +89,19 @@ const renderNode = (node: Node, rect: GraphRect, index: number) => {
   const color = PALETTE[Math.abs(Number(object.object_type_id ?? index)) % PALETTE.length];
   const name = String(object.name ?? node.data?.label ?? node.id);
   const typeName = String(type.name ?? '未分类');
-  const nameSize = Math.max(12, Math.min(16, 220 / Math.max(8, name.length) * 1.5));
+  const nameSize = Math.max(11, Math.min(14, 180 / Math.max(8, name.length) * 1.5));
   const clipId = `node-clip-${index}`;
+  const badgeWidth = Math.min(64, Math.max(32, typeName.length * 8 + 8));
+  const badgeX = Math.max(20, rect.width - 12 - badgeWidth);
   return `
     <g class="ontology-export-node" transform="translate(${round(rect.x)} ${round(rect.y)})" data-node-id="${escapeXml(node.id)}">
-      <defs><clipPath id="${clipId}"><rect width="${round(rect.width)}" height="${round(rect.height)}" rx="10"/></clipPath></defs>
-      <rect width="${round(rect.width)}" height="${round(rect.height)}" rx="10" class="node-surface"/>
-      <rect width="${round(rect.width)}" height="4" fill="${color}" clip-path="url(#${clipId})"/>
-      <circle cx="20" cy="26" r="5.5" fill="${color}" opacity="0.95"/>
-      <text x="34" y="31" class="node-title" style="font-size:${round(nameSize)}px">${escapeXml(name)}</text>
-      <rect x="16" y="44" width="${Math.min(rect.width - 32, Math.max(54, typeName.length * 8 + 16))}" height="22" rx="4" fill="${color}" opacity="0.16"/>
-      <text x="24" y="59" class="node-type" fill="${color}">${escapeXml(typeName)}</text>
+      <defs><clipPath id="${clipId}"><rect width="${round(rect.width)}" height="${round(rect.height)}" rx="8"/></clipPath></defs>
+      <rect width="${round(rect.width)}" height="${round(rect.height)}" rx="8" class="node-surface"/>
+      <rect width="${round(rect.width)}" height="3" fill="${color}" clip-path="url(#${clipId})"/>
+      <circle cx="18" cy="20" r="4.5" fill="${color}" opacity="0.95"/>
+      <text x="28" y="24" class="node-title" style="font-size:${round(nameSize)}px">${escapeXml(name)}</text>
+      <rect x="${round(badgeX)}" y="12" width="${round(badgeWidth)}" height="16" rx="3" fill="${color}" opacity="0.18"/>
+      <text x="${round(badgeX + badgeWidth / 2)}" y="23.5" class="node-type" fill="${color}" text-anchor="middle">${escapeXml(typeName)}</text>
       ${renderProperties(node, rect)}
     </g>`;
 };

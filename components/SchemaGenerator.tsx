@@ -16,7 +16,8 @@ import { GenerationResult, AnalysisSummary, SavedAnalysis } from '../types';
 import { ProjectManagerModal } from './ProjectManagerModal';
 import { TableManager } from './TableManager';
 import { ERDiagram } from './ERDiagram';
-import { Activity, Database, LayoutTemplate, BookOpen } from 'lucide-react';
+import { Activity, Database, LayoutTemplate, BookOpen, Sparkles } from 'lucide-react';
+import { toastService } from '../services/toastService';
 
 
 interface SchemaGeneratorProps {
@@ -694,10 +695,34 @@ const SchemaGenerator: React.FC<SchemaGeneratorProps> = ({ onExecuteSql, onRefre
               !result || !activeSummary ? (
                 <div className="flex flex-col items-center justify-center h-[60vh]">
                   {!activeProject ? (
-                    <div className="text-center text-monokai-comment">
-                      <p className="text-lg font-bold mb-2 text-monokai-fg">No Project Selected</p>
-                      <p className="text-xs">Create or select a project to start.</p>
-                      <button onClick={() => setShowProjects(true)} className="mt-4 px-4 py-2 bg-monokai-blue text-monokai-bg rounded-lg text-xs font-bold hover:opacity-90">Open Projects</button>
+                    <div className="text-center text-monokai-comment flex flex-col items-center gap-3">
+                      <p className="text-lg font-bold text-monokai-fg">No Project Selected</p>
+                      <p className="text-xs max-w-sm">Create or select a project, or use your currently loaded memory tables to start instant Schema modeling.</p>
+                      <div className="flex gap-2.5 mt-2">
+                        <button
+                          onClick={async () => {
+                            setActiveProject('DuckDB Analytics Workspace');
+                            toastService.success('已自动创建默认分析工作区！');
+                            try {
+                              const tList = await duckDBService.getTables();
+                              if (tList.length > 0) {
+                                await handleTableSelect(tList[0]);
+                              }
+                            } catch (e) {}
+                          }}
+                          className="px-3.5 py-1.5 bg-monokai-green text-monokai-bg rounded text-xs font-semibold hover:bg-monokai-green/90 transition-colors flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <Sparkles size={14} />
+                          <span>一键分析 DuckDB 物理表</span>
+                        </button>
+
+                        <button
+                          onClick={() => setShowProjects(true)}
+                          className="px-3.5 py-1.5 bg-monokai-surface text-monokai-fg border border-monokai-border rounded text-xs font-medium hover:bg-monokai-surface/80 transition-colors cursor-pointer"
+                        >
+                          打开工程
+                        </button>
+                      </div>
                     </div>
                   ) : (
                     <Uploader onDataReady={handleDataReady} isProcessing={isProcessing} />
@@ -757,13 +782,21 @@ const SchemaGenerator: React.FC<SchemaGeneratorProps> = ({ onExecuteSql, onRefre
                           } else if (provider === 'openai') {
                             localStorage.setItem('duckdb_ai_model', 'gpt-4o');
                             localStorage.setItem('duckdb_ai_base_url', 'https://api.openai.com/v1/chat/completions');
+                          } else if (provider === 'ollama') {
+                            localStorage.setItem('duckdb_ai_model', 'llama3.2');
+                            localStorage.setItem('duckdb_ai_base_url', 'http://localhost:11434/v1');
+                          } else if (provider === 'lmstudio') {
+                            localStorage.setItem('duckdb_ai_model', 'qwen2.5-coder-7b-instruct');
+                            localStorage.setItem('duckdb_ai_base_url', 'http://localhost:1234/v1');
                           }
-                          window.location.reload();
+                          toastService.success(`AI 供应商已切换为 ${provider.toUpperCase()}`);
                         }}
                       >
                         <option value="google">Google Gemini</option>
                         <option value="groq">Groq (Fastest)</option>
                         <option value="openai">OpenAI / Compatible</option>
+                        <option value="ollama">Ollama (Local)</option>
+                        <option value="lmstudio">LM Studio (Local)</option>
                       </select>
                     </div>
 

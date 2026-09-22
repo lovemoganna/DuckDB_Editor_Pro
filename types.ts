@@ -187,12 +187,69 @@ export interface ColumnInfo {
   cid?: number; // From schema generator
 }
 
+export interface ObjectRef {
+  connectionId: string;
+  databaseOid?: string | number;
+  databaseName: string;
+  schemaOid?: string | number;
+  schemaName: string;
+  objectOid?: string | number;
+  objectName: string;
+  objectType: 'TABLE' | 'VIEW';
+  estimatedRows?: number | null;
+  columnCount?: number;
+  sql?: string;
+}
+
+export interface CatalogDatabaseNode {
+  databaseOid: string | number;
+  databaseName: string;
+  path?: string;
+  readonly?: boolean;
+  type?: string;
+  schemas: CatalogSchemaNode[];
+}
+
+export interface CatalogSchemaNode {
+  schemaOid?: string | number;
+  schemaName: string;
+  databaseName: string;
+  tables: ObjectRef[];
+  views: ObjectRef[];
+}
+
+export interface CatalogTreeResult {
+  connectionId: string;
+  currentCatalog: string;
+  currentSchema: string;
+  databases: CatalogDatabaseNode[];
+}
+
 export interface QueryResult {
+  resultId?: string;
+  queryTitle?: string;
+  sourceType?: 'query' | 'table_preview' | 'table_sample';
+  sourceName?: string;
   columns: string[];
+  columnTypes?: string[];
+  columnTypeMap?: Record<string, string>;
   rows: any[];
+  arrowTable?: any;
   executionTime: number;
   error?: string;
+  errorContext?: {
+    catalog?: string;
+    currentCatalog: string;
+    currentSchema: string;
+    availableCatalogs: string[];
+    missingObject?: string;
+    suggestion?: string;
+  };
   isExplain?: boolean;
+  limitClause?: number;
+  totalRows?: number;
+  rowCount?: number;
+  executedAt?: string;
 }
 
 export interface AuditLogEntry {
@@ -224,9 +281,13 @@ export interface QueryHistoryItem {
   timestamp: number;
   status: 'success' | 'error';
   executionTime?: number;
+  error?: string;
+  affectedRows?: number;
+  isStarred?: boolean;
+  table?: string;
 }
 
-export type ChartType = 'bar' | 'line' | 'area' | 'pie' | 'doughnut' | 'scatter' | 'counter';
+export type ChartType = 'bar' | 'line' | 'area' | 'pie' | 'doughnut' | 'scatter' | 'counter' | 'pivot';
 
 export interface ChartConfig {
   id: string;
@@ -243,6 +304,11 @@ export interface ChartConfig {
   showValues?: boolean;
   yAxisLabel?: string;
   colors?: string[];
+  // 透视表维度配置
+  rowKey?: string;
+  colKey?: string;
+  valKey?: string;
+  aggFunc?: 'sum' | 'count' | 'avg' | 'min' | 'max';
   // 指标关联字段
   metricId?: string;           // 关联的指标ID
   metricPackageId?: string;    // 关联的指标包ID
@@ -281,10 +347,32 @@ export interface SavedQuery {
   folder?: string;
   createdAt: number;
   charts?: ChartConfig[];
-  widgetType?: 'value' | 'table' | 'chart';
+  widgetType?: 'value' | 'table' | 'chart' | 'pivot';
   // 标记是否来自指标图表
   metricChartId?: string;
 }
+
+export interface DashboardItem {
+  i: string;
+  savedQueryId: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+export interface Dashboard {
+  id: string;
+  name: string;
+  description?: string;
+  items: DashboardItem[];
+  createdAt: number;
+  updatedAt: number;
+  tags?: string[];
+  theme?: string;
+  template?: string;
+}
+
 
 export interface TopKEntry {
   value: any;
@@ -328,8 +416,9 @@ export interface EnrichedColumnStats extends ColumnStats {
 export interface ImportOptions {
   header: boolean;
   delimiter: string;
-  quote: string;
-  dateFormat: string;
+  quote?: string;
+  dateFormat?: string;
+  conflictMode?: 'replace' | 'append' | 'fail';
 }
 
 // Schema Generator Types
@@ -404,8 +493,10 @@ export enum Tab {
   METRICS = 'metrics',
   AI_SKILLS = 'ai_skills',
   LIBRARY = 'library',
+  AI_CAPABILITIES = 'ai_capabilities', // Standalone AI Capability Hub
   ONTOLOGY = 'ontology',
   COMPOSITIONAL_DEDUCTION = 'compositional_deduction',
+  DATAFLOW = 'dataflow',
 }
 
 export type SemanticType = 'DIM' | 'MEA' | 'ID' | 'TIME' | 'ATTR' | 'RATIO' | 'CURR';
@@ -1066,7 +1157,7 @@ export interface LibraryPanelState {
   selectedCategory: string | 'all';
 }
 
-export type LibraryTab = 'meta' | 'ddl' | 'dml' | 'dql' | 'functions' | 'dcl' | 'optimization';
+export type LibraryTab = 'ai-capabilities' | 'meta' | 'ddl' | 'dml' | 'dql' | 'functions' | 'dcl' | 'optimization';
 
 /**
  * AI 生成内容标记
@@ -1304,3 +1395,5 @@ export interface SqlGenerationResult {
   explanation: string;                // SQL 解释
   parameterValues?: Record<string, string>;  // 参数值建议
 }
+
+export * from './types/library';

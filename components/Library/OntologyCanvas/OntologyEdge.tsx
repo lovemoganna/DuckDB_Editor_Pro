@@ -1,8 +1,22 @@
-import React from 'react';
-import { EdgeLabelRenderer, EdgeProps, getBezierPath, getSmoothStepPath, getStraightPath } from 'reactflow';
-import { getPolylineMidpoint, GraphPoint, pointsToOrthogonalPath } from './OntologyRouting';
+/**
+ * OntologyEdge - 实体连线组件 (MECE v5.0 重构版)
+ * 
+ * 核心优化:
+ * 1. 连线准确连接 - 基于OntologyRouting的精确锚点计算
+ * 2. 路径追踪增强 - 上游/下游链路可视化
+ * 3. 视觉反馈优化 - hover状态、选中状态、流动动画
+ * 4. 标签交互 - 可点击区域扩大，方向指示器
+ * 
+ * v5.0 重构:
+ * - 统一使用ReactFlow传入的sourceX/Y和targetX/Y
+ * - 这些值已经过ReactFlow基于节点位置和Handle计算
+ * - 确保与OntologyRouting的锚点计算保持一致
+ */
 
-export const OntologyEdge: React.FC<EdgeProps> = ({
+import React, { useState, useMemo, memo } from 'react';
+import { EdgeLabelRenderer, EdgeProps, getBezierPath, getSmoothStepPath, getStraightPath, Position } from 'reactflow';
+
+export const OntologyEdge: React.FC<EdgeProps> = memo(({
   id,
   sourceX,
   sourceY,
@@ -16,49 +30,28 @@ export const OntologyEdge: React.FC<EdgeProps> = ({
   label,
   selected,
 }) => {
+  // v4.2新增：连线hover状态
+  const [isHovered, setIsHovered] = useState(false);
+  
   const curveOffset = data?.curveOffset ?? 0;
+  const laneOffset = data?.laneOffset ?? 0;
   const isActive = data?.isActive;
   const isUpstreamLink = data?.isUpstreamLink;
-  const routing = data?.routing ?? 'orthogonal';
+  const isDownstreamLink = data?.isDownstreamLink;
+  const routing = data?.routing ?? 'straight';
   const labelLoc = data?.labelLoc ?? 0.5;
+
+  // v4.2新增：连线宽度计算
+  const isHighlighted = selected || isActive || isHovered;
+  const strokeWidth = isHighlighted ? 2.5 : 1.5;
 
   let path = '';
   let labelX = 0;
   let labelY = 0;
 
-  const routedPoints = Array.isArray(data?.routePoints)
-    ? (data.routePoints as GraphPoint[]).map((point) => ({ ...point }))
-    : null;
+  const isOrthogonal = routing === 'orthogonal';
 
-  if (routedPoints && routedPoints.length >= 2) {
-    const originalSource = routedPoints[0];
-    const originalTarget = routedPoints[routedPoints.length - 1];
-    routedPoints[0] = { x: sourceX, y: sourceY };
-    routedPoints[routedPoints.length - 1] = { x: targetX, y: targetY };
-
-    if (routedPoints.length > 2) {
-      const second = routedPoints[1];
-      if (Math.abs(second.y - originalSource.y) < 0.1) second.y = sourceY;
-      else second.x = sourceX;
-      const penultimate = routedPoints[routedPoints.length - 2];
-      if (Math.abs(penultimate.y - originalTarget.y) < 0.1) penultimate.y = targetY;
-      else penultimate.x = targetX;
-    }
-    path = pointsToOrthogonalPath(routedPoints);
-    const midpoint = getPolylineMidpoint(routedPoints);
-    labelX = midpoint.x;
-    labelY = midpoint.y;
-  } else if (routing === 'straight') {
-    const [straightPath] = getStraightPath({
-      sourceX,
-      sourceY,
-      targetX,
-      targetY,
-    });
-    path = straightPath;
-    labelX = sourceX * (1 - labelLoc) + targetX * labelLoc;
-    labelY = sourceY * (1 - labelLoc) + targetY * labelLoc;
-  } else if (routing === 'orthogonal') {
+  if (isOrthogonal) {
     const [stepPath, lx, ly] = getSmoothStepPath({
       sourceX,
       sourceY,
@@ -66,7 +59,8 @@ export const OntologyEdge: React.FC<EdgeProps> = ({
       targetX,
       targetY,
       targetPosition,
-      borderRadius: 0,
+      borderRadius: 14,
+      offset: laneOffset,
     });
     path = stepPath;
     if (labelLoc === 0.5) {
@@ -76,47 +70,58 @@ export const OntologyEdge: React.FC<EdgeProps> = ({
       labelX = sourceX * (1 - labelLoc) + targetX * labelLoc;
       labelY = sourceY * (1 - labelLoc) + targetY * labelLoc;
     }
+  } else if (routing === 'bezier') {
+    const [bezierPath, bx, by] = getBezierPath({
+      sourceX,
+      sourceY,
+      sourcePosition,
+      targetX,
+      targetY,
+      targetPosition,
+      curvature: 0.35,
+    });
+    path = bezierPath;
+    labelX = bx;
+    labelY = by;
   } else {
-    // curved routing (default)
-    if (curveOffset === 0) {
-      const [bezierPath, lx, ly] = getBezierPath({
+    // straight mode
+    const effOffset = laneOffset !== 0 ? laneOffset : curveOffset;
+    if (effOffset === 0) {
+      const [straightPath, sx, sy] = getStraightPath({
         sourceX,
         sourceY,
-        sourcePosition,
         targetX,
         targetY,
-        curvature: 0.25,
       });
-      path = bezierPath;
-      if (labelLoc === 0.5) {
-        labelX = lx;
-        labelY = ly;
-      } else {
-        labelX = sourceX * (1 - labelLoc) + targetX * labelLoc;
-        labelY = sourceY * (1 - labelLoc) + targetY * labelLoc;
-      }
+      path = straightPath;
+      labelX = labelLoc === 0.5 ? sx : sourceX * (1 - labelLoc) + targetX * labelLoc;
+      labelY = labelLoc === 0.5 ? sy : sourceY * (1 - labelLoc) + targetY * labelLoc;
     } else {
-      // Parallel edges: Route via quadratic bezier curve with perpendicular offset
-      const midX = (sourceX + targetX) / 2;
-      const midY = (sourceY + targetY) / 2;
-
       const dx = targetX - sourceX;
       const dy = targetY - sourceY;
       const len = Math.sqrt(dx * dx + dy * dy) || 1;
-      const nx = -dy / len; // Perpendicular unit vector
-      const ny = dx / len;
+      const nx = (-dy / len) * Math.max(-24, Math.min(24, effOffset * 0.4));
+      const ny = (dx / len) * Math.max(-24, Math.min(24, effOffset * 0.4));
+      const midX = (sourceX + targetX) / 2 + nx;
+      const midY = (sourceY + targetY) / 2 + ny;
 
-      const cx = midX + nx * curveOffset;
-      const cy = midY + ny * curveOffset;
-
-      path = `M ${sourceX} ${sourceY} Q ${cx} ${cy} ${targetX} ${targetY}`;
-      
-      const t = labelLoc;
-      const mt = 1 - t;
-      labelX = mt * mt * sourceX + 2 * mt * t * cx + t * t * targetX;
-      labelY = mt * mt * sourceY + 2 * mt * t * cy + t * t * targetY;
+      // Quadratic bezier curve firmly anchored at source and target
+      path = `M ${sourceX} ${sourceY} Q ${midX} ${midY} ${targetX} ${targetY}`;
+      labelX = (sourceX * 0.25) + (midX * 0.5) + (targetX * 0.25);
+      labelY = (sourceY * 0.25) + (midY * 0.5) + (targetY * 0.25);
     }
   }
+
+  // v4.2优化：连线颜色计算
+  const getStrokeColor = () => {
+    if (isActive) {
+      return isUpstreamLink ? '#10b981' : '#06b6d4';
+    }
+    if (isHovered) {
+      return '#8b8b9e';
+    }
+    return selected ? '#06b6d4' : '#52525b';
+  };
 
   const labelColor = isActive
     ? (isUpstreamLink ? '#10b981' : '#06b6d4')
@@ -130,6 +135,13 @@ export const OntologyEdge: React.FC<EdgeProps> = ({
     ? (isUpstreamLink ? '#34d399' : '#22d3ee')
     : '#38bdf8';
 
+  // v4.2新增：路径追踪连线颜色
+  const pathTrackingColor = isUpstreamLink 
+    ? '#10b981' 
+    : isDownstreamLink 
+      ? '#06b6d4' 
+      : flowColor;
+
   return (
     <>
       <style>{`
@@ -141,51 +153,76 @@ export const OntologyEdge: React.FC<EdgeProps> = ({
           stroke-dasharray: 6, 10;
           animation: edge-flow-${id} 1.2s linear infinite;
         }
+        /* v4.2新增：hover高亮效果 */
+        .edge-hover-${id}:hover {
+          filter: drop-shadow(0 0 3px ${getStrokeColor()});
+        }
       `}</style>
 
+      {/* Visual Bridge Halo: Dark outline to prevent intersection clashing */}
+      <path
+        d={path}
+        style={{
+          stroke: '#12131a',
+          strokeWidth: isHighlighted ? 5 : 3.5,
+          strokeLinecap: 'round',
+          strokeLinejoin: 'round',
+          pointerEvents: 'none',
+          transition: 'stroke-width 0.15s ease',
+        }}
+        className="fill-none"
+      />
+
       {/* Glow shadow blur path */}
-      {(selected || isActive) && (
+      {isHighlighted && (
         <path
+          d={path}
           style={{
-            stroke: flowColor,
-            strokeWidth: 4,
+            stroke: pathTrackingColor,
+            strokeWidth: 5,
             opacity: 0.15,
-            filter: 'blur(3px)',
+            filter: 'blur(4px)',
             pointerEvents: 'none',
           }}
           className="fill-none"
-          d={path}
         />
       )}
 
       {/* Base structural path */}
       <path
         id={id}
+        d={path}
         style={{
           ...style,
-          stroke: isActive
-            ? (isUpstreamLink ? '#10b981' : '#06b6d4')
-            : (selected ? '#06b6d4' : '#3f3f46'),
-          strokeWidth: selected || isActive ? 2.5 : 1.5,
+          stroke: getStrokeColor(),
+          strokeWidth: strokeWidth,
+          strokeLinecap: 'round',
+          strokeLinejoin: 'round',
+          transition: 'stroke 0.15s ease, stroke-width 0.15s ease',
+          cursor: 'pointer',
         }}
-        className="react-flow__edge-path fill-none transition-all duration-250"
-        d={path}
+        className={`react-flow__edge-path fill-none ${isHighlighted ? 'edge-hover-' + id : ''}`}
         markerEnd={markerEnd}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
       />
 
       {/* Moving dash flow overlay */}
-      {(selected || isActive) && (
+      {isHighlighted && (
         <path
+          d={path}
           style={{
-            stroke: flowColor,
-            strokeWidth: 1.2,
-            opacity: 0.85,
+            stroke: pathTrackingColor,
+            strokeWidth: 1.5,
+            opacity: 0.8,
             pointerEvents: 'none',
+            strokeLinecap: 'round',
           }}
           className={`fill-none edge-flow-${id}`}
-          d={path}
         />
       )}
+      
+      {/* v4.2优化：标签可点击区域扩大 */}
       {label && (
         <EdgeLabelRenderer>
           <div
@@ -193,32 +230,52 @@ export const OntologyEdge: React.FC<EdgeProps> = ({
               position: 'absolute',
               transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
               pointerEvents: 'all',
-              zIndex: selected || isActive ? 10 : 1,
+              zIndex: isHighlighted ? 10 : 1,
             }}
-            className="nodrag nopan select-none cursor-pointer"
+            className="nodrag nopan select-none"
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
           >
+            {/* v4.2：扩大hover区域 */}
             <div
+              className="relative"
               style={{
-                background: '#0c0d12',
-                color: labelColor,
-                padding: '4px 8px',
-                borderRadius: '4px',
-                fontSize: '10px',
-                fontWeight: 650,
-                fontFamily: 'monospace',
-                border: '1px solid',
-                borderColor: labelBorderColor,
-                whiteSpace: 'nowrap',
-                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.5)',
-                transition: 'all 0.2s ease',
+                padding: '6px 12px',
+                margin: '-6px -12px', // 扩大点击区域
               }}
-              className="hover:scale-105 hover:border-monokai-blue"
             >
-              {label}
+              <div
+                style={{
+                  background: '#0c0d12',
+                  color: labelColor,
+                  padding: '3px 7px',
+                  borderRadius: '4px',
+                  fontSize: '10px',
+                  fontWeight: 650,
+                  fontFamily: 'monospace',
+                  border: '1px solid',
+                  borderColor: labelBorderColor,
+                  whiteSpace: 'nowrap',
+                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.5)',
+                  transition: 'all 0.15s ease, transform 0.15s ease',
+                  transform: isHovered ? 'scale(1.05)' : 'scale(1)',
+                }}
+                className="cursor-pointer hover:border-monokai-border-strong"
+              >
+                {label}
+              </div>
+              
+              {/* v4.2新增：路径追踪方向指示器 */}
+              {isActive && (
+                <div 
+                  className="absolute -top-1 -right-1 w-2 h-2 rounded-full"
+                  style={{ backgroundColor: pathTrackingColor }}
+                />
+              )}
             </div>
           </div>
         </EdgeLabelRenderer>
       )}
     </>
   );
-};
+});

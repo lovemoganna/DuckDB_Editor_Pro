@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 
 import { GenerationResult, AnalysisSummary } from '../../types';
 import { duckDBService } from '../../services/duckdbService';
+import { toastService } from '../../services/toastService';
 import { aiService } from '../../services/aiService';
 import { MermaidChart } from '../../components/MermaidChart';
 import { generateMermaidFromOps } from '../../utils/sqlToMermaid';
@@ -195,9 +196,9 @@ export const ResultCard: React.FC<ResultCardProps> = ({
         a.click();
         URL.revokeObjectURL(url);
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      alert("Export failed: " + e);
+      toastService.error("导出失败", e.message || String(e));
     }
   };
 

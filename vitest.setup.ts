@@ -8,23 +8,64 @@
  * Note: duckDBService is mocked per-test-file in useOntologyStore.crud.test.ts.
  */
 
+import '@testing-library/jest-dom/vitest';
 import { vi } from 'vitest';
+
+// ─── Mock @duckdb/duckdb-wasm ────────────────────────────────────────────────
 
 // ─── Mock @duckdb/duckdb-wasm ────────────────────────────────────────────────
 
 vi.mock('@duckdb/duckdb-wasm', () => ({
   AsyncDuckDB: class MockDB {
     async instantiate() {}
+    async open() {}
     async connect() {
+      const mockResult = (data: any[] = []) => {
+        const arr = data.map(d => ({
+          ...d,
+          toJSON: () => d,
+        }));
+        (arr as any).toArray = () => arr;
+        (arr as any).schema = { fields: Object.keys(data[0] || {}).map(name => ({ name, type: { toString: () => 'VARCHAR' } })) };
+        return arr;
+      };
       return {
-        query: vi.fn().mockResolvedValue([]),
+        query: vi.fn(async (sql: string) => {
+          if (sql.includes('readiness_check')) {
+            return mockResult([{ readiness_check: 42 }]);
+          }
+          if (sql.includes('version()')) {
+            return mockResult([{ v: '1.32.0' }]);
+          }
+          return mockResult([]);
+        }),
         flush: vi.fn().mockResolvedValue(undefined),
         close: vi.fn(),
       };
     }
     registerFileText() {}
+    async registerFileBuffer() {}
+    async registerFileHandle() {}
+    async copyFileToBuffer() { return new Uint8Array(); }
+    async globFiles() { return []; }
+    async flushFiles() {}
+    async terminate() {}
   },
   AsyncDuckDBConnection: class {},
+  DuckDBDataProtocol: {
+    BUFFER: 0,
+    NODE_FS: 1,
+    BROWSER_FILEREADER: 2,
+    BROWSER_FSACCESS: 3,
+    HTTP: 4,
+    S3: 5,
+  },
+  DuckDBAccessMode: {
+    UNDEFINED: 0,
+    AUTOMATIC: 1,
+    READ_ONLY: 2,
+    READ_WRITE: 3,
+  },
   getLogLevelLabel: () => 'INFO',
 }));
 

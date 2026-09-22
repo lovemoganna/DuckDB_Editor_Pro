@@ -48,9 +48,9 @@ export const BrowseMode: React.FC<BrowseModeProps> = ({ onExecuteSql }) => {
   } = useSkillContext();
 
   return (
-    <div className="flex h-full w-full bg-[#1e1f1c] text-monokai-fg overflow-hidden">
+    <div className="skill-browser flex h-full w-full bg-monokai-bg text-monokai-fg overflow-hidden">
       {/* Column 1: Skill List (Catalog) */}
-      <div className="w-[280px] flex-shrink-0 border-r border-[#3e3d32] bg-[#1e1f1c]">
+      <div className="skill-catalog w-[280px] flex-shrink-0 border-r border-monokai-border bg-monokai-sidebar">
         <SkillList
           currentTable={currentTable}
           onShowImportModal={() => setShowImportModal(true)}
@@ -67,8 +67,8 @@ export const BrowseMode: React.FC<BrowseModeProps> = ({ onExecuteSql }) => {
             defaultWidth={DEFAULT_MIDDLE_WIDTH}
             minWidth={MIN_MIDDLE_WIDTH}
             maxWidth={MAX_MIDDLE_WIDTH}
-            bgColor="#1e1f1c"
-            className="flex-shrink-0"
+            bgColor="var(--monokai-bg)"
+            className="skill-parameters flex-shrink-0"
             onWidthChange={setMiddleWidth}
           >
             {selectedSkill ? (
@@ -76,8 +76,8 @@ export const BrowseMode: React.FC<BrowseModeProps> = ({ onExecuteSql }) => {
                 <Suspense fallback={
                   <div className="flex items-center justify-center h-full">
                     <div className="flex flex-col items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg border border-[#3e3d32] flex items-center justify-center">
-                        <Sparkles className="w-4 h-4 text-monokai-amethyst animate-pulse" />
+                      <div className="w-8 h-8 rounded-lg border border-monokai-border flex items-center justify-center">
+                        <Sparkles className="w-4 h-4 text-monokai-fg-muted" />
                       </div>
                       <span className="text-xs text-monokai-comment">加载执行单元...</span>
                     </div>
@@ -97,27 +97,27 @@ export const BrowseMode: React.FC<BrowseModeProps> = ({ onExecuteSql }) => {
               <div className="h-full flex flex-col items-center justify-center p-8">
                 {/* Empty state illustration */}
                 <div className="relative mb-6">
-                  <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-monokai-amethyst/10 to-monokai-pink/10 border border-monokai-amethyst/20 flex items-center justify-center">
+                  <div className="w-20 h-20 rounded-2xl bg-monokai-surface border border-monokai-border flex items-center justify-center">
                     <Sparkles className="w-10 h-10 text-monokai-amethyst opacity-60" />
                   </div>
-                  <div className="absolute -bottom-2 -right-2 w-8 h-8 rounded-lg bg-[#272822] border border-[#3e3d32] flex items-center justify-center">
+                  <div className="absolute -bottom-2 -right-2 w-8 h-8 rounded-lg bg-monokai-elevated border border-monokai-border flex items-center justify-center">
                     <Zap className="w-4 h-4 text-monokai-yellow" />
                   </div>
                 </div>
                 <h3 className="text-sm font-semibold text-monokai-fg mb-2">等待选择技能</h3>
                 <p className="text-xs text-monokai-comment text-center max-w-[200px]">
-                  从左侧选择一个 AI 技能开始生成 SQL
+                  请从左侧选择一个 AI 技能以开始生成 SQL
                 </p>
               </div>
             )}
           </ResizablePanel>
 
           {/* Column 3: Output (SqlPreview) */}
-          <div className="flex-1 flex flex-col bg-[#1e1e1e] min-w-0">
+          <div className="skill-output flex-1 flex flex-col bg-monokai-bg min-w-0">
             {/* Output header */}
-            <div className="h-12 bg-[#1e1f1c] border-b border-[#3e3d32] flex items-center px-4">
+            <div className="h-12 bg-monokai-bg border-b border-monokai-border flex items-center px-4">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-monokai-green/10 border border-monokai-green/20 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-lg bg-monokai-surface border border-monokai-border flex items-center justify-center">
                   <Terminal className="w-4 h-4 text-monokai-green" />
                 </div>
                 <div>
@@ -153,7 +153,7 @@ export const BrowseMode: React.FC<BrowseModeProps> = ({ onExecuteSql }) => {
                   />
                 </div>
               ) : (
-                <div className="h-full flex flex-col items-center justify-center text-[#75715e]">
+                <div className="h-full flex flex-col items-center justify-center text-monokai-comment">
                   {/* Terminal style empty state */}
                   <div className="font-mono text-xs opacity-50 space-y-1">
                     <div className="flex items-center gap-2">

@@ -268,6 +268,103 @@ class OntologyModelingService {
 
     return { nodes, links: layoutLinks };
   }
+
+  /**
+   * Topological Graph-to-CTE SQL Compiler
+   * Compiles visual canvas nodes and edges into executable DuckDB SQL CTEs (WITH ... AS ...)
+   */
+  compileCanvasToCTE(
+    items: { id: string; objectId?: number; nodeType?: string; name?: string }[],
+    edges: { sourceId: string; targetId: string; label?: string }[],
+    objectsLookup: Record<string | number, { name: string; tableName?: string }> = {}
+  ): string {
+    if (!items || items.length === 0) {
+      return '-- Canvas is empty. Add object cards and connecting edges to compile SQL pipeline.';
+    }
+
+    const itemMap = new Map<string, { id: string; name: string }>();
+    const inDegree = new Map<string, number>();
+    const graph = new Map<string, string[]>();
+    const incomingMap = new Map<string, string[]>();
+
+    items.forEach((item) => {
+      const name = objectsLookup[item.objectId || '']?.name || item.name || `node_${item.id.slice(0, 6)}`;
+      const sanitizeName = name.toLowerCase().replace(/[^a-z0-9_]/g, '_');
+      itemMap.set(item.id, { id: item.id, name: sanitizeName });
+      inDegree.set(item.id, 0);
+      graph.set(item.id, []);
+      incomingMap.set(item.id, []);
+    });
+
+    edges.forEach((edge) => {
+      if (itemMap.has(edge.sourceId) && itemMap.has(edge.targetId)) {
+        graph.get(edge.sourceId)!.push(edge.targetId);
+        incomingMap.get(edge.targetId)!.push(edge.sourceId);
+        inDegree.set(edge.targetId, (inDegree.get(edge.targetId) || 0) + 1);
+      }
+    });
+
+    // Kahn's Algorithm for Topological Sort
+    const queue: string[] = [];
+    inDegree.forEach((degree, id) => {
+      if (degree === 0) queue.push(id);
+    });
+
+    const sortedOrder: string[] = [];
+    while (queue.length > 0) {
+      const curr = queue.shift()!;
+      sortedOrder.push(curr);
+
+      const neighbors = graph.get(curr) || [];
+      for (const next of neighbors) {
+        const nextDegree = (inDegree.get(next) || 1) - 1;
+        inDegree.set(next, nextDegree);
+        if (nextDegree === 0) queue.push(next);
+      }
+    }
+
+    // Handle remaining nodes in case of cycles
+    items.forEach((item) => {
+      if (!sortedOrder.includes(item.id)) sortedOrder.push(item.id);
+    });
+
+    const cteStatements: string[] = [];
+
+    sortedOrder.forEach((nodeId) => {
+      const node = itemMap.get(nodeId);
+      if (!node) return;
+
+      const incomingSources = incomingMap.get(nodeId) || [];
+      if (incomingSources.length === 0) {
+        // Base CTE node selecting from base table
+        cteStatements.push(
+          `  cte_${node.name} AS (\n    SELECT * FROM ${node.name}\n  )`
+        );
+      } else {
+        // Derived CTE node combining incoming sources
+        const sourceNames = incomingSources.map((srcId) => `cte_${itemMap.get(srcId)?.name || 'source'}`);
+        if (sourceNames.length === 1) {
+          cteStatements.push(
+            `  cte_${node.name} AS (\n    SELECT *\n    FROM ${sourceNames[0]}\n  )`
+          );
+        } else {
+          const mainSource = sourceNames[0];
+          const joins = sourceNames.slice(1).map((joinSrc, idx) => 
+            `    LEFT JOIN ${joinSrc} s${idx + 1} ON 1=1`
+          ).join('\n');
+          cteStatements.push(
+            `  cte_${node.name} AS (\n    SELECT ${mainSource}.*\n    FROM ${mainSource}\n${joins}\n  )`
+          );
+        }
+      }
+    });
+
+    const lastNode = sortedOrder[sortedOrder.length - 1];
+    const lastNodeName = itemMap.get(lastNode)?.name || 'result';
+
+    return `WITH\n${cteStatements.join(',\n\n')}\n\nSELECT * FROM cte_${lastNodeName};`;
+  }
 }
 
 export const ontologyModelingService = new OntologyModelingService();
+

@@ -183,13 +183,13 @@ export const ERDiagram: React.FC<ERDiagramProps> = ({ onExecuteSql }) => {
                             </div>
                         </div>
                         <textarea
-                            className="w-full h-40 p-2 text-xs font-mono border border-monokai-accent rounded bg-monokai-surface mb-2 custom-scrollbar resize-none focus:outline-none focus:border-monokai-blue"
+                            className="w-full h-40 p-2.5 text-xs font-mono border border-monokai-border rounded-lg bg-monokai-surface mb-2 custom-scrollbar resize-none focus:outline-none focus:border-monokai-accent transition-colors"
                             value={generatedSql}
                             readOnly
                         />
                         <button
                             onClick={() => onExecuteSql?.(generatedSql)}
-                            className="w-full bg-monokai-green text-monokai-bg py-2 rounded-lg text-sm font-bold hover:opacity-90 flex items-center justify-center gap-2 transition-colors"
+                            className="w-full bg-monokai-accent text-monokai-bg py-2 rounded-lg text-xs font-bold hover:opacity-90 flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs"
                         >
                             <Play size={14} /> Run in Editor
                         </button>

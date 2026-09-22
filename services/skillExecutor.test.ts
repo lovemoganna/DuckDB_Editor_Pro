@@ -96,7 +96,10 @@ vi.mock('./skill/skillHistoryStorage', () => ({
   clearSkillHistory: vi.fn(),
 }));
 
-const mockGenerateSql = vi.fn().mockResolvedValue('SELECT * FROM users');
+const { mockGenerateSql } = vi.hoisted(() => ({
+  mockGenerateSql: vi.fn().mockResolvedValue('SELECT * FROM users'),
+}));
+
 vi.mock('./aiService', () => ({
   aiService: { generateSql: mockGenerateSql },
 }));

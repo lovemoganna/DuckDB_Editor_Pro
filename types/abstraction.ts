@@ -303,6 +303,10 @@ export interface AbstractionLabProps {
 export interface AISessionMessage {
   id: string;
   role: 'user' | 'assistant';
+  /** Plain conversational content used by the lightweight session composer. */
+  content?: string;
+  /** Optional SQL attached to a conversational response. */
+  sql?: string;
   /** 发送时携带的 AI 请求参数（用于重新生成等操作） */
   request?: {
     concept: string;

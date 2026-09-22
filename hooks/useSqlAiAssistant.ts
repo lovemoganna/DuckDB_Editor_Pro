@@ -1,18 +1,17 @@
 /**
- * useSqlAiAssistant — AI assistance orchestration for the SQL Editor
- *
- * Extracted from SqlEditor.tsx (Loop 3 of SqlEditor Pro refactor).
+ * useSqlAiAssistant — Context-Aware AI Co-pilot orchestration for the SQL Editor
  *
  * Responsibilities:
- *   - handleAiGenerate(prompt)        NL → SQL (overwrites active tab)
- *   - handleAiFix()                   Auto-fix SQL that errored on last run
- *   - handleAiContinueOptimize(type)  Improve / explain / DuckDB-adapt
- *   - handleAiExplain()               Persisted Markdown explanation
- *   - handleAiFill(type)              Inject context-aware SQL template
- *   - handleAISuggestion(prompt)      Update code from a suggestion
+ *   - executeCapability(cap)          Universal execution driver for Knowledge AI Capabilities
+ *   - handleAiGenerate(prompt)        NL → SQL (Opens Diff review if code exists)
+ *   - handleAiFix()                   Auto-diagnose & fix SQL error (Opens Diff Proposal Modal)
+ *   - handleAiContinueOptimize(type)  Performance / Dialect optimization (Opens Diff Proposal Modal)
+ *   - handleAiExplain()               Markdown explanation
+ *   - handleAiResultInsight()         Result set business insights & anomaly detector
+ *   - handleAIFill(type)              Inject context-aware SQL template
  *
- * All state lives in the `useSqlEditorStore`. This hook just reads
- * selectors + invokes `aiService` + persists via store actions.
+ * All actions prioritize AI Safety & User Confirmation:
+ * Modifying actions pop up the `AiDiffProposalModal` instead of silent overwrites.
  */
 
 import { useCallback } from 'react';
@@ -24,19 +23,21 @@ import {
 } from '../services/aiExplanationStorage';
 import { OPTIMIZATION_PROMPTS, FILL_PROMPTS, DEFAULT_FILL_PROMPT } from '../data/sqlAiPrompts';
 import { useSqlEditorStore } from './store/useSqlEditorStore';
-import type { ColumnInfo, SqlTab } from '../types';
-
-const SCHEMA_TREE_SELECTOR = (s: { schemaTree: Record<string, ColumnInfo[]> }) =>
-  s.schemaTree;
+import { useAppStore } from './store/useAppStore';
+import { AiCapabilityDefinition } from '../services/aiCapabilitiesStorage';
+import type { ColumnInfo, QueryResult } from '../types';
 
 export interface UseSqlAiAssistantReturn {
+  executeCapability: (cap: AiCapabilityDefinition) => Promise<void>;
   handleAiGenerate: () => Promise<void>;
   handleAiFix: () => Promise<void>;
   handleAiContinueOptimize: (type: 'improve' | 'explain' | 'adapt') => Promise<void>;
   handleAiExplain: () => Promise<void>;
+  handleAiResultInsight: () => Promise<void>;
   handleAIFill: () => void;
   handleAISuggestion: () => Promise<void>;
   handleAiOptimizeProfiling: (bottleneckInfo: string) => Promise<string | undefined>;
+  cancelAiRequest: () => void;
   generateAIFillPrompt: (
     sqlType: string,
     tableName?: string,
@@ -55,33 +56,141 @@ export function useSqlAiAssistant(): UseSqlAiAssistantReturn {
   const isAiLoading = useSqlEditorStore((s) => s.isAiLoading);
   const isFixing = useSqlEditorStore((s) => s.isFixing);
 
-  const handleAiGenerate = useCallback(async () => {
+  /**
+   * Universal execution driver connecting Knowledge AI Capabilities to active SQL Editor context
+   */
+  const executeCapability = useCallback(async (cap: AiCapabilityDefinition) => {
     const state = useSqlEditorStore.getState();
-    if (!state.aiPrompt.trim()) return;
+    const tab = state.getActiveTab();
     state.setIsAiLoading(true);
     try {
-      const schemaStr = await buildSchemaContext();
-      const sql = await aiService.generateSql(state.aiPrompt, schemaStr);
-      state.setAiOptimizationHistory((prev) => [...prev.slice(-4), { sql, timestamp: Date.now() }]);
-      state.updateActiveTab({ code: sql });
-    } catch (e) {
+      const currentSql = tab?.code || '';
+      const schemaStr = await buildSchemaContext(currentSql, 5);
+      const errorMessage = tab?.result?.error || '无分析报错';
+      const rowCount = tab?.result?.rows.length || 0;
+      const columns = (tab?.result?.columns || []).join(', ');
+      const sampleData = JSON.stringify((tab?.result?.rows || []).slice(0, 10), null, 2);
+
+      let substitutedPrompt = cap.promptTemplate
+        .replace(/\{currentSql\}/g, currentSql)
+        .replace(/\{schemaContext\}/g, schemaStr)
+        .replace(/\{errorMessage\}/g, errorMessage)
+        .replace(/\{rowCount\}/g, String(rowCount))
+        .replace(/\{columns\}/g, columns)
+        .replace(/\{sampleData\}/g, sampleData);
+
+      if (substitutedPrompt.includes('{userPrompt}')) {
+        state.setIsAiLoading(false);
+        state.setAiCapabilityPromptModal({
+          isOpen: true,
+          capability: cap,
+          substitutedPrompt,
+          schemaContext: schemaStr,
+        });
+        return;
+      }
+
+      const response = await aiService.generateSql(substitutedPrompt, schemaStr);
+
+      if (response.startsWith('-- Error generating SQL:')) {
+        const errorDetail = response.replace('-- Error generating SQL:', '').trim();
+        state.showToast(`AI 执行失败: ${errorDetail}`, 'warning');
+        if (errorDetail.includes('API Key not configured')) {
+          useAppStore.getState().setShowSettingsModal(true);
+        }
+        return;
+      }
+
+      if (cap.category === 'insight') {
+        // Open Markdown insights report modal
+        state.setAiResultInsights({
+          isOpen: true,
+          result: tab?.result || null,
+          insightMarkdown: response,
+          isLoading: false,
+        });
+      } else {
+        // Open Diff Proposal Safety Modal for SQL modifications
+        state.setAiProposal({
+          isOpen: true,
+          title: `🤖 AI 能力执行: ${cap.name}`,
+          explanation: cap.description,
+          originalSql: currentSql,
+          proposedSql: response.replace(/```sql|```/g, '').trim(),
+        });
+      }
+    } catch (e: any) {
       console.error(e);
+      state.showToast(`AI 能力执行失败: ${e.message || e}`, 'warning');
+      if (e.message?.includes('API Key not configured')) {
+        useAppStore.getState().setShowSettingsModal(true);
+      }
     } finally {
       state.setIsAiLoading(false);
     }
   }, []);
 
+  const handleAiGenerate = useCallback(async () => {
+    const state = useSqlEditorStore.getState();
+    if (!state.aiPrompt.trim()) return;
+    const tab = state.getActiveTab();
+    state.setIsAiLoading(true);
+    try {
+      const schemaStr = await buildSchemaContext(state.aiPrompt, 5);
+      const generatedSql = await aiService.generateSql(state.aiPrompt, schemaStr);
+      
+      if (tab && tab.code.trim()) {
+        state.setAiProposal({
+          isOpen: true,
+          title: '✨ AI 自然语言生成 SQL 确认',
+          explanation: `基于需求: "${state.aiPrompt}" 生成的 DuckDB SQL 代码。`,
+          originalSql: tab.code,
+          proposedSql: generatedSql,
+        });
+      } else {
+        state.updateActiveTab({ code: generatedSql });
+        state.showToast('已由 AI 生成 SQL 代码', 'success');
+      }
+    } catch (e: any) {
+      console.error(e);
+      state.showToast(`AI 生成失败: ${e.message || e}`, 'warning');
+    } finally {
+      state.setIsAiLoading(false);
+    }
+  }, []);
+
+  const cancelAiRequest = useCallback(() => {
+    const state = useSqlEditorStore.getState();
+    if (aiService.cancelActiveRequest()) {
+      state.showToast('AI 请求已取消', 'warning');
+    }
+    state.setIsAiLoading(false);
+    state.setIsFixing(false);
+    state.setIsGeneratingSuggestion(false);
+  }, []);
+
   const handleAiFix = useCallback(async () => {
     const state = useSqlEditorStore.getState();
     const tab = state.getActiveTab();
-    if (!tab || !tab.result?.error) return;
+    if (!tab || !tab.result?.error) {
+      state.showToast('当前查询无错误日志', 'info');
+      return;
+    }
     state.setIsFixing(true);
     try {
-      const schemaStr = await buildSchemaContext();
+      const schemaStr = await buildSchemaContext(tab.code, 5);
       const fixedSql = await aiService.fixSql(tab.code, tab.result.error, schemaStr);
-      state.updateActiveTab({ code: fixedSql });
-    } catch (e) {
+      
+      state.setAiProposal({
+        isOpen: true,
+        title: '🛠️ AI 错误智能诊断与修复提案',
+        explanation: `针对错误: "${tab.result.error.slice(0, 150)}..." 进行智能修复推导。`,
+        originalSql: tab.code,
+        proposedSql: fixedSql,
+      });
+    } catch (e: any) {
       console.error(e);
+      state.showToast(`AI 诊断修复失败: ${e.message || e}`, 'warning');
     } finally {
       state.setIsFixing(false);
     }
@@ -91,15 +200,17 @@ export function useSqlAiAssistant(): UseSqlAiAssistantReturn {
     async (type: 'improve' | 'explain' | 'adapt') => {
       const state = useSqlEditorStore.getState();
       const tab = state.getActiveTab();
-      if (!tab || !tab.code.trim()) return;
+      if (!tab || !tab.code.trim()) {
+        state.showToast('请先输入要解释或优化的 SQL 代码', 'warning');
+        return;
+      }
       state.setIsAiLoading(true);
       try {
-        const schemaStr = await buildSchemaContext();
+        const schemaStr = await buildSchemaContext(tab.code, 5);
         const promptFn = OPTIMIZATION_PROMPTS[type] || OPTIMIZATION_PROMPTS.improve;
         const aiResult = await aiService.generateSql(promptFn(tab.code), schemaStr);
 
         if (type === 'explain') {
-          // Persist + open the explanation modal (caller renders the modal).
           const explanationRecord = {
             id: `explain_${Date.now()}`,
             sql: tab.code,
@@ -112,18 +223,17 @@ export function useSqlAiAssistant(): UseSqlAiAssistantReturn {
           state.setAiExplanation(aiResult);
           state.setShowAiExplanation(true);
         } else {
-          state.setAiOptimizationHistory((prev) => [
-            ...prev.slice(-4),
-            { sql: aiResult, timestamp: Date.now() },
-          ]);
-          state.updateActiveTab({ code: aiResult });
-          state.showToast(
-            type === 'improve' ? 'SQL 优化完成' : 'DuckDB 适配完成',
-            'success'
-          );
+          state.setAiProposal({
+            isOpen: true,
+            title: type === 'improve' ? 'AI 性能与重构优化提案' : 'DuckDB 方言与写法适配提案',
+            explanation: type === 'improve' ? '优化了 JOIN 条件与 CTE 结构以提升 DuckDB 引擎查询性能。' : '根据 DuckDB 最新方言标准对语法进行了兼容性重构。',
+            originalSql: tab.code,
+            proposedSql: aiResult,
+          });
         }
-      } catch (e) {
+      } catch (e: any) {
         console.error(e);
+        state.showToast(`AI 优化处理失败: ${e.message || e}`, 'warning');
       } finally {
         state.setIsAiLoading(false);
       }
@@ -131,57 +241,80 @@ export function useSqlAiAssistant(): UseSqlAiAssistantReturn {
     []
   );
 
-  // Alias used by the toolbar (toolbar calls handleAiExplain which is the
-  // same as handleAiContinueOptimize('explain')).
   const handleAiExplain = useCallback(
     () => handleAiContinueOptimize('explain'),
     [handleAiContinueOptimize]
   );
 
-  /**
-   * Build a context-aware SQL template based on the current table schema.
-   * Used by the "AI 智能填充" button.
-   */
+  const handleAiResultInsight = useCallback(async () => {
+    const state = useSqlEditorStore.getState();
+    const tab = state.getActiveTab();
+    if (!tab || !tab.result || tab.result.rows.length === 0) {
+      state.showToast('暂无查询结果集可进行 AI 分析', 'warning');
+      return;
+    }
+
+    const res = tab.result;
+    state.setAiResultInsights({
+      isOpen: true,
+      result: res,
+      insightMarkdown: '',
+      isLoading: true,
+    });
+
+    try {
+      const topRowsPreview = JSON.stringify(res.rows.slice(0, 10), null, 2);
+      const prompt = `请对以下 DuckDB 查询结果集进行专业的数据分析与业务解读：
+SQL 查询: ${tab.code}
+字段维度: ${res.columns.join(', ')}
+总行数: ${res.rows.length}
+前 10 行样例数据:
+${topRowsPreview}
+
+请生成包含【数据概览】、【业务结论】、【潜在异常/极值提醒】与【后续数据下钻建议】的 Markdown 分析报告。`;
+
+      const insight = await aiService.generateSql(prompt, `Columns: ${res.columns.join(', ')}`);
+      state.setAiResultInsights({
+        isOpen: true,
+        result: res,
+        insightMarkdown: insight,
+        isLoading: false,
+      });
+    } catch (e: any) {
+      state.showToast(`AI 分析生成失败: ${e.message || e}`, 'warning');
+      state.setAiResultInsights(null);
+    }
+  }, []);
+
+  const generateAIFillPrompt = useCallback(
+    (sqlType: string, tableName?: string, columns?: ColumnInfo[]) => {
+      const fn = FILL_PROMPTS[sqlType] || DEFAULT_FILL_PROMPT;
+      const colStr = columns && columns.length > 0 ? `相关字段: ${columns.map((c) => c.name).join(', ')}` : '';
+      return fn(tableName || 'table_name', colStr);
+    },
+    []
+  );
+
   const generateFilledSql = useCallback(
     (sqlType: string, tableName: string | null, columns: ColumnInfo[] | undefined) => {
       const tbl = tableName || 'table_name';
       const hasCols = !!columns && columns.length > 0;
       const cols5 = hasCols ? (columns as ColumnInfo[]).slice(0, 5).map((c) => c.name) : ['col1', 'col2', 'col3'];
-      const allCols = hasCols ? (columns as ColumnInfo[]).map((c) => c.name) : [];
-      const timeCol = allCols.find((c) => /date|time|created|updated|ts|at/i.test(c)) || 'created_at';
-      const numCol = allCols.find((c) => /amount|count|total|sum|value|price|qty/i.test(c)) || 'amount';
-      const idCol = allCols.find((c) => /^id$|_id$/i.test(c)) || 'id';
 
       switch (sqlType) {
         case 'select':
-          return hasCols
-            ? `SELECT ${cols5.join(', ')}\nFROM ${tbl}\nWHERE 1=1\n  -- AND ${cols5[0]} = 'value'\nORDER BY ${idCol} DESC\nLIMIT 100;`
-            : `SELECT column1, column2\nFROM ${tbl}\nWHERE condition\nORDER BY id DESC\nLIMIT 100;`;
+          return `SELECT ${cols5.join(', ')}\nFROM "${tbl}"\nLIMIT 50;`;
         case 'join':
-          return `SELECT\n    t1.${idCol},\n    t1.${cols5[0] || 'col1'},\n    t2.related_col\nFROM ${tbl} t1\nLEFT JOIN other_table t2\n    ON t1.${idCol} = t2.${tbl}_id\nWHERE t1.${timeCol} >= current_date - interval '30 day'\nLIMIT 100;`;
+          return `SELECT t1.*, t2.*\nFROM "${tbl}" t1\nLEFT JOIN "other_table" t2 ON t1.id = t2.id\nLIMIT 50;`;
         case 'aggregate':
-          return `SELECT\n    date_trunc('day', ${timeCol}) AS date,\n    COUNT(*)               AS row_count,\n    COUNT(DISTINCT ${idCol}) AS unique_count,\n    SUM(${numCol})         AS total_${numCol}\nFROM ${tbl}\nWHERE ${timeCol} >= current_date - interval '30 day'\nGROUP BY 1\nORDER BY 1 DESC;`;
+          return `SELECT ${cols5[0]}, COUNT(*) AS cnt, AVG(${cols5[1] || cols5[0]}) AS avg_val\nFROM "${tbl}"\nGROUP BY ${cols5[0]}\nORDER BY cnt DESC\nLIMIT 20;`;
         case 'transform':
-          return `-- 数据转换 / 清洗示例\nSELECT\n    TRY_CAST(${timeCol} AS DATE)              AS date_clean,\n    TRIM(LOWER(${cols5[0] || 'text_col'}))    AS text_clean,\n    COALESCE(${numCol}, 0)                    AS ${numCol}_filled\nFROM ${tbl}\nWHERE ${numCol} IS NOT NULL;\n\n-- 列转行示例（UNPIVOT）\n-- UNPIVOT ${tbl}\n-- ON (${cols5.slice(0, 3).join(', ')})\n-- INTO NAME metric VALUE value;`;
+          return `SELECT\n  COALESCE(${cols5[0]}, 'N/A') AS clean_${cols5[0]},\n  UPPER(${cols5[1] || cols5[0]}) AS formatted_col\nFROM "${tbl}";`;
         case 'performance':
-          return `-- 执行计划诊断：在原始查询前加 EXPLAIN ANALYZE\nEXPLAIN ANALYZE\nSELECT ${cols5.slice(0, 3).join(', ')}\nFROM ${tbl}\nWHERE ${timeCol} >= current_date - interval '7 day'\nLIMIT 1000;\n\n-- 执行后在结果区点击「Plan」标签查看详细计划`;
-        case 'utilities':
-          return `-- 数据摘要统计（一行搞定）\nSUMMARIZE ${tbl};\n\n-- 数据质量检查\nSELECT 'null_check'   AS check_type, COUNT(*) FILTER (WHERE ${cols5[0] || 'col1'} IS NULL) AS issues FROM ${tbl}\nUNION ALL\nSELECT 'dup_check',   COUNT(*) - COUNT(DISTINCT ${idCol}) FROM ${tbl}\nUNION ALL\nSELECT 'total_rows',  COUNT(*) FROM ${tbl};\n\n-- 随机抽样 100 行（固定种子可重现）\n-- CALL setseed(0.42);\n-- SELECT * FROM ${tbl} USING SAMPLE 100 ROWS;`;
+          return `EXPLAIN ANALYZE\nSELECT ${cols5.join(', ')}\nFROM "${tbl}"\nWHERE ${cols5[0]} IS NOT NULL;`;
         default:
-          return `SELECT * FROM ${tbl} LIMIT 10;`;
+          return `SELECT * FROM "${tbl}" LIMIT 50;`;
       }
-    },
-    []
-  );
-
-  const generateAIFillPrompt = useCallback(
-    (sqlType: string, tableName?: string, columns?: ColumnInfo[]) => {
-      const columnList = columns?.map((c) => `${c.name} (${c.type})`).join(', ') || '';
-      const ctx = tableName
-        ? `表: ${tableName}，字段: ${columnList || '未知'}`
-        : '请先在左侧 Schema 选择一个表';
-      const fn = FILL_PROMPTS[sqlType] || DEFAULT_FILL_PROMPT;
-      return fn(tableName || '', ctx);
     },
     []
   );
@@ -190,62 +323,75 @@ export function useSqlAiAssistant(): UseSqlAiAssistantReturn {
     const state = useSqlEditorStore.getState();
     const tab = state.getActiveTab();
     if (!tab) return;
-    const tableMatch = tab.code.match(/(?:FROM|INTO|UPDATE|TABLE)\s+"?([a-zA-Z0-9_]+)"?/i);
-    const currentTable = tableMatch ? tableMatch[1] : '';
-    const schemaTree = SCHEMA_TREE_SELECTOR(state);
-    const currentColumns = currentTable ? schemaTree[currentTable] : undefined;
-    const filled = generateFilledSql(state.selectedSqlType, currentTable, currentColumns);
-    state.updateActiveTab({ code: filled });
-    state.showToast(`已填充模板`, 'success');
+
+    const tables = Object.keys(state.schemaTree);
+    const tableMatch = tab.code.match(/(?:FROM|INTO|UPDATE|TABLE)\s+"?([a-zA-Z0-9_.]+)"?/i);
+    const detectedTable = tableMatch?.[1] || tables[0] || 'table_name';
+    const cols = state.schemaTree[detectedTable];
+
+    const newSql = generateFilledSql(state.selectedSqlType, detectedTable, cols);
+    state.updateActiveTab({ code: newSql });
+    state.showToast(`已生成 ${state.selectedSqlType} 智能模版 (${detectedTable})`, 'success');
   }, [generateFilledSql]);
 
   const handleAISuggestion = useCallback(async () => {
     const state = useSqlEditorStore.getState();
-    if (!state.aiSuggestion.trim()) return;
+    const tab = state.getActiveTab();
+    if (!tab || !tab.code.trim()) return;
+
     state.setIsGeneratingSuggestion(true);
     try {
-      const schemaStr = await buildSchemaContext();
-      const sql = await aiService.generateSql(state.aiSuggestion, schemaStr);
-      state.updateActiveTab({ code: sql });
-      state.setAiSuggestion('');
-    } catch (e) {
+      const schemaStr = await buildSchemaContext(tab.code, 5);
+      const suggestion = await aiService.generateSql(
+        `请为以下 SQL 提供优化补充建议:\n${tab.code}`,
+        schemaStr
+      );
+      state.setAiSuggestion(suggestion);
+    } catch (e: any) {
       console.error(e);
+      state.showToast(`AI 建议生成失败: ${e.message || e}`, 'warning');
     } finally {
       state.setIsGeneratingSuggestion(false);
     }
   }, []);
 
-  const handleAiOptimizeProfiling = useCallback(async (bottleneckInfo: string): Promise<string | undefined> => {
-    const state = useSqlEditorStore.getState();
-    const tab = state.getActiveTab();
-    if (!tab || !tab.code.trim()) return;
-    state.setIsAiLoading(true);
-    try {
-      const schemaStr = await buildSchemaContext();
-      const prompt = OPTIMIZATION_PROMPTS.diagnoseProfiling(tab.code, bottleneckInfo);
-      const aiResult = await aiService.generateSql(prompt, schemaStr);
-      return aiResult;
-    } catch (e) {
-      console.error(e);
-      state.showToast('AI 优化诊断失败', 'warning');
-    } finally {
-      state.setIsAiLoading(false);
-    }
-  }, []);
+  const handleAiOptimizeProfiling = useCallback(
+    async (bottleneckInfo: string): Promise<string | undefined> => {
+      const state = useSqlEditorStore.getState();
+      const tab = state.getActiveTab();
+      if (!tab || !tab.code.trim()) return undefined;
+
+      state.setIsAiLoading(true);
+      try {
+        const schemaStr = await buildSchemaContext(tab.code, 5);
+        const prompt = `已知 DuckDB 查询分析信息:\n${bottleneckInfo}\n\n当前 SQL:\n${tab.code}\n\n请针对全表扫描或算子瓶颈给出优化建议。`;
+        const result = await aiService.generateSql(prompt, schemaStr);
+        return result;
+      } catch (e: any) {
+        console.error(e);
+        state.showToast(`性能诊断优化失败: ${e.message || e}`, 'warning');
+        return undefined;
+      } finally {
+        state.setIsAiLoading(false);
+      }
+    },
+    []
+  );
 
   return {
+    executeCapability,
     handleAiGenerate,
     handleAiFix,
     handleAiContinueOptimize,
     handleAiExplain,
+    handleAiResultInsight,
     handleAIFill,
     handleAISuggestion,
+    handleAiOptimizeProfiling,
+    cancelAiRequest,
     generateAIFillPrompt,
     generateFilledSql,
-    handleAiOptimizeProfiling,
     isAiLoading,
     isFixing,
   };
 }
-
-export default useSqlAiAssistant;

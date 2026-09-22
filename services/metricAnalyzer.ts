@@ -2,6 +2,7 @@ import { aiService } from './aiService';
 import { dbService } from './dbService';
 import { duckDBService } from './duckdbService';
 import { MetricDefinition, MetricPackage, MetricChart, ChartConfig } from '../types';
+import { semanticMetricCatalog } from './semanticMetricCatalog';
 
 /**
  * 指标告警配置类型
@@ -99,7 +100,7 @@ class MetricAnalyzerService {
   }
 
   /**
-   * 收集表的结构信息和样本数据
+   * 收集表结构与行数。原始行不进入 AI 提示词。
    */
   async collectTableSchema(tables: string[]): Promise<{
     tableName: string;
@@ -114,10 +115,6 @@ class MetricAnalyzerService {
         // 获取表结构
         const schema = await duckDBService.getTableSchema(table);
         
-        // 获取样本数据（前5行）
-        const sampleQuery = `SELECT * FROM "${table}" LIMIT 5`;
-        const sampleData = await duckDBService.query(sampleQuery);
-        
         // 获取行数
         const countQuery = `SELECT COUNT(*) as cnt FROM "${table}"`;
         const countResult = await duckDBService.query(countQuery);
@@ -129,7 +126,7 @@ class MetricAnalyzerService {
             name: col.name,
             type: col.type
           })),
-          sampleData: sampleData,
+          sampleData: [],
           rowCount: rowCount
         });
       } catch (error) {
@@ -151,17 +148,11 @@ class MetricAnalyzerService {
   }[]): string {
     const tableDescriptions = tableInfos.map(t => {
       const columnsStr = t.columns.map(c => `  - ${c.name} (${c.type})`).join('\n');
-      const sampleRows = t.sampleData.slice(0, 3).map(row => 
-        Object.values(row).join(' | ')
-      ).join('\n');
-      
       return `
 ### 表名: ${t.tableName}
 - 行数: ${t.rowCount}
 - 列结构:
 ${columnsStr}
-- 样本数据:
-${sampleRows}
 `;
     }).join('\n---\n');
 
@@ -367,54 +358,19 @@ ${tableDescriptions}
     
     if (index < 0) return null;
 
-    // 如果更新了 metrics，记录版本历史
+    const normalizedUpdates = { ...updates };
+
+    // SemanticMetricCatalog owns immutable version and history semantics.
     if (updates.metrics) {
-      updates.metrics = updates.metrics.map(metric => {
-        const existingMetric = packages[index].metrics.find(m => m.id === metric.id);
-        if (existingMetric) {
-          // 检测变更的字段
-          const changedFields: string[] = [];
-          const previousValues: Record<string, any> = {};
-          
-          const fieldsToCheck = ['name', 'definition', 'formula', 'scenario', 'characteristics', 'value', 'unit', 'category'];
-          fieldsToCheck.forEach(field => {
-            if (existingMetric[field as keyof MetricDefinition] !== metric[field as keyof MetricDefinition]) {
-              changedFields.push(field);
-              previousValues[field] = existingMetric[field as keyof MetricDefinition];
-            }
-          });
-          
-          if (changedFields.length > 0) {
-            // 添加版本历史
-            const newVersion = (existingMetric.version || 1) + 1;
-            return {
-              ...metric,
-              version: newVersion,
-              updatedAt: Date.now(),
-              history: [
-                ...(existingMetric.history || []),
-                {
-                  version: newVersion,
-                  changedAt: Date.now(),
-                  changedFields,
-                  previousValues
-                }
-              ].slice(-10) // 只保留最近10条历史
-            };
-          }
-        }
-        return {
-          ...metric,
-          updatedAt: Date.now(),
-          version: metric.version || 1,
-          history: metric.history || []
-        };
-      });
+      normalizedUpdates.metrics = semanticMetricCatalog.versionMetrics(
+        packages[index].metrics,
+        updates.metrics,
+      );
     }
 
     packages[index] = {
       ...packages[index],
-      ...updates,
+      ...normalizedUpdates,
       updatedAt: Date.now()
     };
 

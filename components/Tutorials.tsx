@@ -1,5 +1,25 @@
 import React, { useState, useEffect, useMemo } from 'react';
-
+import {
+    GraduationCap,
+    Check,
+    CheckCircle2,
+    Play,
+    ChevronRight,
+    ChevronDown,
+    ArrowLeft,
+    ArrowRight,
+    Sparkles,
+    Code2,
+    Copy,
+    BookOpen,
+    Layers,
+    Clock,
+    Zap,
+    ExternalLink,
+    Filter
+} from 'lucide-react';
+import { PageHeader, ActionButton, IconButton, SearchInput } from './ui/Workbench';
+import { toastService } from '../services/toastService';
 
 interface Lesson {
     id: string;
@@ -17,208 +37,138 @@ const lessons: Lesson[] = [
     {
         id: 'basics_01',
         category: 'Foundations',
-        title: 'Basic SELECT & Filtering',
+        title: '基础 SELECT 查询与过滤',
         difficulty: 'Beginner',
         tags: ['SELECT', 'WHERE', 'LIMIT'],
-        description: 'The foundation of SQL. Learn how to retrieve specific columns and filter rows to find exactly what you need.',
-        whyItMatters: '90% of data work involves simply finding the right data points. Mastering WHERE clauses allows you to slice data with precision.',
-        code: `SELECT \n  operation_type, \n  target_table, \n  log_time \nFROM memory._sys_audit_log \nWHERE affected_rows > 0 \nORDER BY log_time DESC \nLIMIT 5;`
+        description: 'SQL 查询的基石。学习如何检索特定列并使用过滤条件精确筛选数据。',
+        whyItMatters: '90% 的数据工程任务都从精准检索开始，熟练掌握 WHERE 条件能够快速完成数据切片。',
+        code: `SELECT \n  operation_type, \n  target_table, \n  log_time \nFROM main._sys_audit_log \nWHERE affected_rows > 0 \nORDER BY log_time DESC \nLIMIT 5;`
     },
     {
         id: 'aggr_01',
         category: 'Foundations',
-        title: 'Aggregations & Grouping',
+        title: '聚合计算与分组统计',
         difficulty: 'Beginner',
         tags: ['GROUP BY', 'COUNT', 'AVG'],
-        description: 'Summarize data to find trends. Count logs, average values, or find maximums per category.',
-        whyItMatters: 'Raw data is noisy. Aggregation turns rows of data into actionable insights and metrics.',
-        code: `SELECT \n  operation_type,\n  COUNT(*) as total_ops,\n  SUM(affected_rows) as total_affected\nFROM memory._sys_audit_log\nGROUP BY operation_type\nORDER BY total_ops DESC;`
+        description: '汇总明细数据以发现业务趋势。按类别统计操作记录总数与平均影响行数。',
+        whyItMatters: '原始明细数据繁杂散乱，聚合分析能将海量明细快速提炼为可量化指标。',
+        code: `SELECT \n  operation_type,\n  COUNT(*) as total_ops,\n  SUM(affected_rows) as total_affected\nFROM main._sys_audit_log\nGROUP BY operation_type\nORDER BY total_ops DESC;`
     },
     // --- DATA CLEANING ---
     {
         id: 'clean_01',
         category: 'Data Cleaning',
-        title: 'Cleaning with RegEx',
+        title: '正则表达式文本清洗',
         difficulty: 'Intermediate',
         tags: ['RegEx', 'Extract'],
-        description: 'Use Regular Expressions to extract specific patterns from messy text fields.',
-        whyItMatters: 'Real-world data is dirty. Extracting IDs, emails, or codes from unstructured text blocks is a daily task for engineers.',
-        code: `-- Extract the first word from the details column\nSELECT \n  details,\n  regexp_extract(details, '^([a-zA-Z]+)', 1) as first_word,\n  regexp_replace(details, 'Imported', 'LOADED') as cleaned\nFROM memory._sys_audit_log\nLIMIT 5;`
+        description: '利用正则表达式在复杂文本中精准提取目标子串并批量替换不规则内容。',
+        whyItMatters: '真实业务数据往往包含大量非结构化文本，正则提取是数据标准化必备技能。',
+        code: `-- 提取详情字段首词并替换关键字\nSELECT \n  details,\n  regexp_extract(details, '^([a-zA-Z]+)', 1) as first_word,\n  regexp_replace(details, 'Imported', 'LOADED') as cleaned\nFROM main._sys_audit_log\nLIMIT 5;`
     },
     {
         id: 'clean_02',
         category: 'Data Cleaning',
-        title: 'Handling Nulls',
+        title: '缺失值与空值安全处理',
         difficulty: 'Intermediate',
         tags: ['COALESCE', 'NULL'],
-        description: 'Gracefully handle missing data using COALESCE to provide default values.',
-        whyItMatters: 'NULLs break applications. Ensuring your API or report always returns a valid value prevents downstream crashes.',
-        code: `SELECT \n  target_table,\n  affected_rows,\n  COALESCE(target_table, 'UNKNOWN_TABLE') as safe_table,\n  COALESCE(affected_rows, 0) as safe_rows\nFROM memory._sys_audit_log;`
+        description: '使用 COALESCE 函数优雅处理 NULL 缺失值，提供保底默认值以避免计算异常。',
+        whyItMatters: '未处理的 NULL 值会导致下游聚合与接口崩坏，安全默认值保障数据链路健壮性。',
+        code: `SELECT \n  target_table,\n  affected_rows,\n  COALESCE(target_table, 'UNKNOWN_TABLE') as safe_table,\n  COALESCE(affected_rows, 0) as safe_rows\nFROM main._sys_audit_log;`
     },
     {
         id: 'fuzzy_01',
         category: 'Data Cleaning',
-        title: 'Fuzzy Matching',
+        title: '模糊匹配与相似度算法',
         difficulty: 'Advanced',
         tags: ['Jaro-Winkler', 'Levenshtein'],
-        description: 'Match strings that are similar but not identical (e.g., typos, variations) using distance algorithms.',
-        whyItMatters: 'Match customers across systems even when names are spelled slightly differently.',
-        code: `-- 1. Create dirty data\nCREATE OR REPLACE TABLE customers (name VARCHAR);\nINSERT INTO customers VALUES ('Jon Smith'), ('John Smith'), ('Jhon Smyth'), ('Alice');\n\n-- 2. Find Similarities to 'John Smith'\nSELECT \n  name,\n  jaro_winkler_similarity(name, 'John Smith') as similarity,\n  levenshtein(name, 'John Smith') as edit_distance\nFROM customers\nORDER BY similarity DESC;`
+        description: '使用 Jaro-Winkler 与 Levenshtein 字符串距离算法跨系统匹配拼写相似的文本。',
+        whyItMatters: '在实体对齐与客户去重场景下，模糊匹配能高效识别拼写变体与录入错误。',
+        code: `-- 1. 构造测试数据\nCREATE OR REPLACE TABLE customers (name VARCHAR);\nINSERT INTO customers VALUES ('Jon Smith'), ('John Smith'), ('Jhon Smyth'), ('Alice');\n\n-- 2. 查找与 'John Smith' 的相似度\nSELECT \n  name,\n  jaro_winkler_similarity(name, 'John Smith') as similarity,\n  levenshtein(name, 'John Smith') as edit_distance\nFROM customers\nORDER BY similarity DESC;`
     },
     // --- COMPLEX TYPES ---
     {
         id: 'struct_01',
         category: 'Complex Types',
-        title: 'Structs & Nested Data',
+        title: '嵌套结构 Structs & Lists',
         difficulty: 'Advanced',
         tags: ['STRUCT', 'LIST'],
-        description: 'DuckDB excels at handling nested data types without needing to JOIN multiple tables.',
-        whyItMatters: 'Modern data (JSON, Parquet) is hierarchical. Structs allow you to keep related data (like an address) packaged together efficiently.',
-        code: `-- Create a list of structs on the fly\nSELECT \n  1 as id,\n  {'street': '123 Main St', 'city': 'Duckburg'} as address,\n  [100, 200, 300] as scores\nUNION ALL\nSELECT \n  2, {'street': '456 Web Way', 'city': 'BrowserCity'}, [50, 60];`
+        description: 'DuckDB 原生高效支持复杂嵌套类型，无需 JOIN 即可将层级属性统一打包。',
+        whyItMatters: '现代数据格式（JSON/Parquet）多为层级结构，Structs 保持了天然的高效紧凑性。',
+        code: `-- 动态构造包含嵌套结构的数据切片\nSELECT \n  1 as id,\n  {'street': '123 Main St', 'city': 'Duckburg'} as address,\n  [100, 200, 300] as scores\nUNION ALL\nSELECT \n  2, {'street': '456 Web Way', 'city': 'BrowserCity'}, [50, 60];`
     },
     {
         id: 'unnest_01',
         category: 'Complex Types',
-        title: 'Unnesting Arrays',
+        title: '数组多维展开 UNNEST',
         difficulty: 'Advanced',
-        tags: ['UNNEST', 'Flatten'],
-        description: 'Explode a list column into multiple rows to analyze individual elements.',
-        whyItMatters: 'When data comes as a list (e.g., tags on a blog post), you need to unnest it to count how many times each tag appears.',
-        code: `-- 1. Create data with lists\nWITH posts AS (\n  SELECT 1 as id, ['sql', 'duckdb', 'analytics'] as tags\n  UNION ALL SELECT 2, ['sql', 'beginner']\n)\n-- 2. Flatten and Count\nSELECT \n  unnest(tags) as tag, \n  COUNT(*) as frequency \nFROM posts \nGROUP BY 1 \nORDER BY 2 DESC;`
-    },
-    {
-        id: 'lambdas_01',
-        category: 'Complex Types',
-        title: 'List Lambdas',
-        difficulty: 'Advanced',
-        tags: ['Lambda', 'Functional'],
-        description: 'Apply functions to every element in a list directly in SQL using the arrow (->) syntax.',
-        whyItMatters: 'Avoids unnesting (exploding) arrays just to filter or transform them. Extremely fast for vector operations.',
-        code: `-- Filter and Transform list elements in place\nWITH data AS (SELECT [1, 2, 3, 4, 5] as numbers)\nSELECT \n  numbers,\n  list_filter(numbers, x -> x > 2) as gt_two,\n  list_transform(numbers, x -> x * 2) as doubled\nFROM data;`
-    },
-    {
-        id: 'json_create_01',
-        category: 'Complex Types',
-        title: 'Creating JSON',
-        difficulty: 'Advanced',
-        tags: ['JSON', 'API'],
-        description: 'Convert relational table data into JSON documents directly in the database.',
-        whyItMatters: 'Prepare data for API responses or NoSQL databases without needing middleware transformation loops.',
-        code: `-- Convert table rows to a JSON array of objects\nSELECT \n  json_group_array(json_object(\n    'type': operation_type, \n    'table': target_table, \n    'meta': {'rows': affected_rows}\n  ))\nFROM memory._sys_audit_log\nLIMIT 3;`
+        tags: ['UNNEST', 'Arrays'],
+        description: '使用 UNNEST 函数将嵌套数组平铺展开为一维关系型行记录，便于深入统计分析。',
+        whyItMatters: '标签数组或多选值展开后可直接与主维度进行联合聚合与漏斗分析。',
+        code: `SELECT \n  id,\n  UNNEST([10, 20, 30]) as score\nFROM (SELECT 1 as id);`
     },
     // --- TIME SERIES ---
     {
         id: 'time_01',
         category: 'Time Series',
-        title: 'Time Bucketing',
+        title: '时序窗口与滑动聚合',
         difficulty: 'Advanced',
-        tags: ['Date_Trunc', 'Interval'],
-        description: 'Powerful functions to bucket time and calculate durations.',
-        whyItMatters: 'Aggregating by "Day" or "Hour" is the most common analytics task. DuckDB makes this trivial.',
-        code: `SELECT \n  date_trunc('minute', log_time) as minute_bucket,\n  count(*) as events,\n  max(log_time) - min(log_time) as duration\nFROM memory._sys_audit_log\nGROUP BY 1\nORDER BY 1 DESC;`
-    },
-    {
-        id: 'window_01',
-        category: 'Time Series',
-        title: 'Moving Averages',
-        difficulty: 'Advanced',
-        tags: ['Window', 'Analytics'],
-        description: 'Calculate rolling averages to smooth out noisy data and identify trends.',
-        whyItMatters: 'Essential for financial and monitoring dashboards. It filters out short-term fluctuations to show the longer-term trend.',
-        code: `-- 1. Create sample stock data\nCREATE OR REPLACE TABLE stock (day INT, price DOUBLE);\nINSERT INTO stock VALUES (1, 10), (2, 12), (3, 11), (4, 15), (5, 14), (6, 18);\n\n-- 2. Calculate 3-Day Moving Average\nSELECT \n  day, price,\n  AVG(price) OVER (ORDER BY day ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) as moving_avg\nFROM stock;`
-    },
-    {
-        id: 'yoy_01',
-        category: 'Time Series',
-        title: 'Year-Over-Year Growth',
-        difficulty: 'Advanced',
-        tags: ['LAG', 'Window', 'Finance'],
-        description: 'Compare current values with values from a previous period using the LAG function.',
-        whyItMatters: 'The standard metric for growth. Are we doing better than last month/year?',
-        code: `-- 1. Monthly Revenue Data\nCREATE OR REPLACE TABLE revenue (month INT, amount INT);\nINSERT INTO revenue VALUES (1, 1000), (2, 1100), (3, 1050), (4, 1300);\n\n-- 2. Calculate Growth\nSELECT \n  month, amount,\n  LAG(amount) OVER (ORDER BY month) as prev_month,\n  amount - LAG(amount) OVER (ORDER BY month) as diff,\n  ROUND((amount - LAG(amount) OVER (ORDER BY month)) / LAG(amount) OVER (ORDER BY month) * 100, 1) || '%' as growth_pct\nFROM revenue;`
+        tags: ['OVER', 'WINDOW', 'Rolling'],
+        description: '利用窗口函数计算滚动平均值与累计总和，平滑短期抖动以洞察长期趋势。',
+        whyItMatters: '金融与用户行为指标分析极度依赖滑动窗口来识别周期性规律。',
+        code: `SELECT \n  log_time,\n  affected_rows,\n  SUM(affected_rows) OVER (ORDER BY log_time ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) as rolling_3_sum\nFROM main._sys_audit_log\nORDER BY log_time DESC\nLIMIT 10;`
     },
     // --- ANALYTICS ---
     {
-        id: 'pivot_01',
+        id: 'analytics_01',
         category: 'Analytics',
-        title: 'Pivot Tables',
-        difficulty: 'Advanced',
-        tags: ['Pivot', 'Reshaping'],
-        description: 'Transform rows into columns. Create cross-tabulation reports natively in SQL.',
-        whyItMatters: 'Business users love "wide" data (like Excel Pivot Tables). It allows for easier side-by-side comparison of categories.',
-        code: `-- 1. Create sample data\nCREATE OR REPLACE TABLE sales (region VARCHAR, product VARCHAR, amount INT);\nINSERT INTO sales VALUES ('North', 'A', 100), ('North', 'B', 50), ('South', 'A', 200), ('South', 'B', 150);\n\n-- 2. Pivot Products to Columns\nPIVOT sales ON product USING SUM(amount);`
+        title: 'QUALIFY 语法精准排名过滤',
+        difficulty: 'Intermediate',
+        tags: ['QUALIFY', 'ROW_NUMBER'],
+        description: 'DuckDB 特色 QUALIFY 子句直接对窗口函数结果进行过滤，告别繁琐子查询嵌套。',
+        whyItMatters: '相比传统嵌套子查询，QUALIFY 语法清晰直观，大幅提升分析型 SQL 的可读性与执行效率。',
+        code: `SELECT \n  operation_type,\n  target_table,\n  log_time,\n  ROW_NUMBER() OVER (PARTITION BY operation_type ORDER BY log_time DESC) as rank\nFROM main._sys_audit_log\nQUALIFY rank = 1;`
     },
     {
-        id: 'cohort_01',
+        id: 'analytics_02',
         category: 'Analytics',
-        title: 'Cohort Analysis',
+        title: 'PIVOT 矩阵透视表转换',
         difficulty: 'Advanced',
-        tags: ['Self-Join', 'Retention'],
-        description: 'Calculate retention rates by grouping users into cohorts based on their first activity date.',
-        whyItMatters: 'The gold standard of SaaS metrics. It tells you if users are coming back after their first visit.',
-        code: `-- 1. Generate sample data\nCREATE OR REPLACE TABLE activity (user_id INT, action_date DATE);\nINSERT INTO activity VALUES \n (1, '2023-01-01'), (2, '2023-01-01'), (1, '2023-02-01'), \n (3, '2023-02-01'), (2, '2023-02-01'), (3, '2023-03-01');\n\n-- 2. Calculate Cohort\nWITH first_seen AS (\n  SELECT user_id, min(action_date) as cohort_month \n  FROM activity GROUP BY user_id\n)\nSELECT \n  f.cohort_month,\n  a.action_date,\n  COUNT(DISTINCT f.user_id) as users\nFROM first_seen f\nJOIN activity a ON f.user_id = a.user_id\nGROUP BY 1, 2\nORDER BY 1, 2;`
-    },
-    {
-        id: 'rank_01',
-        category: 'Analytics',
-        title: 'Ranking & Top-N',
-        difficulty: 'Advanced',
-        tags: ['RANK', 'Window'],
-        description: 'Assign a rank to each row within a partition of a result set.',
-        whyItMatters: 'Find the top 3 salesmen per region, or the most recent log entry per user. Standard LIMIT cannot do this per-group.',
-        code: `-- 1. Create sample scores\nCREATE OR REPLACE TABLE scores (team VARCHAR, player VARCHAR, score INT);\nINSERT INTO scores VALUES ('A', 'Alice', 50), ('A', 'Bob', 40), ('A', 'Charlie', 45), ('B', 'Dave', 60), ('B', 'Eve', 55);\n\n-- 2. Find Top 2 Players per Team\nSELECT * FROM (\n  SELECT \n    team, player, score,\n    RANK() OVER (PARTITION BY team ORDER BY score DESC) as rank\n  FROM scores\n) WHERE rank <= 2;`
+        tags: ['PIVOT', 'Matrix'],
+        description: '使用 PIVOT 关键字快速将行维度值转换为列维度，一键生成多维透视矩阵报表。',
+        whyItMatters: '无需冗长的 CASE WHEN 堆砌，PIVOT 极大简化了报表展示层的多维透视逻辑。',
+        code: `PIVOT main._sys_audit_log \nON operation_type \nUSING COUNT(id);`
     },
     // --- UTILITIES ---
     {
-        id: 'macro_01',
-        category: 'Utilities',
-        title: 'SQL Macros',
-        difficulty: 'Advanced',
-        tags: ['Macro', 'Reuse'],
-        description: 'Create reusable parameterized queries that act like functions but expand at compile time.',
-        whyItMatters: 'Don\'t repeat yourself (DRY). Macros let you encapsulate complex logic (like tax calculations) and reuse it everywhere.',
-        code: `-- Create a macro to convert Celsius to Fahrenheit\nCREATE OR REPLACE MACRO c_to_f(c) AS (c * 9/5) + 32;\n\n-- Use it in a query\nSELECT \n  25 as temp_c, \n  c_to_f(25) as temp_f;`
-    },
-    {
-        id: 'sampling_01',
-        category: 'Utilities',
-        title: 'Data Sampling',
-        difficulty: 'Intermediate',
-        tags: ['SAMPLE', 'Exploration'],
-        description: 'Get a random subset of your data for quick analysis without processing the entire dataset.',
-        whyItMatters: 'When working with millions of rows, sampling allows you to test queries and get quick estimates almost instantly.',
-        code: `-- Get a 10% sample of the audit log\nSELECT * \nFROM memory._sys_audit_log \nUSING SAMPLE 10%;\n\n-- Or get a fixed number of rows\n-- SELECT * FROM memory._sys_audit_log USING SAMPLE 5 ROWS;`
-    },
-    {
         id: 'gen_01',
         category: 'Utilities',
-        title: 'Synthetic Data Gen',
-        difficulty: 'Intermediate',
-        tags: ['Range', 'Testing'],
-        description: 'Create massive datasets on the fly using generate_series and range functions.',
-        whyItMatters: 'Need to test performance or prototype a schema but have no data? DuckDB can generate millions of rows instantly.',
-        code: `-- Generate 1000 rows with random values\nSELECT \n  range as id, \n  random() as score, \n  'User-' || (range % 10) as category \nFROM range(1000);`
+        title: '动态模拟数据生成 Range',
+        difficulty: 'Beginner',
+        tags: ['RANGE', 'RANDOM', 'Mock'],
+        description: '利用 RANGE 与 RANDOM 函数在浏览器内存中快速生成数万条测试数据集。',
+        whyItMatters: '在缺乏真实数据源时，生成合成数据可以迅速验证查询性能与算法逻辑。',
+        code: `-- 快速生成 1000 条带随机评分的模拟用户记录\nSELECT \n  range as id, \n  round(random() * 100, 2) as score, \n  'User-' || (range % 10) as category \nFROM range(1000);`
     },
     // --- EXTENSIONS ---
     {
         id: 'fts_01',
         category: 'Extensions',
-        title: 'Full Text Search (FTS)',
+        title: '全文检索引擎 FTS (BM25)',
         difficulty: 'Expert',
         tags: ['FTS', 'Search', 'BM25'],
-        description: 'Build a search engine inside DuckDB using the FTS extension with BM25 scoring.',
-        whyItMatters: 'Standard LIKE queries are slow and dumb. FTS provides ranked, stemmed, and high-performance search capabilities.',
-        code: `-- 1. Load Extension & Create Data\nINSTALL fts; LOAD fts;\nCREATE OR REPLACE TABLE documents (id INT, title VARCHAR, content VARCHAR);\nINSERT INTO documents VALUES \n (1, 'DuckDB Intro', 'DuckDB is an in-process SQL OLAP database management system'),\n (2, 'SQL Guide', 'Structured Query Language is a domain-specific language'),\n (3, 'Vector Search', 'Search using embeddings and vectors');\n\n-- 2. Build Index\nPRAGMA create_fts_index('documents', 'id', 'content');\n\n-- 3. Search Ranked\nSELECT id, title, score \nFROM (SELECT *, fts_main_documents.match_bm25(id, 'database language') as score FROM documents)\nWHERE score IS NOT NULL \nORDER BY score DESC;`
+        description: '借助 DuckDB 原生 FTS 扩展与 BM25 评分算法，在数据库内部构建高效全文搜索引擎。',
+        whyItMatters: 'LIKE 模糊查询无法打分且性能低下，FTS 提供了工业级的相关性排序与词干分析。',
+        code: `-- 1. 加载扩展与创建知识文档库\nINSTALL fts; LOAD fts;\nCREATE OR REPLACE TABLE documents (id INT, title VARCHAR, content VARCHAR);\nINSERT INTO documents VALUES \n (1, 'DuckDB 简介', 'DuckDB 是一个专为浏览器与嵌入式分析优化的列式数据库引擎'),\n (2, 'SQL 高阶指南', '结构化查询语言在分析型工作流中扮演核心基石角色'),\n (3, '向量搜索与检索', '结合 Embedding 向量与全文搜索实现混合知识检索');\n\n-- 2. 构建全文索引\nPRAGMA create_fts_index('documents', 'id', 'content');\n\n-- 3. 执行 BM25 相关性检索\nSELECT id, title, score \nFROM (SELECT *, fts_main_documents.match_bm25(id, 'DuckDB') as score FROM documents)\nWHERE score IS NOT NULL \nORDER BY score DESC;`
     },
     {
         id: 'geo_01',
         category: 'Extensions',
-        title: 'Spatial Analysis',
+        title: '地理空间数据计算 Spatial',
         difficulty: 'Expert',
         tags: ['Spatial', 'GIS', 'Distance'],
-        description: 'Perform geospatial calculations using the Spatial extension.',
-        whyItMatters: 'Calculate distances between cities or find points within a polygon without external GIS tools.',
-        code: `-- 1. Load Extension\nINSTALL spatial; LOAD spatial;\n\n-- 2. Calculate Distance (London to NYC approx)\n-- ST_Point(Lat, Lon)\nSELECT \n  st_distance(\n    st_point(51.5, -0.1),\n    st_point(40.7, -74.0)\n  ) as distance_deg;`
+        description: '使用 Spatial 地理扩展计算经纬度点集间球面距离与空间多边形拓扑关系。',
+        whyItMatters: '直接在 DuckDB 内部完成地理空间几何运算，无需部署昂贵的重型 GIS 服务器。',
+        code: `-- 1. 加载空间计算扩展\nINSTALL spatial; LOAD spatial;\n\n-- 2. 计算伦敦与纽约两地坐标间的大圆距离\nSELECT \n  st_distance(\n    st_point(51.5, -0.1),\n    st_point(40.7, -74.0)\n  ) as distance_deg;`
     }
 ];
 
@@ -226,10 +176,21 @@ interface TutorialsProps {
     onTryCode: (code: string) => void;
 }
 
+const DIFFICULTY_BADGES: Record<Lesson['difficulty'], { label: string; text: string; bg: string; border: string }> = {
+    Beginner: { label: '入门', text: 'text-monokai-green', bg: 'bg-monokai-surface', border: 'border-monokai-border' },
+    Intermediate: { label: '进阶', text: 'text-monokai-yellow', bg: 'bg-monokai-surface', border: 'border-monokai-border' },
+    Advanced: { label: '高级', text: 'text-monokai-orange', bg: 'bg-monokai-surface', border: 'border-monokai-border' },
+    Expert: { label: '专家', text: 'text-monokai-amethyst', bg: 'bg-monokai-surface', border: 'border-monokai-border' },
+};
+
 export const Tutorials: React.FC<TutorialsProps> = ({ onTryCode }) => {
     const [selectedId, setSelectedId] = useState<string>(lessons[0].id);
     const [completed, setCompleted] = useState<Set<string>>(new Set());
-    const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['Foundations', 'Extensions', 'Analytics']));
+    const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
+        new Set(['Foundations', 'Data Cleaning', 'Complex Types', 'Analytics', 'Extensions'])
+    );
+    const [searchQuery, setSearchQuery] = useState('');
+    const [copied, setCopied] = useState(false);
 
     const activeIndex = lessons.findIndex(l => l.id === selectedId);
     const activeLesson = lessons[activeIndex >= 0 ? activeIndex : 0];
@@ -243,15 +204,21 @@ export const Tutorials: React.FC<TutorialsProps> = ({ onTryCode }) => {
                     setCompleted(new Set(parsed as string[]));
                 }
             }
-        } catch (e) { }
+        } catch { }
     }, []);
 
     const toggleComplete = (id: string) => {
         const newSet = new Set(completed);
-        if (newSet.has(id)) newSet.delete(id);
-        else newSet.add(id);
+        if (newSet.has(id)) {
+            newSet.delete(id);
+        } else {
+            newSet.add(id);
+            toastService.success('恭喜完成本节实战课程！');
+        }
         setCompleted(newSet);
-        localStorage.setItem('duckdb_tutorials_progress', JSON.stringify(Array.from(newSet)));
+        try {
+            localStorage.setItem('duckdb_tutorials_progress', JSON.stringify(Array.from(newSet)));
+        } catch { }
     };
 
     const toggleCategory = (cat: string) => {
@@ -261,173 +228,269 @@ export const Tutorials: React.FC<TutorialsProps> = ({ onTryCode }) => {
         setExpandedCategories(newSet);
     };
 
+    const filteredLessons = useMemo(() => {
+        if (!searchQuery.trim()) return lessons;
+        const q = searchQuery.toLowerCase().trim();
+        return lessons.filter(l =>
+            l.title.toLowerCase().includes(q) ||
+            l.description.toLowerCase().includes(q) ||
+            l.category.toLowerCase().includes(q) ||
+            l.tags.some(t => t.toLowerCase().includes(q))
+        );
+    }, [searchQuery]);
+
     const groupedLessons = useMemo<Record<string, Lesson[]>>(() => {
         const groups: Record<string, Lesson[]> = {};
-        lessons.forEach(l => {
+        filteredLessons.forEach(l => {
             if (!groups[l.category]) groups[l.category] = [];
             groups[l.category].push(l);
         });
         return groups;
-    }, []);
+    }, [filteredLessons]);
 
     const progress = Math.round((completed.size / lessons.length) * 100);
 
+    const handleCopyCode = () => {
+        if (!activeLesson) return;
+        navigator.clipboard.writeText(activeLesson.code);
+        setCopied(true);
+        toastService.success('SQL 代码已复制到剪贴板');
+        setTimeout(() => setCopied(false), 2000);
+    };
+
+    const handleRunCode = () => {
+        if (!activeLesson) return;
+        onTryCode(activeLesson.code);
+        if (!completed.has(activeLesson.id)) {
+            toggleComplete(activeLesson.id);
+        }
+    };
+
     return (
-        <div className="h-full flex bg-monokai-bg overflow-hidden">
-            {/* Sidebar List */}
-            <div className="w-80 border-r border-monokai-accent flex flex-col shrink-0 bg-monokai-sidebar/50">
-                <div className="p-4 border-b border-monokai-accent bg-monokai-sidebar">
-                    <h2 className="text-lg font-bold text-monokai-fg flex items-center gap-2">
-                        <span>📚</span> SQL Mastery
-                    </h2>
-                    <div className="mt-3">
-                        <div className="flex justify-between text-[10px] text-monokai-comment mb-1 font-mono uppercase">
-                            <span>Progress</span>
-                            <span>{progress}%</span>
-                        </div>
-                        <div className="w-full bg-monokai-bg h-1.5 rounded-full overflow-hidden">
-                            <div className="bg-gradient-to-r from-monokai-green to-monokai-blue h-full transition-all duration-500" style={{ width: `${progress}%` }}></div>
+        <div className="flex h-full flex-col overflow-hidden bg-monokai-bg text-monokai-fg font-sans">
+            <PageHeader
+                title="SQL 互动教学工作坊"
+                description="沉浸式实战教程，覆盖从基础过滤聚合、正则清洗、时序窗口到全文检索与地理扩展"
+                icon={GraduationCap}
+                actions={
+                    <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2 h-8 rounded-md border border-monokai-border bg-monokai-surface px-3 text-xs text-monokai-comment">
+                            <span className="font-medium text-monokai-fg">学习进度</span>
+                            <div className="h-1.5 w-24 overflow-hidden rounded-full bg-monokai-bg border border-monokai-border">
+                                <div
+                                    className="h-full bg-monokai-green transition-all duration-300"
+                                    style={{ width: `${progress}%` }}
+                                />
+                            </div>
+                            <span className="font-mono text-monokai-fg font-semibold">{progress}%</span>
+                            <span className="text-[10px] text-monokai-comment font-mono">({completed.size}/{lessons.length})</span>
                         </div>
                     </div>
-                </div>
-                <div className="flex-1 overflow-y-auto">
-                    {Object.entries(groupedLessons).map(([category, items]: [string, Lesson[]]) => (
-                        <div key={category} className="border-b border-monokai-accent/30">
-                            <div
-                                className="p-3 flex justify-between items-center cursor-pointer hover:bg-monokai-accent/20 bg-[#22231e]"
-                                onClick={() => toggleCategory(category)}
-                            >
-                                <span className="text-xs font-bold text-monokai-fg uppercase tracking-wider">{category}</span>
-                                <span className="text-[10px] text-monokai-comment">{expandedCategories.has(category) ? '▼' : '▶'}</span>
-                            </div>
+                }
+            />
 
-                            {expandedCategories.has(category) && items.map(lesson => {
-                                const isCompleted = completed.has(lesson.id);
-                                return (
-                                    <div
-                                        key={lesson.id}
-                                        onClick={() => setSelectedId(lesson.id)}
-                                        className={`pl-6 p-3 border-l-4 cursor-pointer transition-all duration-200 group relative ${selectedId === lesson.id ? 'bg-monokai-accent/40 border-l-monokai-pink' : 'hover:bg-monokai-accent/20 border-l-transparent'}`}
+            <div className="flex flex-1 min-h-0 overflow-hidden">
+                {/* ── 左侧：课程导航大纲 ── */}
+                <aside className="flex w-80 shrink-0 flex-col border-r border-monokai-border bg-monokai-sidebar font-sans">
+                    <div className="p-3 border-b border-monokai-border bg-monokai-surface">
+                        <SearchInput
+                            value={searchQuery}
+                            onChange={setSearchQuery}
+                            onClear={() => setSearchQuery('')}
+                            placeholder="搜索课程章节或关键字..."
+                            className="w-full"
+                        />
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto p-2 custom-scrollbar space-y-1.5">
+                        {Object.entries(groupedLessons).map(([category, items]) => {
+                            const isExpanded = expandedCategories.has(category);
+                            const catCompletedCount = items.filter(i => completed.has(i.id)).length;
+                            return (
+                                <div key={category} className="rounded-md border border-monokai-border overflow-hidden bg-monokai-surface/60">
+                                    <button
+                                        type="button"
+                                        onClick={() => toggleCategory(category)}
+                                        className="flex w-full items-center justify-between px-3 py-2 text-xs font-semibold text-monokai-fg hover:bg-monokai-surface transition-colors cursor-pointer"
                                     >
-                                        <div className="flex justify-between items-start mb-1">
-                                            <h3 className={`text-xs font-bold flex items-center gap-2 ${selectedId === lesson.id ? 'text-white' : 'text-monokai-fg group-hover:text-monokai-blue'}`}>
-                                                {isCompleted && <span className="text-monokai-green">✓</span>}
-                                                {lesson.title}
-                                            </h3>
+                                        <div className="flex items-center gap-2">
+                                            {isExpanded ? (
+                                                <ChevronDown className="h-3.5 w-3.5 text-monokai-comment" />
+                                            ) : (
+                                                <ChevronRight className="h-3.5 w-3.5 text-monokai-comment" />
+                                            )}
+                                            <span className="tracking-wide">{category}</span>
                                         </div>
-                                        <div className="flex gap-2">
-                                            <span className={`text-[9px] uppercase px-1.5 py-0.5 rounded font-bold opacity-80 ${lesson.difficulty === 'Beginner' ? 'text-monokai-green bg-monokai-green/10' :
-                                                lesson.difficulty === 'Intermediate' ? 'text-monokai-orange bg-monokai-orange/10' :
-                                                    lesson.difficulty === 'Advanced' ? 'text-monokai-amethyst bg-monokai-amethyst/10' :
-                                                        'text-monokai-blue bg-monokai-blue/10'
-                                                }`}>
-                                                {lesson.difficulty}
-                                            </span>
+                                        <span className="font-mono text-[10px] text-monokai-comment">
+                                            {catCompletedCount}/{items.length}
+                                        </span>
+                                    </button>
+
+                                    {isExpanded && (
+                                        <div className="space-y-0.5 px-1.5 pb-1.5 pt-0.5 border-t border-monokai-border/40">
+                                            {items.map(lesson => {
+                                                const isSelected = selectedId === lesson.id;
+                                                const isDone = completed.has(lesson.id);
+                                                const badge = DIFFICULTY_BADGES[lesson.difficulty];
+                                                return (
+                                                    <button
+                                                        key={lesson.id}
+                                                        type="button"
+                                                        onClick={() => setSelectedId(lesson.id)}
+                                                        className={`flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-left text-xs transition-colors cursor-pointer ${
+                                                            isSelected
+                                                                ? 'bg-monokai-elevated text-monokai-fg font-medium'
+                                                                : 'text-monokai-fg-muted hover:bg-monokai-surface hover:text-monokai-fg'
+                                                        }`}
+                                                    >
+                                                        <div className="flex items-center gap-2 min-w-0">
+                                                            {isDone ? (
+                                                                <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-monokai-green" />
+                                                            ) : (
+                                                                <span className="h-2 w-2 rounded-full border border-monokai-comment/60 shrink-0" />
+                                                            )}
+                                                            <span className="truncate">{lesson.title}</span>
+                                                        </div>
+                                                        <span className={`shrink-0 rounded px-1.5 py-0.2 text-[9px] font-mono font-medium border ${badge.bg} ${badge.text} ${badge.border}`}>
+                                                            {badge.label}
+                                                        </span>
+                                                    </button>
+                                                );
+                                            })}
                                         </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    ))}
-                </div>
-            </div>
-
-            {/* Main Content Area */}
-            <div className="flex-1 overflow-y-auto p-8 relative scroll-smooth">
-                <div className="max-w-4xl mx-auto pb-20">
-                    {/* Header */}
-                    <header className="mb-8 border-b border-monokai-accent pb-6">
-                        <div className="flex justify-between items-start">
-                            <div>
-                                <div className="flex items-center gap-3 mb-4">
-                                    <span className="text-xs font-bold text-monokai-comment uppercase tracking-widest">{activeLesson.category}</span>
-                                    <span className="text-monokai-comment">/</span>
-                                    <span className={`text-xs font-bold px-3 py-1 rounded-full border ${activeLesson.difficulty === 'Beginner' ? 'border-monokai-green text-monokai-green' :
-                                        activeLesson.difficulty === 'Intermediate' ? 'border-monokai-orange text-monokai-orange' :
-                                            activeLesson.difficulty === 'Advanced' ? 'border-monokai-amethyst text-monokai-amethyst' :
-                                                'border-monokai-blue text-monokai-blue'
-                                        }`}>
-                                        {activeLesson.difficulty}
-                                    </span>
+                                    )}
                                 </div>
-                                <h1 className="text-4xl font-bold text-white mb-4 leading-tight">{activeLesson.title}</h1>
-                                <p className="text-lg text-monokai-fg/80 leading-relaxed">{activeLesson.description}</p>
-                                <div className="flex gap-2 mt-4">
-                                    {activeLesson.tags.map(tag => (
-                                        <span key={tag} className="text-xs text-monokai-blue bg-monokai-blue/10 px-2 py-1 rounded font-mono">#{tag}</span>
-                                    ))}
-                                </div>
-                            </div>
-                            <button
-                                onClick={() => toggleComplete(activeLesson.id)}
-                                className={`px-4 py-2 rounded-full border text-sm font-bold flex items-center gap-2 transition-all ${completed.has(activeLesson.id) ? 'bg-monokai-green text-monokai-bg border-monokai-green' : 'border-monokai-comment text-monokai-comment hover:border-monokai-green hover:text-monokai-green'}`}
-                            >
-                                {completed.has(activeLesson.id) ? '✓ Completed' : '○ Mark Complete'}
-                            </button>
-                        </div>
-                    </header>
-
-                    {/* Why It Matters */}
-                    <section className="mb-8 bg-monokai-sidebar/30 p-6 rounded-lg border-l-4 border-monokai-blue backdrop-blur-sm">
-                        <h3 className="text-monokai-blue font-bold uppercase text-xs tracking-wider mb-2">Why This Matters</h3>
-                        <p className="text-monokai-fg italic">"{activeLesson.whyItMatters}"</p>
-                    </section>
-
-                    {/* Code Block */}
-                    <section className="mb-12">
-                        <div className="flex justify-between items-end mb-3">
-                            <h3 className="text-monokai-yellow font-bold uppercase text-xs tracking-wider">Example Query</h3>
-                            <button
-                                onClick={() => {
-                                    onTryCode(activeLesson.code);
-                                    if (!completed.has(activeLesson.id)) toggleComplete(activeLesson.id);
-                                }}
-                                className="flex items-center gap-2 px-4 py-2 bg-monokai-green hover:bg-monokai-green/80 text-monokai-bg font-bold rounded shadow-lg shadow-monokai-green/20 transition-all hover:translate-y-[-1px]"
-                            >
-                                <span>▶</span> Run & Complete
-                            </button>
-                        </div>
-                        <div className="bg-[#1e1f1c] rounded-lg border border-monokai-accent overflow-hidden shadow-2xl">
-                            <div className="flex items-center gap-2 px-4 py-2 bg-[#2a2b24] border-b border-monokai-accent">
-                                <div className="w-3 h-3 rounded-full bg-monokai-pink/50"></div>
-                                <div className="w-3 h-3 rounded-full bg-monokai-yellow/50"></div>
-                                <div className="w-3 h-3 rounded-full bg-monokai-green/50"></div>
-                                <span className="ml-2 text-xs text-monokai-comment font-mono">query.sql</span>
-                            </div>
-                            <div className="p-6 overflow-x-auto">
-                                <pre className="text-sm font-mono !bg-transparent !m-0 !p-0">
-                                    <code className="language-sql select-text">
-                                        {activeLesson.code}
-                                    </code>
-                                </pre>
-                            </div>
-                        </div>
-                    </section>
-
-                    {/* Navigation Footer */}
-                    <div className="flex justify-between items-center pt-8 border-t border-monokai-accent">
-                        {activeIndex > 0 ? (
-                            <button
-                                onClick={() => setSelectedId(lessons[activeIndex - 1].id)}
-                                className="px-6 py-3 rounded-lg border border-monokai-accent hover:border-monokai-blue hover:text-white text-monokai-comment font-bold transition-all flex items-center gap-2"
-                            >
-                                ← Previous Lesson
-                            </button>
-                        ) : <div></div>}
-
-                        {activeIndex < lessons.length - 1 && (
-                            <button
-                                onClick={() => {
-                                    if (!completed.has(activeLesson.id)) toggleComplete(activeLesson.id);
-                                    setSelectedId(lessons[activeIndex + 1].id);
-                                }}
-                                className="px-6 py-3 rounded-lg bg-monokai-blue text-monokai-bg hover:bg-white hover:scale-105 font-bold transition-all shadow-lg flex items-center gap-2"
-                            >
-                                Next Lesson →
-                            </button>
-                        )}
+                            );
+                        })}
                     </div>
-                </div>
+                </aside>
+
+                {/* ── 右侧：课程沉浸工作区 ── */}
+                <main className="flex-1 overflow-y-auto p-6 custom-scrollbar bg-monokai-bg font-sans">
+                    {activeLesson ? (
+                        <div className="mx-auto max-w-4xl space-y-4">
+                            {/* 头部元数据 */}
+                            <div className="rounded-md border border-monokai-border bg-monokai-surface p-5 shadow-xs">
+                                <div className="flex flex-wrap items-center justify-between gap-4 border-b border-monokai-border pb-3">
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-xs font-mono font-semibold uppercase tracking-wider text-monokai-comment">
+                                            {activeLesson.category}
+                                        </span>
+                                        <span className="text-monokai-border">/</span>
+                                        <span
+                                            className={`rounded-full border px-2.5 py-0.5 text-xs font-medium ${
+                                                DIFFICULTY_BADGES[activeLesson.difficulty].bg
+                                            } ${DIFFICULTY_BADGES[activeLesson.difficulty].text} ${
+                                                DIFFICULTY_BADGES[activeLesson.difficulty].border
+                                            }`}
+                                        >
+                                            {DIFFICULTY_BADGES[activeLesson.difficulty].label}难度
+                                        </span>
+                                    </div>
+                                    <ActionButton
+                                        variant={completed.has(activeLesson.id) ? 'success' : 'secondary'}
+                                        icon={completed.has(activeLesson.id) ? CheckCircle2 : Check}
+                                        onClick={() => toggleComplete(activeLesson.id)}
+                                        size="sm"
+                                    >
+                                        {completed.has(activeLesson.id) ? '已完成学习' : '标记为已完成'}
+                                    </ActionButton>
+                                </div>
+
+                                <div className="mt-4 space-y-2">
+                                    <h1 className="text-xl font-bold text-monokai-fg sm:text-2xl">{activeLesson.title}</h1>
+                                    <p className="text-sm leading-relaxed text-monokai-comment">{activeLesson.description}</p>
+                                    <div className="flex flex-wrap gap-1.5 pt-2">
+                                        {activeLesson.tags.map(tag => (
+                                            <span
+                                                key={tag}
+                                                className="rounded border border-monokai-border bg-monokai-bg px-2 py-0.5 text-[11px] font-mono text-monokai-fg-muted"
+                                            >
+                                                #{tag}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* 为什么重要？ */}
+                            <div className="rounded-md border border-monokai-border bg-monokai-surface p-4 shadow-xs">
+                                <div className="flex items-center gap-2 text-xs font-semibold text-monokai-fg">
+                                    <Sparkles className="h-4 w-4 text-monokai-accent" />
+                                    <span>核心价值与实战背景 (Why It Matters)</span>
+                                </div>
+                                <p className="mt-2 text-xs leading-relaxed text-monokai-fg-muted">
+                                    {activeLesson.whyItMatters}
+                                </p>
+                            </div>
+
+                            {/* 示例 SQL 执行卡片 */}
+                            <div className="rounded-md border border-monokai-border bg-monokai-surface overflow-hidden shadow-xs">
+                                <div className="flex items-center justify-between border-b border-monokai-border bg-monokai-elevated/40 px-4 py-2.5">
+                                    <div className="flex items-center gap-2">
+                                        <Code2 className="h-4 w-4 text-monokai-comment" />
+                                        <span className="font-mono text-xs font-semibold text-monokai-fg">实战演练 SQL (Interactive Query)</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <ActionButton
+                                            variant="ghost"
+                                            size="sm"
+                                            icon={copied ? Check : Copy}
+                                            onClick={handleCopyCode}
+                                        >
+                                            {copied ? '已复制' : '复制 SQL'}
+                                        </ActionButton>
+                                        <ActionButton
+                                            variant="primary"
+                                            size="sm"
+                                            icon={Play}
+                                            onClick={handleRunCode}
+                                        >
+                                            带入 SQL 执行
+                                        </ActionButton>
+                                    </div>
+                                </div>
+
+                                <div className="p-4 bg-monokai-bg overflow-x-auto">
+                                    <pre className="font-mono text-xs leading-relaxed text-monokai-fg m-0">
+                                        <code>{activeLesson.code}</code>
+                                    </pre>
+                                </div>
+                            </div>
+
+                            {/* 底部翻页导航 */}
+                            <div className="flex items-center justify-between border-t border-monokai-border pt-4">
+                                {activeIndex > 0 ? (
+                                    <ActionButton
+                                        variant="secondary"
+                                        icon={ArrowLeft}
+                                        onClick={() => setSelectedId(lessons[activeIndex - 1].id)}
+                                    >
+                                        上一课：{lessons[activeIndex - 1].title}
+                                    </ActionButton>
+                                ) : <div />}
+
+                                {activeIndex < lessons.length - 1 ? (
+                                    <ActionButton
+                                        variant="primary"
+                                        icon={ArrowRight}
+                                        iconPosition="right"
+                                        onClick={() => {
+                                            if (!completed.has(activeLesson.id)) toggleComplete(activeLesson.id);
+                                            setSelectedId(lessons[activeIndex + 1].id);
+                                        }}
+                                    >
+                                        下一课：{lessons[activeIndex + 1].title}
+                                    </ActionButton>
+                                ) : (
+                                    <span className="text-xs text-monokai-green font-medium flex items-center gap-1.5">
+                                        <CheckCircle2 className="h-4 w-4" /> 您已浏览完所有实战课程！
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+                    ) : null}
+                </main>
             </div>
         </div>
     );

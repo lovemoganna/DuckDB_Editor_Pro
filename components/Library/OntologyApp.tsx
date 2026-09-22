@@ -1,10 +1,3 @@
-/**
- * OntologyApp - 本体论知识管理主组件
- *
- * 重构后：复用新的 OntologyPanel 统一入口，删除 MECE 五层结构，
- * 改为直觉化的三视图导航（图谱 / 数据 / 画布）。
- */
-
 import React from 'react';
 import { OntologyPanel } from './OntologyPanel';
 
@@ -37,3 +30,4 @@ export const OntologyApp: React.FC<OntologyAppProps> = ({
 };
 
 export default OntologyApp;
+

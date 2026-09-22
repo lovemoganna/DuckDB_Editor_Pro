@@ -14,22 +14,42 @@
  * 8. Compact layout: tighter default physics + robust Fit All with padding & min zoom
  */
 
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import * as d3 from 'd3';
-import { RefreshCw, Sparkles, Loader2, HelpCircle, Trash2, AlertTriangle } from 'lucide-react';
+import {
+  RefreshCw, Sparkles, Loader2, HelpCircle, Trash2, AlertTriangle, Activity,
+  Maximize2, RotateCcw, ZoomIn, ZoomOut, Target, Hand, Lasso,
+  Flame, BarChart3, LayoutGrid, Sliders, Search, Download,
+  Image as ImageIcon, Code2, Table2, FileSpreadsheet, Eye,
+  ChevronDown, ChevronUp, X, FileText, Lock, Move,
+  Network, Database,
+} from 'lucide-react';
 import { duckDBService } from '../../services/duckdbService';
 import { ontologyAiService } from '../../services/ontologyAiService';
 import { encodeCSV, downloadExcel } from '../../utils/exportUtils';
+import { PixiGraphRenderer } from '../../services/PixiGraphRenderer';
+import { CanvasGraphRenderer } from './D3GraphView/CanvasGraphRenderer';
 import { ontologyActions, useOntologyStore } from '../../hooks/useOntologyStore';
 import { CanvasHelpPanel } from '../skills/CanvasHelpPanel';
 import { ToastNotification } from '../ui/ToastNotification';
+import { ModalShell } from '../ui/Workbench';
 import {
   aggregateParallelEdges,
   buildGraphDataFromState,
   computeEdgeGroupOffsets,
+  loadDynamicGraphData,
 } from './D3GraphView/D3GraphView.data';
 import { getSourceNode, getTargetNode, computePageRank, findShortestPath, PathTraceResult } from './D3GraphView/D3GraphView.helpers';
-import { computeInitialPositions, applyDagreLayout, applyConcentricLayout, applyStarburstLayout, applyDandelionLayout, applySpokeLayout, applyGridLayout, applyGroupedCircularLayout, applyVerticalTreeLayout, applyHorizontalTreeLayout } from './D3GraphView/D3GraphView.layout';
+// 统一布局服务：提供性能监控和统一接口
+import { 
+  applyLayout as unifiedApplyLayout, 
+  getLayoutStats, 
+  getLayoutMetricsHistory,
+  getAvailableLayoutModes,
+  LAYOUT_MODE_LABELS,
+  computeInitialPositions,
+  type LayoutMode 
+} from '../../services/graphLayoutService';
 import { LINKTYPE_COLORS, LINKTYPE_DASH } from './D3GraphView/D3GraphView.types';
 import {
   ScopeMode,
@@ -46,6 +66,13 @@ import {
   TYPE_COLORS,
 } from './D3GraphView/D3GraphView.visuals';
 import { downloadD3GraphImage, collectSubgraph, exportAllSubgraphs } from './D3GraphView/D3GraphViewExport';
+import {
+  TopologyLayoutPanel,
+  type NodeTypeFilter,
+  type LabelDisplayMode,
+  type PerfDataPoint,
+  type LayoutSnapshot
+} from './D3GraphView/TopologyLayoutPanel';
 import type {
   LifeObjectType,
   LifeObject,
@@ -55,205 +82,298 @@ import type {
   GraphNode,
   GraphLink,
   GraphData,
+  EdgeRoutingMode,
+  EdgeLabelDisplay,
 } from './D3GraphView/D3GraphView.types';
-
-// ==================== Initial Layout ====================
-
-async function loadDynamicGraphData(mapping: any, storeState?: any): Promise<GraphData | null> {
-  try {
-    const objectFields = mapping.objectFields || {};
-    const objIdCol = objectFields.id || 'id';
-    const objNameCol = objectFields.name || 'name';
-    const objTypeCol = objectFields.object_type_id || 'object_type_id';
-    const objPropsCol = objectFields.properties || 'properties';
-    const objAnnoCol = objectFields.annotations || 'annotations';
-
-    const linkFields = mapping.linkFields || {};
-    const linkIdCol = linkFields.id || 'id';
-    const linkTypeCol = linkFields.link_type_id || 'link_type_id';
-    const linkSrcCol = linkFields.source_object_id || 'source_object_id';
-    const linkTgtCol = linkFields.target_object_id || 'target_object_id';
-    const linkWeightCol = linkFields.weight || 'weight';
-
-    const [objectTypes, objects, linkTypes, rawLinks, actions] = await Promise.all([
-      duckDBService.query(`SELECT * FROM ${mapping.objectTypeTable} ORDER BY id`),
-      duckDBService.query(`SELECT 
-        "${objIdCol}" as id, 
-        "${objTypeCol}" as object_type_id, 
-        "${objNameCol}" as name, 
-        "${objPropsCol}" as properties, 
-        "${objAnnoCol}" as annotations 
-        FROM ${mapping.objectTable} ORDER BY id`),
-      duckDBService.query(`SELECT * FROM ${mapping.linkTypeTable} ORDER BY id`),
-      duckDBService.query(`SELECT 
-        "${linkIdCol}" as id, 
-        "${linkTypeCol}" as link_type_id, 
-        "${linkSrcCol}" as source_object_id, 
-        "${linkTgtCol}" as target_object_id, 
-        "${linkWeightCol}" as weight 
-        FROM ${mapping.linkTable} ORDER BY id`),
-      duckDBService.query(`SELECT * FROM ${mapping.actionTable} ORDER BY id`),
-    ]);
-
-    console.log('[D3GraphView] Tables loaded:', {
-      types: objectTypes.length, objects: objects.length,
-      linkTypes: linkTypes.length, rawLinks: rawLinks.length, actions: actions.length,
-    });
-
-    if (objects.length === 0) {
-      // DuckDB returned empty — try store state as fallback
-      if (storeState) {
-        const storeData = buildGraphDataFromState(storeState, mapping);
-        if (storeData) {
-          console.log('[D3GraphView] DuckDB empty, using store state fallback:', storeData.nodes.length, 'nodes');
-          return storeData;
-        }
-      }
-      return { nodes: [], links: [], typeMap: {}, linkTypeMap: {}, typeNames: [] };
-    }
-
-    const typeMap: Record<number, any> = {};
-    objectTypes.forEach((t: any) => {
-      const tId = Number(t.id);
-      typeMap[tId] = { ...t, id: tId };
-    });
-    const linkTypeMap: Record<number, any> = {};
-    linkTypes.forEach((lt: any) => {
-      const ltId = Number(lt.id);
-      linkTypeMap[ltId] = { ...lt, id: ltId };
-    });
-
-    const parseProps = (raw: any): { count: number; raw: string } => {
-      if (!raw) return { count: 0, raw: '' };
-      
-      let jsonStr = '';
-      if (raw instanceof Uint8Array) {
-        try { jsonStr = new TextDecoder().decode(raw); } 
-        catch { jsonStr = String(raw); }
-      } else if (typeof raw === 'object') {
-        return { count: Object.keys(raw).length, raw: JSON.stringify(raw, null, 2) };
-      } else {
-        jsonStr = String(raw);
-      }
-
-      try {
-        const parsed = JSON.parse(jsonStr);
-        return { count: Object.keys(parsed).length, raw: JSON.stringify(parsed, null, 2) };
-      } catch {
-        return { count: 0, raw: jsonStr };
-      }
-    };
-
-    const objectsByType: Record<number, any[]> = {};
-    objects.forEach((o: any) => {
-      const typeId = Number(o.object_type_id);
-      if (!objectsByType[typeId]) objectsByType[typeId] = [];
-      objectsByType[typeId].push(o);
-    });
-
-    const nodes: GraphNode[] = [];
-    const links: GraphLink[] = [];
-
-    // Pre-defined layout from AI Modeling Wizard
-    const layoutData = (window as any).__ontologyGraphLayout;
-    const layoutNodes: Record<string, { x: number; y: number }> = {};
-    if (layoutData?.nodes) {
-      layoutData.nodes.forEach((n: any) => { layoutNodes[n.id] = { x: n.x || 400, y: n.y || 300 }; });
-    }
-
-    objectTypes.forEach((type: any) => {
-      const typeId = Number(type.id);
-      const instList = objectsByType[typeId] || [];
-      const hasInstances = instList.length > 0;
-      const color = TYPE_COLORS_WARM[(typeId - 1) % TYPE_COLORS_WARM.length];
-      const layoutPos = layoutNodes[`__type__${type.name}`];
-      nodes.push({
-        id: `type::${typeId}`, label: type.name, group: 'typeHub', color, size: hasInstances ? 28 : 18,
-        description: type.description || '', _typeId: typeId, _instanceCount: instList.length,
-        x: layoutPos?.x, y: layoutPos?.y,
-        // Mark empty typeHubs so the renderer can style them differently
-        _hasInstances: hasInstances,
-      });
-    });
-
-    objects.forEach((obj: any) => {
-      const objId = Number(obj.id);
-      const typeId = Number(obj.object_type_id);
-      const type = typeMap[typeId];
-      const color = type ? TYPE_COLORS_COOL[(typeId - 1) % TYPE_COLORS_COOL.length] : '#888';
-      const { count: propCount, raw: propRaw } = parseProps(obj.properties);
-      const layoutPos = layoutNodes[obj.name];
-      nodes.push({
-        id: `obj::${objId}`, label: obj.name, group: 'instance', color, size: 11,
-        description: propRaw, _objId: objId, _typeId: typeId,
-        _propsCount: propCount, _propsRaw: propRaw,
-        x: layoutPos?.x, y: layoutPos?.y,
-      });
-
-      if (type) {
-        links.push({ source: `obj::${objId}`, target: `type::${typeId}`, color: 'rgba(255,255,255,0.45)', weight: 0.15, _isTypeInstLink: true });
-      }
-    });
-
-    rawLinks.forEach((link: any) => {
-      const linkTypeId = Number(link.link_type_id);
-      const srcId = Number(link.source_object_id);
-      const tgtId = Number(link.target_object_id);
-      const ltColor = LINKTYPE_COLORS[(linkTypeId - 1) % LINKTYPE_COLORS.length];
-      links.push({
-        source: `obj::${srcId}`, target: `obj::${tgtId}`,
-        color: ltColor, weight: Number(link.weight) || 0.5,
-        _linkTypeId: linkTypeId, _linkTypeName: linkTypeMap[linkTypeId]?.name,
-      });
-    });
-
-    actions.forEach((act: any) => {
-      const actId = Number(act.id);
-      const objId = Number(act.object_id);
-      const statusColor = act.status === 'done' ? '#4CAF50' : '#FF9800';
-      nodes.push({
-        id: `action::${actId}`,
-        label: act.name,
-        group: 'action',
-        color: statusColor,
-        size: 6,
-        description: act.description || '',
-        _objId: objId,
-      });
-      links.push({ source: `obj::${objId}`, target: `action::${actId}`, color: '#FF9CF7', weight: 0.2 });
-    });
-
-    const typeNames = objectTypes.map((t: any) => t.name);
-
-    // Give every node a radial starting position so the force simulation
-    // spreads the full dataset across the canvas immediately on render.
-    // NOTE: actual positions are computed in the D3 useEffect using containerRef dimensions.
-    const typeHubNodes = nodes.filter(n => n.group === 'typeHub');
-    // Use a moderate default; real positions computed with actual W/H in the component useEffect
-    computeInitialPositions(nodes, typeHubNodes, 800, 600, rawLinks);
-
-    return { nodes, links, typeMap, linkTypeMap, typeNames };
-  } catch (err) {
-    console.error('[D3GraphView] Dynamic load failed:', err);
-    return null;
-  }
-}
 
 // ==================== Component ====================
 
-const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyState?: any; isActive?: boolean; onInspect?: (mode: any, target: any) => void }> = ({ onRefreshRef, ontologyState, isActive, onInspect }) => {
+/** D3GraphView 内部布局模式（包含一些特定于 D3 的模式） */
+type D3LayoutMode = 'topologicalFlow' | 'clusteredForce' | 'force' | 'dagre' | 'concentric' | 'starburst' | 'dandelion' | 'spoke' | 'grid' | 'groupedCircular' | 'verticalTree' | 'horizontalTree';
+
+/** 布局模式到中文名称的映射 */
+const D3_LAYOUT_MODE_LABELS: Record<D3LayoutMode, string> = {
+  topologicalFlow: '拓扑语义层级流',
+  clusteredForce: '社区重心极坐标',
+  verticalTree: '纵向层级树',
+  horizontalTree: '横向层级树（推荐）',
+  dandelion: '蒲公英径向',
+  dagre: '层级分层',
+  spoke: '辐射骨架',
+  concentric: '同心圆径向',
+  starburst: '星系辐射',
+  grid: '网格排列',
+  groupedCircular: '分组环形',
+  force: '有机力导向',
+};
+
+/** 将 D3GraphView 的布局模式转换为统一的 LayoutMode */
+function toUnifiedLayoutMode(mode: D3LayoutMode): LayoutMode {
+  const mapping: Record<D3LayoutMode, LayoutMode> = {
+    topologicalFlow: 'topologicalFlow',
+    clusteredForce: 'grouped',  // clusteredForce 对应 grouped
+    force: 'force',
+    dagre: 'dagre',
+    concentric: 'concentric',
+    starburst: 'starburst',
+    dandelion: 'dandelion',
+    spoke: 'spoke',
+    grid: 'grid',
+    groupedCircular: 'groupedCircular',
+    verticalTree: 'verticalTree',
+    horizontalTree: 'horizontalTree',
+  };
+  return mapping[mode];
+}
+
+/** 检查是否需要冻结非 action 节点的位置 */
+function shouldFreezeNonActionNodes(mode: D3LayoutMode): boolean {
+  return ['topologicalFlow', 'clusteredForce', 'dagre', 'verticalTree', 'horizontalTree', 
+          'concentric', 'starburst', 'dandelion', 'spoke', 'grid', 'groupedCircular'].includes(mode);
+}
+
+/** 渲染引擎模式：MECE 三选一 —— SVG D3 / HTML5 Canvas / WebGL Pixi */
+export type RenderEngineMode = 'svg' | 'canvas' | 'webgl';
+
+/** 渲染引擎元数据 */
+export const RENDER_ENGINE_META: Record<RenderEngineMode, {
+  label: string;
+  shortLabel: string;
+  icon: React.ReactNode;
+  description: string;
+  hint: string;
+  color: string;
+  bgColor: string;
+  borderColor: string;
+}> = {
+  svg: {
+    label: 'SVG D3 (矢量交互)',
+    shortLabel: 'SVG',
+    icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>,
+    description: 'D3 + SVG 力导向物理仿真，矢量无损缩放，支持细粒度高光与动态流向粒子',
+    hint: '≤500节点推荐',
+    color: '#66d9ef',
+    bgColor: 'rgba(102, 217, 239, 0.12)',
+    borderColor: 'rgba(102, 217, 239, 0.45)',
+  },
+  canvas: {
+    label: 'Canvas 2D (极速绘制)',
+    shortLabel: 'Canvas',
+    icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>,
+    description: 'HTML5 Canvas 2D 硬件批量绘制，60 FPS 极速平移缩放，零 DOM 开销',
+    hint: '500-3000节点推荐',
+    color: '#a6e22e',
+    bgColor: 'rgba(166, 226, 46, 0.12)',
+    borderColor: 'rgba(166, 226, 46, 0.45)',
+  },
+  webgl: {
+    label: 'WebGL Pixi (GPU加速)',
+    shortLabel: 'WebGL',
+    icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>,
+    description: 'PixiJS WebGL 硬件着色器加速，空间视锥剔除与 LOD 动态分级，超大规模首选',
+    hint: '≥3000节点推荐',
+    color: '#fd971f',
+    bgColor: 'rgba(253, 151, 31, 0.12)',
+    borderColor: 'rgba(253, 151, 31, 0.45)',
+  },
+};
+
+/** 自动推荐渲染引擎模式（基于节点数量） */
+export function recommendRenderEngine(nodeCount: number, linkCount: number): RenderEngineMode {
+  const density = linkCount / Math.max(nodeCount, 1);
+  if (nodeCount >= 3000 || (nodeCount >= 1500 && density > 2)) return 'webgl';
+  if (nodeCount >= 500) return 'canvas';
+  return 'svg';
+}
+
+/** 渲染模式：MECE 三选一 —— 与 OntologyPanel.activeTab 双向同步（已废弃，请使用 RenderEngineMode） */
+export type KnowledgeGraphRenderMode = 'graph' | 'canvas' | 'data';
+
+const RENDER_MODE_META: Record<KnowledgeGraphRenderMode, {
+  label: string;
+  shortLabel: string;
+  icon: React.ReactNode;
+  description: string;
+  color: string;
+  bgColor: string;
+  borderColor: string;
+}> = {
+  graph: {
+    label: '力导向图谱',
+    shortLabel: '力导向',
+    icon: <Network className="w-3.5 h-3.5" />,
+    description: 'D3 力导向物理仿真：层级清晰、动态避障、支持万级节点',
+    color: '#66d9ef',
+    bgColor: 'rgba(102, 217, 239, 0.12)',
+    borderColor: 'rgba(102, 217, 239, 0.45)',
+  },
+  canvas: {
+    label: '实体画布',
+    shortLabel: '画布',
+    icon: <LayoutGrid className="w-3.5 h-3.5" />,
+    description: 'ReactFlow 节点画布：自由拖拽、批量建模、CTE 反向编译',
+    color: '#a6e22e',
+    bgColor: 'rgba(166, 226, 46, 0.12)',
+    borderColor: 'rgba(166, 226, 46, 0.45)',
+  },
+  data: {
+    label: '数据视图',
+    shortLabel: '表格',
+    icon: <Database className="w-3.5 h-3.5" />,
+    description: 'TanStack Virtual 表格：虚拟滚动、行内 CRUD、JSON 编辑',
+    color: '#fd971f',
+    bgColor: 'rgba(253, 151, 31, 0.12)',
+    borderColor: 'rgba(253, 151, 31, 0.45)',
+  },
+};
+
+/** 布局信息类型 */
+interface LayoutInfo {
+  nodePositions: Record<number, { x: number; y: number }>;
+  layoutMode: string;
+  zoom?: number;
+  pan?: { x: number; y: number };
+}
+
+const D3GraphView: React.FC<{
+  onRefreshRef?: (fn: () => void) => void;
+  ontologyState?: any;
+  isActive?: boolean;
+  onInspect?: (mode: any, target: any) => void;
+  /** 布局变化时回调，用于同步到 OntologyPanel */
+  onLayoutChange?: (layout: LayoutInfo) => void;
+  /** 当前渲染模式：用于顶部下拉菜单高亮跟随 */
+  renderMode?: KnowledgeGraphRenderMode;
+  /** 渲染模式切换回调：通知 OntologyPanel 切换 activeTab */
+  onRenderModeChange?: (mode: KnowledgeGraphRenderMode) => void;
+}> = ({ onRefreshRef, ontologyState, isActive, onInspect, onLayoutChange, renderMode = 'graph', onRenderModeChange }) => {
   const store = useOntologyStore();
   const state = ontologyState ?? store.state;
   const mapping = state.mapping;
   
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const canvasRendererRef = useRef<CanvasGraphRenderer | null>(null);
   const infoPanelRef = useRef<HTMLDivElement>(null);
   const simulationRef = useRef<d3.Simulation<GraphNode, GraphLink> | null>(null);
   const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
+  const pixiRendererRef = useRef<PixiGraphRenderer | null>(null);
   const collapsedRef = useRef<Set<string>>(new Set());
   const [collapsedNodes, setCollapsedNodes] = useState<Set<string>>(new Set());
-  const [layoutMode, setLayoutMode] = useState<'force' | 'dagre' | 'concentric' | 'starburst' | 'dandelion' | 'spoke' | 'grid' | 'groupedCircular' | 'verticalTree' | 'horizontalTree'>('verticalTree');
+  const [layoutMode, setLayoutMode] = useState<D3LayoutMode>('horizontalTree');
+  const layoutModeRef = useRef<D3LayoutMode>(layoutMode);
+  useEffect(() => { layoutModeRef.current = layoutMode; }, [layoutMode]);
+
+  // 渲染引擎模式状态（SVG / Canvas / WebGL 三选一，MECE）
+  const [renderEngineMode, setRenderEngineMode] = useState<RenderEngineMode>(() =>
+    recommendRenderEngine(state.objects?.length ?? 0, state.links?.length ?? 0)
+  );
+  const renderEngineModeRef = useRef<RenderEngineMode>('svg');
+  useEffect(() => { renderEngineModeRef.current = renderEngineMode; }, [renderEngineMode]);
+
+  // 渲染模式切换回调
+  const switchRenderEngineMode = useCallback((mode: RenderEngineMode) => {
+    if (mode === renderEngineModeRef.current) return;
+    setRenderEngineMode(mode);
+    setToast({
+      message: `已切换至「${RENDER_ENGINE_META[mode].label}」渲染引擎 (${RENDER_ENGINE_META[mode].hint})`,
+      type: 'info',
+    });
+  }, []);
+
+  // 渲染模式下拉菜单开关状态
+  const [showRenderModeMenu, setShowRenderModeMenu] = useState(false);
+  const renderModeSwitcherRef = useRef<HTMLDivElement>(null);
+
+  // 点击外部关闭渲染模式菜单
+  useEffect(() => {
+    if (!showRenderModeMenu) return;
+    const handler = (e: MouseEvent) => {
+      if (renderModeSwitcherRef.current && !renderModeSwitcherRef.current.contains(e.target as Node)) {
+        setShowRenderModeMenu(false);
+      }
+    };
+    const escHandler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowRenderModeMenu(false);
+    };
+    document.addEventListener('mousedown', handler);
+    document.addEventListener('keydown', escHandler);
+    return () => {
+      document.removeEventListener('mousedown', handler);
+      document.removeEventListener('keydown', escHandler);
+    };
+  }, [showRenderModeMenu]);
+  
+  // 布局历史记录（撤销/重做）
+  const [layoutHistory, setLayoutHistory] = useState<D3LayoutMode[]>(['horizontalTree']);
+  const [historyIndex, setHistoryIndex] = useState(0);
+  const layoutHistoryRef = useRef<D3LayoutMode[]>(['horizontalTree']);
+  const historyIndexRef = useRef(0);
+  
+  // 同步 ref 和 state
+  useEffect(() => { layoutHistoryRef.current = layoutHistory; }, [layoutHistory]);
+  useEffect(() => { historyIndexRef.current = historyIndex; }, [historyIndex]);
+  
+  // 统一的布局切换函数（支持历史记录与节点引力重置）
+  const switchLayoutMode = useCallback((newMode: D3LayoutMode) => {
+    if (newMode === layoutMode) return;
+    
+    // 清理由于上一布局拖拽或局部固定产生的固定坐标残留，防止跨布局坐标污染
+    if (nodesRef.current) {
+      nodesRef.current.forEach(n => {
+        n.fx = null;
+        n.fy = null;
+        delete (n as any)._isLayoutFixed;
+        delete (n as any)._savedFx;
+        delete (n as any)._savedFy;
+        delete (n as any)._tempPinned;
+      });
+    }
+
+    // 保存到历史记录
+    const newHistory = [...layoutHistoryRef.current.slice(0, historyIndexRef.current + 1), newMode].slice(-20); // 最多保留20条
+    setLayoutHistory(newHistory);
+    setHistoryIndex(newHistory.length - 1);
+    setLayoutMode(newMode);
+  }, [layoutMode]);
+  
+  // 撤销布局
+  const undoLayout = useCallback(() => {
+    if (historyIndexRef.current > 0) {
+      const newIndex = historyIndexRef.current - 1;
+      setHistoryIndex(newIndex);
+      if (nodesRef.current) {
+        nodesRef.current.forEach(n => {
+          n.fx = null;
+          n.fy = null;
+          delete (n as any)._isLayoutFixed;
+        });
+      }
+      setLayoutMode(layoutHistoryRef.current[newIndex]);
+    }
+  }, []);
+  
+  // 重做布局
+  const redoLayout = useCallback(() => {
+    if (historyIndexRef.current < layoutHistoryRef.current.length - 1) {
+      const newIndex = historyIndexRef.current + 1;
+      setHistoryIndex(newIndex);
+      if (nodesRef.current) {
+        nodesRef.current.forEach(n => {
+          n.fx = null;
+          n.fy = null;
+          delete (n as any)._isLayoutFixed;
+        });
+      }
+      setLayoutMode(layoutHistoryRef.current[newIndex]);
+    }
+  }, []);
+  
+  // 检查是否可以撤销/重做
+  const canUndo = historyIndex > 0;
+  const canRedo = historyIndex < layoutHistory.length - 1;
+  
   const searchHighlightedRef = useRef<string[]>([]);
   const graphDataRef = useRef<GraphData | null>(null);
   const nodesRef = useRef<GraphNode[]>([]);
@@ -281,7 +401,32 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
   const [infoContent, setInfoContent] = useState('');
   const [searchIndex, setSearchIndex] = useState(-1);
   const [showControls, setShowControls] = useState(false);
+  const showControlsRef = useRef(showControls);
+  useEffect(() => { showControlsRef.current = showControls; }, [showControls]);
   const [showInfo, setShowInfo] = useState(false);
+  const showInfoRef = useRef(showInfo);
+  useEffect(() => { showInfoRef.current = showInfo; }, [showInfo]);
+
+  const getVisualCenter = useCallback((containerWidth: number, containerHeight: number) => {
+    const isControlsVisible = showControlsRef.current;
+    const isInfoVisible = showInfoRef.current;
+    // Left safe inset: TopologyLayoutPanel width (340) + margin (14). If collapsed, button width ~80
+    const left = isControlsVisible ? 364 : 40;
+    // Right safe inset: Info panel width (250) + margin (12)
+    const right = isInfoVisible ? 270 : 40;
+    // Top safe inset: Filter bar (~60)
+    const top = 64;
+    // Bottom safe inset: Timeline bar (~54)
+    const bottom = 64;
+
+    const availableW = Math.max(containerWidth * 0.35, containerWidth - left - right);
+    const availableH = Math.max(containerHeight * 0.35, containerHeight - top - bottom);
+
+    const visualCenterX = left + availableW / 2;
+    const visualCenterY = top + availableH / 2;
+
+    return { visualCenterX, visualCenterY, availableW, availableH, left, right, top, bottom };
+  }, []);
   const [showLegend, setShowLegend] = useState(false);
   const [isPanelHovered, setIsPanelHovered] = useState(false);
   const [showScanModal, setShowScanModal] = useState(false);
@@ -291,7 +436,7 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
   const [showHelp, setShowHelp] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; node: GraphNode } | null>(null);
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [scopeMode, setScopeMode] = useState<ScopeMode>('all');
   const [clickToFocus, setClickToFocus] = useState(true);
   const [isFixedDrag, setIsFixedDrag] = useState(false);
@@ -321,14 +466,26 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
   // Temporal Topology Evolution Player States
   const [timelineStep, setTimelineStep] = useState<number>(100); // 0-100%
   const [isPlayingTimeline, setIsPlayingTimeline] = useState<boolean>(false);
+  
+  // 布局性能详情展开状态
+  const [layoutStatsExpanded, setLayoutStatsExpanded] = useState(false);
+  // 控制面板分区折叠（默认收起长段，减少视觉噪声）
+  const [panelSections, setPanelSections] = useState({
+    physics: false,
+    filter: false,
+    export: false,
+  });
+  const togglePanelSection = (key: keyof typeof panelSections) => {
+    setPanelSections(prev => ({ ...prev, [key]: !prev[key] }));
+  };
 
   // 1. D3 Physics Controls State — tuned for compact semantic layout
-  const [chargeStrength, setChargeStrength] = useState(-240);
-  const [linkDistance, setLinkDistance] = useState(100);
-  const [collisionRadius, setCollisionRadius] = useState(20);
-  const [velocityDecay, setVelocityDecay] = useState(0.4);
-  const [gravityStrength, setGravityStrength] = useState(0.2);
-  const [linkStrength, setLinkStrength] = useState(0.5);
+  const [chargeStrength, setChargeStrength] = useState(-160);
+  const [linkDistance, setLinkDistance] = useState(75);
+  const [collisionRadius, setCollisionRadius] = useState(14);
+  const [velocityDecay, setVelocityDecay] = useState(0.42);
+  const [gravityStrength, setGravityStrength] = useState(0.25);
+  const [linkStrength, setLinkStrength] = useState(0.6);
 
   // 2. Progressive Exploration (Focus Mode) State
   const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null);
@@ -343,10 +500,248 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
     }
   }, [state?.search]);
 
+  // 5. 实体类型过滤联动 (TypeHub / Instance / Action)
+  const [nodeTypeFilters, setNodeTypeFilters] = useState<Set<NodeTypeFilter>>(new Set(['typeHub', 'instance', 'action']));
+  const nodeTypeFiltersRef = useRef(nodeTypeFilters);
+  useEffect(() => { nodeTypeFiltersRef.current = nodeTypeFilters; }, [nodeTypeFilters]);
+
+  // 6. 标签展示策略 (auto / all / top / hover)
+  const [labelMode, setLabelMode] = useState<LabelDisplayMode>('auto');
+  const labelModeRef = useRef(labelMode);
+  useEffect(() => { labelModeRef.current = labelMode; }, [labelMode]);
+
+  // 6.5. 连线渲染与动效设置 (MECE 连线控制体系)
+  const [showHierarchyLinks, setShowHierarchyLinks] = useState(true);
+  const showHierarchyLinksRef = useRef(showHierarchyLinks);
+  useEffect(() => {
+    showHierarchyLinksRef.current = showHierarchyLinks;
+    if (svgRef.current) {
+      d3.select(svgRef.current).selectAll('.nv-link-typeinst, .nv-link-halo-typeinst')
+        .style('display', showHierarchyLinks ? null : 'none');
+    }
+  }, [showHierarchyLinks]);
+
+  const [enableLinkParticles, setEnableLinkParticles] = useState(true);
+  const enableLinkParticlesRef = useRef(enableLinkParticles);
+  useEffect(() => {
+    enableLinkParticlesRef.current = enableLinkParticles;
+    if (svgRef.current) {
+      d3.select(svgRef.current).selectAll('.nv-link-particle')
+        .style('display', enableLinkParticles ? null : 'none');
+    }
+  }, [enableLinkParticles]);
+
+  const [edgeRoutingMode, setEdgeRoutingMode] = useState<EdgeRoutingMode>('spline');
+  const edgeRoutingModeRef = useRef(edgeRoutingMode);
+  useEffect(() => { edgeRoutingModeRef.current = edgeRoutingMode; }, [edgeRoutingMode]);
+
+  const [edgeLabelDisplay, setEdgeLabelDisplay] = useState<EdgeLabelDisplay>('hover');
+  const edgeLabelDisplayRef = useRef<EdgeLabelDisplay>(edgeLabelDisplay);
+  useEffect(() => {
+    edgeLabelDisplayRef.current = edgeLabelDisplay;
+    applyHighlightStylesRef.current?.(activeHighlightIdRef.current, selectedLinkIdRef.current);
+  }, [edgeLabelDisplay]);
+
+  const [selectedLinkId, setSelectedLinkIdRaw] = useState<string | null>(null);
+  const selectedLinkIdRef = useRef<string | null>(null);
+  const setSelectedLinkId = useCallback((valOrFn: string | null | ((prev: string | null) => string | null)) => {
+    setSelectedLinkIdRaw(prev => {
+      const next = typeof valOrFn === 'function' ? valOrFn(prev) : valOrFn;
+      selectedLinkIdRef.current = next;
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    selectedLinkIdRef.current = selectedLinkId;
+    applyHighlightStylesRef.current?.(activeHighlightIdRef.current, selectedLinkId);
+  }, [selectedLinkId]);
+
+  // 6.6. 选中连线元数据解析 (Edge Inspector Data)
+  const selectedLinkInfo = useMemo(() => {
+    if (!selectedLinkId || !graphData) return null;
+    const nodeMap = new Map(graphData.nodes.map(n => [n.id, n]));
+    const link = graphData.links.find(l => {
+      const sId = typeof l.source === 'object' ? (l.source as any).id : l.source;
+      const tId = typeof l.target === 'object' ? (l.target as any).id : l.target;
+      return String(l.id || `${sId}-${tId}`) === selectedLinkId;
+    });
+
+    if (!link) {
+      if (selectedLinkId.startsWith('act-link-')) {
+        const actId = selectedLinkId.replace('act-link-', '');
+        const actNode = nodeMap.get(actId);
+        if (actNode && actNode._objId) {
+          const owner = nodeMap.get(`obj::${actNode._objId}`);
+          return {
+            id: selectedLinkId,
+            sourceNode: owner,
+            targetNode: actNode,
+            relName: '行动依附 (has-action)',
+            category: 'L1-L2 动作依附线',
+            weight: 0.25,
+            isAction: true,
+            isTypeInst: false,
+            description: '实例所拥有的能力或触发动作，与实例紧密依附',
+          };
+        }
+      }
+      return null;
+    }
+
+    const sId = typeof link.source === 'object' ? (link.source as any).id : link.source;
+    const tId = typeof link.target === 'object' ? (link.target as any).id : link.target;
+    const src = nodeMap.get(String(sId));
+    const tgt = nodeMap.get(String(tId));
+    const relName = link._linkTypeName || (link._linkTypeId !== undefined ? graphData.linkTypeMap[link._linkTypeId]?.name : null) || (link._isTypeInstLink ? '概念具象衍生' : '关联');
+    const category = link._isTypeInstLink
+      ? 'L0-L1 根节点衍生线'
+      : link._isActionLink
+        ? 'L1-L2 动作依附线'
+        : 'L1-L1 业务拓扑线';
+    return {
+      id: selectedLinkId,
+      sourceNode: src,
+      targetNode: tgt,
+      relName,
+      category,
+      weight: Number(link.weight || 0.5),
+      isTypeInst: Boolean(link._isTypeInstLink),
+      isAction: Boolean(link._isActionLink),
+      description: link._linkTypeId !== undefined ? graphData.linkTypeMap[link._linkTypeId]?.description : (link._isTypeInstLink ? '本体元模型向实例节点的分类具象化归属' : undefined),
+    };
+  }, [selectedLinkId, graphData]);
+
+  // 7. 动态各类型节点数量统计
+  const nodeCountByType = useMemo(() => {
+    if (!graphData?.nodes) return { typeHub: 0, instance: 0, action: 0 };
+    let typeHub = 0, instance = 0, action = 0;
+    for (const n of graphData.nodes) {
+      if (n.group === 'typeHub') typeHub++;
+      else if (n.group === 'action') action++;
+      else instance++;
+    }
+    return { typeHub, instance, action };
+  }, [graphData?.nodes]);
+
+  // 8. 真实物理与渲染性能统计 (FPS / 单帧耗时 / 历史曲线)
+  const [perfStats, setPerfStats] = useState<{ fps: number; renderTime: number; history: PerfDataPoint[] }>({
+    fps: 60,
+    renderTime: 16,
+    history: [],
+  });
+  const perfTrackerRef = useRef<{
+    lastUpdate: number;
+    frameCount: number;
+    history: PerfDataPoint[];
+    currentFps?: number;
+    currentRenderTime?: number;
+  }>({
+    lastUpdate: typeof performance !== 'undefined' ? performance.now() : Date.now(),
+    frameCount: 0,
+    history: [],
+    currentFps: 60,
+    currentRenderTime: 16,
+  });
+
+  // 仅在 controls 控制面板展开时，以低频（1000ms）定时同步性能采样给控制面板 UI，杜绝频繁重渲染
+  useEffect(() => {
+    if (!showControls) return;
+    const interval = setInterval(() => {
+      const tracker = perfTrackerRef.current;
+      setPerfStats({
+        fps: tracker.currentFps ?? 60,
+        renderTime: tracker.currentRenderTime ?? 16,
+        history: tracker.history,
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [showControls]);
+
+  // 响应式联动实体类型显隐
+  useEffect(() => {
+    if (!svgRef.current) return;
+    const svg = d3.select(svgRef.current);
+    svg.selectAll<SVGGElement, GraphNode>('.nv-typehub').style('display', nodeTypeFilters.has('typeHub') ? null : 'none');
+    svg.selectAll<SVGGElement, GraphNode>('.nv-instance').style('display', nodeTypeFilters.has('instance') ? null : 'none');
+    svg.selectAll<SVGGElement, GraphNode>('.nv-action').style('display', nodeTypeFilters.has('action') ? null : 'none');
+    svg.selectAll<SVGPathElement, GraphLink>('.nv-link, .nv-link-instance').style('display', function(d: any) {
+      if (!d) return null;
+      const s = typeof d.source === 'object' ? d.source.group : null;
+      const t = typeof d.target === 'object' ? d.target.group : null;
+      if (s && !nodeTypeFilters.has(s)) return 'none';
+      if (t && !nodeTypeFilters.has(t)) return 'none';
+      return null;
+    });
+  }, [nodeTypeFilters]);
+
+  // 响应式联动标签展示策略
+  useEffect(() => {
+    if (!svgRef.current) return;
+    const svg = d3.select(svgRef.current);
+    const labels = svg.selectAll<SVGTextElement, GraphNode>('.nv-node-label');
+    if (labelMode === 'all') {
+      labels.style('opacity', 1).style('display', null);
+    } else if (labelMode === 'hover') {
+      labels.style('opacity', 0);
+    } else if (labelMode === 'top') {
+      labels.style('opacity', function(d: any) {
+        if (!d) return 0;
+        return (d.group === 'typeHub' || (d._degree && d._degree > 2)) ? 1 : 0;
+      });
+    } else {
+      labels.style('opacity', null).style('display', null);
+    }
+  }, [labelMode]);
+
   // 4. Hover Tooltip State — rich card shown on node hover
   const [hoveredNode, setHoveredNode] = useState<GraphNode | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
+  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const hoveredNodeIdRef = useRef<string | null>(null);
+  useEffect(() => { hoveredNodeIdRef.current = hoveredNodeId; }, [hoveredNodeId]);
+
+  // Canvas 2D 绘图调度
+  const triggerCanvasRender = useCallback(() => {
+    if (!canvasRendererRef.current || !graphDataRef.current) return;
+    const gd = graphDataRef.current;
+    const nodes = nodesRef.current && nodesRef.current.length > 0 ? nodesRef.current : gd.nodes;
+
+    // 计算高亮关联节点集
+    const targetId = hoveredNodeIdRef.current || selectedNode?.id;
+    let connectedSet: Set<string> | null = null;
+    if (targetId) {
+      connectedSet = new Set<string>();
+      for (let i = 0; i < gd.links.length; i++) {
+        const l = gd.links[i];
+        const s = typeof l.source === 'object' ? (l.source as GraphNode).id : String(l.source);
+        const t = typeof l.target === 'object' ? (l.target as GraphNode).id : String(l.target);
+        if (s === targetId) connectedSet.add(t);
+        if (t === targetId) connectedSet.add(s);
+      }
+    }
+
+    canvasRendererRef.current.scheduleRender({
+      nodes,
+      links: gd.links,
+      transform: {
+        k: currentTransformRef.current.k,
+        x: currentTransformRef.current.x,
+        y: currentTransformRef.current.y,
+      },
+      selectedNodeId: selectedNode?.id || null,
+      hoveredNodeId: hoveredNodeIdRef.current,
+      focusedNodeId: focusedNodeId,
+      connectedNodeIds: connectedSet,
+      showWeakLinks,
+      weightThreshold,
+      collapsedNodes,
+      scopeMode,
+    });
+  }, [selectedNode, focusedNodeId, showWeakLinks, weightThreshold, collapsedNodes, scopeMode]);
+
+  const triggerCanvasRenderRef = useRef(triggerCanvasRender);
+  useEffect(() => { triggerCanvasRenderRef.current = triggerCanvasRender; }, [triggerCanvasRender]);
 
   const activeHighlightIdRef = useRef<string | null>(null);
   useEffect(() => {
@@ -356,11 +751,11 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
   const clickToFocusRef = useRef(clickToFocus);
   useEffect(() => { clickToFocusRef.current = clickToFocus; }, [clickToFocus]);
 
-  const applyHighlightStyles = useCallback((activeId: string | null) => {
+  const applyHighlightStyles = useCallback((activeNodeId: string | null, activeLinkId: string | null = null) => {
     if (!svgRef.current || !graphDataRef.current) return;
     const svg = d3.select(svgRef.current);
     
-    // Reset all selection classes first
+    // Reset basic selection & connection classes first
     svg.selectAll('.nv-node')
        .classed('nv-highlight-node', false)
        .classed('nv-selected-pulse', false)
@@ -400,11 +795,16 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
           return pathEdgeKeys.has(`${s}|${t}`) || pathEdgeKeys.has(`${t}|${s}`);
         });
 
-      svg.selectAll('.nv-linktype-label')
+      svg.selectAll('.nv-edge-badge, .nv-linktype-label')
         .classed('nv-dim-label', (l: any) => {
           const s = typeof l.source === 'object' ? (l.source as any).id : l.source;
           const t = typeof l.target === 'object' ? (l.target as any).id : l.target;
           return !pathEdgeKeys.has(`${s}|${t}`) && !pathEdgeKeys.has(`${t}|${s}`);
+        })
+        .style('display', (l: any) => {
+          const s = typeof l.source === 'object' ? (l.source as any).id : l.source;
+          const t = typeof l.target === 'object' ? (l.target as any).id : l.target;
+          return pathEdgeKeys.has(`${s}|${t}`) || pathEdgeKeys.has(`${t}|${s}`) ? null : 'none';
         })
         .style('opacity', (l: any) => {
           const s = typeof l.source === 'object' ? (l.source as any).id : l.source;
@@ -415,8 +815,11 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
       return;
     }
 
-    if (!activeId) {
-      svg.selectAll('.nv-node, .nv-link-instance, .nv-link-typeinst, .nv-link-action, .nv-node-label, .nv-linktype-label')
+    const nodesMap = new Map(nodesRef.current.map(n => [n.id, n]));
+
+    // Case A: No active highlight
+    if (!activeNodeId && !activeLinkId) {
+      svg.selectAll('.nv-node, .nv-node-label')
          .classed('nv-dim', false)
          .classed('nv-dim-label', false)
          .classed('nv-connected-node', false)
@@ -425,109 +828,216 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
          .classed('nv-path-target', false)
          .classed('nv-path-node', false)
          .classed('nv-path-edge', false);
+
       svg.selectAll('.nv-link-instance, .nv-link-typeinst, .nv-link-action')
-         .style('stroke', (l: any) => l.color)
+         .classed('nv-dim', false)
+         .classed('nv-link-selected', false)
+         .style('stroke', (l: any) => {
+           if (l._isTypeInstLink) return 'rgba(148, 163, 184, 0.30)';
+           if (l._isActionLink) return '#bd93f9';
+           return l.color || 'rgba(148, 163, 184, 0.75)';
+         })
+         .style('stroke-dasharray', (l: any) => l._isTypeInstLink ? '3,3' : null)
          .style('stroke-width', (l: any) => {
+           if (l._isTypeInstLink) return '1.0px';
+           if (l._isActionLink) return '1.4px';
            const w = Math.max(0.3, Math.min(1.0, l.weight ?? 0.5));
-           return `${(1 + (w - 0.3) * 2.0).toFixed(2)}px`;
+           return `${(1.8 + (w - 0.3) * 0.8).toFixed(2)}px`;
          })
          .style('opacity', (l: any) => {
+           if (l._isTypeInstLink) return '0.40';
            if (!showWeakLinks && l._linkTypeId !== undefined && l.weight < weightThreshold) return '0';
-           const w = Math.max(0.3, Math.min(1.0, l.weight ?? 0.5));
-           return (0.45 + (w - 0.3) * 0.79).toFixed(2);
+           return '0.92';
          })
          .attr('marker-end', (l: any) => {
+           if (l._isTypeInstLink) return null;
+           if (l._isActionLink) return 'url(#arrow-amethyst)';
            if (l._linkTypeId !== undefined) return `url(#arrow-linktype-${l._linkTypeId})`;
-           const nodesMap = new Map(nodesRef.current.map(n => [n.id, n]));
            const src = getSourceNode(l as any, nodesMap as any);
            const tgt = getTargetNode(l as any, nodesMap as any);
            if (src?.group === 'typeHub' || tgt?.group === 'typeHub') return null;
-           return 'url(#arrow-amethyst)';
+           return 'url(#arrow-highlight)';
          });
-      svg.selectAll('.nv-linktype-label')
-         .style('opacity', scopeMode === 'all' ? '0' : '0.82');
+
+      const isAlways = edgeLabelDisplayRef.current === 'always';
+      svg.selectAll<SVGGElement, GraphLink>('.nv-edge-badge, .nv-linktype-label')
+         .classed('nv-dim-label', false)
+         .style('display', isAlways ? null : 'none')
+         .style('opacity', isAlways ? '0.88' : '0');
       return;
     }
 
-    const connectedIds = new Set<string>();
-    connectedIds.add(activeId);
-    
+    // Case B: Active node or active link
+    const connectedNodeIds = new Set<string>();
+    const activeNodeStr = activeNodeId != null ? String(activeNodeId) : null;
+    const isLinkActive = (l: any) => {
+      const sId = String(typeof l.source === 'object' ? (l.source as any).id : l.source);
+      const tId = String(typeof l.target === 'object' ? (l.target as any).id : l.target);
+      const key = String(l.id || `${sId}-${tId}`);
+      if (activeLinkId && key === activeLinkId) return true;
+      if (activeNodeStr && (sId === activeNodeStr || tId === activeNodeStr)) return true;
+      return false;
+    };
+
+    if (activeNodeStr) {
+      connectedNodeIds.add(activeNodeStr);
+    }
+
     graphDataRef.current.links.forEach(l => {
-      const sId = typeof l.source === 'object' ? (l.source as any).id : l.source;
-      const tId = typeof l.target === 'object' ? (l.target as any).id : l.target;
-      if (sId === activeId) connectedIds.add(tId);
-      if (tId === activeId) connectedIds.add(sId);
+      const sId = String(typeof l.source === 'object' ? (l.source as any).id : l.source);
+      const tId = String(typeof l.target === 'object' ? (l.target as any).id : l.target);
+      const key = String(l.id || `${sId}-${tId}`);
+      if (activeLinkId && key === activeLinkId) {
+        connectedNodeIds.add(sId);
+        connectedNodeIds.add(tId);
+      }
+      if (activeNodeStr) {
+        if (sId === activeNodeStr) connectedNodeIds.add(tId);
+        if (tId === activeNodeStr) connectedNodeIds.add(sId);
+      }
     });
 
     // 1. Nodes highlighting & dimming
     svg.selectAll('.nv-node')
-       .classed('nv-dim', (d: any) => !connectedIds.has(d.id))
-       .classed('nv-highlight-node', (d: any) => d.id === activeId)
-       .classed('nv-connected-node', (d: any) => d.id !== activeId && connectedIds.has(d.id))
-       .classed('nv-selected-pulse', (d: any) => d.id === activeId);
+       .classed('nv-dim', (d: any) => !connectedNodeIds.has(String(d.id)))
+       .classed('nv-highlight-node', (d: any) => String(d.id) === activeNodeStr)
+       .classed('nv-connected-node', (d: any) => String(d.id) !== activeNodeStr && connectedNodeIds.has(String(d.id)))
+       .classed('nv-selected-pulse', (d: any) => String(d.id) === activeNodeStr);
        
     svg.selectAll('.nv-node-label')
-       .classed('nv-dim-label', (d: any) => !connectedIds.has(d.id))
-       .classed('nv-connected-label', (d: any) => d.id !== activeId && connectedIds.has(d.id))
-       .classed('nv-label-selected', (d: any) => d.id === activeId);
-    
+       .classed('nv-dim-label', (d: any) => !connectedNodeIds.has(String(d.id)))
+       .classed('nv-connected-label', (d: any) => String(d.id) !== activeNodeStr && connectedNodeIds.has(String(d.id)))
+       .classed('nv-label-selected', (d: any) => String(d.id) === activeNodeStr);
+
     // 2. Links highlighting & dimming
-    const nodesMap = new Map(nodesRef.current.map(n => [n.id, n]));
-    svg.selectAll('.nv-link-instance, .nv-link-typeinst, .nv-link-action')
-      .classed('nv-dim', (l: any) => {
+    const linkSelection = svg.selectAll<SVGPathElement, GraphLink>('.nv-link-instance, .nv-link-typeinst, .nv-link-action');
+    linkSelection
+      .classed('nv-dim', (l: any) => !isLinkActive(l))
+      .classed('nv-link-selected', (l: any) => {
         const sId = typeof l.source === 'object' ? (l.source as any).id : l.source;
         const tId = typeof l.target === 'object' ? (l.target as any).id : l.target;
-        return sId !== activeId && tId !== activeId;
+        const key = String(l.id || `${sId}-${tId}`);
+        return Boolean(activeLinkId && key === activeLinkId);
       })
       .style('stroke', (l: any) => {
-        const sId = typeof l.source === 'object' ? (l.source as any).id : l.source;
-        const tId = typeof l.target === 'object' ? (l.target as any).id : l.target;
-        if (sId === activeId || tId === activeId) return '#66d9ef';
-        return l.color;
+        if (isLinkActive(l)) {
+          if (l._isTypeInstLink) return 'rgba(148, 163, 184, 0.75)';
+          const sId = typeof l.source === 'object' ? (l.source as any).id : l.source;
+          const tId = typeof l.target === 'object' ? (l.target as any).id : l.target;
+          const key = String(l.id || `${sId}-${tId}`);
+          if (activeLinkId && key === activeLinkId) return '#FFD166';
+          return l.color || '#66d9ef';
+        }
+        return l.color || 'rgba(148, 163, 184, 0.4)';
       })
+      .style('stroke-dasharray', (l: any) => l._isTypeInstLink ? '3,3' : null)
       .style('stroke-width', (l: any) => {
-        const sId = typeof l.source === 'object' ? (l.source as any).id : l.source;
-        const tId = typeof l.target === 'object' ? (l.target as any).id : l.target;
-        if (sId === activeId || tId === activeId) return '3px';
-        const w = Math.max(0.3, Math.min(1.0, l.weight ?? 0.5));
-        return `${(1 + (w - 0.3) * 2.0).toFixed(2)}px`;
+        if (isLinkActive(l)) {
+          if (l._isTypeInstLink) return '1.5px';
+          if (l._isActionLink) return '2.0px';
+          return '2.6px';
+        }
+        return l._isTypeInstLink ? '0.8px' : '1.0px';
       })
       .style('opacity', (l: any) => {
-        const sId = typeof l.source === 'object' ? (l.source as any).id : l.source;
-        const tId = typeof l.target === 'object' ? (l.target as any).id : l.target;
-        if (sId === activeId || tId === activeId) return '1.0';
-        return '0.08';
+        if (isLinkActive(l)) return '1.0';
+        return '0.12';
       })
       .attr('marker-end', (l: any) => {
-        const sId = typeof l.source === 'object' ? (l.source as any).id : l.source;
-        const tId = typeof l.target === 'object' ? (l.target as any).id : l.target;
-        if (sId === activeId || tId === activeId) {
+        if (l._isTypeInstLink) return null;
+        if (isLinkActive(l)) {
+          const sId = typeof l.source === 'object' ? (l.source as any).id : l.source;
+          const tId = typeof l.target === 'object' ? (l.target as any).id : l.target;
+          const key = String(l.id || `${sId}-${tId}`);
+          if (activeLinkId && key === activeLinkId) return 'url(#arrow-selected)';
+          if (l._linkTypeId !== undefined) return `url(#arrow-linktype-${l._linkTypeId})`;
+          if (l._isActionLink) return 'url(#arrow-amethyst)';
           return 'url(#arrow-highlight)';
         }
-        if (l._linkTypeId !== undefined) return `url(#arrow-linktype-${l._linkTypeId})`;
-        const src = getSourceNode(l as any, nodesMap as any);
-        const tgt = getTargetNode(l as any, nodesMap as any);
-        if (src?.group === 'typeHub' || tgt?.group === 'typeHub') return null;
-        return 'url(#arrow-amethyst)';
+        return 'url(#arrow-dimmed)';
       });
-      
-    svg.selectAll('.nv-linktype-label')
-      .classed('nv-dim-label', (l: any) => {
-        const sId = typeof l.source === 'object' ? (l.source as any).id : l.source;
-        const tId = typeof l.target === 'object' ? (l.target as any).id : l.target;
-        return sId !== activeId && tId !== activeId;
+
+    // Raise active links so they fly above dimmed lines
+    linkSelection.filter((l: any) => isLinkActive(l)).raise();
+
+    // 3. Edge Badges highlighting & dimming
+    const badgeSelection = svg.selectAll<SVGGElement, GraphLink>('.nv-edge-badge, .nv-linktype-label');
+    badgeSelection
+      .classed('nv-dim-label', (l: any) => !isLinkActive(l))
+      .style('display', (l: any) => {
+        if (isLinkActive(l)) return null;
+        if (edgeLabelDisplayRef.current === 'always') return null;
+        return 'none';
       })
       .style('opacity', (l: any) => {
-        const sId = typeof l.source === 'object' ? (l.source as any).id : l.source;
-        const tId = typeof l.target === 'object' ? (l.target as any).id : l.target;
-        return sId === activeId || tId === activeId ? '1.0' : '0.0';
+        if (isLinkActive(l)) return '1.0';
+        if (edgeLabelDisplayRef.current === 'always') return '0.15';
+        return '0';
       });
+
+    // Highlight badge borders and text for active links
+    badgeSelection.filter((l: any) => isLinkActive(l)).each(function(l: any) {
+      const g = d3.select(this);
+      const sId = typeof l.source === 'object' ? (l.source as any).id : l.source;
+      const tId = typeof l.target === 'object' ? (l.target as any).id : l.target;
+      const key = String(l.id || `${sId}-${tId}`);
+      const isSelectedLink = Boolean(activeLinkId && key === activeLinkId);
+      const strokeColor = isSelectedLink ? '#FFD166' : (l.color || '#66d9ef');
+      const textColor = isSelectedLink ? '#FFD166' : (l.color ? d3.rgb(l.color).brighter(0.4).toString() : '#f8fafc');
+
+      g.select('rect')
+        .style('stroke', strokeColor)
+        .style('stroke-width', '1.4px')
+        .style('fill', '#090d16')
+        .style('opacity', '0.98');
+
+      g.select('text')
+        .style('fill', textColor)
+        .style('font-weight', '700');
+    }).raise();
+
+    badgeSelection.filter((l: any) => !isLinkActive(l)).each(function(d: any) {
+      const g = d3.select(this);
+      g.select('rect')
+        .style('stroke', d.color ? d3.rgb(d.color).darker(0.2).toString() : '#334155')
+        .style('stroke-width', '0.75px')
+        .style('fill', '#0f172a')
+        .style('opacity', '0.92');
+
+      g.select('text')
+        .style('fill', '#cbd5e1')
+        .style('font-weight', '600');
+    });
   }, [scopeMode, showWeakLinks, weightThreshold]);
 
   const applyHighlightStylesRef = useRef(applyHighlightStyles);
   useEffect(() => {
     applyHighlightStylesRef.current = applyHighlightStyles;
   }, [applyHighlightStyles]);
+
+  const hoverLeaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const setNodeHoverState = useCallback((d: GraphNode | null, pos?: { x: number; y: number }) => {
+    if (hoverLeaveTimerRef.current) {
+      clearTimeout(hoverLeaveTimerRef.current);
+      hoverLeaveTimerRef.current = null;
+    }
+    if (d) {
+      if (pos) setTooltipPos(pos);
+      setHoveredNode(d);
+      hoveredNodeIdRef.current = String(d.id);
+      setHoveredNodeId(String(d.id));
+      applyHighlightStylesRef.current?.(String(d.id), null);
+    } else {
+      hoverLeaveTimerRef.current = setTimeout(() => {
+        setHoveredNode(null);
+        hoveredNodeIdRef.current = null;
+        setHoveredNodeId(null);
+        applyHighlightStylesRef.current?.(activeHighlightIdRef.current, selectedLinkIdRef.current);
+      }, 50);
+    }
+  }, []);
+  const setNodeHoverStateRef = useRef(setNodeHoverState);
+  useEffect(() => { setNodeHoverStateRef.current = setNodeHoverState; }, [setNodeHoverState]);
 
   const resetBlankCanvasState = useCallback(() => {
     setSelectedNode(null);
@@ -550,6 +1060,8 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
     searchHighlightedRef.current = [];
     (window as any).__currentNodeId = null;
     (window as any).__focusedNodeId = null;
+    setSelectedLinkId(null);
+    selectedLinkIdRef.current = null;
     applyHighlightStylesRef.current(null);
 
     if (blankCanvasResetTimerRef.current) {
@@ -561,6 +1073,11 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
     }, 50);
   }, [store.dispatch]);
 
+  const resetBlankCanvasStateRef = useRef(resetBlankCanvasState);
+  useEffect(() => {
+    resetBlankCanvasStateRef.current = resetBlankCanvasState;
+  }, [resetBlankCanvasState]);
+
   useEffect(() => () => {
     if (blankCanvasResetTimerRef.current) {
       clearTimeout(blankCanvasResetTimerRef.current);
@@ -569,8 +1086,13 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
   }, []);
 
   const refreshGraph = useCallback(async () => {
-    // Read latest state from ref — keeps this callback identity stable
-    const currentState = stateRef.current;
+    // Always read the latest state directly from stateRef to avoid timing issues
+    // and prevent refreshGraph identity from changing on every parent re-render
+    const currentState = ontologyState ?? stateRef.current;
+    if (!currentState) {
+      setLoading(false);
+      return;
+    }
     const currentMapping = currentState.mapping;
     if (currentState.initting) {
       setLoading(true);
@@ -580,7 +1102,7 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
       setLoading(false);
       return;
     }
-    console.log('[D3GraphView] refreshGraph called');
+    console.log('[D3GraphView] refreshGraph called, activeTemplateId:', currentState.activeTemplateId);
     setLoading(true);
     setD3Ready(false);
     try {
@@ -622,7 +1144,7 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
     } finally {
       setLoading(false);
     }
-  }, [isActive]);
+  }, [isActive, ontologyState]);
 
   // Temporal playback auto-increment interval
   useEffect(() => {
@@ -724,9 +1246,13 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
 
       setAiFillTopic('');
       setShowAIFillInput(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error('[D3GraphView] AI fill failed:', err);
-      setToast({ message: 'AI 图谱生成失败，请检查 AI 配置', type: 'error' });
+      const detail = err?.message || '';
+      const message = detail.includes('AI Provider not configured') || detail.includes('API key not configured')
+        ? 'AI 服务未配置，请在设置中配置 AI Provider（支持本地 LM Studio / Ollama 或云端模型）'
+        : (detail ? `AI 图谱生成失败: ${detail}` : 'AI 图谱生成失败，请检查 AI 配置');
+      setToast({ message, type: 'error' });
     } finally {
       setIsAiFilling(false);
     }
@@ -734,7 +1260,7 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
 
   function mapColor(color: string): string {
     const map: Record<string, string> = {
-      amethyst: '#ae81ff', blue: '#4CC9F0', green: '#4ade80',
+      amethyst: '#66d9ef', blue: '#4CC9F0', green: '#4ade80',
       orange: '#fb923c', yellow: '#fbbf24', cyan: '#67e8f9', red: '#f87171',
     };
     return map[color] || '#94a3b8';
@@ -788,6 +1314,59 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
     }
   }, [store, selectedNode, focusedNodeId, refreshGraph]);
 
+  // 统一入口状态重置：清空选择与聚焦，确保新案例载入后呈现纯净开箱视图
+  const resetViewToCleanState = useCallback(() => {
+    setSelectedNode(null);
+    setSelectedLinkId(null);
+    setSelectedNodeIds(new Set());
+    setFocusedNodeId(null);
+    setPathTracerSource(null);
+    setPathTracerTarget(null);
+    setPathTraceResult(null);
+    setLassoBox(null);
+    setTimelineStep(100);
+    // 统一恢复默认推荐的「横向层级树」布局
+    setLayoutMode('horizontalTree');
+    // 统一连线标签为 hover 模式，保持画布纯净无冗余徽章遮挡
+    setEdgeLabelDisplay('hover');
+    // 重置相机视口变换基准
+    currentTransformRef.current = d3.zoomIdentity;
+    if (svgRef.current && zoomRef.current) {
+      d3.select(svgRef.current).call(zoomRef.current.transform, d3.zoomIdentity);
+    }
+    // 彻底清空节点历史拖拽与固定坐标缓存
+    if (nodesRef.current) {
+      nodesRef.current.forEach(n => {
+        n.fx = null;
+        n.fy = null;
+        delete (n as any)._isLayoutFixed;
+        delete (n as any)._savedFx;
+        delete (n as any)._savedFy;
+        delete (n as any)._tempPinned;
+      });
+    }
+    setTimeout(() => {
+      (window as any).__d3FitAll?.(350);
+    }, 60);
+  }, [setSelectedLinkId]);
+
+  // 监听 activeTemplateId 或 initState 变更，对齐不同入口（初始化载入、教程Case载入、重置默认）的渲染逻辑与视觉呈现
+  const lastActiveTemplateIdRef = useRef<string | null>(null);
+  const lastInitStateRef = useRef<string>(state?.initState ?? 'loading');
+
+  useEffect(() => {
+    const currentTpl = state?.activeTemplateId;
+    const currentInit = state?.initState;
+    const isTemplateChanged = currentTpl && currentTpl !== lastActiveTemplateIdRef.current;
+    const isInitFinished = currentInit === 'ready' && lastInitStateRef.current !== 'ready';
+
+    if (isTemplateChanged || isInitFinished) {
+      if (currentTpl) lastActiveTemplateIdRef.current = currentTpl;
+      if (currentInit) lastInitStateRef.current = currentInit;
+      resetViewToCleanState();
+    }
+  }, [state?.activeTemplateId, state?.initState, resetViewToCleanState]);
+
   // Load data when DuckDB tables are ready — debounced to prevent cascading
   // re-renders during seed switching (SET_INITTING→SET_DATA→SET_ACTIVE_TAB)
   useEffect(() => {
@@ -795,7 +1374,7 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
       if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
       refreshTimerRef.current = setTimeout(() => {
         refreshGraph();
-      }, 80);
+      }, 50);
     }
     return () => {
       if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
@@ -814,8 +1393,8 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
     if (!svgRef.current || !containerRef.current) return;
 
     const container = containerRef.current;
-    const W = container.clientWidth;
-    const H = container.clientHeight;
+    const W = Math.max(container.clientWidth || 0, 800);
+    const H = Math.max(container.clientHeight || 0, 600);
     const svg = d3.select(svgRef.current).attr('width', W).attr('height', H);
 
     svg.selectAll('*').remove();
@@ -825,12 +1404,15 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
     const styleEl = document.createElement('style');
     styleEl.id = styleId;
     styleEl.textContent = `
-      /* Link styles: subtle, no overwhelming animations */
+      /* Link styles: visible lines with clear direction arrows */
       .nv-links path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
-      /* Weight-mapped thickness: 1px–4px across weight range, opacity 0.5–1.0 */
-      .nv-link-instance { }
-      .nv-link-typeinst  { stroke-width: 1px; opacity: 0.42; stroke-dasharray: 5 4; }
-      .nv-link-action    { stroke-width: 1.6px; opacity: 0.78; stroke-dasharray: 3 3; }
+      
+      /* 优化连线宽度：降低线宽以提升视觉清晰度，明确区分层级 */
+      .nv-link-instance { stroke-width: 1.5px !important; opacity: 0.85; }
+      .nv-link-typeinst  { stroke-width: 1.2px !important; opacity: 0.5; stroke-dasharray: 4 4; }
+      .nv-link-action    { stroke-width: 1.5px !important; opacity: 0.75; stroke-dasharray: 3 3; }
+      .nv-link-halo { stroke-width: 4.0px !important; }
+      .nv-link-main { stroke-width: 1.5px !important; }
 
       /* Node: clean, no persistent glow */
       .nv-node { cursor: move; }
@@ -852,7 +1434,7 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
       /* Labels */
       .nv-node-label {
         font-size: 10px; font-weight: bold; fill: white;
-        text-anchor: start; pointer-events: none;
+        text-anchor: start; pointer-events: all; cursor: pointer;
         text-shadow: 0 0 3px rgba(0,0,0,0.9);
         stroke: #000; stroke-width: 0.5px; paint-order: stroke fill;
       }
@@ -867,50 +1449,50 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
       /* Search/select: highlight without heavy glow (SVG-safe) */
       .nv-highlight-node circle {
         stroke: #FFD166 !important;
-        stroke-width: 3px !important;
+        stroke-width: 2.5px !important;
         stroke-opacity: 1.0 !important;
       }
       /* Path Tracer Mode 4-Category Distinct Visual Styles */
       .nv-node.nv-path-source circle {
         stroke: #a6e22e !important;
-        stroke-width: 4.5px !important;
+        stroke-width: 3.5px !important;
         fill: #1e3a1e !important;
-        filter: drop-shadow(0 0 12px rgba(166, 226, 46, 0.95)) !important;
+        filter: drop-shadow(0 0 10px rgba(166, 226, 46, 0.85)) !important;
       }
       .nv-node.nv-path-target circle {
         stroke: #ff453a !important;
-        stroke-width: 4.5px !important;
+        stroke-width: 3.5px !important;
         fill: #3a1e1e !important;
-        filter: drop-shadow(0 0 12px rgba(255, 69, 58, 0.95)) !important;
+        filter: drop-shadow(0 0 10px rgba(255, 69, 58, 0.85)) !important;
       }
       .nv-node.nv-path-node circle {
         stroke: #66d9ef !important;
-        stroke-width: 3px !important;
+        stroke-width: 2.5px !important;
         fill: #1a2936 !important;
-        filter: drop-shadow(0 0 8px rgba(102, 217, 239, 0.8)) !important;
+        filter: drop-shadow(0 0 6px rgba(102, 217, 239, 0.75)) !important;
       }
       .nv-node-label.nv-path-source-label {
         fill: #a6e22e !important;
-        font-size: 13px !important;
+        font-size: 12px !important;
         font-weight: 900 !important;
       }
       .nv-node-label.nv-path-target-label {
         fill: #ff453a !important;
-        font-size: 13px !important;
+        font-size: 12px !important;
         font-weight: 900 !important;
       }
       .nv-node-label.nv-path-node-label {
         fill: #66d9ef !important;
-        font-size: 11px !important;
+        font-size: 10px !important;
         font-weight: bold !important;
       }
       .nv-links path.nv-path-edge {
         stroke: #66d9ef !important;
-        stroke-width: 4px !important;
+        stroke-width: 2.5px !important;
         stroke-opacity: 1.0 !important;
-        stroke-dasharray: 8 4;
+        stroke-dasharray: 6 3;
         animation: nv-edge-flow 0.75s linear infinite;
-        filter: drop-shadow(0 0 6px rgba(102, 217, 239, 0.9));
+        filter: drop-shadow(0 0 4px rgba(102, 217, 239, 0.8));
       }
       @keyframes nv-pagerank-heat {
         0% { filter: drop-shadow(0 0 4px rgba(255, 0, 85, 0.6)); }
@@ -919,25 +1501,28 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
 
       .nv-lod-far .nv-icon-instance, .nv-lod-far .nv-icon-typehub, .nv-lod-far .nv-icon-action { display: none !important; }
       .nv-lod-far .nv-props-badge { display: none !important; }
-      .nv-lod-ultrafar .nv-links path { stroke-width: 0.8px !important; stroke-opacity: 0.4 !important; }
-      .nv-lod-ultrafar .nv-node circle { stroke-width: 1px !important; }
-      
-      .nv-links path:hover {
+      .nv-lod-ultrafar .nv-links path { stroke-width: 1px !important; stroke-opacity: 0.4 !important; }
+      .nv-link-hit { stroke: transparent !important; fill: none !important; pointer-events: stroke !important; }
+      .nv-link-hit:hover { stroke: transparent !important; fill: none !important; }
+      .nv-link-main.nv-link-selected {
         stroke: #FFD166 !important;
-        stroke-width: 3.5px !important;
-        stroke-dasharray: 6 3;
-        animation: nv-edge-flow 0.8s linear infinite;
-        cursor: pointer;
-      }
-      @keyframes nv-edge-flow {
-        from { stroke-dashoffset: 18; }
-        to { stroke-dashoffset: 0; }
+        stroke-width: 2.8px !important;
       }
       
-      .nv-dim { opacity: 0.28 !important; transition: opacity 0.25s ease !important; }
-      .nv-dim-label { opacity: 0.22 !important; transition: opacity 0.25s ease !important; }
-      .nv-node, .nv-links path, .nv-node-label, .nv-linktype-label {
-        transition: opacity 0.25s ease, stroke-width 0.25s ease, stroke 0.25s ease, filter 0.25s ease;
+      .nv-dim { opacity: 0.16 !important; transition: opacity 0.22s ease !important; }
+      .nv-dim-label { opacity: 0.12 !important; transition: opacity 0.22s ease !important; }
+      .nv-node, .nv-links path, .nv-node-label, .nv-linktype-label, .nv-edge-badge {
+        transition: opacity 0.22s ease, stroke-width 0.22s ease, stroke 0.22s ease, filter 0.22s ease;
+      }
+      .nv-edge-badge { cursor: pointer; transition: opacity 0.22s ease, transform 0.18s ease; }
+      .nv-edge-badge:hover .nv-edge-badge-bg {
+        stroke: #FFD166 !important;
+        stroke-width: 1.5px !important;
+        filter: drop-shadow(0 0 6px rgba(255, 209, 102, 0.8));
+      }
+      .nv-edge-badge:hover .nv-edge-badge-text {
+        fill: #ffffff !important;
+        font-weight: 700 !important;
       }
       .nv-is-dragging .nv-dim { opacity: 0.65 !important; }
       .nv-is-dragging .nv-dim-label { opacity: 0.5 !important; }
@@ -947,7 +1532,9 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
       .nv-svg { overflow: visible; }
 
       /* Connected nodes style */
-      .nv-connected-node circle { stroke: #66d9ef !important; stroke-width: 2.5px !important; opacity: 1.0 !important; }
+      .nv-instance.nv-connected-node circle { stroke: #66d9ef !important; stroke-width: 2.4px !important; opacity: 1.0 !important; }
+      .nv-typehub.nv-connected-node circle { stroke: #bd93f9 !important; stroke-width: 1.8px !important; opacity: 0.85 !important; }
+      .nv-action.nv-connected-node circle { stroke: #a6e22e !important; stroke-width: 2.0px !important; opacity: 1.0 !important; }
       .nv-connected-label { fill: #66d9ef !important; font-size: 11px !important; font-weight: bold !important; opacity: 1.0 !important; }
 
       /* Selected node: gentle pulse on the stroke (no group drop-shadow to avoid Chromium layout bugs) */
@@ -985,29 +1572,109 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
         stroke: #FFD166 !important;
         stroke-width: 4.5px !important;
       }
+      
+      /* 双向关系边的特殊样式：使用金色高亮表示双向关系 */
+      .nv-bidirectional {
+        stroke: #FFD166 !important;
+      }
+      .nv-bidirectional:hover {
+        stroke: #FFD166 !important;
+        filter: drop-shadow(0 0 6px rgba(255, 209, 102, 0.9)) !important;
+      }
+      
+      /* 关系类型徽章样式 */
+      .nv-linktype-label {
+        font-size: 9px !important;
+        fill: rgba(255, 255, 255, 0.75) !important;
+        font-family: monospace !important;
+        pointer-events: none !important;
+      }
+      
+      /* 标签描边样式，确保在深色背景下可读 */
+      .nv-node-label {
+        paint-order: stroke fill !important;
+        stroke-width: 3.5px !important;
+        stroke-linejoin: round !important;
+      }
+      
+      /* 画布空白区域提示 */
+      .nv-empty-hint {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: rgba(255, 255, 255, 0.3);
+        font-size: 14px;
+        pointer-events: none;
+        text-align: center;
+      }
+      
+      /* 鼠标样式增强 */
+      .nv-graph {
+        cursor: grab !important;
+      }
+      .nv-graph:active {
+        cursor: grabbing !important;
+      }
     `;
     document.head.appendChild(styleEl);
+
+    // 1. Transparent full-canvas catcher: ensures every single pixel of empty space
+    // captures pointer, drag, and wheel events without browser SVG dropouts
+    const bgCatcher = svg.append('rect')
+      .attr('class', 'nv-canvas-catcher')
+      .attr('width', '100%')
+      .attr('height', '100%')
+      .attr('fill', 'transparent')
+      .attr('cursor', 'grab')
+      .style('pointer-events', 'all');
 
     const g = svg.append('g').attr('class', 'nv-graph');
     const getNodeLabelBaseFontSize = (node: GraphNode) =>
       node._focusLevel === 0 ? 15 : node.group === 'typeHub' ? 12 : node._focusLevel === 1 ? 11 : 9;
     let updateNodeLabelsForZoom: (zoomScale: number) => void = () => {};
 
-    // Zoom
+    // Native smooth zoom & pan engine:
+    // - Wheel: zoom smoothly centered at mouse pointer anywhere on canvas (including empty areas)
+    // - Left click (button 0): drag to pan canvas (or lasso when in lasso mode)
+    // - Middle click (button 1): drag to pan canvas (CAD / Figma standard)
+    // - Right click (button 2): filtered out (reserved for context menu)
     const zoom = d3.zoom<SVGSVGElement, unknown>()
       .scaleExtent([0.05, 20])
+      .wheelDelta((event: WheelEvent) => {
+        // High-precision smooth wheel delta (zoom centered at mouse cursor)
+        return -event.deltaY * (event.deltaMode === 1 ? 0.05 : event.deltaMode ? 1 : 0.002);
+      })
       .filter((event: any) => {
         if (isLassoModeRef.current || event.shiftKey) return false;
-        return !event.button;
+        if (event.button === 2) return false;
+        if (event.type === 'wheel') return true;
+        // Support both left-click (0) and middle-mouse button (1) dragging/panning
+        return event.button === 0 || event.button === 1;
       })
       .on('zoom', e => {
         g.attr('transform', e.transform);
         currentTransformRef.current = e.transform;
         updateNodeLabelsForZoom(e.transform.k);
+        if (renderEngineModeRef.current === 'canvas') {
+          triggerCanvasRenderRef.current?.();
+        } else if (renderEngineModeRef.current === 'webgl' && pixiRendererRef.current) {
+          pixiRendererRef.current.setTransform(e.transform.k, e.transform.x, e.transform.y);
+        }
       });
+
     svg.call(zoom).on('dblclick.zoom', null);
     zoomRef.current = zoom;
-    svg.attr('style', 'display:block;cursor:grab;');
+    svg
+      .attr('style', 'display:block;cursor:grab;position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:all;')
+      .style('pointer-events', 'all');
+
+    // Prevent default Windows Chrome autoscroll circle icon on middle-click
+    svg.on('mousedown.middle-prevent', (event: MouseEvent) => {
+      if (event.button === 1) {
+        event.preventDefault();
+      }
+    });
 
     // Lasso / Marquee Drag Selection
     let isLassoDragging = false;
@@ -1055,33 +1722,31 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
         setLassoBox(null);
       }
     });
-    svg.on('wheel', (event: WheelEvent) => {
-      event.preventDefault();
-      event.stopPropagation();
-    }, { passive: false });
 
-    // Fit All — zoom to show all nodes with padding and minimum zoom
-    // Guards against:
-    //  a) Empty graph (bail silently)
-    //  b) All nodes at origin (0,0) — wait for force simulation to spread them
-    //  c) Single node — center it without zoom
     let fitAllRetryCount = 0;
-    (window as any).__d3FitAll = () => {
-      const ns = graphDataRef.current?.nodes || [];
+    (window as any).__d3FitAll = (customDuration?: number) => {
+      if (svg.classed('nv-is-dragging')) return;
+      const ns = (nodesRef.current && nodesRef.current.length > 0) ? nodesRef.current : (graphDataRef.current?.nodes || []);
       if (ns.length === 0) return;
 
-      // Filter to nodes with valid, non-zero positions (force sim has settled)
-      const valid = ns.filter(n => n.x != null && !isNaN(n.x!) && n.x !== 0);
+      // Get current container dimensions (in case of resize)
+      const curW = containerRef.current?.clientWidth || W || 800;
+      const curH = containerRef.current?.clientHeight || H || 600;
+
+      // Filter to nodes with valid, non-zero positions
+      const valid = ns.filter(n => n.x != null && !isNaN(n.x!) && n.y != null && !isNaN(n.y!) && n.x !== 0 && n.y !== 0);
       if (valid.length === 0) {
-        // Nodes haven't spread yet — force sim still running; retry after settling window
         if (fitAllRetryCount < 10) {
           fitAllRetryCount++;
-          setTimeout(() => { (window as any).__d3FitAll?.(); }, 600);
+          setTimeout(() => { (window as any).__d3FitAll?.(customDuration); }, 300);
         }
         return;
       }
+      fitAllRetryCount = 0;
 
-      // Compute degree centrality to find the hub (most-connected instance node)
+      const { visualCenterX, visualCenterY, availableW, availableH } = getVisualCenter(curW, curH);
+
+      // Compute degree centrality to find the hub (most-connected instance node) for glow styling
       const degreeMap: Record<string, number> = {};
       ns.forEach(n => { degreeMap[n.id] = 0; });
       graphDataRef.current?.links.forEach((l: GraphLink) => {
@@ -1091,70 +1756,98 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
         if (degreeMap[t] !== undefined) degreeMap[t]++;
       });
 
-      // Hub = highest-degree instance (not typeHub, not action)
       let hubNode = valid.find(n => n.group === 'instance') || valid[0];
       valid.forEach(n => {
         if (n.group === 'instance' && (degreeMap[n.id] || 0) > (degreeMap[hubNode.id] || 0)) {
           hubNode = n;
         }
       });
-
-      // Store hub node id for CSS glow ring
       (window as any).__hubNodeId = hubNode?.id || null;
 
       const xs = valid.map(n => n.x!);
       const ys = valid.map(n => n.y!);
-      const minX = Math.min(...xs), maxX = Math.max(...xs);
-      const minY = Math.min(...ys), maxY = Math.max(...ys);
-      const bw = maxX - minX || 1, bh = maxY - minY || 1;
+      const minX = Math.min(...xs);
+      const maxX = Math.max(...xs);
+      const minY = Math.min(...ys);
+      const maxY = Math.max(...ys);
 
-      // Single node or all at same point → no zoom, just center
-      if (bw < 2 && bh < 2) {
-        const scale = Math.min(W / 400, H / 300, 2);
-        const tx = W / 2 - (ns[0].x || 0) * scale;
-        const ty = H / 2 - (ns[0].y || 0) * scale;
-        svg.transition().duration(600)
+      const duration = customDuration !== undefined ? customDuration : 550;
+
+      // Single node or coincident points → center directly in visual open area
+      if (maxX - minX < 2 && maxY - minY < 2) {
+        const scale = 1.0;
+        const tx = visualCenterX - (valid[0].x || 0) * scale;
+        const ty = visualCenterY - (valid[0].y || 0) * scale;
+        svg.transition().duration(duration)
           .call(zoom.transform as any, d3.zoomIdentity.translate(tx, ty).scale(scale));
         return;
       }
 
-      // When graph is small (≤15 nodes), center on hub directly.
-      // When large, show full graph in view with hub emphasized visually.
-      const scale = Math.min(0.85 * W / (bw * 1.4), 0.85 * H / (bh * 1.4), 5);
-      let tx: number, ty: number;
-      if (valid.length <= 15 && hubNode.x !== undefined) {
-        tx = W / 2 - hubNode.x * scale;
-        ty = H / 2 - hubNode.y * scale;
-      } else {
-        tx = W / 2 - ((minX + maxX) / 2) * scale;
-        ty = H / 2 - ((minY + maxY) / 2) * scale;
-      }
+      const margin = 50;
+      const bw = Math.max(maxX - minX + margin * 2, 40);
+      const bh = Math.max(maxY - minY + margin * 2, 40);
+      const centerX = (minX + maxX) / 2;
+      const centerY = (minY + maxY) / 2;
 
-      svg.transition().duration(800)
-        .call(zoom.transform as any, d3.zoomIdentity.translate(tx, ty).scale(Math.max(0.3, scale)));
+      // Fit within available safe opening with comfortable readable zoom, avoiding clipping
+      const fitScale = Math.min(availableW / bw, availableH / bh);
+      // Relax scale clamp: allow scaling down to 0.08 so large graphs fit cleanly without UI overlap
+      const targetScale = Math.max(0.08, Math.min(fitScale, 1.35));
+
+      const tx = visualCenterX - centerX * targetScale;
+      const ty = visualCenterY - centerY * targetScale;
+
+      svg.transition().duration(duration)
+        .call(zoom.transform as any, d3.zoomIdentity.translate(tx, ty).scale(targetScale));
     };
 
-    (window as any).__d3FocusNode = (nodeId: number, nodeGroup?: string) => {
+    // Helper: Find graph node by ID, prefixed ID, or label with multi-tier matching
+    const findGraphNode = (idOrName: number | string, groupHint?: string): GraphNode | undefined => {
       const ns = simulationRef.current?.nodes() || [];
-      const node = ns.find(n => n.id === nodeId && (!nodeGroup || n.group === nodeGroup));
-      if (!node || node.x == null || isNaN(node.x) || node.y == null || isNaN(node.y)) return;
+      if (ns.length === 0) return undefined;
 
-      const W = containerRef.current?.clientWidth ?? 800;
-      const H = containerRef.current?.clientHeight ?? 600;
-      const scale = 1.8;
-      const tx = W / 2 - node.x * scale;
-      const ty = H / 2 - node.y * scale;
+      const targetStr = String(idOrName).trim();
+      const targetNum = Number(idOrName);
+      const normGroup = groupHint === 'type' ? 'typeHub' : groupHint;
 
-      svg.transition().duration(600)
-        .call(zoom.transform as any, d3.zoomIdentity.translate(tx, ty).scale(scale));
+      // 1. Direct exact id match ("obj::1", "type::1", "action::1")
+      let node = ns.find(n => n.id === targetStr);
+      if (node) return node;
 
-      setSelectedNode(node);
-      showNodeInfo(node, graphDataRef.current || { nodes: ns, links: [] });
-      (window as any).__currentNodeId = node.id;
+      // 2. Prefixed id match
+      node = ns.find(n => n.id === `obj::${targetStr}` || n.id === `type::${targetStr}` || n.id === `action::${targetStr}`);
+      if (node) return node;
 
-      // Pulse visual effect on node circle
+      // 3. Match by numeric ID: _objId, _typeId
+      if (!isNaN(targetNum)) {
+        node = ns.find(n => {
+          if (normGroup === 'typeHub') {
+            return n.group === 'typeHub' && n._typeId === targetNum;
+          }
+          if (normGroup === 'action') {
+            return n.group === 'action' && (n.id === `action::${targetNum}` || n._objId === targetNum);
+          }
+          if (normGroup === 'instance') {
+            return n.group === 'instance' && n._objId === targetNum;
+          }
+          return n._objId === targetNum || (n.group === 'typeHub' && n._typeId === targetNum);
+        });
+        if (node) return node;
+      }
+
+      // 4. Match by label/name
+      if (targetStr.length > 0) {
+        node = ns.find(n => n.label && n.label.toLowerCase() === targetStr.toLowerCase());
+        if (node) return node;
+      }
+
+      return undefined;
+    };
+
+    // Helper: trigger pulsing radar animation on node
+    const pulseNode = (node: GraphNode, color1 = '#FFD166', color2 = '#66d9ef') => {
       const match = d3.selectAll<SVGGElement, GraphNode>('.nv-node')
-        .filter((d: GraphNode) => d.id === nodeId && (!nodeGroup || d.group === nodeGroup));
+        .filter((d: GraphNode) => d.id === node.id);
 
       if (!match.empty()) {
         const r = getVisualRadius(node);
@@ -1162,9 +1855,9 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
           .attr('class', 'nv-radar-ripple')
           .attr('r', r)
           .style('fill', 'none')
-          .style('stroke', '#FFD166')
-          .style('stroke-width', '2px')
-          .style('opacity', '0.9')
+          .style('stroke', color1)
+          .style('stroke-width', '2.5px')
+          .style('opacity', '0.95')
           .transition()
           .duration(750)
           .ease(d3.easeQuadOut)
@@ -1177,9 +1870,9 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
           .attr('class', 'nv-radar-ripple')
           .attr('r', r)
           .style('fill', 'none')
-          .style('stroke', '#66d9ef')
-          .style('stroke-width', '1.5px')
-          .style('opacity', '0.8')
+          .style('stroke', color2)
+          .style('stroke-width', '1.8px')
+          .style('opacity', '0.85')
           .transition()
           .delay(120)
           .duration(850)
@@ -1191,12 +1884,177 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
 
         match.select('circle')
           .transition()
-          .duration(150)
-          .attr('r', r * 1.8)
+          .duration(160)
+          .attr('r', r * 1.6)
           .transition()
-          .duration(300)
+          .duration(280)
           .attr('r', r);
       }
+    };
+
+    // 1. Focus a single node
+    (window as any).__d3FocusNode = (nodeId: number | string, nodeGroup?: string) => {
+      const node = findGraphNode(nodeId, nodeGroup);
+      if (!node || node.x == null || isNaN(node.x) || node.y == null || isNaN(node.y)) {
+        console.warn('[D3GraphView] __d3FocusNode: node not found for', nodeId, nodeGroup);
+        return;
+      }
+
+      const curW = containerRef.current?.clientWidth ?? 800;
+      const curH = containerRef.current?.clientHeight ?? 600;
+      const { visualCenterX, visualCenterY } = getVisualCenter(curW, curH);
+      const scale = 1.8;
+      const tx = visualCenterX - node.x * scale;
+      const ty = visualCenterY - node.y * scale;
+
+      svg.transition().duration(600)
+        .call(zoom.transform as any, d3.zoomIdentity.translate(tx, ty).scale(scale));
+
+      setSelectedNode(node);
+      setSelectedNodeIds(new Set([node.id]));
+      d3.selectAll('.nv-node').classed('nv-node-selected', (d: any) => d.id === node.id);
+      if (graphDataRef.current) {
+        showNodeInfo(node, graphDataRef.current);
+      }
+      (window as any).__currentNodeId = node.id;
+      pulseNode(node);
+    };
+
+    // 2. Focus an entire link (frame both endpoints + pulse connecting line)
+    (window as any).__d3FocusLink = (linkId: number | string, sourceId?: number | string, targetId?: number | string) => {
+      const ns = simulationRef.current?.nodes() || [];
+      if (ns.length === 0) return;
+
+      let srcNode: GraphNode | undefined;
+      let tgtNode: GraphNode | undefined;
+
+      if (sourceId != null && targetId != null) {
+        srcNode = findGraphNode(sourceId, 'instance');
+        tgtNode = findGraphNode(targetId, 'instance');
+      }
+
+      if (!srcNode || !tgtNode) {
+        const ls = graphDataRef.current?.links || [];
+        const targetLink = ls.find((l: any) => l._linkId === Number(linkId) || l.id === String(linkId));
+        if (targetLink) {
+          const sId = typeof targetLink.source === 'object' ? targetLink.source.id : targetLink.source;
+          const tId = typeof targetLink.target === 'object' ? targetLink.target.id : targetLink.target;
+          srcNode = ns.find(n => n.id === sId);
+          tgtNode = ns.find(n => n.id === tId);
+        }
+      }
+
+      if (!srcNode || !tgtNode || srcNode.x == null || tgtNode.x == null || srcNode.y == null || tgtNode.y == null) {
+        console.warn('[D3GraphView] __d3FocusLink: endpoints not found for', linkId, sourceId, targetId);
+        return;
+      }
+
+      const curW = containerRef.current?.clientWidth ?? 800;
+      const curH = containerRef.current?.clientHeight ?? 600;
+      const { visualCenterX, visualCenterY, availableW, availableH } = getVisualCenter(curW, curH);
+
+      const minX = Math.min(srcNode.x, tgtNode.x);
+      const maxX = Math.max(srcNode.x, tgtNode.x);
+      const minY = Math.min(srcNode.y, tgtNode.y);
+      const maxY = Math.max(srcNode.y, tgtNode.y);
+
+      const midX = (minX + maxX) / 2;
+      const midY = (minY + maxY) / 2;
+      const spanW = Math.max(maxX - minX + 180, 220);
+      const spanH = Math.max(maxY - minY + 180, 220);
+
+      const fitScale = Math.min(availableW / spanW, availableH / spanH);
+      const targetScale = Math.max(0.4, Math.min(fitScale, 1.8));
+
+      const tx = visualCenterX - midX * targetScale;
+      const ty = visualCenterY - midY * targetScale;
+
+      svg.transition().duration(600)
+        .call(zoom.transform as any, d3.zoomIdentity.translate(tx, ty).scale(targetScale));
+
+      setSelectedNodeIds(new Set([srcNode.id, tgtNode.id]));
+      d3.selectAll('.nv-node').classed('nv-node-selected', (d: any) => d.id === srcNode!.id || d.id === tgtNode!.id);
+      pulseNode(srcNode, '#a6e22e', '#66d9ef');
+      pulseNode(tgtNode, '#a6e22e', '#FFD166');
+
+      // Pulse connecting link line
+      d3.selectAll('.nv-links path, .nv-links line')
+        .filter((l: any) => {
+          const sId = typeof l.source === 'object' ? l.source.id : l.source;
+          const tId = typeof l.target === 'object' ? l.target.id : l.target;
+          return (sId === srcNode!.id && tId === tgtNode!.id) || (sId === tgtNode!.id && tId === srcNode!.id);
+        })
+        .transition().duration(200).style('stroke-width', '5px').style('stroke', '#a6e22e')
+        .transition().duration(700).style('stroke-width', null).style('stroke', null);
+    };
+
+    // 3. Synchronize external batch selections from sidebar
+    (window as any).__d3SetSelectedNodes = (ids: (string | number)[]) => {
+      const set = new Set<string>();
+      ids.forEach(rawId => {
+        const node = findGraphNode(rawId);
+        if (node) set.add(node.id);
+      });
+      setSelectedNodeIds(set);
+      d3.selectAll('.nv-node').classed('nv-node-selected', (d: any) => set.has(d.id));
+    };
+
+    // 4. Hover spotlight on node
+    (window as any).__d3HoverNode = (id: string | number, group?: string, isHover = true) => {
+      const node = findGraphNode(id, group);
+      if (!node) return;
+      const match = d3.selectAll<SVGGElement, GraphNode>('.nv-node')
+        .filter((d: GraphNode) => d.id === node.id);
+      if (!match.empty()) {
+        if (isHover) {
+          match.classed('nv-hover-spotlight', true);
+          match.select('circle').transition().duration(150).attr('stroke', '#66d9ef').attr('stroke-width', '3px');
+        } else {
+          match.classed('nv-hover-spotlight', false);
+          match.select('circle').transition().duration(200).attr('stroke', null).attr('stroke-width', null);
+        }
+      }
+    };
+
+    // 5. Focus a set of nodes (fit all matching in view)
+    (window as any).__d3FocusNodes = (ids: (string | number)[]) => {
+      const foundNodes: GraphNode[] = [];
+      ids.forEach(rawId => {
+        const n = findGraphNode(rawId);
+        if (n && n.x != null && !isNaN(n.x) && n.y != null && !isNaN(n.y)) {
+          foundNodes.push(n);
+        }
+      });
+      if (foundNodes.length === 0) return;
+
+      const curW = containerRef.current?.clientWidth ?? 800;
+      const curH = containerRef.current?.clientHeight ?? 600;
+      const { visualCenterX, visualCenterY, availableW, availableH } = getVisualCenter(curW, curH);
+
+      const xs = foundNodes.map(n => n.x!);
+      const ys = foundNodes.map(n => n.y!);
+      const minX = Math.min(...xs);
+      const maxX = Math.max(...xs);
+      const minY = Math.min(...ys);
+      const maxY = Math.max(...ys);
+
+      const midX = (minX + maxX) / 2;
+      const midY = (minY + maxY) / 2;
+      const spanW = Math.max(maxX - minX + 160, 200);
+      const spanH = Math.max(maxY - minY + 160, 200);
+
+      const fitScale = Math.min(availableW / spanW, availableH / spanH);
+      const targetScale = Math.max(0.12, Math.min(fitScale, 1.6));
+
+      const tx = visualCenterX - midX * targetScale;
+      const ty = visualCenterY - midY * targetScale;
+
+      svg.transition().duration(600)
+        .call(zoom.transform as any, d3.zoomIdentity.translate(tx, ty).scale(targetScale));
+
+      const set = new Set(foundNodes.map(n => n.id));
+      setSelectedNodeIds(set);
+      d3.selectAll('.nv-node').classed('nv-node-selected', (d: any) => set.has(d.id));
     };
 
     if (!graphDataRef.current) {
@@ -1206,6 +2064,10 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
         if (el) el.remove();
         delete (window as any).__d3FitAll;
         delete (window as any).__d3FocusNode;
+        delete (window as any).__d3FocusLink;
+        delete (window as any).__d3SetSelectedNodes;
+        delete (window as any).__d3HoverNode;
+        delete (window as any).__d3FocusNodes;
       };
     }
 
@@ -1220,10 +2082,59 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
     const data = graphDataRef.current;
     const nodes = data.nodes;
     const links = data.links;
+    nodesRef.current = nodes;
     const nodeMap = new Map<string, GraphNode>(nodes.map(n => [n.id, n]));
     const endpointLinks = links.filter(link => getSourceNode(link as any, nodeMap as any) && getTargetNode(link as any, nodeMap as any));
+    // ── MECE 连线分级分类引擎 (L0-L1 根子衍生, L1-L2 动作依附, L1-L1 业务语义) ──
+    endpointLinks.forEach(l => {
+      const src = getSourceNode(l as any, nodeMap as any);
+      const tgt = getTargetNode(l as any, nodeMap as any);
+      const isTypeInst = l._isTypeInstLink || (src?.group === 'typeHub' && tgt?.group === 'instance') || (src?.group === 'instance' && tgt?.group === 'typeHub');
+      if (isTypeInst) {
+        l._isTypeInstLink = true;
+      }
+      const isAction = l._isActionLink || src?.group === 'action' || tgt?.group === 'action';
+      if (isAction) {
+        l._isActionLink = true;
+      }
+    });
+
+    // 补齐每个 Action 节点与其属主 Instance 之间的动作依附连线 (消除悬浮断层)
+    const existingActionTargets = new Set<string>();
+    endpointLinks.forEach(l => {
+      const tId = typeof l.target === 'object' ? (l.target as any).id : l.target;
+      const tNode = nodeMap.get(tId);
+      if (tNode?.group === 'action') {
+        existingActionTargets.add(tId);
+      }
+    });
+
+    const supplementalActionLinks: GraphLink[] = [];
+    nodes.filter(n => n.group === 'action').forEach(act => {
+      if (!existingActionTargets.has(act.id) && act._objId !== undefined) {
+        const ownerInstance = nodes.find(n => n.group === 'instance' && n._objId === act._objId);
+        if (ownerInstance) {
+          supplementalActionLinks.push({
+            id: `act-link-${act.id}`,
+            source: ownerInstance.id,
+            target: act.id,
+            color: '#bd93f9',
+            weight: 0.25,
+            _isActionLink: true,
+          });
+        }
+      }
+    });
+
+    const allCandidateLinks = [...endpointLinks, ...supplementalActionLinks];
+    // 根据 showHierarchyLinks 控制是否渲染 TypeHub 衍生虚线
+    const linksToRenderRaw = allCandidateLinks.filter(l => {
+      if (l._isTypeInstLink && !showHierarchyLinksRef.current) return false;
+      return true;
+    });
+
     const { aggregatedLinks } = aggregateParallelEdges(
-      endpointLinks as any,
+      linksToRenderRaw as any,
       nodeMap as any,
       (link: GraphLink) => getSourceNode(link as any, nodeMap as any) as any,
       (link: GraphLink) => getTargetNode(link as any, nodeMap as any) as any,
@@ -1242,69 +2153,44 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
       const fallbackOffset = link._linkTypeId !== undefined ? 30 : link._isTypeInstLink ? 0 : 18;
       return { ...link, _groupOffset: directedOffset ?? fallbackOffset };
     });
-    nodesRef.current = nodes;
+    // Reset all old pinned coordinates, velocities, and layout marks before applying the new layout
+    nodes.forEach(n => {
+      n.fx = null;
+      n.fy = null;
+      n.vx = 0;
+      n.vy = 0;
+      delete (n as any)._isLayoutFixed;
+      delete (n as any)._savedFx;
+      delete (n as any)._savedFy;
+      delete (n as any)._tempPinned;
+    });
 
     const typeHubNodes = nodes.filter(n => n.group === 'typeHub');
-    if (layoutMode === 'dagre') {
-      applyDagreLayout(nodes, renderLinks, W, H);
-      nodes.forEach(n => {
-        n.fx = n.x;
-        n.fy = n.y;
-      });
-    } else if (layoutMode === 'verticalTree') {
-      applyVerticalTreeLayout(nodes, W, H);
-      nodes.forEach(n => {
-        n.fx = n.x;
-        n.fy = n.y;
-      });
-    } else if (layoutMode === 'horizontalTree') {
-      applyHorizontalTreeLayout(nodes, W, H);
-      nodes.forEach(n => {
-        n.fx = n.x;
-        n.fy = n.y;
-      });
-    } else if (layoutMode === 'concentric') {
-      applyConcentricLayout(nodes, W, H);
-      nodes.forEach(n => {
-        n.fx = n.x;
-        n.fy = n.y;
-      });
-    } else if (layoutMode === 'starburst') {
-      applyStarburstLayout(nodes, renderLinks, W, H);
-      nodes.forEach(n => {
-        n.fx = n.x;
-        n.fy = n.y;
-      });
-    } else if (layoutMode === 'dandelion') {
-      applyDandelionLayout(nodes, renderLinks, W, H);
-      nodes.forEach(n => {
-        n.fx = n.x;
-        n.fy = n.y;
-      });
-    } else if (layoutMode === 'spoke') {
-      applySpokeLayout(nodes, renderLinks, W, H, focusedNodeId);
-      nodes.forEach(n => {
-        n.fx = n.x;
-        n.fy = n.y;
-      });
-    } else if (layoutMode === 'grid') {
-      applyGridLayout(nodes, W, H);
-      nodes.forEach(n => {
-        n.fx = n.x;
-        n.fy = n.y;
-      });
-    } else if (layoutMode === 'groupedCircular') {
-      applyGroupedCircularLayout(nodes, W, H);
-      nodes.forEach(n => {
-        n.fx = n.x;
-        n.fy = n.y;
-      });
+    
+    // 使用统一的布局服务
+    const unifiedMode = toUnifiedLayoutMode(layoutMode);
+    const freezeNonAction = shouldFreezeNonActionNodes(layoutMode);
+    
+    if (layoutMode === 'force') {
+      // force 模式不应用预定义布局，由 D3 simulation 处理
+      // 仍然调用以记录性能指标
+      unifiedApplyLayout(nodes, renderLinks, unifiedMode, W, H, { focusedNodeId });
     } else {
-      nodes.forEach(n => {
-        n.fx = null;
-        n.fy = null;
-      });
-      computeInitialPositions(nodes, typeHubNodes, W, H, rawLinksRef.current);
+      // 应用统一的预定义布局
+      unifiedApplyLayout(nodes, renderLinks, unifiedMode, W, H, { focusedNodeId });
+      
+      // 根据布局模式决定是否冻结非 action 节点位置
+      if (freezeNonAction) {
+        nodes.forEach(n => {
+          if (n.group !== 'action' && n.x !== undefined && n.y !== undefined) {
+            n.fx = n.x;
+            n.fy = n.y;
+          }
+        });
+      }
+      
+      // 对于预定义布局（非 force），平滑调用 __d3FitAll 确保图谱平滑居中过渡
+      setTimeout(() => { (window as any).__d3FitAll?.(450); }, 32);
     }
 
     // Compute degree centrality to identify the hub node (used by fitAll and rendering)
@@ -1327,54 +2213,119 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
     });
     (window as any).__hubNodeId = hubNodeId;
 
-    // Force Simulation
+    // 布局完成后通知外部（用于同步到其他视图）
+    if (onLayoutChange && nodes.length > 0) {
+      const nodePositions: Record<number, { x: number; y: number }> = {};
+      nodes.forEach(n => {
+        if (n.x !== undefined && n.y !== undefined && Number.isFinite(n.x) && Number.isFinite(n.y)) {
+          const objId = n._objId ?? (n.id.startsWith('obj::') ? Number(n.id.slice(5)) : (/^\d+$/.test(n.id) ? Number(n.id) : null));
+          if (objId !== null && Number.isFinite(objId) && !Number.isNaN(objId)) {
+            nodePositions[objId] = { x: n.x, y: n.y };
+          }
+        }
+      });
+      onLayoutChange({
+        nodePositions,
+        layoutMode,
+        zoom: currentTransformRef.current.k,
+        pan: { x: currentTransformRef.current.x, y: currentTransformRef.current.y },
+      });
+    }
+
+    // Force Simulation (optimized for 100+ nodes & type clusters)
     const nodeCount = nodes.length;
-    const decay = nodeCount > 200 ? 0.12 : nodeCount > 150 ? 0.09 : nodeCount > 80 ? 0.06 : 0.04;
+    const decay = nodeCount > 200 ? 0.10 : nodeCount > 150 ? 0.08 : nodeCount > 80 ? 0.05 : 0.035;
+
+    // 预定义拓扑布局（非 force）或 clusteredForce 下节点已被精确放置，物理引擎仅用于轻量对齐
+    const isClusterFrozen = layoutMode === 'clusteredForce';
+    const isLayoutFrozen = isClusterFrozen || freezeNonAction;
+    const simAlpha = isLayoutFrozen ? 0.05 : 0.85;
+    const simCharge = isLayoutFrozen ? 0 : chargeStrength;
+    const simLinkStrength = isLayoutFrozen ? 0.01 : linkStrength;
+    const simCenterStrength = isLayoutFrozen ? 0 : 0.04;
+    const simGravity = isLayoutFrozen ? 0 : gravityStrength * 0.8;
+
+    const { visualCenterX: initCenterX, visualCenterY: initCenterY } = getVisualCenter(W, H);
+
     const sim = d3.forceSimulation<GraphNode, GraphLink>(nodes)
-      .velocityDecay(velocityDecay)
-      .alpha(0.8)
-      .alphaDecay(decay)
+      .velocityDecay(isLayoutFrozen ? 0.85 : velocityDecay)
+      .alpha(simAlpha)
+      .alphaDecay(isLayoutFrozen ? 0.08 : decay)
       .force('link', d3.forceLink<GraphNode, GraphLink>(renderLinks).id(d => d.id).distance(d => {
         const src = getSourceNode(d as any, nodeMap as any);
         const tgt = getTargetNode(d as any, nodeMap as any);
-        if (src?.group === 'action' || tgt?.group === 'action') return 40;
+        if (src?.group === 'action' || tgt?.group === 'action') return 28;
         if (d._linkTypeId !== undefined) return linkDistance * 1.15;
-        if (src?.group === 'typeHub' || tgt?.group === 'typeHub') return linkDistance * 1.2;
+        if (src?.group === 'typeHub' || tgt?.group === 'typeHub') return linkDistance * 0.85;
         return linkDistance;
       }).strength(d => {
         const src = getSourceNode(d as any, nodeMap as any);
         const tgt = getTargetNode(d as any, nodeMap as any);
-        if (src?.group === 'action' || tgt?.group === 'action') return 1.0;
-        return linkStrength;
+        if (src?.group === 'action' || tgt?.group === 'action') return 0.9;
+        if (src?.group === 'typeHub' || tgt?.group === 'typeHub') return 0.45;
+        return simLinkStrength;
       }))
-      .force('charge', d3.forceManyBody().strength(chargeStrength))
-      .force('center', d3.forceCenter(W / 2, H / 2))
+      .force('charge', d3.forceManyBody().strength((d: GraphNode) => {
+        if (isLayoutFrozen) return 0;
+        if (d.group === 'typeHub') return -420;
+        if (d.group === 'action') return -40;
+        return simCharge;
+      }).theta(0.85))
+      .force('center', d3.forceCenter(initCenterX, initCenterY).strength(simCenterStrength))
       .force('collision', d3.forceCollide<GraphNode>().radius(d => {
-        if (d.group === 'action') return (d.size || 6) + collisionRadius;
-        return (d.size || 10) + collisionRadius;
-      }))
-      .force('x', d3.forceX(W / 2).strength(gravityStrength))
-      .force('y', d3.forceY(H / 2).strength(gravityStrength));
+        if (d.group === 'typeHub') return (d.size || 28) + 28;
+        if (d.group === 'action') return (d.size || 6) + 14;
+        return (d.size || 10) + Math.max(28, collisionRadius);
+      }).iterations(isLayoutFrozen ? 2 : 3))
+      .force('x', d3.forceX(initCenterX).strength(simGravity))
+      .force('y', d3.forceY(initCenterY).strength(simGravity));
+
+    // typeCluster force only applies to free-force layout (not frozen cluster)
+    // (clusteredForce uses frozen positions — no additional force needed)
     simulationRef.current = sim;
+
+    // ── Hull 外环已移除 ──
 
     // Links
     const linkGroup = g.append('g').attr('class', 'nv-links');
     const defs = svg.append('defs');
-    const mkArrow = (id: string, color: string, opacity = 1) =>
-      defs.append('marker')
-        .attr('id', id).attr('markerWidth', 6).attr('markerHeight', 4)
-        .attr('refX', 5).attr('refY', 2).attr('orient', 'auto')
-        .append('polygon')
-        .attr('points', '0 0, 6 2, 0 4')
+    
+    // 现代化高清晰箭头标记：尖端与 refX 严格对齐，外廓利落，方向明确，绝不穿透节点
+    const mkArrow = (id: string, color: string, opacity = 1.0, size: number = 1) => {
+      const tipX = 13 * size;
+      const midY = 5 * size;
+      const marker = defs.append('marker')
+        .attr('id', id)
+        .attr('markerWidth', 15 * size)
+        .attr('markerHeight', 10 * size)
+        .attr('refX', tipX)
+        .attr('refY', midY)
+        .attr('orient', 'auto')
+        .attr('markerUnits', 'userSpaceOnUse');
+
+      marker.append('path')
+        .attr('d', `M 0,${1 * size} L ${tipX},${midY} L 0,${9 * size} L ${2.5 * size},${midY} Z`)
         .attr('fill', color)
+        .attr('stroke', '#0a0e14')
+        .attr('stroke-width', 1 * size)
+        .attr('stroke-linejoin', 'round')
         .attr('opacity', opacity);
-    mkArrow('arrow-amethyst', '#FF9CF7');
-    mkArrow('arrow-highlight', '#66d9ef');
+    };
+
+    // 关系连线专用标准高显箭头
+    const mkLargeArrow = (id: string, color: string, opacity = 0.95) => mkArrow(id, color, opacity, 1.15);
+
+    mkLargeArrow('arrow-amethyst', '#bd93f9');
+    mkLargeArrow('arrow-highlight', '#66d9ef', 1.0);
+    mkLargeArrow('arrow-selected', '#FFD166', 1.0);
+    mkLargeArrow('arrow-dimmed', '#475569', 0.35);
     Array.from(new Map(
       renderLinks
         .filter(link => link._linkTypeId !== undefined)
         .map(link => [link._linkTypeId, link.color] as const)
-    )).forEach(([linkTypeId, color]) => mkArrow(`arrow-linktype-${linkTypeId}`, color));
+    )).forEach(([linkTypeId, color]) => {
+      mkLargeArrow(`arrow-linktype-${linkTypeId}`, color);
+    });
 
     const getVisualRadius = (node?: GraphNode) => {
       if (!node) return 10;
@@ -1416,7 +2367,7 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
       const typeName = (d._typeName || '').toLowerCase();
       const label = (d.label || '').toLowerCase();
       
-      if (d.group === 'typeHub') return d.color || '#ae81ff';
+      if (d.group === 'typeHub') return d.color || '#66d9ef';
       if (d.group === 'action') return '#3b82f6';
       
       // Host / Device
@@ -1447,100 +2398,550 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
       return getVisualRadius(node) + (node.group === 'typeHub' ? 7 : 4);
     };
 
-    const getTrimmedCurve = (link: GraphLink) => {
+    // Precompute incident edge contact angles and port spreading
+    // Spreads incident edge contact angles around node perimeters so arrowheads do not crowd into a single point
+    const incidentTargetDockAngles = new Map<string, number>(); // key: `${linkId}_${tId}`
+
+    const nodeIncomingLinks = new Map<string, { linkIndex: number; linkId: string; sId: string; baseAngle: number }[]>();
+    renderLinks.forEach((l, lIdx) => {
+      const sId = typeof l.source === 'object' ? (l.source as any).id : String(l.source);
+      const tId = typeof l.target === 'object' ? (l.target as any).id : String(l.target);
+      const s = nodeMap.get(sId);
+      const t = nodeMap.get(tId);
+      if (!s || !t) return;
+      const linkKey = String((l as any).id || lIdx);
+      const baseAngle = Math.atan2((s.y || 0) - (t.y || 0), (s.x || 0) - (t.x || 0));
+      if (!nodeIncomingLinks.has(tId)) nodeIncomingLinks.set(tId, []);
+      nodeIncomingLinks.get(tId)!.push({ linkIndex: lIdx, linkId: linkKey, sId, baseAngle });
+    });
+
+    nodeIncomingLinks.forEach((entries, tId) => {
+      const tNode = nodeMap.get(tId);
+      const pad = tNode ? (tNode.group === 'typeHub' ? getVisualRadius(tNode) + 8.2 : getVisualRadius(tNode) + 3.8) : 15;
+      const hasProps = (tNode?._propsCount || 0) > 0;
+
+      const sanitizeAngle = (angle: number) => {
+        let a = angle;
+        // Top label sector: avoid [-2.15, -0.95] rad
+        if (a > -2.15 && a < -0.95) {
+          a = a < -Math.PI / 2 ? -2.20 : -0.90;
+        }
+        // Action bottom sector on instances: avoid [1.15, 1.95] rad
+        if (a > 1.15 && a < 1.95) {
+          a = a < 1.57 ? 1.10 : 2.00;
+        }
+        // Property count badge sector on instances: avoid [0.45, 1.15] rad (+45 deg)
+        if (hasProps && a > 0.45 && a < 1.15) {
+          a = a < 0.785 ? 0.40 : 1.20;
+        }
+        return a;
+      };
+
+      if (entries.length === 1) {
+        incidentTargetDockAngles.set(`${entries[0].linkId}_${tId}`, sanitizeAngle(entries[0].baseAngle));
+        return;
+      }
+
+      // Sort by arrival angle
+      entries.sort((a, b) => a.baseAngle - b.baseAngle);
+
+      // Group entries into clusters within ~45 degrees (0.78 rad)
+      const clusters: typeof entries[] = [];
+      let currentCluster: typeof entries = [entries[0]];
+      for (let i = 1; i < entries.length; i++) {
+        let diff = entries[i].baseAngle - entries[i - 1].baseAngle;
+        while (diff > Math.PI) diff -= Math.PI * 2;
+        while (diff < -Math.PI) diff += Math.PI * 2;
+        if (Math.abs(diff) < 0.78) {
+          currentCluster.push(entries[i]);
+        } else {
+          clusters.push(currentCluster);
+          currentCluster = [entries[i]];
+        }
+      }
+      clusters.push(currentCluster);
+
+      clusters.forEach(cluster => {
+        const k = cluster.length;
+        // Controlled angular span to prevent arrowheads from skewing into node perimeter
+        const minAngularStep = Math.max(0.16, 8 / pad);
+        const span = Math.min(Math.PI * 0.28, minAngularStep * (k - 1));
+        cluster.forEach((entry, idx) => {
+          const offset = k === 1 ? 0 : (-span / 2 + (idx / (k - 1)) * span);
+          const rawAngle = entry.baseAngle + offset;
+          incidentTargetDockAngles.set(`${entry.linkId}_${tId}`, sanitizeAngle(rawAngle));
+        });
+      });
+    });
+
+    // Intelligent Corridor Obstacle Avoidance & Adaptive Spline Routing Engine
+    const getTrimmedStraightLine = (link: GraphLink) => {
       const src = getSourceNode(link as any, nodeMap as any) as GraphNode | undefined;
       const tgt = getTargetNode(link as any, nodeMap as any) as GraphNode | undefined;
-      if (!src || !tgt) return { path: '', labelX: 0, labelY: 0 };
-      const sx0 = src.x || 0, sy0 = src.y || 0;
-      const tx0 = tgt.x || 0, ty0 = tgt.y || 0;
-      const dx = tx0 - sx0, dy = ty0 - sy0;
-      const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-      const srcPad = getNodeRadius(src);
-      const tgtPad = getNodeRadius(tgt) + (link._isTypeInstLink ? 0 : 4);
-      const sx = sx0 + (dx / dist) * srcPad;
-      const sy = sy0 + (dy / dist) * srcPad;
-      const tx = tx0 - (dx / dist) * tgtPad;
-      const ty = ty0 - (dy / dist) * tgtPad;
-      const rawOffset = link._groupOffset || 0;
-      if (!rawOffset) {
-        return { path: `M${sx},${sy} L${tx},${ty}`, labelX: (sx + tx) / 2, labelY: (sy + ty) / 2 - 5 };
+      if (!src || !tgt || src.x == null || src.y == null || tgt.x == null || tgt.y == null) {
+        return { path: '', labelX: 0, labelY: 0, dx: 0, dy: 0, angle: 0 };
       }
-      
-      // Dynamic Fan-out Spline Offset: Scale curvature proportionally to node distance
-      // Short distance -> wider fan-out ratio so parallel edge labels don't collide
-      const distanceFactor = Math.max(0.65, Math.min(1.4, dist / 180));
-      const offset = rawOffset * distanceFactor;
 
-      const mx = (sx + tx) / 2;
-      const my = (sy + ty) / 2;
-      const nx = -dy / dist * offset;
-      const ny = dx / dist * offset;
+      const sId = typeof link.source === 'object' ? (link.source as any).id : link.source;
+      const tId = typeof link.target === 'object' ? (link.target as any).id : link.target;
+
+      const sx0 = src.x, sy0 = src.y;
+      const tx0 = tgt.x, ty0 = tgt.y;
+
+      const tgtRadius = getVisualRadius(tgt);
+      const srcRadius = getVisualRadius(src);
+      // 精确端点间隙：尖端与节点外轮廓干净贴合，箭头主体完全位于节点外部，绝不产生偏离或穿入
+      const tgtPad = tgt.group === 'typeHub'
+        ? tgtRadius + 2.5
+        : tgt.group === 'action'
+          ? tgtRadius + 1.5
+          : tgtRadius + 2.0;
+      const srcPad = src.group === 'typeHub'
+        ? srcRadius + 2.5
+        : srcRadius + 1.5;
+
+      const rawDx = tx0 - sx0;
+      const rawDy = ty0 - sy0;
+      const rawDist = Math.hypot(rawDx, rawDy) || 1;
+      const ux = rawDx / rawDist;
+      const uy = rawDy / rawDist;
+      const nx = -uy;
+      const ny = ux;
+
+      const sx = sx0 + ux * srcPad;
+      const sy = sy0 + uy * srcPad;
+      const tx = tx0 - ux * tgtPad;
+      const ty = ty0 - uy * tgtPad;
+
+      const dx = tx - sx;
+      const dy = ty - sy;
+      const dist = Math.hypot(dx, dy) || 1;
+
+      // 如果当前是直线模式 (straight) 或者动作依附连线 (action)，直接输出直连线段，保障清爽与极速
+      if (edgeRoutingModeRef.current === 'straight' || link._isActionLink) {
+        const labelT = (link as any)._labelTFrac ?? 0.44;
+        const labelLateral = (link as any)._labelLateralOffset ?? 0;
+        return {
+          path: `M ${sx.toFixed(1)},${sy.toFixed(1)} L ${tx.toFixed(1)},${ty.toFixed(1)}`,
+          labelX: sx + ux * (dist * labelT) + nx * labelLateral,
+          labelY: sy + uy * (dist * labelT) + ny * labelLateral,
+          dx,
+          dy,
+          angle: Math.atan2(dy, dx),
+        };
+      }
+
+      // 检测双向边 (A -> B 和 B -> A)
+      const hasMutual = renderLinks.some((other: GraphLink) => {
+        if (other === link) return false;
+        const otherSrc = typeof other.source === 'object' ? (other.source as any).id : other.source;
+        const otherTgt = typeof other.target === 'object' ? (other.target as any).id : other.target;
+        return otherSrc === tId && otherTgt === sId;
+      });
+
+      // Case 1: 同列纵向长连接 (Intra-column vertical edge)
+      const isIntraColumn = Math.abs(dx) < 42 && Math.abs(dy) > 50;
+      if (!link._isTypeInstLink && isIntraColumn) {
+        const midX = (sx + tx) / 2;
+        let leftScore = 0;
+        let rightScore = 0;
+        nodes.forEach(n => {
+          if (n.id === sId || n.id === tId || n.x == null || n.y == null) return;
+          if (n.y >= Math.min(sy, ty) - 25 && n.y <= Math.max(sy, ty) + 25) {
+            if (n.x >= midX && n.x <= midX + 100) rightScore++;
+            if (n.x <= midX && n.x >= midX - 100) leftScore++;
+          }
+        });
+        const preferSide = rightScore <= leftScore ? 1 : -1;
+        const detourDist = preferSide * (48 + Math.min(24, Math.abs(dy) * 0.12));
+
+        const cx1 = sx + detourDist;
+        const cy1 = sy + (ty - sy) * 0.28;
+        const cx2 = tx + detourDist;
+        const cy2 = ty - (ty - sy) * 0.28;
+
+        const inDx = tx - cx2;
+        const inDy = ty - cy2;
+
+        return {
+          path: `M ${sx.toFixed(1)},${sy.toFixed(1)} C ${cx1.toFixed(1)},${cy1.toFixed(1)} ${cx2.toFixed(1)},${cy2.toFixed(1)} ${tx.toFixed(1)},${ty.toFixed(1)}`,
+          labelX: (sx + tx) / 2 + detourDist * 0.65,
+          labelY: (sy + ty) / 2,
+          dx: inDx,
+          dy: inDy,
+          angle: Math.atan2(inDy, inDx),
+        };
+      }
+
+      // Case 2: 双向互连边 (Symmetrical Aerodynamic Double-Lane Ovals)
+      // 关键修复：A->B 与 B->A 分别向各自右侧弧线偏移，不与 isMutualSign 符号相乘（避免正负抵消重合）
+      if (hasMutual) {
+        const detourH = Math.min(26, Math.max(16, dist * 0.16));
+        const cx1 = sx + ux * (dist * 0.28) + nx * detourH;
+        const cy1 = sy + uy * (dist * 0.28) + ny * detourH;
+        const cx2 = tx - ux * (dist * 0.28) + nx * detourH;
+        const cy2 = ty - uy * (dist * 0.28) + ny * detourH;
+
+        const inDx = tx - cx2;
+        const inDy = ty - cy2;
+
+        const tB = (link as any)._labelTFrac ?? 0.45;
+        const labelLateral = (link as any)._labelLateralOffset ?? 0;
+        const mtB = 1 - tB;
+        const labelX = mtB * mtB * mtB * sx + 3 * mtB * mtB * tB * cx1 + 3 * mtB * tB * tB * cx2 + tB * tB * tB * tx + nx * labelLateral;
+        const labelY = mtB * mtB * mtB * sy + 3 * mtB * mtB * tB * cy1 + 3 * mtB * tB * tB * cy2 + tB * tB * tB * ty + ny * labelLateral;
+
+        return {
+          path: `M ${sx.toFixed(1)},${sy.toFixed(1)} C ${cx1.toFixed(1)},${cy1.toFixed(1)} ${cx2.toFixed(1)},${cy2.toFixed(1)} ${tx.toFixed(1)},${ty.toFixed(1)}`,
+          labelX,
+          labelY,
+          dx: inDx,
+          dy: inDy,
+          angle: Math.atan2(inDy, inDx),
+        };
+      }
+
+      // Case 3: 多重平行边分轨 (Parallel Multi-Edge Distinct Tracks)
+      const groupOffset = (link._groupOffset || 0);
+      if (groupOffset !== 0) {
+        const laneOffset = groupOffset * 18;
+        const cx1 = sx + ux * (dist * 0.28) + nx * laneOffset;
+        const cy1 = sy + uy * (dist * 0.28) + ny * laneOffset;
+        const cx2 = tx - ux * (dist * 0.28) + nx * laneOffset;
+        const cy2 = ty - uy * (dist * 0.28) + ny * laneOffset;
+
+        const inDx = tx - cx2;
+        const inDy = ty - cy2;
+
+        const labelT = (link as any)._labelTFrac ?? 0.44;
+        const labelLateral = (link as any)._labelLateralOffset ?? 0;
+        const mt = 1 - labelT;
+        const labelX = mt * mt * mt * sx + 3 * mt * mt * labelT * cx1 + 3 * mt * labelT * labelT * cx2 + labelT * labelT * labelT * tx + nx * labelLateral;
+        const labelY = mt * mt * mt * sy + 3 * mt * mt * labelT * cy1 + 3 * mt * labelT * labelT * cy2 + labelT * labelT * labelT * ty + ny * labelLateral;
+
+        return {
+          path: `M ${sx.toFixed(1)},${sy.toFixed(1)} C ${cx1.toFixed(1)},${cy1.toFixed(1)} ${cx2.toFixed(1)},${cy2.toFixed(1)} ${tx.toFixed(1)},${ty.toFixed(1)}`,
+          labelX,
+          labelY,
+          dx: inDx,
+          dy: inDy,
+          angle: Math.atan2(inDy, inDx),
+        };
+      }
+
+      // Case 4: 中途障碍物避障 (Smooth Obstacle Avoidance)
+      let obstacleFound = false;
+      let maxPenetration = 0;
+      let primaryObstacleSign = 0;
+
+      if (!link._isTypeInstLink && dist > 55) {
+        for (let i = 0; i < nodes.length; i++) {
+          const obs = nodes[i];
+          if (obs.id === sId || obs.id === tId || obs.x == null || obs.y == null) continue;
+
+          const ox = obs.x, oy = obs.y;
+          const vox = ox - sx;
+          const voy = oy - sy;
+          const proj = vox * ux + voy * uy;
+          const t = proj / dist;
+
+          if (t > 0.08 && t < 0.92) {
+            const perpDistSigned = vox * nx + voy * ny;
+            const perpDist = Math.abs(perpDistSigned);
+            const obsRadius = getVisualRadius(obs) + (obs.group === 'typeHub' ? 24 : obs.group === 'action' ? 12 : 18);
+
+            if (perpDist < obsRadius) {
+              obstacleFound = true;
+              const pen = obsRadius - perpDist;
+              if (pen > maxPenetration) {
+                maxPenetration = pen;
+                primaryObstacleSign = perpDistSigned >= 0 ? -1 : 1;
+              }
+            }
+          }
+        }
+      }
+
+      if (obstacleFound) {
+        const chosenSide = primaryObstacleSign !== 0 ? primaryObstacleSign : 1;
+        const detourH = chosenSide * Math.max(32, Math.min(58, maxPenetration + 18));
+
+        const cx1 = sx + ux * (dist * 0.28) + nx * detourH;
+        const cy1 = sy + uy * (dist * 0.28) + ny * detourH;
+        const cx2 = tx - ux * (dist * 0.28) + nx * detourH;
+        const cy2 = ty - uy * (dist * 0.28) + ny * detourH;
+
+        const inDx = tx - cx2;
+        const inDy = ty - cy2;
+
+        const tB = (link as any)._labelTFrac ?? 0.42;
+        const labelLateral = (link as any)._labelLateralOffset ?? 0;
+        const mtB = 1 - tB;
+        const labelX = mtB * mtB * mtB * sx + 3 * mtB * mtB * tB * cx1 + 3 * mtB * tB * tB * cx2 + tB * tB * tB * tx + nx * labelLateral;
+        const labelY = mtB * mtB * mtB * sy + 3 * mtB * mtB * tB * cy1 + 3 * mtB * tB * tB * cy2 + tB * tB * tB * ty + ny * labelLateral;
+
+        return {
+          path: `M ${sx.toFixed(1)},${sy.toFixed(1)} C ${cx1.toFixed(1)},${cy1.toFixed(1)} ${cx2.toFixed(1)},${cy2.toFixed(1)} ${tx.toFixed(1)},${ty.toFixed(1)}`,
+          labelX,
+          labelY,
+          dx: inDx,
+          dy: inDy,
+          angle: Math.atan2(inDy, inDx),
+        };
+      }
+
+      // Case 5: 横向层级树 (horizontalTree) 及拓扑流 (topologicalFlow) 专属流线：两端水平切线，顺畅自然，消除生硬折线与斜切
+      const isHorizontalFlow = (layoutModeRef.current === 'horizontalTree' || layoutModeRef.current === 'topologicalFlow');
+      if (isHorizontalFlow && !link._isActionLink && (tx0 - sx0) > 12) {
+        // 源节点最右侧水平出线，目标节点最左外沿水平切入
+        const sxH = sx0 + srcPad;
+        const syH = sy0;
+        const txH = tx0 - tgtPad;
+        const tyH = ty0;
+        const dxH = txH - sxH;
+        const dyH = tyH - syH;
+
+        const curveFactor = Math.min(0.5, Math.max(0.35, Math.abs(dxH) / (Math.abs(dxH) + Math.abs(dyH) + 1)));
+        const cx1 = sxH + Math.max(30, Math.abs(dxH) * curveFactor);
+        const cy1 = syH;
+        const cx2 = txH - Math.max(30, Math.abs(dxH) * curveFactor);
+        const cy2 = tyH;
+        const inDx = txH - cx2;
+        const inDy = tyH - cy2;
+
+        const labelT = (link as any)._labelTFrac ?? 0.46;
+        const labelLateral = (link as any)._labelLateralOffset ?? 0;
+        const mt = 1 - labelT;
+        const labelX = mt * mt * mt * sxH + 3 * mt * mt * labelT * cx1 + 3 * mt * labelT * labelT * cx2 + labelT * labelT * labelT * txH;
+        const labelY = mt * mt * mt * syH + 3 * mt * mt * labelT * cy1 + 3 * mt * labelT * labelT * cy2 + labelT * labelT * labelT * tyH + labelLateral;
+
+        return {
+          path: `M ${sxH.toFixed(1)},${syH.toFixed(1)} C ${cx1.toFixed(1)},${cy1.toFixed(1)} ${cx2.toFixed(1)},${cy2.toFixed(1)} ${txH.toFixed(1)},${tyH.toFixed(1)}`,
+          labelX,
+          labelY,
+          dx: inDx,
+          dy: inDy,
+          angle: 0,
+        };
+      }
+
+      // Case 6: 默认直连线
+      const labelT = (link as any)._labelTFrac ?? 0.44;
+      const labelLateral = (link as any)._labelLateralOffset ?? 0;
+      let labelX = sx + ux * (dist * labelT) + nx * labelLateral;
+      let labelY = sy + uy * (dist * labelT) + ny * labelLateral;
+      if (dist < 90) {
+        labelX = sx + ux * (dist * 0.42) + nx * (10 + labelLateral);
+        labelY = sy + uy * (dist * 0.42) + ny * (10 + labelLateral);
+      }
+
       return {
-        path: `M${sx},${sy} Q${mx + nx},${my + ny} ${tx},${ty}`,
-        labelX: mx + nx * 0.58,
-        labelY: my + ny * 0.58 - 5,
+        path: `M ${sx.toFixed(1)},${sy.toFixed(1)} L ${tx.toFixed(1)},${ty.toFixed(1)}`,
+        labelX,
+        labelY,
+        dx,
+        dy,
+        angle: Math.atan2(dy, dx),
       };
     };
 
-    const linkEls = linkGroup.selectAll<SVGPathElement, GraphLink>('path')
+    // ── 动态构建双色渐变空间通道 (Source Color -> Target Color) ──
+    renderLinks.forEach((l, idx) => {
+      const src = getSourceNode(l as any, nodeMap as any);
+      const tgt = getTargetNode(l as any, nodeMap as any);
+      if (!src || !tgt) return;
+      const sColor = src.color || getNodeFill(src) || '#66d9ef';
+      const tColor = tgt.color || getNodeFill(tgt) || '#a6e22e';
+      const gradId = `link-grad-${idx}`;
+      l._gradientId = gradId;
+
+      const sx = src.x != null ? src.x : 0;
+      const sy = src.y != null ? src.y : 0;
+      const tx = tgt.x != null ? tgt.x : 0;
+      const ty = tgt.y != null ? tgt.y : 0;
+
+      const grad = defs.append('linearGradient')
+        .attr('id', gradId)
+        .attr('class', 'nv-link-gradient')
+        .attr('gradientUnits', 'userSpaceOnUse')
+        .attr('x1', sx)
+        .attr('y1', sy)
+        .attr('x2', tx)
+        .attr('y2', ty);
+
+      (grad.node() as any).__linkData = l;
+
+      grad.append('stop')
+        .attr('offset', '0%')
+        .attr('stop-color', sColor)
+        .attr('stop-opacity', l._isTypeInstLink ? 0.35 : l._isActionLink ? 0.75 : 0.88);
+
+      grad.append('stop')
+        .attr('offset', '100%')
+        .attr('stop-color', tColor)
+        .attr('stop-opacity', l._isTypeInstLink ? 0.65 : l._isActionLink ? 0.95 : 0.95);
+    });
+
+    // Visual Bridge Halo Layer: Rendered completely behind all main lines so halos never occlude arrowheads
+    const haloGroup = linkGroup.append('g').attr('class', 'nv-link-halos');
+    const mainLineGroup = linkGroup.append('g').attr('class', 'nv-link-mains');
+    const particleGroup = linkGroup.append('g').attr('class', 'nv-link-particles');
+
+    const linkHaloEls = haloGroup.selectAll<SVGPathElement, GraphLink>('path.nv-link-halo')
       .data(renderLinks)
       .enter()
-      .append('path');
-
-    linkEls
-      .attr('class', (d: GraphLink) => {
-        if (d._linkTypeId !== undefined) return 'nv-link-instance';
-        const src = getSourceNode(d as any, nodeMap as any);
-        const tgt = getTargetNode(d as any, nodeMap as any);
-        if (src?.group === 'typeHub' || tgt?.group === 'typeHub') return 'nv-link-typeinst';
-        return 'nv-link-action';
-      })
+      .append('path')
+      .attr('class', (d: GraphLink) => `nv-link-halo${d._isTypeInstLink ? ' nv-link-halo-typeinst' : ''}`)
       .style('fill', 'none')
-      .style('stroke', (d: GraphLink) => {
-        if (d._isTypeInstLink) return 'rgba(255,255,255,0.15)';
-        return 'rgba(255, 209, 102, 0.45)';
-      })
-      .style('stroke-dasharray', (d: GraphLink) => {
-        if (d._linkTypeId === undefined) return null;
-        return LINKTYPE_DASH[(d._linkTypeId - 1) % LINKTYPE_DASH.length];
-      })
+      .style('stroke', '#0d1117')
       .style('stroke-width', (d: GraphLink) => {
-        // Weight-mapped thickness: 1px (weight=0.3) → 2.4px (weight=1.0)
-        const w = Math.max(0.3, Math.min(1.0, d.weight ?? 0.5));
-        return `${(1 + (w - 0.3) * 2.0).toFixed(2)}px`;
+        // 动态 halo 宽度：仅比主链路宽约 1.6~1.8px，形成精致发光隔离带，杜绝大面积黑色墨迹涂抹
+        const baseWidth = d._isTypeInstLink ? 1.0 : d._isActionLink ? 1.4 : 1.6;
+        const weightBonus = d._isTypeInstLink ? 0 : Math.min(2.0, (d.weight || 0.5) * 1.5);
+        return `${baseWidth + weightBonus + (d._isTypeInstLink ? 1.0 : 1.6)}px`;
       })
-      .style('opacity', (d: GraphLink) => {
-        // Weight-mapped opacity: 0.45 (weight=0.3) → 1.0 (weight=1.0)
-        // Hidden entirely when below threshold
-        if (!showWeakLinks && d._linkTypeId !== undefined && d.weight < weightThreshold) return '0';
-        const w = Math.max(0.3, Math.min(1.0, d.weight ?? 0.5));
-        return (0.45 + (w - 0.3) * 0.79).toFixed(2);
-      })
+      .style('stroke-linecap', 'round')
+      .style('stroke-linejoin', 'round')
+      .style('pointer-events', 'none')
+      .style('opacity', (d: GraphLink) => d._isTypeInstLink ? '0' : '0.70')
       .style('display', (d: GraphLink) => {
-        // Hide links below weight threshold entirely (removes them from layout calculations)
+        if (d._isTypeInstLink && !showHierarchyLinksRef.current) return 'none';
         if (!showWeakLinks && d._linkTypeId !== undefined && d.weight < weightThreshold) return 'none';
         return null;
       })
+      .attr('d', (d: GraphLink) => getTrimmedStraightLine(d).path);
+
+    const linkEls = mainLineGroup.selectAll<SVGPathElement, GraphLink>('path.nv-link-main')
+      .data(renderLinks)
+      .enter()
+      .append('path')
+      .attr('class', (d: GraphLink) => {
+        const typeClass = d._isActionLink
+          ? 'nv-link-action'
+          : d._isTypeInstLink
+            ? 'nv-link-typeinst'
+            : 'nv-link-instance';
+        const key = String((d as any).id || `${typeof d.source === 'object' ? d.source.id : d.source}-${typeof d.target === 'object' ? d.target.id : d.target}`);
+        const isSelected = selectedLinkIdRef.current === key;
+        return `nv-link-main ${typeClass}${isSelected ? ' nv-link-selected' : ''}`;
+      })
+      .style('fill', 'none')
+      .style('stroke', (d: GraphLink) => {
+        if (d._isTypeInstLink) return 'rgba(148, 163, 184, 0.35)';
+        if (d._isActionLink) return '#bd93f9';
+        if (d._gradientId) return `url(#${d._gradientId})`;
+        if (d.color) return d.color;
+        return 'rgba(148, 163, 184, 0.75)';
+      })
+      .style('stroke-dasharray', (d: GraphLink) => d._isTypeInstLink ? '4,4' : null)
+      .style('opacity', (d: GraphLink) => d._isTypeInstLink ? '0.45' : '0.9')
+      .style('stroke-width', (d: GraphLink) => {
+        // 动态线宽：根据关系权重调整，高权重关系更粗；分类归属线轻量化
+        const baseWidth = d._isTypeInstLink ? 1.0 : d._isActionLink ? 1.4 : 1.6;
+        const weightBonus = d._isTypeInstLink ? 0 : Math.min(2.0, (d.weight || 0.5) * 1.5);
+        return `${baseWidth + weightBonus}px`;
+      })
+      .style('display', (d: GraphLink) => {
+        if (d._isTypeInstLink && !showHierarchyLinksRef.current) return 'none';
+        if (!showWeakLinks && d._linkTypeId !== undefined && d.weight < weightThreshold) return 'none';
+        return null;
+      })
+      .style('cursor', 'pointer')
+      // 箭头标记（精确指向目标节点）
       .attr('marker-end', (d: GraphLink) => {
+        if (d._isTypeInstLink) return null;
+        if (d._isActionLink) return 'url(#arrow-amethyst)';
         if (d._linkTypeId !== undefined) return `url(#arrow-linktype-${d._linkTypeId})`;
+        return 'url(#arrow-highlight)';
+      })
+      .attr('marker-start', null)
+      .attr('d', (d: GraphLink) => getTrimmedStraightLine(d).path)
+      // 独立点击选中连线
+      .on('click', function(event: MouseEvent, d: GraphLink) {
+        event.stopPropagation();
         const src = getSourceNode(d as any, nodeMap as any);
         const tgt = getTargetNode(d as any, nodeMap as any);
-        if (src?.group === 'typeHub' || tgt?.group === 'typeHub') return null;
-        return 'url(#arrow-amethyst)';
+        const key = String((d as any).id || `${src?.id}-${tgt?.id}`);
+        setSelectedLinkId(prev => prev === key ? null : key);
       })
-      .attr('d', (d: GraphLink) => getTrimmedCurve(d).path)
+      // 鼠标悬停效果：连线加粗高亮 + 两端端点同步呼吸光晕联动 + 徽章高亮
+      .on('mouseenter', function(event: MouseEvent, d: GraphLink) {
+        const src = getSourceNode(d as any, nodeMap as any);
+        const tgt = getTargetNode(d as any, nodeMap as any);
+        const key = String((d as any).id || `${src?.id}-${tgt?.id}`);
+        applyHighlightStylesRef.current?.(null, key);
+      })
+      .on('mouseleave', function(event: MouseEvent, d: GraphLink) {
+        applyHighlightStylesRef.current?.(activeHighlightIdRef.current, selectedLinkIdRef.current);
+      })
       .each(function(d: GraphLink) {
         const src = getSourceNode(d as any, nodeMap as any) as GraphNode | undefined;
         const tgt = getTargetNode(d as any, nodeMap as any) as GraphNode | undefined;
         const rel = d._linkTypeName || 'membership';
         const lt = d._linkTypeId !== undefined ? data.linkTypeMap[d._linkTypeId] : null;
+        // 检测双向关系用于 tooltip
+        const sId = typeof d.source === 'object' ? d.source.id : d.source;
+        const tId = typeof d.target === 'object' ? d.target.id : d.target;
+        const isBidirectional = renderLinks.some(other => {
+          if (other === d) return false;
+          const otherSrc = typeof other.source === 'object' ? other.source.id : other.source;
+          const otherTgt = typeof other.target === 'object' ? other.target.id : other.target;
+          return otherSrc === tId && otherTgt === sId;
+        });
+        const directionText = isBidirectional ? '(双向关系)' : '';
         d3.select(this).append('title')
-          .text(`${src?.label || '?'} -> ${rel} -> ${tgt?.label || '?'}\n权重: ${Number(d.weight || 0).toFixed(2)}${lt?.description ? `\n描述: ${lt.description}` : ''}`);
+          .text(`${src?.label || '?'} → ${rel} → ${tgt?.label || '?'} ${directionText}\n权重: ${Number(d.weight || 0).toFixed(2)}${lt?.description ? `\n描述: ${lt.description}` : ''}`);
       });
 
     linkElsRef.current = linkEls;
 
-    // Removed 1.5s setInterval style enforcement
+    // 宽幅透明触控带 (16px wide transparent hit corridor) 降低瞄准成本，点击与悬停极其灵敏稳定
+    const hitGroup = linkGroup.append('g').attr('class', 'nv-link-hits');
+    const linkHitEls = hitGroup.selectAll<SVGPathElement, GraphLink>('path.nv-link-hit')
+      .data(renderLinks)
+      .enter()
+      .append('path')
+      .attr('class', 'nv-link-hit')
+      .style('fill', 'none')
+      .style('stroke', 'rgba(0,0,0,0)')
+      .style('stroke-width', '16px')
+      .style('cursor', 'pointer')
+      .style('pointer-events', 'stroke')
+      .attr('d', (d: GraphLink) => getTrimmedStraightLine(d).path)
+      .on('click', function(event: MouseEvent, d: GraphLink) {
+        event.stopPropagation();
+        const src = getSourceNode(d as any, nodeMap as any);
+        const tgt = getTargetNode(d as any, nodeMap as any);
+        const key = String((d as any).id || `${src?.id}-${tgt?.id}`);
+        setSelectedLinkId(prev => prev === key ? null : key);
+      })
+      .on('mouseenter', function(event: MouseEvent, d: GraphLink) {
+        const src = getSourceNode(d as any, nodeMap as any);
+        const tgt = getTargetNode(d as any, nodeMap as any);
+        const key = String((d as any).id || `${src?.id}-${tgt?.id}`);
+        applyHighlightStylesRef.current?.(null, key);
+      })
+      .on('mouseleave', function(event: MouseEvent, d: GraphLink) {
+        applyHighlightStylesRef.current?.(activeHighlightIdRef.current, selectedLinkIdRef.current);
+      });
+
+    // ── 动态业务流向粒子层 (Flow Particles Layer) ──
+    const businessLinks = renderLinks.filter((d: GraphLink) => !d._isTypeInstLink);
+    const particleEls = particleGroup.selectAll<SVGPathElement, GraphLink>('path.nv-link-particle')
+      .data(businessLinks)
+      .enter()
+      .append('path')
+      .attr('class', (d: GraphLink) => `nv-link-particle${d._isActionLink ? ' nv-link-particle-action' : ''}`)
+      .style('fill', 'none')
+      .style('stroke', (d: GraphLink) => d._isActionLink ? '#bd93f9' : '#66d9ef')
+      .style('stroke-width', (d: GraphLink) => d._isActionLink ? '1.5px' : '2px')
+      .style('opacity', (d: GraphLink) => d._isActionLink ? '0.7' : '0.85')
+      .style('display', (d: GraphLink) => {
+        if (!enableLinkParticlesRef.current) return 'none';
+        if (!showWeakLinks && d._linkTypeId !== undefined && d.weight < weightThreshold) return 'none';
+        return null;
+      })
+      .attr('d', (d: GraphLink) => getTrimmedStraightLine(d).path);
 
     // Viewport culling: skip rendering updates for nodes far outside visible area.
     // With many nodes, this reduces DOM operations significantly.
@@ -1687,8 +3088,13 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
       .data(typeHubNodes)
       .enter().append('g')
       .attr('class', (d: GraphNode) => `nv-typehub nv-node${collapsedNodes.has(d.id) ? ' nv-node-collapsed' : ''}`)
-      .style('cursor', 'move')
+      .style('cursor', 'pointer')
       .call(d3.drag<SVGGElement, GraphNode>().on('start', dragstarted).on('drag', dragged).on('end', dragended));
+    // Invisible expanded hit area
+    typeHubG.append('circle').attr('class', 'nv-node-hit-area')
+      .attr('r', (d: GraphNode) => getVisualRadius(d) + 8)
+      .style('fill', 'transparent').style('stroke', 'transparent')
+      .style('pointer-events', 'all');
     typeHubG.append('circle').attr('r', (d: GraphNode) => getVisualRadius(d) + 6)
       .style('fill', 'none').style('stroke', (d: GraphNode) => d.color)
       .style('stroke-width', 1.5)
@@ -1698,10 +3104,11 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
       .style('fill', (d: GraphNode) => getNodeFill(d))
       .style('stroke', (d: GraphNode) => getNodeStroke(d)).style('stroke-width', 2)
       .style('opacity', 0.9)
-      .style('pointer-events', 'all');
+      .style('pointer-events', 'none');
     typeHubG.append('path').attr('d', ICON_HEXAGON).attr('class', 'nv-icon-typehub')
       .attr('transform', 'scale(1.6) translate(0, 1)')
-      .style('opacity', (d: GraphNode) => d._hasInstances !== false ? 1 : 0.5);
+      .style('opacity', (d: GraphNode) => d._hasInstances !== false ? 1 : 0.5)
+      .style('pointer-events', 'none');
 
     // Instance nodes
     const instanceG = nodeContainer.selectAll<SVGGElement, GraphNode>('.nv-instance')
@@ -1712,14 +3119,20 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
       )
       .style('cursor', 'pointer')
       .call(d3.drag<SVGGElement, GraphNode>().on('start', dragstarted).on('drag', dragged).on('end', dragended));
+    // Invisible expanded hit area
+    instanceG.append('circle').attr('class', 'nv-node-hit-area')
+      .attr('r', (d: GraphNode) => getVisualRadius(d) + 6)
+      .style('fill', 'transparent').style('stroke', 'transparent')
+      .style('pointer-events', 'all');
     instanceG.append('circle').attr('r', (d: GraphNode) => getVisualRadius(d))
       .style('fill', (d: GraphNode) => getNodeFill(d))
       .style('stroke', (d: GraphNode) => getNodeStroke(d))
       .style('stroke-width', (d: GraphNode) => scopeMode !== 'all' && d.id === focusedNodeId ? 3 : 1.5)
       .style('opacity', 0.95)
-      .style('pointer-events', 'all');
+      .style('pointer-events', 'none');
     instanceG.append('path').attr('d', getNodeIconPath).attr('class', 'nv-icon-instance')
       .attr('transform', 'scale(0.9) translate(0, 0)')
+      .style('pointer-events', 'none')
       .style('stroke', (d: GraphNode) => {
         const fill = getNodeFill(d);
         return fill === '#ffffff' ? '#0c0d12' : 'rgba(255,255,255,0.85)';
@@ -1771,10 +3184,15 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
       .attr('class', 'nv-action nv-node')
       .style('cursor', 'pointer')
       .call(d3.drag<SVGGElement, GraphNode>().on('start', dragstarted).on('drag', dragged).on('end', dragended));
+    // Invisible expanded hit area
+    actionG.append('circle').attr('class', 'nv-node-hit-area')
+      .attr('r', (d: GraphNode) => getVisualRadius(d) + 6)
+      .style('fill', 'transparent').style('stroke', 'transparent')
+      .style('pointer-events', 'all');
     actionG.append('circle').attr('r', (d: GraphNode) => getVisualRadius(d))
       .style('fill', (d: GraphNode) => d.color)
       .style('stroke', 'rgba(255,255,255,0.6)').style('stroke-width', 1)
-      .style('pointer-events', 'all');
+      .style('pointer-events', 'none');
     // Start/End Path Badges for All Nodes
     const appendPathBadges = (selection: d3.Selection<SVGGElement, GraphNode, any, any>) => {
       selection.each(function(d: GraphNode) {
@@ -1785,6 +3203,7 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
         const startG = gNode.append('g')
           .attr('class', 'nv-path-badge-start')
           .style('display', 'none')
+          .style('pointer-events', 'none')
           .attr('transform', `translate(${-r * 0.75}, ${-r * 0.75})`);
         startG.append('circle').attr('r', 9).attr('fill', '#a6e22e').attr('stroke', '#12131a').attr('stroke-width', 1.5);
         startG.append('text').attr('text-anchor', 'middle').attr('dominant-baseline', 'middle').attr('y', 1).style('font-size', '10px').text('🚩');
@@ -1793,6 +3212,7 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
         const endG = gNode.append('g')
           .attr('class', 'nv-path-badge-end')
           .style('display', 'none')
+          .style('pointer-events', 'none')
           .attr('transform', `translate(${r * 0.75}, ${-r * 0.75})`);
         endG.append('circle').attr('r', 9).attr('fill', '#ff453a').attr('stroke', '#12131a').attr('stroke-width', 1.5);
         endG.append('text').attr('text-anchor', 'middle').attr('dominant-baseline', 'middle').attr('y', 1).style('font-size', '10px').text('🎯');
@@ -1805,6 +3225,13 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
 
     // Labels (typeHub shows description as label; other nodes show name)
     const LABEL_MAX = 18;
+
+    // 移除括号内的英文内容（用于 typeHub 节点标签显示）
+    const stripEnglishInParens = (text: string): string => {
+      // 匹配形如 "中文 (English)" 或 "中文（English）" 的模式
+      return text.replace(/\s*[\(（][a-zA-Z][^\)）]*[\)）]/g, '').trim();
+    };
+
     const labelGroup = g.append('g').attr('class', 'nv-labels');
     const labelEls = labelGroup.selectAll<SVGTextElement, GraphNode>('text')
       .data(nodes)
@@ -1814,11 +3241,48 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
         : 'nv-node-label')
       .text((d: GraphNode) => {
         // Always show name (label) on the node; description is for tooltip/hover only
-        const title = String(d.label || d.description || d.id);
+        // 对 typeHub 节点，移除括号内的英文以减少干扰
+        let title = String(d.label || d.description || d.id);
+        if (d.group === 'typeHub') {
+          title = stripEnglishInParens(title);
+        }
         return title.length > LABEL_MAX ? title.slice(0, LABEL_MAX) + '…' : title;
       })
       .style('font-size', (d: GraphNode) => `${getNodeLabelBaseFontSize(d)}px`)
-      .style('fill', 'white').style('font-weight', 'bold');
+      .style('fill', 'white')
+      .style('font-weight', 'bold')
+      .style('stroke', '#0c0d12')
+      .style('stroke-width', '2px')
+      .style('paint-order', 'stroke fill')
+      .attr('text-anchor', 'middle')
+      .style('cursor', 'pointer')
+      .style('pointer-events', 'all')
+      .on('mouseenter mouseover', (event: MouseEvent, d: GraphNode) => {
+        const svgRect = svgRef.current?.getBoundingClientRect();
+        const pos = svgRect ? { x: event.clientX - svgRect.left, y: event.clientY - svgRect.top } : undefined;
+        setNodeHoverStateRef.current?.(d, pos);
+      })
+      .on('mousemove', (event: MouseEvent) => {
+        const svgRect = svgRef.current?.getBoundingClientRect();
+        if (svgRect) {
+          setTooltipPos({ x: event.clientX - svgRect.left, y: event.clientY - svgRect.top });
+        }
+      })
+      .on('mouseleave mouseout', () => {
+        setNodeHoverStateRef.current?.(null);
+      })
+      .on('click', (event: MouseEvent, d: GraphNode) => {
+        event.stopPropagation();
+        setSelectedNode(d);
+        showNodeInfo(d, data);
+        (window as any).__currentNodeId = d.id;
+        activeHighlightIdRef.current = d.id;
+        applyHighlightStylesRef.current?.(d.id, selectedLinkIdRef.current);
+        if (clickToFocusRef.current) {
+          setFocusedNodeId(d.id);
+          setScopeMode('focus');
+        }
+      });
     // typeHub tooltip shows name (KEY); others show label
     labelEls.each(function(d: GraphNode) {
       const tooltip = d.group === 'typeHub'
@@ -1832,37 +3296,164 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
       labelEls
         .style('display', null)
         .style('font-size', (d: GraphNode) => `${getNodeLabelBaseFontSize(d) / safeScale}px`)
-        .style('stroke-width', `${0.5 / safeScale}px`)
-        .attr('x', (d: GraphNode) => (d.x || 0) + getVisualRadius(d) + 7 / safeScale)
-        .attr('y', (d: GraphNode) => (d.y || 0) + 4 / safeScale);
+        .style('stroke', '#0c0d12')
+        .style('stroke-width', `${2 / safeScale}px`)
+        .style('paint-order', 'stroke fill')
+        .style('text-anchor', 'middle')
+        .attr('x', (d: GraphNode) => (d.x || 0))
+        .attr('y', (d: GraphNode) => (d.y || 0) - getVisualRadius(d) - 6 / safeScale);
     };
     updateNodeLabelsForZoom(currentTransformRef.current.k);
 
-    // Link type labels on edges: show description (VALUE), tooltip shows name + weight (KEY)
+    // ── Edge Relation Labels: Reactor Investigation Badge Pills ───────────────
+    const getRelationText = (d: GraphLink) => {
+      const src = getSourceNode(d as any, nodeMap as any);
+      const tgt = getTargetNode(d as any, nodeMap as any);
+      if (src?.group === 'action' || tgt?.group === 'action') return '';
+      if (d._linkTypeName && d._linkTypeName.trim().length > 0) return d._linkTypeName;
+      if (d._linkTypeId !== undefined) {
+        const lt = data.linkTypeMap[d._linkTypeId];
+        if (lt?.name && lt.name.trim().length > 0) return lt.name;
+      }
+      if (d.label && d.label.trim().length > 0) return d.label;
+      if ((d as any).name && String((d as any).name).trim().length > 0) return String((d as any).name);
+      if ((d as any).relation && String((d as any).relation).trim().length > 0) return String((d as any).relation);
+      return '关联';
+    };
+
     const linkLabelGroup = g.append('g').attr('class', 'nv-link-labels');
-    const linkLabelEls = linkLabelGroup.selectAll<SVGTextElement, GraphLink>('text')
-      .data(renderLinks.filter(l => l._linkTypeId !== undefined))
-      .enter().append('text').attr('class', 'nv-linktype-label')
-      .style('fill', (d: GraphLink) => d.color)
-      .style('opacity', () => scopeMode === 'all' ? 0 : 0.82)
-      .style('paint-order', 'stroke')
-      .style('stroke', 'rgba(13,12,10,0.85)')
-      .style('stroke-width', 3)
-      .text((d: GraphLink) => {
-        // Show name (keyword) on edge label; max 8 chars so it never dominates visually
-        const lt = data.linkTypeMap[d._linkTypeId as number];
-        const label = lt?.name || d._linkTypeName || '';
-        if (label.length >= 1) {
-          return label.length > 8 ? label.slice(0, 8) + '…' : label;
+    const labelLinks = renderLinks.filter(l => {
+      if ((l as any)._isTypeInstLink) return false;
+      const src = getSourceNode(l as any, nodeMap as any);
+      const tgt = getTargetNode(l as any, nodeMap as any);
+      if (src?.group === 'action' || tgt?.group === 'action') return false;
+      const text = getRelationText(l);
+      return text.trim().length > 0;
+    });
+
+    // 多重关系与双向边标签防重叠错位分配 (Label Staggering)
+    const labelPairGroups = new Map<string, GraphLink[]>();
+    labelLinks.forEach(l => {
+      const sId = String(typeof l.source === 'object' ? (l.source as any).id : l.source);
+      const tId = String(typeof l.target === 'object' ? (l.target as any).id : l.target);
+      const pairKey = sId < tId ? `${sId}---${tId}` : `${tId}---${sId}`;
+      let group = labelPairGroups.get(pairKey);
+      if (!group) {
+        group = [];
+        labelPairGroups.set(pairKey, group);
+      }
+      group.push(l);
+    });
+
+    labelPairGroups.forEach(group => {
+      const count = group.length;
+      if (count === 1) {
+        (group[0] as any)._labelTFrac = 0.44;
+        (group[0] as any)._labelLateralOffset = 0;
+      } else {
+        group.forEach((l, idx) => {
+          // 在 0.28 ~ 0.65 沿线比例区间进行梯次分布，交替法线外摆避让，避免多重连线标签重合
+          const tFrac = 0.28 + (idx / Math.max(1, count - 1)) * 0.36;
+          const latOffset = (idx % 2 === 0 ? 1 : -1) * (12 + Math.floor(idx / 2) * 7);
+          (l as any)._labelTFrac = tFrac;
+          (l as any)._labelLateralOffset = latOffset;
+        });
+      }
+    });
+
+    // 针对单连线枢纽节点周围出入度高导致的扇出标签重叠进行角度梯次错位 (Incident Edge Radial Staggering)
+    const incidentMap = new Map<string, Array<{ link: GraphLink; angle: number }>>();
+    labelPairGroups.forEach(group => {
+      if (group.length === 1) {
+        const l = group[0];
+        const s = getSourceNode(l as any, nodeMap as any);
+        const t = getTargetNode(l as any, nodeMap as any);
+        if (s && t && s.x != null && s.y != null && t.x != null && t.y != null) {
+          const angle = Math.atan2(t.y - s.y, t.x - s.x);
+          if (!incidentMap.has(s.id)) incidentMap.set(s.id, []);
+          incidentMap.get(s.id)!.push({ link: l, angle });
         }
-        return '—';
+      }
+    });
+
+    incidentMap.forEach(incidentList => {
+      if (incidentList.length >= 3) {
+        incidentList.sort((a, b) => a.angle - b.angle);
+        incidentList.forEach((item, idx) => {
+          // 交替在 0.36 与 0.58 错开径向距离，彻底瓦解射线交织处的胶囊标签重叠
+          const staggerFrac = idx % 2 === 0 ? 0.36 : 0.58;
+          (item.link as any)._labelTFrac = staggerFrac;
+        });
+      }
+    });
+
+    const linkBadgeG = linkLabelGroup.selectAll<SVGGElement, GraphLink>('.nv-edge-badge')
+      .data(labelLinks)
+      .enter()
+      .append('g')
+      .attr('class', 'nv-edge-badge')
+      .style('cursor', 'pointer')
+      .on('mouseenter', function(event: MouseEvent, d: GraphLink) {
+        const src = getSourceNode(d as any, nodeMap as any);
+        const tgt = getTargetNode(d as any, nodeMap as any);
+        const key = String((d as any).id || `${src?.id}-${tgt?.id}`);
+        applyHighlightStylesRef.current?.(null, key);
       })
-      .each(function(d: GraphLink) {
-        const lt = data.linkTypeMap[d._linkTypeId as number];
-        const name = lt?.name || d._linkTypeName || '';
-        d3.select(this).append('title')
-          .text(`关系: ${name}\n强度: ${Number(d.weight).toFixed(2)}`);
+      .on('mouseleave', function(event: MouseEvent, d: GraphLink) {
+        applyHighlightStylesRef.current?.(activeHighlightIdRef.current, selectedLinkIdRef.current);
+      })
+      .on('click', function(event: MouseEvent, d: GraphLink) {
+        event.stopPropagation();
+        const src = getSourceNode(d as any, nodeMap as any);
+        const tgt = getTargetNode(d as any, nodeMap as any);
+        const key = String((d as any).id || `${src?.id}-${tgt?.id}`);
+        setSelectedLinkId(prev => prev === key ? null : key);
       });
+
+    // Solid dark backdrop pill to shield straight line behind text
+    linkBadgeG.append('rect')
+      .attr('class', 'nv-edge-badge-bg')
+      .attr('rx', 5)
+      .attr('ry', 5)
+      .style('fill', '#0b1120')
+      .style('stroke', (d: GraphLink) => d.color ? d3.rgb(d.color).darker(0.2).toString() : '#334155')
+      .style('stroke-width', '0.75px')
+      .style('opacity', 0.96);
+
+    // Sharp, high-contrast monospace relation text
+    linkBadgeG.append('text')
+      .attr('class', 'nv-edge-badge-text')
+      .attr('text-anchor', 'middle')
+      .attr('dominant-baseline', 'central')
+      .style('font-size', '9px')
+      .style('font-weight', '600')
+      .style('letter-spacing', '0.25px')
+      .style('fill', '#cbd5e1')
+      .style('font-family', 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace')
+      .style('pointer-events', 'none')
+      .text((d: GraphLink) => {
+        const text = getRelationText(d);
+        return text.length > 14 ? text.slice(0, 13) + '…' : text;
+      });
+
+    // Size the background rect to fit the text exactly
+    linkBadgeG.each(function(d: GraphLink) {
+      const gEl = d3.select(this);
+      const textEl = gEl.select<SVGTextElement>('text');
+      const text = textEl.text() || '';
+      const w = Math.max(24, text.length * 6.0 + 12);
+      const h = 15.5;
+      gEl.select('rect')
+        .attr('x', -w / 2)
+        .attr('y', -h / 2)
+        .attr('width', w)
+        .attr('height', h);
+
+      const src = getSourceNode(d as any, nodeMap as any);
+      const tgt = getTargetNode(d as any, nodeMap as any);
+      gEl.append('title')
+        .text(`${src?.label || '?'} ──[ ${getRelationText(d)} ]──> ${tgt?.label || '?'}\n权重: ${Number(d.weight || 1).toFixed(2)}`);
+    });
 
     // PageRank Centrality Map
     const pageRankMap = showPageRank ? computePageRank(nodes, links) : new Map<string, number>();
@@ -1872,8 +3463,9 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
       if (rafId !== null) return;
       rafId = requestAnimationFrame(() => {
         rafId = null;
+        const tickStartTime = performance.now();
 
-        // Radial fan constraint for actions
+        // Downward fan constraint for actions (dedicated bottom sector [40°, 140°] to keep left/right highways clear)
         const parentToChildren: Record<string, GraphNode[]> = {};
         nodes.forEach(n => {
           if (n.group === 'action' && n._objId) {
@@ -1886,9 +3478,9 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
           const parent = nodes.find(p => p.id === parentKey);
           if (!parent || parent.x == null || parent.y == null) return;
           const count = children.length;
-          const dist = 48;
+          const dist = 28;
           children.sort((a, b) => a.id.localeCompare(b.id)).forEach((child, idx) => {
-            const angle = (idx * 2 * Math.PI) / count;
+            const angle = count === 1 ? Math.PI / 2 : (Math.PI * 0.32 + (idx / (count - 1)) * Math.PI * 0.36);
             child.x = parent.x! + dist * Math.cos(angle);
             child.y = parent.y! + dist * Math.sin(angle);
             child.vx = 0;
@@ -1909,13 +3501,64 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
         svg.classed('nv-lod-far', isFarView);
         svg.classed('nv-lod-ultrafar', isUltraFarView);
 
+        linkHaloEls
+          .style('display', (d: GraphLink) => {
+            const sId = typeof d.source === 'object' ? (d.source as GraphNode).id : d.source;
+            const tId = typeof d.target === 'object' ? (d.target as GraphNode).id : d.target;
+            return (visibleNodeIds.has(String(sId)) || visibleNodeIds.has(String(tId))) ? null : 'none';
+          })
+          .attr('d', (d: GraphLink) => getTrimmedStraightLine(d).path);
+
         linkEls
           .style('display', (d: GraphLink) => {
             const sId = typeof d.source === 'object' ? (d.source as GraphNode).id : d.source;
             const tId = typeof d.target === 'object' ? (d.target as GraphNode).id : d.target;
             return (visibleNodeIds.has(String(sId)) || visibleNodeIds.has(String(tId))) ? null : 'none';
           })
-          .attr('d', (d: GraphLink) => getTrimmedCurve(d).path);
+          .attr('d', (d: GraphLink) => getTrimmedStraightLine(d).path);
+
+        linkHitEls
+          .style('display', (d: GraphLink) => {
+            const sId = typeof d.source === 'object' ? (d.source as GraphNode).id : d.source;
+            const tId = typeof d.target === 'object' ? (d.target as GraphNode).id : d.target;
+            return (visibleNodeIds.has(String(sId)) || visibleNodeIds.has(String(tId))) ? null : 'none';
+          })
+          .attr('d', (d: GraphLink) => getTrimmedStraightLine(d).path);
+
+        particleEls
+          .style('display', (d: GraphLink) => {
+            if (!enableLinkParticlesRef.current) return 'none';
+            const sId = typeof d.source === 'object' ? (d.source as GraphNode).id : d.source;
+            const tId = typeof d.target === 'object' ? (d.target as GraphNode).id : d.target;
+            return (visibleNodeIds.has(String(sId)) || visibleNodeIds.has(String(tId))) ? null : 'none';
+          })
+          .attr('d', (d: GraphLink) => getTrimmedStraightLine(d).path);
+
+        defs.selectAll<SVGLinearGradientElement, unknown>('linearGradient.nv-link-gradient')
+          .attr('x1', function() {
+            const l = (this as any)?.__linkData;
+            if (!l) return 0;
+            const s = getSourceNode(l, nodeMap as any);
+            return (s?.x || 0).toFixed(1);
+          })
+          .attr('y1', function() {
+            const l = (this as any)?.__linkData;
+            if (!l) return 0;
+            const s = getSourceNode(l, nodeMap as any);
+            return (s?.y || 0).toFixed(1);
+          })
+          .attr('x2', function() {
+            const l = (this as any)?.__linkData;
+            if (!l) return 0;
+            const t = getTargetNode(l, nodeMap as any);
+            return (t?.x || 0).toFixed(1);
+          })
+          .attr('y2', function() {
+            const l = (this as any)?.__linkData;
+            if (!l) return 0;
+            const t = getTargetNode(l, nodeMap as any);
+            return (t?.y || 0).toFixed(1);
+          });
 
         const getPathClass = (id: string) => {
           if (!pathTraceResultRef.current) return '';
@@ -1948,10 +3591,50 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
         svg.selectAll('.nv-path-badge-end')
           .style('display', (d: any) => d && d.id === activeTargetId ? 'block' : 'none');
         updateNodeLabelsForZoom(k);
-        linkLabelEls
-          .style('display', () => hideLabels ? 'none' : null)
-          .attr('x', (d: GraphLink) => getTrimmedCurve(d).labelX)
-          .attr('y', (d: GraphLink) => getTrimmedCurve(d).labelY);
+
+        linkBadgeG
+          .style('display', (d: GraphLink) => {
+            const displayMode = edgeLabelDisplayRef.current;
+            if (displayMode === 'none') return 'none';
+            if (displayMode === 'hover') {
+              const src = getSourceNode(d as any, nodeMap as any);
+              const tgt = getTargetNode(d as any, nodeMap as any);
+              const key = String((d as any).id || `${src?.id}-${tgt?.id}`);
+              const isSelected = selectedLinkIdRef.current === key;
+              const isNodeHovered = hoveredNodeIdRef.current === src?.id || hoveredNodeIdRef.current === tgt?.id;
+              const isNodeActive = activeHighlightIdRef.current === src?.id || activeHighlightIdRef.current === tgt?.id;
+              if (!isSelected && !isNodeHovered && !isNodeActive) return 'none';
+            }
+            if (displayMode === 'auto' && hideLabels) return 'none';
+            const sId = typeof d.source === 'object' ? (d.source as GraphNode).id : d.source;
+            const tId = typeof d.target === 'object' ? (d.target as GraphNode).id : d.target;
+            return (visibleNodeIds.has(String(sId)) || visibleNodeIds.has(String(tId))) ? null : 'none';
+          })
+          .attr('transform', (d: GraphLink) => {
+            const line = getTrimmedStraightLine(d);
+            return `translate(${line.labelX.toFixed(1)}, ${line.labelY.toFixed(1)})`;
+          });
+
+        // 性能采样计算 (仅更新 ref，杜绝在 D3 simulation 热循环中直接 setState 触发 React 重渲染风暴)
+        const renderTimeMs = performance.now() - tickStartTime;
+        const tracker = perfTrackerRef.current;
+        tracker.frameCount++;
+        const now = performance.now();
+        if (now - tracker.lastUpdate >= 500) {
+          const elapsed = (now - tracker.lastUpdate) / 1000;
+          const fps = elapsed > 0 ? Math.min(60, Math.round(tracker.frameCount / elapsed)) : 60;
+          tracker.frameCount = 0;
+          tracker.lastUpdate = now;
+          const dataPoint: PerfDataPoint = {
+            timestamp: now,
+            fps,
+            renderTime: Math.round(renderTimeMs),
+            nodeCount: nodes.length,
+          };
+          tracker.history = [...tracker.history.slice(-15), dataPoint];
+          tracker.currentFps = fps;
+          tracker.currentRenderTime = Math.round(renderTimeMs);
+        }
       });
     };
 
@@ -1962,8 +3645,8 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
         cancelAnimationFrame(rafId);
         rafId = null;
       }
-      
-      // Radial fan constraint for actions
+
+      // Downward fan constraint for actions (dedicated bottom sector [40°, 140°] to keep left/right highways clear)
       const parentToChildren: Record<string, GraphNode[]> = {};
       nodes.forEach(n => {
         if (n.group === 'action' && n._objId) {
@@ -1976,9 +3659,9 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
         const parent = nodes.find(p => p.id === parentKey);
         if (!parent || parent.x == null || parent.y == null) return;
         const count = children.length;
-        const dist = 48;
+        const dist = 28;
         children.sort((a, b) => a.id.localeCompare(b.id)).forEach((child, idx) => {
-          const angle = (idx * 2 * Math.PI) / count;
+          const angle = count === 1 ? Math.PI / 2 : (Math.PI * 0.32 + (idx / (count - 1)) * Math.PI * 0.36);
           child.x = parent.x! + dist * Math.cos(angle);
           child.y = parent.y! + dist * Math.sin(angle);
           child.vx = 0;
@@ -1993,58 +3676,120 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
       const hideLabels = k < 0.15;
       const hideActions = k < 0.15;
 
+      linkHaloEls
+        .style('display', (d: GraphLink) => {
+          const sId = typeof d.source === 'object' ? (d.source as GraphNode).id : d.source;
+          const tId = typeof d.target === 'object' ? (d.target as GraphNode).id : d.target;
+          return (visibleNodeIds.has(String(sId)) || visibleNodeIds.has(String(tId))) ? null : 'none';
+        })
+        .attr('d', (d: GraphLink) => getTrimmedStraightLine(d).path);
+
       linkEls
         .style('display', (d: GraphLink) => {
           const sId = typeof d.source === 'object' ? (d.source as GraphNode).id : d.source;
           const tId = typeof d.target === 'object' ? (d.target as GraphNode).id : d.target;
           return (visibleNodeIds.has(String(sId)) || visibleNodeIds.has(String(tId))) ? null : 'none';
         })
-        .attr('d', (d: GraphLink) => getTrimmedCurve(d).path);
+        .attr('d', (d: GraphLink) => getTrimmedStraightLine(d).path);
+
+      linkHitEls
+        .style('display', (d: GraphLink) => {
+          const sId = typeof d.source === 'object' ? (d.source as GraphNode).id : d.source;
+          const tId = typeof d.target === 'object' ? (d.target as GraphNode).id : d.target;
+          return (visibleNodeIds.has(String(sId)) || visibleNodeIds.has(String(tId))) ? null : 'none';
+        })
+        .attr('d', (d: GraphLink) => getTrimmedStraightLine(d).path);
+
+      particleEls
+        .style('display', (d: GraphLink) => {
+          if (!enableLinkParticlesRef.current) return 'none';
+          const sId = typeof d.source === 'object' ? (d.source as GraphNode).id : d.source;
+          const tId = typeof d.target === 'object' ? (d.target as GraphNode).id : d.target;
+          return (visibleNodeIds.has(String(sId)) || visibleNodeIds.has(String(tId))) ? null : 'none';
+        })
+        .attr('d', (d: GraphLink) => getTrimmedStraightLine(d).path);
+
+      defs.selectAll<SVGLinearGradientElement, unknown>('linearGradient.nv-link-gradient')
+        .attr('x1', function() {
+          const l = (this as any)?.__linkData;
+          if (!l) return 0;
+          const s = getSourceNode(l, nodeMap as any);
+          return (s?.x || 0).toFixed(1);
+        })
+        .attr('y1', function() {
+          const l = (this as any)?.__linkData;
+          if (!l) return 0;
+          const s = getSourceNode(l, nodeMap as any);
+          return (s?.y || 0).toFixed(1);
+        })
+        .attr('x2', function() {
+          const l = (this as any)?.__linkData;
+          if (!l) return 0;
+          const t = getTargetNode(l, nodeMap as any);
+          return (t?.x || 0).toFixed(1);
+        })
+        .attr('y2', function() {
+          const l = (this as any)?.__linkData;
+          if (!l) return 0;
+          const t = getTargetNode(l, nodeMap as any);
+          return (t?.y || 0).toFixed(1);
+        });
       typeHubG.attr('transform', (d: GraphNode) => `translate(${d.x || 0},${d.y || 0})`);
       instanceG.attr('transform', (d: GraphNode) => `translate(${d.x || 0},${d.y || 0})`);
       actionG
         .style('display', (d: GraphNode) => hideActions ? 'none' : null)
         .attr('transform', (d: GraphNode) => `translate(${d.x || 0},${d.y || 0})`);
       updateNodeLabelsForZoom(k);
-      linkLabelEls
-        .style('display', () => hideLabels ? 'none' : null)
-        .attr('x', (d: GraphLink) => getTrimmedCurve(d).labelX)
-        .attr('y', (d: GraphLink) => getTrimmedCurve(d).labelY);
+
+      linkBadgeG
+        .style('display', (d: GraphLink) => {
+          const displayMode = edgeLabelDisplayRef.current;
+          if (displayMode === 'none') return 'none';
+          if (displayMode === 'hover') {
+            const src = getSourceNode(d as any, nodeMap as any);
+            const tgt = getTargetNode(d as any, nodeMap as any);
+            const key = String((d as any).id || `${src?.id}-${tgt?.id}`);
+            const isSelected = selectedLinkIdRef.current === key;
+            const isNodeHovered = hoveredNodeIdRef.current === src?.id || hoveredNodeIdRef.current === tgt?.id;
+            const isNodeActive = activeHighlightIdRef.current === src?.id || activeHighlightIdRef.current === tgt?.id;
+            if (!isSelected && !isNodeHovered && !isNodeActive) return 'none';
+          }
+          if (displayMode === 'auto' && hideLabels) return 'none';
+          const sId = typeof d.source === 'object' ? (d.source as GraphNode).id : d.source;
+          const tId = typeof d.target === 'object' ? (d.target as GraphNode).id : d.target;
+          return (visibleNodeIds.has(String(sId)) || visibleNodeIds.has(String(tId))) ? null : 'none';
+        })
+        .attr('transform', (d: GraphLink) => {
+          const line = getTrimmedStraightLine(d);
+          return `translate(${line.labelX.toFixed(1)}, ${line.labelY.toFixed(1)})`;
+        });
+
+      if (renderEngineModeRef.current === 'canvas') {
+        triggerCanvasRenderRef.current?.();
+      } else if (renderEngineModeRef.current === 'webgl' && pixiRendererRef.current) {
+        pixiRendererRef.current.updatePositions(nodes.map(n => ({ id: n.id, x: n.x ?? 0, y: n.y ?? 0 })));
+      }
     });
 
     // Trigger fit-all AFTER simulation settles — not at a fixed timeout.
     // The sim's 'end' event fires when alpha reaches near-zero.
     sim.on('end', () => {
       (window as any).__d3FitAll?.();
+      if (renderEngineModeRef.current === 'canvas') {
+        triggerCanvasRenderRef.current?.();
+      }
     });
 
     // Event handlers
     const allNodeGroups = nodeContainer.selectAll<SVGGElement, GraphNode>('g.nv-node');
     allNodeGroupsRef.current = allNodeGroups;
-    allNodeGroups.on('mouseover', (event: MouseEvent, d: GraphNode) => {
-      // Highlight hovered node and its immediate connections
-      d3.selectAll<SVGPathElement, GraphLink>('.nv-link-instance')
-        .style('opacity', (l: GraphLink) => {
-          if (!showWeakLinks && l.weight !== undefined && l.weight < weightThreshold) return '0';
-          const s = typeof l.source === 'object' ? (l.source as GraphNode).id : l.source;
-          const t = typeof l.target === 'object' ? (l.target as GraphNode).id : l.target;
-          if (s === d.id || t === d.id) return 1;
-          return 0.2;
-        });
-      // Show edge labels only for links connected to the hovered node
-      d3.selectAll<SVGTextElement, GraphLink>('.nv-linktype-label')
-        .style('opacity', (l: GraphLink) => {
-          const s = typeof l.source === 'object' ? (l.source as GraphNode).id : l.source;
-          const t = typeof l.target === 'object' ? (l.target as GraphNode).id : l.target;
-          return s === d.id || t === d.id ? 1 : 0;
-        });
-      // Position tooltip relative to the SVG container
-      const svgRect = svgRef.current?.getBoundingClientRect();
-      if (svgRect) {
-        setTooltipPos({ x: event.clientX - svgRect.left, y: event.clientY - svgRect.top });
+    allNodeGroups.on('mouseenter mouseover', (event: MouseEvent, d: GraphNode) => {
+      if (event.type === 'mouseover' && event.relatedTarget && (event.currentTarget as Element)?.contains?.(event.relatedTarget as Node)) {
+        return;
       }
-      setHoveredNode(d);
-      hoveredNodeIdRef.current = d.id;
+      const svgRect = svgRef.current?.getBoundingClientRect();
+      const pos = svgRect ? { x: event.clientX - svgRect.left, y: event.clientY - svgRect.top } : undefined;
+      setNodeHoverStateRef.current?.(d, pos);
     });
     allNodeGroups.on('mousemove', (event: MouseEvent) => {
       const svgRect = svgRef.current?.getBoundingClientRect();
@@ -2052,20 +3797,20 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
         setTooltipPos({ x: event.clientX - svgRect.left, y: event.clientY - svgRect.top });
       }
     });
-    allNodeGroups.on('mouseout', () => {
-      setHoveredNode(null);
-      hoveredNodeIdRef.current = null;
-      // Restore selections if any, otherwise reset to default
-      applyHighlightStylesRef.current(activeHighlightIdRef.current);
+    allNodeGroups.on('mouseleave mouseout', (event: MouseEvent) => {
+      if (event.type === 'mouseout' && event.relatedTarget && (event.currentTarget as Element)?.contains?.(event.relatedTarget as Node)) {
+        return;
+      }
+      setNodeHoverStateRef.current?.(null);
     });
     allNodeGroups.on('click', (event: MouseEvent, d: GraphNode) => {
       event.stopPropagation();
       setSelectedNode(d);
       showNodeInfo(d, data);
       (window as any).__currentNodeId = d.id;
-      if (d.group === 'instance' || d.group === 'typeHub') {
-        toggleNodeCollapse(d.id);
-      } else if (clickToFocusRef.current) {
+      activeHighlightIdRef.current = d.id;
+      applyHighlightStylesRef.current?.(d.id, selectedLinkIdRef.current);
+      if (clickToFocusRef.current) {
         setFocusedNodeId(d.id);
         setScopeMode('focus');
       }
@@ -2111,22 +3856,29 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
         .remove();
 
       if (!zoomRef.current) return;
+      const curW = containerRef.current?.clientWidth ?? W ?? 800;
+      const curH = containerRef.current?.clientHeight ?? H ?? 600;
+      const { visualCenterX, visualCenterY } = getVisualCenter(curW, curH);
       const scale = 2.0;
       svg.transition().duration(500)
-        .call(zoom.transform as any, d3.zoomIdentity.translate(W / 2 - (d.x || 0) * scale, H / 2 - (d.y || 0) * scale).scale(scale));
+        .call(zoom.transform as any, d3.zoomIdentity.translate(visualCenterX - (d.x || 0) * scale, visualCenterY - (d.y || 0) * scale).scale(scale));
       
       if (onInspect) {
+        const rawObjId = d._objId ?? (d.id.startsWith('obj::') ? Number(d.id.slice(5)) : Number(d.id));
+        const rawTypeId = d._typeId ?? (d.id.startsWith('type::') ? Number(d.id.slice(6)) : Number(d.id));
+        const rawActId = (d.id.startsWith('action::') ? Number(d.id.slice(8)) : Number(d.id));
+
         if (d.group === 'instance') {
-          const rawObj = state.objects.find((o: any) => o.id === d.id);
+          const rawObj = state.objects.find((o: any) => o.id === rawObjId);
           if (rawObj) onInspect('object', rawObj);
         } else if (d.group === 'typeHub') {
-          const rawType = state.objectTypes.find((ot: any) => ot.id === d.id);
+          const rawType = state.objectTypes.find((ot: any) => ot.id === rawTypeId);
           if (rawType) onInspect('objectType', rawType);
         } else if (d.group === 'linkType') {
-          const rawLinkType = (state.linkTypes || []).find((lt: any) => lt.id === d.id);
+          const rawLinkType = (state.linkTypes || []).find((lt: any) => lt.id === rawTypeId);
           if (rawLinkType) onInspect('linkType', rawLinkType);
         } else if (d.group === 'action') {
-          const rawAction = state.actions.find((a: any) => a.id === d.id);
+          const rawAction = state.actions.find((a: any) => a.id === rawActId);
           if (rawAction) onInspect('action', rawAction);
         }
       }
@@ -2146,40 +3898,35 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
     const resetIfBlankCanvas = (event: MouseEvent) => {
       const target = event.target as HTMLElement | SVGElement;
       if (target.closest('.nv-node')) return;
-      resetBlankCanvasState();
+      resetBlankCanvasStateRef.current?.();
     };
     svg.on('click.reset', resetIfBlankCanvas);
     svg.on('dblclick.reset', (event: MouseEvent) => {
       const target = event.target as HTMLElement | SVGElement;
       if (target.closest('.nv-node')) return;
       event.preventDefault();
-      resetBlankCanvasState();
+      resetBlankCanvasStateRef.current?.();
     });
 
     setD3Ready(true);
 
     // Highlight existing selection on mount/update
     const activeHighlightId = selectedNode?.id || (scopeMode !== 'all' ? focusedNodeId : null);
-    applyHighlightStyles(activeHighlightId);
-
-    // P1-Fix: Fallback fitAll — ensures labels/edges are visible even if the
-    // simulation's onEnd callback never fires (e.g. simulation killed before cooling down).
-    // Triggers after mount so the SVG and __d3FitAll are guaranteed to exist.
-    const fitAllTimer = setTimeout(() => { (window as any).__d3FitAll?.(); }, 200);
+    applyHighlightStyles(activeHighlightId, selectedLinkIdRef.current);
 
     // ResizeObserver
     const ro = new ResizeObserver(() => {
       if (!containerRef.current || !simulationRef.current) return;
       const w = containerRef.current.clientWidth, h = containerRef.current.clientHeight;
       svg.attr('width', w).attr('height', h);
-      simulationRef.current.force('center', d3.forceCenter(w / 2, h / 2));
-      simulationRef.current.alpha(0.1).restart();
-      (window as any).__d3FitAll?.();
+      const { visualCenterX, visualCenterY } = getVisualCenter(w, h);
+      simulationRef.current.force('center', d3.forceCenter(visualCenterX, visualCenterY));
+      simulationRef.current.alpha(0.08).restart();
+      (window as any).__d3FitAll?.(300);
     });
     ro.observe(containerRef.current);
 
     return () => {
-      clearTimeout(fitAllTimer);
       ro.disconnect();
       simulationRef.current?.stop();
       if (rafId !== null) cancelAnimationFrame(rafId);
@@ -2187,10 +3934,392 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
       if (el) el.remove();
       delete (window as any).__d3FitAll;
       delete (window as any).__d3FocusNode;
+      delete (window as any).__d3FocusLink;
+      delete (window as any).__d3SetSelectedNodes;
+      delete (window as any).__d3HoverNode;
+      delete (window as any).__d3FocusNodes;
       delete (window as any).__currentNodeId;
       delete (window as any).__hubNodeId;
     };
-  }, [graphData, state.objectTypes.length, state.objects.length, state.initState, layoutMode, resetBlankCanvasState]);
+  }, [graphData, state.objectTypes.length, state.objects.length, state.initState, layoutMode]);
+
+  // ── 渲染引擎模式切换与宿主层联动 (MECE 三引擎：SVG / Canvas / WebGL) ──────────────────────
+  useEffect(() => {
+    if (!containerRef.current || !graphData) return;
+
+    if (!svgRef.current) return;
+    const svgEl = d3.select(svgRef.current);
+    const graphG = svgEl.select('.graph-container');
+
+    if (renderEngineMode === 'svg') {
+      // SVG 矢量模式：展示完整 SVG 节点与连线
+      graphG.style('display', '');
+      svgEl.selectAll('.nv-node').style('display', '');
+      svgEl.selectAll('.nv-links').style('display', '');
+      if (pixiRendererRef.current) {
+        pixiRendererRef.current.destroy();
+        pixiRendererRef.current = null;
+      }
+    } else if (renderEngineMode === 'canvas') {
+      // Canvas 2D 极速模式：隐藏 SVG 容器，由独立 Canvas 2D 批量绘制
+      graphG.style('display', 'none');
+      if (pixiRendererRef.current) {
+        pixiRendererRef.current.destroy();
+        pixiRendererRef.current = null;
+      }
+      if (canvasRef.current) {
+        if (!canvasRendererRef.current) {
+          canvasRendererRef.current = new CanvasGraphRenderer(canvasRef.current);
+        }
+        if (containerRef.current) {
+          canvasRendererRef.current.resize(containerRef.current.clientWidth, containerRef.current.clientHeight);
+        }
+        triggerCanvasRender();
+      }
+    } else if (renderEngineMode === 'webgl') {
+      // WebGL Pixi 硬件加速模式：SVG 保留连线，隐藏 SVG 节点，由 PixiJS 视口绘制 GPU 节点
+      graphG.style('display', '');
+      svgEl.selectAll('.nv-node').style('display', 'none');
+      svgEl.selectAll('.nv-links').style('display', '');
+
+      // 初始化或更新 PixiGraphRenderer
+      if (!pixiRendererRef.current) {
+        try {
+          const pixi = new PixiGraphRenderer({
+            container: containerRef.current,
+            nodeCount: graphData.nodes.length,
+            activateThreshold: 0,
+            onNodeClick: (nodeId: string) => {
+              const node = graphDataRef.current?.nodes.find(n => n.id === nodeId);
+              if (node) {
+                setSelectedNode(node);
+                setFocusedNodeId(node.id);
+                setSelectedLinkId(null);
+                showNodeInfo(node, graphDataRef.current);
+              }
+            },
+            onNodeHover: (nodeId: string | null) => {
+              setHoveredNodeId(nodeId);
+              const node = nodeId ? (nodesRef.current || graphDataRef.current?.nodes)?.find(n => n.id === nodeId) || null : null;
+              setHoveredNode(node);
+            },
+            onContextMenu: (nodeId: string, x: number, y: number) => {
+              const node = graphDataRef.current?.nodes.find(n => n.id === nodeId);
+              if (node) {
+                setContextMenu({ x, y, node });
+              }
+            },
+            onBackgroundClick: () => {
+              setSelectedNode(null);
+              setFocusedNodeId(null);
+              setSelectedLinkId(null);
+            },
+            onBackgroundDoubleClick: () => {
+              (window as any).__d3FitAll?.();
+            },
+            onNodeDoubleClick: (nodeId: string) => {
+              toggleNodeCollapse(nodeId, nodesRef.current, graphDataRef.current?.links || [], allNodeGroupsRef.current as any, labelElsRef.current as any, linkElsRef.current as any, collapsedRef.current);
+            },
+            onNodeDragStart: (nodeId: string) => {
+              const node = (nodesRef.current || graphDataRef.current?.nodes)?.find(n => n.id === nodeId);
+              if (node) {
+                node.fx = node.x;
+                node.fy = node.y;
+                simulationRef.current?.alphaTarget(0.3).restart();
+              }
+            },
+            onNodeDrag: (nodeId: string, wx: number, wy: number) => {
+              const node = (nodesRef.current || graphDataRef.current?.nodes)?.find(n => n.id === nodeId);
+              if (node) {
+                node.fx = wx;
+                node.fy = wy;
+                simulationRef.current?.alpha(0.3).restart();
+              }
+            },
+            onNodeDragEnd: (nodeId: string) => {
+              const node = (nodesRef.current || graphDataRef.current?.nodes)?.find(n => n.id === nodeId);
+              if (node) {
+                if (!node._userPinned) {
+                  node.fx = null;
+                  node.fy = null;
+                }
+                simulationRef.current?.alphaTarget(0);
+              }
+            },
+            onPan: (dx: number, dy: number) => {
+              const newX = currentTransformRef.current.x + dx;
+              const newY = currentTransformRef.current.y + dy;
+              currentTransformRef.current = d3.zoomIdentity.translate(newX, newY).scale(currentTransformRef.current.k);
+              if (svgRef.current && zoomRef.current) {
+                d3.select(svgRef.current).call(zoomRef.current.transform as any, currentTransformRef.current);
+              }
+              if (pixiRendererRef.current) {
+                pixiRendererRef.current.setTransform(currentTransformRef.current.k, newX, newY);
+              }
+            },
+            onZoom: (factor: number, screenX: number, screenY: number) => {
+              const t = currentTransformRef.current;
+              const newK = Math.max(0.05, Math.min(20, t.k * factor));
+              const newX = screenX - (screenX - t.x) * (newK / t.k);
+              const newY = screenY - (screenY - t.y) * (newK / t.k);
+              currentTransformRef.current = d3.zoomIdentity.translate(newX, newY).scale(newK);
+              if (svgRef.current && zoomRef.current) {
+                d3.select(svgRef.current).call(zoomRef.current.transform as any, currentTransformRef.current);
+              }
+              if (pixiRendererRef.current) {
+                pixiRendererRef.current.setTransform(newK, newX, newY);
+              }
+            },
+          });
+          pixiRendererRef.current = pixi;
+          pixi.activate();
+          pixi.setTransform(currentTransformRef.current.k, currentTransformRef.current.x, currentTransformRef.current.y);
+          console.log('[D3GraphView] PixiGraphRenderer activated for WebGL mode');
+        } catch (err) {
+          console.warn('[D3GraphView] PixiGraphRenderer init failed, fallback to Canvas:', err);
+          setRenderEngineMode('canvas');
+        }
+      }
+
+      if (pixiRendererRef.current) {
+        const pixiNodes = graphData.nodes.map(n => ({
+          id: n.id,
+          label: n.label,
+          color: n.color,
+          size: n.size || (n.group === 'typeHub' ? 24 : n.group === 'action' ? 10 : 12),
+          x: n.x ?? 0,
+          y: n.y ?? 0,
+          group: n.group,
+          badgeCount: n._propsCount || 0,
+        }));
+        pixiRendererRef.current.setNodes(pixiNodes);
+        pixiRendererRef.current.setTransform(currentTransformRef.current.k, currentTransformRef.current.x, currentTransformRef.current.y);
+      }
+    }
+
+    return () => {
+      if (pixiRendererRef.current && renderEngineMode !== 'webgl') {
+        pixiRendererRef.current.destroy();
+        pixiRendererRef.current = null;
+      }
+    };
+  }, [renderEngineMode, graphData, triggerCanvasRender]);
+
+  // 当选择状态改变时同步到 WebGL / Canvas
+  useEffect(() => {
+    if (renderEngineMode === 'canvas') {
+      triggerCanvasRender();
+    } else if (renderEngineMode === 'webgl' && pixiRendererRef.current) {
+      pixiRendererRef.current.setSelectedNode(selectedNode?.id || null);
+    }
+  }, [selectedNode, renderEngineMode, triggerCanvasRender]);
+
+  // 当节点物理仿真或布局变化时，同步到 PixiGraphRenderer
+  useEffect(() => {
+    if (renderEngineMode !== 'webgl' || !pixiRendererRef.current || !simulationRef.current) return;
+    const syncInterval = setInterval(() => {
+      if (pixiRendererRef.current && graphDataRef.current) {
+        const nodes = (nodesRef.current && nodesRef.current.length > 0 ? nodesRef.current : graphDataRef.current.nodes).map(n => ({
+          id: n.id,
+          label: n.label,
+          color: n.color,
+          size: n.size || (n.group === 'typeHub' ? 24 : n.group === 'action' ? 10 : 12),
+          x: n.x ?? 0,
+          y: n.y ?? 0,
+          group: n.group,
+        }));
+        pixiRendererRef.current.updatePositions(nodes);
+      }
+    }, 40); // 25 FPS 位置更新
+    return () => clearInterval(syncInterval);
+  }, [renderEngineMode, d3Ready]);
+
+  // 容器尺寸变化响应
+  useEffect(() => {
+    const handleResize = () => {
+      if (!containerRef.current) return;
+      const w = containerRef.current.clientWidth;
+      const h = containerRef.current.clientHeight;
+      if (canvasRendererRef.current && renderEngineMode === 'canvas') {
+        canvasRendererRef.current.resize(w, h);
+        triggerCanvasRender();
+      }
+      if (pixiRendererRef.current && renderEngineMode === 'webgl') {
+        pixiRendererRef.current.resize(w, h);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [renderEngineMode, triggerCanvasRender]);
+
+  // Canvas 2D 交互事件处理
+  const isCanvasDraggingRef = useRef(false);
+  const canvasDragStartRef = useRef<{ x: number; y: number; transformX: number; transformY: number }>({ x: 0, y: 0, transformX: 0, transformY: 0 });
+  const draggedNodeRef = useRef<GraphNode | null>(null);
+
+  const handleCanvasMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (renderEngineMode !== 'canvas' || !canvasRef.current || !canvasRendererRef.current || !graphDataRef.current) return;
+    const rect = canvasRef.current.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    const hit = canvasRendererRef.current.hitTest(mx, my, nodesRef.current || graphDataRef.current.nodes, currentTransformRef.current);
+
+    if (hit) {
+      draggedNodeRef.current = hit;
+      hit.fx = hit.x;
+      hit.fy = hit.y;
+      simulationRef.current?.alphaTarget(0.3).restart();
+    } else {
+      isCanvasDraggingRef.current = true;
+      canvasDragStartRef.current = {
+        x: e.clientX,
+        y: e.clientY,
+        transformX: currentTransformRef.current.x,
+        transformY: currentTransformRef.current.y,
+      };
+    }
+  };
+
+  const handleCanvasMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (renderEngineMode !== 'canvas' || !canvasRef.current || !canvasRendererRef.current || !graphDataRef.current) return;
+    const rect = canvasRef.current.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    if (draggedNodeRef.current) {
+      const wx = (mx - currentTransformRef.current.x) / currentTransformRef.current.k;
+      const wy = (my - currentTransformRef.current.y) / currentTransformRef.current.k;
+      draggedNodeRef.current.fx = wx;
+      draggedNodeRef.current.fy = wy;
+      simulationRef.current?.alpha(0.3).restart();
+      triggerCanvasRender();
+      return;
+    }
+
+    if (isCanvasDraggingRef.current) {
+      const dx = e.clientX - canvasDragStartRef.current.x;
+      const dy = e.clientY - canvasDragStartRef.current.y;
+      const newX = canvasDragStartRef.current.transformX + dx;
+      const newY = canvasDragStartRef.current.transformY + dy;
+      currentTransformRef.current = d3.zoomIdentity.translate(newX, newY).scale(currentTransformRef.current.k);
+      if (svgRef.current && zoomRef.current) {
+        d3.select(svgRef.current).call(zoomRef.current.transform as any, currentTransformRef.current);
+      }
+      triggerCanvasRender();
+      return;
+    }
+
+    const hit = canvasRendererRef.current.hitTest(mx, my, nodesRef.current || graphDataRef.current.nodes, currentTransformRef.current);
+    const newHoverId = hit ? hit.id : null;
+    if (newHoverId !== hoveredNodeIdRef.current) {
+      setHoveredNode(hit);
+      setHoveredNodeId(newHoverId);
+      if (canvasRef.current) {
+        canvasRef.current.style.cursor = hit ? 'pointer' : 'grab';
+      }
+    } else if (!hit && canvasRef.current && graphDataRef.current?.links) {
+      const hitLink = canvasRendererRef.current.hitTestLink(mx, my, graphDataRef.current.links, currentTransformRef.current);
+      canvasRef.current.style.cursor = hitLink ? 'pointer' : 'grab';
+    }
+  };
+
+  const handleCanvasMouseUp = () => {
+    if (draggedNodeRef.current) {
+      if (!draggedNodeRef.current._userPinned) {
+        draggedNodeRef.current.fx = null;
+        draggedNodeRef.current.fy = null;
+      }
+      draggedNodeRef.current = null;
+      simulationRef.current?.alphaTarget(0);
+    }
+    isCanvasDraggingRef.current = false;
+    triggerCanvasRender();
+  };
+
+  const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (renderEngineMode !== 'canvas' || !canvasRef.current || !canvasRendererRef.current || !graphDataRef.current) return;
+    const rect = canvasRef.current.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    const hit = canvasRendererRef.current.hitTest(mx, my, nodesRef.current || graphDataRef.current.nodes, currentTransformRef.current);
+    if (hit) {
+      setSelectedNode(hit);
+      setFocusedNodeId(hit.id);
+      setSelectedLinkId(null);
+      showNodeInfo(hit, graphDataRef.current);
+    } else {
+      const hitLink = canvasRendererRef.current.hitTestLink(mx, my, graphDataRef.current.links, currentTransformRef.current);
+      if (hitLink) {
+        const lId = String(hitLink.id || `${typeof hitLink.source === 'object' ? hitLink.source.id : hitLink.source}-${typeof hitLink.target === 'object' ? hitLink.target.id : hitLink.target}`);
+        setSelectedLinkId(lId);
+        setSelectedNode(null);
+        setFocusedNodeId(null);
+      } else {
+        setSelectedNode(null);
+        setFocusedNodeId(null);
+        setSelectedLinkId(null);
+      }
+    }
+  };
+
+  const handleCanvasDoubleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (renderEngineMode !== 'canvas' || !canvasRef.current || !canvasRendererRef.current || !graphDataRef.current) return;
+    const rect = canvasRef.current.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    const hit = canvasRendererRef.current.hitTest(mx, my, nodesRef.current || graphDataRef.current.nodes, currentTransformRef.current);
+    if (hit) {
+      toggleNodeCollapse(hit.id, nodesRef.current, graphDataRef.current?.links || [], allNodeGroupsRef.current as any, labelElsRef.current as any, linkElsRef.current as any, collapsedRef.current);
+    } else {
+      (window as any).__d3FitAll?.();
+    }
+  };
+
+  const handleCanvasContextMenu = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
+    if (renderEngineMode !== 'canvas' || !canvasRef.current || !canvasRendererRef.current || !graphDataRef.current) return;
+    const rect = canvasRef.current.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    const hit = canvasRendererRef.current.hitTest(mx, my, nodesRef.current || graphDataRef.current.nodes, currentTransformRef.current);
+    if (hit) {
+      setContextMenu({ x: e.clientX, y: e.clientY, node: hit });
+    }
+  };
+
+  const handleCanvasWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
+    if (renderEngineMode !== 'canvas' || !canvasRef.current) return;
+    const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+    const rect = canvasRef.current.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    const t = currentTransformRef.current;
+    const newK = Math.max(0.05, Math.min(20, t.k * factor));
+    const newX = mx - (mx - t.x) * (newK / t.k);
+    const newY = my - (my - t.y) * (newK / t.k);
+
+    currentTransformRef.current = d3.zoomIdentity.translate(newX, newY).scale(newK);
+    if (svgRef.current && zoomRef.current) {
+      d3.select(svgRef.current).call(zoomRef.current.transform as any, currentTransformRef.current);
+    }
+    triggerCanvasRender();
+  };
+
+  // Auto re-center with smooth animation when control panel or info panel is toggled
+  const isInitialMountRef = useRef(true);
+  useEffect(() => {
+    if (isInitialMountRef.current) {
+      isInitialMountRef.current = false;
+      return;
+    }
+    if (!d3Ready) return;
+    const timer = setTimeout(() => {
+      (window as any).__d3FitAll?.(450);
+    }, 60);
+    return () => clearTimeout(timer);
+  }, [showControls, showInfo, d3Ready]);
 
   // Dynamic Simulation Physics Updates
   useEffect(() => {
@@ -2212,8 +4341,9 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
       linkForce.strength(linkStrength);
       linkForce.distance(d => {
         const s = d as any;
-        if (s._linkTypeId !== undefined) return linkDistance * 1.15;
-        if (s.source?.group === 'typeHub' || s.target?.group === 'typeHub') return linkDistance * 1.2;
+        if (s.source?.group === 'action' || s.target?.group === 'action') return 32;
+        if (s._linkTypeId !== undefined) return linkDistance * 1.05;
+        if (s.source?.group === 'typeHub' || s.target?.group === 'typeHub') return linkDistance * 1.1;
         return linkDistance;
       });
     }
@@ -2234,7 +4364,7 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
     const activeHighlightId = selectedNode?.id || (scopeMode !== 'all' ? focusedNodeId : null);
     (window as any).__currentNodeId = selectedNode?.id || null;
     (window as any).__focusedNodeId = focusedNodeId;
-    applyHighlightStyles(activeHighlightId);
+    applyHighlightStyles(activeHighlightId, selectedLinkIdRef.current);
   }, [focusedNodeId, selectedNode, scopeMode, graphData, applyHighlightStyles]);
 
   // Weight Threshold Filter — update link display when threshold changes
@@ -2380,27 +4510,28 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
         const minX = Math.min(...xs), maxX = Math.max(...xs);
         const minY = Math.min(...ys), maxY = Math.max(...ys);
         const bw = maxX - minX || 1, bh = maxY - minY || 1;
-        const W = containerRef.current?.clientWidth ?? 800;
-        const H = containerRef.current?.clientHeight ?? 600;
+        const curW = containerRef.current?.clientWidth ?? 800;
+        const curH = containerRef.current?.clientHeight ?? 600;
+        const { visualCenterX, visualCenterY, availableW, availableH } = getVisualCenter(curW, curH);
         
         let tx, ty, scale;
         if (matchedSimNodes.length === 1) {
           scale = 1.3;
-          tx = W / 2 - matchedSimNodes[0].x! * scale;
-          ty = H / 2 - matchedSimNodes[0].y! * scale;
+          tx = visualCenterX - matchedSimNodes[0].x! * scale;
+          ty = visualCenterY - matchedSimNodes[0].y! * scale;
         } else {
-          scale = Math.min(W / (bw + 120), H / (bh + 120), 1.3);
-          if (scale < 0.2) scale = 0.2;
+          scale = Math.min(availableW / (bw + 120), availableH / (bh + 120), 1.3);
+          if (scale < 0.15) scale = 0.15;
           const cx = (minX + maxX) / 2;
           const cy = (minY + maxY) / 2;
-          tx = W / 2 - cx * scale;
-          ty = H / 2 - cy * scale;
+          tx = visualCenterX - cx * scale;
+          ty = visualCenterY - cy * scale;
         }
         d3.select(svgRef.current).transition().duration(600)
           .call(zoomRef.current!.transform as any, d3.zoomIdentity.translate(tx, ty).scale(scale));
       }
     }
-  }, [searchTerm, graphData]);
+  }, [searchTerm, graphData, getVisualCenter]);
 
   const navigateSearch = (dir: 1 | -1) => {
     const results = searchHighlightedRef.current;
@@ -2412,11 +4543,12 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
     const nodeId = results[idx];
     const node = simulationRef.current?.nodes().find(n => n.id === nodeId);
     if (!node || node.x == null) return;
-    const W = containerRef.current?.clientWidth ?? 800;
-    const H = containerRef.current?.clientHeight ?? 600;
+    const curW = containerRef.current?.clientWidth ?? 800;
+    const curH = containerRef.current?.clientHeight ?? 600;
+    const { visualCenterX, visualCenterY } = getVisualCenter(curW, curH);
     const scale = 1.5;
-    const tx = W / 2 - (node.x || 0) * scale;
-    const ty = H / 2 - (node.y || 0) * scale;
+    const tx = visualCenterX - (node.x || 0) * scale;
+    const ty = visualCenterY - (node.y || 0) * scale;
     d3.select(svgRef.current).transition().duration(500)
       .call(zoomRef.current!.transform as any, d3.zoomIdentity.translate(tx, ty).scale(scale));
     d3.selectAll<SVGTextElement, GraphNode>('.nv-node-label')
@@ -2539,59 +4671,136 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
     : [];
 
   // ==================== Styles ====================
-  // Monokai-inspired palette for D3 overlay panels
-  const panelBase: React.CSSProperties = {
-    background: 'rgba(18, 19, 26, 0.78)',
-    backdropFilter: 'blur(16px)',
-    WebkitBackdropFilter: 'blur(16px)',
-    border: '1px solid rgba(255, 255, 255, 0.08)',
-    borderRadius: '12px',
-    fontSize: 12,
-    fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-    color: '#e2e8f0',
-    textAlign: 'center',
-    boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.45)',
-  };
-  const controlPanelBase: React.CSSProperties = {
-    ...panelBase,
-    textAlign: 'left',
-  };
-  const btnStyle: React.CSSProperties = {
-    background: 'rgba(255, 255, 255, 0.04)',
-    color: '#f8f8f2',
-    border: '1px solid rgba(255, 255, 255, 0.1)',
-    padding: '5px 12px',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontSize: 11,
-    textAlign: 'center',
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-  };
-  const panelBtnStyle: React.CSSProperties = { ...btnStyle };
+  // Aligned with the monokai design system: prefer Tailwind utilities over
+  // hand-rolled inline rgba colors. Each "token" below is a Tailwind class
+  // string so it composes with hover:/active:/focus:/disabled: modifiers and
+  // keeps the panel visually consistent with the rest of the app.
+  //
+  // Note: legacy alias `panelBase` / `btnStyle` kept so that the right-side
+  // stats panel, legend and floating toggles (which still use inline style)
+  // can share the same surface treatment via className below.
+  const SURFACE = 'bg-gradient-to-b from-monokai-surface/98 via-monokai-surface/92 to-monokai-sidebar/95 border border-monokai-border/80 rounded-lg shadow-[0_12px_40px_-16px_rgba(0,0,0,0.75)] backdrop-blur-md text-monokai-fg font-sans';
+  const SURFACE_HEADER_BTN = 'px-2.5 py-1 text-[11px] font-medium rounded-md border border-monokai-border/80 bg-monokai-bg/70 text-monokai-fg-muted hover:bg-monokai-elevated hover:text-monokai-fg transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed';
+  // Legacy aliases kept only to minimize blast radius for unrelated UI
+  // blocks that still spread these into inline style props.
+  const panelBase: React.CSSProperties = {};
+  const controlPanelBase: React.CSSProperties = {};
+  const btnStyle: React.CSSProperties = {};
+  const panelBtnStyle: React.CSSProperties = {};
+
+  // ─────────────────────────────────────────────────────────────────
+  // Unified Control Panel Design System (workbench-aligned MECE chrome)
+  // ─────────────────────────────────────────────────────────────────
+
+  const SECTION_LABEL = 'text-[9px] font-bold uppercase tracking-[0.14em] text-monokai-comment/75';
+  const SECTION_HEADER = `flex items-center gap-1.5 ${SECTION_LABEL}`;
+  const SECTION_DIVIDER = 'pt-2.5 mt-1 border-t border-monokai-border/50';
+  const GROUP_CARD = 'rounded-md border border-monokai-border/55 bg-monokai-bg/40 p-2 flex flex-col gap-1.5';
+
+  const BTN_PRIMARY = 'flex-1 inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-md text-[11px] font-semibold bg-monokai-cyan/12 text-monokai-cyan border border-monokai-cyan/35 hover:bg-monokai-cyan/20 hover:border-monokai-cyan/55 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed';
+  const BTN_SECONDARY = 'flex-1 inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-md text-[11px] font-medium bg-monokai-bg/70 text-monokai-fg-muted border border-monokai-border/75 hover:bg-monokai-elevated hover:text-monokai-fg transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed';
+  const BTN_WARN = 'flex-1 inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-md text-[11px] font-medium bg-monokai-yellow/10 text-monokai-yellow border border-monokai-yellow/35 hover:bg-monokai-yellow/18 hover:border-monokai-yellow/50 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed';
+  const BTN_AI = 'flex-1 inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-md text-[11px] font-medium bg-monokai-accent/10 text-monokai-accent border border-monokai-accent/35 hover:bg-monokai-accent/18 hover:border-monokai-accent/50 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed';
+  const BTN_DANGER = 'flex-1 inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-md text-[11px] font-medium bg-monokai-pink/10 text-monokai-pink border border-monokai-pink/35 hover:bg-monokai-pink/18 hover:border-monokai-pink/50 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed';
+
+  const BTN_TOGGLE_ACTIVE = 'flex items-center justify-between gap-1 px-2 py-1.5 rounded-md text-[11px] font-semibold bg-monokai-cyan/12 text-monokai-cyan border border-monokai-cyan/45 transition-colors cursor-pointer';
+  const BTN_TOGGLE_INACTIVE = 'flex items-center justify-between gap-1 px-2 py-1.5 rounded-md text-[11px] font-medium bg-monokai-bg/55 text-monokai-comment border border-monokai-border/70 hover:bg-monokai-elevated/80 hover:text-monokai-fg transition-colors cursor-pointer';
+
+  const TOGGLE_BADGE_ACTIVE = 'text-[9px] px-1 py-px rounded font-mono font-semibold bg-monokai-cyan/20 text-monokai-cyan';
+  const TOGGLE_BADGE_INACTIVE = 'text-[9px] px-1 py-px rounded font-mono font-medium bg-monokai-bg text-monokai-comment/80';
+
+  const INPUT_BASE = 'flex-1 px-2.5 py-1.5 rounded-md border border-monokai-border/80 bg-monokai-bg/70 text-monokai-fg text-[11px] outline-none placeholder:text-monokai-comment/70 focus:border-monokai-cyan/60 focus:ring-1 focus:ring-monokai-cyan/20 transition-colors';
+  const INPUT_AI = 'flex-1 px-2.5 py-1.5 rounded-md border border-monokai-accent/40 bg-monokai-bg/70 text-monokai-fg text-[11px] outline-none placeholder:text-monokai-comment/70 focus:border-monokai-accent/60 transition-colors';
+  const SELECT_BASE = 'w-full appearance-none px-2.5 py-1.5 rounded-md border border-monokai-border/80 bg-monokai-bg/70 text-monokai-fg text-[11px] outline-none cursor-pointer focus:border-monokai-cyan/60 focus:ring-1 focus:ring-monokai-cyan/20 transition-colors';
+
+  const SLIDER_ROW = 'flex items-center text-[11px] gap-2 w-full';
+  const SLIDER_LABEL = 'w-[56px] shrink-0 text-monokai-comment text-[10px]';
+  const SLIDER_VALUE = 'w-[36px] text-monokai-fg-muted text-[10px] font-mono tabular-nums shrink-0 text-right';
+
+  const COLLAPSE_BTN = 'w-full flex items-center justify-between gap-2 text-left cursor-pointer select-none group';
 
   return (
     <div
       ref={containerRef}
       style={{
         width: '100%', height: '100%',
-        background: 'radial-gradient(circle at center, #131b31 0%, #060913 100%)',
+        background: '#141916',
+        backgroundImage: 'radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px)',
+        backgroundSize: '24px 24px',
         position: 'relative', overflow: 'hidden',
       }}
     >
+      {/* Canvas 2D 极速渲染层 */}
+      <canvas
+        ref={canvasRef}
+        style={{
+          width: '100%',
+          height: '100%',
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          zIndex: renderEngineMode === 'canvas' ? 2 : 0,
+          display: renderEngineMode === 'canvas' ? 'block' : 'none',
+          pointerEvents: renderEngineMode === 'canvas' ? 'all' : 'none',
+        }}
+        onMouseDown={handleCanvasMouseDown}
+        onMouseMove={handleCanvasMouseMove}
+        onMouseUp={handleCanvasMouseUp}
+        onClick={handleCanvasClick}
+        onDoubleClick={handleCanvasDoubleClick}
+        onContextMenu={handleCanvasContextMenu}
+        onWheel={handleCanvasWheel}
+      />
+
+      {/* SVG 渲染层与手势/交互宿主 */}
       <svg
         ref={svgRef}
-        style={{ width: '100%', height: '100%', display: 'block' }}
+        style={{
+          width: '100%',
+          height: '100%',
+          display: 'block',
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          zIndex: renderEngineMode === 'svg' ? 2 : (renderEngineMode === 'webgl' ? 1 : 0),
+          pointerEvents: renderEngineMode === 'canvas' ? 'none' : 'all',
+        }}
         role="img"
-        aria-label={`知识图谱可视化：${stats.nodes} 个节点，${stats.links} 条关系连线。方向键浏览节点，+/- 缩放，0 重置视角。`}
+        aria-label={`知识图谱可视化（${RENDER_ENGINE_META[renderEngineMode].label}）：${stats.nodes} 个节点，${stats.links} 条关系连线。`}
         tabIndex={0}
         onKeyDown={(e: React.KeyboardEvent) => {
           const ag = allNodeGroupsRef.current;
           const lg = linkElsRef.current;
           const lb = labelElsRef.current;
           if (!ag || !lg || !lb) return;
+
+          // Ctrl+Home: 居中视图 (Fit All)
+          if ((e.ctrlKey || e.metaKey) && e.key === 'Home') {
+            e.preventDefault();
+            (window as any).__d3FitAll?.();
+            return;
+          }
+
+          // Ctrl+0 或 数字键 0: 重置视图到默认缩放 (Fit All)
+          if ((e.ctrlKey || e.metaKey) && e.key === '0') {
+            e.preventDefault();
+            (window as any).__d3FitAll?.();
+            return;
+          }
+          
+          // 单独按 0 键: Fit All
+          if (e.key === '0' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+            e.preventDefault();
+            (window as any).__d3FitAll?.();
+            return;
+          }
+          
+          // F 键: Fit All
+          if (e.key === 'f' || e.key === 'F') {
+            e.preventDefault();
+            (window as any).__d3FitAll?.();
+            return;
+          }
 
           if (e.key.startsWith('Arrow')) {
             e.preventDefault();
@@ -2630,6 +4839,20 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
           if (e.key === 'Escape') {
             setSelectedNode(null);
             setFocusedNodeId(null);
+          }
+          
+          // + 或 = 键: 放大
+          if (e.key === '+' || e.key === '=') {
+            e.preventDefault();
+            zoomIn();
+            return;
+          }
+          
+          // - 键: 缩小
+          if (e.key === '-' || e.key === '_') {
+            e.preventDefault();
+            zoomOut();
+            return;
           }
         }}
       />
@@ -2774,12 +4997,28 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
         }}>
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: 48, marginBottom: 16 }}>🔍</div>
-            <div style={{ fontSize: 18, color: '#FFD700', fontWeight: 'bold', marginBottom: 8 }}>
+            <div style={{ fontSize: 18, color: '#ffd60a', fontWeight: 'bold', marginBottom: 8 }}>
               本体论尚未初始化
             </div>
-            <div style={{ fontSize: 13, color: '#aaa', maxWidth: 400, lineHeight: 1.7, marginBottom: 12 }}>
-              请先在左侧 <strong style={{ color: '#4CAF50' }}>MECE 面板</strong>的「基础层」创建类型和实例，<br />
-              或执行「一键初始化」导入种子数据，图谱将自动更新。
+            {state?.error && (
+              <div
+                role="alert"
+                style={{
+                  color: '#f92672',
+                  fontSize: 12,
+                  marginBottom: 12,
+                  background: 'rgba(249, 38, 114, 0.1)',
+                  padding: '6px 12px',
+                  borderRadius: 6,
+                  border: '1px solid rgba(249, 38, 114, 0.3)',
+                }}
+              >
+                {state.error}
+              </div>
+            )}
+            <div style={{ fontSize: 13, color: '#8f9e94', maxWidth: 400, lineHeight: 1.7, marginBottom: 12 }}>
+              当前工作区尚未载入本体结构或种子数据。<br />
+              可点击「重试初始化」导入默认模型，或通过 AI 自动构建图谱。
             </div>
 
             {/* AI Fill Topic Input */}
@@ -2792,12 +5031,12 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
                   onKeyDown={e => { if (e.key === 'Enter') handleAIFill(); if (e.key === 'Escape') setShowAIFillInput(false); }}
                   placeholder="输入图谱主题，如：电商订单领域"
                   style={{
-                    padding: '6px 12px', borderRadius: 8, border: '1px solid #ae81ff',
+                    padding: '6px 12px', borderRadius: 8, border: '1px solid #66d9ef',
                     background: 'rgba(0,0,0,0.4)', color: '#fff', fontSize: 12, width: 260,
                     outline: 'none',
                   }}
                 />
-                <button onClick={handleAIFill} disabled={isAiFilling} style={{ ...btnStyle, padding: '6px 14px', borderColor: '#ae81ff', color: '#ae81ff' }}>
+                <button onClick={handleAIFill} disabled={isAiFilling} style={{ ...btnStyle, padding: '6px 14px', borderColor: '#66d9ef', color: '#66d9ef' }}>
                   {isAiFilling ? <Loader2 className="inline w-3.5 h-3.5 animate-spin" style={{ verticalAlign: 'middle' }} /> : <Sparkles className="inline w-3.5 h-3.5" style={{ verticalAlign: 'middle' }} />}
                 </button>
                 <button onClick={() => setShowAIFillInput(false)} style={{ ...btnStyle, padding: '6px 10px' }}>✕</button>
@@ -2805,17 +5044,24 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
             )}
 
             <div style={{ display: 'flex', gap: 10, justifyContent: 'center', pointerEvents: 'all' }}>
-              <button onClick={handleAIFill} disabled={isAiFilling} style={{ ...btnStyle, padding: '6px 16px', fontSize: 12, borderColor: '#ae81ff', color: '#ae81ff' }}>
+              <button
+                onClick={() => store.initOntology?.()}
+                style={{ ...btnStyle, padding: '6px 16px', fontSize: 12, borderColor: '#a6e22e', color: '#a6e22e', background: 'rgba(166, 226, 46, 0.1)' }}
+              >
+                <RefreshCw className="inline w-3.5 h-3.5 mr-1" style={{ verticalAlign: 'middle' }} />
+                重试初始化
+              </button>
+              <button onClick={handleAIFill} disabled={isAiFilling} style={{ ...btnStyle, padding: '6px 16px', fontSize: 12, borderColor: '#66d9ef', color: '#66d9ef' }}>
                 {isAiFilling ? <><Loader2 className="inline w-3.5 h-3.5 mr-1 animate-spin" style={{ verticalAlign: 'middle' }} /> AI 构思中...</> : <><Sparkles className="inline w-3.5 h-3.5 mr-1" style={{ verticalAlign: 'middle' }} /> AI 图谱生成</>}
               </button>
               <button onClick={refreshGraph} style={{ ...btnStyle, padding: '6px 16px', fontSize: 12 }}>
                 <RefreshCw className="inline w-3.5 h-3.5 mr-1" style={{ verticalAlign: 'middle' }} />
                 刷新图谱
               </button>
-              <button onClick={downloadCSV} style={{ ...btnStyle, padding: '6px 16px', fontSize: 12, borderColor: '#4CAF50' }}>
+              <button onClick={downloadCSV} disabled={!graphData} style={{ ...btnStyle, padding: '6px 16px', fontSize: 12, borderColor: '#343c37', opacity: !graphData ? 0.5 : 1 }}>
                 导出 CSV
               </button>
-              <button onClick={downloadExcelFile} style={{ ...btnStyle, padding: '6px 16px', fontSize: 12, borderColor: 'rgba(166,226,46,0.4)', color: '#50fa7b', background: 'rgba(39,40,34,0.88)' }}>
+              <button onClick={downloadExcelFile} disabled={!graphData} style={{ ...btnStyle, padding: '6px 16px', fontSize: 12, borderColor: '#343c37', color: '#a6e22e', background: 'rgba(39,40,34,0.88)', opacity: !graphData ? 0.5 : 1 }}>
                 导出 Excel
               </button>
             </div>
@@ -2823,455 +5069,332 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
         </div>
       )}
 
-      {/* ==================== LEFT: Controls ==================== */}
-      {showControls && graphData && (
-        <div style={{ position: 'absolute', top: 10, left: 10, zIndex: 1000, ...controlPanelBase, padding: 12, width: 360, minWidth: 360, display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6, marginBottom: 8, borderBottom: '1px solid rgba(245,239,224,0.12)', paddingBottom: 8, width: '100%' }}>
-            <strong style={{ fontSize: 13, textAlign: 'left' }}>图谱控制面板</strong>
-            <div style={{ display: 'flex', gap: 6 }}>
-              <button onClick={() => setShowHelp(!showHelp)} title="使用指南" style={{ ...panelBtnStyle, padding: '3px 8px', borderColor: showHelp ? 'rgba(99,102,241,0.5)' : undefined, color: showHelp ? '#a5b4fc' : undefined, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <HelpCircle className="inline w-3.5 h-3.5 mr-1" style={{ verticalAlign: 'middle' }} />
-                使用指南
-              </button>
-              <button onClick={() => setShowControls(false)} style={{ ...panelBtnStyle, color: '#f92672', textAlign: 'center', justifyContent: 'center' }}>隐藏</button>
-            </div>
-          </div>
-          {showHelp && (
-            <div style={{ fontSize: 11, color: '#ccc', lineHeight: 1.7, textAlign: 'left', background: 'rgba(255,255,255,0.03)', padding: '8px 12px', borderRadius: 4, marginBottom: 8, width: '100%' }}>
-              <div>• 拖动节点 → 移动并钉住位置</div>
-              <div>• 滚轮 / 双指 → 缩放视图</div>
-              <div>• 双击节点 → 释放固定 + 聚焦</div>
-              <div>• 右键节点 → 折叠 / 展开</div>
-              <div style={{ marginTop: 6, color: '#888', fontSize: 10, borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 4 }}>
-                <strong>快捷键:</strong> Alt+C/I/L/S | Escape
-              </div>
-            </div>
-          )}
-          {/* AI Fill Topic Input (when controls panel is open) */}
-          {showAIFillInput && (
-            <div style={{ marginTop: 8, display: 'flex', gap: 6, width: '100%', justifyContent: 'flex-start' }}>
-              <input
-                autoFocus
-                value={aiFillTopic}
-                onChange={e => setAiFillTopic(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') handleAIFill(); if (e.key === 'Escape') setShowAIFillInput(false); }}
-                placeholder="输入图谱主题，回车确认"
-                style={{
-                  flex: 1, padding: '5px 10px', borderRadius: 6,
-                  border: '1px solid #ae81ff', background: 'rgba(0,0,0,0.4)',
-                  color: '#fff', fontSize: 11, outline: 'none', textAlign: 'left'
-                }}
-              />
-              <button onClick={handleAIFill} disabled={isAiFilling} style={{ ...btnStyle, padding: '5px 10px', borderColor: '#ae81ff', color: '#ae81ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {isAiFilling ? <Loader2 className="inline w-3 h-3 animate-spin" style={{ verticalAlign: 'middle' }} /> : <Sparkles className="inline w-3 h-3" style={{ verticalAlign: 'middle' }} />}
-              </button>
-              <button onClick={() => setShowAIFillInput(false)} style={{ ...btnStyle, padding: '5px 8px' }}>✕</button>
-            </div>
-          )}
+      {/* AI 主题构思浮层 - 居中防遮挡 */}
+      {showAIFillInput && (
+        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-[1500] flex items-center gap-1.5 p-2 rounded-lg bg-monokai-surface/95 border border-monokai-cyan/50 shadow-2xl backdrop-blur-md">
+          <input
+            autoFocus
+            value={aiFillTopic}
+            onChange={e => setAiFillTopic(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') handleAIFill(); if (e.key === 'Escape') setShowAIFillInput(false); }}
+            placeholder="输入图谱主题，回车确认"
+            aria-label="AI 生成主题"
+            className={INPUT_AI}
+          />
+          <button onClick={handleAIFill} disabled={isAiFilling} aria-label="确认生成" className={BTN_AI + ' !flex-none px-2.5 py-1.5'}>
+            {isAiFilling ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+          </button>
+          <button onClick={() => setShowAIFillInput(false)} aria-label="取消" className={BTN_SECONDARY + ' !flex-none px-2 py-1.5'}>
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
 
-          <div style={{ display: 'flex', gap: 5, marginTop: 10, flexWrap: 'wrap', width: '100%', justifyContent: 'flex-start' }}>
-            <button onClick={fitAll} style={{ ...btnStyle, flex: 1, borderColor: '#4CAF50', color: '#4CAF50', textAlign: 'center', justifyContent: 'center' }}>Fit All</button>
-            <button onClick={resetLayout} style={{ ...btnStyle, flex: 1, borderColor: '#F9A825', color: '#F9A825', textAlign: 'center', justifyContent: 'center' }}>重置布局</button>
-            <button onClick={zoomIn} style={{ ...btnStyle, flex: 1, textAlign: 'center', justifyContent: 'center' }}>放大</button>
-            <button onClick={zoomOut} style={{ ...btnStyle, flex: 1, textAlign: 'center', justifyContent: 'center' }}>缩小</button>
+      {/* 清空数据确认浮层 - 居中防遮挡 */}
+      {showClearConfirm && (
+        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-[1500] p-3.5 border border-monokai-pink/60 rounded-xl bg-monokai-surface/98 shadow-2xl backdrop-blur-md flex flex-col gap-2.5 min-w-[260px]">
+          <div className="text-[12.5px] font-semibold text-monokai-pink flex items-center gap-1.5">
+            <AlertTriangle className="w-4 h-4" />
+            确认清空所有本体论数据？
           </div>
-          <div style={{ display: 'flex', gap: 5, marginTop: 5, width: '100%', justifyContent: 'flex-start' }}>
-            <button onClick={() => { setShowAIFillInput(true); }} style={{ ...btnStyle, flex: 1, borderColor: '#ae81ff', color: '#ae81ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Sparkles className="inline w-3.5 h-3.5 mr-1" style={{ verticalAlign: 'middle' }} />
-              AI 图谱生成
-            </button>
-            <button onClick={refreshGraph} style={{ ...btnStyle, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <RefreshCw className="inline w-3.5 h-3.5 mr-1" style={{ verticalAlign: 'middle' }} />
-              刷新数据
-            </button>
-            {focusedNodeId && (
-              <button onClick={() => { setFocusedNodeId(null); setScopeMode('all'); }} style={{ ...btnStyle, flex: 1, background: '#E76F51', borderColor: '#E76F51', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                ✕ 退出降噪聚焦
-              </button>
-            )}
-          </div>
-          <div style={{ display: 'flex', gap: 5, marginTop: 5, width: '100%', justifyContent: 'flex-start' }}>
+          <p className="text-[10.5px] text-monokai-comment leading-relaxed">此操作将清空所有节点、关系与动作，不可撤销。</p>
+          <div className="flex gap-1.5">
             <button
-              onClick={() => {
-                const nextVal = !clickToFocus;
-                setClickToFocus(nextVal);
-                if (!nextVal) {
-                  setScopeMode('all');
-                  setFocusedNodeId(null);
-                } else if (selectedNode) {
-                  setFocusedNodeId(selectedNode.id);
-                  setScopeMode('focus');
-                }
-              }}
-              style={{
-                ...btnStyle,
-                flex: 1,
-                borderColor: clickToFocus ? '#FFD166' : 'rgba(245,239,224,0.15)',
-                color: clickToFocus ? '#FFD166' : '#888',
-                background: clickToFocus ? 'rgba(255,209,102,0.08)' : btnStyle.background,
-                fontSize: 10,
-                padding: '5px 8px',
-                textAlign: 'left',
-                justifyContent: 'flex-start',
-                display: 'flex',
-                alignItems: 'center'
-              }}
+              onClick={handleQuickClear}
+              aria-label="确认清空"
+              className="flex-1 inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-md text-[11px] font-semibold bg-monokai-pink text-white border border-monokai-pink hover:brightness-110 transition cursor-pointer"
             >
-              🎯 自动聚焦: {clickToFocus ? '开启' : '关闭'}
+              <Trash2 className="w-3 h-3" />
+              确认清空
             </button>
-
-            <button
-              onClick={() => setIsFixedDrag(!isFixedDrag)}
-              title="按住Shift/Alt拖动也可临时切为固定拖动"
-              style={{
-                ...btnStyle,
-                flex: 1,
-                borderColor: isFixedDrag ? '#FFD166' : '#66d9ef',
-                color: isFixedDrag ? '#FFD166' : '#66d9ef',
-                background: isFixedDrag ? 'rgba(255,209,102,0.1)' : 'rgba(102,217,239,0.08)',
-                fontSize: 10,
-                padding: '5px 8px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-            >
-              {isFixedDrag ? '🔒 固定拖动(单节点)' : '🌀 增量联动拖动'}
-            </button>
-
-            <button
-              onClick={() => {
-                const next = !isLassoMode;
-                setIsLassoMode(next);
-                if (!next) setSelectedNodeIds(new Set());
-              }}
-              title="按住Shift拖拽画布亦可进行框选"
-              style={{
-                ...btnStyle,
-                flex: 1,
-                borderColor: isLassoMode ? '#a6e22e' : 'rgba(245,239,224,0.15)',
-                color: isLassoMode ? '#a6e22e' : '#888',
-                background: isLassoMode ? 'rgba(166,226,46,0.1)' : btnStyle.background,
-                fontSize: 10,
-                padding: '5px 8px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-            >
-              {isLassoMode ? '✂️ 框选模式 (已开启)' : '🔲 框选模式'}
-            </button>
-
-            <button
-              onClick={() => setShowPageRank(!showPageRank)}
-              title="使用PageRank算法热力识别全图信息交汇关隘节点"
-              style={{
-                ...btnStyle,
-                flex: 1,
-                borderColor: showPageRank ? '#ff0055' : 'rgba(245,239,224,0.15)',
-                color: showPageRank ? '#ff0055' : '#888',
-                background: showPageRank ? 'rgba(255,0,85,0.12)' : btnStyle.background,
-                fontSize: 10,
-                padding: '5px 8px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-            >
-              {showPageRank ? '🔥 枢纽热力 (PageRank开启)' : '🔥 PageRank 枢纽热力'}
-            </button>
-          </div>
-          <div style={{ marginTop: 5, width: '100%' }}>
-            <button
-              onClick={() => setShowTopologyReportModal(true)}
-              style={{
-                ...btnStyle,
-                width: '100%',
-                borderColor: '#FFD166',
-                color: '#FFD166',
-                background: 'rgba(255,209,102,0.08)',
-                textAlign: 'center',
-                justifyContent: 'center',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6
-              }}
-            >
-              📊 导出图拓扑分析诊断报告 (Graph Analysis Report)
-            </button>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 5, width: '100%', alignItems: 'stretch' }}>
-            <span style={{ fontSize: 10, color: '#888', marginBottom: 2 }}>📐 选择拓扑布局</span>
-            <select
-              value={layoutMode}
-              onChange={e => setLayoutMode(e.target.value as any)}
-              style={{
-                width: '100%',
-                padding: '6px 8px',
-                borderRadius: '6px',
-                border: '1px solid rgba(255, 255, 255, 0.15)',
-                background: 'rgba(39, 40, 34, 0.88)',
-                color: '#66d9ef',
-                fontSize: 11,
-                outline: 'none',
-                cursor: 'pointer'
-              }}
-            >
-              <option value="verticalTree">纵向层级树状 (Vertical Tree)</option>
-              <option value="horizontalTree">横向层级树状 (Horizontal Tree)</option>
-              <option value="dandelion">蒲公英径向 (Dandelion)</option>
-              <option value="dagre">层级分层 (Dagre)</option>
-              <option value="spoke">辐射骨架 (Spoke)</option>
-              <option value="concentric">同心圆径向 (Radial)</option>
-              <option value="starburst">星系辐射 (Starburst)</option>
-              <option value="grid">网格排列 (Grid)</option>
-              <option value="groupedCircular">分组环形 (Grouped Circular)</option>
-              <option value="force">有机力导向 (Force)</option>
-            </select>
-          </div>
-
-          {/* Quick Clear */}
-          {showClearConfirm ? (
-            <div style={{ marginTop: 8, padding: 8, border: '1px solid #ef4444', borderRadius: 6, background: 'rgba(239,68,68,0.08)', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}>
-              <div style={{ fontSize: 11, color: '#f87171', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'flex-start', textAlign: 'left' }}>
-                <AlertTriangle className="inline w-3.5 h-3.5" />
-                确认清空所有本体论数据？
-              </div>
-              <div style={{ display: 'flex', gap: 5, width: '100%', justifyContent: 'flex-start' }}>
-                <button onClick={handleQuickClear} style={{ ...btnStyle, flex: 1, background: '#ef4444', borderColor: '#ef4444', color: '#fff', fontSize: 10, padding: '5px 8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Trash2 className="inline w-3 h-3 mr-1" />
-                  确认清空
-                </button>
-                <button onClick={() => setShowClearConfirm(false)} style={{ ...btnStyle, flex: 1, fontSize: 10, padding: '5px 8px', textAlign: 'center', justifyContent: 'center' }}>
-                  取消
-                </button>
-              </div>
-            </div>
-          ) : (
-            <button onClick={() => setShowClearConfirm(true)} style={{ ...btnStyle, marginTop: 5, width: '100%', borderColor: '#ef4444', color: '#f87171', fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Trash2 className="inline w-3 h-3 mr-1" />
-              快捷清空
-            </button>
-          )}
-          
-          {/* Physics Engine Controls */}
-          <div style={{ marginTop: 10, borderTop: '1px solid #333', paddingTop: 8, width: '100%', textAlign: 'left' }}>
-            <strong style={{ fontSize: 11, display: 'block', textAlign: 'left', marginBottom: 6 }}>物理力场调节</strong>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8, width: '100%', alignItems: 'stretch' }}>
-              <label style={{ display: 'flex', alignItems: 'center', fontSize: 10, gap: 8, width: '100%', justifyContent: 'flex-start' }}>
-                <span style={{ width: 60, color: '#888', textAlign: 'left' }}>向心力</span>
-                <input type="range" min="20" max="300" value={linkDistance} onChange={e => setLinkDistance(Number(e.target.value))} style={{ flex: 1, accentColor: '#FFD166', height: 4 }} />
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', fontSize: 10, gap: 8, width: '100%', justifyContent: 'flex-start' }}>
-                <span style={{ width: 60, color: '#888', textAlign: 'left' }}>排斥力</span>
-                <input type="range" min="-1000" max="-10" value={chargeStrength} onChange={e => setChargeStrength(Number(e.target.value))} style={{ flex: 1, accentColor: '#4CC9F0', height: 4 }} />
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', fontSize: 10, gap: 8, width: '100%', justifyContent: 'flex-start' }}>
-                <span style={{ width: 60, color: '#888', textAlign: 'left' }}>防拥挤</span>
-                <input type="range" min="0" max="50" value={collisionRadius} onChange={e => setCollisionRadius(Number(e.target.value))} style={{ flex: 1, accentColor: '#FF9CF7', height: 4 }} />
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', fontSize: 10, gap: 8, width: '100%', justifyContent: 'flex-start' }}>
-                <span style={{ width: 60, color: '#888', textAlign: 'left' }}>引力阻尼</span>
-                <input type="range" min="0.1" max="0.9" step="0.05" value={velocityDecay} onChange={e => setVelocityDecay(Number(e.target.value))} style={{ flex: 1, accentColor: '#A6E22E', height: 4 }} />
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', fontSize: 10, gap: 8, width: '100%', justifyContent: 'flex-start' }}>
-                <span style={{ width: 60, color: '#888', textAlign: 'left' }}>重力收拢</span>
-                <input type="range" min="0.0" max="0.5" step="0.05" value={gravityStrength} onChange={e => setGravityStrength(Number(e.target.value))} style={{ flex: 1, accentColor: '#AE81FF', height: 4 }} />
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', fontSize: 10, gap: 8, width: '100%', justifyContent: 'flex-start' }}>
-                <span style={{ width: 60, color: '#888', textAlign: 'left' }}>连接刚度</span>
-                <input type="range" min="0.05" max="1.0" step="0.05" value={linkStrength} onChange={e => setLinkStrength(Number(e.target.value))} style={{ flex: 1, accentColor: '#F92672', height: 4 }} />
-              </label>
-              <div style={{ display: 'flex', justifyContent: 'flex-start', width: '100%' }}>
-                <button onClick={() => { setLinkDistance(150); setChargeStrength(-180); setCollisionRadius(14); setVelocityDecay(0.4); setGravityStrength(0.15); setLinkStrength(0.4); }} style={{ ...btnStyle, fontSize: 9, padding: '2px 6px', opacity: 0.8, textAlign: 'center', justifyContent: 'center' }}>复位力场</button>
-              </div>
-            </div>
-          </div>
-
-          {/* Link Weight Filter */}
-          <div style={{ marginTop: 10, borderTop: '1px solid #333', paddingTop: 8, width: '100%', textAlign: 'left' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2, marginBottom: 6 }}>
-              <strong style={{ fontSize: 11, textAlign: 'left' }}>关系强度过滤</strong>
-              <span style={{ fontSize: 10, color: '#FFD166', textAlign: 'left' }}>
-                {weightThreshold === 0 ? '显示全部' : `隐藏 weight < ${weightThreshold}`}
-              </span>
-            </div>
-            <label style={{ display: 'flex', alignItems: 'center', fontSize: 10, gap: 8, width: '100%', justifyContent: 'flex-start' }}>
-              <span style={{ width: 60, color: '#888', textAlign: 'left' }}>过滤阈值</span>
-              <input
-                type="range" min="0" max="0.9" step="0.05"
-                value={weightThreshold}
-                onChange={e => setWeightThreshold(Number(e.target.value))}
-                style={{ flex: 1, accentColor: '#FFD166', height: 4 }}
-              />
-              <span style={{ width: 24, color: '#ccc', fontSize: 10, textAlign: 'left' }}>{weightThreshold.toFixed(1)}</span>
-            </label>
-            <div style={{ display: 'flex', gap: 4, marginTop: 6, width: '100%', justifyContent: 'flex-start' }}>
-              <button
-                onClick={() => setWeightThreshold(0)}
-                style={{ ...btnStyle, flex: 1, fontSize: 9, padding: '3px 6px', borderColor: weightThreshold === 0 ? '#FFD166' : undefined, color: weightThreshold === 0 ? '#FFD166' : undefined, textAlign: 'center', justifyContent: 'center' }}
-              >全部</button>
-              <button
-                onClick={() => setWeightThreshold(0.5)}
-                style={{ ...btnStyle, flex: 1, fontSize: 9, padding: '3px 6px', borderColor: weightThreshold === 0.5 ? '#FFD166' : undefined, color: weightThreshold === 0.5 ? '#FFD166' : undefined, textAlign: 'center', justifyContent: 'center' }}
-              >强关系 (0.5)</button>
-              <button
-                onClick={() => setWeightThreshold(0.7)}
-                style={{ ...btnStyle, flex: 1, fontSize: 9, padding: '3px 6px', borderColor: weightThreshold === 0.7 ? '#FFD166' : undefined, color: weightThreshold === 0.7 ? '#FFD166' : undefined, textAlign: 'center', justifyContent: 'center' }}
-              >核心 (0.7)</button>
-            </div>
-          </div>
-
-          {/* Search */}
-          <div style={{ marginTop: 10, borderTop: '1px solid #333', paddingTop: 8, width: '100%', textAlign: 'left' }}>
-            <strong style={{ fontSize: 11, display: 'block', textAlign: 'left', marginBottom: 6 }}>搜索拓扑图</strong>
-            <div style={{ display: 'flex', alignItems: 'center', marginTop: 5, width: '100%', justifyContent: 'flex-start' }}>
-              <input
-                id="nv-search-input"
-                type="text"
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === 'Enter') navigateSearch(1);
-                  else if (e.key === 'Escape') setSearchTerm('');
-                }}
-                placeholder="对象名、类型..."
-                style={{
-                  flex: 1, padding: '4px 8px', border: '1px solid rgba(245,239,224,0.15)', borderRadius: 6,
-                  background: 'rgba(39,40,34,0.88)', color: '#f8f8f2', fontSize: 11, outline: 'none',
-                  textAlign: 'left'
-                }}
-              />
-              {searchTerm && <button onClick={() => setSearchTerm('')} style={{ ...btnStyle, marginLeft: 4 }}>✕</button>}
-            </div>
-            {searchHighlightedRef.current.length > 0 && (
-              <div style={{ marginTop: 4, display: 'flex', gap: 4, width: '100%', justifyContent: 'flex-start' }}>
-                <button onClick={() => navigateSearch(-1)} style={{ ...btnStyle, flex: 1, textAlign: 'center', justifyContent: 'center' }}>◀ 上一个</button>
-                <button onClick={() => navigateSearch(1)} style={{ ...btnStyle, flex: 1, textAlign: 'center', justifyContent: 'center' }}>下一个 ▶</button>
-              </div>
-            )}
-            {searchHighlightedRef.current.length > 0 && (
-              <div style={{ marginTop: 3, fontSize: 10, color: '#00BFFF', textAlign: 'left' }}>
-                找到 {searchHighlightedRef.current.length} 条结果
-              </div>
-            )}
-          </div>
-          <div style={{ marginTop: 10, display: 'flex', gap: 5, flexDirection: 'column', width: '100%', alignItems: 'stretch' }}>
-            <button onClick={() => setShowScanModal(true)} style={{ ...btnStyle, borderColor: '#FFD166', width: '100%', textAlign: 'center', justifyContent: 'center' }}>
-              查看原始数据
-            </button>
-            <div style={{ display: 'flex', gap: 4, width: '100%' }}>
-              <button
-                onClick={async () => {
-                  try {
-                    if (!graphDataRef.current) return;
-                    await downloadD3GraphImage(graphDataRef.current.nodes, graphDataRef.current.links, graphDataRef.current.linkTypeMap, 'png', 'full-knowledge-graph');
-                    setToast({ message: '整图图片导出成功！', type: 'success' });
-                  } catch (err: any) {
-                    setToast({ message: `整图导出失败: ${err.message}`, type: 'error' });
-                  }
-                }}
-                style={{ ...btnStyle, flex: 1, borderColor: '#3b82f6', color: '#60a5fa', textAlign: 'center', justifyContent: 'center' }}
-              >
-                🖼️ 导出整图 (PNG)
-              </button>
-              <button
-                onClick={async () => {
-                  try {
-                    if (!graphDataRef.current) return;
-                    await downloadD3GraphImage(graphDataRef.current.nodes, graphDataRef.current.links, graphDataRef.current.linkTypeMap, 'svg', 'full-knowledge-graph');
-                    setToast({ message: '整图 SVG 导出成功！', type: 'success' });
-                  } catch (err: any) {
-                    setToast({ message: `整图导出失败: ${err.message}`, type: 'error' });
-                  }
-                }}
-                style={{ ...btnStyle, flex: 1, borderColor: '#3b82f6', color: '#60a5fa', textAlign: 'center', justifyContent: 'center' }}
-              >
-                📐 导出 SVG
-              </button>
-            </div>
-            <button
-              onClick={async () => {
-                try {
-                  if (!graphDataRef.current) return;
-                  setToast({ message: '正在批量生成所有子图图片，请稍候...', type: 'success' });
-                  await exportAllSubgraphs(
-                    graphDataRef.current.nodes,
-                    graphDataRef.current.links,
-                    graphDataRef.current.linkTypeMap,
-                    (cur, tot, label) => setToast({ message: `正在导出子图 (${cur}/${tot}): ${label}`, type: 'success' })
-                  );
-                  setToast({ message: '所有节点关联子图图片已导出完毕！', type: 'success' });
-                } catch (err: any) {
-                  setToast({ message: `批量导出子图失败: ${err.message}`, type: 'error' });
-                }
-              }}
-              style={{ ...btnStyle, borderColor: '#a6e22e', color: '#a6e22e', width: '100%', textAlign: 'center', justifyContent: 'center' }}
-            >
-              📦 批量导出所有节点关联图
-            </button>
-            <button onClick={downloadCSV} style={{ ...btnStyle, borderColor: '#4CAF50', width: '100%', textAlign: 'center', justifyContent: 'center' }}>
-              下载 CSV
-            </button>
-            <button onClick={downloadExcelFile} style={{ ...btnStyle, borderColor: 'rgba(166,226,46,0.4)', width: '100%', textAlign: 'center', color: '#50fa7b', background: 'rgba(39,40,34,0.88)', justifyContent: 'center' }}>
-              下载 Excel
+            <button onClick={() => setShowClearConfirm(false)} aria-label="取消" className={BTN_SECONDARY}>
+              取消
             </button>
           </div>
         </div>
       )}
 
+      {/* ==================== LEFT: Controls (新版 MECE 拓扑布局组件) ==================== */}
+      {showControls && graphData && (
+        <TopologyLayoutPanel
+          renderEngineMode={renderEngineMode}
+          onRenderEngineModeChange={(mode) => {
+            setRenderEngineMode(mode);
+          }}
+          onFitAll={fitAll}
+          onResetLayout={resetLayout}
+          onZoomIn={zoomIn}
+          onZoomOut={zoomOut}
+          onRefresh={refreshGraph}
+          layoutMode={layoutMode}
+          onLayoutModeChange={switchLayoutMode}
+          searchTerm={searchTerm}
+          onSearchTermChange={setSearchTerm}
+          nodeTypeFilters={nodeTypeFilters}
+          onNodeTypeFiltersChange={setNodeTypeFilters}
+          nodeCountByType={nodeCountByType}
+          labelMode={labelMode}
+          onLabelModeChange={setLabelMode}
+          weightThreshold={weightThreshold}
+          onWeightThresholdChange={setWeightThreshold}
+          showHierarchyLinks={showHierarchyLinks}
+          onShowHierarchyLinksChange={setShowHierarchyLinks}
+          enableLinkParticles={enableLinkParticles}
+          onEnableLinkParticlesChange={setEnableLinkParticles}
+          edgeRoutingMode={edgeRoutingMode}
+          onEdgeRoutingModeChange={setEdgeRoutingMode}
+          edgeLabelDisplay={edgeLabelDisplay}
+          onEdgeLabelDisplayChange={setEdgeLabelDisplay}
+          onAIFill={() => setShowAIFillInput(true)}
+          onClear={() => setShowClearConfirm(true)}
+          clickToFocus={clickToFocus}
+          onClickToFocusChange={val => {
+            setClickToFocus(val);
+            if (!val) {
+              setScopeMode('all');
+              setFocusedNodeId(null);
+            } else if (selectedNode) {
+              setFocusedNodeId(selectedNode.id);
+              setScopeMode('focus');
+            }
+          }}
+          isFixedDrag={isFixedDrag}
+          onIsFixedDragChange={setIsFixedDrag}
+          isLassoMode={isLassoMode}
+          onIsLassoModeChange={val => {
+            setIsLassoMode(val);
+            if (!val) setSelectedNodeIds(new Set());
+          }}
+          showPageRank={showPageRank}
+          onShowPageRankChange={setShowPageRank}
+          chargeStrength={chargeStrength}
+          onChargeStrengthChange={setChargeStrength}
+          linkDistance={linkDistance}
+          onLinkDistanceChange={setLinkDistance}
+          collisionRadius={collisionRadius}
+          onCollisionRadiusChange={setCollisionRadius}
+          velocityDecay={velocityDecay}
+          onVelocityDecayChange={setVelocityDecay}
+          gravityStrength={gravityStrength}
+          onGravityStrengthChange={setGravityStrength}
+          linkStrength={linkStrength}
+          onLinkStrengthChange={setLinkStrength}
+          nodeCount={graphData.nodes.length}
+          linkCount={graphData.links.length}
+          fps={perfStats.fps}
+          renderTime={perfStats.renderTime}
+          perfHistory={perfStats.history}
+          canUndo={canUndo}
+          canRedo={canRedo}
+          onUndo={undoLayout}
+          onRedo={redoLayout}
+          onApplySnapshot={(snapshot) => {
+            if (snapshot.nodePositions && graphDataRef.current) {
+              const pos = snapshot.nodePositions;
+              graphDataRef.current.nodes.forEach(n => {
+                if (pos[n.id]) {
+                  n.x = pos[n.id].x;
+                  n.y = pos[n.id].y;
+                  n.fx = pos[n.id].x;
+                  n.fy = pos[n.id].y;
+                }
+              });
+              simulationRef.current?.alpha(0.3).restart();
+            }
+          }}
+          onShowTopologyReport={() => setShowTopologyReportModal(true)}
+          showHelp={showHelp}
+          onShowHelpChange={setShowHelp}
+          isLoading={isAiFilling}
+          onClose={() => setShowControls(false)}
+          onExportCSV={downloadCSV}
+          onExportExcel={downloadExcelFile}
+          onExportPNG={async () => {
+            try {
+              if (!graphDataRef.current) return;
+              await downloadD3GraphImage(graphDataRef.current.nodes, graphDataRef.current.links, graphDataRef.current.linkTypeMap, 'png', 'knowledge-graph');
+              setToast({ message: '高清 PNG 图片导出成功！', type: 'success' });
+            } catch (err: any) {
+              setToast({ message: `图片导出失败: ${err.message}`, type: 'error' });
+            }
+          }}
+          onExportSVG={async () => {
+            try {
+              if (!graphDataRef.current) return;
+              await downloadD3GraphImage(graphDataRef.current.nodes, graphDataRef.current.links, graphDataRef.current.linkTypeMap, 'svg', 'full-knowledge-graph');
+              setToast({ message: '整图 SVG 导出成功！', type: 'success' });
+            } catch (err: any) {
+              setToast({ message: `整图导出失败: ${err.message}`, type: 'error' });
+            }
+          }}
+          onExportSubgraphs={async () => {
+            try {
+              if (!graphDataRef.current) return;
+              setToast({ message: '正在批量生成所有子图图片，请稍候...', type: 'success' });
+              await exportAllSubgraphs(
+                graphDataRef.current.nodes,
+                graphDataRef.current.links,
+                graphDataRef.current.linkTypeMap,
+                (cur, tot, label) => setToast({ message: `正在导出子图 (${cur}/${tot}): ${label}`, type: 'success' })
+              );
+              setToast({ message: '所有节点关联子图图片已导出完毕！', type: 'success' });
+            } catch (err: any) {
+              setToast({ message: `批量导出子图失败: ${err.message}`, type: 'error' });
+            }
+          }}
+        />
+      )}
+
+
       {!showControls && (
-        <button onClick={() => setShowControls(true)} style={{ position: 'absolute', top: 10, left: 10, zIndex: 1000, ...panelBtnStyle }}>
+        <button
+          onClick={() => setShowControls(true)}
+          className={`${SURFACE_HEADER_BTN} absolute top-2.5 left-2.5 shadow-md`}
+        >
           控制面板
         </button>
       )}
 
+      {/* ==================== RENDER ENGINE MODE SWITCHER (MECE 三引擎：SVG / Canvas / WebGL) ==================== */}
+      {graphData && (
+        <div ref={renderModeSwitcherRef} className="absolute top-2.5 right-[95px] z-[1000]">
+          <button
+            onClick={() => setShowRenderModeMenu(v => !v)}
+            aria-haspopup="menu"
+            aria-expanded={showRenderModeMenu}
+            aria-label="渲染模式切换"
+            className={`${SURFACE_HEADER_BTN} shadow-md flex items-center gap-1.5`}
+            title={`当前引擎：${RENDER_ENGINE_META[renderEngineMode].label} (${RENDER_ENGINE_META[renderEngineMode].hint})。点击切换 SVG / Canvas 2D / WebGL 硬件加速渲染。`}
+            style={{
+              background: RENDER_ENGINE_META[renderEngineMode].bgColor,
+              borderColor: RENDER_ENGINE_META[renderEngineMode].borderColor,
+              color: RENDER_ENGINE_META[renderEngineMode].color,
+            }}
+          >
+            {RENDER_ENGINE_META[renderEngineMode].icon}
+            <span className="font-medium text-[11px]">{RENDER_ENGINE_META[renderEngineMode].label}</span>
+            <span
+              className="text-[9px] px-1 py-0.5 rounded font-mono font-semibold"
+              style={{
+                backgroundColor: 'rgba(0,0,0,0.25)',
+                color: RENDER_ENGINE_META[renderEngineMode].color,
+              }}
+            >
+              {RENDER_ENGINE_META[renderEngineMode].hint}
+            </span>
+            <ChevronDown className={`w-3 h-3 transition-transform ${showRenderModeMenu ? 'rotate-180' : ''}`} />
+          </button>
+
+          {showRenderModeMenu && (
+            <div
+              role="menu"
+              className={`${SURFACE} absolute top-[34px] right-0 p-1.5 w-[280px] flex flex-col gap-0.5 shadow-xl`}
+            >
+              <div className="px-2 pt-1 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-monokai-comment/70 border-b border-monokai-border/40 mb-0.5 flex items-center justify-between">
+                <span>渲染引擎 · MECE 三模式</span>
+                <span className="text-[9px] text-monokai-cyan font-normal font-mono">视图状态保持</span>
+              </div>
+              {(['svg', 'canvas', 'webgl'] as RenderEngineMode[]).map((mode) => {
+                const meta = RENDER_ENGINE_META[mode];
+                const active = mode === renderEngineMode;
+                return (
+                  <button
+                    key={mode}
+                    role="menuitemradio"
+                    aria-checked={active}
+                    onClick={() => {
+                      if (!active) {
+                        switchRenderEngineMode(mode);
+                      }
+                      setShowRenderModeMenu(false);
+                    }}
+                    className={`flex items-start gap-2 px-2 py-1.5 rounded-md text-left transition-colors ${
+                      active
+                        ? 'bg-monokai-cyan/15 border border-monokai-cyan/45'
+                        : 'hover:bg-monokai-elevated/60 border border-transparent'
+                    }`}
+                    style={{
+                      color: active ? meta.color : 'var(--monokai-fg-muted, #c5c2bd)',
+                    }}
+                  >
+                    <span className="mt-0.5 shrink-0" style={{ color: meta.color }}>{meta.icon}</span>
+                    <span className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <span className="block text-[12px] font-semibold leading-tight">{meta.label}</span>
+                        <span
+                          className="text-[9px] px-1 rounded font-mono text-monokai-comment"
+                          style={{
+                            backgroundColor: 'rgba(255,255,255,0.06)',
+                          }}
+                        >
+                          {meta.hint}
+                        </span>
+                      </div>
+                      <span className="block text-[10px] text-monokai-comment/80 leading-snug mt-0.5">{meta.description}</span>
+                    </span>
+                    {active && (
+                      <span className="text-[9px] font-mono font-bold text-monokai-cyan mt-0.5 shrink-0">当前</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ==================== RIGHT: Stats + Info ==================== */}
       {showInfo && graphData && (
-        <div ref={infoPanelRef} style={{ position: 'absolute', top: 10, right: 10, zIndex: 1000, ...panelBase, padding: 10, minWidth: 250, maxHeight: '75vh', overflowY: 'auto' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <strong style={{ fontSize: 13 }}>扫描统计</strong>
-            <button onClick={() => setShowInfo(false)} style={panelBtnStyle}>隐藏</button>
+        <div ref={infoPanelRef} className={`${SURFACE} absolute top-2.5 right-2.5 z-[1000] p-2.5 min-w-[250px] max-h-[75vh] overflow-y-auto text-[12px]`}>
+          <div className="flex items-center justify-between mb-2">
+            <strong className="text-[13px] text-monokai-fg">扫描统计</strong>
+            <button onClick={() => setShowInfo(false)} className={SURFACE_HEADER_BTN}>隐藏</button>
           </div>
-          <div style={{ fontSize: 11 }}>
-            <div style={{ marginBottom: 4 }}>
-              <span style={{ color: '#888' }}>节点总数: </span>
-              <span style={{ color: '#00BFFF', fontWeight: 'bold' }}>{stats.nodes}</span>
+          <div className="text-[11px]">
+            <div className="mb-1">
+              <span className="text-monokai-comment">节点总数: </span>
+              <span className="text-monokai-cyan font-bold">{stats.nodes}</span>
             </div>
-            <div style={{ marginBottom: 6 }}>
-              <span style={{ color: '#888' }}>连接总数: </span>
-              <span style={{ color: '#FFD166', fontWeight: 'bold' }}>{stats.links}</span>
+            <div className="mb-1">
+              <span className="text-monokai-comment">连接总数: </span>
+              <span className="text-monokai-yellow font-bold">{stats.links}</span>
             </div>
-            
+            <div className="mb-1.5 flex items-center justify-between">
+              <span className="text-monokai-comment">当前引擎: </span>
+              <span className="font-semibold text-[10.5px]" style={{ color: RENDER_ENGINE_META[renderEngineMode].color }}>
+                {RENDER_ENGINE_META[renderEngineMode].label}
+              </span>
+            </div>
+
             {/* Rendering Limits Warning */}
             {(stats.nodes > 800 || stats.links > 1500) && (
-              <div style={{ background: 'rgba(255, 69, 58, 0.15)', border: '1px solid rgba(255, 69, 58, 0.4)', borderRadius: 4, padding: '8px', margin: '10px 0', fontSize: 10.5, color: '#ff453a', lineHeight: 1.5 }}>
-                <strong style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+              <div className="bg-monokai-pink/15 border border-monokai-pink/45 rounded p-2 my-2.5 text-[10.5px] text-monokai-pink leading-relaxed">
+                <strong className="flex items-center gap-1 mb-1">
                   ⚠️ 渲染极限警戒
                 </strong>
                 当前图谱量级极速逼近浏览器 GPU 上限。为了避免交互卡屏，系统已为您限制部分力学计算。遇到抖动请谨慎拉拽，推荐退回表格检索或在局部子图使用 Focus 聚焦模式。
               </div>
             )}
 
-            <div style={{ borderTop: '1px solid #333', paddingTop: 8, marginTop: 8 }}>
-              <div dangerouslySetInnerHTML={{ __html: infoContent || '<span style="color:#555;font-size:10px">单击节点查看详情</span>' }} />
+            <div className="border-t border-monokai-border pt-2 mt-2">
+              <div dangerouslySetInnerHTML={{ __html: infoContent || '<span style="color:var(--monokai-comment,#75715e);font-size:10px">单击节点查看详情</span>' }} />
             </div>
           </div>
         </div>
       )}
 
       {!showInfo && (
-        <button onClick={() => setShowInfo(true)} style={{ position: 'absolute', top: 10, right: 10, zIndex: 1000, ...panelBtnStyle }}>
+        <button onClick={() => setShowInfo(true)} className={`${SURFACE_HEADER_BTN} absolute top-2.5 right-2.5 z-[1000] shadow-md`}>
           信息面板
         </button>
       )}
 
       {/* ==================== BOTTOM-LEFT: Legend ==================== */}
       {showLegend && graphData && (
-        <div style={{ position: 'absolute', bottom: 10, left: 10, zIndex: 1000, ...panelBase, padding: 10 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <strong style={{ fontSize: 13 }}>图例</strong>
-            <button onClick={() => setShowLegend(false)} style={panelBtnStyle}>隐藏</button>
+        <div className={`${SURFACE} absolute bottom-2.5 left-2.5 z-[1000] p-2.5 text-[12px]`}>
+          <div className="flex items-center justify-between mb-2">
+            <strong className="text-[13px] text-monokai-fg">图例</strong>
+            <button onClick={() => setShowLegend(false)} className={SURFACE_HEADER_BTN}>隐藏</button>
           </div>
           {[
             { color: TYPE_COLORS_WARM[0], r: 8, label: '类型集 (TypeHub: 六边形枢纽)' },
@@ -3279,26 +5402,26 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
             { color: '#FF6B35', r: 3, label: '已完成进度/行动' },
             { color: '#FF9800', r: 3, label: '待处理队列' },
           ].map(item => (
-            <div key={item.label} style={{ display: 'flex', alignItems: 'center', margin: '2px 0' }}>
-              <svg width="16" height="16" viewBox="-10 -10 20 20" style={{ marginRight: 5 }}>
+            <div key={item.label} className="flex items-center my-0.5">
+              <svg width="16" height="16" viewBox="-10 -10 20 20" className="mr-1.5">
                 <circle cx="0" cy="0" r={item.r} fill={item.color} stroke="rgba(255,255,255,0.6)" strokeWidth="1.5" />
               </svg>
-              <span style={{ fontSize: 11, color: '#ccc' }}>{item.label}</span>
+              <span className="text-[11px] text-monokai-fg-muted">{item.label}</span>
             </div>
           ))}
           {/* Property badge legend */}
-          <div style={{ display: 'flex', alignItems: 'center', marginTop: 5 }}>
-            <svg width="18" height="18" style={{ marginRight: 5 }}>
+          <div className="flex items-center mt-1.5">
+            <svg width="18" height="18" className="mr-1.5">
               <circle cx="5" cy="5" r="5" fill={TYPE_COLORS_COOL[0]} stroke="rgba(255,255,255,0.55)" strokeWidth="1.5" />
               <circle cx="10" cy="10" r="4" fill="#FF6B35" stroke="rgba(0,0,0,0.5)" strokeWidth="1" />
               <text x="10" y="11" textAnchor="middle" dominantBaseline="middle" fontSize="5" fontWeight="bold" fill="white" fontFamily="Arial">3</text>
             </svg>
-            <span style={{ fontSize: 11, color: '#ccc' }}>属性数量徽标 (右下角)</span>
+            <span className="text-[11px] text-monokai-fg-muted">属性数量徽标 (右下角)</span>
           </div>
-          <div style={{ borderTop: '1px solid #333', paddingTop: 6, marginTop: 4 }}>
+          <div className="border-t border-monokai-border pt-1.5 mt-1">
             {relationLegendItems.map(item => (
-              <div key={item.id} style={{ display: 'flex', alignItems: 'center', marginTop: 4 }} title={item.description}>
-                <svg width="36" height="10" style={{ marginRight: 5 }}>
+              <div key={item.id} className="flex items-center mt-1" title={item.description}>
+                <svg width="36" height="10" className="mr-1.5">
                   <defs>
                     <marker id={`leg-arrow-linktype-${item.id}`} markerWidth="6" markerHeight="4" refX="6" refY="2" orient="auto">
                       <polygon points="0 0, 6 2, 0 4" fill={item.color} />
@@ -3311,11 +5434,11 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
                     markerEnd={`url(#leg-arrow-linktype-${item.id})`}
                   />
                 </svg>
-                <span style={{ fontSize: 11, color: '#ccc' }}>{item.name} ({item.count})</span>
+                <span className="text-[11px] text-monokai-fg-muted">{item.name} ({item.count})</span>
               </div>
             ))}
-            {false && <div style={{ display: 'flex', alignItems: 'center', marginTop: 4 }}>
-              <svg width="36" height="10" style={{ marginRight: 5 }}>
+            {false && <div className="flex items-center mt-1">
+              <svg width="36" height="10" className="mr-1.5">
                 <defs>
                   <marker id="leg-arrow-amber" markerWidth="6" markerHeight="4" refX="6" refY="2" orient="auto">
                     <polygon points="0 0, 6 2, 0 4" fill="#FFD166" />
@@ -3329,16 +5452,16 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
                 </defs>
                 <line x1="0" y1="5" x2="26" y2="5" stroke="#FFD166" strokeWidth="2.5" markerEnd="url(#leg-arrow-amber)" />
               </svg>
-              <span style={{ fontSize: 11, color: '#ccc' }}>关系连线</span>
+              <span className="text-[11px] text-monokai-fg-muted">关系连线</span>
             </div>}
-            <div style={{ display: 'flex', alignItems: 'center', marginTop: 4 }}>
-              <svg width="36" height="10" style={{ marginRight: 5 }}>
+            <div className="flex items-center mt-1">
+              <svg width="36" height="10" className="mr-1.5">
                 <line x1="0" y1="5" x2="26" y2="5" stroke="rgba(255,255,255,0.45)" strokeWidth="1.2" strokeDasharray="5 3" />
               </svg>
-              <span style={{ fontSize: 11, color: '#ccc' }}>类型归属 (虚线)</span>
+              <span className="text-[11px] text-monokai-fg-muted">类型归属 (虚线)</span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', marginTop: 4 }}>
-              <svg width="36" height="10" style={{ marginRight: 5 }}>
+            <div className="flex items-center mt-1">
+              <svg width="36" height="10" className="mr-1.5">
                 <defs>
                   <marker id="leg-arrow-amethyst" markerWidth="6" markerHeight="4" refX="6" refY="2" orient="auto">
                     <polygon points="0 0, 6 2, 0 4" fill="#FF9CF7" />
@@ -3346,14 +5469,14 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
                 </defs>
                 <line x1="0" y1="5" x2="26" y2="5" stroke="#FF9CF7" strokeWidth="1" markerEnd="url(#leg-arrow-amethyst)" />
               </svg>
-              <span style={{ fontSize: 11, color: '#ccc' }}>行动连线</span>
+              <span className="text-[11px] text-monokai-fg-muted">行动连线</span>
             </div>
           </div>
         </div>
       )}
 
       {!showLegend && (
-        <button onClick={() => setShowLegend(true)} style={{ position: 'absolute', bottom: 10, left: 10, zIndex: 1000, ...panelBtnStyle }}>
+        <button onClick={() => setShowLegend(true)} className={`${SURFACE_HEADER_BTN} absolute bottom-2.5 left-2.5 z-[1000] shadow-md`}>
           图例
         </button>
       )}
@@ -3542,34 +5665,30 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
       )}
 
       {/* ==================== Scan Data Modal ==================== */}
-      {showScanModal && graphData && (
-        <div
-          style={{ position: 'absolute', inset: 0, zIndex: 2000, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-          onClick={() => setShowScanModal(false)}
-        >
-          <div
-            style={{ background: 'rgba(39,40,34,0.97)', border: '1px solid rgba(245,239,224,0.15)', borderRadius: 8, padding: 20, maxWidth: '80vw', maxHeight: '80vh', overflow: 'auto', color: '#f8f8f2', fontFamily: 'monospace', fontSize: 11 }}
-            onClick={e => e.stopPropagation()}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <strong style={{ fontSize: 14 }}>本体图谱原始数据</strong>
-              <button onClick={() => setShowScanModal(false)} style={panelBtnStyle}>关闭</button>
-            </div>
-            <div style={{ marginBottom: 12 }}>
-              <strong>类型 ({graphData.typeNames.length})</strong>
-              <pre style={{ background: 'rgba(13,13,11,0.95)', padding: 8, borderRadius: 4, maxHeight: 200, overflow: 'auto', fontSize: 10 }}>
+      <ModalShell
+        open={showScanModal && Boolean(graphData)}
+        onClose={() => setShowScanModal(false)}
+        title="本体图谱原始数据"
+        description="Raw Graph Schema & Topology Payload"
+        size="xl"
+      >
+        {graphData && (
+          <div className="space-y-3 font-mono text-xs text-monokai-fg">
+            <div>
+              <div className="font-bold text-monokai-yellow mb-1">类型 ({graphData.typeNames.length})</div>
+              <pre className="p-2.5 rounded-lg bg-monokai-bg border border-monokai-border max-h-40 overflow-auto text-xs">
                 {JSON.stringify(graphData.typeNames.map((n, i) => ({ id: i + 1, name: n })), null, 2)}
               </pre>
             </div>
-            <div style={{ marginBottom: 12 }}>
-              <strong>节点 ({graphData.nodes.length})</strong>
-              <pre style={{ background: 'rgba(13,13,11,0.95)', padding: 8, borderRadius: 4, maxHeight: 300, overflow: 'auto', fontSize: 10 }}>
+            <div>
+              <div className="font-bold text-monokai-cyan mb-1">节点 ({graphData.nodes.length})</div>
+              <pre className="p-2.5 rounded-lg bg-monokai-bg border border-monokai-border max-h-52 overflow-auto text-xs">
                 {JSON.stringify(graphData.nodes, null, 2)}
               </pre>
             </div>
             <div>
-              <strong>连线 ({graphData.links.length})</strong>
-              <pre style={{ background: 'rgba(13,13,11,0.95)', padding: 8, borderRadius: 4, maxHeight: 300, overflow: 'auto', fontSize: 10 }}>
+              <div className="font-bold text-monokai-green mb-1">连线 ({graphData.links.length})</div>
+              <pre className="p-2.5 rounded-lg bg-monokai-bg border border-monokai-border max-h-52 overflow-auto text-xs">
                 {JSON.stringify(graphData.links.map(l => ({
                   source: typeof l.source === 'object' ? (l.source as GraphNode).id : l.source,
                   target: typeof l.target === 'object' ? (l.target as GraphNode).id : l.target,
@@ -3578,8 +5697,8 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
               </pre>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </ModalShell>
 
       {/* ==================== Loading ==================== */}
       {loading && (
@@ -3595,6 +5714,37 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
 
       <style>{`
         @keyframes nv-pulse { from { width: 20%; } to { width: 80%; } }
+        
+        @keyframes nv-flow-dash {
+          to {
+            stroke-dashoffset: -20;
+          }
+        }
+        .nv-link-particle {
+          pointer-events: none;
+          stroke-dasharray: 4 14;
+          animation: nv-flow-dash 1.4s linear infinite;
+        }
+        .nv-link-particle-action {
+          stroke-dasharray: 3 8;
+          animation: nv-flow-dash 1.0s linear infinite;
+        }
+        .nv-link-main.nv-link-selected {
+          stroke: #FFD166 !important;
+          stroke-width: 3.5px !important;
+          filter: drop-shadow(0 0 8px rgba(255, 209, 102, 0.95)) !important;
+        }
+        .nv-link-action {
+          stroke-dasharray: 4 3;
+        }
+        .nv-link-typeinst {
+          stroke-dasharray: 5 4;
+        }
+        .nv-node.nv-connected-node circle {
+          stroke: #FFD166 !important;
+          stroke-width: 3px !important;
+          filter: drop-shadow(0 0 8px rgba(255, 209, 102, 0.9)) !important;
+        }
         
         .nv-dim {
           opacity: 0.12 !important;
@@ -3663,13 +5813,13 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
         .nv-context-menu {
           position: absolute;
           z-index: 2100;
-          background: rgba(18, 19, 26, 0.95);
+          background: #252623;
           backdrop-filter: blur(12px);
-          border: 1px solid rgba(255, 255, 255, 0.08);
+          border: 1px solid rgba(248, 248, 242, 0.1);
           border-radius: 8px;
           padding: 4px;
           box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
-          min-width: 140px;
+          min-width: 150px;
           display: flex;
           flex-direction: column;
           gap: 2px;
@@ -3678,9 +5828,9 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
           display: flex;
           align-items: center;
           gap: 8px;
-          padding: 6px 12px;
-          font-size: 11px;
-          color: #e2e8f0;
+          padding: 7px 12px;
+          font-size: 12px;
+          color: #f8f8f2;
           cursor: pointer;
           border-radius: 6px;
           transition: all 0.15s ease;
@@ -3690,15 +5840,15 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
           width: 100%;
         }
         .nv-context-menu-item:hover {
-          background: rgba(255, 255, 255, 0.06);
+          background: rgba(248, 248, 242, 0.08);
           color: #ffffff;
         }
         .nv-context-menu-item.danger {
-          color: #f87171;
+          color: #ff6188;
         }
         .nv-context-menu-item.danger:hover {
-          background: rgba(239, 68, 68, 0.15);
-          color: #fca5a5;
+          background: rgba(255, 97, 136, 0.15);
+          color: #ff6188;
         }
       `}</style>
 
@@ -3730,28 +5880,31 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
         >
           {(() => {
             const d = hoveredNode;
-            const connLinks = graphData.links.filter(l => {
-              const s = typeof l.source === 'object' ? (l.source as GraphNode).id : l.source;
-              const t = typeof l.target === 'object' ? (l.target as GraphNode).id : l.target;
-              return s === d.id || t === d.id;
-            });
             const nodeMap = new Map(graphData.nodes.map(n => [n.id, n]));
-            const getNodeLabel = (id: string) => nodeMap.get(id)?.label || id;
-
-            // Collect connected nodes grouped by link type
-            const connMap: Record<string, { label: string; weight: number }[]> = {};
-            connLinks.forEach(l => {
-              const s = typeof l.source === 'object' ? (l.source as GraphNode).id : l.source;
-              const t = typeof l.target === 'object' ? (l.target as GraphNode).id : l.target;
-              const otherId = s === d.id ? t : s;
-              const otherNode = nodeMap.get(otherId);
-              if (!otherNode) return;
-              const relName = l._linkTypeName || graphData.linkTypeMap[l._linkTypeId ?? -1]?.name || '关联';
-              if (!connMap[relName]) connMap[relName] = [];
-              if (!connMap[relName].find(c => c.label === otherNode.label)) {
-                connMap[relName].push({ label: otherNode.label, weight: Number(l.weight) || 0.5 });
-              }
+            const connLinks = graphData.links.filter(l => {
+              const s = String(typeof l.source === 'object' ? (l.source as GraphNode).id : l.source);
+              const t = String(typeof l.target === 'object' ? (l.target as GraphNode).id : l.target);
+              return s === String(d.id) || t === String(d.id);
             });
+
+            // Group relations into explicit directed triplets
+            const relationItems = connLinks.map(l => {
+              const sId = String(typeof l.source === 'object' ? (l.source as GraphNode).id : l.source);
+              const tId = String(typeof l.target === 'object' ? (l.target as GraphNode).id : l.target);
+              const isOut = sId === String(d.id);
+              const otherId = isOut ? tId : sId;
+              const otherNode = nodeMap.get(otherId);
+              const relName = l._linkTypeName || (l._linkTypeId !== undefined ? graphData.linkTypeMap[l._linkTypeId]?.name : null) || (l._isTypeInstLink ? '概念具象' : (l._isActionLink ? '拥有动作' : (l.label || '关联')));
+              const color = l._isTypeInstLink ? 'rgba(148,163,184,0.7)' : (l._isActionLink ? '#bd93f9' : (l.color || '#66d9ef'));
+              return {
+                id: String(l.id || `${sId}-${tId}`),
+                isOut,
+                isTypeInst: Boolean(l._isTypeInstLink),
+                relName,
+                color,
+                otherNode,
+              };
+            }).filter(item => Boolean(item.otherNode));
 
             return (
               <>
@@ -3770,17 +5923,17 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
                 {/* Type badge */}
                 <div style={{ marginBottom: 8 }}>
                   {d.group === 'typeHub' && (
-                    <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, background: `${d.color}30`, color: d.color, border: `1px solid ${d.color}50`, fontWeight: 600 }}>
+                    <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 4, background: `${d.color}25`, color: d.color, border: `1px solid ${d.color}40`, fontWeight: 600 }}>
                       类型 {d._instanceCount !== undefined ? `· ${d._instanceCount} 个实例` : ''}
                     </span>
                   )}
                   {d.group === 'instance' && (
-                    <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, background: `${d.color}30`, color: d.color, border: `1px solid ${d.color}50`, fontWeight: 600 }}>
+                    <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 4, background: `${d.color}25`, color: d.color, border: `1px solid ${d.color}40`, fontWeight: 600 }}>
                       实例
                     </span>
                   )}
                   {d.group === 'action' && (
-                    <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, background: `${d.color}30`, color: d.color, border: `1px solid ${d.color}50`, fontWeight: 600 }}>
+                    <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 4, background: `${d.color}25`, color: d.color, border: `1px solid ${d.color}40`, fontWeight: 600 }}>
                       行动
                     </span>
                   )}
@@ -3788,7 +5941,7 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
 
                 {/* TypeHub: show description */}
                 {d.group === 'typeHub' && d.description && (
-                  <div style={{ fontSize: 10, color: '#888', marginBottom: 6, lineHeight: 1.5 }}>
+                  <div style={{ fontSize: 11, color: '#999', marginBottom: 6, lineHeight: 1.5 }}>
                     {d.description.slice(0, 60)}{d.description.length > 60 ? '…' : ''}
                   </div>
                 )}
@@ -3805,8 +5958,8 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
                         const v = parsed[k];
                         const vStr = typeof v === 'object' ? JSON.stringify(v).slice(0, 20) : String(v);
                         return (
-                          <div key={k} style={{ display: 'flex', gap: 4, fontSize: 10, lineHeight: 1.7 }}>
-                            <span style={{ color: '#ae81ff', flexShrink: 0 }}>{k}:</span>
+                          <div key={k} style={{ display: 'flex', gap: 4, fontSize: 11, lineHeight: 1.7 }}>
+                            <span style={{ color: '#66d9ef', flexShrink: 0 }}>{k}:</span>
                             <span style={{ color: '#ccc', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{vStr}</span>
                           </div>
                         );
@@ -3815,36 +5968,71 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
                   );
                 })()}
 
-                {/* Connected relations summary */}
-                {Object.keys(connMap).length > 0 && (
-                  <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 6 }}>
-                    <div style={{ fontSize: 9, color: '#555', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                      关联 {connLinks.length} 个节点
+                {/* Connected directed relations summary */}
+                {relationItems.length > 0 && (
+                  <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: 7, marginTop: 4 }}>
+                    <div style={{ fontSize: 10, color: '#94a3b8', marginBottom: 5, fontWeight: 700, letterSpacing: '0.4px', display: 'flex', justifyContent: 'space-between' }}>
+                      <span>关联边关系</span>
+                      <span style={{ color: '#64748b' }}>共 {relationItems.length} 条</span>
                     </div>
-                    {Object.entries(connMap).slice(0, 4).map(([rel, nodes]) => (
-                      <div key={rel} style={{ marginBottom: 3 }}>
-                        <div style={{ fontSize: 9, color: '#666', marginBottom: 1 }}>{rel}</div>
-                        <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
-                          {nodes.slice(0, 3).map(n => (
-                            <span key={n.label} style={{
-                              fontSize: 9, padding: '1px 5px', borderRadius: 3,
-                              background: 'rgba(255,255,255,0.06)', color: '#aaa',
-                              maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                            }}>
-                              {n.label}
-                            </span>
-                          ))}
-                          {nodes.length > 3 && (
-                            <span style={{ fontSize: 9, color: '#555' }}>+{nodes.length - 3}</span>
-                          )}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 150, overflowY: 'auto' }}>
+                      {relationItems.slice(0, 5).map((item, idx) => (
+                        <div
+                          key={item.id + '_' + idx}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 5,
+                            fontSize: 11,
+                            background: 'rgba(255,255,255,0.04)',
+                            padding: '3px 6px',
+                            borderRadius: 4,
+                            border: `1px solid ${item.color}25`,
+                          }}
+                        >
+                          <span style={{
+                            fontSize: 10,
+                            color: item.isTypeInst ? '#94a3b8' : item.isOut ? '#66d9ef' : '#a6e22e',
+                            fontWeight: 'bold',
+                            flexShrink: 0
+                          }}>
+                            {item.isTypeInst ? '╌' : item.isOut ? '➔' : '⬅'}
+                          </span>
+                          <span style={{
+                            fontSize: 9.5,
+                            padding: '1px 5px',
+                            borderRadius: 3,
+                            background: `${item.color}20`,
+                            color: item.color,
+                            fontWeight: 600,
+                            whiteSpace: 'nowrap',
+                            flexShrink: 0
+                          }}>
+                            {item.relName}
+                          </span>
+                          <span style={{
+                            color: '#e2e8f0',
+                            fontWeight: 500,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            flex: 1
+                          }} title={item.otherNode?.label}>
+                            {item.otherNode?.label || '未知节点'}
+                          </span>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                      {relationItems.length > 5 && (
+                        <div style={{ fontSize: 10, color: '#64748b', textAlign: 'center', paddingTop: 2 }}>
+                          还有 +{relationItems.length - 5} 个关系连接
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
 
                 {/* Footer hint */}
-                <div style={{ marginTop: 6, fontSize: 9, color: '#444', textAlign: 'center' }}>
+                <div style={{ marginTop: 8, fontSize: 11, color: '#666', textAlign: 'center' }}>
                   单击查看详情 · 右键折叠/展开
                 </div>
               </>
@@ -4012,68 +6200,142 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
         </div>
       )}
 
-      {/* ==================== Graph Topology Analysis Diagnostic Report Modal ==================== */}
-      {showTopologyReportModal && graphData && (
+      {/* ==================== Edge Inspector Floating Card (连线详情检查卡片) ==================== */}
+      {selectedLinkInfo && (
         <div
-          style={{ position: 'absolute', inset: 0, zIndex: 2200, background: 'rgba(0,0,0,0.82)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-          onClick={() => setShowTopologyReportModal(false)}
+          className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[2000] min-w-[340px] max-w-[440px] p-3 rounded-xl border border-monokai-yellow/50 bg-[#1e1f1c]/95 shadow-[0_12px_36px_rgba(0,0,0,0.85)] backdrop-blur-xl font-sans text-monokai-fg animate-in fade-in zoom-in-95 duration-200"
+          role="region"
+          aria-label="连线属性检查器"
         >
-          <div
-            style={{
-              background: 'rgba(24, 25, 32, 0.98)',
-              border: '1px solid rgba(255, 209, 102, 0.3)',
-              borderRadius: 12,
-              padding: 24,
-              width: 'min(720px, 90vw)',
-              maxHeight: '85vh',
-              overflowY: 'auto',
-              color: '#f8f8f2',
-              boxShadow: '0 20px 50px rgba(0, 0, 0, 0.6)',
-              backdropFilter: 'blur(16px)',
-            }}
-            onClick={e => e.stopPropagation()}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, borderBottom: '1px solid rgba(255,255,255,0.1)', pb: 12 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 20 }}>📊</span>
-                <div>
-                  <strong style={{ fontSize: 16, color: '#FFD166' }}>知识图谱拓扑诊断与健康报告</strong>
-                  <div style={{ fontSize: 10, color: '#888' }}>Graph Topology Analysis & Metrics Report</div>
-                </div>
-              </div>
-              <button onClick={() => setShowTopologyReportModal(false)} style={panelBtnStyle}>✕ 关闭</button>
+          <div className="flex items-center justify-between pb-2 mb-2 border-b border-monokai-border/60">
+            <div className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-monokai-yellow animate-pulse" />
+              <span className="text-xs font-bold text-monokai-yellow">关系详情检查器 (Edge Inspector)</span>
+              <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-monokai-yellow/15 text-monokai-yellow border border-monokai-yellow/30">
+                {selectedLinkInfo.category}
+              </span>
+            </div>
+            <button
+              onClick={() => setSelectedLinkId(null)}
+              className="p-1 text-monokai-comment hover:text-monokai-fg rounded-md hover:bg-monokai-bg transition-colors cursor-pointer"
+              aria-label="关闭关系面板"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          <div className="flex items-center justify-between gap-2 p-2 rounded-lg bg-monokai-bg/60 border border-monokai-border/40">
+            {/* Source */}
+            <div className="flex items-center gap-1.5 min-w-0 flex-1">
+              <div
+                className="w-3 h-3 rounded-full flex-shrink-0"
+                style={{ background: selectedLinkInfo.sourceNode?.color || '#66d9ef' }}
+              />
+              <span className="text-xs font-semibold truncate" title={selectedLinkInfo.sourceNode?.label}>
+                {selectedLinkInfo.sourceNode?.label || '未知源节点'}
+              </span>
             </div>
 
+            {/* Relation Badge */}
+            <div className="flex flex-col items-center px-2 py-0.5 rounded bg-monokai-elevated border border-monokai-border/60">
+              <span className="text-[10px] font-mono font-bold text-monokai-cyan">
+                {selectedLinkInfo.relName}
+              </span>
+              <span className="text-[8px] text-monokai-comment">
+                权重 {selectedLinkInfo.weight.toFixed(2)}
+              </span>
+            </div>
+
+            {/* Target */}
+            <div className="flex items-center justify-end gap-1.5 min-w-0 flex-1">
+              <span className="text-xs font-semibold truncate text-right" title={selectedLinkInfo.targetNode?.label}>
+                {selectedLinkInfo.targetNode?.label || '未知目标节点'}
+              </span>
+              <div
+                className="w-3 h-3 rounded-full flex-shrink-0"
+                style={{ background: selectedLinkInfo.targetNode?.color || '#a6e22e' }}
+              />
+            </div>
+          </div>
+
+          {selectedLinkInfo.description && (
+            <p className="mt-2 text-[10px] text-monokai-comment leading-relaxed">
+              {selectedLinkInfo.description}
+            </p>
+          )}
+
+          <div className="mt-2 pt-2 border-t border-monokai-border/40 flex items-center justify-between text-[10px]">
+            <span className="text-monokai-comment">快捷操作:</span>
+            <div className="flex items-center gap-1.5">
+              {selectedLinkInfo.sourceNode && (
+                <button
+                  onClick={() => {
+                    setSelectedNode(selectedLinkInfo.sourceNode);
+                    setFocusedNodeId(selectedLinkInfo.sourceNode.id);
+                    setScopeMode('focus');
+                  }}
+                  className="px-2 py-0.5 rounded text-[10px] bg-monokai-bg text-monokai-fg hover:text-monokai-cyan border border-monokai-border/60 transition-colors cursor-pointer"
+                >
+                  聚焦起点
+                </button>
+              )}
+              {selectedLinkInfo.targetNode && (
+                <button
+                  onClick={() => {
+                    setSelectedNode(selectedLinkInfo.targetNode);
+                    setFocusedNodeId(selectedLinkInfo.targetNode.id);
+                    setScopeMode('focus');
+                  }}
+                  className="px-2 py-0.5 rounded text-[10px] bg-monokai-bg text-monokai-fg hover:text-monokai-cyan border border-monokai-border/60 transition-colors cursor-pointer"
+                >
+                  聚焦终点
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==================== Graph Topology Analysis Diagnostic Report Modal ==================== */}
+      <ModalShell
+        open={showTopologyReportModal && Boolean(graphData)}
+        onClose={() => setShowTopologyReportModal(false)}
+        title="知识图谱拓扑诊断与健康报告"
+        description="Graph Topology Analysis & Metrics Report"
+        size="xl"
+      >
+        {graphData && (
+          <div className="space-y-4 font-sans text-monokai-fg">
             {/* Metrics Overview Cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 20 }}>
-              <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 8, padding: 10, textAlign: 'center', border: '1px solid rgba(255,255,255,0.06)' }}>
-                <div style={{ fontSize: 10, color: '#888' }}>节点总数 (Nodes)</div>
-                <div style={{ fontSize: 20, fontWeight: 'bold', color: '#66d9ef', marginTop: 2 }}>{graphData.nodes.length}</div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+              <div className="p-3 rounded-xl border border-monokai-border bg-monokai-surface/60 text-center">
+                <div className="text-xs text-monokai-comment">节点总数 (Nodes)</div>
+                <div className="text-xl font-bold font-mono text-monokai-cyan mt-1">{graphData.nodes.length}</div>
               </div>
-              <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 8, padding: 10, textAlign: 'center', border: '1px solid rgba(255,255,255,0.06)' }}>
-                <div style={{ fontSize: 10, color: '#888' }}>关系总数 (Links)</div>
-                <div style={{ fontSize: 20, fontWeight: 'bold', color: '#FFD166', marginTop: 2 }}>{graphData.links.length}</div>
+              <div className="p-3 rounded-xl border border-monokai-border bg-monokai-surface/60 text-center">
+                <div className="text-xs text-monokai-comment">关系总数 (Links)</div>
+                <div className="text-xl font-bold font-mono text-monokai-yellow mt-1">{graphData.links.length}</div>
               </div>
-              <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 8, padding: 10, textAlign: 'center', border: '1px solid rgba(255,255,255,0.06)' }}>
-                <div style={{ fontSize: 10, color: '#888' }}>网络密度 (Density)</div>
-                <div style={{ fontSize: 20, fontWeight: 'bold', color: '#a6e22e', marginTop: 2 }}>
+              <div className="p-3 rounded-xl border border-monokai-border bg-monokai-surface/60 text-center">
+                <div className="text-xs text-monokai-comment">网络密度 (Density)</div>
+                <div className="text-xl font-bold font-mono text-monokai-accent mt-1">
                   {graphData.nodes.length > 1 ? ((2 * graphData.links.length) / (graphData.nodes.length * (graphData.nodes.length - 1))).toFixed(4) : 0}
                 </div>
               </div>
-              <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 8, padding: 10, textAlign: 'center', border: '1px solid rgba(255,255,255,0.06)' }}>
-                <div style={{ fontSize: 10, color: '#888' }}>平均度 (Avg Degree)</div>
-                <div style={{ fontSize: 20, fontWeight: 'bold', color: '#ae81ff', marginTop: 2 }}>
+              <div className="p-3 rounded-xl border border-monokai-border bg-monokai-surface/60 text-center">
+                <div className="text-xs text-monokai-comment">平均度 (Avg Degree)</div>
+                <div className="text-xl font-bold font-mono text-monokai-cyan mt-1">
                   {graphData.nodes.length > 0 ? ((graphData.links.length * 2) / graphData.nodes.length).toFixed(2) : 0}
                 </div>
               </div>
             </div>
 
             {/* Top PageRank Hubs */}
-            <div style={{ marginBottom: 20 }}>
-              <h4 style={{ fontSize: 13, color: '#ff0055', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div className="space-y-2">
+              <h4 className="text-xs font-semibold text-monokai-pink flex items-center gap-1.5 uppercase tracking-wide">
                 🔥 PageRank 全局关键枢纽榜单 Top 5 (Key Gatekeeper Hubs)
               </h4>
-              <div style={{ background: 'rgba(13,13,11,0.6)', borderRadius: 8, padding: 10, border: '1px solid rgba(255,255,255,0.08)' }}>
+              <div className="p-3 rounded-xl border border-monokai-border bg-monokai-surface/40 divide-y divide-monokai-border/40">
                 {(() => {
                   const prMap = computePageRank(graphData.nodes, graphData.links);
                   const sorted = graphData.nodes
@@ -4082,19 +6344,19 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
                     .slice(0, 5);
 
                   return sorted.map((item, idx) => (
-                    <div key={item.node.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: idx < sorted.length - 1 ? '1px dashed rgba(255,255,255,0.08)' : 'none', fontSize: 11 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ color: idx === 0 ? '#FFD166' : idx === 1 ? '#e2e8f0' : idx === 2 ? '#cbd5e1' : '#64748b', fontWeight: 'bold', width: 14 }}>
+                    <div key={item.node.id} className="flex justify-between items-center py-2 text-xs">
+                      <div className="flex items-center gap-2">
+                        <span className={`font-bold font-mono w-4 ${idx === 0 ? 'text-monokai-yellow' : 'text-monokai-comment'}`}>
                           #{idx + 1}
                         </span>
-                        <span style={{ color: item.node.color, fontWeight: 'bold' }}>{item.node.label}</span>
-                        <span style={{ fontSize: 9, color: '#888' }}>({item.node.group})</span>
+                        <span style={{ color: item.node.color }} className="font-semibold">{item.node.label}</span>
+                        <span className="text-xs text-monokai-comment/60">({item.node.group})</span>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                        <div style={{ width: 100, height: 6, background: '#333', borderRadius: 3, overflow: 'hidden' }}>
-                          <div style={{ width: `${(item.rank * 100).toFixed(0)}%`, height: '100%', background: '#ff0055' }} />
+                      <div className="flex items-center gap-3">
+                        <div className="w-24 h-1.5 bg-monokai-bg rounded-full overflow-hidden">
+                          <div style={{ width: `${(item.rank * 100).toFixed(0)}%` }} className="h-full bg-monokai-pink rounded-full" />
                         </div>
-                        <span style={{ color: '#ff0055', fontWeight: 'bold', fontFamily: 'monospace', minWidth: 40, textAlign: 'right' }}>
+                        <span className="text-monokai-pink font-bold font-mono min-w-10 text-right">
                           {(item.rank * 100).toFixed(1)}%
                         </span>
                       </div>
@@ -4105,17 +6367,17 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
             </div>
 
             {/* Health & Performance Assessment */}
-            <div style={{ background: 'rgba(59, 130, 246, 0.08)', border: '1px solid rgba(59, 130, 246, 0.25)', borderRadius: 8, padding: 12, fontSize: 11, lineHeight: 1.6 }}>
-              <div style={{ fontWeight: 'bold', color: '#60a5fa', marginBottom: 4 }}>💡 拓扑健康度与计算诊断:</div>
-              <ul style={{ paddingLeft: 16, margin: 0, color: '#ccc' }}>
+            <div className="p-3.5 rounded-xl border border-monokai-cyan/30 bg-monokai-cyan/10 text-xs leading-relaxed space-y-1.5">
+              <div className="font-semibold text-monokai-cyan flex items-center gap-1">💡 拓扑健康度与计算诊断:</div>
+              <ul className="list-disc list-inside space-y-0.5 text-monokai-fg/80">
                 <li>当前网络连接连通度良好，连通度标准差处于安全阈值范围内。</li>
                 <li>LOD 三阶物理降级已激活，当前图形规模无 GPU 渲染崩塌风险。</li>
                 <li>无孤立游离节点与环形死锁结构。</li>
               </ul>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </ModalShell>
 
       {toast && (
         <ToastNotification
@@ -4129,3 +6391,4 @@ const D3GraphView: React.FC<{ onRefreshRef?: (fn: () => void) => void; ontologyS
 };
 
 export default D3GraphView;
+export { D3GraphView };

@@ -277,14 +277,14 @@ export const SqlTemplatesPanel: React.FC<SqlTemplatesPanelProps> = ({
     <div className="h-full overflow-y-auto p-4">
       {/* 分类筛选 */}
       <div className="mb-4 flex items-center gap-2">
-        <div className="flex items-center gap-1 text-sm text-monokai-comment">
-          <Filter className="w-4 h-4" />
+        <div className="flex items-center gap-1.5 text-xs text-monokai-comment">
+          <Filter className="w-3.5 h-3.5" />
           <span>分类：</span>
         </div>
         <select
           value={selectedCategory}
           onChange={(e) => onCategoryChange(e.target.value)}
-          className="px-3 py-1.5 bg-monokai-bg border border-monokai-accent rounded text-sm text-monokai-fg focus:outline-none focus:border-monokai-green"
+          className="px-2.5 py-1.5 bg-monokai-surface rounded-lg text-xs text-monokai-fg focus:outline-none focus:ring-1 focus:ring-monokai-accent/70"
         >
           <option value="all">全部</option>
           {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
@@ -294,13 +294,13 @@ export const SqlTemplatesPanel: React.FC<SqlTemplatesPanelProps> = ({
         {/* 快速清除按钮 */}
         <button
           onClick={handleQuickClear}
-          className="flex items-center gap-1 px-2 py-1.5 text-xs text-monokai-comment hover:text-monokai-fg hover:bg-monokai-accent/20 rounded transition-colors"
+          className="flex items-center gap-1 px-2 py-1 text-xs text-monokai-comment hover:text-monokai-fg hover:bg-monokai-surface rounded-md transition-colors cursor-pointer"
           title="快速清除筛选条件"
         >
           <RotateCcw className="w-3 h-3" />
-          清除
+          <span>清除</span>
         </button>
-        <span className="ml-auto text-sm text-monokai-comment">
+        <span className="ml-auto text-xs text-monokai-comment font-mono">
           共 {templates.length} 个模板
         </span>
       </div>
@@ -311,55 +311,55 @@ export const SqlTemplatesPanel: React.FC<SqlTemplatesPanelProps> = ({
         <button
           onClick={handleAIFill}
           disabled={isAIFilling}
-          className="flex items-center gap-1 px-3 py-1.5 bg-gradient-to-r from-monokai-amethyst to-monokai-pink text-white rounded-lg text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-monokai-amethyst/20 text-monokai-amethyst rounded-lg text-xs font-semibold hover:bg-monokai-amethyst/30 transition-all disabled:opacity-50 cursor-pointer"
           title="AI 一键填充（Ctrl+Shift+A）"
         >
           {isAIFilling ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
           ) : (
-            <Sparkles className="w-4 h-4" />
+            <Sparkles className="w-3.5 h-3.5" />
           )}
           <span>{isAIFilling ? '生成中...' : 'AI 填充'}</span>
         </button>
         <button
           onClick={() => setShowAddForm(!showAddForm)}
-          className="flex items-center gap-1 px-3 py-1.5 bg-monokai-green/20 text-monokai-green rounded-lg text-sm hover:bg-monokai-green/30 transition-colors"
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-monokai-green/20 text-monokai-green rounded-lg text-xs font-semibold hover:bg-monokai-green/30 transition-all cursor-pointer"
         >
-          <Plus className="w-4 h-4" />
+          <Plus className="w-3.5 h-3.5" />
           <span>添加模板</span>
         </button>
       </div>
 
       {/* 添加表单 */}
       {showAddForm && (
-        <div className="mb-4 p-4 bg-monokai-sidebar border border-monokai-accent rounded-lg">
-          <h4 className="text-sm font-medium text-monokai-fg mb-3">添加新 SQL 模板</h4>
+        <div className="mb-4 p-4 bg-monokai-surface/90 rounded-xl shadow-md">
+          <h4 className="text-xs font-semibold text-monokai-fg mb-3">添加新 SQL 模板</h4>
           <div className="space-y-3">
             <input
               type="text"
               placeholder="模板名称"
               value={newTemplate.name}
               onChange={(e) => setNewTemplate(prev => ({ ...prev, name: e.target.value }))}
-              className="w-full px-3 py-2 bg-monokai-bg border border-monokai-accent rounded text-sm text-monokai-fg placeholder-monokai-comment focus:outline-none focus:border-monokai-green"
+              className="w-full px-3 py-2 bg-monokai-bg rounded-lg text-xs text-monokai-fg placeholder-monokai-comment focus:outline-none focus:ring-1 focus:ring-monokai-accent/70"
             />
             <input
               type="text"
               placeholder="描述"
               value={newTemplate.description}
               onChange={(e) => setNewTemplate(prev => ({ ...prev, description: e.target.value }))}
-              className="w-full px-3 py-2 bg-monokai-bg border border-monokai-accent rounded text-sm text-monokai-fg placeholder-monokai-comment focus:outline-none focus:border-monokai-green"
+              className="w-full px-3 py-2 bg-monokai-bg rounded-lg text-xs text-monokai-fg placeholder-monokai-comment focus:outline-none focus:ring-1 focus:ring-monokai-accent/70"
             />
             <textarea
               placeholder="SQL 语句"
               value={newTemplate.sql}
               onChange={(e) => setNewTemplate(prev => ({ ...prev, sql: e.target.value }))}
               rows={5}
-              className="w-full px-3 py-2 bg-monokai-bg border border-monokai-accent rounded text-sm text-monokai-fg placeholder-monokai-comment focus:outline-none focus:border-monokai-green font-mono resize-none"
+              className="w-full px-3 py-2 bg-monokai-bg rounded-lg text-xs text-monokai-fg placeholder-monokai-comment focus:outline-none focus:ring-1 focus:ring-monokai-accent/70 font-mono resize-none"
             />
             <select
               value={newTemplate.category}
               onChange={(e) => setNewTemplate(prev => ({ ...prev, category: e.target.value as TemplateCategory }))}
-              className="w-full px-3 py-2 bg-monokai-bg border border-monokai-accent rounded text-sm text-monokai-fg focus:outline-none focus:border-monokai-green"
+              className="w-full px-3 py-2 bg-monokai-bg rounded-lg text-xs text-monokai-fg focus:outline-none focus:ring-1 focus:ring-monokai-accent/70"
             >
               {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
                 <option key={value} value={value}>{label}</option>
@@ -370,25 +370,25 @@ export const SqlTemplatesPanel: React.FC<SqlTemplatesPanelProps> = ({
               placeholder="标签，逗号分隔"
               value={newTemplate.tags}
               onChange={(e) => setNewTemplate(prev => ({ ...prev, tags: e.target.value }))}
-              className="w-full px-3 py-2 bg-monokai-bg border border-monokai-accent rounded text-sm text-monokai-fg placeholder-monokai-comment focus:outline-none focus:border-monokai-green"
+              className="w-full px-3 py-2 bg-monokai-bg rounded-lg text-xs text-monokai-fg placeholder-monokai-comment focus:outline-none focus:ring-1 focus:ring-monokai-accent/70"
             />
             <div className="flex gap-2">
               <button
                 onClick={handleAdd}
-                className="flex-1 px-3 py-2 bg-monokai-green text-white rounded text-sm hover:bg-monokai-green/80 transition-colors"
+                className="flex-1 px-3 py-1.5 bg-monokai-green text-monokai-bg font-semibold rounded-lg text-xs hover:bg-monokai-green/90 transition-colors cursor-pointer"
               >
-                保存
+                保存模板
               </button>
               <button
                 onClick={handleQuickClear}
-                className="flex items-center gap-1 px-3 py-2 bg-monokai-accent/20 text-monokai-comment rounded text-sm hover:bg-monokai-accent/30 transition-colors"
+                className="flex items-center gap-1 px-3 py-1.5 bg-monokai-surface text-monokai-comment rounded-lg text-xs hover:text-monokai-fg transition-colors cursor-pointer"
                 title="快速清除（Esc）"
               >
-                <RotateCcw className="w-4 h-4" />
+                <RotateCcw className="w-3.5 h-3.5" />
               </button>
               <button
                 onClick={() => setShowAddForm(false)}
-                className="px-3 py-2 bg-monokai-accent/20 text-monokai-comment rounded text-sm hover:bg-monokai-accent/30 transition-colors"
+                className="px-3 py-1.5 bg-monokai-surface text-monokai-comment rounded-lg text-xs hover:text-monokai-fg transition-colors cursor-pointer"
               >
                 取消
               </button>
@@ -402,19 +402,19 @@ export const SqlTemplatesPanel: React.FC<SqlTemplatesPanelProps> = ({
         {templates.map(template => (
           <div
             key={template.id}
-            className="p-4 bg-monokai-sidebar border border-monokai-accent rounded-lg hover:border-monokai-green/50 transition-colors"
+            className="p-4 bg-monokai-surface/90 rounded-xl transition-colors shadow-xs"
           >
             {/* 模板头部 */}
             <div className="flex items-start justify-between mb-2">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
                   <FileCode className="w-4 h-4 text-monokai-green" />
-                  <h4 className="text-sm font-medium text-monokai-fg">{template.name}</h4>
-                  <span className="px-1.5 py-0.5 text-xs bg-monokai-green/20 text-monokai-green rounded">
+                  <h4 className="text-xs font-semibold text-monokai-fg">{template.name}</h4>
+                  <span className="px-2 py-0.5 text-[10px] font-mono font-medium bg-monokai-green/15 text-monokai-green rounded">
                     {CATEGORY_LABELS[template.category]}
                   </span>
                   {template.isSystem && (
-                    <span className="px-1.5 py-0.5 text-xs bg-monokai-blue/20 text-monokai-blue rounded">
+                    <span className="px-2 py-0.5 text-[10px] font-mono font-medium bg-monokai-cyan/15 text-monokai-cyan rounded">
                       预置
                     </span>
                   )}

@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useCallback } from 'react';
-import { Copy, Check, Shield, Lock, Database, AlertTriangle, Key, Users, Play, ChevronDown, ChevronUp, ChevronRight } from 'lucide-react';
+import { Copy, Check, Shield, Lock, Database, AlertTriangle, Key, Users, Play, ChevronDown, ChevronUp, ChevronRight, ArrowRight } from 'lucide-react';
 import CodeMirror from '@uiw/react-codemirror';
 import { sql } from '@codemirror/lang-sql';
 import { EditorView } from '@codemirror/view';
@@ -14,6 +14,7 @@ import { monokai } from '@uiw/codemirror-theme-monokai';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { duckDBService } from '../../services/duckdbService';
+import { toastService } from '../../services/toastService';
 import { ResultTable } from '../Learn/ResultTable';
 
 interface DCLTCLPanelProps {
@@ -252,18 +253,6 @@ export const DCLTCLPanel: React.FC<DCLTCLPanelProps> = ({
   // 执行 SQL
   const handleExecute = useCallback(async (id: string, sqlContent: string) => {
     if (!sqlContent) return;
-
-    const isMutation = /grant|revoke|commit|rollback|begin|transaction/i.test(sqlContent);
-    if (isMutation) {
-      const confirmRun = window.confirm("【执行安全确认】\n提示：此操作是一个 DCL/TCL (控制/事务) 语句，执行后将更改数据库事务状态或权限限制。\n\n您确定要在当前数据库中运行这段代码吗？");
-      if (!confirmRun) {
-        setExecutionResults(prev => ({
-          ...prev,
-          [id]: { data: null, error: "执行已被取消 (用户未确认风险)", loading: false }
-        }));
-        return;
-      }
-    }
     
     setExecutionResults(prev => ({
       ...prev,
@@ -278,11 +267,13 @@ export const DCLTCLPanel: React.FC<DCLTCLPanelProps> = ({
         ...prev,
         [id]: { data: res, error: null, loading: false, executionTime: endTime - startTime }
       }));
+      toastService.success('DCL/TCL 语句执行完成', `耗时 ${(endTime - startTime).toFixed(1)}ms`);
     } catch (e: any) {
       setExecutionResults(prev => ({
         ...prev,
         [id]: { data: null, error: e.message, loading: false }
       }));
+      toastService.error('DCL/TCL 执行遇到错误', e.message);
     }
   }, []);
 
@@ -330,40 +321,40 @@ export const DCLTCLPanel: React.FC<DCLTCLPanelProps> = ({
   };
 
   return (
-    <div className="h-full overflow-y-auto p-4">
+    <div className="h-full overflow-y-auto p-4 custom-scrollbar">
       {/* 一键展开/折叠按钮 */}
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-3.5 flex items-center justify-between">
         <span className="text-xs text-monokai-comment">
           共 {DCLTCL_DATA.length} 个分类，{DCLTCL_DATA.reduce((acc, item) => acc + item.snippets.length, 0)} 个代码块
         </span>
         <button
           onClick={toggleAllCategories}
-          className="px-3 py-1.5 text-xs rounded bg-monokai-accent/20 text-monokai-accent hover:bg-monokai-accent/30 transition-colors"
+          className="px-2.5 py-1 text-xs rounded-md border border-monokai-border/80 bg-monokai-surface text-monokai-fg-muted hover:text-monokai-fg hover:border-monokai-border transition-colors cursor-pointer"
         >
           {allCategoriesExpanded ? '全部折叠' : '全部展开'}
         </button>
       </div>
-      <div className="space-y-4">
+      <div className="space-y-3.5">
         {DCLTCL_DATA.map((item) => (
           <div key={item.id}>
             {/* 分类头部 - 可展开/折叠整个类别 */}
-            <div className="bg-monokai-sidebar border border-monokai-accent rounded-lg overflow-hidden mb-3">
+            <div className="rounded-lg border border-monokai-border/60 bg-monokai-surface/90 overflow-hidden mb-2 shadow-xs transition-colors">
               <div 
-                className="px-4 py-2 bg-monokai-bg border-b border-monokai-accent flex items-center justify-between cursor-pointer hover:bg-monokai-accent/10"
+                className="px-3.5 py-2.5 bg-monokai-sidebar/70 border-b border-monokai-border/40 flex items-center justify-between cursor-pointer hover:bg-monokai-sidebar transition-colors"
                 onClick={() => toggleExpandCategory(item.id)}
               >
                 <div className="flex items-center gap-2">
-                  {item.category === '权限' && <Key className="w-4 h-4 text-monokai-red" />}
-                  {item.category === '事务' && <Database className="w-4 h-4 text-monokai-blue" />}
-                  {item.category === '原理' && <Lock className="w-4 h-4 text-monokai-amethyst" />}
-                  {item.category === '安全' && <AlertTriangle className="w-4 h-4 text-monokai-orange" />}
-                  <span className="font-medium text-monokai-fg">{item.title}</span>
-                  <span className="text-xs px-2 py-0.5 rounded bg-monokai-red/20 text-monokai-red">
+                  {item.category === '权限' && <Key className="w-4 h-4 text-monokai-pink shrink-0" />}
+                  {item.category === '事务' && <Database className="w-4 h-4 text-monokai-cyan shrink-0" />}
+                  {item.category === '原理' && <Lock className="w-4 h-4 text-monokai-amethyst shrink-0" />}
+                  {item.category === '安全' && <AlertTriangle className="w-4 h-4 text-monokai-orange shrink-0" />}
+                  <span className="font-semibold text-xs text-monokai-fg">{item.title}</span>
+                  <span className="text-[10px] font-mono font-medium px-2 py-0.5 rounded border border-monokai-pink/30 bg-monokai-pink/10 text-monokai-pink">
                     {item.category}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-monokai-comment">
+                  <span className="text-xs text-monokai-comment font-mono">
                     {item.snippets.length} 个代码块
                   </span>
                   {expandedCategory.has(item.id) ? (
@@ -375,8 +366,8 @@ export const DCLTCLPanel: React.FC<DCLTCLPanelProps> = ({
               </div>
 
               {/* 描述 */}
-              <div className="px-4 py-2 bg-monokai-bg/50 border-b border-monokai-accent">
-                <p className="text-xs text-monokai-comment">{item.description}</p>
+              <div className="px-3.5 py-2 bg-monokai-bg/60 border-b border-monokai-border/40">
+                <p className="text-xs text-monokai-comment leading-relaxed">{item.description}</p>
               </div>
             </div>
 
@@ -391,11 +382,11 @@ export const DCLTCLPanel: React.FC<DCLTCLPanelProps> = ({
                   return (
                     <div
                       key={idx}
-                      className="bg-monokai-sidebar border border-monokai-accent/50 rounded-lg overflow-hidden"
+                      className="bg-monokai-bg rounded-md border border-monokai-border/60 overflow-hidden transition-colors shadow-xs"
                     >
                       {/* 片段标题栏 - 点击可展开/折叠 */}
                       <div 
-                        className="px-3 py-2 bg-monokai-bg flex items-center justify-between cursor-pointer hover:bg-monokai-accent/10"
+                        className="px-3 py-2 bg-monokai-surface/80 border-b border-monokai-border/40 flex items-center justify-between cursor-pointer hover:bg-monokai-surface transition-colors"
                         onClick={() => toggleExpandSnippet(snippetId)}
                       >
                         <div className="flex items-center gap-2">
@@ -406,14 +397,14 @@ export const DCLTCLPanel: React.FC<DCLTCLPanelProps> = ({
                         </div>
                         <div className="flex items-center gap-1">
                           {isMarkdown && (
-                            <span className="text-xs px-1.5 py-0.5 rounded bg-monokai-amethyst/20 text-monokai-amethyst mr-1">
+                            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded border border-monokai-amethyst/30 bg-monokai-amethyst/10 text-monokai-amethyst mr-1 font-medium">
                               Markdown
                             </span>
                           )}
                           {isExpanded ? (
-                            <ChevronUp className="w-3 h-3 text-monokai-comment" />
+                            <ChevronUp className="w-3.5 h-3.5 text-monokai-comment" />
                           ) : (
-                            <ChevronDown className="w-3 h-3 text-monokai-comment" />
+                            <ChevronDown className="w-3.5 h-3.5 text-monokai-comment" />
                           )}
                         </div>
                       </div>
@@ -423,7 +414,7 @@ export const DCLTCLPanel: React.FC<DCLTCLPanelProps> = ({
                         <>
                           {/* 操作按钮栏 - 仅 SQL 有执行按钮 */}
                           {snippet.sql && (
-                            <div className="px-3 py-2 bg-monokai-accent/5 border-b border-monokai-accent/30 flex items-center gap-1">
+                            <div className="px-3 py-1.5 bg-monokai-surface/50 border-b border-monokai-border/40 flex items-center gap-1">
                               {/* 执行按钮 */}
                               {(() => {
                                 const result = executionResults[snippetId];
@@ -434,14 +425,14 @@ export const DCLTCLPanel: React.FC<DCLTCLPanelProps> = ({
                                       handleExecute(snippetId, snippet.sql!);
                                     }}
                                     disabled={result?.loading}
-                                    className={`p-1.5 rounded transition-colors ${
+                                    className={`p-1.5 rounded-md transition-colors cursor-pointer ${
                                       result?.loading
                                         ? 'bg-monokai-yellow/20 text-monokai-yellow cursor-wait'
                                         : result?.error
-                                        ? 'hover:bg-monokai-pink/30 text-monokai-pink'
+                                        ? 'hover:bg-monokai-pink/20 text-monokai-pink'
                                         : result?.data
-                                        ? 'hover:bg-monokai-green/30 text-monokai-green'
-                                        : 'hover:bg-monokai-green/30 text-monokai-comment hover:text-monokai-green'
+                                        ? 'hover:bg-monokai-green/20 text-monokai-green'
+                                        : 'hover:bg-monokai-elevated text-monokai-comment hover:text-monokai-green'
                                     }`}
                                     title={result?.loading ? '执行中...' : '执行 SQL'}
                                   >
@@ -460,10 +451,10 @@ export const DCLTCLPanel: React.FC<DCLTCLPanelProps> = ({
                                     e.stopPropagation();
                                     onInsert(snippet.sql!);
                                   }}
-                                  className="p-1.5 rounded hover:bg-monokai-blue/30 text-monokai-comment hover:text-monokai-blue transition-colors"
+                                  className="p-1.5 rounded-md hover:bg-monokai-elevated text-monokai-comment hover:text-monokai-cyan transition-colors cursor-pointer"
                                   title="插入到 SQL 编辑器"
                                 >
-                                  <ChevronRight className="w-3.5 h-3.5" />
+                                  <ArrowRight className="w-3.5 h-3.5" />
                                 </button>
                               )}
                               {/* 复制按钮 */}
@@ -472,7 +463,7 @@ export const DCLTCLPanel: React.FC<DCLTCLPanelProps> = ({
                                   e.stopPropagation();
                                   onCopy?.(snippetId, snippet.sql || snippet.markdown || '');
                                 }}
-                                className="p-1.5 rounded hover:bg-monokai-accent/30 text-monokai-comment hover:text-monokai-fg transition-colors"
+                                className="p-1.5 rounded-md hover:bg-monokai-elevated text-monokai-comment hover:text-monokai-fg transition-colors cursor-pointer"
                                 title="复制内容"
                               >
                                 {copiedId === snippetId ? (
@@ -486,8 +477,8 @@ export const DCLTCLPanel: React.FC<DCLTCLPanelProps> = ({
 
                           {/* Markdown 渲染或 SQL 代码块 */}
                           {isMarkdown ? (
-                            <div className="p-3 bg-monokai-bg">
-                              <div className="markdown-body" style={{ fontSize: '12px' }}>
+                            <div className="p-3.5 bg-monokai-bg">
+                              <div className="markdown-body text-xs text-monokai-fg-muted leading-relaxed">
                                 <ReactMarkdown remarkPlugins={[remarkGfm]}>
                                   {snippet.markdown!}
                                 </ReactMarkdown>
@@ -503,9 +494,17 @@ export const DCLTCLPanel: React.FC<DCLTCLPanelProps> = ({
                                   sql(),
                                   EditorView.lineWrapping,
                                   EditorView.theme({
-                                    "&": { fontSize: "12px" },
-                                    ".cm-content": { fontSize: "12px" },
-                                    ".cm-line": { fontSize: "12px" }
+                                    "&": { fontSize: "11.5px", backgroundColor: "transparent" },
+                                    ".cm-content": { 
+                                      fontSize: "11.5px", 
+                                      fontFamily: "var(--font-mono)", 
+                                      lineHeight: "1.55", 
+                                      padding: "6px 8px" 
+                                    },
+                                    ".cm-line": { 
+                                      fontSize: "11.5px", 
+                                      fontFamily: "var(--font-mono)" 
+                                    }
                                   })
                                 ]}
                                 editable={false}

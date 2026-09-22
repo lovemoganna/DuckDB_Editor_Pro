@@ -44,7 +44,7 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
         {
           ...connection,
           animated: true,
-          style: { stroke: '#a6e22e', strokeWidth: 2 }, // monokai green
+          style: { stroke: 'var(--monokai-accent)', strokeWidth: 2 }, // monokai green
         },
         get().edges
       ),

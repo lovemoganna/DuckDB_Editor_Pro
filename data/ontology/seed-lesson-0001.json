@@ -1,0 +1,155 @@
+{
+  "_meta": {
+    "name": "第 01 课：只写材料真正告诉你的事",
+    "description": "严格区分确凿事实、推断与未知边界，严禁常识脑补，只记录直接证据",
+    "case_background": "【案例背景材料】中午，妈妈在家做了一道茄子。我去餐馆买了两道菜，回家后，我们三个人一起吃饭。",
+    "core_concept": "Fact vs Inference vs Unknown",
+    "version": "1.0.0",
+    "author": "system",
+    "created_at": "2026-07-25",
+    "scenario": "lesson-0001",
+    "complexity": "easy"
+  },
+  "objectTypes": [
+    {
+      "id": 1,
+      "name": "确凿事实",
+      "description": "原文直接证明的主体、事件与客观结果"
+    },
+    {
+      "id": 2,
+      "name": "推断与未知",
+      "description": "有线索未确证的推测及不可脑补的未知盲区"
+    }
+  ],
+  "objects": [
+    {
+      "id": 1,
+      "object_type_id": 1,
+      "name": "做菜人·妈妈",
+      "properties": "{\"身份\":\"做菜人\",\"地点\":\"家中\",\"依据\":\"原文明确提及\"}",
+      "annotations": "确定事实主体"
+    },
+    {
+      "id": 2,
+      "object_type_id": 1,
+      "name": "买菜人·我",
+      "properties": "{\"身份\":\"买菜人\",\"轨迹\":\"餐馆至家中\",\"依据\":\"原文明确提及\"}",
+      "annotations": "确定事实主体"
+    },
+    {
+      "id": 3,
+      "object_type_id": 1,
+      "name": "自做茄子",
+      "properties": "{\"品类\":\"茄子\",\"地点\":\"家中\",\"确证度\":\"100%已证事实\"}",
+      "annotations": "确凿烹饪事件"
+    },
+    {
+      "id": 4,
+      "object_type_id": 1,
+      "name": "餐馆买菜",
+      "properties": "{\"数量\":\"两道菜\",\"地点\":\"餐馆\",\"确证度\":\"100%已证事实\"}",
+      "annotations": "确凿采购事件"
+    },
+    {
+      "id": 5,
+      "object_type_id": 1,
+      "name": "三人用餐",
+      "properties": "{\"就餐人数\":3,\"地点\":\"家中\",\"菜品总数\":\"至少包含茄子\"}",
+      "annotations": "确凿汇聚事件"
+    },
+    {
+      "id": 6,
+      "object_type_id": 2,
+      "name": "推断·菜已带回",
+      "properties": "{\"推断依据\":\"买菜后回家与三人就餐\",\"置信度\":0.85}",
+      "annotations": "线索支撑推断"
+    },
+    {
+      "id": 7,
+      "object_type_id": 2,
+      "name": "未知·第三人",
+      "properties": "{\"信息状态\":\"完全未知\",\"警示\":\"绝不可凭常识脑补为爸爸\"}",
+      "annotations": "严格未知边界"
+    }
+  ],
+  "linkTypes": [
+    {
+      "id": 1,
+      "name": "亲自制作",
+      "description": "主体在家执行烹饪制作"
+    },
+    {
+      "id": 2,
+      "name": "外出采购",
+      "description": "主体在餐馆执行外部购买"
+    },
+    {
+      "id": 3,
+      "name": "线索支撑",
+      "description": "采购事实为推断提供证据链"
+    },
+    {
+      "id": 4,
+      "name": "汇入餐食",
+      "description": "自制菜肴汇入就餐事件"
+    },
+    {
+      "id": 5,
+      "name": "推断汇入",
+      "description": "高置信推断汇入共同就餐"
+    },
+    {
+      "id": 6,
+      "name": "暴露盲区",
+      "description": "就餐事件暴露出不可脑补的第三人"
+    }
+  ],
+  "links": [
+    {
+      "id": 1,
+      "link_type_id": 1,
+      "source_object_id": 1,
+      "target_object_id": 3,
+      "weight": 1
+    },
+    {
+      "id": 2,
+      "link_type_id": 2,
+      "source_object_id": 2,
+      "target_object_id": 4,
+      "weight": 1
+    },
+    {
+      "id": 3,
+      "link_type_id": 3,
+      "source_object_id": 4,
+      "target_object_id": 6,
+      "weight": 0.85
+    },
+    {
+      "id": 4,
+      "link_type_id": 4,
+      "source_object_id": 3,
+      "target_object_id": 5,
+      "weight": 1
+    },
+    {
+      "id": 5,
+      "link_type_id": 5,
+      "source_object_id": 6,
+      "target_object_id": 5,
+      "weight": 0.85
+    },
+    {
+      "id": 6,
+      "link_type_id": 6,
+      "source_object_id": 5,
+      "target_object_id": 7,
+      "weight": 0.9
+    }
+  ],
+  "actions": [],
+  "introspections": [],
+  "insights": []
+}

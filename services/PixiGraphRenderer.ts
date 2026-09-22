@@ -11,6 +11,7 @@
  *   - Zoom < 0.8x: Low — circles only, no stroke details or badges/labels
  */
 
+// @ts-ignore Optional renderer dependency is only present in WebGL-enabled builds.
 import * as PIXI from 'pixi.js';
 import * as d3 from 'd3';
 
@@ -29,11 +30,18 @@ export interface PixiNode {
 
 export interface PixiRendererOptions {
   container: HTMLElement;
-  nodeCount: number;
+  nodeCount?: number;
   onNodeClick?: (id: string) => void;
   onNodeHover?: (id: string | null) => void;
   onNodeDoubleClick?: (id: string) => void;
   onContextMenu?: (id: string, x: number, y: number) => void;
+  onBackgroundClick?: () => void;
+  onBackgroundDoubleClick?: () => void;
+  onNodeDragStart?: (id: string, wx: number, wy: number) => void;
+  onNodeDrag?: (id: string, wx: number, wy: number) => void;
+  onNodeDragEnd?: (id: string) => void;
+  onPan?: (dx: number, dy: number) => void;
+  onZoom?: (factor: number, screenX: number, screenY: number) => void;
   activateThreshold?: number;
 }
 
@@ -69,14 +77,33 @@ export class PixiGraphRenderer {
   private onNodeHover?: (id: string | null) => void;
   private onNodeDoubleClick?: (id: string) => void;
   private onContextMenu?: (id: string, x: number, y: number) => void;
+  private onBackgroundClick?: () => void;
+  private onBackgroundDoubleClick?: () => void;
+  private onNodeDragStart?: (id: string, wx: number, wy: number) => void;
+  private onNodeDrag?: (id: string, wx: number, wy: number) => void;
+  private onNodeDragEnd?: (id: string) => void;
+  private onPan?: (dx: number, dy: number) => void;
+  private onZoom?: (factor: number, screenX: number, screenY: number) => void;
+  private cleanupWindowListeners: (() => void) | null = null;
 
   constructor(options: PixiRendererOptions) {
     this.container = options.container;
-    this.activateThreshold = options.activateThreshold ?? 200;
+    this.activateThreshold = options.activateThreshold ?? 0;
     this.onNodeClick = options.onNodeClick;
     this.onNodeHover = options.onNodeHover;
     this.onNodeDoubleClick = options.onNodeDoubleClick;
     this.onContextMenu = options.onContextMenu;
+    this.onBackgroundClick = options.onBackgroundClick;
+    this.onBackgroundDoubleClick = options.onBackgroundDoubleClick;
+    this.onNodeDragStart = options.onNodeDragStart;
+    this.onNodeDrag = options.onNodeDrag;
+    this.onNodeDragEnd = options.onNodeDragEnd;
+    this.onPan = options.onPan;
+    this.onZoom = options.onZoom;
+  }
+
+  updateGraph(nodes: PixiNode[], _links?: any[]): void {
+    this.setNodes(nodes);
   }
 
   async init(): Promise<void> {
@@ -102,11 +129,92 @@ export class PixiGraphRenderer {
     this.setupInteraction();
   }
 
+  public getCanvas(): HTMLCanvasElement | null {
+    return this.canvasEl;
+  }
+
   private setupInteraction() {
     if (!this.canvasEl) return;
     this.canvasEl.style.pointerEvents = 'all';
-    this.canvasEl.style.cursor = 'default';
-    this.canvasEl.addEventListener('click', (e) => {
+    this.canvasEl.style.cursor = 'grab';
+
+    let isDraggingNode = false;
+    let draggedNodeId: string | null = null;
+    let isPanning = false;
+    let panStartX = 0;
+    let panStartY = 0;
+    let hasMoved = false;
+
+    const handleMouseDown = (e: MouseEvent) => {
+      if (!this.app || e.button !== 0) return; // only left click
+      const rect = this.canvasEl!.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      const hit = this.hitTest(mx, my);
+      hasMoved = false;
+
+      if (hit) {
+        isDraggingNode = true;
+        draggedNodeId = hit;
+        const wx = (mx - this.currentTranslate.x) / this.currentScale;
+        const wy = (my - this.currentTranslate.y) / this.currentScale;
+        this.onNodeDragStart?.(hit, wx, wy);
+      } else {
+        isPanning = true;
+        panStartX = e.clientX;
+        panStartY = e.clientY;
+      }
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!this.app || !this.canvasEl) return;
+      if (isDraggingNode && draggedNodeId) {
+        hasMoved = true;
+        const rect = this.canvasEl.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+        const wx = (mx - this.currentTranslate.x) / this.currentScale;
+        const wy = (my - this.currentTranslate.y) / this.currentScale;
+        this.onNodeDrag?.(draggedNodeId, wx, wy);
+        return;
+      }
+      if (isPanning) {
+        hasMoved = true;
+        const dx = e.clientX - panStartX;
+        const dy = e.clientY - panStartY;
+        panStartX = e.clientX;
+        panStartY = e.clientY;
+        this.onPan?.(dx, dy);
+        return;
+      }
+
+      // Normal hover
+      const rect = this.canvasEl.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      if (mx >= 0 && mx <= rect.width && my >= 0 && my <= rect.height) {
+        const node = this.hitTest(mx, my);
+        const newHover = node ?? null;
+        if (newHover !== this.hoveredNodeId) {
+          this.hoveredNodeId = newHover;
+          this.canvasEl.style.cursor = newHover ? 'pointer' : 'grab';
+          this.onNodeHover?.(newHover);
+          this.scheduleUpdate();
+        }
+      }
+    };
+
+    const handleMouseUp = () => {
+      if (isDraggingNode && draggedNodeId) {
+        this.onNodeDragEnd?.(draggedNodeId);
+        isDraggingNode = false;
+        draggedNodeId = null;
+      }
+      isPanning = false;
+    };
+
+    const handleClick = (e: MouseEvent) => {
+      if (hasMoved) return; // was a drag or pan, not a clean click
       if (!this.app) return;
       const rect = this.canvasEl!.getBoundingClientRect();
       const mx = e.clientX - rect.left;
@@ -114,44 +222,62 @@ export class PixiGraphRenderer {
       const node = this.hitTest(mx, my);
       if (node) {
         this.onNodeClick?.(node);
+      } else {
+        this.onBackgroundClick?.();
       }
-    });
-    this.canvasEl.addEventListener('mousemove', (e) => {
+    };
+
+    const handleDblClick = (e: MouseEvent) => {
       if (!this.app) return;
       const rect = this.canvasEl!.getBoundingClientRect();
       const mx = e.clientX - rect.left;
       const my = e.clientY - rect.top;
       const node = this.hitTest(mx, my);
-      const newHover = node ?? null;
-      if (newHover !== this.hoveredNodeId) {
-        this.hoveredNodeId = newHover;
-        this.canvasEl!.style.cursor = newHover ? 'pointer' : 'default';
-        this.onNodeHover?.(newHover);
-        this.scheduleUpdate();
+      if (node) {
+        this.onNodeDoubleClick?.(node);
+      } else {
+        this.onBackgroundDoubleClick?.();
       }
-    });
-    this.canvasEl.addEventListener('dblclick', (e) => {
-      if (!this.app) return;
+    };
+
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
       const rect = this.canvasEl!.getBoundingClientRect();
       const mx = e.clientX - rect.left;
       const my = e.clientY - rect.top;
-      const node = this.hitTest(mx, my);
-      if (node) this.onNodeDoubleClick?.(node);
-    });
-    this.canvasEl.addEventListener('contextmenu', (e) => {
+      this.onZoom?.(factor, mx, my);
+    };
+
+    const handleContextMenu = (e: MouseEvent) => {
       e.preventDefault();
       if (!this.app) return;
       const rect = this.canvasEl!.getBoundingClientRect();
       const node = this.hitTest(e.clientX - rect.left, e.clientY - rect.top);
       if (node) this.onContextMenu?.(node, e.clientX, e.clientY);
-    });
-    this.canvasEl.addEventListener('mouseleave', () => {
+    };
+
+    const handleMouseLeave = () => {
       if (this.hoveredNodeId !== null) {
         this.hoveredNodeId = null;
         this.onNodeHover?.(null);
         this.scheduleUpdate();
       }
-    });
+    };
+
+    this.canvasEl.addEventListener('mousedown', handleMouseDown);
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    this.canvasEl.addEventListener('click', handleClick);
+    this.canvasEl.addEventListener('dblclick', handleDblClick);
+    this.canvasEl.addEventListener('wheel', handleWheel, { passive: false });
+    this.canvasEl.addEventListener('contextmenu', handleContextMenu);
+    this.canvasEl.addEventListener('mouseleave', handleMouseLeave);
+
+    this.cleanupWindowListeners = () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
   }
 
   private hitTest(screenX: number, screenY: number): string | null {
@@ -516,7 +642,7 @@ export class PixiGraphRenderer {
         this.nodeDirtyFlags.set(id, false);
       }
 
-      // LOD visibility toggles
+      // LOD visibility toggles with smooth alpha interpolation
       if (lod === 'low') {
         if (lbl) lbl.visible = false;
         if (bG) bG.visible = false;
@@ -526,20 +652,21 @@ export class PixiGraphRenderer {
         if (bG) bG.visible = false;
         if (bTxt) bTxt.visible = false;
       } else {
-        // High LOD
+        // High LOD - smooth text fade-in based on zoom scale
+        const lodFade = Math.min(1.0, Math.max(0.2, (this.currentScale - 2.0) / 0.5));
         if (lbl) {
           lbl.visible = true;
-          lbl.alpha = dimAlpha;
+          lbl.alpha = dimAlpha * lodFade;
           lbl.style.fill = isSel ? 0x7ee8fa : 0xe8f4ff;
         }
         const hasBadge = !!(nd.badgeCount && nd.badgeCount > 0);
         if (bG) {
           bG.visible = hasBadge;
-          bG.alpha = dimAlpha;
+          bG.alpha = dimAlpha * lodFade;
         }
         if (bTxt) {
           bTxt.visible = hasBadge;
-          bTxt.alpha = dimAlpha;
+          bTxt.alpha = dimAlpha * lodFade;
         }
       }
     });
@@ -553,6 +680,10 @@ export class PixiGraphRenderer {
   }
 
   destroy(): void {
+    if (this.cleanupWindowListeners) {
+      this.cleanupWindowListeners();
+      this.cleanupWindowListeners = null;
+    }
     if (this.rafId !== null) cancelAnimationFrame(this.rafId);
     if (this.app) {
       this.app.destroy(true, { children: true });

@@ -446,41 +446,41 @@ export const OptimizationPanel: React.FC<OptimizationPanelProps> = ({
   };
 
   return (
-    <div className="h-full overflow-y-auto p-4">
+    <div className="h-full overflow-y-auto p-4 custom-scrollbar">
       {/* 一键展开/折叠按钮 */}
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-3.5 flex items-center justify-between">
         <span className="text-xs text-monokai-comment">
           共 {OPTIMIZATION_DATA.length} 个分类，{OPTIMIZATION_DATA.reduce((acc, item) => acc + item.snippets.length, 0)} 个代码块
         </span>
         <button
           onClick={toggleAllCategories}
-          className="px-3 py-1.5 text-xs rounded bg-monokai-accent/20 text-monokai-accent hover:bg-monokai-accent/30 transition-colors"
+          className="px-2.5 py-1 text-xs rounded-md border border-monokai-border/80 bg-monokai-surface text-monokai-fg-muted hover:text-monokai-fg hover:border-monokai-border transition-colors cursor-pointer"
         >
           {allCategoriesExpanded ? '全部折叠' : '全部展开'}
         </button>
       </div>
-      <div className="space-y-4">
+      <div className="space-y-3.5">
         {OPTIMIZATION_DATA.map((item) => (
           <div key={item.id}>
             {/* 分类头部 - 可展开/折叠整个类别 */}
-            <div className="bg-monokai-sidebar border border-monokai-accent rounded-lg overflow-hidden mb-3">
+            <div className="rounded-lg border border-monokai-border/60 bg-monokai-surface/90 overflow-hidden mb-2 shadow-xs transition-colors">
               <div 
-                className="px-4 py-2 bg-monokai-bg border-b border-monokai-accent flex items-center justify-between cursor-pointer hover:bg-monokai-accent/10"
+                className="px-3.5 py-2.5 bg-monokai-sidebar/70 border-b border-monokai-border/40 flex items-center justify-between cursor-pointer hover:bg-monokai-sidebar transition-colors"
                 onClick={() => toggleExpandCategory(item.id)}
               >
                 <div className="flex items-center gap-2">
-                  {item.category === '分析' && <Zap className="w-4 h-4 text-monokai-yellow" />}
-                  {item.category === '索引' && <Search className="w-4 h-4 text-monokai-blue" />}
-                  {item.category === '优化' && <Gauge className="w-4 h-4 text-monokai-green" />}
-                  {item.category === '优化器' && <BarChart3 className="w-4 h-4 text-monokai-amethyst" />}
-                  {item.category === '架构' && <Database className="w-4 h-4 text-monokai-cyan" />}
-                  <span className="font-medium text-monokai-fg">{item.name}</span>
-                  <span className="text-xs px-2 py-0.5 rounded bg-monokai-amethyst/20 text-monokai-amethyst">
+                  {item.category === '分析' && <Zap className="w-4 h-4 text-monokai-yellow shrink-0" />}
+                  {item.category === '索引' && <Search className="w-4 h-4 text-monokai-cyan shrink-0" />}
+                  {item.category === '优化' && <Gauge className="w-4 h-4 text-monokai-green shrink-0" />}
+                  {item.category === '优化器' && <BarChart3 className="w-4 h-4 text-monokai-amethyst shrink-0" />}
+                  {item.category === '架构' && <Database className="w-4 h-4 text-monokai-cyan shrink-0" />}
+                  <span className="font-semibold text-xs text-monokai-fg">{item.name}</span>
+                  <span className="text-[10px] font-mono font-medium px-2 py-0.5 rounded border border-monokai-amethyst/30 bg-monokai-amethyst/10 text-monokai-amethyst">
                     {item.category}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-monokai-comment">
+                  <span className="text-xs text-monokai-comment font-mono">
                     {item.snippets.length} 个代码块
                   </span>
                   {expandedCategory.has(item.id) ? (
@@ -492,8 +492,8 @@ export const OptimizationPanel: React.FC<OptimizationPanelProps> = ({
               </div>
 
               {/* 描述 */}
-              <div className="px-4 py-2 bg-monokai-bg/50 border-b border-monokai-accent">
-                <p className="text-xs text-monokai-comment">{item.description}</p>
+              <div className="px-3.5 py-2 bg-monokai-bg/60 border-b border-monokai-border/40">
+                <p className="text-xs text-monokai-comment leading-relaxed">{item.description}</p>
               </div>
             </div>
 
@@ -508,11 +508,11 @@ export const OptimizationPanel: React.FC<OptimizationPanelProps> = ({
                   return (
                     <div
                       key={idx}
-                      className="bg-monokai-sidebar border border-monokai-accent/50 rounded-lg overflow-hidden"
+                      className="bg-monokai-bg rounded-md border border-monokai-border/60 overflow-hidden transition-colors shadow-xs"
                     >
                       {/* 片段标题栏 - 点击可展开/折叠 */}
                       <div 
-                        className="px-3 py-2 bg-monokai-bg flex items-center justify-between cursor-pointer hover:bg-monokai-accent/10"
+                        className="px-3 py-2 bg-monokai-surface/80 border-b border-monokai-border/40 flex items-center justify-between cursor-pointer hover:bg-monokai-surface transition-colors"
                         onClick={() => toggleExpandSnippet(snippetId)}
                       >
                         <div className="flex items-center gap-2">
@@ -523,14 +523,14 @@ export const OptimizationPanel: React.FC<OptimizationPanelProps> = ({
                         </div>
                         <div className="flex items-center gap-1">
                           {isMarkdown && (
-                            <span className="text-xs px-1.5 py-0.5 rounded bg-monokai-amethyst/20 text-monokai-amethyst mr-1">
+                            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded border border-monokai-amethyst/30 bg-monokai-amethyst/10 text-monokai-amethyst mr-1 font-medium">
                               Markdown
                             </span>
                           )}
                           {isExpanded ? (
-                            <ChevronUp className="w-3 h-3 text-monokai-comment" />
+                            <ChevronUp className="w-3.5 h-3.5 text-monokai-comment" />
                           ) : (
-                            <ChevronDown className="w-3 h-3 text-monokai-comment" />
+                            <ChevronDown className="w-3.5 h-3.5 text-monokai-comment" />
                           )}
                         </div>
                       </div>
@@ -540,7 +540,7 @@ export const OptimizationPanel: React.FC<OptimizationPanelProps> = ({
                         <>
                           {/* 操作按钮栏 - 仅 SQL 有执行按钮 */}
                           {snippet.sql && (
-                            <div className="px-3 py-2 bg-monokai-accent/5 border-b border-monokai-accent/30 flex items-center gap-1">
+                            <div className="px-3 py-1.5 bg-monokai-surface/50 border-b border-monokai-border/40 flex items-center gap-1">
                               {/* 执行按钮 */}
                               {(() => {
                                 const result = executionResults[snippetId];
@@ -551,16 +551,16 @@ export const OptimizationPanel: React.FC<OptimizationPanelProps> = ({
                                       handleExecute(snippetId, snippet.sql!);
                                     }}
                                     disabled={result?.loading}
-                                    className={`p-1.5 rounded transition-colors ${
+                                    className={`p-1.5 rounded-md transition-colors cursor-pointer ${
                                       result?.loading
                                         ? 'bg-monokai-yellow/20 text-monokai-yellow cursor-wait'
                                         : result?.error
-                                        ? 'hover:bg-monokai-pink/30 text-monokai-pink'
+                                        ? 'hover:bg-monokai-pink/20 text-monokai-pink'
                                         : result?.data
-                                        ? 'hover:bg-monokai-green/30 text-monokai-green'
-                                        : 'hover:bg-monokai-green/30 text-monokai-comment hover:text-monokai-green'
+                                        ? 'hover:bg-monokai-green/20 text-monokai-green'
+                                        : 'hover:bg-monokai-elevated text-monokai-comment hover:text-monokai-green'
                                     }`}
-                                    name={result?.loading ? '执行中...' : '执行 SQL'}
+                                    title={result?.loading ? '执行中...' : '执行 SQL'}
                                   >
                                     {result?.loading ? (
                                       <span className="w-3.5 h-3.5 border-2 border-monokai-yellow border-t-transparent rounded-full animate-spin" />
@@ -577,8 +577,8 @@ export const OptimizationPanel: React.FC<OptimizationPanelProps> = ({
                                     e.stopPropagation();
                                     onInsert(snippet.sql!);
                                   }}
-                                  className="p-1.5 rounded hover:bg-monokai-blue/30 text-monokai-comment hover:text-monokai-blue transition-colors"
-                                  name="插入到 SQL 编辑器"
+                                  className="p-1.5 rounded-md hover:bg-monokai-elevated text-monokai-comment hover:text-monokai-cyan transition-colors cursor-pointer"
+                                  title="插入到 SQL 编辑器"
                                 >
                                   <ArrowRight className="w-3.5 h-3.5" />
                                 </button>
@@ -589,8 +589,8 @@ export const OptimizationPanel: React.FC<OptimizationPanelProps> = ({
                                   e.stopPropagation();
                                   onCopy?.(snippetId, snippet.sql || snippet.markdown || '');
                                 }}
-                                className="p-1.5 rounded hover:bg-monokai-accent/30 text-monokai-comment hover:text-monokai-fg transition-colors"
-                                name="复制内容"
+                                className="p-1.5 rounded-md hover:bg-monokai-elevated text-monokai-comment hover:text-monokai-fg transition-colors cursor-pointer"
+                                title="复制内容"
                               >
                                 {copiedId === snippetId ? (
                                   <Check className="w-3.5 h-3.5 text-monokai-green" />
@@ -603,8 +603,8 @@ export const OptimizationPanel: React.FC<OptimizationPanelProps> = ({
 
                           {/* Markdown 渲染或 SQL 代码块 */}
                           {isMarkdown ? (
-                            <div className="p-3 bg-monokai-bg">
-                              <div className="markdown-body" style={{ fontSize: '12px' }}>
+                            <div className="p-3.5 bg-monokai-bg">
+                              <div className="markdown-body text-xs text-monokai-fg-muted leading-relaxed">
                                 <ReactMarkdown remarkPlugins={[remarkGfm]}>
                                   {snippet.markdown!}
                                 </ReactMarkdown>
@@ -620,9 +620,17 @@ export const OptimizationPanel: React.FC<OptimizationPanelProps> = ({
                                   sql(),
                                   EditorView.lineWrapping,
                                   EditorView.theme({
-                                    "&": { fontSize: "12px" },
-                                    ".cm-content": { fontSize: "12px" },
-                                    ".cm-line": { fontSize: "12px" }
+                                    "&": { fontSize: "11.5px", backgroundColor: "transparent" },
+                                    ".cm-content": { 
+                                      fontSize: "11.5px", 
+                                      fontFamily: "var(--font-mono)", 
+                                      lineHeight: "1.55", 
+                                      padding: "6px 8px" 
+                                    },
+                                    ".cm-line": { 
+                                      fontSize: "11.5px", 
+                                      fontFamily: "var(--font-mono)" 
+                                    }
                                   })
                                 ]}
                                 editable={false}

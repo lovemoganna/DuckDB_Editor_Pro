@@ -19,26 +19,26 @@ import { OPERATION_CONFIG, LEVEL_CONFIG } from '../../types/abstraction';
 
 // 静态颜色映射
 const OPERATION_BG_CLASSES: Record<string, string> = {
-  SELECT:    'bg-monokai-blue/15 text-monokai-blue border-monokai-blue/30',
-  INSERT:    'bg-monokai-green/15 text-monokai-green border-monokai-green/30',
-  UPDATE:    'bg-monokai-yellow/15 text-monokai-yellow border-monokai-yellow/30',
-  DELETE:    'bg-monokai-red/15 text-monokai-red border-monokai-red/30',
-  AGGREGATE: 'bg-monokai-amethyst/15 text-monokai-amethyst border-monokai-amethyst/30',
-  JOIN:      'bg-monokai-pink/15 text-monokai-pink border-monokai-pink/30',
-  WINDOW:    'bg-monokai-orange/15 text-monokai-orange border-monokai-orange/30',
-  CTE:       'bg-monokai-cyan/15 text-monokai-cyan border-monokai-cyan/30',
+  SELECT:    'bg-sky-500/10 text-sky-400 border-monokai-border-subtle',
+  INSERT:    'bg-emerald-500/10 text-emerald-400 border-monokai-border-subtle',
+  UPDATE:    'bg-amber-500/10 text-amber-400 border-monokai-border-subtle',
+  DELETE:    'bg-rose-500/10 text-rose-400 border-monokai-border-subtle font-medium',
+  AGGREGATE: 'bg-monokai-sidebar text-monokai-fg-muted border-monokai-border-subtle',
+  JOIN:      'bg-rose-500/10 text-rose-400 border-monokai-border-subtle',
+  WINDOW:    'bg-amber-500/10 text-amber-400 border-monokai-border-subtle',
+  CTE:       'bg-sky-500/10 text-sky-400 border-monokai-border-subtle',
 };
 
 const LEVEL_COLOR_CLASSES: Record<string, string> = {
-  amethyst: 'bg-monokai-amethyst/10 text-monokai-amethyst',
-  blue:   'bg-monokai-blue/10 text-monokai-blue',
-  green:  'bg-monokai-green/10 text-monokai-green',
-  yellow: 'bg-monokai-yellow/10 text-monokai-yellow',
-  red:    'bg-monokai-red/10 text-monokai-red',
-  pink:   'bg-monokai-pink/10 text-monokai-pink',
-  orange: 'bg-monokai-orange/10 text-monokai-orange',
-  cyan:   'bg-monokai-cyan/10 text-monokai-cyan',
-  fg:     'bg-monokai-fg/10 text-monokai-fg',
+  amethyst: 'bg-monokai-sidebar text-monokai-fg-muted border border-monokai-border-subtle',
+  blue:   'bg-monokai-sidebar text-monokai-fg-muted border border-monokai-border-subtle',
+  green:  'bg-monokai-sidebar text-monokai-fg-muted border border-monokai-border-subtle',
+  yellow: 'bg-monokai-sidebar text-monokai-fg-muted border border-monokai-border-subtle',
+  red:    'bg-monokai-sidebar text-monokai-fg-muted border border-monokai-border-subtle',
+  pink:   'bg-monokai-sidebar text-monokai-fg-muted border border-monokai-border-subtle',
+  orange: 'bg-monokai-sidebar text-monokai-fg-muted border border-monokai-border-subtle',
+  cyan:   'bg-monokai-sidebar text-monokai-fg-muted border border-monokai-border-subtle',
+  fg:     'bg-monokai-sidebar text-monokai-fg-muted border border-monokai-border-subtle',
 };
 
 interface TableCardProps {
@@ -55,7 +55,7 @@ export const TableCard: React.FC<TableCardProps> = ({
   onInsert,
 }) => {
   const OpConfig = OPERATION_CONFIG[table.sqlConfig.operation];
-  const opClass = OPERATION_BG_CLASSES[table.sqlConfig.operation] || 'bg-monokai-fg/15 text-monokai-fg border-monokai-fg/30';
+  const opClass = OPERATION_BG_CLASSES[table.sqlConfig.operation] || 'bg-monokai-sidebar text-monokai-comment border-monokai-border-subtle';
 
   const levels = Object.entries(table.abstractionPath)
     .filter(([, v]) => Boolean(v))
@@ -66,13 +66,13 @@ export const TableCard: React.FC<TableCardProps> = ({
       onClick={onClick}
       className={`group relative mb-2 rounded-xl p-3 cursor-pointer transition-all duration-150 ${
         isSelected
-          ? 'bg-monokai-amethyst/10 border border-monokai-amethyst/40 shadow-md shadow-monokai-amethyst/10'
-          : 'bg-monokai-surface border border-monokai-border hover:border-monokai-amethyst/40 hover:shadow-md hover:shadow-black/20'
+          ? 'bg-monokai-surface border border-monokai-accent/70 shadow-xs'
+          : 'bg-monokai-surface/60 border border-monokai-border hover:border-monokai-border-strong hover:bg-monokai-surface shadow-xs'
       }`}
     >
       {/* 左侧选中指示条 */}
       {isSelected && (
-        <div className="absolute left-0 top-3 bottom-3 w-0.5 bg-monokai-amethyst rounded-full" />
+        <div className="absolute left-0 top-3 bottom-3 w-0.5 bg-monokai-accent rounded-full" />
       )}
 
       {/* 顶部行：名称 + 操作类型 */}

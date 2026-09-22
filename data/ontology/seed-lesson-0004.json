@@ -1,0 +1,136 @@
+{
+  "_meta": {
+    "name": "第 04 课：把对象连接到过程",
+    "description": "一次聚焦一个核心过程，把材料中明确涉及的对象汇聚连接，形成初具形态的关联拓扑",
+    "case_background": "【案例背景材料】合规专家王五接入采购框架协议审批流，审查并签署了《年度采购框架协议.pdf》。",
+    "core_concept": "Topology & Role Semantic",
+    "version": "1.0.0",
+    "author": "system",
+    "created_at": "2026-07-25",
+    "scenario": "lesson-0004",
+    "complexity": "easy"
+  },
+  "objectTypes": [
+    {
+      "id": 1,
+      "name": "合规主体与标的",
+      "description": "审核人员、协议文档标的及审计终态档案"
+    },
+    {
+      "id": 2,
+      "name": "审查流程与凭据",
+      "description": "审批工作流中枢与具有法律效力的生效存证凭据"
+    }
+  ],
+  "objects": [
+    {
+      "id": 1,
+      "object_type_id": 1,
+      "name": "合规专家·王五",
+      "properties": "{\"工号\":\"COMP-501\",\"职责\":\"合规终审\"}",
+      "annotations": "终审责任人"
+    },
+    {
+      "id": 2,
+      "object_type_id": 1,
+      "name": "法务初审·小刘",
+      "properties": "{\"工号\":\"LEGAL-204\",\"职责\":\"前置审查\"}",
+      "annotations": "初审责任人"
+    },
+    {
+      "id": 3,
+      "object_type_id": 1,
+      "name": "年度框架协议",
+      "properties": "{\"文档编号\":\"AGR-2026-HQ\",\"格式\":\"PDF\",\"页数\":48}",
+      "annotations": "审查标的文档"
+    },
+    {
+      "id": 4,
+      "object_type_id": 2,
+      "name": "框架协议审批",
+      "properties": "{\"审批流水\":\"FLOW-AGR-88\",\"时效\":\"48小时\",\"状态\":\"已核准\"}",
+      "annotations": "核心流程中枢"
+    },
+    {
+      "id": 5,
+      "object_type_id": 2,
+      "name": "生效存证单",
+      "properties": "{\"存证哈希\":\"HASH-E99A-2026\",\"公章\":\"CA已加盖\"}",
+      "annotations": "签署法律凭据"
+    },
+    {
+      "id": 6,
+      "object_type_id": 1,
+      "name": "合规审计库",
+      "properties": "{\"档案区\":\"ARCH-LEGAL-A\",\"密级\":\"机密\",\"保存期限\":\"10年\"}",
+      "annotations": "归档目的地"
+    }
+  ],
+  "linkTypes": [
+    {
+      "id": 1,
+      "name": "终审签署",
+      "description": "合规终审人在流程中签署"
+    },
+    {
+      "id": 2,
+      "name": "前置合规",
+      "description": "法务前置完成合规核查"
+    },
+    {
+      "id": 3,
+      "name": "送审标的",
+      "description": "核心协议文档作为标的接入审批"
+    },
+    {
+      "id": 4,
+      "name": "产出凭据",
+      "description": "流程完结生成法律效力生效单据"
+    },
+    {
+      "id": 5,
+      "name": "归档存证",
+      "description": "生效单据归档至审计档案库"
+    }
+  ],
+  "links": [
+    {
+      "id": 1,
+      "link_type_id": 1,
+      "source_object_id": 1,
+      "target_object_id": 4,
+      "weight": 1
+    },
+    {
+      "id": 2,
+      "link_type_id": 2,
+      "source_object_id": 2,
+      "target_object_id": 4,
+      "weight": 1
+    },
+    {
+      "id": 3,
+      "link_type_id": 3,
+      "source_object_id": 3,
+      "target_object_id": 4,
+      "weight": 1
+    },
+    {
+      "id": 4,
+      "link_type_id": 4,
+      "source_object_id": 4,
+      "target_object_id": 5,
+      "weight": 1
+    },
+    {
+      "id": 5,
+      "link_type_id": 5,
+      "source_object_id": 5,
+      "target_object_id": 6,
+      "weight": 0.95
+    }
+  ],
+  "actions": [],
+  "introspections": [],
+  "insights": []
+}

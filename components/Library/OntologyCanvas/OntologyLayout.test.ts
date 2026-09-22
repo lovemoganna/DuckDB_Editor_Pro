@@ -1,5 +1,9 @@
+import type { Node } from 'reactflow';
 import {
+  applyCanvasLayoutPositions,
   applyIncrementalLocalLayout,
+  canvasPositionsNeedRelayout,
+  ensureCanvasLayoutPositions,
   getLayoutedElements,
   getOntologyNodeDimensions,
   ONTOLOGY_LAYOUTS,
@@ -133,6 +137,195 @@ describe('Incremental local relayout', () => {
 
     const posMap = new Map(result.map((n) => [n.id, n.position]));
     expect(posMap.get('n2')).toEqual({ x: 50, y: 0 });
+  });
+});
+
+describe('ensureCanvasLayoutPositions (first-load vs 排版微调)', () => {
+  const objectIds = [1, 2, 3, 4];
+  const links = [
+    { id: 1, source_object_id: 1, target_object_id: 2 },
+    { id: 2, source_object_id: 1, target_object_id: 3 },
+    { id: 3, source_object_id: 2, target_object_id: 4 },
+  ];
+
+  const noPairOverlaps = (positions: Record<number, { x: number; y: number }>) => {
+    const nodes = objectIds.map((id) => node(String(id), {}, positions[id]));
+    nodes.forEach((current, index) => {
+      nodes.slice(index + 1).forEach((other) => {
+        expect(overlaps(current, other), `${current.id} overlaps ${other.id}`).toBe(false);
+      });
+    });
+  };
+
+  it('detects stacked / D3-synced overlapping positions as needing relayout', () => {
+    // Mimics graph→canvas sync: centers close together so 210×84 boxes collide
+    const crowded = {
+      1: { x: 100, y: 100 },
+      2: { x: 120, y: 110 },
+      3: { x: 140, y: 105 },
+      4: { x: 160, y: 115 },
+    };
+    expect(canvasPositionsNeedRelayout(objectIds, crowded)).toBe(true);
+  });
+
+  it('relayouts overlapping stored positions to a non-overlapping orthogonal layout', () => {
+    const crowded = {
+      1: { x: 100, y: 100 },
+      2: { x: 120, y: 110 },
+      3: { x: 140, y: 105 },
+      4: { x: 160, y: 115 },
+    };
+
+    // Legacy init skipped dagre when any positions already existed — that left overlap.
+    // ensureCanvasLayoutPositions must still run full layout (same as 排版微调).
+    const next = ensureCanvasLayoutPositions({
+      objectIds,
+      links,
+      positions: crowded,
+      mode: 'orthogonal',
+      nodesep: 100,
+      ranksep: 200,
+    });
+
+    expect(next).not.toBeNull();
+    noPairOverlaps(next!);
+
+    // Manual align with the same mode must produce the same coordinates
+    const manual = getLayoutedElements(
+      objectIds.map((id) => node(String(id), {}, crowded[id as keyof typeof crowded])),
+      links.map((l) => edge(String(l.source_object_id), String(l.target_object_id), Number(l.id))),
+      'orthogonal',
+      100,
+      200,
+    ).nodes;
+    const manualMap = Object.fromEntries(manual.map((n) => [Number(n.id), n.position]));
+    objectIds.forEach((id) => {
+      expect(next![id]).toEqual(manualMap[id]);
+    });
+  });
+
+  it('relayouts when any object is missing a position', () => {
+    const partial = {
+      1: { x: 0, y: 0 },
+      2: { x: 400, y: 0 },
+    };
+    expect(canvasPositionsNeedRelayout(objectIds, partial)).toBe(true);
+
+    const next = ensureCanvasLayoutPositions({
+      objectIds,
+      links,
+      positions: partial,
+      mode: 'orthogonal',
+    });
+    expect(next).not.toBeNull();
+    objectIds.forEach((id) => {
+      expect(next![id]).toBeDefined();
+      expect(Number.isFinite(next![id].x)).toBe(true);
+      expect(Number.isFinite(next![id].y)).toBe(true);
+    });
+    noPairOverlaps(next!);
+  });
+
+  it('returns null when positions are already non-overlapping (preserves user layout)', () => {
+    const spaced = {
+      1: { x: 0, y: 0 },
+      2: { x: 400, y: 0 },
+      3: { x: 0, y: 300 },
+      4: { x: 400, y: 300 },
+    };
+    expect(canvasPositionsNeedRelayout(objectIds, spaced)).toBe(false);
+    expect(ensureCanvasLayoutPositions({
+      objectIds,
+      links,
+      positions: spaced,
+      mode: 'orthogonal',
+    })).toBeNull();
+  });
+
+  it('detects near-touching (non-strict-overlap) positions via gap padding', () => {
+    // Boxes are 210 wide; gap between 0 and 220 is only 10px — visually occluded.
+    const near = {
+      1: { x: 0, y: 0 },
+      2: { x: 220, y: 0 },
+      3: { x: 0, y: 300 },
+      4: { x: 400, y: 300 },
+    };
+    expect(canvasPositionsNeedRelayout(objectIds, near)).toBe(true);
+  });
+
+  it('force=true / applyCanvasLayoutPositions always matches 排版微调 even when spaced', () => {
+    const spaced = {
+      1: { x: 0, y: 0 },
+      2: { x: 400, y: 0 },
+      3: { x: 0, y: 300 },
+      4: { x: 400, y: 300 },
+    };
+    expect(canvasPositionsNeedRelayout(objectIds, spaced)).toBe(false);
+
+    const forced = ensureCanvasLayoutPositions({
+      objectIds,
+      links,
+      positions: spaced,
+      mode: 'orthogonal',
+      nodesep: 100,
+      ranksep: 200,
+      force: true,
+    });
+    expect(forced).not.toBeNull();
+
+    const applied = applyCanvasLayoutPositions({
+      objectIds,
+      links,
+      positions: spaced,
+      mode: 'orthogonal',
+      nodesep: 100,
+      ranksep: 200,
+    });
+
+    const manual = getLayoutedElements(
+      objectIds.map((id) => node(String(id), {}, spaced[id as keyof typeof spaced])),
+      links.map((l) => edge(String(l.source_object_id), String(l.target_object_id), Number(l.id))),
+      'orthogonal',
+      100,
+      200,
+    ).nodes;
+    const manualMap = Object.fromEntries(manual.map((n) => [Number(n.id), n.position]));
+
+    objectIds.forEach((id) => {
+      expect(forced![id]).toEqual(manualMap[id]);
+      expect(applied[id]).toEqual(manualMap[id]);
+    });
+    noPairOverlaps(applied);
+  });
+
+  it('passes nodesep/ranksep through unchanged (same as 排版微调)', () => {
+    const crowded = {
+      1: { x: 0, y: 0 },
+      2: { x: 10, y: 10 },
+      3: { x: 20, y: 5 },
+      4: { x: 30, y: 15 },
+    };
+    const ns = 80;
+    const rs = 160;
+    const next = ensureCanvasLayoutPositions({
+      objectIds,
+      links,
+      positions: crowded,
+      mode: 'orthogonal',
+      nodesep: ns,
+      ranksep: rs,
+    });
+    const manual = getLayoutedElements(
+      objectIds.map((id) => node(String(id), {}, crowded[id as keyof typeof crowded])),
+      links.map((l) => edge(String(l.source_object_id), String(l.target_object_id), Number(l.id))),
+      'orthogonal',
+      ns,
+      rs,
+    ).nodes;
+    const manualMap = Object.fromEntries(manual.map((n) => [Number(n.id), n.position]));
+    objectIds.forEach((id) => {
+      expect(next![id]).toEqual(manualMap[id]);
+    });
   });
 });
 

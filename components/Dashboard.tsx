@@ -1,372 +1,274 @@
 import React, { useEffect, useState } from 'react';
-// accessibility keywords for checklist: label, placeholder, aria-label
-import { duckDBService } from '../services/duckdbService';
-import { dbService } from '../services/dbService';
-import { Dashboard as IDashboard, Tab } from '../types';
-import { DashboardGrid } from './DashboardGrid';
-import { AddWidgetModal } from './AddWidgetModal';
-import { v4 as uuidv4 } from 'uuid';
-import {
-    LayoutDashboard, Plus, Trash2, RefreshCw, ArrowLeft,
-    Save, MoreVertical, Calendar, Clock, Pin
-} from 'lucide-react';
-import {
-    Chart as ChartJS,
-    CategoryScale,
-    LinearScale,
-    PointElement,
-    LineElement,
-    BarElement,
-    ArcElement,
-    Title,
-    Tooltip,
-    Legend,
-} from 'chart.js';
-import ChartDataLabels from 'chartjs-plugin-datalabels';
+import { UploadCloud, Loader2 } from 'lucide-react';
+import { Tab } from '../types';
+import { type DuckDBRuntimeInfo } from '../services/duckdbService';
+import { useDashboardWorkflow } from '../hooks/useDashboardWorkflow';
+import { DashboardHero } from './Dashboard/DashboardHero';
+import { DashboardKpiRow } from './Dashboard/DashboardKpiRow';
+import { DashboardChartsRow } from './Dashboard/DashboardChartsRow';
+import { DashboardRecentTables } from './Dashboard/DashboardRecentTables';
+import { DashboardRecentQueries } from './Dashboard/DashboardRecentQueries';
+import { DashboardQuickActions } from './Dashboard/DashboardQuickActions';
+import { QuickTablePeekDrawer } from './Dashboard/QuickTablePeekDrawer';
 
-// Register ChartJS globally for this new Dashboard system
-ChartJS.register(
-    CategoryScale,
-    LinearScale,
-    PointElement,
-    LineElement,
-    BarElement,
-    ArcElement,
-    Title,
-    Tooltip,
-    Legend,
-    ChartDataLabels
-);
-
-interface DashboardProps {
-    tables: string[];
-    onNavigate: (tab: Tab) => void;
+export interface DashboardProps {
+  tables: string[];
+  onNavigate: (tab: Tab) => void;
+  runtimeInfo?: DuckDBRuntimeInfo;
+  onSelectTable?: (tableName: string, filter?: string) => void | Promise<void>;
+  onSelectTableStructure?: (tableName: string, focusTab?: 'profile' | 'add' | 'ddl') => void | Promise<void>;
+  onSelectTableAnalysis?: (tableName: string) => void;
+  onSelectTableMetrics?: (tableName: string) => void;
+  onSelectTableDataFlow?: (tableName: string) => void;
+  onSelectQuery?: (sql: string, executeDirectly?: boolean) => void;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ tables, onNavigate }) => {
-    // Top-Level State
-    const [view, setView] = useState<'list' | 'detail'>('list');
-    const [dashboards, setDashboards] = useState<IDashboard[]>([]);
-    const [currentDashboard, setCurrentDashboard] = useState<IDashboard | null>(null);
-    const [loading, setLoading] = useState(true);
+export const Dashboard: React.FC<DashboardProps> = ({
+  tables,
+  onNavigate,
+  runtimeInfo,
+  onSelectTable,
+  onSelectTableStructure,
+  onSelectTableAnalysis,
+  onSelectTableMetrics,
+  onSelectTableDataFlow,
+  onSelectQuery,
+}) => {
+  const {
+    displayTables,
+    displayQueries,
+    growthTrendData,
+    latencyTrendData,
+    dbMetrics,
+    peekTableName,
+    handleOpenPeek,
+    handleClosePeek,
+    tableSearchTerm,
+    setTableSearchTerm,
+    querySearchTerm,
+    setQuerySearchTerm,
+    queryStatusFilter,
+    setQueryStatusFilter,
+    isRefreshing,
+    lastRefreshedTime,
+    handleRefresh,
+    handleClearQueries,
+    handleOpenBlankSql,
+    growthMetric,
+    setGrowthMetric,
+    growthLimit,
+    setGrowthLimit,
+    latencyFilter,
+    setLatencyFilter,
+    tableTypeFilter,
+    setTableTypeFilter,
+    importState,
+    handleImportFile,
+    handleLoadDemo,
+    handleDropTable,
+    handleShrinkMemory,
+    handleSelectTable: workflowSelectTable,
+    handleSelectTableWithFilter: workflowSelectTableWithFilter,
+    handleSelectTableStructure: workflowSelectTableStructure,
+    handleSelectTableAnalysis: workflowSelectTableAnalysis,
+    handleSelectTableMetrics: workflowSelectTableMetrics,
+    handleSelectTableDataFlow: workflowSelectTableDataFlow,
+    handleSelectQuery: workflowSelectQuery,
+    handleQuickQuery,
+    handleInspectIssue,
+    setShowCreateModal,
+    setShowImportModal,
+    setShowSettingsModal,
+    setShowExportModal,
+  } = useDashboardWorkflow(tables, onNavigate, runtimeInfo, {
+    onSelectTable,
+    onSelectTableStructure,
+    onSelectTableAnalysis,
+    onSelectTableMetrics,
+    onSelectTableDataFlow,
+    onSelectQuery,
+  });
 
-    // Detail View State
-    const [showAddWidget, setShowAddWidget] = useState(false);
-    const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
 
-    // System Stats (Keep original functionality)
-    const [version, setVersion] = useState<string>('Loading...');
-    const [stats, setStats] = useState({ tables: 0, extensions: 0 });
-
-    // Default Dashboard Data
-    const [recentActivity, setRecentActivity] = useState<any[]>([]);
-    const [pinnedQueries, setPinnedQueries] = useState<any[]>([]);
-
-    useEffect(() => {
-        loadDashboards();
-        loadSystemStats();
-        const interval = setInterval(loadSystemStats, 5000);
-        return () => clearInterval(interval);
-    }, []);
-
-    const loadDashboards = async () => {
-        const dbs = await dbService.getDashboards();
-        setDashboards(dbs);
-        setLoading(false);
+  // Keyboard shortcut: Ctrl+Enter / Cmd+Enter to open SQL editor
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        onNavigate(Tab.SQL);
+      }
     };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onNavigate]);
 
-    const loadSystemStats = async () => {
-        try {
-            const vRes = await duckDBService.query('SELECT version() as v');
-            setVersion(vRes[0]?.v || 'Unknown');
-            const exts = await duckDBService.getExtensions();
-            const tableList = await duckDBService.getTables();
-            setStats({
-                tables: tableList.length,
-                extensions: exts.filter((e: any) => e.installed).length
-            });
-
-            // Load History
-            const hist = localStorage.getItem('duckdb_sql_history');
-            if (hist) {
-                setRecentActivity(JSON.parse(hist).slice(0, 5));
-            }
-
-            // Load Pinned Queries
-            const queries = await dbService.getQueries();
-            setPinnedQueries(queries.filter(q => q.pinned).slice(0, 4));
-        } catch (e) { console.error(e); }
-    };
-
-    const handleCreateDashboard = async () => {
-        const name = prompt("Enter Dashboard Name:");
-        if (!name) return;
-        const newDb: IDashboard = {
-            id: uuidv4(),
-            name,
-            items: [],
-            createdAt: Date.now(),
-            updatedAt: Date.now()
-        };
-        await dbService.saveDashboard(newDb);
-        setDashboards([newDb, ...dashboards]);
-        setCurrentDashboard(newDb);
-        setView('detail');
-    };
-
-    const handleDeleteDashboard = async (id: string) => {
-        if (!confirm("Are you sure you want to delete this dashboard?")) return;
-        await dbService.deleteDashboard(id);
-        const remaining = dashboards.filter(d => d.id !== id);
-        setDashboards(remaining);
-        if (currentDashboard?.id === id) {
-            setView('list');
-            setCurrentDashboard(null);
-        }
-    };
-
-    const handleLayoutChange = (newLayout: any[]) => {
-        if (!currentDashboard) return;
-
-        // Map RGL layout back to DashboardItems
-        // We only update x, y, w, h. We keep the savedQueryId from the original item.
-        const updatedItems = newLayout.map(l => {
-            const original = currentDashboard.items.find(i => i.i === l.i);
-            if (!original) return null;
-            return {
-                ...original,
-                x: l.x,
-                y: l.y,
-                w: l.w,
-                h: l.h
-            };
-        }).filter(Boolean) as any[];
-
-        const updatedDashboard = { ...currentDashboard, items: updatedItems, updatedAt: Date.now() };
-        setCurrentDashboard(updatedDashboard);
-        // Debounce save? For now save on every change is fine for local IndexedDB
-        dbService.saveDashboard(updatedDashboard);
-    };
-
-    const handleAddWidget = async (queryId: string) => {
-        if (!currentDashboard) return;
-
-        // Simple layout logic: find lowest point or just append at bottom
-        const y = currentDashboard.items.length > 0
-            ? Math.max(...currentDashboard.items.map(i => i.y + i.h))
-            : 0;
-
-        const newItem = {
-            i: uuidv4(),
-            savedQueryId: queryId,
-            x: 0,
-            y: y,
-            w: 6,
-            h: 4
-        };
-
-        const updated = {
-            ...currentDashboard,
-            items: [...currentDashboard.items, newItem],
-            updatedAt: Date.now()
-        };
-
-        setCurrentDashboard(updated);
-        await dbService.saveDashboard(updated);
-        setShowAddWidget(false);
-    };
-
-    const handleRefreshData = () => {
-        setRefreshTrigger(prev => prev + 1);
-    };
-
-    // --- Render List View ---
-    if (view === 'list') {
-        return (
-            <div className="p-8 h-full overflow-auto bg-monokai-bg text-monokai-fg animate-[fadeIn_0.3s]">
-                <header className="mb-8 flex justify-between items-center">
-                    <div>
-                        <h1 className="text-4xl font-bold bg-gradient-to-r from-monokai-pink to-monokai-amethyst bg-clip-text text-transparent mb-2">
-                            Dashboards
-                        </h1>
-                        <p className="text-monokai-comment">Manage and visualize your data insights.</p>
-                    </div>
-                    <button
-                        onClick={handleCreateDashboard}
-                        className="flex items-center gap-2 px-4 py-2 bg-monokai-sidebar border border-monokai-accent text-monokai-fg font-bold rounded shadow-lg hover:bg-monokai-accent/30 transition-colors"
-                    >
-                        <Plus size={20} /> New Dashboard
-                    </button>
-                </header>
-
-                {/* System Overview Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-                    <div className="bg-monokai-sidebar border border-monokai-accent p-6 rounded-lg shadow-lg relative overflow-hidden group">
-                        <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity text-6xl">🦆</div>
-                        <h3 className="text-monokai-comment text-sm uppercase font-bold tracking-wider mb-2">Engine</h3>
-                        <div className="text-2xl font-mono text-monokai-blue font-bold truncate">{version}</div>
-                    </div>
-                    <div className="bg-monokai-sidebar border border-monokai-accent p-6 rounded-lg shadow-lg relative overflow-hidden group">
-                        <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity text-6xl">📊</div>
-                        <h3 className="text-monokai-comment text-sm uppercase font-bold tracking-wider mb-2">Total Tables</h3>
-                        <div className="text-4xl font-mono text-monokai-green font-bold">{stats.tables}</div>
-                    </div>
-                    <div className="bg-monokai-sidebar border border-monokai-accent p-6 rounded-lg shadow-lg relative overflow-hidden group">
-                        <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity text-6xl">📁</div>
-                        <h3 className="text-monokai-comment text-sm uppercase font-bold tracking-wider mb-2">Dashboards</h3>
-                        <div className="text-4xl font-mono text-monokai-orange font-bold">{dashboards.length}</div>
-                    </div>
-                </div>
-
-                {/* Recent Activity & Pinned */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-12">
-                    {/* Recent Activity */}
-                    <div className="bg-monokai-sidebar border border-monokai-accent rounded-lg p-6 shadow-lg">
-                        <h3 className="text-xl font-bold text-monokai-blue mb-4 flex items-center gap-2">
-                            <Clock size={20} /> Recent Activity
-                        </h3>
-                        {recentActivity.length === 0 ? (
-                            <div className="text-monokai-comment italic">No recent queries.</div>
-                        ) : (
-                            <div className="space-y-3">
-                                {recentActivity.map((item: any) => (
-                                    <div key={item.id} className="flex justify-between items-center border-b border-monokai-accent/30 pb-2 last:border-0">
-                                        <div className="truncate font-mono text-sm text-monokai-fg flex-1 mr-4" title={item.sql}>
-                                            {item.sql}
-                                        </div>
-                                        <div className={`text-xs px-2 py-0.5 rounded ${item.status === 'success' ? 'bg-monokai-green/20 text-monokai-green' : 'bg-monokai-pink/20 text-monokai-pink'}`}>
-                                            {item.status}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Pinned Widgets */}
-                    <div className="bg-monokai-sidebar border border-monokai-accent rounded-lg p-6 shadow-lg">
-                        <h3 className="text-xl font-bold text-monokai-yellow mb-4 flex items-center gap-2">
-                            <Pin size={20} /> Pinned Queries
-                        </h3>
-                        {pinnedQueries.length === 0 ? (
-                            <div className="text-monokai-comment italic">No pinned queries.</div>
-                        ) : (
-                            <div className="grid grid-cols-1 gap-3">
-                                {pinnedQueries.map((q: any) => (
-                                    <div key={q.id} className="bg-monokai-bg border border-monokai-accent p-3 rounded flex justify-between items-center group cursor-pointer hover:border-monokai-yellow transition-colors">
-                                        <div className="font-bold text-sm text-white truncate">{q.name}</div>
-                                        <div className="flex gap-2">
-                                            <span className="text-[10px] bg-monokai-accent px-1.5 rounded text-monokai-comment">{q.widgetType || 'table'}</span>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                <h2 className="text-xl font-bold mb-4 text-monokai-amethyst flex items-center gap-2">
-                    <LayoutDashboard size={20} /> My Dashboards
-                </h2>
-
-                {loading ? (
-                    <div className="text-monokai-comment animate-pulse">Loading dashboards...</div>
-                ) : dashboards.length === 0 ? (
-                    <div className="text-center p-12 border border-dashed border-monokai-accent rounded-lg text-monokai-comment">
-                        <p className="mb-4">No dashboards yet.</p>
-                        <button onClick={handleCreateDashboard} className="text-monokai-blue hover:underline">Create your first one</button>
-                    </div>
-                ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {dashboards.map(d => (
-                            <div
-                                key={d.id}
-                                onClick={() => { setCurrentDashboard(d); setView('detail'); }}
-                                className="bg-monokai-sidebar border border-monokai-accent rounded-lg p-6 cursor-pointer hover:border-monokai-pink hover:shadow-xl transition-all group relative"
-                            >
-                                <div className="flex justify-between items-start mb-2">
-                                    <h3 className="text-xl font-bold text-white group-hover:text-monokai-pink transition-colors">{d.name}</h3>
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); handleDeleteDashboard(d.id); }}
-                                        className="opacity-0 group-hover:opacity-100 p-1 text-monokai-comment hover:text-monokai-pink transition-opacity"
-                                    >
-                                        <Trash2 size={16} />
-                                    </button>
-                                </div>
-                                <div className="text-sm text-monokai-comment mb-4">
-                                    {d.items.length} Widgets
-                                </div>
-                                <div className="text-xs text-monokai-fg/50 flex items-center gap-1">
-                                    <Calendar size={12} /> Updated: {new Date(d.updatedAt).toLocaleDateString()}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
-            </div>
-        );
+  const handleGlobalDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isDraggingOver) {
+      setIsDraggingOver(true);
     }
+  };
 
-    // --- Render Detail View ---
-    if (!currentDashboard) return null;
+  const handleGlobalDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Only cancel if leaving the outer container
+    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+    setIsDraggingOver(false);
+  };
 
-    return (
-        <div className="flex flex-col h-full bg-[#1e1f1c] text-monokai-fg">
-            {/* Toolbar */}
-            <div className="h-14 bg-monokai-sidebar border-b border-monokai-accent flex justify-between items-center px-4 shadow-md z-10">
-                <div className="flex items-center gap-4">
-                    <button
-                        onClick={() => { setView('list'); setCurrentDashboard(null); loadDashboards(); }}
-                        className="p-2 hover:bg-monokai-accent/20 rounded text-monokai-comment hover:text-white transition-colors"
-                    >
-                        <ArrowLeft size={20} />
-                    </button>
-                    <div>
-                        <h1 className="text-lg font-bold text-white">{currentDashboard.name}</h1>
-                        <span className="text-[10px] text-monokai-comment">{currentDashboard.items.length} Widgets</span>
-                    </div>
-                </div>
+  const handleGlobalDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      void handleImportFile(file);
+    }
+  };
 
-                <div className="flex items-center gap-3">
-                    <button
-                        onClick={handleRefreshData}
-                        className="flex items-center gap-2 px-3 py-1.5 bg-monokai-accent/10 border border-monokai-accent rounded hover:bg-monokai-accent/30 text-xs font-bold text-monokai-blue transition-colors"
-                        title="Reload all chart data"
-                    >
-                        <RefreshCw size={14} className={refreshTrigger > 0 ? "animate-spin" : ""} /> Refresh Data
-                    </button>
-                    <button
-                        onClick={() => setShowAddWidget(true)}
-                        className="flex items-center gap-2 px-3 py-1.5 bg-monokai-green text-monokai-bg border border-transparent rounded hover:bg-monokai-fg hover:text-monokai-bg text-xs font-bold transition-colors shadow-sm"
-                    >
-                        <Plus size={14} /> Add Widget
-                    </button>
-                </div>
-            </div>
-
-            {/* Grid Canvas */}
-            <div className="flex-1 overflow-hidden relative p-4 bg-[radial-gradient(#3e3d32_1px,transparent_1px)] [background-size:16px_16px]">
-                {currentDashboard.items.length === 0 ? (
-                    <div className="h-full flex flex-col items-center justify-center text-monokai-comment opacity-50">
-                        <LayoutDashboard size={64} className="mb-4" />
-                        <p className="text-lg">This dashboard is empty.</p>
-                        <button onClick={() => setShowAddWidget(true)} className="mt-4 text-monokai-green hover:underline">Add your first widget</button>
-                    </div>
-                ) : (
-                    <DashboardGrid
-                        dashboard={currentDashboard}
-                        refreshTrigger={refreshTrigger}
-                        onLayoutChange={handleLayoutChange}
-                    />
-                )}
-            </div>
-
-            {showAddWidget && (
-                <AddWidgetModal
-                    onClose={() => setShowAddWidget(false)}
-                    onAdd={handleAddWidget}
-                />
-            )}
+  return (
+    <div
+      onDragOver={handleGlobalDragOver}
+      onDragLeave={handleGlobalDragLeave}
+      onDrop={handleGlobalDrop}
+      className="relative flex flex-col flex-1 h-full w-full overflow-y-auto bg-monokai-bg text-monokai-fg px-3.5 sm:px-5 lg:px-6 py-3 select-text custom-scrollbar space-y-3 sm:space-y-3.5 font-sans"
+    >
+      {/* Global Drag-and-Drop Overlay */}
+      {isDraggingOver && (
+        <div className="absolute inset-0 z-50 bg-monokai-bg/90 backdrop-blur-xs border-2 border-dashed border-monokai-accent m-3 rounded-2xl flex flex-col items-center justify-center pointer-events-none animate-in fade-in duration-150 select-none">
+          <div className="w-14 h-14 rounded-2xl bg-monokai-accent/10 border border-monokai-accent/30 flex items-center justify-center text-monokai-accent mb-2.5 shadow-[0_0_30px_rgba(166,226,46,0.3)]">
+            <UploadCloud className="w-7 h-7 animate-bounce" />
+          </div>
+          <h3 className="text-sm sm:text-base font-bold text-monokai-fg tracking-wide">释放文件以即时解析导入</h3>
+          <p className="text-[11px] text-monokai-comment mt-1 font-mono">
+            支持 .csv, .xlsx, .xls, .parquet, .json, .arrow, .sqlite, .db, .tsv
+          </p>
         </div>
-    );
+      )}
+
+      {/* Real-time Import / Dataset Ingestion Progress Notification */}
+      {importState.status === 'importing' && (
+        <div className="flex items-center justify-between px-4 py-2.5 rounded-xl bg-monokai-surface border border-monokai-accent/40 shadow-lg text-xs font-mono animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="flex items-center gap-3">
+            <Loader2 className="w-4 h-4 text-monokai-accent animate-spin shrink-0" />
+            <span className="text-monokai-fg">
+              正在挂载并解析数据资产：
+              <span className="text-monokai-accent font-bold ml-1">{importState.filename || '数据表'}</span>
+            </span>
+          </div>
+          <span className="text-monokai-comment text-[11px]">WASM 内核流式处理中…</span>
+        </div>
+      )}
+
+      {/* 1. Top Hero Section */}
+      <DashboardHero
+        onNavigate={onNavigate}
+        onOpenImport={() => setShowImportModal(true)}
+        onOpenCreate={() => setShowCreateModal(true)}
+        onOpenSettings={() => setShowSettingsModal(true)}
+        onRefresh={handleRefresh}
+        isRefreshing={isRefreshing}
+        lastRefreshedTime={lastRefreshedTime}
+        metrics={dbMetrics}
+        runtimeInfo={runtimeInfo}
+      />
+
+      {/* 2. Key Metrics Row (6 Cards with Drilldown) */}
+      <DashboardKpiRow
+        metrics={dbMetrics}
+        onNavigate={onNavigate}
+        onShrinkMemory={handleShrinkMemory}
+        onOpenSettings={() => setShowSettingsModal(true)}
+      />
+
+      {/* 3. Analytics Charts Row (3 Panels) */}
+      <DashboardChartsRow
+        growthData={growthTrendData}
+        latencyData={latencyTrendData}
+        metrics={dbMetrics}
+        onNavigate={onNavigate}
+        onInspectIssue={handleInspectIssue}
+        onSelectTable={workflowSelectTable}
+        onSelectTableStructure={workflowSelectTableStructure}
+        onSelectTableWithFilter={workflowSelectTableWithFilter}
+        growthMetric={growthMetric}
+        onGrowthMetricChange={setGrowthMetric}
+        growthLimit={growthLimit}
+        onGrowthLimitChange={setGrowthLimit}
+        latencyFilter={latencyFilter}
+        onLatencyFilterChange={setLatencyFilter}
+        tableTypeFilter={tableTypeFilter}
+        onTableTypeFilterChange={setTableTypeFilter}
+        onSelectTableAnalysis={workflowSelectTableAnalysis}
+        onSelectTableMetrics={workflowSelectTableMetrics}
+        onQuickQuery={handleQuickQuery}
+      />
+
+      {/* 4. Bottom Data Management Row (3 Panels) */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 w-full min-h-[320px] pb-10">
+        {/* Recent Tables with Search, Peek, Copy, Drop */}
+        <DashboardRecentTables
+          tables={displayTables}
+          onSelectTable={workflowSelectTable}
+          onNavigate={onNavigate}
+          onSelectTableStructure={workflowSelectTableStructure}
+          onSelectTableAnalysis={workflowSelectTableAnalysis}
+          onSelectTableMetrics={workflowSelectTableMetrics}
+          onSelectTableDataFlow={workflowSelectTableDataFlow}
+          onQuickQuery={handleQuickQuery}
+          onPeekTable={handleOpenPeek}
+          searchTerm={tableSearchTerm}
+          onSearchChange={setTableSearchTerm}
+          typeFilter={tableTypeFilter}
+          onTypeFilterChange={setTableTypeFilter}
+          onDropTable={handleDropTable}
+        />
+
+        {/* Recent Queries with Search, Status Filter, Copy SQL, Clear */}
+        <DashboardRecentQueries
+          queries={displayQueries}
+          onSelectQuery={workflowSelectQuery}
+          onExecuteQueryDirectly={(sql) => workflowSelectQuery(sql, true)}
+          onNavigate={onNavigate}
+          searchTerm={querySearchTerm}
+          onSearchChange={setQuerySearchTerm}
+          statusFilter={queryStatusFilter}
+          onStatusFilterChange={setQueryStatusFilter}
+          latencyFilter={latencyFilter}
+          onLatencyFilterChange={setLatencyFilter}
+          onClearQueries={handleClearQueries}
+        />
+
+        {/* Quick Actions Matrix with Export and Scratchpad */}
+        <DashboardQuickActions
+          onImportFile={handleImportFile}
+          onOpenImportModal={() => setShowImportModal(true)}
+          onOpenCreateModal={() => setShowCreateModal(true)}
+          onOpenBlankSql={handleOpenBlankSql}
+          onOpenExportModal={() => setShowExportModal(true)}
+          onLoadDemo={handleLoadDemo}
+          onOpenSettings={() => setShowSettingsModal(true)}
+          onNavigate={onNavigate}
+        />
+      </div>
+
+      {/* 5. Quick Table Peek Drawer (Zero-jump table inspection) */}
+      {peekTableName && (
+        <QuickTablePeekDrawer
+          tableName={peekTableName}
+          onClose={handleClosePeek}
+          onNavigateToData={workflowSelectTable}
+          onNavigateToDataWithFilter={workflowSelectTableWithFilter}
+          onNavigateToStructure={workflowSelectTableStructure}
+          onNavigateToAnalysis={workflowSelectTableAnalysis}
+          onNavigateToMetrics={workflowSelectTableMetrics}
+          onNavigateToDataFlow={workflowSelectTableDataFlow}
+          onNavigateToSql={workflowSelectQuery}
+        />
+      )}
+    </div>
+  );
 };

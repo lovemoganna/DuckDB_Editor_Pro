@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import mermaid from 'mermaid';
+import { SafeSvgImage } from './ui/SafeSvgImage';
 
 mermaid.initialize({
     startOnLoad: false,
@@ -9,7 +10,8 @@ mermaid.initialize({
         primaryTextColor: '#1e3a8a',
         primaryBorderColor: '#1e3a8a',
         lineColor: '#6366f1',
-    }
+    },
+    securityLevel: 'strict',
 });
 
 interface MermaidChartProps {
@@ -41,9 +43,8 @@ export const MermaidChart: React.FC<MermaidChartProps> = ({ chart }) => {
     if (error) return <div className="text-red-400 text-xs text-center p-4">❌ {error}</div>;
 
     return (
-        <div
-            className="mermaid-container w-full overflow-x-auto flex justify-center p-4"
-            dangerouslySetInnerHTML={{ __html: svg }}
-        />
+        <div className="mermaid-container w-full overflow-x-auto flex justify-center p-4">
+            <SafeSvgImage svg={svg} alt="Generated diagram" className="max-w-none" />
+        </div>
     );
 };

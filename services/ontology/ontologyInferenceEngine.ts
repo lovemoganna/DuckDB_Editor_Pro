@@ -754,6 +754,8 @@ export function renderRuleExplanation(
   )}`;
 }
 
+const MAX_RECOMMENDED_NESTING_DEPTH = 4;
+
 function validateNode(
   node: RuleAst,
   featureMap: Map<string, FeatureDefinition>,
@@ -763,11 +765,11 @@ function validateNode(
   report: RuleValidationReport,
 ): void {
   report.maxDepth = Math.max(report.maxDepth, depth);
-  if (depth > 4) {
+  if (depth > MAX_RECOMMENDED_NESTING_DEPTH) {
     report.warnings.push({
       code: 'deep_nesting',
       nodeId: node.nodeId,
-      message: '逻辑嵌套超过 4 层，建议拆分为可复用子规则',
+      message: `建议将深层嵌套拆分为可复用的子规则（ruleRef），当前深度 ${depth} 层`,
     });
   }
   if (node.kind === 'condition') {
@@ -2155,5 +2157,72 @@ export function runInference(request: InferenceRequest): InferenceReport {
     compilationFingerprint,
     featureVersionIds: selectedFeatures.map(feature => feature.id),
     ruleVersionIds: selectedRules.map(rule => rule.id),
+  };
+}
+
+export interface FeatureExplanation {
+  name: string;
+  logicalId: string;
+  valueType: string;
+  sourceKind: string;
+  sourceDescription: string;
+  nullSemantics: string;
+  window?: { value: number; unit: string; description: string };
+  domain?: unknown[];
+}
+
+export function explainFeature(feature: FeatureDefinition): FeatureExplanation {
+  const sourceDescriptions: Record<string, (source: any) => string> = {
+    column: (s) => `数据表 ${s.table} 列 ${s.column}${s.encoding && s.encoding !== 'scalar' ? ` (${s.encoding} 编码)` : ''}`,
+    computed: (s) => `计算表达式：${s.expression}（依赖 ${s.dependencies.join('、')}）`,
+    ontology_property: (s) => `本体属性 ${s.propertyKey}（来自 ${s.jsonColumn}）`,
+    ontology_relation: (s) => `${s.direction === 'outgoing' ? '发出' : '接收'}关系（关系类型 #${s.linkTypeId}）`,
+  };
+  const describer = sourceDescriptions[feature.source.kind];
+  return {
+    name: feature.name,
+    logicalId: feature.logicalId,
+    valueType: feature.valueType,
+    sourceKind: feature.source.kind,
+    sourceDescription: describer ? describer(feature.source) : feature.source.kind,
+    nullSemantics: feature.nullSemantics,
+    window: feature.window ? {
+      value: feature.window.value,
+      unit: feature.window.unit,
+      description: `统计周期：${feature.window.value} ${feature.window.unit}`,
+    } : undefined,
+    domain: feature.domain,
+  };
+}
+
+export interface NullSemanticsReport {
+  featureId: string;
+  featureName: string;
+  trueDescription: string;
+  falseDescription: string;
+  unknownDescription: string;
+  recommendation: string;
+}
+
+export function estimateNullSemantics(feature: FeatureDefinition): NullSemanticsReport {
+  const isBooleanLike = feature.valueType === 'boolean';
+  const isRelation = feature.source.kind === 'ontology_relation';
+  return {
+    featureId: feature.id,
+    featureName: feature.name,
+    trueDescription: isBooleanLike
+      ? `${feature.name} 明确为真`
+      : `${feature.name} 存在有效值`,
+    falseDescription: isBooleanLike
+      ? `${feature.name} 明确为假`
+      : `${feature.name} 明确不满足条件`,
+    unknownDescription: isRelation
+      ? `未记录该关系时为 UNKNOWN；只有显式不存在断言才是 FALSE`
+      : `${feature.name} 未记录或数据缺失时为 UNKNOWN，不自动推断为 TRUE 或 FALSE`,
+    recommendation: isRelation
+      ? '建议在规则中显式处理关系不存在的情况'
+      : isBooleanLike
+        ? '建议规则同时覆盖 TRUE、FALSE 和 UNKNOWN 三种状态'
+        : '建议在条件中使用 is_null / is_not_null 运算符显式处理缺失值',
   };
 }

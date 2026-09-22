@@ -15,7 +15,7 @@ export const CollapsibleJsonViewer: React.FC<{ data: any; depth?: number }> = ({
       return <span className="text-[#FF9D00]">"{data}"</span>;
     }
     if (typeof data === 'number') {
-      return <span className="text-[#AE81FF]">{data}</span>;
+      return <span className="text-[#66D9EF]">{data}</span>;
     }
     if (typeof data === 'boolean') {
       return <span className="text-[#F92672]">{String(data)}</span>;

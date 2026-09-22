@@ -56,6 +56,7 @@ interface LibrarySlice {
   tables: AbstractionTable[];
   selectedId: string | null;
   isLoading: boolean;
+  libraryError: string | null;
   domains: string[];
   stats: {
     total: number;
@@ -85,6 +86,7 @@ interface SandboxSlice {
 
 interface SessionSlice {
   sessions: AISession[];
+  sessionError: string | null;
   activeSessionId: string | null;
   pendingMessageId: string | null;
   inputConcept: string;
@@ -198,6 +200,7 @@ const initialLibraryState = {
   tables: [] as AbstractionTable[],
   selectedId: null as string | null,
   isLoading: false,
+  libraryError: null as string | null,
   domains: [] as string[],
   stats: { total: 0, filtered: 0, byDomain: {} as Record<string, number> },
 };
@@ -223,6 +226,7 @@ const initialSandboxState = {
 
 const initialSessionState = {
   sessions: [] as AISession[],
+  sessionError: null as string | null,
   activeSessionId: null as string | null,
   pendingMessageId: null as string | null,
   inputConcept: '',
@@ -272,7 +276,7 @@ export const useAnalysisHubStore = create<AnalysisHubStore>()(
 
     // --- Library ---
     loadTables: async () => {
-      set({ isLoading: true });
+      set({ isLoading: true, libraryError: null });
       try {
         const tables = await getAllAbstractionTables();
         const domains = [...new Set(tables.map(t => t.domain))];
@@ -286,7 +290,12 @@ export const useAnalysisHubStore = create<AnalysisHubStore>()(
             byDomain: Object.fromEntries(domains.map(d => [d, tables.filter(t => t.domain === d).length])),
           },
         });
-      } catch { set({ isLoading: false }); }
+      } catch (error) {
+        set({
+          isLoading: false,
+          libraryError: error instanceof Error ? error.message : '模板库加载失败',
+        });
+      }
     },
 
     selectTable: (id) => set({ selectedId: id }),
@@ -364,14 +373,28 @@ export const useAnalysisHubStore = create<AnalysisHubStore>()(
     executeSandboxSQL: async (sql) => {
       const { duckDBService } = await import('../../services/duckdbService');
       set({ isGenerating: true, sandboxError: null, sandboxResult: null });
+      const startTime = performance.now();
       try {
         const queryResult = await duckDBService.query(sql);
-        if (Array.isArray(queryResult) && queryResult.length > 0 && 'columns' in queryResult[0]) {
-          set({ sandboxResult: { columns: Object.keys(queryResult[0]), rows: queryResult, executionTime: 0 } });
-        } else if (typeof queryResult === 'object' && queryResult !== null) {
-          set({ sandboxResult: queryResult });
+        const executionTime = Math.round(performance.now() - startTime);
+
+        if (Array.isArray(queryResult)) {
+          if (queryResult.length > 0) {
+            const firstRow = queryResult[0];
+            if (typeof firstRow === 'object' && firstRow !== null) {
+              const columns = Object.keys(firstRow);
+              const rows = queryResult.map(row => columns.map(col => (row as Record<string, any>)[col]));
+              set({ sandboxResult: { columns, rows, executionTime } });
+            } else {
+              set({ sandboxResult: { columns: ['Result'], rows: queryResult.map(v => [v]), executionTime } });
+            }
+          } else {
+            set({ sandboxResult: { columns: [], rows: [], executionTime } });
+          }
+        } else if (typeof queryResult === 'object' && queryResult !== null && 'columns' in queryResult && 'rows' in queryResult) {
+          set({ sandboxResult: { ...(queryResult as Record<string, unknown>), executionTime } });
         } else {
-          set({ sandboxResult: queryResult });
+          set({ sandboxResult: { columns: ['Result'], rows: [[queryResult]], executionTime } });
         }
       } catch (err) {
         set({ sandboxError: err instanceof Error ? err.message : '执行失败' });
@@ -404,9 +427,16 @@ export const useAnalysisHubStore = create<AnalysisHubStore>()(
 
     // --- Session ---
     loadSessions: async () => {
-      const dbName = localStorage.getItem('duckdb_current_db') || 'default';
-      const sessions = await getAISessions(dbName);
-      set({ sessions });
+      set({ sessionError: null });
+      try {
+        const dbName = localStorage.getItem('duckdb_current_db') || 'default';
+        const sessions = await getAISessions(dbName);
+        set({ sessions });
+      } catch (error) {
+        set({
+          sessionError: error instanceof Error ? error.message : 'AI 会话加载失败',
+        });
+      }
     },
 
     createSession: async (concept, property, relation, context, operation) => {
@@ -565,8 +595,17 @@ export const useFilteredTables = () => {
     const q = (filters.searchQuery || '').toLowerCase();
     if (q && !t.name.toLowerCase().includes(q) && !t.description?.toLowerCase().includes(q)) return false;
     if (filters.domain && t.domain !== filters.domain) return false;
-    if (filters.operation && t.sqlConfig.operation !== filters.operation) return false;
-    if (filters.abstractionLevel && t.sqlConfig.operation !== filters.abstractionLevel) return false;
+    if (filters.operation !== 'all' && t.sqlConfig.operation !== filters.operation) return false;
+    if (filters.abstractionLevel !== 'all') {
+      const level: AbstractionLevel = t.abstractionPath.instance
+        ? 'instance'
+        : t.abstractionPath.relation
+          ? 'relation'
+          : t.abstractionPath.property
+            ? 'property'
+            : 'concept';
+      if (level !== filters.abstractionLevel) return false;
+    }
     if (filters.isFavorite && !t.isFavorite) return false;
     return true;
   });

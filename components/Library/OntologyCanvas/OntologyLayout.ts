@@ -9,6 +9,12 @@ import {
   forceY,
 } from 'd3-force';
 import { Edge, Node } from 'reactflow';
+import {
+  NODE_DEFAULT_WIDTH,
+  NODE_COLLAPSED_HEIGHT,
+  NODE_COMPACT_WIDTH,
+  NODE_COMPACT_HEIGHT,
+} from './OntologyCanvas.helpers';
 
 export type OntologyLayoutMode =
   | 'hierarchical'
@@ -49,20 +55,34 @@ const normalizeMode = (mode: string): OntologyLayoutMode => {
   if (mode === 'TB') return 'tree';
   if (mode === 'RADIAL') return 'radial';
   if (ONTOLOGY_LAYOUTS.some((layout) => layout.id === mode)) return mode as OntologyLayoutMode;
-  return 'hierarchical';
+  return 'orthogonal';
 };
 
 export const getOntologyNodeDimensions = (
   node: Node,
-  nodeWidth = 220,
-  nodeHeight = 82,
+  nodeWidth = NODE_DEFAULT_WIDTH,
+  nodeHeight = NODE_COLLAPSED_HEIGHT,
 ): Dimensions => {
-  const width = Number(node.width ?? node.data?.nodeWidth ?? nodeWidth);
-  const baseHeight = Number(node.height ?? node.data?.nodeHeight ?? nodeHeight);
-  const height = node.data?.isExpanded && node.height == null ? baseHeight + 63 : baseHeight;
+  if (node.data?.isCompact) {
+    return { width: NODE_COMPACT_WIDTH, height: NODE_COMPACT_HEIGHT };
+  }
+  // 使用确定的基础尺寸，绝不读取已包含展开高度的 node.height，防止复合累加
+  const width = nodeWidth;
+  const baseHeight = nodeHeight;
+  let height = baseHeight;
+  if (node.data?.isExpanded) {
+    const raw = node.data?.obj?.properties;
+    let propCount = 0;
+    try {
+      const parsed = typeof raw === 'string' ? JSON.parse(raw || '{}') : (raw ?? {});
+      propCount = Object.keys(parsed).length;
+    } catch {}
+    // 展开状态：基准高84px + 属性行高（最多5行），绝不复合递增
+    height = baseHeight + Math.min(Math.max(propCount, 1), 5) * 20 + 6;
+  }
   return {
-    width: Number.isFinite(width) && width > 0 ? width : nodeWidth,
-    height: Number.isFinite(height) && height > 0 ? height : nodeHeight,
+    width: Number.isFinite(width) && width > 0 ? width : NODE_DEFAULT_WIDTH,
+    height: Number.isFinite(height) && height > 0 ? height : NODE_COLLAPSED_HEIGHT,
   };
 };
 
@@ -143,10 +163,10 @@ const layoutWithDagre = (
   graph.setDefaultEdgeLabel(() => ({}));
   graph.setGraph({
     rankdir,
-    nodesep: Math.max(nodesep, orthogonal ? 120 : 100),
-    ranksep: Math.max(ranksep, orthogonal ? 270 : 230),
-    marginx: 60,
-    marginy: 60,
+    nodesep: Math.max(nodesep, orthogonal ? 60 : 40),
+    ranksep: Math.max(ranksep, orthogonal ? 140 : 120),
+    marginx: 40,
+    marginy: 40,
     ranker: orthogonal ? 'tight-tree' : 'network-simplex',
     align: rankdir === 'LR' ? 'UL' : 'DL',
   });
@@ -191,12 +211,28 @@ const layoutRadial = (
 
   const positions = new Map<string, { x: number; y: number }>();
   const nodeById = new Map(nodes.map((node) => [node.id, node]));
-  const minArc = Math.max(nodeWidth, nodeHeight) + Math.max(80, nodesep * 0.7);
-  const ringGap = Math.max(ranksep, nodeWidth + 120);
+  const minArc = Math.max(nodeWidth, nodeHeight) + Math.max(110, nodesep);
+  const ringGap = Math.max(ranksep, nodeWidth + 180);
   let previousRadius = 0;
+  const nodeAngle = new Map<string, number>();
 
   [...layers.entries()].sort(([a], [b]) => a - b).forEach(([depth, ids]) => {
-    ids.sort(compareIds);
+    if (depth > 0 && nodeAngle.size > 0) {
+      ids.sort((a, b) => {
+        const parentsA = model.parents.get(a) || [];
+        const parentsB = model.parents.get(b) || [];
+        const avgAngleA = parentsA.length > 0
+          ? parentsA.reduce((sum, p) => sum + (nodeAngle.get(p) ?? 0), 0) / parentsA.length
+          : 0;
+        const avgAngleB = parentsB.length > 0
+          ? parentsB.reduce((sum, p) => sum + (nodeAngle.get(p) ?? 0), 0) / parentsB.length
+          : 0;
+        return avgAngleA - avgAngleB || compareIds(a, b);
+      });
+    } else {
+      ids.sort(compareIds);
+    }
+
     const circumferenceRadius = ids.length <= 1 ? 0 : (ids.length * minArc) / (Math.PI * 2);
     const radius = depth === 0 && ids.length === 1
       ? 0
@@ -205,10 +241,12 @@ const layoutRadial = (
     const step = (Math.PI * 2) / ids.length;
     const offset = -Math.PI / 2 + (depth % 2 ? step / 2 : 0);
     ids.forEach((id, index) => {
+      const angle = offset + step * index;
+      nodeAngle.set(id, angle);
       const dimensions = getOntologyNodeDimensions(nodeById.get(id)!, nodeWidth, nodeHeight);
       positions.set(id, {
-        x: Math.cos(offset + step * index) * radius - dimensions.width / 2,
-        y: Math.sin(offset + step * index) * radius - dimensions.height / 2,
+        x: Math.cos(angle) * radius - dimensions.width / 2,
+        y: Math.sin(angle) * radius - dimensions.height / 2,
       });
     });
   });
@@ -237,7 +275,7 @@ const layoutCircular = (
 
   const nodeById = new Map(nodes.map((node) => [node.id, node]));
   const widest = Math.max(...nodes.map((node) => getOntologyNodeDimensions(node, nodeWidth, nodeHeight).width));
-  const radius = Math.max(280, (order.length * (widest + Math.max(nodesep, 85))) / (Math.PI * 2));
+  const radius = Math.max(400, (order.length * (widest + Math.max(nodesep, 130))) / (Math.PI * 2));
   const positions = new Map<string, { x: number; y: number }>();
   order.forEach((id, index) => {
     const angle = -Math.PI / 2 + (index * Math.PI * 2) / order.length;
@@ -280,7 +318,7 @@ const layoutTree = (
       subtreeWidth.set(id, ownWidth);
       return ownWidth;
     }
-    const width = Math.max(ownWidth, children.reduce((sum, child) => sum + measure(child), 0) + (children.length - 1) * Math.max(nodesep, 90));
+    const width = Math.max(ownWidth, children.reduce((sum, child) => sum + measure(child), 0) + (children.length - 1) * Math.max(nodesep, 150));
     subtreeWidth.set(id, width);
     return width;
   };
@@ -290,17 +328,17 @@ const layoutTree = (
   const place = (id: string, left: number, depth: number) => {
     const width = subtreeWidth.get(id)!;
     const dimensions = getOntologyNodeDimensions(nodeById.get(id)!, nodeWidth, nodeHeight);
-    positions.set(id, { x: left + (width - dimensions.width) / 2, y: depth * Math.max(ranksep, nodeHeight + 140) });
+    positions.set(id, { x: left + (width - dimensions.width) / 2, y: depth * Math.max(ranksep, nodeHeight + 200) });
     let childLeft = left;
     treeChildren.get(id)!.forEach((child) => {
       place(child, childLeft, depth + 1);
-      childLeft += subtreeWidth.get(child)! + Math.max(nodesep, 90);
+      childLeft += subtreeWidth.get(child)! + Math.max(nodesep, 150);
     });
   };
   let forestLeft = 0;
   roots.forEach((root) => {
     place(root, forestLeft, 0);
-    forestLeft += subtreeWidth.get(root)! + Math.max(nodesep * 2.5, 160);
+    forestLeft += subtreeWidth.get(root)! + Math.max(nodesep * 3, 280);
   });
   return applyPositions(nodes, positions, nodeWidth, nodeHeight);
 };
@@ -331,7 +369,7 @@ const layoutForce = (
 ) => {
   if (nodes.length === 0) return nodes;
   const sortedNodes = [...nodes].sort((a, b) => compareIds(a.id, b.id));
-  const radius = Math.max(260, sortedNodes.length * 32);
+  const radius = Math.max(320, sortedNodes.length * 48);
   const forceNodes: ForceDatum[] = sortedNodes.map((node, index) => ({
     id: node.id,
     x: Math.cos((index * Math.PI * 2) / sortedNodes.length) * radius,
@@ -348,12 +386,12 @@ const layoutForce = (
     .randomSource(seededRandom(0x51f15e))
     .force('link', forceLink<ForceDatum, { source: string | ForceDatum; target: string | ForceDatum }>(links)
       .id((node) => node.id)
-      .distance(Math.max(ranksep, 260))
+      .distance(Math.max(ranksep, 320))
       .strength(0.35))
-    .force('charge', forceManyBody().strength(-Math.max(1100, nodes.length * 45)).distanceMax(1400))
+    .force('charge', forceManyBody().strength(-Math.max(1800, nodes.length * 70)).distanceMax(1800))
     .force('collision', forceCollide<ForceDatum>().radius((datum) => {
       const dimensions = getOntologyNodeDimensions(nodeById.get(datum.id)!, nodeWidth, nodeHeight);
-      return Math.hypot(dimensions.width, dimensions.height) / 2 + Math.max(36, nodesep / 2);
+      return Math.hypot(dimensions.width, dimensions.height) / 2 + Math.max(55, nodesep / 2);
     }).iterations(4))
     .force('center', forceCenter(0, 0))
     .force('x', forceX(0).strength(0.035))
@@ -377,17 +415,17 @@ const layoutForce = (
 export const getLayoutedElements = (
   nodes: Node[],
   edges: Edge[],
-  requestedMode: OntologyLayoutMode | string = 'hierarchical',
-  nodesep = 110,
-  ranksep = 240,
-  nodeWidth = 220,
-  nodeHeight = 82,
+  requestedMode: OntologyLayoutMode | string = 'orthogonal',
+  nodesep = 70,
+  ranksep = 150,
+  nodeWidth = NODE_DEFAULT_WIDTH,
+  nodeHeight = NODE_COLLAPSED_HEIGHT,
 ) => {
   const mode = normalizeMode(requestedMode);
   let layoutedNodes: Node[];
   switch (mode) {
-    case 'orthogonal':
-      layoutedNodes = layoutWithDagre(nodes, edges, 'LR', nodesep, ranksep, nodeWidth, nodeHeight, true);
+    case 'hierarchical':
+      layoutedNodes = layoutWithDagre(nodes, edges, 'LR', nodesep, ranksep, nodeWidth, nodeHeight);
       break;
     case 'radial':
       layoutedNodes = layoutRadial(nodes, edges, nodesep, ranksep, nodeWidth, nodeHeight);
@@ -401,9 +439,9 @@ export const getLayoutedElements = (
     case 'force':
       layoutedNodes = layoutForce(nodes, edges, nodesep, ranksep, nodeWidth, nodeHeight);
       break;
-    case 'hierarchical':
+    case 'orthogonal':
     default:
-      layoutedNodes = layoutWithDagre(nodes, edges, 'LR', nodesep, ranksep, nodeWidth, nodeHeight);
+      layoutedNodes = layoutWithDagre(nodes, edges, 'LR', nodesep, ranksep, nodeWidth, nodeHeight, true);
       break;
   }
   return { nodes: layoutedNodes, edges };
@@ -533,4 +571,166 @@ export const applyIncrementalLocalLayout = (
     if (!pos) return node;
     return { ...node, position: { x: snap(pos.x), y: snap(pos.y) } };
   });
+};
+
+/** Canvas store position map (numeric object ids). */
+export type CanvasPositionMap = Record<number, { x: number; y: number }>;
+
+const nodesOverlapAABB = (a: Node, b: Node, padding = 0): boolean => {
+  const da = getOntologyNodeDimensions(a);
+  const db = getOntologyNodeDimensions(b);
+  // Inflate each box by padding so near-touching D3/synced coords still count
+  // as collisions (visual occlusion) even when strict AABB edges do not cross.
+  const pad = Math.max(0, padding);
+  return (
+    a.position.x - pad < b.position.x + db.width + pad
+    && a.position.x + da.width + pad > b.position.x - pad
+    && a.position.y - pad < b.position.y + db.height + pad
+    && a.position.y + da.height + pad > b.position.y - pad
+  );
+};
+
+/** Gap padding used when deciding whether stored coords need a canvas relayout. */
+export const CANVAS_RELAYOUT_GAP_PADDING = 24;
+
+/**
+ * True when any object is missing a finite position, or any unlocked pair of
+ * node bounding boxes overlap (with gap padding). Used to decide whether
+ * first-load should run the same layout path as「排版微调」instead of trusting
+ * stored/spiral/D3 coords.
+ */
+export const canvasPositionsNeedRelayout = (
+  objectIds: number[],
+  positions: CanvasPositionMap,
+  expandedNodeIds: Set<number> = new Set(),
+  lockedNodeIds: Set<number> = new Set(),
+  gapPadding: number = CANVAS_RELAYOUT_GAP_PADDING,
+): boolean => {
+  if (objectIds.length === 0) return false;
+
+  for (const id of objectIds) {
+    const pos = positions[id];
+    if (!pos || !Number.isFinite(pos.x) || !Number.isFinite(pos.y)) {
+      return true;
+    }
+  }
+
+  const layoutNodes: Node[] = objectIds.map((id) => ({
+    id: String(id),
+    position: positions[id],
+    data: {
+      isExpanded: expandedNodeIds.has(id),
+      isLocked: lockedNodeIds.has(id),
+    },
+  }));
+
+  for (let i = 0; i < layoutNodes.length; i++) {
+    if (layoutNodes[i].data?.isLocked) continue;
+    for (let j = i + 1; j < layoutNodes.length; j++) {
+      if (layoutNodes[j].data?.isLocked) continue;
+      if (nodesOverlapAABB(layoutNodes[i], layoutNodes[j], gapPadding)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+};
+
+export interface EnsureCanvasLayoutInput {
+  objectIds: number[];
+  links: Array<{ id: number | string; source_object_id: number; target_object_id: number }>;
+  positions: CanvasPositionMap;
+  mode?: OntologyLayoutMode | string;
+  nodesep?: number;
+  ranksep?: number;
+  expandedNodeIds?: Set<number>;
+  lockedNodeIds?: Set<number>;
+  objectsById?: Map<number, { properties?: unknown }>;
+  /**
+   * When true, always run getLayoutedElements (same as clicking「排版微调」),
+   * even if stored positions look non-overlapping. Used for first canvas entry.
+   */
+  force?: boolean;
+}
+
+/**
+ * Always compute a full layout via getLayoutedElements — same engine and
+ * spacing defaults as manual「排版微调」handleAutoAlign.
+ */
+export const applyCanvasLayoutPositions = (
+  input: Omit<EnsureCanvasLayoutInput, 'force'>,
+): CanvasPositionMap => {
+  const {
+    objectIds,
+    links,
+    positions,
+    mode = 'orthogonal',
+    nodesep = 100,
+    ranksep = 200,
+    expandedNodeIds = new Set(),
+    lockedNodeIds = new Set(),
+    objectsById,
+  } = input;
+
+  const mockNodes: Node[] = objectIds.map((id) => ({
+    id: String(id),
+    position: positions[id] || { x: 100, y: 100 },
+    data: {
+      isExpanded: expandedNodeIds.has(id),
+      isLocked: lockedNodeIds.has(id),
+      obj: objectsById?.get(id),
+    },
+  }));
+
+  const mockEdges: Edge[] = links.map((link) => ({
+    id: String(link.id),
+    source: String(link.source_object_id),
+    target: String(link.target_object_id),
+  }));
+
+  // Use the same nodesep/ranksep as「排版微调」handleAutoAlign — do not clamp.
+  const { nodes: layoutedNodes } = getLayoutedElements(
+    mockNodes,
+    mockEdges,
+    mode,
+    nodesep,
+    ranksep,
+  );
+
+  const next: CanvasPositionMap = { ...positions };
+  layoutedNodes.forEach((node) => {
+    const id = Number(node.id);
+    if (Number.isFinite(id)) {
+      next[id] = { x: node.position.x, y: node.position.y };
+    }
+  });
+  return next;
+};
+
+/**
+ * If stored positions are incomplete or overlapping (or force=true), compute a
+ * full layout via getLayoutedElements (same engine as manual「排版微调」).
+ * Returns null when existing positions are already usable so custom
+ * arrangements are preserved.
+ */
+export const ensureCanvasLayoutPositions = (
+  input: EnsureCanvasLayoutInput,
+): CanvasPositionMap | null => {
+  const {
+    objectIds,
+    positions,
+    expandedNodeIds = new Set(),
+    lockedNodeIds = new Set(),
+    force = false,
+  } = input;
+
+  if (
+    !force
+    && !canvasPositionsNeedRelayout(objectIds, positions, expandedNodeIds, lockedNodeIds)
+  ) {
+    return null;
+  }
+
+  return applyCanvasLayoutPositions(input);
 };
