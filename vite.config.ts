@@ -162,6 +162,11 @@ export default defineConfig({
           // Code editing
           'vendor-codemirror': [
             '@uiw/react-codemirror',
+            '@codemirror/autocomplete',
+            '@codemirror/commands',
+            '@codemirror/lint',
+            '@codemirror/state',
+            '@codemirror/view',
             '@codemirror/lang-sql',
             '@codemirror/lang-json',
             '@codemirror/lang-python',
@@ -175,7 +180,6 @@ export default defineConfig({
             '@codemirror/lang-rust',
             '@codemirror/lang-cpp',
             '@codemirror/lang-php',
-            '@codemirror/theme-one-dark',
           ],
           // Mermaid diagrams (lazy-friendly)
           'vendor-mermaid': ['mermaid'],
