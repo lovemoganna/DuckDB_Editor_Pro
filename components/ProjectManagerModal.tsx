@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { duckDBService } from '../services/duckdbService';
 import { X, Database, Plus, Trash2, FolderOpen } from 'lucide-react';
 
@@ -15,11 +15,21 @@ export const ProjectManagerModal: React.FC<ProjectManagerModalProps> = ({ isOpen
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    // ESC key to close modal - Critical fix for UX accessibility
+    const handleKeyDown = useCallback((e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            onClose();
+        }
+    }, [onClose]);
+
     useEffect(() => {
         if (isOpen) {
             loadProjects();
+            window.addEventListener('keydown', handleKeyDown);
+            return () => window.removeEventListener('keydown', handleKeyDown);
         }
-    }, [isOpen]);
+    }, [isOpen, handleKeyDown]);
 
     const loadProjects = async () => {
         try {
@@ -86,28 +96,28 @@ export const ProjectManagerModal: React.FC<ProjectManagerModalProps> = ({ isOpen
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm">
-            <div className="bg-white rounded-xl shadow-2xl w-[600px] max-h-[80vh] flex flex-col">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] backdrop-blur-sm">
+            <div className="bg-monokai-surface rounded-xl shadow-2xl w-[600px] max-h-[80vh] flex flex-col border border-monokai-border">
                 {/* Header */}
-                <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+                <div className="p-6 border-b border-monokai-border flex justify-between items-center">
                     <div className="flex items-center gap-3">
-                        <div className="p-2 bg-blue-50 rounded-lg">
-                            <Database className="w-5 h-5 text-blue-600" />
+                        <div className="p-2 bg-monokai-blue/20 rounded-lg">
+                            <Database className="w-5 h-5 text-monokai-blue" />
                         </div>
                         <div>
-                            <h2 className="text-xl font-bold text-gray-800">Projects Workspace</h2>
-                            <p className="text-xs text-gray-500">Persistent DuckDB-WASM Storage (OPFS)</p>
+                            <h2 className="text-xl font-bold text-monokai-fg">Projects Workspace</h2>
+                            <p className="text-xs text-monokai-comment">Persistent DuckDB-WASM Storage (OPFS)</p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-                        <X className="w-5 h-5 text-gray-500" />
+                    <button onClick={onClose} className="p-2 hover:bg-monokai-sidebar rounded-full transition-colors">
+                        <X className="w-5 h-5 text-monokai-comment" />
                     </button>
                 </div>
 
                 {/* Content */}
                 <div className="p-6 overflow-y-auto flex-1">
                     {error && (
-                        <div className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg flex items-center justify-between">
+                        <div className="mb-4 p-3 bg-monokai-red/10 text-monokai-red text-sm rounded-lg flex items-center justify-between">
                             <span>{error}</span>
                             <button onClick={() => setError(null)}><X className="w-4 h-4" /></button>
                         </div>
@@ -120,13 +130,13 @@ export const ProjectManagerModal: React.FC<ProjectManagerModalProps> = ({ isOpen
                             value={newProjectName}
                             onChange={(e) => setNewProjectName(e.target.value)}
                             placeholder="New Project Name..."
-                            className="flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="flex-1 px-4 py-2 border border-monokai-border rounded-lg focus:outline-none focus:border-monokai-accent bg-monokai-bg text-monokai-fg placeholder-monokai-comment/50 text-xs transition-colors"
                             onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
                         />
                         <button
                             onClick={handleCreate}
                             disabled={loading || !newProjectName.trim()}
-                            className="px-6 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                            className="px-5 py-2 bg-monokai-accent text-monokai-bg font-bold rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 text-xs transition-all shadow-xs cursor-pointer"
                         >
                             {loading ? 'Creating...' : <><Plus className="w-4 h-4" /> Create</>}
                         </button>
@@ -135,35 +145,35 @@ export const ProjectManagerModal: React.FC<ProjectManagerModalProps> = ({ isOpen
                     {/* Project List */}
                     <div className="space-y-3">
                         {projects.length === 0 ? (
-                            <div className="text-center py-10 border-2 border-dashed border-gray-100 rounded-xl">
-                                <Database className="w-12 h-12 text-gray-200 mx-auto mb-3" />
-                                <p className="text-gray-400">No projects yet. Create one to get started.</p>
+                            <div className="text-center py-10 border border-dashed border-monokai-border rounded-xl">
+                                <Database className="w-12 h-12 text-monokai-comment/30 mx-auto mb-3" />
+                                <p className="text-monokai-comment text-xs">No projects yet. Create one to get started.</p>
                             </div>
                         ) : (
                             projects.map(p => (
                                 <div key={p} className={`group flex items-center justify-between p-4 rounded-xl border transition-all ${currentProject === p
-                                        ? 'border-blue-500 bg-blue-50/50 shadow-sm'
-                                        : 'border-gray-100 hover:border-blue-200 hover:shadow-sm bg-white'
+                                        ? 'border-monokai-accent bg-monokai-surface shadow-xs'
+                                        : 'border-monokai-border hover:border-monokai-accent/60 hover:shadow-xs bg-monokai-bg'
                                     }`}>
                                     <div className="flex items-center gap-4">
-                                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${currentProject === p ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500 group-hover:bg-blue-50 group-hover:text-blue-500'
+                                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${currentProject === p ? 'bg-monokai-accent/20 text-monokai-accent' : 'bg-monokai-sidebar text-monokai-comment group-hover:bg-monokai-accent/10 group-hover:text-monokai-accent transition-colors'
                                             }`}>
                                             <FolderOpen className="w-5 h-5" />
                                         </div>
                                         <div>
-                                            <h3 className={`font-medium ${currentProject === p ? 'text-blue-700' : 'text-gray-700'}`}>{p}</h3>
-                                            <span className="text-xs text-gray-400">Local Database</span>
+                                            <h3 className={`text-xs font-semibold ${currentProject === p ? 'text-monokai-accent' : 'text-monokai-fg'}`}>{p}</h3>
+                                            <span className="text-xs text-monokai-comment">Local Database</span>
                                         </div>
                                     </div>
 
                                     <div className="flex items-center gap-2">
                                         {currentProject === p ? (
-                                            <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full">Active</span>
+                                            <span className="px-2.5 py-1 bg-monokai-accent/15 text-monokai-accent text-xs font-bold rounded-md">Active</span>
                                         ) : (
                                             <button
                                                 onClick={() => handleSelect(p)}
                                                 disabled={loading}
-                                                className="px-4 py-1.5 text-sm text-gray-600 bg-gray-50 hover:bg-blue-50 hover:text-blue-600 rounded-lg border border-gray-200 transition-colors"
+                                                className="px-4 py-1.5 text-xs text-monokai-fg bg-monokai-sidebar hover:bg-monokai-elevated hover:border-monokai-accent/60 hover:text-monokai-accent rounded-lg border border-monokai-border transition-colors cursor-pointer"
                                             >
                                                 Open
                                             </button>
@@ -171,7 +181,7 @@ export const ProjectManagerModal: React.FC<ProjectManagerModalProps> = ({ isOpen
 
                                         <button
                                             onClick={() => handleDelete(p)}
-                                            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                                            className="p-2 text-monokai-comment hover:text-monokai-red hover:bg-monokai-red/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100 cursor-pointer"
                                             title="Delete Project"
                                         >
                                             <Trash2 className="w-4 h-4" />

@@ -1,0 +1,167 @@
+{
+  "_meta": {
+    "name": "第 14 课：让模型结论回到证据",
+    "description": "为关键业务结论绑定当前有效且不可动摇的原文证据，保证全流程可追溯",
+    "case_background": "【案例背景材料】原记录：陈工在实验室1检测样品S。主管更正单：实际检测人是王工，陈工为录入错误。确认记录：刘工在实验室1复核样品S，复核后标记为合格。未确认消息：复核地点可能是实验室2；结果可能是不合格。",
+    "core_concept": "Claims to Evidence Lineage",
+    "version": "1.0.0",
+    "author": "system",
+    "created_at": "2026-07-25",
+    "scenario": "lesson-0014",
+    "complexity": "hard"
+  },
+  "objectTypes": [
+    {
+      "id": 1,
+      "name": "样品与凭据",
+      "description": "被检样品标的、历史错误单据、纠偏证据、复核确认单及孤立传闻"
+    },
+    {
+      "id": 2,
+      "name": "确证结论",
+      "description": "经有效法律证据链条严密支撑确立的真实检测人结论与合格交付结论"
+    }
+  ],
+  "objects": [
+    {
+      "id": 1,
+      "object_type_id": 1,
+      "name": "样品·S",
+      "properties": "{\"批次\":\"SMP-2026-S9\",\"材质\":\"特种合金\",\"阶段\":\"复核结项\"}",
+      "annotations": "检测对象标的"
+    },
+    {
+      "id": 2,
+      "object_type_id": 1,
+      "name": "初检记录·作废",
+      "properties": "{\"记录人\":\"陈工\",\"状态\":\"录入错误·已作废\",\"效力\":\"失效\"}",
+      "annotations": "已作废历史记录"
+    },
+    {
+      "id": 3,
+      "object_type_id": 1,
+      "name": "主管更正单",
+      "properties": "{\"文号\":\"CORR-2026-08\",\"依据\":\"签字审批单\",\"效力\":\"法定有效证据\"}",
+      "annotations": "纠偏有效证据"
+    },
+    {
+      "id": 4,
+      "object_type_id": 1,
+      "name": "复核单·合格",
+      "properties": "{\"复核人\":\"刘工\",\"地点\":\"实验室1\",\"结果\":\"合格\",\"效力\":\"法定有效证据\"}",
+      "annotations": "复核确认证据"
+    },
+    {
+      "id": 5,
+      "object_type_id": 1,
+      "name": "孤立传闻·未采信",
+      "properties": "{\"内容\":\"传言地点实验室2/不合格\",\"信源\":\"匿名传闻\",\"采信度\":\"0%排除\"}",
+      "annotations": "未采信流言"
+    },
+    {
+      "id": 6,
+      "object_type_id": 2,
+      "name": "结论·检测人王工",
+      "properties": "{\"责任人\":\"王工\",\"确认方式\":\"主管更正单确证\",\"法律效力\":\"确认生效\"}",
+      "annotations": "确证检测人"
+    },
+    {
+      "id": 7,
+      "object_type_id": 2,
+      "name": "交付·合格出厂",
+      "properties": "{\"结论\":\"准予出厂交付\",\"证据链\":\"主管更正单+复核单\",\"追溯码\":\"PASS-9901\"}",
+      "annotations": "交付终态结论"
+    }
+  ],
+  "linkTypes": [
+    {
+      "id": 1,
+      "name": "初检留痕",
+      "description": "样品初检操作生成历史初检记录"
+    },
+    {
+      "id": 2,
+      "name": "纠偏废止",
+      "description": "主管更正单正式纠偏并废止初检记录"
+    },
+    {
+      "id": 3,
+      "name": "法定确认",
+      "description": "主管更正单权威确立实际检测责任人为王工"
+    },
+    {
+      "id": 4,
+      "name": "规范复核",
+      "description": "样品经由刘工复核并出具合格凭单"
+    },
+    {
+      "id": 5,
+      "name": "标记排除",
+      "description": "图谱显式标记排除无证据链支撑的流言"
+    },
+    {
+      "id": 6,
+      "name": "归纳支撑",
+      "description": "王工确证结论支撑最终合格交付"
+    },
+    {
+      "id": 7,
+      "name": "出厂凭据",
+      "description": "复核合格单据提供出厂准入法定义务凭据"
+    }
+  ],
+  "links": [
+    {
+      "id": 1,
+      "link_type_id": 1,
+      "source_object_id": 1,
+      "target_object_id": 2,
+      "weight": 0.5
+    },
+    {
+      "id": 2,
+      "link_type_id": 2,
+      "source_object_id": 3,
+      "target_object_id": 2,
+      "weight": 1
+    },
+    {
+      "id": 3,
+      "link_type_id": 3,
+      "source_object_id": 3,
+      "target_object_id": 6,
+      "weight": 1
+    },
+    {
+      "id": 4,
+      "link_type_id": 4,
+      "source_object_id": 1,
+      "target_object_id": 4,
+      "weight": 1
+    },
+    {
+      "id": 5,
+      "link_type_id": 5,
+      "source_object_id": 1,
+      "target_object_id": 5,
+      "weight": 0.1
+    },
+    {
+      "id": 6,
+      "link_type_id": 6,
+      "source_object_id": 6,
+      "target_object_id": 7,
+      "weight": 1
+    },
+    {
+      "id": 7,
+      "link_type_id": 7,
+      "source_object_id": 4,
+      "target_object_id": 7,
+      "weight": 1
+    }
+  ],
+  "actions": [],
+  "introspections": [],
+  "insights": []
+}

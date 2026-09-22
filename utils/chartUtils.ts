@@ -1,11 +1,42 @@
+import {
+    Chart as ChartJS,
+    CategoryScale,
+    LinearScale,
+    PointElement,
+    LineElement,
+    BarElement,
+    ArcElement,
+    RadialLinearScale,
+    Title,
+    Tooltip,
+    Legend,
+    Filler,
+} from 'chart.js';
+import ChartDataLabels from 'chartjs-plugin-datalabels';
 import { ChartConfig } from '../types';
+
+// Register Chart.js core components and plugins (Filler for area charts, DataLabels, etc.)
+ChartJS.register(
+    CategoryScale,
+    LinearScale,
+    PointElement,
+    LineElement,
+    BarElement,
+    ArcElement,
+    RadialLinearScale,
+    Title,
+    Tooltip,
+    Legend,
+    Filler,
+    ChartDataLabels
+);
 
 export const MONOKAI_COLORS = [
     'rgba(249, 38, 114, 0.8)', // Pink
     'rgba(166, 226, 46, 0.8)', // Green
     'rgba(102, 217, 239, 0.8)', // Blue
     'rgba(253, 151, 31, 0.8)', // Orange
-    'rgba(174, 129, 255, 0.8)', // Purple
+    'rgba(174, 129, 255, 0.8)', // Amethyst
     'rgba(230, 219, 116, 0.8)', // Yellow
 ];
 
@@ -122,6 +153,8 @@ export const transformDataForChart = (data: any[], config: ChartConfig) => {
 
 export const getChartOptions = (config: ChartConfig) => {
     const isPie = config.type === 'pie' || config.type === 'doughnut';
+    const fontSans = "'Noto Sans SC', 'Noto Sans', 'Inter', sans-serif";
+    const fontMono = "'JetBrains Mono', Consolas, monospace";
     return {
         responsive: true,
         maintainAspectRatio: false,
@@ -129,35 +162,37 @@ export const getChartOptions = (config: ChartConfig) => {
         plugins: {
             legend: {
                 display: config.showLegend !== false,
-                labels: { color: '#f8f8f2', font: { family: 'monospace' } }
+                labels: { color: '#f8f8f2', font: { family: fontSans, size: 11, weight: 500 } }
             },
             datalabels: {
                 display: config.showValues ? 'auto' : false,
-                color: '#fff',
+                color: '#f8f8f2',
+                font: { family: fontMono, size: 11, weight: 500 },
                 formatter: (v: any) => typeof v === 'number' ? v.toFixed(2).replace(/\.00$/, '') : v
             },
             title: {
                 display: !!config.title,
                 text: config.title,
-                color: '#fff',
-                font: { size: 14, weight: 'bold' as const }
+                color: '#f8f8f2',
+                font: { family: fontSans, size: 13, weight: 600 }
             }
         },
         scales: isPie ? { x: { display: false }, y: { display: false } } : {
             x: {
                 stacked: !!config.stacked,
-                ticks: { color: 'gray' },
-                grid: { color: '#333' }
+                ticks: { color: '#a8a594', font: { family: fontSans, size: 10 } },
+                grid: { color: '#3e3d32' }
             },
             y: {
                 display: true,
                 stacked: !!config.stacked,
-                ticks: { color: 'gray' },
-                grid: { color: '#333' },
+                ticks: { color: '#a8a594', font: { family: fontSans, size: 10 } },
+                grid: { color: '#3e3d32' },
                 title: {
                     display: !!config.yAxisLabel,
                     text: config.yAxisLabel || '',
-                    color: 'white'
+                    color: '#a8a594',
+                    font: { family: fontSans, size: 11, weight: 500 }
                 }
             },
             ...((config.yRightKeys && config.yRightKeys.length > 0) ? {
@@ -167,7 +202,7 @@ export const getChartOptions = (config: ChartConfig) => {
                     grid: {
                         drawOnChartArea: false,
                     },
-                    ticks: { color: 'gray' },
+                    ticks: { color: '#a8a594', font: { family: fontSans, size: 10 } },
                 }
             } : {})
         },

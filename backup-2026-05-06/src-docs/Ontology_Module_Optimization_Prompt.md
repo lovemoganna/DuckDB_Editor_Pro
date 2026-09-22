@@ -1,0 +1,386 @@
+# Ontology 模块优化提示词 (MECE 体系)
+
+---
+
+## 优化目标
+
+基于 MECE 原则系统性优化 Ontology 本体论知识模块，实现**业务概念的快速建模**、**关系网络的结构化表达**与**即时生成 SQL 模拟方案**。整体结构需清晰、调用路径明确，确保在复杂场景下稳定输出可执行的本体论建模 SQL。
+
+---
+
+## 当前问题诊断
+
+### 1. 侧边栏重复章节问题
+
+**现象**：
+- 左侧 MECE 层级导航中，展开层级后出现重复的章节项
+- 部分章节在多个层级中重复出现
+
+**原因分析**：
+- `expandedCategories` 状态管理与渲染逻辑存在竞态条件
+- 层级内容与展开状态未正确关联
+
+**修复方案**：
+```tsx
+// 修复：确保每个层级独立管理展开状态
+const [expandedLevels, setExpandedLevels] = useState<Record<MECELevel, boolean>>({
+  foundation: true,
+  relations: false,
+  methodology: false,
+  patterns: false,
+  domains: false
+});
+
+// 渲染逻辑：只渲染当前展开的层级内容
+{MECE_LEVELS.map((level) => (
+  <div key={level.id}>
+    {/* 层级标题按钮 */}
+    <button onClick={() => toggleLevel(level.id)}>
+      {level.label}
+    </button>
+    
+    {/* 只在当前层级展开时渲染子内容 */}
+    {expandedLevels[level.id] && (
+      <LevelContent level={level.id} />
+    )}
+  </div>
+))}
+```
+
+---
+
+## 模块优化要求
+
+### 1. 内嵌「AI 一键填充」功能
+
+**目标**：降低用户输入门槛，快速生成概念模型或启发性内容
+
+**实现要求**：
+- Ontology 模块需提供 AI 填充入口，位于模块顶部操作栏
+- 根据用户输入的业务领域智能生成：
+  - **概念定义**：实体类型、属性集合（带语义类型）
+  - **关系建模**：is_a、has_a、时态、因果关系
+  - **SQL 方案**：五张核心表 DDL + 示例查询
+  - **领域适配**：垂直领域的概念-关系模板
+- 填充结果支持二次编辑，确认后一键入库
+- 支持「智能补全」：基于现有概念推荐相关概念和关系
+
+**AI 填充示例**：
+
+```
+输入：「电商订单领域」
+输出：
+- 概念：订单、用户、商品、支付、物流
+- 属性：
+  - 订单：order_id, amount, status, created_at
+  - 用户：user_id, name, vip_level
+- 关系：
+  - 用户 → 订单 (PLACED)
+  - 订单 → 商品 (CONTAINS)
+  - 订单 → 支付 (PAID_BY)
+- SQL DDL：完整五张核心表 + 示例查询
+```
+
+### 2. 内嵌「快速清除」按钮
+
+**目标**：提升迭代效率，支持一键重置输入状态
+
+**实现要求**：
+- 在搜索框、AI 填充面板提供快速清除入口
+- 清除范围应包括：
+  - 当前输入框内容
+  - 选中的 MECE 层级
+  - 展开的详情面板
+  - 概念/关系的编辑状态
+- 支持快捷键操作（如 Escape 键清除焦点内容）
+- 清除后保持面板状态，仅重置输入内容
+
+### 3. 提供模块背景说明与 AI 二次优化引导
+
+**目标**：明确使用场景与常见错误，支持用户与 AI 协作优化
+
+#### 3.1 模块背景说明
+
+- **定位说明**：该模块解决的问题/场景
+- **使用场景**：典型用例列表（3-5 个）
+- **常见错误**：易错点提示（2-3 个）
+- **最佳实践**：推荐使用方式
+
+#### 3.2 与 AI 协作引导
+
+在右侧信息面板提供：
+- **上下文提示**：基于当前模块的预置提示词
+- **示例展示**：可点击复制的示例请求
+- **二次优化入口**：支持用户基于 AI 生成结果继续优化
+
+---
+
+## MECE 层级详细优化规格
+
+### 3.1 基础概念层（Foundation）
+
+| 优化项 | 规格说明 |
+|--------|----------|
+| AI 填充 | 输入概念描述 → 生成概念-属性-关系完整模型 |
+| 快速清除 | 清除搜索框 + 展开的章节详情 |
+| 背景说明 | 场景：建立数据认知框架；错误：概念模糊属性不清 |
+
+**AI 填充示例**：
+
+```
+输入：「用户」
+输出：
+- 概念：User
+- 属性：user_id (IDENTIFIER), name (ATTRIBUTE), email (ATTRIBUTE), 
+  created_at (TIME), vip_level (DIMENSION)
+- 关系：has_many → Order, has_many → Address
+- SQL：ontology_object + object_type 示例
+```
+
+### 3.2 关系类型层（Relations）
+
+| 优化项 | 规格说明 |
+|--------|----------|
+| AI 填充 | 选择关系类型 → 生成对应建模方案和 SQL |
+| 快速清除 | 清除选中的关系类型 + 展开的详情 |
+| 背景说明 | 场景：定义实体间关联；错误：关系类型混用 |
+
+**AI 填充示例**：
+
+```
+输入：「员工和公司的雇佣关系」
+输出：
+- 关系类型：EMPLOYED_BY (has_a 时态变体)
+- 源概念：Employee
+- 目标概念：Company
+- 属性：start_date, end_date, position, salary
+- SQL：时态关系 DDL + 历史查询示例
+```
+
+### 3.3 建模方法论层（Methodology）
+
+| 优化项 | 规格说明 |
+|--------|----------|
+| AI 填充 | 输入业务需求 → 推荐建模方法 + 实施步骤 |
+| 快速清除 | 清除筛选状态 + 方法论详情 |
+| 背景说明 | 场景：选择建模策略；错误：方法选择不当 |
+
+**AI 填充示例**：
+
+```
+输入：「遗留系统数据整合」
+输出：
+- 推荐方法：自底向上 + 混合建模
+- 步骤1：盘点现有 20+ 表
+- 步骤2：识别核心实体（6个）
+- 步骤3：抽象概念和关系
+- 步骤4：映射到本体层
+- SQL：本体验证查询
+```
+
+### 3.4 核心模式层（Patterns）
+
+| 优化项 | 规格说明 |
+|--------|----------|
+| AI 填充 | 选择模式类型 → 生成完整实现方案 |
+| 快速清除 | 清除选中的模式 + 展开的 SQL 详情 |
+| 背景说明 | 场景：高级建模需求；错误：模式选择不当 |
+
+**AI 填充示例**：
+
+```
+输入：「需要追踪用户地址变更历史」
+输出：
+- 推荐模式：时态本体模式
+- 核心字段：valid_from, valid_to
+- SQL：
+  - 地址变更记录 DDL
+  - 历史快照查询
+  - 变更趋势分析
+```
+
+### 3.5 垂直领域层（Domains）
+
+| 优化项 | 规格说明 |
+|--------|----------|
+| AI 填充 | 选择或输入领域 → 生成完整领域模型 |
+| 快速清除 | 清除选中的领域 + 展开的概念详情 |
+| 背景说明 | 场景：行业特定建模；错误：概念照搬不适配 |
+
+**AI 填充示例**：
+
+```
+输入：「医疗健康」
+输出：
+- 概念：Patient, Doctor, Hospital, Medication, Diagnosis, Procedure
+- 关系：
+  - TREATED_BY (Patient → Doctor)
+  - WORKS_AT (Doctor → Hospital)
+  - PRESCRIBED (Doctor → Medication)
+  - HAS_DIAGNOSIS (Patient → Diagnosis)
+- SQL：完整 DDL + 诊疗路径查询
+```
+
+---
+
+## 侧边栏重复章节修复方案
+
+### 问题根因
+
+在当前实现中，`expandedCategories` 使用 `Set<string>` 存储展开状态，但渲染时使用了 `activeLevel` 和 `selectedSection` 两个独立状态来控制内容显示，导致：
+
+1. 层级展开时，sections 列表可能被重复渲染
+2. 切换 activeLevel 时，旧的展开状态未清理
+
+### 修复代码
+
+```tsx
+// 修复后的状态管理
+const [levelExpandState, setLevelExpandState] = useState<Record<MECELevel, boolean>>({
+  foundation: true,
+  relations: false,
+  methodology: false,
+  patterns: false,
+  domains: false
+});
+
+const [activeLevel, setActiveLevel] = useState<MECELevel>('foundation');
+const [selectedSection, setSelectedSection] = useState<string | null>(null);
+
+// 切换层级展开状态
+const toggleLevel = (levelId: MECELevel) => {
+  setLevelExpandState(prev => ({
+    ...prev,
+    [levelId]: !prev[levelId]
+  }));
+};
+
+// 选中层级时自动展开
+const handleLevelSelect = (levelId: MECELevel) => {
+  setActiveLevel(levelId);
+  if (!levelExpandState[levelId]) {
+    setLevelExpandState(prev => ({
+      ...prev,
+      [levelId]: true
+    }));
+  }
+  setSelectedSection(null);
+  setSelectedDomain(null);
+};
+
+// 渲染层级内容 - 确保不重复
+const renderLevelContent = (level: MECELevel) => {
+  if (!levelExpandState[level]) return null;
+  
+  const content = getLevelContent(level);
+  if (!content) return null;
+  
+  return (
+    <div className="level-content">
+      {level === 'domains' ? (
+        // 垂直领域特殊处理
+        content.domains?.map(domain => (
+          <DomainButton
+            key={domain.id}
+            domain={domain}
+            isSelected={selectedDomain === domain.id}
+            onClick={() => {
+              setSelectedDomain(domain.id);
+              setSelectedSection(null);
+            }}
+          />
+        ))
+      ) : (
+        // 普通章节处理
+        content.sections?.map(section => (
+          <SectionButton
+            key={section.id}
+            section={section}
+            isSelected={selectedSection === section.id}
+            onClick={() => {
+              setSelectedSection(section.id);
+              setSelectedDomain(null);
+            }}
+          />
+        ))
+      )}
+    </div>
+  );
+};
+```
+
+---
+
+## 交互设计规范
+
+### 按钮位置
+
+- **AI 填充按钮**：位于 Ontology 模块顶部操作栏，与层级导航并列
+- **快速清除按钮**：位于搜索框/表单内部，文本为空时隐藏
+- **二次优化入口**：位于生成结果面板底部
+
+### 视觉反馈
+
+- AI 填充进行中：显示加载动画 + 「生成中...」提示
+- 填充完成：弹窗展示结果，支持「采用」「编辑」「取消」
+- 清除操作：瞬间完成，无需动画
+
+### 快捷键支持
+
+| 操作 | 快捷键 |
+|------|--------|
+| 触发 AI 填充 | Ctrl + Shift + O |
+| 快速清除 | Escape |
+| 确认采用 | Enter |
+
+---
+
+## 与 AI 二次优化的对话示例
+
+### 示例 1：基础概念
+
+```
+用户：帮我生成一个「产品」概念的本体模型
+AI：→ 生成包含 Product 概念、属性集合、关系的完整模型
+
+用户：再细化一下，加上价格相关的维度属性
+AI：→ 更新属性，增加 price, discount, currency 等字段
+```
+
+### 示例 2：垂直领域
+
+```
+用户：帮我设计一个「金融风控」领域的本体模型
+AI：→ 生成包含 Account, Transaction, Merchant, Device, Anomaly 的领域模型
+      + 核心关系定义
+      + 欺诈检测查询 SQL
+
+用户：改成支持自定义时间窗口的版本
+AI：→ 更新 SQL 模板，增加时间窗口参数 ${start_date} ${end_date}
+```
+
+---
+
+## 验收标准
+
+1. ✅ Ontology 模块提供 AI 填充入口，填充内容符合 MECE 层级定位
+2. ✅ 提供快速清除功能，一键重置输入状态
+3. ✅ 有明确的背景说明（定位、场景、错误、实践）
+4. ✅ 提供与 AI 协作的预置提示词示例
+5. ✅ 整体交互路径清晰，用户可在 3 次点击内完成任意操作
+6. ✅ 复杂场景下 AI 生成内容稳定可执行
+7. ✅ 修复侧边栏重复章节问题，确保每个章节只显示一次
+8. ✅ 层级展开/收起状态与内容渲染正确关联
+
+---
+
+## 实施优先级
+
+| 优先级 | 模块 | 理由 |
+|--------|------|------|
+| P0 | 侧边栏重复修复 | 严重影响用户体验，必须优先修复 |
+| P0 | 基础概念层 | 核心功能，需确保概念生成能力 |
+| P0 | 垂直领域层 | 高价值场景，AI 填充实用性强 |
+| P1 | 关系类型层 | 核心关系建模，与概念层联动 |
+| P1 | 核心模式层 | 高级功能，支持复杂场景 |
+| P2 | 建模方法论 | 辅助决策，使用频率相对较低 |

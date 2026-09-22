@@ -1,0 +1,136 @@
+{
+  "_meta": {
+    "name": "第 03 课：找出发生了什么过程",
+    "description": "识别包含时间起止与状态机跃迁的动态过程事件，作为连接多实体的拓扑中枢",
+    "case_background": "【案例背景材料】采购员李四在周一发起服务器设备采购流程，经历供应商比价与物资入库验收。",
+    "core_concept": "Process Object & State Machine",
+    "version": "1.0.0",
+    "author": "system",
+    "created_at": "2026-07-25",
+    "scenario": "lesson-0003",
+    "complexity": "easy"
+  },
+  "objectTypes": [
+    {
+      "id": 1,
+      "name": "业务实体",
+      "description": "参与采购的人员、供应商主体及物理资产"
+    },
+    {
+      "id": 2,
+      "name": "推进过程",
+      "description": "具备时间起止、承载状态机变迁的动态主流程与子阶段"
+    }
+  ],
+  "objects": [
+    {
+      "id": 1,
+      "object_type_id": 1,
+      "name": "采购员·李四",
+      "properties": "{\"责任工号\":\"BUYER-042\",\"部门\":\"IT基础设施组\"}",
+      "annotations": "流程发起人"
+    },
+    {
+      "id": 2,
+      "object_type_id": 2,
+      "name": "服务器采购",
+      "properties": "{\"采购单号\":\"PROC-2026-08\",\"预算\":\"￥120万\",\"状态\":\"推进中\"}",
+      "annotations": "核心主流程"
+    },
+    {
+      "id": 3,
+      "object_type_id": 2,
+      "name": "比价决策",
+      "properties": "{\"比价批次\":\"BID-Q3-01\",\"候选方数\":3,\"决策\":\"优选联众\"}",
+      "annotations": "前置决策子阶段"
+    },
+    {
+      "id": 4,
+      "object_type_id": 1,
+      "name": "联众科技",
+      "properties": "{\"供应商编码\":\"SUP-8820\",\"评级\":\"金牌供应商\"}",
+      "annotations": "中选供应商"
+    },
+    {
+      "id": 5,
+      "object_type_id": 2,
+      "name": "到货验收",
+      "properties": "{\"验收批次\":\"CHK-9902\",\"质检标准\":\"ISO-9001\",\"结果\":\"合格\"}",
+      "annotations": "后续履约子阶段"
+    },
+    {
+      "id": 6,
+      "object_type_id": 1,
+      "name": "算力服务器",
+      "properties": "{\"资产标签\":\"SRV-H100-08\",\"规格\":\"8卡GPU机架\",\"状态\":\"已入库\"}",
+      "annotations": "验收交付实物资产"
+    }
+  ],
+  "linkTypes": [
+    {
+      "id": 1,
+      "name": "发起推进",
+      "description": "经办人发起核心采购流程"
+    },
+    {
+      "id": 2,
+      "name": "启动阶段",
+      "description": "主流程进入比价决策子阶段"
+    },
+    {
+      "id": 3,
+      "name": "选定伙伴",
+      "description": "比价决策确认中选供应商"
+    },
+    {
+      "id": 4,
+      "name": "推进阶段",
+      "description": "采购流程推进到货验收子阶段"
+    },
+    {
+      "id": 5,
+      "name": "交付资产",
+      "description": "验收完成正式交付入库实物资产"
+    }
+  ],
+  "links": [
+    {
+      "id": 1,
+      "link_type_id": 1,
+      "source_object_id": 1,
+      "target_object_id": 2,
+      "weight": 1
+    },
+    {
+      "id": 2,
+      "link_type_id": 2,
+      "source_object_id": 2,
+      "target_object_id": 3,
+      "weight": 1
+    },
+    {
+      "id": 3,
+      "link_type_id": 3,
+      "source_object_id": 3,
+      "target_object_id": 4,
+      "weight": 0.95
+    },
+    {
+      "id": 4,
+      "link_type_id": 4,
+      "source_object_id": 2,
+      "target_object_id": 5,
+      "weight": 1
+    },
+    {
+      "id": 5,
+      "link_type_id": 5,
+      "source_object_id": 5,
+      "target_object_id": 6,
+      "weight": 0.95
+    }
+  ],
+  "actions": [],
+  "introspections": [],
+  "insights": []
+}

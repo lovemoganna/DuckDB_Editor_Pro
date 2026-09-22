@@ -1,22 +1,166 @@
 import * as duckdb from '@duckdb/duckdb-wasm';
 import duckdb_wasm from '@duckdb/duckdb-wasm/dist/duckdb-eh.wasm?url';
 import duckdb_worker from '@duckdb/duckdb-wasm/dist/duckdb-browser-eh.worker.js?url';
-import { ColumnStats, ImportOptions, EnrichedColumnStats } from '../types';
+import { ColumnStats, ImportOptions, EnrichedColumnStats, ObjectRef, QueryResult } from '../types';
+import { ONTOLOGY_CREATE_STATEMENTS, ONTOLOGY_SEED_STATEMENTS } from '../components/Library/ontologyDataModel';
+import { workbookIO } from './workbookIO';
+import {
+  saveWorkspaceSnapshot,
+  loadWorkspaceSnapshot,
+  clearWorkspaceSnapshot,
+  type DuckDBTableSnapshot,
+  type DuckDBViewSnapshot,
+  type DuckDBWorkspaceSnapshot,
+} from './duckdbWorkspaceStorage';
+import { arrowTypeToDuckDBType } from '../utils/typeFormatter';
+
+export interface DuckDBRuntimeInfo {
+  ready?: boolean;
+  persistent: boolean;
+  isLegacy?: boolean;
+  version?: string;
+  persistenceError?: string | null;
+  storageMode?: 'indexeddb' | 'opfs' | 'memory';
+  dbSize?: string;
+  memoryUsage?: string;
+}
 
 const DUCKDB_VERSION = '1.33.1';
+
+async function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(message)), ms);
+  });
+  try {
+    return await Promise.race([promise, timeout]);
+  } finally {
+    if (timeoutId !== undefined) clearTimeout(timeoutId);
+  }
+}
+
+function splitSqlStatements(sql: string): string[] {
+  const statements: string[] = [];
+  let current = '';
+  let inSingleQuote = false;
+  let inDoubleQuote = false;
+  
+  for (let i = 0; i < sql.length; i++) {
+    const char = sql[i];
+    
+    if (char === "'" && !inDoubleQuote) {
+      if (sql[i - 1] !== '\\') {
+        inSingleQuote = !inSingleQuote;
+      }
+    } else if (char === '"' && !inSingleQuote) {
+      if (sql[i - 1] !== '\\') {
+        inDoubleQuote = !inDoubleQuote;
+      }
+    }
+    
+    if (char === ';' && !inSingleQuote && !inDoubleQuote) {
+      if (current.trim()) {
+        statements.push(current.trim());
+      }
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  
+  if (current.trim()) {
+    statements.push(current.trim());
+  }
+  return statements;
+}
 
 class DuckDBService {
   private db: duckdb.AsyncDuckDB | null = null;
   private conn: duckdb.AsyncDuckDBConnection | null = null;
+  private readConn: duckdb.AsyncDuckDBConnection | null = null;
   private isInitialized = false;
   private isLegacy = false;
+  private isPersistent = false;
+  private storageMode: 'indexeddb' | 'opfs' | 'memory' = 'indexeddb';
+  private persistenceError: string | null = null;
   private initPromise: Promise<void> | null = null;
+  private schemaChangeTimeout: any = null;
+  private cacheSaveTimeout: any = null;
+  private isRestoringFromCache = false;
+  private queryQueue: Promise<any> = Promise.resolve();
+  private inTransaction = false;
+  private registeredFiles = new Map<string, any>();
+
+  getRuntimeInfo = (): DuckDBRuntimeInfo => {
+    return {
+      ready: this.isInitialized,
+      persistent: this.isPersistent,
+      storageMode: this.storageMode,
+      isLegacy: this.isLegacy,
+      version: DUCKDB_VERSION,
+      persistenceError: this.persistenceError,
+    };
+  };
+
+  getEngineVersion(): string {
+    return DUCKDB_VERSION;
+  }
+
+  private cleanDuckDBResult(result: any): any[] {
+    if (!result) return [];
+    return result.toArray().map((row: any) => {
+      const raw = typeof row.toJSON === 'function' ? row.toJSON() : row;
+      const clean: any = {};
+      for (const k of Object.keys(raw)) {
+        const val = raw[k];
+        if (val === null || val === undefined) {
+          clean[k] = null;
+        } else if (typeof val === 'bigint') {
+          clean[k] = Number(val);
+        } else {
+          clean[k] = val;
+        }
+      }
+      return clean;
+    });
+  }
+
+  private async runInQueue<T>(fn: () => Promise<T>): Promise<T> {
+    const next = this.queryQueue.then(fn);
+    this.queryQueue = next.then(() => {}).catch(() => {});
+    return next;
+  }
+
+  private dispatchSchemaChanged() {
+    if (this.schemaChangeTimeout) {
+      clearTimeout(this.schemaChangeTimeout);
+    }
+    this.schemaChangeTimeout = setTimeout(() => {
+      window.dispatchEvent(new CustomEvent('duckdb-schema-changed'));
+      this.schemaChangeTimeout = null;
+    }, 100);
+  }
+
+
+
+  /** 确保 DuckDB 连接就绪后再返回，外部调用方无需自行 await init() */
+  private async waitForInit(): Promise<void> {
+    await this.init();
+  }
 
   async init(): Promise<void> {
     if (this.isInitialized) return;
-    if (this.initPromise) return this.initPromise;
+    if (this.initPromise) {
+      try {
+        await this.initPromise;
+        return;
+      } catch (err) {
+        this.initPromise = null;
+        throw err;
+      }
+    }
 
-    this.initPromise = (async () => {
+    const runInit = async () => {
       // --- FORCE REFRESH CHECK ---
       console.log("%c!!! DUCKDB SERVICE INITIATING (V5 - VITE BUNDLED) !!!", "background: green; color: white; font-size: 20px");
 
@@ -39,14 +183,29 @@ class DuckDBService {
 
       console.log(`[DuckDB] Target Worker URL: ${mainWorkerURL}`);
 
-      // Initialize with local worker + CACHE BUSTING
-      // We append a timestamp to force the browser to ignore the stuck v0.9.1 cache
-      const worker = new Worker(`${mainWorkerURL}?t=${Date.now()}`, { type: 'module' });
-      const logger = new duckdb.ConsoleLogger();
+      // Do not cache-bust the worker URL: module workers resolve relative imports
+      // against their script URL, and a changing `?t=` query can stall instantiate().
+      const worker = new Worker(mainWorkerURL, { type: 'module' });
+      // Custom logger that silences "table does not exist" / "Catalog Error" noise.
+      // DuckDB logs these at INFO level (not ERROR), so we filter by message content only.
+      // duckdb.Logger is an interface, not a class — implement it directly.
+      const logger: duckdb.Logger = {
+        log(entry: duckdb.LogEntryVariant) {
+          const msg = typeof entry.value === 'string' ? entry.value : '';
+          if (/Table with name|Catalog Error|does not exist/i.test(msg)) return;
+          console.log(`[DuckDB] [${duckdb.getLogLevelLabel(entry.level)}] ${msg}`);
+        }
+      };
 
       this.db = new duckdb.AsyncDuckDB(logger, worker);
-      await this.db.instantiate(mainModuleURL);
+      await withTimeout(this.db.instantiate(mainModuleURL), 60000, 'DuckDB WASM 内核加载超时');
       this.conn = await this.db.connect();
+      try {
+        this.readConn = await this.db.connect();
+      } catch (e) {
+        console.warn("[DuckDB] Read connection fallback to main connection", e);
+        this.readConn = this.conn;
+      }
 
       // --- VERSION CHECK ---
       let ver = "unknown";
@@ -97,24 +256,9 @@ class DuckDBService {
         }
       }
 
-      // Extensions: Graceful loading (SKIPPED FOR LEGACY)
-      // Removed 'spatial' as it causes initialization hangs on some networks/kernels
-      const extensions = ['httpfs', 'tpch'];
-
-      if (this.isLegacy) {
-        console.warn("!!! LEGACY KERNEL DETECTED - SKIPPING EXTENSION LOAD !!!");
-      } else {
-        for (const ext of extensions) {
-          try {
-            console.log(`[DuckDB] Attempting to INSTALL '${ext}'...`);
-            await this.conn.query(`INSTALL '${ext}'`);
-            await this.conn.query(`LOAD '${ext}'`);
-            console.log(`[DuckDB] Extension '${ext}' loaded successfully`);
-          } catch (e: any) {
-            console.warn(`[DuckDB] Failed to load extension '${ext}'`);
-          }
-        }
-      }
+      // Do not INSTALL/LOAD extensions during boot. Remote extension downloads
+      // (httpfs, tpch, spatial, …) can hang forever on restricted networks and
+      // block the homepage. Load them on demand from the Extensions tab.
 
       // Initialize Audit Log Table (CRITICAL: Must run for BOTH versions)
       try {
@@ -136,9 +280,189 @@ class DuckDBService {
       }
 
       this.isInitialized = true;
-    })();
 
-    return this.initPromise;
+      // Restore workspace cache from IndexedDB
+      if (typeof indexedDB !== 'undefined') {
+        try {
+          this.isPersistent = true;
+          this.storageMode = 'indexeddb';
+          await withTimeout(
+            this.restoreFromIndexedDBCache(),
+            12000,
+            'IndexedDB workspace restore timed out',
+          );
+        } catch (cacheErr: any) {
+          this.isRestoringFromCache = false;
+          console.warn('[DuckDB] Failed to restore from IndexedDB cache:', cacheErr);
+          this.persistenceError = cacheErr?.message || String(cacheErr);
+        }
+      }
+    };
+
+    this.initPromise = runInit();
+    try {
+      await this.initPromise;
+    } catch (err) {
+      this.initPromise = null;
+      throw err;
+    }
+  }
+
+  /**
+   * Restores tables, views, and macros from IndexedDB workspace cache
+   */
+  async restoreFromIndexedDBCache(): Promise<void> {
+    const snapshot = await loadWorkspaceSnapshot();
+    if (!snapshot) return;
+
+    this.isRestoringFromCache = true;
+    try {
+      // 1. Restore tables
+      if (Array.isArray(snapshot.tables)) {
+        for (const table of snapshot.tables) {
+          if (!table.name || !table.ddl) continue;
+          try {
+            await this.conn!.query(table.ddl);
+            if (Array.isArray(table.rows) && table.rows.length > 0) {
+              const tempFile = `restore_${table.name.replace(/[^a-zA-Z0-9_]/g, '_')}_${Date.now()}.json`;
+              const jsonStr = JSON.stringify(table.rows);
+              await this.db!.registerFileText(tempFile, jsonStr);
+              try {
+                await this.conn!.query(`INSERT INTO "${table.name.replace(/"/g, '""')}" SELECT * FROM read_json_auto('${tempFile}')`);
+              } finally {
+                try { await this.db!.dropFile(tempFile); } catch {}
+              }
+            }
+          } catch (tErr) {
+            console.warn(`[DuckDB] Error restoring table ${table.name}:`, tErr);
+          }
+        }
+      }
+
+      // 2. Restore views
+      if (Array.isArray(snapshot.views)) {
+        for (const v of snapshot.views) {
+          if (!v.name || !v.sql) continue;
+          try {
+            await this.conn!.query(`CREATE OR REPLACE VIEW "${v.name.replace(/"/g, '""')}" AS ${v.sql}`);
+          } catch (vErr) {
+            console.warn(`[DuckDB] Error restoring view ${v.name}:`, vErr);
+          }
+        }
+      }
+
+      // 3. Restore macros
+      if (Array.isArray(snapshot.macros)) {
+        for (const m of snapshot.macros) {
+          if (!m.sql) continue;
+          try {
+            await this.conn!.query(m.sql);
+          } catch (mErr) {
+            console.warn(`[DuckDB] Error restoring macro:`, mErr);
+          }
+        }
+      }
+
+      // 4. Restore canvas edges if present
+      if (Array.isArray(snapshot.canvasEdges) && snapshot.canvasEdges.length > 0) {
+        for (const edge of snapshot.canvasEdges) {
+          try {
+            await this.saveOntologyCanvasEdge(edge.id, edge.source_id || edge.source, edge.target_id || edge.target);
+          } catch {}
+        }
+      }
+
+      console.log('[DuckDB] Workspace restored successfully from IndexedDB cache');
+      this.dispatchSchemaChanged();
+    } finally {
+      this.isRestoringFromCache = false;
+    }
+  }
+
+  /**
+   * Schedule debounced saving of workspace snapshot to IndexedDB
+   */
+  scheduleCacheSave(delayMs: number = 400): void {
+    if (!this.isPersistent || this.isRestoringFromCache) return;
+    if (this.cacheSaveTimeout) {
+      clearTimeout(this.cacheSaveTimeout);
+    }
+    this.cacheSaveTimeout = setTimeout(() => {
+      this.cacheSaveTimeout = null;
+      void this.saveToIndexedDB();
+    }, delayMs);
+  }
+
+  /**
+   * Collects current database state and saves it into IndexedDB
+   */
+  async saveToIndexedDB(): Promise<void> {
+    if (!this.conn || !this.isInitialized || this.isRestoringFromCache) return;
+
+    try {
+      const baseTables = await this.getBaseTables();
+      const tableSnapshots: DuckDBTableSnapshot[] = [];
+
+      for (const t of baseTables) {
+        if (t.startsWith('_sys_')) continue;
+        try {
+          const def = await this.getTableOrViewDefinition(t);
+          const rows = await this.query(`SELECT * FROM "${t.replace(/"/g, '""')}"`);
+          tableSnapshots.push({
+            name: t,
+            ddl: def.ddl,
+            rows: rows || [],
+          });
+        } catch (tErr) {
+          console.warn(`[DuckDB] Failed to snapshot table ${t}:`, tErr);
+        }
+      }
+
+      const views = await this.getViews();
+      const viewSnapshots: DuckDBViewSnapshot[] = [];
+      for (const v of views) {
+        try {
+          const def = await this.getTableOrViewDefinition(v);
+          viewSnapshots.push({
+            name: v,
+            sql: def.sql || def.ddl,
+          });
+        } catch {}
+      }
+
+      let canvasEdges: any[] = [];
+      if (baseTables.includes('life_canvas_edge')) {
+        try {
+          canvasEdges = await this.loadOntologyCanvasEdges();
+        } catch {}
+      }
+
+      const snapshot: DuckDBWorkspaceSnapshot = {
+        version: 1,
+        updatedAt: Date.now(),
+        tables: tableSnapshots,
+        views: viewSnapshots,
+        macros: [],
+        canvasEdges,
+      };
+
+      await saveWorkspaceSnapshot(snapshot);
+    } catch (e) {
+      console.warn('[DuckDB] Failed to save workspace to IndexedDB cache:', e);
+    }
+  }
+
+  /**
+   * Clears IndexedDB cache and removes all workspace tables & views
+   */
+  async clearIndexedDBCache(): Promise<void> {
+    if (this.cacheSaveTimeout) {
+      clearTimeout(this.cacheSaveTimeout);
+      this.cacheSaveTimeout = null;
+    }
+    await clearWorkspaceSnapshot();
+    await this.clearAllData({ tables: true, views: true, macros: true, files: true });
+    this.dispatchSchemaChanged();
   }
 
   /**
@@ -180,18 +504,145 @@ class DuckDBService {
   }
 
   async query(sql: string): Promise<any[]> {
-    if (!this.conn) throw new Error("Database not connected");
+    return this.runInQueue(async () => {
+      await this.waitForInit();
+      if (!this.conn) throw new Error("Database not connected");
 
-    if (this.isLegacy) {
-      const up = sql.toUpperCase();
-      if (up.includes('INSTALL') || up.includes('LOAD')) {
-        console.warn(`[DuckDB Safety] Blocked extension command on Legacy Kernel: ${sql}`);
-        return [];
+      if (this.isLegacy) {
+        const up = sql.toUpperCase();
+        if (up.includes('INSTALL') || up.includes('LOAD')) {
+          console.warn(`[DuckDB Safety] Blocked extension command on Legacy Kernel: ${sql}`);
+          return [];
+        }
+      }
+
+      const statements = splitSqlStatements(sql);
+      let lastResult: any[] = [];
+      let schemaChanged = false;
+      for (const stmt of statements) {
+        if (!stmt.trim()) continue;
+        const result = await this.conn.query(stmt);
+        if (/^\s*(CREATE|DROP|ALTER|COPY|IMPORT|INSERT\s+INTO|UPDATE|DELETE)/i.test(stmt)) {
+          schemaChanged = true;
+        }
+        try {
+          lastResult = result.toArray().map((row) => {
+            const raw = row.toJSON();
+            const clean: any = {};
+            for (const k of Object.keys(raw)) {
+              const val = raw[k];
+              if (val === null || val === undefined) {
+                clean[k] = null;
+              } else if (typeof val === 'bigint') {
+                clean[k] = Number(val);
+              } else if (typeof val === 'object' && !(val instanceof Date) && !(val instanceof Array)) {
+                const cName = val.constructor?.name || '';
+                if ('scale' in val || cName.includes('Decimal') || cName.includes('Numeric')) {
+                  const strVal = typeof val.toString === 'function' ? val.toString() : '';
+                  const numVal = Number(strVal);
+                  if (!isNaN(numVal)) {
+                    if (val.scale && !strVal.includes('.')) {
+                      clean[k] = numVal / Math.pow(10, val.scale);
+                    } else {
+                      clean[k] = numVal;
+                    }
+                  } else {
+                    clean[k] = val;
+                  }
+                } else {
+                  clean[k] = val;
+                }
+              } else {
+                clean[k] = val;
+              }
+            }
+            return clean;
+          });
+        } catch (e) {
+          // Drop/Create statements might not return rows
+          lastResult = [];
+        }
+      }
+      if (schemaChanged) {
+        this.dispatchSchemaChanged();
+        this.scheduleCacheSave();
+      }
+      return lastResult;
+    });
+  }
+
+  /** Read-only query method using dedicated secondary connection without queue lock */
+  async readQuery(sql: string): Promise<any[]> {
+    await this.waitForInit();
+    if (!this.readConn) return this.query(sql);
+
+    try {
+      const result = await this.readConn.query(sql);
+      return result.toArray().map((row) => {
+        const raw = row.toJSON();
+        const clean: any = {};
+        for (const k of Object.keys(raw)) {
+          const val = raw[k];
+          if (val === null || val === undefined) {
+            clean[k] = null;
+          } else if (typeof val === 'bigint') {
+            clean[k] = Number(val);
+          } else {
+            clean[k] = val;
+          }
+        }
+        return clean;
+      });
+    } catch (e) {
+      // Fallback to main query queue if secondary connection encounters issue
+      return this.query(sql);
+    }
+  }
+
+  /**
+   * Fetches schema metadata (tables and their columns) for autocomplete and editor hints.
+   */
+  async getSchemaContext(): Promise<Record<string, { name: string; type: string }[]>> {
+    try {
+      const rows = await this.readQuery(`
+        SELECT table_name, column_name, data_type 
+        FROM information_schema.columns 
+        WHERE table_schema = current_schema()
+          AND table_name NOT LIKE '_sys_%'
+        ORDER BY table_name, ordinal_position
+      `);
+      const schemaMap: Record<string, { name: string; type: string }[]> = {};
+      for (const row of rows) {
+        const t = String(row.table_name || '');
+        const c = String(row.column_name || '');
+        const dt = String(row.data_type || 'VARCHAR');
+        if (t && c && !t.startsWith('_sys_')) {
+          if (!schemaMap[t]) schemaMap[t] = [];
+          schemaMap[t].push({ name: c, type: dt });
+        }
+      }
+      return schemaMap;
+    } catch (e) {
+      console.warn("[DuckDB] Failed to fetch schema context:", e);
+      return {};
+    }
+  }
+
+  /** Execute a batch of SQL statements sequentially, returning results for each. */
+  async batchQuery(statements: string[]): Promise<{ index: number; data?: any[]; error?: string; executionTime?: number }[]> {
+    const results: { index: number; data?: any[]; error?: string; executionTime?: number }[] = [];
+    for (let i = 0; i < statements.length; i++) {
+      const stmt = statements[i].trim();
+      if (!stmt) continue;
+      const start = performance.now();
+      try {
+        const data = await this.query(stmt);
+        results.push({ index: i, data, executionTime: performance.now() - start });
+      } catch (e: any) {
+        results.push({ index: i, error: e.message, executionTime: performance.now() - start });
       }
     }
-
-    const result = await this.conn.query(sql);
-    return result.toArray().map((row) => row.toJSON());
+    return results;
   }
 
   // --- Phase 3: Live Preview ---
@@ -209,173 +660,565 @@ class DuckDBService {
     const dangerousKeywords = /\b(DROP|DELETE|INSERT|UPDATE|CREATE|ALTER|TRUNCATE)\b/i;
 
     if (dangerousKeywords.test(sql)) {
-      // Allow "CREATE OR REPLACE TEMPORARY VIEW" ... actually maybe too complex to allow.
-      // For now, strict block on these keywords is safer, but at least we use boundaries.
       throw new Error("Preview blocked: Contains modification keywords (Safety Check)");
     }
 
     // Attempt to inject LIMIT 5 if not present
-    // Simple heuristic: append LIMIT 5 if not ends with LIMIT X
     let safeSql = sql;
     if (!upperSql.includes('LIMIT')) {
       safeSql += ' LIMIT 5';
     }
 
-    try {
-      const result = await this.conn.query(safeSql);
-      return result.toArray().map(r => r.toJSON());
-    } catch (e: any) {
-      throw new Error(`Preview Failed: ${e.message}`);
-    }
+    return this.query(safeSql);
+  }
+
+  /** Phase 3: Explain / Profile Query Execution Plan */
+  async explainQuery(sql: string, analyze: boolean = false): Promise<any[]> {
+    return this.runInQueue(async () => {
+      await this.waitForInit();
+      if (!this.conn) throw new Error("Database not connected");
+      const prefix = analyze ? 'EXPLAIN ANALYZE ' : 'EXPLAIN ';
+      return await this.conn.query(prefix + sql).then(res => res.toArray().map(r => r.toJSON()));
+    });
   }
 
   // Wrapper for operations that need auditing
   async executeAndAudit(sql: string, type: string, table: string | null, details: string): Promise<any> {
-    if (!this.conn) throw new Error("Database not connected");
+    return this.runInQueue(async () => {
+      await this.waitForInit();
+      if (!this.conn) throw new Error("Database not connected");
 
-    if (this.isLegacy) {
-      const up = sql.toUpperCase();
-      if (up.includes('INSTALL') || up.includes('LOAD')) {
-        console.warn(`[DuckDB Safety] Blocked extension command on Legacy Kernel (Audit): ${sql}`);
+      if (this.isLegacy) {
+        const up = sql.toUpperCase();
+        if (up.includes('INSTALL') || up.includes('LOAD')) {
+          console.warn(`[DuckDB Safety] Blocked extension command on Legacy Kernel (Audit): ${sql}`);
+          return [];
+        }
+      }
+
+      try {
+        const result = await this.conn.query(sql);
+        const isSchemaChange = type === 'IMPORT' || type === 'CREATE' || type === 'DROP' || type === 'ALTER' || /^\s*(CREATE|DROP|ALTER|COPY|IMPORT)/i.test(sql);
+        if (isSchemaChange) {
+          this.dispatchSchemaChanged();
+        }
+        let rows: any[] = [];
+        try {
+          rows = result.toArray().map(r => r.toJSON());
+        } catch (e) {
+          // Some statements like DROP don't return rows
+        }
+
+        // Attempt to infer affected rows if possible, otherwise 0 or result length
+        const affected = rows.length;
+
+        // Log asynchronously to avoid blocking UI significantly, but ensure it happens
+        const cleanSql = sql.replace(/'/g, "''");
+        const cleanDetails = details.replace(/'/g, "''");
+        const cleanTable = table ? `'${table}'` : 'NULL';
+
+        // SKIP AUDIT LOGGING ON LEGACY KERNEL (Avoids implicit IO/INSERT overhead)
+        if (!this.isLegacy) {
+          const auditSql = `
+            INSERT INTO memory._sys_audit_log (id, operation_type, target_table, details, affected_rows, sql_statement)
+            VALUES (nextval('memory._sys_audit_seq'), '${type}', ${cleanTable}, '${cleanDetails}', ${affected}, '${cleanSql}');
+          `;
+          await this.conn.query(auditSql);
+        }
+
+        return rows;
+      } catch (err: any) {
+        throw err;
+      }
+    });
+  }
+
+  async getAuditLogs(limit: number = 100): Promise<any[]> {
+    await this.waitForInit();
+    if (!this.conn) return [];
+    try {
+      return await this.query(`SELECT * FROM memory._sys_audit_log ORDER BY log_time DESC LIMIT ${limit}`);
+    } catch {
+      try {
+        return await this.query(`SELECT * FROM _sys_audit_log ORDER BY log_time DESC LIMIT ${limit}`);
+      } catch (e) {
+        console.warn('[DuckDB] Failed to load audit logs:', e);
         return [];
       }
     }
+  }
 
+  async clearAuditLogs(): Promise<void> {
+    await this.waitForInit();
+    if (!this.conn) return;
     try {
-      const result = await this.conn.query(sql);
-      let rows: any[] = [];
+      await this.query(`DELETE FROM memory._sys_audit_log`);
+    } catch {
       try {
-        rows = result.toArray().map(r => r.toJSON());
-      } catch (e) {
-        // Some statements like DROP don't return rows
-      }
-
-      // Attempt to infer affected rows if possible, otherwise 0 or result length
-      const affected = rows.length;
-
-      // Log asynchronously to avoid blocking UI significantly, but ensure it happens
-      const cleanSql = sql.replace(/'/g, "''");
-      const cleanDetails = details.replace(/'/g, "''");
-      const cleanTable = table ? `'${table}'` : 'NULL';
-
-      // SKIP AUDIT LOGGING ON LEGACY KERNEL (Avoids implicit IO/INSERT overhead)
-      if (!this.isLegacy) {
-        const auditSql = `
-          INSERT INTO memory._sys_audit_log (id, operation_type, target_table, details, affected_rows, sql_statement)
-          VALUES (nextval('memory._sys_audit_seq'), '${type}', ${cleanTable}, '${cleanDetails}', ${affected}, '${cleanSql}');
-        `;
-        await this.conn.query(auditSql);
-      }
-
-      return rows;
-    } catch (err: any) {
-      throw err;
+        await this.query(`DELETE FROM _sys_audit_log`);
+      } catch {}
     }
   }
 
   async getTables(): Promise<string[]> {
-    if (!this.conn) return [];
-    const res = await this.conn.query("SHOW TABLES");
-    const rows = res.toArray().map(r => r.toJSON());
-    // Filter out internal tables
-    return rows.map((r: any) => r.name).filter((n: string) => !n.startsWith('_sys_'));
+    try {
+      const rows = await this.query(`
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_schema = current_schema()
+      `);
+      return rows
+        .map((r: any) => String(r.table_name || r.name || Object.values(r)[0] || ''))
+        .filter((n: string) => Boolean(n) && !n.startsWith('_sys_'));
+    } catch {
+      const rows = await this.query("SHOW TABLES");
+      return rows
+        .map((r: any) => String(r.name || r.table_name || Object.values(r)[0] || ''))
+        .filter((n: string) => Boolean(n) && !n.startsWith('_sys_'));
+    }
+  }
+
+  async listTables(): Promise<string[]> {
+    return this.getTables();
+  }
+
+  async attachProject(projectName: string): Promise<void> {
+    await this.waitForInit();
+    if (!this.conn) throw new Error("DB not connected");
+    const alias = projectName.replace(/[^a-zA-Z0-9]/g, '_');
+    await this.query(`CREATE SCHEMA IF NOT EXISTS "${alias}"`);
+    console.log(`[Persistence] Created/Attached project schema ${alias}`);
+  }
+
+  async useProject(projectName: string): Promise<void> {
+    if (!this.conn) return;
+    const alias = projectName.replace(/[^a-zA-Z0-9]/g, '_');
+    let targetSchema = alias;
+    try {
+      const res = await this.query(`SELECT schema_name FROM information_schema.schemata WHERE schema_name LIKE '%${alias}%'`);
+      if (res && res.length > 0) {
+        targetSchema = res[0].schema_name || alias;
+      }
+    } catch {}
+
+    await this.conn.query(`SET schema = '${targetSchema}'`);
+    if (this.readConn && this.readConn !== this.conn) {
+      try {
+        await this.readConn.query(`SET schema = '${targetSchema}'`);
+      } catch {}
+    }
+    console.log(`[Persistence] Switched context to ${targetSchema}`);
+  }
+
+  async ontologyInit(): Promise<void> {
+    return this.runInQueue(async () => {
+      await this.waitForInit();
+      if (!this.conn) return;
+      const combinedDdl = ONTOLOGY_CREATE_STATEMENTS.filter(s => s.trim()).join(';\n');
+      try {
+        await this.conn.query(combinedDdl);
+      } catch (e: any) {
+        console.error('[DuckDB] Combined ontology DDL failed, retrying sequentially', e);
+        for (const stmt of ONTOLOGY_CREATE_STATEMENTS) {
+          if (stmt.trim()) {
+            try {
+              await this.conn.query(stmt);
+            } catch (err: any) {
+              console.error(`[DuckDB] DDL execution failed for: "${stmt}"`, err);
+            }
+          }
+        }
+      }
+    });
   }
 
   async getTableSchema(tableName: string): Promise<any[]> {
-    if (!this.conn) return [];
-    const res = await this.conn.query(`PRAGMA table_info('${tableName}')`);
-    return res.toArray().map(r => r.toJSON());
+    return this.query(`PRAGMA table_info('${tableName}')`);
   }
 
   async getExtensions(): Promise<any[]> {
-    if (!this.conn) return [];
-
-    // BLOCKED ON LEGACY: access produces IO Error
     if (this.isLegacy) return [];
-
     try {
-      const res = await this.conn.query("SELECT * FROM duckdb_extensions()");
-      return res.toArray().map(r => r.toJSON());
+      return await this.query("SELECT * FROM duckdb_extensions()");
     } catch (e) {
       return [];
     }
   }
 
   async loadExtension(name: string): Promise<void> {
-    if (!this.conn) return;
-
     if (this.isLegacy) {
       console.warn(`[DuckDB Safety] Blocked loadExtension('${name}') on Legacy Kernel`);
       return;
     }
-
-    await this.conn.query(`INSTALL '${name}'; LOAD '${name}';`);
+    await this.query(`INSTALL '${name}'; LOAD '${name}';`);
   }
 
-  async importFile(file: File, tableName: string, options?: ImportOptions): Promise<void> {
-    if (!this.db || !this.conn) return;
+  async registerFileHandle(name: string, file: File): Promise<void> {
+    await this.waitForInit();
+    if (!this.db) throw new Error("Database not connected");
+    await this.db.registerFileHandle(name, file, duckdb.DuckDBDataProtocol.BROWSER_FILEREADER, true);
+  }
 
-    await this.db.registerFileHandle(file.name, file, duckdb.DuckDBDataProtocol.BROWSER_FILEREADER, true);
+  async registerFileText(name: string, text: string): Promise<void> {
+    await this.waitForInit();
+    if (!this.db) throw new Error("Database not connected");
+    await this.db.registerFileText(name, text);
+  }
 
-    const isJson = file.name.endsWith('.json');
-    const isCsv = file.name.endsWith('.csv') || file.name.endsWith('.txt');
-
-    let sql = '';
-
-    if (isJson) {
-      sql = `CREATE TABLE "${tableName}" AS SELECT * FROM read_json_auto('${file.name}')`;
-    } else if (isCsv && options) {
-      // Advanced CSV Import
-      const opts = [];
-      if (options.header) opts.push("header=true"); else opts.push("header=false");
-      if (options.delimiter) opts.push(`delim='${options.delimiter}'`);
-      if (options.quote) opts.push(`quote='${options.quote}'`);
-      if (options.dateFormat) opts.push(`dateformat='${options.dateFormat}'`);
-
-      // Use read_csv (not auto) if specific options provided, or read_csv_auto with overrides
-      const optsStr = opts.join(', ');
-      sql = `CREATE TABLE "${tableName}" AS SELECT * FROM read_csv_auto('${file.name}', ${optsStr})`;
-    } else if (isCsv) {
-      // Fallback simple CSV
-      sql = `CREATE TABLE "${tableName}" AS SELECT * FROM read_csv_auto('${file.name}')`;
-    } else {
-      // Assume Parquet
-      sql = `CREATE TABLE "${tableName}" AS SELECT * FROM '${file.name}'`;
+  async dropFile(name: string): Promise<void> {
+    if (this.db) {
+      try {
+        await this.db.dropFile(name);
+      } catch {}
     }
+  }
 
-    await this.conn.query(sql);
+  async getAvailableSchemas(): Promise<string[]> {
+    try {
+      const res = await this.query(`
+        SELECT schema_name 
+        FROM information_schema.schemata 
+        WHERE schema_name NOT IN ('information_schema', 'pg_catalog')
+        ORDER BY (schema_name = 'main') DESC, schema_name ASC
+      `);
+      const schemas = res.map(r => String(r.schema_name || '')).filter(Boolean);
+      return schemas.length > 0 ? schemas : ['main'];
+    } catch {
+      return ['main'];
+    }
+  }
 
-    // Audit
-    const auditSql = `INSERT INTO memory._sys_audit_log (id, operation_type, target_table, details, affected_rows, sql_statement) VALUES (nextval('memory._sys_audit_seq'), 'IMPORT', '${tableName}', 'Imported file ${file.name}', 0, '${sql.replace(/'/g, "''")}');`;
-    await this.conn.query(auditSql);
+  async getTableList(schema = 'main'): Promise<string[]> {
+    try {
+      const res = await this.query(`
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_schema = '${schema.replace(/'/g, "''")}'
+      `);
+      return res.map(r => String(r.table_name || ''));
+    } catch {
+      return [];
+    }
+  }
+
+  async getTableColumnDefinitions(schema: string, tableName: string): Promise<{ name: string; type: string }[]> {
+    try {
+      const res = await this.query(`
+        SELECT column_name as name, data_type as type 
+        FROM information_schema.columns 
+        WHERE table_schema = '${schema.replace(/'/g, "''")}' AND table_name = '${tableName.replace(/'/g, "''")}'
+        ORDER BY ordinal_position
+      `);
+      return res.map(r => ({ name: String(r.name), type: String(r.type) }));
+    } catch {
+      return [];
+    }
+  }
+
+  async importFile(file: File, tableName: string, options?: ImportOptions): Promise<string[]> {
+    return this.runInQueue(async () => {
+      if (!this.db || !this.conn) return [];
+
+      const lowerName = file.name.toLowerCase();
+      const isSql = lowerName.endsWith('.sql');
+      if (isSql) {
+        const sqlContent = await file.text();
+        const statements = splitSqlStatements(sqlContent);
+        for (const stmt of statements) {
+          if (stmt.trim()) {
+            await this.conn.query(stmt);
+          }
+        }
+
+        const cleanSql = sqlContent.substring(0, 1000).replace(/'/g, "''");
+        const auditSql = `INSERT INTO memory._sys_audit_log (id, operation_type, target_table, details, affected_rows, sql_statement) VALUES (nextval('memory._sys_audit_seq'), 'IMPORT', '${tableName}', 'Executed SQL script ${file.name}', 0, '${cleanSql}');`;
+        try {
+          await this.conn.query(auditSql);
+        } catch {}
+        this.dispatchSchemaChanged();
+        return [tableName];
+      }
+
+      let tableExists = false;
+      try {
+        const checkRes = await this.conn.query(`SELECT table_name FROM information_schema.tables WHERE table_schema = current_schema() AND table_name = '${tableName.replace(/'/g, "''")}'`);
+        const rows = checkRes.toArray();
+        tableExists = rows.length > 0;
+      } catch {
+        tableExists = false;
+      }
+
+      if (tableExists && options?.conflictMode === 'replace') {
+        try {
+          await this.conn.query(`DROP TABLE IF EXISTS "${tableName}"`);
+        } catch {}
+      }
+
+      const isAppend = options?.conflictMode === 'append' && tableExists;
+
+      // Handle Excel formats (.xlsx, .xls)
+      const isExcel = lowerName.endsWith('.xlsx') || lowerName.endsWith('.xls');
+      if (isExcel) {
+        let sheets: any[] = [];
+        try {
+          sheets = await workbookIO.readAllSheets(file);
+        } catch (err: any) {
+          throw new Error(`无法解析 Excel 文件 (${file.name}): ${err?.message || '请先转换为 CSV 格式'}`);
+        }
+        const nonBlankSheets = sheets.filter(s => !s.isEmpty);
+        if (nonBlankSheets.length === 0) {
+          throw new Error(`Excel 文件 (${file.name}) 中未发现包含有效数据的工作表`);
+        }
+
+        const createdTables: string[] = [];
+        for (let i = 0; i < nonBlankSheets.length; i++) {
+          const sheet = nonBlankSheets[i];
+          const cleanSheetName = sheet.name.replace(/[^a-zA-Z0-9_\u4e00-\u9fa5]/g, '_').replace(/^_+/, '') || `sheet_${i + 1}`;
+          const targetTable = nonBlankSheets.length === 1 ? tableName : `${tableName}_${cleanSheetName}`;
+
+          const virtualFileName = `${targetTable}_excel_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 6)}.csv`;
+          const virtualFile = new File([sheet.csvText], virtualFileName, { type: 'text/csv' });
+          await this.db.registerFileHandle(virtualFileName, virtualFile, duckdb.DuckDBDataProtocol.BROWSER_FILEREADER, true);
+
+          const sql = isAppend
+            ? `INSERT INTO "${targetTable}" SELECT * FROM read_csv_auto('${virtualFileName}')`
+            : `CREATE TABLE IF NOT EXISTS "${targetTable}" AS SELECT * FROM read_csv_auto('${virtualFileName}')`;
+
+          await this.conn.query(sql);
+          createdTables.push(targetTable);
+          const auditSql = `INSERT INTO memory._sys_audit_log (id, operation_type, target_table, details, affected_rows, sql_statement) VALUES (nextval('memory._sys_audit_seq'), 'IMPORT', '${targetTable}', 'Imported Excel sheet ${sheet.name} from ${file.name}', 0, '${sql.replace(/'/g, "''")}');`;
+          try { await this.conn.query(auditSql); } catch {}
+        }
+
+        this.dispatchSchemaChanged();
+        return createdTables;
+      }
+
+      await this.db.registerFileHandle(file.name, file, duckdb.DuckDBDataProtocol.BROWSER_FILEREADER, true);
+
+      const isJson = lowerName.endsWith('.json') || lowerName.endsWith('.jsonl');
+      const isTsv = lowerName.endsWith('.tsv') || lowerName.endsWith('.tab');
+      const isCsv = lowerName.endsWith('.csv') || lowerName.endsWith('.txt');
+
+      let selectSource = '';
+
+      if (isJson) {
+        selectSource = `read_json_auto('${file.name}')`;
+      } else if (options && (isCsv || isTsv || options.delimiter)) {
+        const opts: string[] = [];
+        if (options.header !== undefined) opts.push(options.header ? "header=true" : "header=false");
+        const delim = options.delimiter || (isTsv ? '\\t' : undefined);
+        if (delim) opts.push(`delim='${delim === '\t' ? '\\t' : delim}'`);
+        if (options.quote) opts.push(`quote='${options.quote}'`);
+        if (options.dateFormat) opts.push(`dateformat='${options.dateFormat}'`);
+        const optsStr = opts.length > 0 ? `, ${opts.join(', ')}` : '';
+        selectSource = `read_csv_auto('${file.name}'${optsStr})`;
+      } else if (isTsv) {
+        selectSource = `read_csv_auto('${file.name}', delim='\\t', header=true)`;
+      } else if (isCsv) {
+        selectSource = `read_csv_auto('${file.name}')`;
+      } else {
+        // Default to Parquet
+        selectSource = `'${file.name}'`;
+      }
+
+      const sql = isAppend
+        ? `INSERT INTO "${tableName}" SELECT * FROM ${selectSource}`
+        : `CREATE TABLE "${tableName}" AS SELECT * FROM ${selectSource}`;
+
+      await this.conn.query(sql);
+
+      // Audit
+      const auditSql = `INSERT INTO memory._sys_audit_log (id, operation_type, target_table, details, affected_rows, sql_statement) VALUES (nextval('memory._sys_audit_seq'), 'IMPORT', '${tableName}', 'Imported file ${file.name}', 0, '${sql.replace(/'/g, "''")}');`;
+      await this.conn.query(auditSql);
+
+      this.dispatchSchemaChanged();
+      return [tableName];
+    });
   }
 
   async importText(text: string, tableName: string, options?: ImportOptions): Promise<void> {
-    if (!this.db || !this.conn) return;
+    return this.runInQueue(async () => {
+      if (!this.db || !this.conn) return;
 
-    const fileName = `paste_${Date.now()}.csv`;
-    const file = new File([text], fileName, { type: 'text/csv' });
+      let tableExists = false;
+      try {
+        const checkRes = await this.conn.query(`SELECT table_name FROM information_schema.tables WHERE table_schema = current_schema() AND table_name = '${tableName.replace(/'/g, "''")}'`);
+        const rows = checkRes.toArray();
+        tableExists = rows.length > 0;
+      } catch {
+        tableExists = false;
+      }
 
-    await this.db.registerFileHandle(file.name, file, duckdb.DuckDBDataProtocol.BROWSER_FILEREADER, true);
+      if (tableExists && options?.conflictMode === 'replace') {
+        try {
+          await this.conn.query(`DROP TABLE IF EXISTS "${tableName}"`);
+        } catch {}
+      }
 
-    let sql = '';
-    if (options) {
-      const opts = [];
-      if (options.header) opts.push("header=true"); else opts.push("header=false");
-      if (options.delimiter) opts.push(`delim='${options.delimiter}'`);
-      if (options.quote) opts.push(`quote='${options.quote}'`);
-      if (options.dateFormat) opts.push(`dateformat='${options.dateFormat}'`);
-      const optsStr = opts.join(', ');
-      sql = `CREATE TABLE "${tableName}" AS SELECT * FROM read_csv_auto('${fileName}', ${optsStr})`;
+      const isAppend = options?.conflictMode === 'append' && tableExists;
+
+      const fileName = `paste_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.csv`;
+      const file = new File([text], fileName, { type: 'text/csv' });
+
+      await this.db.registerFileHandle(file.name, file, duckdb.DuckDBDataProtocol.BROWSER_FILEREADER, true);
+
+      let selectSource = '';
+      if (options) {
+        const opts: string[] = [];
+        if (options.header !== undefined) opts.push(options.header ? "header=true" : "header=false");
+        const delim = options.delimiter || (options.delimiter === '' ? '' : undefined);
+        if (delim) opts.push(`delim='${delim === '\t' ? '\\t' : delim}'`);
+        if (options.quote) opts.push(`quote='${options.quote}'`);
+        if (options.dateFormat) opts.push(`dateformat='${options.dateFormat}'`);
+        const optsStr = opts.length > 0 ? `, ${opts.join(', ')}` : '';
+        selectSource = `read_csv_auto('${fileName}'${optsStr})`;
+      } else {
+        selectSource = `read_csv_auto('${fileName}')`;
+      }
+
+      const sql = isAppend
+        ? `INSERT INTO "${tableName}" SELECT * FROM ${selectSource}`
+        : `CREATE TABLE "${tableName}" AS SELECT * FROM ${selectSource}`;
+
+      await this.conn.query(sql);
+
+      // Audit
+      const auditSql = `INSERT INTO memory._sys_audit_log (id, operation_type, target_table, details, affected_rows, sql_statement) VALUES (nextval('memory._sys_audit_seq'), 'IMPORT', '${tableName}', 'Imported from clipboard', 0, '${sql.replace(/'/g, "''")}');`;
+      await this.conn.query(auditSql);
+
+      this.dispatchSchemaChanged();
+    });
+  }
+
+  async probeFile(file: File): Promise<{
+    name: string;
+    sizeBytes: number;
+    selectSource: string;
+    columns: { name: string; type: string }[];
+    previewRows: any[];
+    elapsedMs: number;
+  }> {
+    await this.waitForInit();
+    if (!this.db || !this.conn) throw new Error('DuckDB 引擎未初始化');
+
+    const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
+    let virtualFileName = file.name;
+    let selectSource = '';
+
+    if (isExcel) {
+      const sheets = await workbookIO.readAllSheets(file);
+      const activeSheet = sheets.find(s => !s.isEmpty) || sheets[0];
+      if (!activeSheet || !activeSheet.csvText) {
+        throw new Error('Excel 文件中未发现包含数据的工作表');
+      }
+      virtualFileName = `probe_excel_${Date.now()}.csv`;
+      const virtualFile = new File([activeSheet.csvText], virtualFileName, { type: 'text/csv' });
+      await this.db.registerFileHandle(virtualFileName, virtualFile, duckdb.DuckDBDataProtocol.BROWSER_FILEREADER, true);
+      selectSource = `read_csv_auto('${virtualFileName}')`;
     } else {
-      sql = `CREATE TABLE "${tableName}" AS SELECT * FROM read_csv_auto('${fileName}')`;
+      await this.db.registerFileHandle(file.name, file, duckdb.DuckDBDataProtocol.BROWSER_FILEREADER, true);
+      if (file.name.endsWith('.json')) {
+        selectSource = `read_json_auto('${file.name}')`;
+      } else if (file.name.endsWith('.tsv') || file.name.endsWith('.tab')) {
+        selectSource = `read_csv_auto('${file.name}', delim='\\t', header=true)`;
+      } else if (file.name.endsWith('.csv') || file.name.endsWith('.txt')) {
+        selectSource = `read_csv_auto('${file.name}')`;
+      } else {
+        selectSource = `'${file.name}'`;
+      }
     }
 
-    await this.conn.query(sql);
+    const start = performance.now();
+    const schemaRes = await this.query(`DESCRIBE SELECT * FROM ${selectSource};`);
+    const columns = (schemaRes || []).map((r: any) => ({
+      name: String(r.column_name || r.name || ''),
+      type: String(r.column_type || r.type || 'UNKNOWN'),
+    }));
+    const previewRows = await this.query(`SELECT * FROM ${selectSource} LIMIT 5;`);
+    const elapsedMs = +(performance.now() - start).toFixed(2);
 
-    // Audit
-    const auditSql = `INSERT INTO memory._sys_audit_log (id, operation_type, target_table, details, affected_rows, sql_statement) VALUES (nextval('memory._sys_audit_seq'), 'IMPORT', '${tableName}', 'Imported from clipboard', 0, '${sql.replace(/'/g, "''")}');`;
-    await this.conn.query(auditSql);
+    return {
+      name: file.name,
+      sizeBytes: file.size,
+      selectSource,
+      columns,
+      previewRows: previewRows || [],
+      elapsedMs,
+    };
+  }
+
+  async probeTable(tableName: string): Promise<{
+    name: string;
+    rowCount: number;
+    selectSource: string;
+    columns: { name: string; type: string }[];
+    previewRows: any[];
+    elapsedMs: number;
+  }> {
+    await this.waitForInit();
+    if (!this.conn) throw new Error('DuckDB 引擎未就绪');
+
+    const start = performance.now();
+    const cleanTable = tableName.replace(/"/g, '""');
+    const schemaRes = await this.query(`DESCRIBE SELECT * FROM "${cleanTable}";`);
+    const columns = (schemaRes || []).map((r: any) => ({
+      name: String(r.column_name || r.name || ''),
+      type: String(r.column_type || r.type || 'UNKNOWN'),
+    }));
+    const previewRows = await this.query(`SELECT * FROM "${cleanTable}" LIMIT 5;`);
+    let rowCount = 0;
+    try {
+      const countRes = await this.query(`SELECT COUNT(*) as total_rows FROM "${cleanTable}";`);
+      if (countRes && countRes.length > 0) {
+        rowCount = Number(countRes[0].total_rows || 0);
+      }
+    } catch {}
+    const elapsedMs = +(performance.now() - start).toFixed(2);
+
+    return {
+      name: tableName,
+      rowCount,
+      selectSource: `"${cleanTable}"`,
+      columns,
+      previewRows: previewRows || [],
+      elapsedMs,
+    };
+  }
+
+  async probeText(text: string): Promise<{
+    name: string;
+    sizeBytes: number;
+    selectSource: string;
+    columns: { name: string; type: string }[];
+    previewRows: any[];
+    elapsedMs: number;
+  }> {
+    await this.waitForInit();
+    if (!this.db || !this.conn) throw new Error('DuckDB 引擎未初始化');
+
+    const fileName = `clipboard_probe_${Date.now()}.csv`;
+    const file = new File([text], fileName, { type: 'text/csv' });
+    await this.db.registerFileHandle(fileName, file, duckdb.DuckDBDataProtocol.BROWSER_FILEREADER, true);
+
+    const selectSource = `read_csv_auto('${fileName}')`;
+    const start = performance.now();
+    const schemaRes = await this.query(`DESCRIBE SELECT * FROM ${selectSource};`);
+    const columns = (schemaRes || []).map((r: any) => ({
+      name: String(r.column_name || r.name || ''),
+      type: String(r.column_type || r.type || 'UNKNOWN'),
+    }));
+    const previewRows = await this.query(`SELECT * FROM ${selectSource} LIMIT 5;`);
+    const elapsedMs = +(performance.now() - start).toFixed(2);
+
+    return {
+      name: '剪贴板数据',
+      sizeBytes: new Blob([text]).size,
+      selectSource,
+      columns,
+      previewRows: previewRows || [],
+      elapsedMs,
+    };
   }
 
   async exportDatabase(): Promise<Blob> {
@@ -390,6 +1233,177 @@ class DuckDBService {
     }
 
     return new Blob([JSON.stringify(dump, (k, v) => typeof v === 'bigint' ? v.toString() : v, 2)], { type: 'application/json' });
+  }
+
+  // Schema 导出 - 导出 DDL（CREATE TABLE/VIEW/SEQUENCE）
+  async exportSchema(): Promise<string> {
+    if (!this.conn) throw new Error("DB not ready");
+
+    let ddl = `-- DuckDB Schema Export\n-- Generated: ${new Date().toISOString()}\n\n`;
+    ddl += `-- ========================================\n`;
+    ddl += `-- SCHEMA: duckdb_schema.sql\n`;
+    ddl += `-- ========================================\n\n`;
+
+    // 1. 导出 Tables
+    const tables = await this.getTables();
+    if (tables.length > 0) {
+      ddl += `-- ----------------------------------------\n`;
+      ddl += `-- TABLES\n`;
+      ddl += `-- ----------------------------------------\n\n`;
+
+      for (const tableName of tables) {
+        const columns = await this.conn.query(`PRAGMA table_info('${tableName}')`);
+        const cols = columns.toArray();
+
+        ddl += `CREATE TABLE "${tableName}" (\n`;
+        const colDefs: string[] = [];
+        for (const col of cols) {
+          const colName = col.name;
+          let colType = col.type || 'VARCHAR';
+          // DuckDB 类型映射
+          colType = colType.replace(/^INTEGER$/i, 'INTEGER')
+            .replace(/^BIGINT$/i, 'BIGINT')
+            .replace(/^DOUBLE$/i, 'DOUBLE')
+            .replace(/^BOOLEAN$/i, 'BOOLEAN')
+            .replace(/^DATE$/i, 'DATE')
+            .replace(/^TIMESTAMP$/i, 'TIMESTAMP')
+            .replace(/^VARCHAR$/i, 'VARCHAR');
+
+          let colDef = `  "${colName}" ${colType}`;
+          if (col.notnull) colDef += ' NOT NULL';
+          if (col.dflt_value !== null) {
+            colDef += ` DEFAULT ${col.dflt_value}`;
+          }
+          colDefs.push(colDef);
+        }
+        ddl += colDefs.join(',\n');
+        ddl += '\n);\n\n';
+      }
+    }
+
+    // 2. 导出 Views
+    try {
+      const views = await this.conn.query("SELECT table_name FROM information_schema.views WHERE table_schema = 'main'");
+      const viewRows = views.toArray();
+      if (viewRows.length > 0) {
+        ddl += `-- ----------------------------------------\n`;
+        ddl += `-- VIEWS\n`;
+        ddl += `-- ----------------------------------------\n\n`;
+
+        for (const row of viewRows) {
+          const viewName = row.table_name;
+          try {
+            const viewDef = await this.conn.query(`SELECT sql FROM sqlite_master WHERE type='view' AND name='${viewName}'`);
+            const defRows = viewDef.toArray();
+            if (defRows.length > 0 && defRows[0].sql) {
+              ddl += `CREATE OR REPLACE VIEW "${viewName}" AS\n${defRows[0].sql};\n\n`;
+            }
+          } catch (e) {
+            // Skip if cannot get view definition
+          }
+        }
+      }
+    } catch (e) {
+      // Views may not be supported
+    }
+
+    // 3. 导出 Sequences
+    try {
+      const seqs = await this.conn.query("SELECT sequence_name FROM information_schema.sequences");
+      const seqRows = seqs.toArray();
+      if (seqRows.length > 0) {
+        ddl += `-- ----------------------------------------\n`;
+        ddl += `-- SEQUENCES\n`;
+        ddl += `-- ----------------------------------------\n\n`;
+
+        for (const row of seqRows) {
+          const seqName = row.sequence_name;
+          ddl += `CREATE SEQUENCE "${seqName}";\n`;
+        }
+        ddl += '\n';
+      }
+    } catch (e) {
+      // Sequences may not be supported
+    }
+
+    return ddl;
+  }
+
+  // 数据导出为 SQL（INSERT 语句）
+  async exportDataAsSQL(tables?: string[]): Promise<string> {
+    if (!this.conn) throw new Error("DB not ready");
+
+    let sql = `-- DuckDB Data Export (INSERT Statements)\n-- Generated: ${new Date().toISOString()}\n\n`;
+    sql += `-- ========================================\n`;
+    sql += `-- DATA: duckdb_data.sql\n`;
+    sql += `-- ========================================\n\n`;
+
+    const targetTables = tables || await this.getTables();
+
+    for (const tableName of targetTables) {
+      const data = await this.query(`SELECT * FROM "${tableName}"`);
+      const rows = Array.isArray(data) ? data : [data];
+
+      if (rows.length === 0) {
+        sql += `-- Table "${tableName}" is empty\n\n`;
+        continue;
+      }
+
+      sql += `-- ----------------------------------------\n`;
+      sql += `-- TABLE: ${tableName} (${rows.length} rows)\n`;
+      sql += `-- ----------------------------------------\n\n`;
+
+      // 获取列名
+      const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
+      if (columns.length === 0) continue;
+
+      // 生成 INSERT 语句（每 100 行一条，提高性能）
+      const batchSize = 100;
+      for (let i = 0; i < rows.length; i += batchSize) {
+        const batch = rows.slice(i, i + batchSize);
+        const values: string[] = [];
+
+        for (const row of batch) {
+          const vals = columns.map(col => this.escapeLiteral(row[col])).join(', ');
+          values.push(`(${vals})`);
+        }
+
+        sql += `INSERT INTO "${tableName}" (${columns.map(c => `"${c}"`).join(', ')}) VALUES\n`;
+        sql += values.join(',\n');
+        sql += ';\n\n';
+      }
+    }
+
+    return sql;
+  }
+
+  // 完整备份 - Schema + Data
+  async exportFullBackup(format: 'sql' | 'json' = 'sql'): Promise<Blob> {
+    if (!this.conn) throw new Error("DB not ready");
+
+    if (format === 'sql') {
+      const schema = await this.exportSchema();
+      const data = await this.exportDataAsSQL();
+      return new Blob([schema + '\n' + data], { type: 'text/plain;charset=utf-8' });
+    } else {
+      // JSON 格式
+      const tables = await this.getTables();
+      const dump: any = {
+        metadata: {
+          generated: new Date().toISOString(),
+          type: 'full_backup',
+          tables: tables.length
+        },
+        tables: {}
+      };
+
+      for (const t of tables) {
+        const data = await this.query(`SELECT * FROM "${t}"`);
+        dump.tables[t] = data;
+      }
+
+      return new Blob([JSON.stringify(dump, (k, v) => typeof v === 'bigint' ? v.toString() : v, 2)], { type: 'application/json' });
+    }
   }
 
   async exportParquet(query: string, filename: string): Promise<Blob> {
@@ -412,29 +1426,73 @@ class DuckDBService {
 
   escapeLiteral(value: any): string {
     if (value === null || value === undefined) return 'NULL';
-    if (typeof value === 'number') return value.toString();
+    if (typeof value === 'number') return Number.isFinite(value) ? value.toString() : 'NULL';
     if (typeof value === 'boolean') return value ? 'TRUE' : 'FALSE';
     if (value instanceof Date) return `'${value.toISOString()}'`;
     // BigInt handling
     if (typeof value === 'bigint') return value.toString();
 
-    // String escape
-    return `'${String(value).replace(/"/g, '""').replace(/'/g, "''")}'`;
+    // Standard SQL string escape: escape single quotes by doubling them
+    return `'${String(value).replace(/'/g, "''")}'`;
   }
 
   async insertRow(table: string, data: Record<string, any>) {
     const safeTable = `"${table}"`;
-    const cols = Object.keys(data).map(c => `"${c}"`).join(', ');
-    const vals = Object.values(data).map(v => this.escapeLiteral(v)).join(', ');
+    const colKeys = Object.keys(data);
 
-    let sql;
-    if (cols.length === 0) {
-      // Try default values if empty object passed
-      sql = `INSERT INTO ${safeTable} DEFAULT VALUES`;
-    } else {
-      sql = `INSERT INTO ${safeTable} (${cols}) VALUES (${vals})`;
+    if (colKeys.length === 0) {
+      try {
+        const sql = `INSERT INTO ${safeTable} DEFAULT VALUES`;
+        return await this.executeAndAudit(sql, 'INSERT', table, 'Inserted new row');
+      } catch (err: any) {
+        // If DEFAULT VALUES fails (e.g. NOT NULL column without default constraint), inspect schema
+        try {
+          const schema = await this.getTableSchema(table);
+          const autoData: Record<string, any> = {};
+          for (const col of schema) {
+            const colName = col.name;
+            const colType = (col.type || '').toUpperCase();
+            const isPk = Boolean(col.pk);
+            const notNull = Boolean(col.notnull);
+            const hasDefault = col.dflt_value !== null && col.dflt_value !== undefined;
+
+            if (hasDefault) continue;
+
+            if (isPk && (colType.includes('INT') || colType.includes('BIGINT') || colType.includes('SERIAL'))) {
+              try {
+                const maxRes = await this.query(`SELECT COALESCE(MAX("${colName}"), 0) + 1 AS next_id FROM ${safeTable}`);
+                autoData[colName] = maxRes[0]?.next_id ?? 1;
+              } catch {
+                autoData[colName] = 1;
+              }
+            } else if (notNull || isPk) {
+              if (colType.includes('INT') || colType.includes('DOUBLE') || colType.includes('FLOAT') || colType.includes('NUMERIC') || colType.includes('DECIMAL')) {
+                autoData[colName] = 0;
+              } else if (colType.includes('BOOL')) {
+                autoData[colName] = false;
+              } else if (colType.includes('TIMESTAMP') || colType.includes('DATE')) {
+                autoData[colName] = new Date().toISOString();
+              } else {
+                autoData[colName] = `new_${colName}`;
+              }
+            }
+          }
+          if (Object.keys(autoData).length > 0) {
+            const cols = Object.keys(autoData).map(c => `"${c}"`).join(', ');
+            const vals = Object.values(autoData).map(v => this.escapeLiteral(v)).join(', ');
+            const fallbackSql = `INSERT INTO ${safeTable} (${cols}) VALUES (${vals})`;
+            return await this.executeAndAudit(fallbackSql, 'INSERT', table, 'Inserted new row (auto-defaults)');
+          }
+        } catch {
+          // fallback to throw original error
+        }
+        throw err;
+      }
     }
 
+    const cols = Object.keys(data).map(c => `"${c}"`).join(', ');
+    const vals = Object.values(data).map(v => this.escapeLiteral(v)).join(', ');
+    const sql = `INSERT INTO ${safeTable} (${cols}) VALUES (${vals})`;
     return this.executeAndAudit(sql, 'INSERT', table, 'Inserted new row');
   }
 
@@ -494,8 +1552,24 @@ class DuckDBService {
   }
 
   async dropTable(tableName: string) {
-    const sql = `DROP TABLE "${tableName}"`;
-    return this.executeAndAudit(sql, 'DROP', tableName, 'Dropped table');
+    const qualified = tableName.includes('.')
+      ? tableName.split('.').map(p => `"${p.replace(/"/g, '""')}"`).join('.')
+      : `"${tableName.replace(/"/g, '""')}"`;
+    try {
+      if (typeof this.getViews === 'function') {
+        const views = await this.getViews().catch(() => []);
+        if (Array.isArray(views) && (views.includes(tableName) || views.some(v => v.toLowerCase() === tableName.toLowerCase())) && typeof this.dropView === 'function') {
+          return await this.dropView(tableName);
+        }
+      }
+      const sql = `DROP TABLE ${qualified}`;
+      return await this.executeAndAudit(sql, 'DROP', tableName, 'Dropped table');
+    } catch (err: any) {
+      if (err?.message && (/view/i.test(err.message) || /not a table/i.test(err.message)) && typeof this.dropView === 'function') {
+        return await this.dropView(tableName);
+      }
+      throw err;
+    }
   }
 
   async createTable(tableName: string, columns: { name: string, type: string, pk?: boolean }[]) {
@@ -842,172 +1916,6 @@ class DuckDBService {
     return [];
   }
 
-  /**
-   * Attaches a persistent database file from OPFS.
-   * Creates it if it doesn't exist.
-   */
-  async attachProject(projectName: string): Promise<void> {
-    if (!this.conn || !this.db) throw new Error("DB not connected");
-
-    const dbName = projectName.endsWith('.duckdb') ? projectName : `${projectName}.duckdb`;
-    const alias = projectName.replace(/[^a-zA-Z0-9]/g, '_');
-
-    console.log(`[Persistence] Attaching ${dbName}...`);
-
-    const hasOPFS = 'storage' in navigator && 'getDirectory' in navigator.storage;
-
-    if (!hasOPFS) {
-      console.warn("[Persistence] OPFS not supported. Falling back to in-memory mode.");
-
-      // Fallback: In-Memory Only
-      await this.conn.query(`ATTACH ':memory:' AS "${alias}"`);
-
-      // Initialize KV store for this in-memory alias
-      await this.conn.query(`
-        CREATE TABLE IF NOT EXISTS "${alias}"._sys_kv_store (
-          key VARCHAR PRIMARY KEY,
-          value JSON,
-          updated_at TIMESTAMP
-        )
-      `);
-
-      console.log(`[Persistence] Project ${alias} ready (in-memory mode).`);
-      return;
-    }
-
-    const root = await navigator.storage.getDirectory();
-    const protocol = (duckdb.DuckDBDataProtocol as any).BROWSER_FSACCESS ?? 3;
-
-    // Step 0: Check if this database is already attached
-    try {
-      const attachedDbs = await this.conn.query(`SELECT database_name FROM duckdb_databases()`);
-      const dbNames = attachedDbs.toArray().map((r: any) => r.database_name);
-      if (dbNames.includes(alias)) {
-        console.log(`[Persistence] Project ${alias} already attached.`);
-        return; // Already attached, nothing to do
-      }
-    } catch (e) {
-      // Ignore errors checking attached databases
-    }
-
-    // Step 1: Check if file exists and what type it is
-    let fileExists = false;
-    let isMetadataFile = false; // JSON metadata (not DuckDB)
-    let isDuckDBFile = false;   // Actual DuckDB database file
-    let handle: FileSystemFileHandle | null = null;
-
-    try {
-      handle = await root.getFileHandle(dbName); // Without {create: true}
-      fileExists = true;
-
-      const file = await handle.getFile();
-
-      if (file.size === 0) {
-        console.warn(`[Persistence] File ${dbName} is empty (0 bytes). Will recreate.`);
-        try {
-          await root.removeEntry(dbName);
-        } catch (delErr) {
-          console.warn(`[Persistence] Could not delete empty file:`, delErr);
-        }
-        fileExists = false;
-        handle = null;
-      } else {
-        // Check first few bytes to determine file type
-        const headerBytes = await file.slice(0, 16).arrayBuffer();
-        const header = new Uint8Array(headerBytes);
-
-        // DuckDB files start with magic bytes (typically the SQLite-like signature)
-        // JSON files typically start with { (0x7B)
-        if (header[0] === 0x7B) { // '{' - JSON file
-          isMetadataFile = true;
-          console.log(`[Persistence] File ${dbName} is a metadata file (${file.size} bytes). Using in-memory.`);
-        } else {
-          isDuckDBFile = true;
-          console.log(`[Persistence] File ${dbName} appears to be DuckDB format (${file.size} bytes).`);
-        }
-      }
-    } catch (e) {
-      fileExists = false;
-      console.log(`[Persistence] File ${dbName} does not exist. Will create new.`);
-    }
-
-    try {
-      if (fileExists && isDuckDBFile && handle) {
-        // Existing DuckDB file - register and attach
-        await this.db.registerFileHandle(dbName, handle, protocol, true);
-        await this.conn.query(`ATTACH '${dbName}' AS "${alias}"`);
-        console.log(`[Persistence] Attached existing DuckDB file: ${alias}`);
-      } else {
-        // Either: new project, metadata file, or no file
-        // All cases → use in-memory database
-
-        if (!fileExists) {
-          console.log(`[Persistence] Creating new in-memory project...`);
-          // Create metadata file for tracking
-          handle = await root.getFileHandle(dbName, { create: true });
-          const configData = JSON.stringify({
-            name: projectName,
-            created: new Date().toISOString(),
-            type: 'memory-backed'
-          });
-          const writableStream = await (handle as any).createWritable();
-          await writableStream.write(configData);
-          await writableStream.close();
-        } else {
-          console.log(`[Persistence] Loading project from metadata (in-memory mode)...`);
-        }
-
-        // Create in-memory database
-        await this.conn.query(`ATTACH ':memory:' AS "${alias}"`);
-
-        // Initialize the KV store for session management
-        await this.conn.query(`
-          CREATE TABLE IF NOT EXISTS "${alias}"._sys_kv_store (
-            key VARCHAR PRIMARY KEY,
-            value JSON,
-            updated_at TIMESTAMP
-          )
-        `);
-
-        console.log(`[Persistence] Project ${alias} ready (in-memory mode).`);
-      }
-    } catch (e: any) {
-      console.error(`[Persistence] Attach/Create Failed:`, e);
-
-      // Recovery: If file is corrupted, create in-memory project directly
-      if (e.message && (e.message.includes("not a valid DuckDB") || e.message.includes("IO Error"))) {
-        console.warn(`[Persistence] File issue detected. Creating in-memory project...`);
-        try {
-          // Clean up any bad file state
-          try {
-            const freshRoot = await navigator.storage.getDirectory();
-            await freshRoot.removeEntry(dbName);
-            console.log(`[Persistence] Cleaned up ${dbName} from OPFS.`);
-          } catch (removeErr: any) {
-            console.warn(`[Persistence] Cleanup warning:`, removeErr);
-          }
-
-          // Create in-memory project directly (no recursion risk)
-          await this.conn!.query(`ATTACH ':memory:' AS "${alias}"`);
-          await this.conn!.query(`
-            CREATE TABLE IF NOT EXISTS "${alias}"._sys_kv_store (
-              key VARCHAR PRIMARY KEY,
-              value JSON,
-              updated_at TIMESTAMP
-            )
-          `);
-          console.log(`[Persistence] Created in-memory fallback project: ${alias}`);
-          return;
-        } catch (recoveryError: any) {
-          console.error(`[Persistence] Recovery failed:`, recoveryError);
-          throw new Error(`无法创建项目 ${projectName}: ${recoveryError.message}`);
-        }
-      }
-
-      throw new Error(`Could not attach project ${projectName}: ${e.message}`);
-    }
-  }
-
   async detachProject(projectName: string): Promise<void> {
     if (!this.conn) return;
     const alias = projectName.replace(/[^a-zA-Z0-9]/g, '_');
@@ -1089,15 +1997,6 @@ class DuckDBService {
         console.error('[Persistence] clearAllProjects failed:', e);
       }
     }
-  }
-
-
-  async useProject(projectName: string): Promise<void> {
-    if (!this.conn) return;
-    const alias = projectName.replace(/[^a-zA-Z0-9]/g, '_');
-    await this.conn.query(`USE "${alias}"`);
-    console.log(`[Persistence] Switched context to ${alias}`);
-    await this.initSessionTable();
   }
 
   // --- Epic-008: Session Management ---
@@ -1260,6 +2159,1000 @@ class DuckDBService {
     const buffer = await this.db.copyFileToBuffer(fileName);
     await this.db.registerFileText(fileName, ''); // Cleanup?
     return buffer;
+  }
+
+  // ==================== Ontology Layer ====================
+
+  async ontologySeed(): Promise<void> {
+    return this.runInQueue(async () => {
+      await this.waitForInit();
+      if (!this.conn) return;
+      for (const stmt of ONTOLOGY_SEED_STATEMENTS) {
+        if (stmt.trim()) {
+          try {
+            await this.conn.query(stmt);
+          } catch (e: any) {
+            console.error(`[DuckDB] Seed execution failed for: "${stmt}"`, e);
+            throw e;
+          }
+        }
+      }
+    });
+  }
+
+  // helper to normalize date objects/epoch from duckdb into YYYY-MM-DD string
+  private _normalizeDate(val: any): string | null {
+    if (!val) return null;
+    if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
+    if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(val)) return val.slice(0, 10);
+    if (typeof val === 'number') {
+      const d = new Date(val);
+      if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+    }
+    if (val instanceof Date && !isNaN(val.getTime())) return val.toISOString().slice(0, 10);
+    return null;
+  }
+
+  async getOntologyObjects(): Promise<any[]> {
+    return this.query('SELECT * FROM life_object ORDER BY id');
+  }
+
+  async getOntologyObjectTypes(): Promise<any[]> {
+    return this.query('SELECT * FROM life_object_type ORDER BY id');
+  }
+
+  async getOntologyLinks(): Promise<any[]> {
+    return this.query('SELECT * FROM life_link ORDER BY id');
+  }
+
+  async getOntologyLinkTypes(): Promise<any[]> {
+    return this.query('SELECT * FROM life_link_type ORDER BY id');
+  }
+
+  async getOntologyActions(): Promise<any[]> {
+    const rows = await this.query('SELECT * FROM life_action ORDER BY id');
+    return rows.map(r => ({ ...r, execute_at: this._normalizeDate(r.execute_at) }));
+  }
+
+  async getOntologyIntrospections(): Promise<any[]> {
+    const rows = await this.query('SELECT * FROM life_introspection ORDER BY id');
+    return rows.map(r => ({ ...r, created_at: this._normalizeDate(r.created_at) }));
+  }
+
+  async getOntologyInsights(): Promise<any[]> {
+    const rows = await this.query('SELECT * FROM life_insight ORDER BY id');
+    return rows.map(r => ({ ...r, created_at: this._normalizeDate(r.created_at) }));
+  }
+
+  // Unified save for the generated AI draft
+  async executeOntologyDraft(draftData: {
+    objects: any[], links: any[], actions: any[], introspections: any[], insights: any[]
+  }): Promise<void> {
+    if (!this.conn) return;
+    try {
+      // Execute in sequence to maintain FK constraints
+      for (const obj of draftData.objects || []) {
+        await this.query(`INSERT INTO life_object (id, object_type_id, name, properties, annotations) VALUES (${obj.id}, ${obj.object_type_id || 1}, '${obj.name.replace(/'/g, "''")}', '${JSON.stringify(obj.properties || {}).replace(/'/g, "''")}', '${(obj.annotations || '').replace(/'/g, "''")}') ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name, properties=EXCLUDED.properties, annotations=EXCLUDED.annotations, object_type_id=EXCLUDED.object_type_id`);
+      }
+      for (const link of draftData.links || []) {
+        await this.query(`INSERT INTO life_link (id, link_type_id, source_object_id, target_object_id, weight) VALUES (${link.id}, ${link.link_type_id || 1}, ${link.source_object_id}, ${link.target_object_id}, ${link.weight || 1.0}) ON CONFLICT (id) DO UPDATE SET link_type_id=EXCLUDED.link_type_id, source_object_id=EXCLUDED.source_object_id, target_object_id=EXCLUDED.target_object_id, weight=EXCLUDED.weight`);
+      }
+      for (const action of draftData.actions || []) {
+        await this.query(`INSERT INTO life_action (id, object_id, name, description, status) VALUES (${action.id}, ${action.object_id}, '${action.name.replace(/'/g, "''")}', '${(action.description || '').replace(/'/g, "''")}', '${action.status || 'pending'}') ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name, description=EXCLUDED.description, status=EXCLUDED.status, object_id=EXCLUDED.object_id`);
+      }
+      for (const intro of draftData.introspections || []) {
+        await this.query(`INSERT INTO life_introspection (id, object_id, question, answer) VALUES (${intro.id}, ${intro.object_id}, '${intro.question.replace(/'/g, "''")}', '${(intro.answer || '').replace(/'/g, "''")}') ON CONFLICT (id) DO UPDATE SET question=EXCLUDED.question, answer=EXCLUDED.answer, object_id=EXCLUDED.object_id`);
+      }
+      for (const insight of draftData.insights || []) {
+        await this.query(`INSERT INTO life_insight (id, object_id, insight, tag) VALUES (${insight.id}, ${insight.object_id}, '${insight.insight.replace(/'/g, "''")}', '${(insight.tag || '').replace(/'/g, "''")}') ON CONFLICT (id) DO UPDATE SET insight=EXCLUDED.insight, tag=EXCLUDED.tag, object_id=EXCLUDED.object_id`);
+      }
+    } catch (err) {
+      console.error('Execute ontology draft failed', err);
+      throw err;
+    }
+  }
+
+  // Common unified delete for Graph
+  async deleteOntologyNodeTree(objectId: number): Promise<void> {
+    if (!this.conn) return;
+    try {
+      await this.query(`DELETE FROM life_action WHERE object_id = ${objectId}`);
+      await this.query(`DELETE FROM life_introspection WHERE object_id = ${objectId}`);
+      await this.query(`DELETE FROM life_insight WHERE object_id = ${objectId}`);
+      await this.query(`DELETE FROM life_link WHERE source_object_id = ${objectId} OR target_object_id = ${objectId}`);
+      await this.query(`DELETE FROM life_canvas_state WHERE object_id = ${objectId}`);
+      await this.query(`DELETE FROM life_object WHERE id = ${objectId}`);
+    } catch (e) {
+      console.error('Delete ontology node tree failed', e);
+    }
+  }
+
+  async getOntologyCanvasState(): Promise<any[]> {
+    try {
+      const tables = await this.getTables();
+      if (!tables.includes('life_canvas_state')) return [];
+      return await this.query('SELECT * FROM life_canvas_state');
+    } catch {
+      return [];
+    }
+  }
+
+  async saveOntologyCanvasState(id: string, spaceId: string | null, objectId: number | null, title: string, color: string, x: number, y: number, width: number, height: number, nodeType: string, metadata: any): Promise<void> {
+    const spaceVal = spaceId ? `'${spaceId.replace(/'/g, "''")}'` : 'NULL';
+    const objVal = (objectId != null && Number.isFinite(objectId) && !Number.isNaN(objectId)) ? objectId : 'NULL';
+    const xVal = Number.isFinite(x) ? x : 0;
+    const yVal = Number.isFinite(y) ? y : 0;
+    const widthVal = Number.isFinite(width) ? width : 0;
+    const heightVal = Number.isFinite(height) ? height : 0;
+    const safeId = (id || '').replace(/'/g, "''");
+    const safeTitle = (title || '').replace(/'/g, "''");
+    const safeColor = (color || '').replace(/'/g, "''");
+    const safeNodeType = (nodeType || 'object').replace(/'/g, "''");
+    const metadataVal = metadata ? `'${JSON.stringify(metadata).replace(/'/g, "''")}'` : "'{}'";
+    await this.query(`
+      INSERT INTO life_canvas_state (id, space_id, object_id, title, color, x, y, width, height, node_type, metadata)
+      VALUES ('${safeId}', ${spaceVal}, ${objVal}, '${safeTitle}', '${safeColor}', ${xVal}, ${yVal}, ${widthVal}, ${heightVal}, '${safeNodeType}', ${metadataVal})
+      ON CONFLICT (id) DO UPDATE SET
+        space_id = EXCLUDED.space_id,
+        object_id = EXCLUDED.object_id,
+        title = EXCLUDED.title,
+        color = EXCLUDED.color,
+        x = EXCLUDED.x,
+        y = EXCLUDED.y,
+        width = EXCLUDED.width,
+        height = EXCLUDED.height,
+        node_type = EXCLUDED.node_type,
+        metadata = EXCLUDED.metadata
+    `);
+  }
+
+  async deleteOntologyCanvasState(id: string): Promise<void> {
+    await this.query(`DELETE FROM life_canvas_state WHERE id = '${id}'`);
+  }
+
+  // Real-time Update methods
+  async updateOntologyObject(id: number, updates: { name?: string, properties?: any }): Promise<void> {
+    let sets = [];
+    if (updates.name) sets.push(`name = '${updates.name.replace(/'/g, "''")}'`);
+    if (updates.properties) sets.push(`properties = '${JSON.stringify(updates.properties).replace(/'/g, "''")}'`);
+    if (sets.length === 0) return;
+    await this.query(`UPDATE life_object SET ${sets.join(', ')} WHERE id = ${id}`);
+  }
+
+  async updateOntologyAction(id: number, updates: { name?: string, description?: string, status?: string }): Promise<void> {
+    let sets = [];
+    if (updates.name) sets.push(`name = '${updates.name.replace(/'/g, "''")}'`);
+    if (updates.description) sets.push(`description = '${updates.description.replace(/'/g, "''")}'`);
+    if (updates.status) sets.push(`status = '${updates.status.replace(/'/g, "''")}'`);
+    if (sets.length === 0) return;
+    await this.query(`UPDATE life_action SET ${sets.join(', ')} WHERE id = ${id}`);
+  }
+
+  async updateOntologyInsight(id: number, updates: { insight?: string, tag?: string }): Promise<void> {
+    let sets = [];
+    if (updates.insight) sets.push(`insight = '${updates.insight.replace(/'/g, "''")}'`);
+    if (updates.tag) sets.push(`tag = '${updates.tag.replace(/'/g, "''")}'`);
+    if (sets.length === 0) return;
+    await this.query(`UPDATE life_insight SET ${sets.join(', ')} WHERE id = ${id}`);
+  }
+
+  async updateOntologyIntrospection(id: number, updates: { question?: string, answer?: string }): Promise<void> {
+    let sets = [];
+    if (updates.question) sets.push(`question = '${updates.question.replace(/'/g, "''")}'`);
+    if (updates.answer) sets.push(`answer = '${updates.answer.replace(/'/g, "''")}'`);
+    if (sets.length === 0) return;
+    await this.query(`UPDATE life_introspection SET ${sets.join(', ')} WHERE id = ${id}`);
+  }
+
+  async createOntologyObject(name: string, objectTypeId: number, properties: string = '{}'): Promise<void> {
+    await this.query(`INSERT INTO life_object (name, object_type_id, properties) VALUES ('${name.replace(/'/g, "''")}', ${objectTypeId}, '${properties.replace(/'/g, "''")}')`);
+  }
+
+  async updateOntologyAnnotation(objectId: number, annotation: string): Promise<void> {
+    await this.query(`UPDATE life_object SET annotations = '${annotation.replace(/'/g, "''")}' WHERE id = ${objectId}`);
+  }
+
+  async updateOntologyProperties(objectId: number, properties: string): Promise<void> {
+    await this.query(`UPDATE life_object SET properties = '${properties.replace(/'/g, "''")}' WHERE id = ${objectId}`);
+  }
+
+  async updateOntologyLinkWeight(linkId: number, weight: number): Promise<void> {
+    await this.query(`UPDATE life_link SET weight = ${weight} WHERE id = ${linkId}`);
+  }
+
+  async createOntologyLink(linkTypeId: number, sourceId: number, targetId: number, weight: number = 1.0): Promise<void> {
+    await this.query(`INSERT INTO life_link (link_type_id, source_object_id, target_object_id, weight) VALUES (${linkTypeId}, ${sourceId}, ${targetId}, ${weight})`);
+  }
+
+  async deleteOntologyLink(linkId: number): Promise<void> {
+    await this.query(`DELETE FROM life_link WHERE id = ${linkId}`);
+  }
+
+  // Introspection
+  async addIntrospection(objectId: number, question: string, answer: string): Promise<void> {
+    await this.query(`INSERT INTO life_introspection (object_id, question, answer) VALUES (${objectId}, '${question.replace(/'/g, "''")}', '${answer.replace(/'/g, "''")}')`);
+  }
+
+  async getIntrospections(objectId: number): Promise<any[]> {
+    return this.query(`SELECT * FROM life_introspection WHERE object_id = ${objectId} ORDER BY created_at DESC`);
+  }
+
+  // Insights
+  async addInsight(objectId: number, insight: string, tag: string): Promise<void> {
+    await this.query(`INSERT INTO life_insight (object_id, insight, tag) VALUES (${objectId}, '${insight.replace(/'/g, "''")}', '${tag.replace(/'/g, "''")}')`);
+  }
+
+  async getInsights(): Promise<any[]> {
+    return this.query('SELECT li.*, lo.name as object_name FROM life_insight li LEFT JOIN life_object lo ON li.object_id = lo.id ORDER BY li.created_at DESC');
+  }
+
+  async getInsightsByTag(tag: string): Promise<any[]> {
+    return this.query(`SELECT * FROM life_insight WHERE tag = '${tag.replace(/'/g, "''")}' ORDER BY created_at DESC`);
+  }
+
+  async deleteInsight(id: number): Promise<void> {
+    await this.query(`DELETE FROM life_insight WHERE id = ${id}`);
+  }
+
+  async loadOntologyTemplate(templateData: any): Promise<void> {
+    return this.runInQueue(async () => {
+      await this.waitForInit();
+      if (!this.conn) return;
+      try {
+        const sqlParts: string[] = [];
+
+        // 1. Table creation statements
+        sqlParts.push(...ONTOLOGY_CREATE_STATEMENTS);
+
+        // 2. Clear existing tables
+        const tablesToClear = [
+          'life_canvas_edge',
+          'life_canvas_state',
+          'life_action',
+          'life_introspection',
+          'life_insight',
+          'life_link',
+          'life_link_type',
+          'life_object',
+          'life_object_type'
+        ];
+        for (const t of tablesToClear) {
+          sqlParts.push(`DELETE FROM ${t}`);
+        }
+
+        const esc = (val: any) => (val ? String(val).replace(/'/g, "''") : '');
+
+        // 3. Insert new template data
+        if (templateData.objectTypes && templateData.objectTypes.length > 0) {
+          const values = templateData.objectTypes.map((ot: any) =>
+            `(${ot.id}, '${esc(ot.name)}', '${esc(ot.description)}')`
+          ).join(', ');
+          sqlParts.push(`INSERT INTO life_object_type (id, name, description) VALUES ${values}`);
+        }
+
+        if (templateData.objects && templateData.objects.length > 0) {
+          const values = templateData.objects.map((o: any) => {
+            const propsStr = typeof o.properties === 'string' ? o.properties : JSON.stringify(o.properties || {});
+            return `(${o.id}, ${o.object_type_id}, '${esc(o.name)}', '${esc(propsStr)}', '${esc(o.annotations)}')`;
+          }).join(', ');
+          sqlParts.push(`INSERT INTO life_object (id, object_type_id, name, properties, annotations) VALUES ${values}`);
+        }
+
+        if (templateData.linkTypes && templateData.linkTypes.length > 0) {
+          const values = templateData.linkTypes.map((lt: any) =>
+            `(${lt.id}, '${esc(lt.name)}', '${esc(lt.description)}')`
+          ).join(', ');
+          sqlParts.push(`INSERT INTO life_link_type (id, name, description) VALUES ${values}`);
+        }
+
+        if (templateData.links && templateData.links.length > 0) {
+          const values = templateData.links.map((l: any) =>
+            `(${l.id}, ${l.link_type_id}, ${l.source_object_id}, ${l.target_object_id}, ${l.weight ?? 1.0})`
+          ).join(', ');
+          sqlParts.push(`INSERT INTO life_link (id, link_type_id, source_object_id, target_object_id, weight) VALUES ${values}`);
+        }
+
+        if (templateData.actions && templateData.actions.length > 0) {
+          const values = templateData.actions.map((a: any) => {
+            const execAt = a.execute_at ? `'${a.execute_at}'` : 'NULL';
+            return `(${a.id}, ${a.object_id}, '${esc(a.name)}', '${esc(a.description)}', '${esc(a.status || 'pending')}', ${execAt})`;
+          }).join(', ');
+          sqlParts.push(`INSERT INTO life_action (id, object_id, name, description, status, execute_at) VALUES ${values}`);
+        }
+
+        if (templateData.introspections && templateData.introspections.length > 0) {
+          const values = templateData.introspections.map((intro: any) => {
+            const crAt = intro.created_at ? `'${intro.created_at}'` : 'CURRENT_DATE';
+            return `(${intro.id}, ${intro.object_id}, '${esc(intro.question)}', '${esc(intro.answer)}', ${crAt})`;
+          }).join(', ');
+          sqlParts.push(`INSERT INTO life_introspection (id, object_id, question, answer, created_at) VALUES ${values}`);
+        }
+
+        if (templateData.insights && templateData.insights.length > 0) {
+          const values = templateData.insights.map((ins: any) => {
+            const crAt = ins.created_at ? `'${ins.created_at}'` : 'CURRENT_DATE';
+            return `(${ins.id}, ${ins.object_id}, '${esc(ins.insight)}', '${esc(ins.tag)}', ${crAt})`;
+          }).join(', ');
+          sqlParts.push(`INSERT INTO life_insight (id, object_id, insight, tag, created_at) VALUES ${values}`);
+        }
+
+        // Execute ALL statements sequentially
+        console.log(`[DuckDB] loadOntologyTemplate: executing ${sqlParts.length} statements sequentially`);
+        for (const stmt of sqlParts) {
+          if (stmt.trim()) {
+            await this.conn.query(stmt);
+          }
+        }
+        this.dispatchSchemaChanged();
+      } catch (err) {
+        console.error('Load ontology template failed', err);
+        throw err;
+      }
+    });
+  }
+
+
+  async getOntologyPatterns(): Promise<any[]> {
+    if (!this.conn) return [];
+    try {
+      const rows = await this.query('SELECT * FROM _sys_ontology_pattern_library');
+      return rows.map((r: any) => {
+        const parseJson = (val: any) => {
+          if (!val) return [];
+          if (typeof val === 'string') {
+            try { return JSON.parse(val); } catch { return []; }
+          }
+          return val;
+        };
+        return {
+          ...r,
+          seedIds: parseJson(r.seed_ids),
+          coreNodes: parseJson(r.core_nodes),
+          principles: parseJson(r.principles),
+          bestPractices: parseJson(r.best_practices),
+          antiPatterns: parseJson(r.anti_patterns),
+        };
+      });
+    } catch (e) {
+      console.warn('[DuckDB] Failed to query pattern library:', e);
+      return [];
+    }
+  }
+
+  async saveOntologyPattern(pattern: any): Promise<void> {
+    if (!this.conn) return;
+    const esc = (val: any) => this.escapeLiteral(val ?? '').slice(1, -1); // strip outer quotes
+    const seedIdsJson = JSON.stringify(pattern.seedIds || pattern.seed_ids || []);
+    const coreNodesJson = JSON.stringify(pattern.coreNodes || pattern.core_nodes || []);
+    const principlesJson = JSON.stringify(pattern.principles || []);
+    const bestPracticesJson = JSON.stringify(pattern.bestPractices || pattern.best_practices || []);
+    const antiPatternsJson = JSON.stringify(pattern.antiPatterns || pattern.anti_patterns || []);
+
+    await this.query(`
+      INSERT INTO _sys_ontology_pattern_library (
+        id, category_id, category_title, title, icon_name, brief, description, layer, seed_ids, core_nodes, principles, best_practices, anti_patterns, mermaid
+      ) VALUES (
+        '${esc(pattern.id)}',
+        '${esc(pattern.categoryId || pattern.category_id)}',
+        '${esc(pattern.categoryTitle || pattern.category_title)}',
+        '${esc(pattern.title)}',
+        '${esc(pattern.iconName || pattern.icon_name || 'BookOpen')}',
+        '${esc(pattern.brief)}',
+        '${esc(pattern.description)}',
+        '${esc(pattern.layer)}',
+        '${esc(seedIdsJson)}',
+        '${esc(coreNodesJson)}',
+        '${esc(principlesJson)}',
+        '${esc(bestPracticesJson)}',
+        '${esc(antiPatternsJson)}',
+        '${esc(pattern.mermaid || '')}'
+      )
+      ON CONFLICT (id) DO UPDATE SET
+        category_id = EXCLUDED.category_id,
+        category_title = EXCLUDED.category_title,
+        title = EXCLUDED.title,
+        icon_name = EXCLUDED.icon_name,
+        brief = EXCLUDED.brief,
+        description = EXCLUDED.description,
+        layer = EXCLUDED.layer,
+        seed_ids = EXCLUDED.seed_ids,
+        core_nodes = EXCLUDED.core_nodes,
+        principles = EXCLUDED.principles,
+        best_practices = EXCLUDED.best_practices,
+        anti_patterns = EXCLUDED.anti_patterns,
+        mermaid = EXCLUDED.mermaid
+    `);
+  }
+
+  async deleteOntologyPattern(id: string): Promise<void> {
+    await this.query(`DELETE FROM _sys_ontology_pattern_library WHERE id = ${this.escapeLiteral(id)}`);
+  }
+
+  async getDatabaseDiagnostics(): Promise<{ databaseSize: string; memoryUsage: string; memoryLimit: string }> {
+    if (!this.conn) return { databaseSize: 'Unknown', memoryUsage: 'Unknown', memoryLimit: 'Unknown' };
+    let databaseSize = 'Unknown';
+    let memoryUsage = 'Unknown';
+    let memoryLimit = 'Unknown';
+    try {
+      const sizeRes = await this.query('CALL pragma_database_size()');
+      if (sizeRes && sizeRes.length > 0) {
+        databaseSize = sizeRes[0].database_size || sizeRes[0].db_size || 'Unknown';
+      }
+    } catch (e) {}
+
+    try {
+      const memRes = await this.query('SELECT * FROM duckdb_memory()');
+      if (memRes && memRes.length > 0) {
+        let total = 0;
+        for (const row of memRes) {
+          total += Number(row.memory_usage ?? 0);
+        }
+        memoryUsage = `${(total / (1024 * 1024)).toFixed(2)} MB`;
+      }
+    } catch (e) {}
+
+    try {
+      const limitRes = await this.query("SELECT value FROM duckdb_settings() WHERE name = 'max_memory'");
+      if (limitRes && limitRes.length > 0) {
+        memoryLimit = limitRes[0].value || 'Unknown';
+      }
+    } catch (e) {}
+
+    return { databaseSize, memoryUsage, memoryLimit };
+  }
+
+  async getTableColumns(tableName: string): Promise<string[]> {
+    if (!tableName || !tableName.trim()) return [];
+    try {
+      const rows = await this.query(`DESCRIBE "${tableName.replace(/"/g, '""')}"`);
+      return rows.map((r: any) => String(r.column_name || r.name || Object.values(r)[0])).filter(Boolean);
+    } catch {
+      return [];
+    }
+  }
+
+  async queryWithParams(sql: string, params?: any[]): Promise<any[]> {
+    return this.runInQueue(async () => {
+      await this.waitForInit();
+      if (!this.conn) throw new Error("Database not connected");
+      if (!params || params.length === 0) {
+        const res = await this.conn.query(sql);
+        return this.cleanDuckDBResult(res);
+      }
+      try {
+        const prepared = await this.conn.prepare(sql);
+        const result = await prepared.query(...params);
+        await prepared.close();
+        return this.cleanDuckDBResult(result);
+      } catch {
+        let paramIdx = 0;
+        const substitutedSql = sql.replace(/\?/g, () => {
+          if (paramIdx >= params.length) return '?';
+          const p = params[paramIdx++];
+          if (p === null || p === undefined) return 'NULL';
+          if (typeof p === 'number' || typeof p === 'boolean') return String(p);
+          return `'${String(p).replace(/'/g, "''")}'`;
+        });
+        const result = await this.conn.query(substitutedSql);
+        return this.cleanDuckDBResult(result);
+      }
+    });
+  }
+
+  async validateSqlAst(sql: string): Promise<{ isValid: boolean; valid: boolean; error?: string }> {
+    try {
+      await this.query(`EXPLAIN ${sql}`);
+      return { isValid: true, valid: true };
+    } catch (e: any) {
+      return { isValid: false, valid: false, error: e.message };
+    }
+  }
+
+  async cancelActiveQuery(): Promise<void> {
+    // Cancellation stub
+  }
+
+  async executeTransaction<T = unknown>(statementsOrCallback: string[] | (() => Promise<T>)): Promise<T | void> {
+    return this.runInQueue(async () => {
+      await this.waitForInit();
+      const isNested = this.inTransaction;
+      if (!isNested) {
+        this.inTransaction = true;
+        try {
+          if (this.conn) await this.conn.query('BEGIN TRANSACTION');
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          if (!/cannot start a transaction/i.test(msg)) {
+            this.inTransaction = false;
+            throw e;
+          }
+        }
+      }
+
+      try {
+        let res: T | void;
+        if (Array.isArray(statementsOrCallback)) {
+          for (const stmt of statementsOrCallback) {
+            if (!stmt.trim()) continue;
+            if (this.conn) await this.conn.query(stmt);
+          }
+        } else {
+          res = await statementsOrCallback();
+        }
+
+        if (!isNested && this.conn) {
+          try {
+            await this.conn.query('COMMIT');
+          } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            if (!/no transaction is active/i.test(msg)) throw e;
+          }
+        }
+        return res;
+      } catch (e) {
+        if (!isNested && this.conn) {
+          try {
+            await this.conn.query('ROLLBACK');
+          } catch {}
+        }
+        throw e;
+      } finally {
+        if (!isNested) this.inTransaction = false;
+      }
+    });
+  }
+
+  async exportWorkspaceSnapshotArchive(): Promise<Uint8Array> {
+    try {
+      const baseTables = await this.getBaseTables();
+      const tableSnapshots: DuckDBTableSnapshot[] = [];
+      for (const t of baseTables) {
+        if (t.startsWith('_sys_')) continue;
+        const def = await this.getTableOrViewDefinition(t);
+        const rows = await this.query(`SELECT * FROM "${t.replace(/"/g, '""')}"`);
+        tableSnapshots.push({ name: t, ddl: def.ddl, rows: rows || [] });
+      }
+      const views = await this.getViews();
+      const viewSnapshots: DuckDBViewSnapshot[] = [];
+      for (const v of views) {
+        const def = await this.getTableOrViewDefinition(v);
+        viewSnapshots.push({ name: v, sql: def.sql || def.ddl });
+      }
+      const snapshot: DuckDBWorkspaceSnapshot = {
+        version: 1,
+        updatedAt: Date.now(),
+        tables: tableSnapshots,
+        views: viewSnapshots,
+        macros: [],
+      };
+      return new TextEncoder().encode(JSON.stringify(snapshot));
+    } catch {
+      return new TextEncoder().encode(JSON.stringify({ version: 1, updatedAt: Date.now(), tables: [], views: [], macros: [] }));
+    }
+  }
+
+  async installWorkspaceSnapshotArchive(data: Uint8Array | Blob): Promise<void> {
+    try {
+      const bytes = data instanceof Blob ? new Uint8Array(await data.arrayBuffer()) : data;
+      const jsonStr = new TextDecoder().decode(bytes);
+      const snapshot = JSON.parse(jsonStr) as DuckDBWorkspaceSnapshot;
+      if (snapshot && Array.isArray(snapshot.tables)) {
+        await saveWorkspaceSnapshot(snapshot);
+        await this.clearAllData({ tables: true, views: true, macros: true, files: true });
+        await this.restoreFromIndexedDBCache();
+      }
+    } catch (e) {
+      console.warn('[DuckDB] Failed to install workspace snapshot archive:', e);
+    }
+  }
+
+  async checkOPFSSupport(): Promise<{ supported: boolean; persistent: boolean }> {
+    try {
+      const supported = typeof navigator !== 'undefined' && 'storage' in navigator && 'getDirectory' in navigator.storage;
+      let persistent = false;
+      if (supported && navigator.storage && 'persisted' in navigator.storage) {
+        persistent = await navigator.storage.persisted();
+      }
+      return { supported, persistent };
+    } catch {
+      return { supported: false, persistent: false };
+    }
+  }
+
+  async queryArrowZeroCopy(sql: string): Promise<any> {
+    await this.waitForInit();
+    if (!this.conn) throw new Error('Database not initialized');
+    return await this.conn.query(sql);
+  }
+
+  async getBaseTables(): Promise<string[]> {
+    try {
+      const rows = await this.query(`
+        SELECT DISTINCT table_name 
+        FROM information_schema.tables 
+        WHERE (table_schema = current_schema() OR table_schema = 'main') 
+          AND table_type = 'BASE TABLE'
+          AND table_name NOT LIKE '_sys_%'
+      `);
+      return rows.map((r: any) => String(r.table_name || Object.values(r)[0]));
+    } catch {
+      try {
+        const rows = await this.query(`
+          SELECT DISTINCT table_name 
+          FROM duckdb_tables() 
+          WHERE (schema_name = current_schema() OR schema_name = 'main') 
+            AND NOT internal 
+            AND table_name NOT LIKE '_sys_%'
+        `);
+        return rows.map((r: any) => String(r.table_name || Object.values(r)[0]));
+      } catch {
+        const all = await this.getTables();
+        const views = await this.getViews().catch(() => []);
+        return all.filter(t => !views.includes(t));
+      }
+    }
+  }
+
+  async getViews(): Promise<string[]> {
+    try {
+      const res = await this.query(`
+        SELECT DISTINCT view_name 
+        FROM duckdb_views() 
+        WHERE NOT internal 
+          AND schema_name NOT IN ('information_schema', 'pg_catalog')
+          AND view_name NOT LIKE '_sys_%'
+      `);
+      return res.map((r: any) => String(r.view_name || Object.values(r)[0])).filter(Boolean);
+    } catch {}
+
+    try {
+      const res = await this.query(`
+        SELECT DISTINCT table_name 
+        FROM information_schema.views 
+        WHERE table_schema NOT IN ('information_schema', 'pg_catalog')
+          AND table_name NOT LIKE '_sys_%'
+      `);
+      return res.map((r: any) => String(r.table_name || Object.values(r)[0])).filter(Boolean);
+    } catch {
+      return [];
+    }
+  }
+
+  async getMacros(): Promise<string[]> {
+    try {
+      const res = await this.query(`
+        SELECT DISTINCT function_name 
+        FROM duckdb_functions() 
+        WHERE (function_type = 'macro' OR function_type = 'table_macro' OR function_type ILIKE '%macro%') 
+          AND (schema_name = current_schema() OR schema_name = 'main' OR schema_name = 'temp') 
+          AND NOT internal 
+          AND function_name NOT LIKE '_sys_%'
+      `);
+      return res.map((r: any) => String(r.function_name || Object.values(r)[0])).filter(Boolean);
+    } catch {
+      return [];
+    }
+  }
+
+  getRegisteredFiles(): { name: string; size: string; type: string }[] {
+    return Array.from(this.registeredFiles.values()).map(f => ({
+      name: typeof f === 'string' ? f : f.name || String(f),
+      size: typeof f === 'object' && f.size ? f.size : '0 KB',
+      type: typeof f === 'object' && f.type ? f.type : 'file',
+    }));
+  }
+
+  async registerUserFile(file: File): Promise<string> {
+    await this.waitForInit();
+    if (!this.db) throw new Error("DuckDB not initialized");
+    await this.db.registerFileHandle(file.name, file, duckdb.DuckDBDataProtocol.BROWSER_FILEREADER, true);
+    this.registeredFiles.set(file.name, {
+      name: file.name,
+      size: `${(file.size / 1024).toFixed(1)} KB`,
+      type: file.type || file.name.split('.').pop() || 'file',
+    });
+    return file.name;
+  }
+
+  async dropView(viewName: string): Promise<void> {
+    const qualified = viewName.includes('.')
+      ? viewName.split('.').map(p => `"${p.replace(/"/g, '""')}"`).join('.')
+      : `"${viewName.replace(/"/g, '""')}"`;
+    try {
+      await this.executeAndAudit(`DROP VIEW IF EXISTS ${qualified}`, 'DROP', viewName, 'Dropped view');
+    } catch {
+      await this.executeAndAudit(`DROP VIEW IF EXISTS ${qualified} CASCADE`, 'DROP', viewName, 'Dropped view cascade');
+    }
+    this.dispatchSchemaChanged();
+  }
+
+  async dropRegisteredFile(fileName: string): Promise<void> {
+    this.registeredFiles.delete(fileName);
+  }
+
+  async dropMacro(macroName: string): Promise<void> {
+    const escaped = macroName.replace(/"/g, '""');
+    let dropped = false;
+
+    // 1. Try standard DROP MACRO
+    try {
+      await this.executeAndAudit(`DROP MACRO IF EXISTS "${escaped}"`, 'DROP', macroName, 'Dropped macro');
+      dropped = true;
+    } catch {}
+
+    // 2. Try DROP MACRO TABLE (for table macros)
+    if (!dropped) {
+      try {
+        await this.executeAndAudit(`DROP MACRO TABLE IF EXISTS "${escaped}"`, 'DROP', macroName, 'Dropped table macro');
+        dropped = true;
+      } catch {}
+    }
+
+    // 3. Try DROP FUNCTION
+    if (!dropped) {
+      try {
+        await this.executeAndAudit(`DROP FUNCTION IF EXISTS "${escaped}"`, 'DROP', macroName, 'Dropped function macro');
+        dropped = true;
+      } catch {}
+    }
+
+    // 4. Try explicitly qualified schema (temp / main)
+    if (!dropped) {
+      try {
+        await this.executeAndAudit(`DROP MACRO IF EXISTS temp."${escaped}"`, 'DROP', macroName, 'Dropped temp macro');
+        dropped = true;
+      } catch {}
+    }
+
+    this.dispatchSchemaChanged();
+  }
+
+  async clearViews(): Promise<number> {
+    const views = await this.getViews();
+    let count = 0;
+    for (const v of views) {
+      try {
+        await this.dropView(v);
+        count++;
+      } catch (e) {
+        console.warn(`Failed to drop view ${v}`, e);
+      }
+    }
+    this.dispatchSchemaChanged();
+    return count;
+  }
+
+  async clearMacros(): Promise<number> {
+    const macros = await this.getMacros();
+    let count = 0;
+    for (const m of macros) {
+      try {
+        await this.dropMacro(m);
+        count++;
+      } catch (e) {
+        console.warn(`Failed to drop macro ${m}`, e);
+      }
+    }
+    this.dispatchSchemaChanged();
+    return count;
+  }
+
+  async clearAllData(options?: { tables?: boolean; views?: boolean; files?: boolean; macros?: boolean }): Promise<{ droppedTables: number; droppedViews: number; droppedFiles: number; droppedMacros: number }> {
+    let droppedTables = 0;
+    let droppedViews = 0;
+    let droppedFiles = 0;
+    let droppedMacros = 0;
+
+    // Drop views first so dependent view objects do not block table drops
+    if (options?.views !== false) {
+      const views = await this.getViews();
+      for (const v of views) {
+        try {
+          await this.dropView(v);
+          droppedViews++;
+        } catch {}
+      }
+    }
+
+    // Drop macros
+    if (options?.macros !== false) {
+      const macros = await this.getMacros();
+      for (const m of macros) {
+        try {
+          await this.dropMacro(m);
+          droppedMacros++;
+        } catch {}
+      }
+    }
+
+    // Drop base tables
+    if (options?.tables !== false) {
+      const tables = await this.getBaseTables();
+      for (const t of tables) {
+        if (!t.startsWith('_sys_')) {
+          try {
+            await this.dropTable(t);
+            droppedTables++;
+          } catch {}
+        }
+      }
+    }
+
+    if (options?.files !== false) {
+      droppedFiles = this.registeredFiles.size;
+      this.registeredFiles.clear();
+    }
+
+    this.dispatchSchemaChanged();
+    return { droppedTables, droppedViews, droppedFiles, droppedMacros };
+  }
+
+  async getColumnProfile(table: string, column: string, _sampleSize?: number): Promise<any> {
+    return this.getColumnStats(table, column);
+  }
+
+  async getCurrentCatalogAndSchema(): Promise<{ catalog: string; schema: string }> {
+    try {
+      const res = await this.query('SELECT current_database() as db, current_schema() as sch');
+      return {
+        catalog: res[0]?.db || 'memory',
+        schema: res[0]?.sch || 'main',
+      };
+    } catch {
+      return { catalog: 'memory', schema: 'main' };
+    }
+  }
+
+  async getTableOrViewDefinition(target: ObjectRef | string): Promise<{ rowCount: number; schema: any[]; ddl: string; sql?: string }> {
+    const name = typeof target === 'string' ? target : target.objectName || '';
+    try {
+      const schema = await this.getTableSchema(name);
+      let count = 0;
+      try {
+        const countRes = await this.query(`SELECT COUNT(*) as c FROM "${name.replace(/"/g, '""')}"`);
+        count = Number(countRes[0]?.c || 0);
+      } catch {}
+
+      let ddl = '';
+      try {
+        const defRes = await this.query(`SELECT sql FROM duckdb_tables() WHERE table_name = '${name.replace(/'/g, "''")}' UNION ALL SELECT sql FROM duckdb_views() WHERE view_name = '${name.replace(/'/g, "''")}'`);
+        ddl = defRes[0]?.sql || `CREATE TABLE "${name}" (\n  ${schema.map(c => `${c.name} ${c.type}`).join(',\n  ')}\n);`;
+      } catch {
+        ddl = `CREATE TABLE "${name}" (\n  ${schema.map(c => `${c.name} ${c.type}`).join(',\n  ')}\n);`;
+      }
+
+      return {
+        rowCount: count,
+        schema,
+        ddl,
+        sql: ddl,
+      };
+    } catch {
+      return {
+        rowCount: 0,
+        schema: [],
+        ddl: `CREATE TABLE "${name}" ();`,
+        sql: `CREATE TABLE "${name}" ();`,
+      };
+    }
+  }
+
+  async getExplainPlan(sql: string, detail?: boolean): Promise<{ planText: string }> {
+    try {
+      const res = await this.query(detail ? `EXPLAIN ANALYZE ${sql}` : `EXPLAIN ${sql}`);
+      const planText = res.map((r: any) => r.explain_value ?? r.explore_value ?? Object.values(r)[1] ?? Object.values(r)[0]).join('\n');
+      return { planText };
+    } catch (e: any) {
+      return { planText: `Error explaining query: ${e.message}` };
+    }
+  }
+
+  async queryWithMetadata(sql: string): Promise<QueryResult & { columnTypes: string[]; columnTypeMap: Record<string, string> }> {
+    const startTime = performance.now();
+    try {
+      await this.waitForInit();
+      if (!this.conn) throw new Error("Database not connected");
+      const arrowTable = await this.conn.query(sql);
+      const rows = this.cleanDuckDBResult(arrowTable);
+      const executionTime = performance.now() - startTime;
+      const fields = arrowTable.schema?.fields || [];
+      const columns = fields.length > 0 ? fields.map((f: any) => f.name) : (rows.length > 0 ? Object.keys(rows[0]) : []);
+      const columnTypes = fields.map((f: any) => arrowTypeToDuckDBType(f.type) || 'VARCHAR');
+      const columnTypeMap: Record<string, string> = {};
+      fields.forEach((f: any) => {
+        columnTypeMap[f.name] = arrowTypeToDuckDBType(f.type) || 'VARCHAR';
+      });
+
+      return {
+        columns,
+        columnTypes,
+        columnTypeMap,
+        rows,
+        executionTime,
+        arrowTable,
+        isExplain: /^\s*EXPLAIN\b/i.test(sql),
+      };
+    } catch (e: any) {
+      const executionTime = performance.now() - startTime;
+      return {
+        columns: [],
+        columnTypes: [],
+        columnTypeMap: {},
+        rows: [],
+        executionTime,
+        error: e.message || String(e),
+      };
+    }
+  }
+
+  async executeAndAuditWithMetadata(sql: string, operation: string, target: string, details?: string): Promise<QueryResult & { columnTypes: string[]; columnTypeMap: Record<string, string> }> {
+    const startTime = performance.now();
+    try {
+      const rows = await this.executeAndAudit(sql, operation, target, details);
+      const executionTime = performance.now() - startTime;
+      const columns = rows && rows.length > 0 ? Object.keys(rows[0]) : [];
+      const columnTypes = columns.map(() => 'VARCHAR');
+      const columnTypeMap: Record<string, string> = {};
+      columns.forEach(col => { columnTypeMap[col] = 'VARCHAR'; });
+
+      return {
+        columns,
+        columnTypes,
+        columnTypeMap,
+        rows: rows || [],
+        executionTime,
+      };
+    } catch (e: any) {
+      const executionTime = performance.now() - startTime;
+      return {
+        columns: [],
+        columnTypes: [],
+        columnTypeMap: {},
+        rows: [],
+        executionTime,
+        error: e.message || String(e),
+      };
+    }
+  }
+
+  async createView(viewName: string, sql: string): Promise<void> {
+    await this.query(`CREATE VIEW "${viewName.replace(/"/g, '""')}" AS ${sql}`);
+    this.dispatchSchemaChanged();
+  }
+
+  async saveOntologyCanvasEdge(id: string, sourceId: string, targetId: string): Promise<void> {
+    await this.query(`
+      CREATE TABLE IF NOT EXISTS life_canvas_edge (
+        id VARCHAR PRIMARY KEY,
+        source_id VARCHAR,
+        target_id VARCHAR
+      );
+    `);
+    const sql = `
+      INSERT INTO life_canvas_edge (id, source_id, target_id)
+      VALUES ('${id.replace(/'/g, "''")}', '${sourceId.replace(/'/g, "''")}', '${targetId.replace(/'/g, "''")}')
+      ON CONFLICT (id) DO UPDATE SET
+        source_id = EXCLUDED.source_id,
+        target_id = EXCLUDED.target_id;
+    `;
+    await this.query(sql);
+  }
+
+  async loadOntologyCanvasState(): Promise<any[]> {
+    return this.getOntologyCanvasState();
+  }
+
+  async loadOntologyCanvasEdges(): Promise<any[]> {
+    try {
+      const tables = await this.getTables();
+      if (!tables.includes('life_canvas_edge')) {
+        return [];
+      }
+      const res = await this.query('SELECT * FROM life_canvas_edge;');
+      return Array.isArray(res) ? res : [];
+    } catch {
+      return [];
+    }
   }
 }
 

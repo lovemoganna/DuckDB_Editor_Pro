@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { duckDBService } from '../services/duckdbService';
+import { toastService } from '../services/toastService';
+import { useConfirmDialog } from './ui/ConfirmDialog';
 import { Database, Upload, Trash2, Eye, Table as TableIcon, RefreshCw } from 'lucide-react';
 
 interface TableManagerProps {
@@ -28,6 +30,8 @@ export const TableManager: React.FC<TableManagerProps> = ({ onTableSelect, activ
         }
     };
 
+    const { confirm } = useConfirmDialog();
+
     const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!e.target.files?.length) return;
         setUploading(true);
@@ -38,32 +42,41 @@ export const TableManager: React.FC<TableManagerProps> = ({ onTableSelect, activ
             await duckDBService.importFile(file, tableName);
             await loadTables();
             onTableSelect(tableName);
-        } catch (e) {
+            toastService.success(`数据表 ${tableName} 上传成功`);
+        } catch (e: any) {
             console.error("Upload failed", e);
-            alert("Upload Failed: " + e);
+            toastService.error("上传失败", e.message || String(e));
         } finally {
             setUploading(false);
         }
     };
 
     const handleDelete = async (table: string) => {
-        if (!confirm(`Delete table ${table}?`)) return;
+        const ok = await confirm({
+            title: `删除数据表 "${table}"`,
+            message: `确认要永久删除数据表 ${table} 吗？此操作无法撤销。`,
+            confirmText: '确定删除',
+            variant: 'danger',
+        });
+        if (!ok) return;
         try {
             await duckDBService.dropTable(table);
             await loadTables();
             if (activeTable === table) onTableSelect('');
-        } catch (e) {
+            toastService.success(`数据表 ${table} 已删除`);
+        } catch (e: any) {
             console.error(e);
+            toastService.error(`删除表 ${table} 失败`, e.message || String(e));
         }
     };
 
     return (
-        <div className="w-64 bg-gray-50 border-r border-gray-200 h-full flex flex-col">
-            <div className="p-4 border-b border-gray-200 flex justify-between items-center">
-                <h3 className="font-bold text-gray-700 flex items-center gap-2">
+        <div className="w-64 bg-monokai-bg border-r border-monokai-accent h-full flex flex-col">
+            <div className="p-4 border-b border-monokai-accent flex justify-between items-center">
+                <h3 className="font-bold text-monokai-fg flex items-center gap-2">
                     <Database className="w-4 h-4" /> Tables
                 </h3>
-                <button onClick={loadTables} className="p-1 hover:bg-gray-200 rounded">
+                <button onClick={loadTables} className="p-1 hover:bg-monokai-sidebar rounded">
                     <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
                 </button>
             </div>
@@ -72,7 +85,7 @@ export const TableManager: React.FC<TableManagerProps> = ({ onTableSelect, activ
                 {tables.map(t => (
                     <div
                         key={t}
-                        className={`group flex items-center justify-between p-2 rounded-lg cursor-pointer text-sm ${activeTable === t ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100 text-gray-600'
+                        className={`group flex items-center justify-between p-2 rounded-lg cursor-pointer text-sm ${activeTable === t ? 'bg-monokai-blue/20 text-monokai-blue' : 'hover:bg-monokai-sidebar text-monokai-fg'
                             }`}
                         onClick={() => onTableSelect(t)}
                     >
@@ -83,7 +96,7 @@ export const TableManager: React.FC<TableManagerProps> = ({ onTableSelect, activ
                         {activeTable !== t && (
                             <button
                                 onClick={(e) => { e.stopPropagation(); handleDelete(t); }}
-                                className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-500"
+                                className="opacity-0 group-hover:opacity-100 p-1 hover:text-monokai-red"
                             >
                                 <Trash2 className="w-3 h-3" />
                             </button>
@@ -92,16 +105,16 @@ export const TableManager: React.FC<TableManagerProps> = ({ onTableSelect, activ
                 ))}
 
                 {tables.length === 0 && !loading && (
-                    <div className="text-center py-8 text-gray-400 text-xs">
+                    <div className="text-center py-8 text-monokai-comment text-xs">
                         No tables found
                     </div>
                 )}
             </div>
 
-            <div className="p-3 border-t border-gray-200 bg-white">
-                <label className={`flex items-center justify-center gap-2 w-full py-2 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-all ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
-                    <Upload className="w-4 h-4 text-blue-500" />
-                    <span className="text-xs font-medium text-gray-600">
+            <div className="p-3 border-t border-monokai-border bg-monokai-surface">
+                <label className={`flex items-center justify-center gap-2 w-full py-2 border border-dashed border-monokai-border rounded-lg cursor-pointer hover:border-monokai-accent/60 hover:bg-monokai-bg/60 transition-all ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                    <Upload className="w-4 h-4 text-monokai-accent" />
+                    <span className="text-xs font-medium text-monokai-fg">
                         {uploading ? 'Importing...' : 'Import CSV'}
                     </span>
                     <input type="file" accept=".csv,.parquet,.json" className="hidden" onChange={handleUpload} />

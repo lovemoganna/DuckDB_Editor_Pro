@@ -68,7 +68,7 @@ export const WikiSearch: React.FC<WikiSearchProps> = ({ onSelectTutorial }) => {
     switch (difficulty) {
       case 'Beginner': return 'bg-monokai-green/20 text-monokai-green';
       case 'Intermediate': return 'bg-monokai-orange/20 text-monokai-orange';
-      case 'Advanced': return 'bg-monokai-purple/20 text-monokai-purple';
+      case 'Advanced': return 'bg-monokai-amethyst/20 text-monokai-amethyst';
       default: return 'bg-monokai-blue/20 text-monokai-blue';
     }
   };
@@ -88,19 +88,19 @@ export const WikiSearch: React.FC<WikiSearchProps> = ({ onSelectTutorial }) => {
           onFocus={() => setIsOpen(true)}
           onKeyDown={handleKeyDown}
           placeholder="搜索教程内容、标题、标签..."
-          className="w-full bg-monokai-sidebar/50 border border-monokai-accent rounded-lg px-4 py-2.5 text-monokai-fg placeholder-monokai-comment focus:outline-none focus:border-monokai-blue pr-10"
+          className="w-full h-8 bg-monokai-surface border border-monokai-border rounded-md px-3 text-xs text-monokai-fg placeholder-monokai-comment focus:outline-none focus:border-monokai-fg/40 pr-10 transition-colors"
         />
-        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-monokai-comment">
+        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-monokai-comment text-xs font-mono">
           {query ? '🔍' : '⌘K'}
         </span>
       </div>
 
       {/* 搜索结果下拉 */}
       {isOpen && (
-        <div className="absolute top-full left-0 right-0 mt-2 bg-monokai-sidebar border border-monokai-accent rounded-lg shadow-xl z-50 max-h-80 overflow-y-auto custom-scrollbar">
+        <div className="absolute top-full left-0 right-0 mt-2 bg-monokai-sidebar border border-monokai-border rounded-md shadow-xl z-50 max-h-80 overflow-y-auto custom-scrollbar">
           {results.length > 0 ? (
             <>
-              <div className="p-2 border-b border-monokai-accent/30 flex justify-between items-center">
+              <div className="p-2 border-b border-monokai-border flex justify-between items-center">
                 <span className="text-xs text-monokai-comment">
                   找到 {results.length} 个结果
                 </span>
@@ -112,19 +112,19 @@ export const WikiSearch: React.FC<WikiSearchProps> = ({ onSelectTutorial }) => {
                 <button
                   key={tutorial.id}
                   onClick={() => handleSelect(tutorial)}
-                  className={`w-full text-left p-3 border-b border-monokai-accent/20 last:border-0 transition-colors ${index === selectedIndex
-                      ? 'bg-monokai-blue/20'
-                      : 'hover:bg-monokai-accent/20'
+                  className={`w-full text-left p-2.5 border-b border-monokai-border last:border-0 transition-colors cursor-pointer ${index === selectedIndex
+                      ? 'bg-monokai-elevated text-monokai-fg'
+                      : 'hover:bg-monokai-surface text-monokai-fg-muted hover:text-monokai-fg'
                     }`}
                 >
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-2 overflow-hidden">
-                      <span className="text-sm font-medium text-monokai-fg truncate">
+                      <span className="text-xs font-medium text-monokai-fg truncate">
                         {highlightMatch(tutorial.title, query)}
                       </span>
-                      {tutorial.matchType === 'content' && <span className="text-[10px] bg-monokai-accent/30 text-monokai-comment px-1 rounded shrink-0">内容匹配</span>}
+                      {tutorial.matchType === 'content' && <span className="text-[10px] border border-monokai-border bg-monokai-surface text-monokai-comment px-1 rounded shrink-0 font-mono">内容匹配</span>}
                     </div>
-                    <span className={`text-xs px-2 py-0.5 rounded shrink-0 ${getDifficultyColor(tutorial.difficulty)}`}>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded shrink-0 font-mono ${getDifficultyColor(tutorial.difficulty)}`}>
                       {tutorial.difficulty === 'Beginner' ? '入门' :
                         tutorial.difficulty === 'Intermediate' ? '进阶' :
                           tutorial.difficulty === 'Advanced' ? '高级' : '专家'}
@@ -132,7 +132,7 @@ export const WikiSearch: React.FC<WikiSearchProps> = ({ onSelectTutorial }) => {
                   </div>
 
                   {tutorial.matchingExcerpt ? (
-                    <p className="text-xs text-monokai-comment/80 font-mono bg-monokai-bg/30 p-1.5 rounded mt-1 border-l-2 border-monokai-yellow/30">
+                    <p className="text-xs text-monokai-comment font-mono bg-monokai-bg/60 p-2 rounded-md mt-1 border border-monokai-border">
                       {highlightMatch(tutorial.matchingExcerpt, query)}
                     </p>
                   ) : (
@@ -145,7 +145,7 @@ export const WikiSearch: React.FC<WikiSearchProps> = ({ onSelectTutorial }) => {
                     {tutorial.tags.slice(0, 3).map(tag => (
                       <span
                         key={tag}
-                        className={`text-xs px-1.5 py-0.5 rounded ${tutorial.matchType === 'tag' && tag.toLowerCase().includes(query.toLowerCase()) ? 'text-monokai-yellow bg-monokai-yellow/10' : 'text-monokai-comment bg-monokai-accent/20'}`}
+                        className="text-[10px] font-mono px-1.5 py-0.5 rounded border border-monokai-border bg-monokai-surface text-monokai-comment"
                       >
                         {tag}
                       </span>

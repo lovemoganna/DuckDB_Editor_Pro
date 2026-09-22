@@ -1,6 +1,7 @@
 import { GenerationResult, AnalysisSummary, DriverAnalysis, CorrelationMatrix, DeepInsight } from '../types';
 import { AI_SCHEMA, AISchemaBlock } from './generated/aiSchema';
 import { AIModule } from './aiSchemaTypes';
+import { SchemaRagEngine, SchemaTreeContext } from './schemaRagEngine';
 
 /**
  * =========================================================================================
@@ -15,6 +16,20 @@ import { AIModule } from './aiSchemaTypes';
  */
 
 export class PromptBuilder {
+
+  /**
+   * Helper to perform Schema RAG Context Pruning before building AI prompts
+   */
+  public static pruneSchemaContext(
+    schemaTree: SchemaTreeContext,
+    userQuery: string = '',
+    topK: number = 5,
+    activeTable?: string
+  ): SchemaTreeContext {
+    const forcedTables = activeTable ? [activeTable] : [];
+    return SchemaRagEngine.pruneSchema(schemaTree, userQuery, topK, forcedTables);
+  }
+
 
   // ===========================================
   // LAYER 3: TEMPLATE LIBRARY (Static)
@@ -84,7 +99,7 @@ FROM "${tableName}";`;
   private static injectSkills(ids: string[]): string {
     // SKL-403: 语义压缩与动态注入逻辑
     return ids.map(id => {
-      const skill = (AI_SCHEMA.skills as any)[id];
+      const skill = AI_SCHEMA.skills[id];
       if (!skill) return "";
       return `\n\n### [SKL-${id}] ${skill.title}\n${skill.fullContent}`;
     }).join("");
@@ -343,6 +358,298 @@ Schema: ${JSON.stringify(schemaSummary)}
       prompt: `Schema:\n${schemaContext}\n\nBroken SQL:\n${wrongSql}\n\nError:\n${errorMsg}`,
       system: "You are a SQL Debugger. Return ONLY fixed SQL."
     };
+  }
+
+  /**
+   * Workbench AI Assistant: 一句话语义解释 + 执行逻辑拆解。
+   * 输出结构化 JSON，用于左侧「解释」标签。
+   */
+  static buildSqlExplainPrompt(sql: string, schemaContext: string, queryResultSummary?: string): string {
+    const safeSql = (sql || '').trim() || '-- 暂无 SQL 内容';
+    const resultBlock = queryResultSummary
+      ? `\n\n【最近一次执行的结果摘要（列名 + 抽样行）】\n${queryResultSummary}`
+      : '';
+
+    return `你是一名资深的 DuckDB SQL 教学型分析师。请基于以下用户输入的 SQL 与数据库 Schema，给出一段通俗易懂但又保持技术准确性的"语义级解释"。
+
+## 输入
+【数据库 Schema（已按相关性排序）】
+${schemaContext || '（无可用 Schema 上下文，模型将基于 SQL 自身推断）'}
+
+【待解释 SQL】
+\`\`\`sql
+${safeSql}
+\`\`\`${resultBlock}
+
+## 输出要求（必须返回标准 JSON，禁止额外解释或 Markdown 包裹）
+
+返回的 JSON 结构如下（字段顺序不限）：
+{
+  "oneLiner": "用一句不超过 60 字的中文概括这条 SQL 的业务意图，避免技术术语堆砌。",
+  "logicSteps": [
+    "执行逻辑步骤 1（中文短句，描述 SQL 实际做了什么）",
+    "执行逻辑步骤 2",
+    "执行逻辑步骤 N"
+  ],
+  "involvedObjects": [
+    { "name": "表或视图名", "alias": "可选别名" },
+    "..."
+  ],
+  "outputFields": [
+    { "name": "输出字段名", "type": "推断的 DuckDB 数据类型", "meaning": "字段业务含义的简短描述" }
+  ],
+  "keyConditions": [
+    { "label": "条件维度", "expression": "对应 SQL 片段", "note": "该条件对结果的影响说明" }
+  ]
+}
+
+## 注意事项
+1. logicSteps 应按 SQL 的实际执行顺序排列（FROM → JOIN → WHERE → GROUP BY → ... → ORDER BY），最多 8 条，避免冗余。
+2. involvedObjects 不要重复，如果一个表多次引用只写一次。
+3. outputFields 至少包含 SELECT 列表中的所有表达式，类型尽量贴近 DuckDB 实际类型（VARCHAR / BIGINT / DOUBLE / DATE / TIMESTAMP / BOOLEAN ...）。
+4. keyConditions 中的 expression 必须能在原 SQL 中找到对应片段。
+5. 如果 SQL 为空或不可解析，所有字段返回合理占位说明，不要返回空数组以维持 UI 完整性。`;
+  }
+
+  /**
+   * Workbench AI Assistant: 业务风险 / 性能关注 / 结果洞察 / 优化建议。
+   * 输出结构化 JSON，用于右侧「分析」标签。
+   */
+  static buildSqlAnalyzePrompt(sql: string, schemaContext: string, queryResultSummary?: string): string {
+    const safeSql = (sql || '').trim() || '-- 暂无 SQL 内容';
+    const resultBlock = queryResultSummary
+      ? `\n\n【最近一次执行的结果摘要（行数 / 列名 / 抽样行）】\n${queryResultSummary}`
+      : '';
+
+    return `你是一名严谨的 DuckDB 资深数据工程师 + 性能调优专家。请基于 SQL、Schema 与（可选的）结果摘要进行多维度的"业务 & 性能双视角诊断"。
+
+## 输入
+【数据库 Schema】
+${schemaContext || '（无可用 Schema 上下文，模型将基于 SQL 自身推断）'}
+
+【待分析 SQL】
+\`\`\`sql
+${safeSql}
+\`\`\`${resultBlock}
+
+## 输出要求（必须返回标准 JSON，禁止额外解释或 Markdown 包裹）
+
+返回的 JSON 结构如下：
+{
+  "severity": "LOW" | "MEDIUM" | "HIGH",
+  "summary": "一段 2~4 句话的中文总结，先说结论再说主要依据",
+  "logicRisks": [
+    {
+      "title": "逻辑风险标题（不超过 20 字）",
+      "severity": "LOW" | "MEDIUM" | "HIGH",
+      "detail": "具体描述：为什么会产生问题，会影响哪些结果",
+      "evidence": "Schema / Runtime / Query Plan 中的依据",
+      "impact": "影响说明（结果可能偏大 / 漏算 / ...）",
+      "lineHint": "可定位到原 SQL 的行号或关键字片段，便于 UI 高亮跳转"
+    }
+  ],
+  "perfConcerns": [
+    {
+      "title": "性能问题标题",
+      "severity": "LOW" | "MEDIUM" | "HIGH",
+      "detail": "具体性能瓶颈描述",
+      "evidence": "依据（Query Plan / Runtime / Schema 索引缺失）",
+      "lineHint": "对应 SQL 行号或片段"
+    }
+  ],
+  "resultInsights": [
+    {
+      "label": "维度名",
+      "value": "维度值",
+      "note": "为什么这个值值得关注"
+    }
+  ],
+  "suggestedSql": "基于以上分析给出的可直接替换原 SQL 的优化版本（不含 Markdown 包裹）。如果无需修改，返回空字符串。",
+  "suggestionRationale": "为什么这样改能解决问题（2~3 句话）"
+}
+
+## 注意事项
+1. severity 用于整体结论：未发现明显问题填 LOW，存在可优化项填 MEDIUM，存在正确性或重大性能隐患填 HIGH。
+2. logicRisks 与 perfConcerns 至少各 1 条（若无问题，title 写"暂未发现 ..."）。
+3. resultInsights 仅当 queryResultSummary 存在时填写，否则返回空数组。
+4. suggestedSql 必须是合法可执行的 DuckDB SQL；若无法给出更优版本，返回空字符串而不是伪代码。
+5. lineHint 可以是数字行号、关键字片段或组合（例："Line 4 - COUNT(DISTINCT ...)"），便于在编辑器中定位。`;
+  }
+
+  /**
+   * Workbench AI Assistant: 单列画像 (业务含义 + 语义类型 + 质量风险 + 使用建议)。
+   * 输出结构化 JSON，用于 InspectorPanel 列画像的「AI 解读」子卡。
+   */
+  static buildColumnProfilePrompt(
+    columnPayload: {
+      columnName: string;
+      columnType: string;
+      isNumeric: boolean;
+      isDate: boolean;
+      totalRows: number;
+      nullCount: number;
+      nullPct: string;
+      distinctCount: number;
+      distinctPct: string;
+      min?: string;
+      max?: string;
+      avg?: string;
+      median?: string;
+      sum?: string;
+      topValues: Array<{ value: string; count: number; pct: string }>;
+      sampleValues: any[];
+    },
+    schemaContext?: string
+  ): string {
+    const topValsStr = columnPayload.topValues
+      .slice(0, 8)
+      .map(v => `"${v.value}" (${v.count} 行, ${v.pct})`)
+      .join(', ') || '(空)';
+
+    const sampleStr = (columnPayload.sampleValues || [])
+      .slice(0, 5)
+      .map(v => {
+        if (v === null || v === undefined) return 'NULL';
+        const s = typeof v === 'object' ? JSON.stringify(v) : String(v);
+        return s.length > 40 ? s.slice(0, 40) + '…' : s;
+      })
+      .join(', ') || '(无样本)';
+
+    const numStats = columnPayload.isNumeric
+      ? `\n- Min: ${columnPayload.min ?? '-'}\n- Max: ${columnPayload.max ?? '-'}\n- Avg: ${columnPayload.avg ?? '-'}\n- Median: ${columnPayload.median ?? '-'}\n- Sum: ${columnPayload.sum ?? '-'}`
+      : '';
+
+    return `你是一名资深的数据资产审计师。请基于以下 DuckDB 列的统计画像与样本值，生成一段结构化的"AI 解读"。
+
+## 输入
+【数据库 Schema（可选）】
+${schemaContext || '（无可用 Schema 上下文）'}
+
+【列画像】
+- 列名: ${columnPayload.columnName}
+- DuckDB 类型: ${columnPayload.columnType}
+- 总行数: ${columnPayload.totalRows}
+- 空值数: ${columnPayload.nullCount} (${columnPayload.nullPct})
+- 不同值数: ${columnPayload.distinctCount} (${columnPayload.distinctPct})${numStats}
+- Top 8 频值: ${topValsStr}
+- 样本值（前 5 个非空）: ${sampleStr}
+
+## 输出要求（必须返回标准 JSON，禁止额外解释或 Markdown 包裹）
+
+返回的 JSON 结构如下：
+{
+  "semanticType": "identifier" | "measure" | "dimension" | "time" | "flag" | "free_text" | "unknown",
+  "businessMeaning": "用 1~2 句中文描述该列的业务含义与典型使用场景，避免技术术语堆砌，不超过 80 字。",
+  "usageHints": [
+    "典型 SQL 用法建议 1（如：建议作为 GROUP BY 维度、建议在 WHERE 中过滤、建议建立索引...）",
+    "典型 SQL 用法建议 2",
+    "..."
+  ],
+  "qualityRisks": [
+    {
+      "severity": "LOW" | "MEDIUM" | "HIGH",
+      "title": "数据质量问题标题（不超过 20 字）",
+      "detail": "问题描述与潜在影响（不超过 60 字）"
+    }
+  ],
+  "suggestedActions": [
+    "建议的下一步操作 1（如：建立索引 / 数据清洗 / 口径校验...）",
+    "建议的下一步操作 2"
+  ]
+}
+
+## 注意事项
+1. semanticType 必须从给定 7 个枚举中选择一个最匹配的；如果都不太匹配，选 "unknown"。
+2. businessMeaning 必须基于列名 + 类型 + 统计 + 样本做出推断；如果信息不足，给出保守的"业务含义待人工标注"。
+3. usageHints 至少 2 条，最多 5 条；针对 SQL 编辑场景给出可操作建议。
+4. qualityRisks 必须基于统计画像（空值率 / 基数 / Top 值分布）合理推断；如无明显问题，title 写"暂未发现 ..."。
+5. 全部使用中文。`;
+  }
+
+  /**
+   * Workbench AI Assistant: 批量列画像 (≤8 列)，单次 API 调用覆盖多列。
+   * 用于右侧「列画像」AI 解读卡片，支持 Inspector 一次性展示多列 AI 解读。
+   */
+  static buildColumnsProfilePrompt(
+    columns: Array<{
+      columnName: string;
+      columnType: string;
+      isNumeric: boolean;
+      isDate: boolean;
+      totalRows: number;
+      nullCount: number;
+      nullPct: string;
+      distinctCount: number;
+      distinctPct: string;
+      topValues: Array<{ value: string; count: number; pct: string }>;
+      sampleValues: any[];
+    }>,
+    schemaContext?: string
+  ): string {
+    if (columns.length === 0) return '';
+    if (columns.length > 8) {
+      throw new Error('buildColumnsProfilePrompt: 单次调用列数不能超过 8');
+    }
+
+    const columnBlocks = columns.map((c, idx) => {
+      const topValsStr = (c.topValues || [])
+        .slice(0, 6)
+        .map(v => `"${v.value}"(${v.count}, ${v.pct})`)
+        .join(', ') || '(空)';
+      const sampleStr = (c.sampleValues || [])
+        .slice(0, 4)
+        .map(v => {
+          if (v === null || v === undefined) return 'NULL';
+          const s = typeof v === 'object' ? JSON.stringify(v) : String(v);
+          return s.length > 30 ? s.slice(0, 30) + '…' : s;
+        })
+        .join(', ') || '(无样本)';
+
+      return `
+【列 #${idx + 1}】
+- 列名: ${c.columnName}
+- 类型: ${c.columnType} ${c.isNumeric ? '(数值)' : ''} ${c.isDate ? '(时间)' : ''}
+- 总行数: ${c.totalRows}
+- 空值数: ${c.nullCount} (${c.nullPct})
+- 不同值数: ${c.distinctCount} (${c.distinctPct})
+- Top 6 频值: ${topValsStr}
+- 样本值: ${sampleStr}`;
+    }).join('\n');
+
+    return `你是一名资深的数据资产审计师。请基于以下 ${columns.length} 个 DuckDB 列的统计画像，为每一列生成结构化的"AI 解读"。
+
+## 输入
+【数据库 Schema（可选）】
+${schemaContext || '（无可用 Schema 上下文）'}
+
+【列画像列表】${columnBlocks}
+
+## 输出要求（必须返回标准 JSON，禁止额外解释或 Markdown 包裹）
+
+返回的 JSON 结构如下：
+{
+  "overallSummary": "用 1~2 句话从整体上总结这批列的数据特征，例如主键清晰、含较多时间字段等。",
+  "profiles": [
+    {
+      "columnName": "列名 1",
+      "semanticType": "identifier" | "measure" | "dimension" | "time" | "flag" | "free_text" | "unknown",
+      "businessMeaning": "1~2 句中文业务含义",
+      "usageHints": ["用法建议 1", "用法建议 2"],
+      "qualityRisks": [
+        { "severity": "LOW|MEDIUM|HIGH", "title": "问题标题", "detail": "问题描述" }
+      ],
+      "suggestedActions": ["建议 1", "建议 2"]
+    },
+    "... 其余列按相同结构填写"
+  ]
+}
+
+## 注意事项
+1. profiles 数组的长度必须等于 ${columns.length}，且 columnName 与输入列一一对应、顺序一致。
+2. semanticType 必须从给定 7 个枚举中选择最匹配的一个。
+3. usageHints 至少 2 条，最多 5 条；针对 SQL 编辑场景给出可操作建议。
+4. qualityRisks 基于统计画像推断；如无明显问题，title 写"暂未发现 ..."。
+5. 全部使用中文。`;
   }
 
   // ===========================================

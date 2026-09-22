@@ -53,7 +53,7 @@ describe('PromptBuilder (AI Schema v5.1 - Cognitive Layers)', () => {
         );
         expect(prompt).toContain('Stage 6');
         expect(prompt).toContain('叙事报告与总结');
-        expect(prompt).toContain('SKL-306'); // Storage Optimizer
+        expect(prompt).toContain('SKL-303'); // Narrative Weaver
         expect(prompt).toContain('SKL-402'); // Trace
         expect(prompt).toContain('SKL-405'); // CEO Summary
     });

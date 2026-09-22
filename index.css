@@ -1,6 +1,994 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ============================================================
+   GLOBAL DESIGN SYSTEM FIXES
+   修复模块间设计脱节问题
+   ============================================================ */
+
+/* SVG 元素默认不拦截点击事件 - 防止图标遮挡按钮 */
+svg,
+[data-svg-icon] {
+  pointer-events: none;
+}
+
+/* 确保交互性元素不被子元素遮挡（排除 React Flow 节点，其必须保持 absolute） */
+button,
+[role="button"]:not(.react-flow__node),
+[role="tab"],
+[role="menuitem"],
+a,
+select,
+input[type="checkbox"],
+input[type="radio"] {
+  position: relative;
+  z-index: 1;
+}
+
+/* Z-Index 层级规范 - 确保模态框等覆盖所有内容 */
+.modal-backdrop { z-index: 9998; }
+.modal-content { z-index: 9999; }
+.toast-container { z-index: 10000; }
+
+/* ============================================================
+   ONTOLOGY STUDIO EDGE ANIMATIONS
+   - 全部基数常驻慢速 dash 流，强化"连线存在"的视觉感知
+   - N:M / 多跳路径高亮态使用更快的节奏
+   ============================================================ */
+@keyframes ontology-edge-dash-flow-slow {
+  from { stroke-dashoffset: 20; }
+  to   { stroke-dashoffset: 0;  }
+}
+
+@keyframes ontology-edge-dash-flow-fast {
+  from { stroke-dashoffset: 16; }
+  to   { stroke-dashoffset: 0;  }
+}
+
+.animate-edge-flow-slow {
+  animation: ontology-edge-dash-flow-slow 1.6s linear infinite;
+}
+
+.animate-edge-flow-fast {
+  animation: ontology-edge-dash-flow-fast 0.8s linear infinite;
+}
+
+/* 在用户偏好减少动画时关掉 edge 流（可访问性兜底） */
+@media (prefers-reduced-motion: reduce) {
+  .react-flow__edge-path,
+  .react-flow__edge .react-flow__edge-path,
+  path[style*="ontology-edge-dash-flow"] {
+    animation: none !important;
+  }
+}
+
+/* ============================================================
+   DATAFLOW CANVAS EDGE ANIMATIONS
+   - 血缘高亮路径流光动画
+   - ancestor (绿色上游) 和 descendant (青色下游) 链路脉冲
+   ============================================================ */
+@keyframes dataflow-dash-flow {
+  from { stroke-dashoffset: 24; }
+  to   { stroke-dashoffset: 0;  }
+}
+
+.dataflow-animated-edge {
+  stroke-dasharray: 6 3;
+  animation: dataflow-dash-flow 0.6s linear infinite;
+}
+
+.dataflow-edge-pulse-flow {
+  stroke-dasharray: 8 10;
+  animation: dataflow-dash-flow 0.9s linear infinite;
+}
+
+/* 减少动画偏好时关闭 DataFlow 流光 */
+@media (prefers-reduced-motion: reduce) {
+  .dataflow-animated-edge,
+  .dataflow-edge-pulse-flow {
+    animation: none !important;
+    stroke-dasharray: none !important;
+  }
+}
+
+/* ============================================================
+   REACTFLOW CANVAS MONOKAI OVERRIDES
+   修复 ReactFlow 默认控件与 Monokai 配色冲突
+   ============================================================ */
+.react-flow__controls {
+  background: #252623 !important;
+  border: 1px solid #3a3b36 !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4) !important;
+}
+
+.react-flow__controls-button {
+  background: #252623 !important;
+  border-bottom: 1px solid #3a3b36 !important;
+  color: #75715e !important;
+  fill: #75715e !important;
+}
+
+.react-flow__controls-button:hover {
+  background: #2d2e29 !important;
+  color: #f8f8f2 !important;
+  fill: #f8f8f2 !important;
+}
+
+.react-flow__minimap {
+  background: var(--monokai-bg) !important;
+}
+
+/* DataFlow 画布点状背景 */
+.dataflow-reactflow-canvas .react-flow__background {
+  background-color: var(--monokai-bg);
+}
+
+/*
+ * 全局 [role=button]{position:relative} 会覆盖 React Flow 节点的 absolute，
+ * 导致节点按文档流堆叠、连线锚点与视觉错位。所有 RF 画布统一强制 absolute。
+ */
+.react-flow__node {
+  position: absolute !important;
+}
+.react-flow__nodes {
+  position: absolute !important;
+}
+
+/*
+ * DataFlow 作用域密度：统一正文/表单/列表节奏，不改布局骨架。
+ */
+.dataflow-shell {
+  font-size: 12px;
+  line-height: 1.35;
+}
+.dataflow-shell input,
+.dataflow-shell select,
+.dataflow-shell textarea {
+  font-size: 11px;
+  line-height: 1.3;
+}
+.dataflow-shell table {
+  font-size: 10px;
+  line-height: 1.3;
+}
+.dataflow-shell .react-flow__controls-button {
+  background: var(--monokai-surface);
+  border-bottom-color: var(--monokai-border);
+  fill: var(--monokai-comment);
+}
+.dataflow-shell .react-flow__controls-button:hover {
+  background: var(--monokai-elevated);
+  fill: var(--monokai-fg);
+}
+
+/* ============================================================
+   DUAL FONT SYSTEM
+   - Sans-serif for UI text, labels, descriptions
+   - Monospace for code, SQL, technical content
+   ============================================================ */
+
+:root {
+  /*
+   * DESIGN TOKEN SSOT — all visual values originate here.
+   * Rules: use monokai-* / CSS vars only; no new bg-[#…];
+   * overlays via ModalShell/DrawerShell; spacing = 8px grid;
+   * body/UI copy defaults to text-xs (12px) for density.
+   */
+  /* ── Monokai Pro Cyber Developer IDE Palette ── */
+  --monokai-bg: #1e1f1c;
+  --monokai-sidebar: #252623;
+  --monokai-surface: #252623;
+  --monokai-elevated: #2d2e29;
+  --monokai-hover: #34352f;
+  --monokai-border: #3a3b36;
+  --monokai-border-subtle: #2d2e29;
+  --monokai-border-strong: #55574f;
+  --monokai-fg: #f8f8f2;
+  --monokai-fg-muted: #d8d7cc;
+  --monokai-comment: #75715e;
+  --monokai-accent: #a6e22e;
+  --monokai-accent-hover: #b8ec48;
+  --monokai-cyan: #66d9ef;
+  --monokai-pink: #f92672;
+  --monokai-yellow: #e6db74;
+  --monokai-orange: #fd971f;
+  --monokai-purple: #ae81ff;
+  --monokai-edge-idle: #a8a48f;
+  --monokai-edge-muted: #49483e;
+  --monokai-handle-ring: #10110e;
+
+  /* Typography */
+  --font-sans: 'Noto Sans SC', 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+  --font-mono: 'Victor Mono', 'JetBrains Mono', 'Consolas', monospace;
+  --font-sql-editor: 'Victor Mono', 'JetBrains Mono', 'Consolas', monospace;
+
+  /* 8px Grid Spacing */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-8: 48px;
+
+  /* Border Radius */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-full: 9999px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.4);
+  --shadow-glow-cyan: 0 0 20px rgba(102, 217, 239, 0.15);
+  --shadow-glow-amethyst: 0 0 20px rgba(189, 147, 249, 0.15);
+  --shadow-glow-green: 0 0 20px rgba(166, 226, 46, 0.12);
+
+  /* Easing Curves */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out-quart: cubic-bezier(0.76, 0, 0.24, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@layer base {
+  *, ::before, ::after {
+    border-color: var(--monokai-border);
+  }
+
+  /* UI chrome defaults: sans + compact body type */
+  body {
+    font-family: var(--font-sans);
+    font-size: 12px;
+    line-height: 16px;
+    color: var(--monokai-fg);
+    background-color: var(--monokai-bg);
+  }
+
+  /* Font utility classes */
+  .font-sans {
+    font-family: var(--font-sans);
+  }
+
+  .font-mono {
+    font-family: var(--font-mono);
+  }
+
+  /* Typography scale — body defaults to 12px (text-xs) for density */
+  .text-heading {
+    font-family: var(--font-sans);
+    font-size: 18px;
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--monokai-fg);
+  }
+
+  .text-subheading {
+    font-family: var(--font-sans);
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.4;
+    color: var(--monokai-fg);
+  }
+
+  .text-body {
+    font-family: var(--font-sans);
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 16px;
+    color: var(--monokai-fg);
+  }
+
+  .text-caption {
+    font-family: var(--font-sans);
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 1.4;
+    color: var(--monokai-comment);
+  }
+
+  .text-micro {
+    font-family: var(--font-sans);
+    font-size: 10px;
+    font-weight: 500;
+    line-height: 1.2;
+    color: var(--monokai-comment);
+  }
+}
+
+/* ============================================================
+   SQL Workbench chrome — denser type + element cohesion
+   Scoped to .sql-workbench so the rest of the app is untouched.
+   ============================================================ */
+.sql-workbench {
+  --wb-text: 11px;
+  --wb-text-sm: 12px;
+  --wb-caption: 10px;
+  --wb-micro: 9px;
+  --wb-radius: var(--radius-md);
+  --wb-radius-sm: var(--radius-sm);
+  font-size: var(--wb-text);
+  line-height: 1.45;
+  color: var(--monokai-fg);
+}
+
+.sql-workbench .text-xs {
+  font-size: var(--wb-text);
+  line-height: 1.45;
+}
+
+.sql-workbench .text-sm {
+  font-size: var(--wb-text-sm);
+  line-height: 1.4;
+}
+
+.sql-workbench .text-base {
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.sql-workbench .text-\[11px\] {
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.sql-workbench .text-\[10px\] {
+  font-size: var(--wb-caption);
+  line-height: 1.35;
+}
+
+.sql-workbench .text-\[9px\] {
+  font-size: var(--wb-micro);
+  line-height: 1.25;
+}
+
+/* Shared chrome primitives inside SQL workbench */
+.sql-workbench .wb-panel-header {
+  display: flex;
+  height: 2.5rem; /* 40px — unified left/right/center panel headers */
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+  border-bottom: 1px solid var(--monokai-border);
+  background: var(--monokai-surface);
+  font-family: var(--font-sans);
+}
+
+.sql-workbench .wb-panel-title {
+  font-size: var(--wb-text);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--monokai-fg);
+}
+
+.sql-workbench .wb-kbd {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.125rem 0.375rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--monokai-border);
+  background: var(--monokai-surface);
+  font-family: var(--font-mono);
+  font-size: var(--wb-micro);
+  font-weight: 700;
+  color: var(--monokai-comment);
+  line-height: 1.2;
+}
+
+.sql-workbench .wb-code-block {
+  border-radius: var(--radius-md);
+  border: 1px solid var(--monokai-border);
+  background: var(--monokai-elevated);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--monokai-fg-muted);
+}
+
+.sql-workbench .wb-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-align: left;
+}
+
+.sql-workbench .wb-table th {
+  padding: 0.375rem 0.625rem;
+  border-bottom: 1px solid var(--monokai-border);
+  color: var(--monokai-comment);
+  font-weight: 600;
+  font-family: var(--font-sans);
+  font-size: var(--wb-caption);
+}
+
+.sql-workbench .wb-table td {
+  padding: 0.375rem 0.625rem;
+  border-bottom: 1px solid var(--monokai-border-subtle);
+  color: var(--monokai-fg-muted);
+}
+
+.sql-workbench .wb-divider {
+  border: 0;
+  border-top: 1px solid var(--monokai-border-subtle);
+}
+
+.sql-workbench .wb-link {
+  color: var(--monokai-cyan);
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 0.15s ease, text-decoration-color 0.15s ease;
+}
+
+.sql-workbench .wb-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.sql-workbench ul:not([role]):not(.cm-tooltip-autocomplete ul) {
+  list-style: disc;
+  padding-left: 1.25rem;
+  margin: 0.35rem 0;
+}
+
+.sql-workbench ol:not([role]) {
+  list-style: decimal;
+  padding-left: 1.25rem;
+  margin: 0.35rem 0;
+}
+
+.sql-workbench li + li {
+  margin-top: 0.15rem;
+}
+
+.sql-workbench hr {
+  border: 0;
+  border-top: 1px solid var(--monokai-border-subtle);
+  margin: 0.75rem 0;
+}
+
+.sql-workbench img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--monokai-border);
+}
+
+.sql-workbench .wb-hint {
+  font-size: var(--wb-caption);
+  line-height: 1.4;
+  color: var(--monokai-comment);
+}
+
+.sql-workbench a:not([class*='btn']):not([role='tab']):not([role='button']) {
+  color: var(--monokai-cyan);
+}
+
+.sql-workbench a:not([class*='btn']):not([role='tab']):not([role='button']):hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.sql-workbench blockquote {
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  border-left: 2px solid var(--monokai-yellow);
+  background: color-mix(in srgb, var(--monokai-yellow) 8%, transparent);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  color: var(--monokai-fg-muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.sql-workbench pre:not(.cm-content) {
+  margin: 0;
+  padding: 0.625rem 0.75rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--monokai-border);
+  background: var(--monokai-bg);
+  font-family: var(--font-sql-editor);
+  font-size: 11px;
+  line-height: 1.5;
+  overflow-x: auto;
+  color: var(--monokai-fg);
+}
+
+.sql-workbench code:not(.cm-content *):not(pre code) {
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  background: var(--monokai-elevated);
+  border: 1px solid var(--monokai-border-subtle);
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  color: var(--monokai-yellow);
+}
+
+@layer base {
+  /* Skill card specific */
+  .skill-card {
+    padding: var(--space-4);
+    gap: var(--space-3);
+    border-radius: var(--radius-lg);
+  }
+
+  /* Panel section */
+  .panel-section {
+    padding: 20px var(--space-6);
+    gap: var(--space-4);
+  }
+
+  /* Input field */
+  .input-field {
+    padding: 10px 14px;
+    border-radius: var(--radius-md);
+  }
+}
+
+/* =====================
+   MARKDOWN RENDERING STYLES
+   ===================== */
+
+/* 有序列表 */
+.overflow-auto ol {
+  list-style-type: decimal;
+  padding-left: 1.5rem;
+  margin: 0.5rem 0;
+}
+
+.overflow-auto ol li {
+  margin: 0.25rem 0;
+}
+
+/* 无序列表 */
+.overflow-auto ul {
+  list-style-type: disc;
+  padding-left: 1.5rem;
+  margin: 0.5rem 0;
+}
+
+.overflow-auto ul li {
+  margin: 0.25rem 0;
+}
+
+/* 段落 */
+.overflow-auto p {
+  margin: 0.5rem 0;
+}
+
+/* 标题 */
+.overflow-auto h1 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 1rem 0 0.5rem;
+}
+
+.overflow-auto h2 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin: 0.75rem 0 0.5rem;
+}
+
+.overflow-auto h3 {
+  font-size: 1rem;
+  font-weight: 500;
+  margin: 0.5rem 0 0.25rem;
+}
+
+/* 粗体和斜体 */
+.overflow-auto strong {
+  color: #bd93f9;
+  font-weight: 600;
+}
+
+.overflow-auto em {
+  color: #8be9fd;
+}
+
+/* 行内代码 */
+.overflow-auto code {
+  background-color: #3e3d32;
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: #8be9fd;
+}
+
+/* 预格式化代码块 */
+.overflow-auto pre {
+  background-color: #3e3d32;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  margin: 0.5rem 0;
+}
+
+/* 表格 */
+.overflow-auto table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.5rem 0;
+}
+
+.overflow-auto th,
+.overflow-auto td {
+  border: 1px solid #49483e;
+  padding: 0.5rem;
+  text-align: left;
+}
+
+.overflow-auto th {
+  background-color: #3e3d32;
+}
+
+/* Query result grid: content-hugging columns, centered Noto Sans SC cells */
+.overflow-auto .result-data-grid table {
+  margin: 0;
+  width: max-content;
+  border-collapse: collapse;
+}
+.overflow-auto .result-data-grid table.w-full {
+  width: 100%;
+}
+.overflow-auto .result-data-grid th,
+.overflow-auto .result-data-grid td {
+  text-align: center !important;
+  /* Beat global .overflow-auto th/td olive box (#49483e / #3e3d32) */
+  background-color: transparent !important;
+  border: none !important;
+  border-right: 1px solid rgba(58, 59, 54, 0.35) !important;
+  padding: 0.375rem 0.5rem !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+.overflow-auto .result-data-grid thead th {
+  /* Soft surface wash between toolbar and body — not olive #3e3d32 */
+  background-color: color-mix(in srgb, var(--monokai-surface) 26%, var(--monokai-bg)) !important;
+  box-shadow: none !important;
+}
+.overflow-auto .result-data-grid thead th:hover {
+  background-color: color-mix(in srgb, var(--monokai-surface) 40%, var(--monokai-bg)) !important;
+}
+.overflow-auto .result-data-grid thead th.result-th-selected,
+.overflow-auto .result-data-grid thead th.result-th-selected:hover {
+  background-color: color-mix(in srgb, #e6db74 7%, var(--monokai-bg)) !important;
+  box-shadow: inset 0 -1px 0 0 rgba(230, 219, 116, 0.45) !important;
+}
+.overflow-auto .result-data-grid thead tr {
+  border-bottom: 1px solid rgba(58, 59, 54, 0.4) !important;
+  box-shadow: none !important;
+}
+.overflow-auto .result-data-grid tbody td {
+  background-color: transparent !important;
+}
+.overflow-auto .result-data-grid tbody tr:hover td {
+  background-color: transparent !important;
+}
+
+/* Pivot grid: content-hugging columns, centered Noto Sans SC cells */
+.overflow-auto .result-pivot-grid,
+.overflow-auto .result-pivot-grid th,
+.overflow-auto .result-pivot-grid td {
+  font-family: 'Noto Sans SC', 'IBM Plex Sans', system-ui, sans-serif;
+  text-align: center;
+}
+.overflow-auto .result-pivot-grid table {
+  margin: 0;
+  width: max-content;
+}
+.overflow-auto .result-pivot-grid thead th {
+  background-color: color-mix(in srgb, var(--monokai-surface) 26%, var(--monokai-bg)) !important;
+}
+.result-pivot-toolbar,
+.result-pivot-toolbar label,
+.result-pivot-toolbar select,
+.result-pivot-toolbar button,
+.result-pivot-truncate {
+  font-family: 'Noto Sans SC', 'IBM Plex Sans', system-ui, sans-serif;
+}
+
+/* 分割线 */
+.overflow-auto hr {
+  border-color: #49483e;
+  margin: 1rem 0;
+}
+
+/* 引用 */
+.overflow-auto blockquote {
+  border-left: 4px solid #bd93f9;
+  padding-left: 0.75rem;
+  font-style: italic;
+  color: #75715e;
+}
+
+/* =====================
+   MONOKAI THEME - Global Overrides
+   ===================== */
+
+/* ============================================================
+   INTELLIGENT DUAL FONT SYSTEM
+   - 英文字符 → Victor Mono
+   - 中文字符 → Noto Sans SC
+   - 其他字符 → 回退到系统字体
+   ============================================================ */
+
+/* 定义字体堆栈（按优先级） */
+
+
+
+
+/* 全局字体设置 - 智能双字体策略 */
+
+/* 针对中文字符的额外回退（确保中文字符正确渲染） */
+:lang(zh), :lang(zh-CN), :lang(zh-TW), :lang(zh-Hans), :lang(zh-Hant) {
+    font-family: var(--font-sans);
+}
+
+body {
+    @apply bg-[#272822] text-[#f8f8f2];
+    background-color: #272822 !important;
+    color: #f8f8f2 !important;
+    font-family: var(--font-mono);
+}
+
+/* UI 文本使用无衬线字体（更友好的界面显示） */
+.font-sans {
+    font-family: var(--font-sans);
+}
+
+/* 代码和技术内容使用等宽字体 */
+.font-mono {
+    font-family: var(--font-mono);
+}
+
+/* AI Skills 模块专用字体设置 */
+[data-tab="ai-skills"], .ai-skills-panel, .skill-panel {
+    font-family: var(--font-sans);
+}
+
+[data-tab="ai-skills"] code, [data-tab="ai-skills"] pre,
+.ai-skills-panel code, .ai-skills-panel pre,
+.skill-panel code, .skill-panel pre {
+    font-family: var(--font-mono);
+}
+
+/* =====================
+   CodeMirror 编辑器字体设置 — Victor Mono（关闭花体连笔）
+   ===================== */
+.cm-editor {
+    font-family: var(--font-sql-editor, var(--font-mono));
+    font-variant-ligatures: none;
+    font-feature-settings: "liga" 0, "calt" 0, "ss01" 0;
+}
+
+.cm-editor .cm-content {
+    font-family: var(--font-sql-editor, var(--font-mono));
+    font-variant-ligatures: none;
+    font-feature-settings: "liga" 0, "calt" 0, "ss01" 0;
+}
+
+.cm-editor .cm-line {
+    font-family: var(--font-sql-editor, var(--font-mono));
+}
+
+.cm-editor .cm-gutters {
+    font-family: var(--font-sql-editor, var(--font-mono));
+}
+
+.custom-codemirror .cm-editor,
+.custom-codemirror .cm-content,
+.custom-codemirror .cm-line,
+.custom-codemirror .cm-gutters {
+    font-family: var(--font-sql-editor, var(--font-mono)) !important;
+    font-variant-ligatures: none;
+}
+
+/* =====================
+   CodeMirror 自动补全提示字体设置
+   ===================== */
+.cm-tooltip-autocomplete {
+    font-family: var(--font-mono);
+    font-size: 8px !important;
+}
+
+.cm-tooltip-autocomplete > ul {
+    font-family: var(--font-mono);
+    font-size: 8px !important;
+}
+
+.cm-tooltip-autocomplete > ul > li {
+    font-family: var(--font-mono);
+    font-size: 8px !important;
+}
+
+.cm-completionLabel {
+    font-family: var(--font-mono);
+    font-size: 8px !important;
+}
+
+.cm-completionDetail {
+    font-family: var(--font-mono);
+    font-size: 8px !important;
+}
+
+.cm-tooltip.cm-completionInfo {
+    font-family: var(--font-mono);
+    font-size: 10px !important;
+}
+
+/* =====================
+   MONOKAI THEME - Global Overrides
+   ===================== */
+
+/* Override white backgrounds */
+.bg-white, [class*="bg-white"] {
+    background-color: #1e1f1c !important;
+}
+
+/* Override gray backgrounds */
+.bg-gray-50, .bg-gray-100, .bg-gray-200, .bg-gray-300, .bg-gray-400, .bg-gray-500, 
+.bg-gray-600, .bg-gray-700, .bg-gray-800, .bg-gray-900 {
+    background-color: #1e1f1c !important;
+}
+
+/* Override light backgrounds */
+.bg-slate-50, .bg-slate-100, .bg-slate-200, .bg-slate-300 {
+    background-color: #1e1f1c !important;
+}
+
+/* Override borders */
+.border-gray-100, .border-gray-200, .border-gray-300, .border-gray-400 {
+    border-color: #3e3d32 !important;
+}
+
+.border-slate-200, .border-slate-300 {
+    border-color: #3e3d32 !important;
+}
+
+/* Make subtle borders blend in - use very dark borders or transparent */
+.border, [class*="border-"] {
+    border-color: #3e3d32 !important;
+}
+
+/* Override Tailwind's opacity borders like border-monokai-accent/20 */
+.border-monokai-accent\/20 {
+    border-color: rgba(62, 61, 50, 0.3) !important;
+}
+
+.border-monokai-accent\/30 {
+    border-color: rgba(62, 61, 50, 0.4) !important;
+}
+
+.border-monokai-accent\/10, .border-monokai-accent\/5 {
+    border-color: rgba(62, 61, 50, 0.15) !important;
+}
+
+/* Override all monokai accent borders with darker variants */
+[class*="border-monokai"] {
+    border-color: #3e3d32 !important;
+}
+
+/* Override text colors */
+.text-gray-400, .text-gray-500, .text-gray-600, .text-gray-700, .text-gray-800, .text-gray-900 {
+    color: #f8f8f2 !important;
+}
+
+.text-gray-300 {
+    color: #75715e !important;
+}
+
+.text-slate-400, .text-slate-500, .text-slate-600, .text-slate-700 {
+    color: #f8f8f2 !important;
+}
+
+/* Override divider colors */
+.divide-gray-50, .divide-gray-100, .divide-gray-200, .divide-gray-300 {
+    border-color: #3e3d32 !important;
+}
+
+.divide-y > :not([hidden]) ~ :not([hidden]) {
+    border-color: #3e3d32 !important;
+}
+
+.divide-x > :not([hidden]) ~ :not([hidden]) {
+    border-color: #3e3d32 !important;
+}
+
+/* Override input backgrounds */
+input, textarea, select {
+    @apply bg-[#1e1f1c] text-[#f8f8f2] border-[#49483e];
+    background-color: #1e1f1c !important;
+    color: #f8f8f2 !important;
+    border-color: #49483e !important;
+}
+
+input::placeholder, textarea::placeholder {
+    color: #75715e !important;
+}
+
+/* Override buttons */
+button, .btn {
+    @apply bg-[#3e3d32] text-[#f8f8f2] border-[#49483e];
+    background-color: #3e3d32 !important;
+    color: #f8f8f2 !important;
+    border-color: #49483e !important;
+    text-align: left !important;
+}
+
+/* Import Data button specific style */
+.sidebar-import-btn {
+    text-align: left !important;
+}
+
+button:hover, .btn:hover {
+    background-color: #49483e !important;
+}
+
+/* Override scrollbar for webkit browsers */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: #1e1f1c;
+    border-left: 1px solid #49483e;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #3e3d32;
+    border-radius: 5px;
+    border: 2px solid #1e1f1c;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #75715e;
+}
+
+::-webkit-scrollbar-corner {
+    background: #1e1f1c;
+}
+
+/* Card and panel styles */
+.card, .panel, .rounded-xl, .rounded-lg, .rounded-md, .rounded-2xl {
+    background-color: #1e1f1c !important;
+    border-color: #49483e !important;
+}
+
+/* Override specific element styles */
+.hover\:bg-gray-50:hover, .hover\:bg-gray-100:hover {
+    background-color: #3e3d32 !important;
+}
+
+.hover\:bg-slate-50:hover, .hover\:bg-slate-100:hover {
+    background-color: #3e3d32 !important;
+}
+
+/* Focus ring overrides - make them subtle */
+*:focus, *:focus-visible {
+    outline-color: #3e3d32 !important;
+    --tw-ring-color: #3e3d32 !important;
+}
+
+/* Ring color overrides */
+.ring-1, .ring-2 {
+    --tw-ring-color: #3e3d32 !important;
+}
+
+/* Hide harsh shadows - replace with subtle ones */
+.shadow-sm, .shadow, .shadow-lg, .shadow-xl {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
+}
 
 @keyframes slideUp {
     from {
@@ -14,175 +1002,205 @@
     }
 }
 
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateY(-12px) scale(0.97);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+    }
+}
+
 @layer utilities {
+    .custom-scrollbar {
+        scrollbar-width: thin;
+        scrollbar-color: #49483e #1e1f1c;
+    }
+
     .custom-scrollbar::-webkit-scrollbar {
-        width: 10px;
-        height: 10px;
+        width: 8px;
+        height: 8px;
     }
 
     .custom-scrollbar::-webkit-scrollbar-track {
-        @apply bg-monokai-sidebar border-l border-monokai-accent;
+        background: #1e1f1c;
+        border: none;
     }
 
     .custom-scrollbar::-webkit-scrollbar-thumb {
-        @apply bg-monokai-accent rounded-sm border-2 border-monokai-sidebar;
+        background: #3e3d32;
+        border-radius: 4px;
+        border: 2px solid #1e1f1c;
     }
 
     .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-        @apply bg-monokai-comment;
+        background: #75715e;
     }
 
     .custom-scrollbar::-webkit-scrollbar-corner {
-        @apply bg-monokai-sidebar;
+        background: #1e1f1c;
     }
 }
 
-/* Markdown 渲染样式 */
+/* Markdown 渲染样式 - 统一紧凑排版与语义主题 */
 .markdown-body {
-    color: #ccc;
-    line-height: 1.7;
-    font-size: 15px;
+    color: var(--monokai-fg-muted, #d8d7cc);
+    line-height: 1.6;
+    font-size: 12px;
+    font-family: var(--font-sans);
 }
 
 .markdown-body h1 {
-    font-size: 2em;
-    font-weight: bold;
-    color: #fff;
-    margin-top: 1.5em;
-    margin-bottom: 0.8em;
-    padding-bottom: 0.3em;
-    border-bottom: 1px solid #444;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--monokai-fg, #f8f8f2);
+    margin-top: 1.2em;
+    margin-bottom: 0.5em;
+    padding-bottom: 0.25em;
+    border-bottom: 1px solid var(--monokai-border, #3a3b36);
 }
 
 .markdown-body h2 {
-    font-size: 1.5em;
-    font-weight: bold;
-    color: #fff;
-    margin-top: 1.5em;
-    margin-bottom: 0.6em;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--monokai-fg, #f8f8f2);
+    margin-top: 1em;
+    margin-bottom: 0.4em;
     padding-bottom: 0.2em;
-    border-bottom: 1px solid #333;
+    border-bottom: 1px solid var(--monokai-border-subtle, #2d2e29);
 }
 
 .markdown-body h3 {
-    font-size: 1.25em;
-    font-weight: bold;
-    color: #f8f8f2;
-    margin-top: 1.3em;
-    margin-bottom: 0.5em;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--monokai-fg, #f8f8f2);
+    margin-top: 0.8em;
+    margin-bottom: 0.3em;
 }
 
 .markdown-body h4, .markdown-body h5, .markdown-body h6 {
-    font-weight: bold;
-    color: #f8f8f2;
-    margin-top: 1em;
-    margin-bottom: 0.5em;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--monokai-fg, #f8f8f2);
+    margin-top: 0.6em;
+    margin-bottom: 0.3em;
 }
 
 .markdown-body p {
-    margin-bottom: 1em;
+    margin-bottom: 0.75em;
 }
 
 .markdown-body a {
-    color: #66d9ef;
+    color: var(--monokai-cyan, #66d9ef);
     text-decoration: none;
+    transition: color 0.15s ease;
 }
 
 .markdown-body a:hover {
     text-decoration: underline;
+    color: var(--monokai-blue, #66d9ef);
 }
 
 .markdown-body strong {
-    color: #fff;
-    font-weight: bold;
+    color: var(--monokai-fg, #f8f8f2);
+    font-weight: 600;
 }
 
 .markdown-body em {
-    color: #ae81ff;
+    color: var(--monokai-purple, #ae81ff);
     font-style: italic;
 }
 
 .markdown-body code.inline-code {
-    background: #2b2b2b;
-    color: #f8f8f2;
-    padding: 0.2em 0.4em;
-    border-radius: 3px;
-    font-family: 'Fira Code', monospace;
+    background: var(--monokai-elevated, #2d2e29);
+    color: var(--monokai-fg, #f8f8f2);
+    padding: 0.15em 0.35em;
+    border-radius: 4px;
+    border: 1px solid var(--monokai-border-subtle, #3a3b36);
+    font-family: var(--font-mono);
     font-size: 0.9em;
 }
 
 .markdown-body pre {
-    background: #1e1f1c;
-    border: 1px solid #444;
+    background: var(--monokai-bg, #1e1f1c);
+    border: 1px solid var(--monokai-border, #3a3b36);
     border-radius: 6px;
-    padding: 1em;
+    padding: 0.75em 1em;
     overflow-x: auto;
-    margin: 1em 0;
+    margin: 0.75em 0;
 }
 
 .markdown-body pre code {
-    color: #f8f8f2;
-    font-family: 'Fira Code', 'Consolas', monospace;
-    font-size: 14px;
-    line-height: 1.5;
+    color: var(--monokai-fg, #f8f8f2);
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    line-height: 1.55;
 }
 
-/* 代码块样式 */
+/* 代码块包装器 */
 .code-block-wrapper {
     position: relative;
-    margin: 1.5em 0;
-    border-radius: 8px;
+    margin: 1em 0;
+    border-radius: 6px;
     overflow: hidden;
-    border: 1px solid #444;
-    background: #1e1f1c;
+    border: 1px solid var(--monokai-border, #3a3b36);
+    background: var(--monokai-bg, #1e1f1c);
 }
 
 .code-block-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 8px 16px;
-    background: #2a2b24;
-    border-bottom: 1px solid #444;
+    padding: 6px 12px;
+    background: var(--monokai-surface, #252623);
+    border-bottom: 1px solid var(--monokai-border, #3a3b36);
 }
 
 .code-lang {
-    font-size: 12px;
-    color: #888;
-    font-family: monospace;
+    font-size: 11px;
+    color: var(--monokai-comment, #75715e);
+    font-family: var(--font-mono);
     text-transform: uppercase;
 }
 
 .copy-btn, .run-code-btn {
-    font-size: 12px;
-    padding: 4px 12px;
+    font-size: 11px;
+    padding: 3px 10px;
     border-radius: 4px;
     border: none;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.15s;
 }
 
 .copy-btn {
-    background: #444;
-    color: #ccc;
+    background: var(--monokai-elevated, #2d2e29);
+    color: var(--monokai-fg-muted, #d8d7cc);
+    border: 1px solid var(--monokai-border, #3a3b36);
 }
 
 .copy-btn:hover {
-    background: #555;
-    color: #fff;
+    background: var(--monokai-surface, #252623);
+    color: var(--monokai-fg, #f8f8f2);
 }
 
 .run-code-btn {
     position: absolute;
-    right: 16px;
-    bottom: 16px;
-    background: #a6e22e;
-    color: #1e1f1c;
-    font-weight: bold;
+    right: 12px;
+    bottom: 12px;
+    background: var(--monokai-accent, #a6e22e);
+    color: var(--monokai-bg, #1e1f1c);
+    font-weight: 600;
 }
 
 .run-code-btn:hover {
-    background: #b8f040;
+    background: var(--monokai-accent-hover, #b8ec48);
     transform: translateY(-1px);
 }
 
@@ -190,59 +1208,1243 @@
 .markdown-body table {
     width: 100%;
     border-collapse: collapse;
-    margin: 1em 0;
+    margin: 0.75em 0;
+    font-size: 11.5px;
+    border: 1px solid var(--monokai-border, #3a3b36);
+    border-radius: 6px;
+    overflow: hidden;
 }
 
 .markdown-body th, .markdown-body td {
-    border: 1px solid #444;
-    padding: 8px 12px;
+    border: 1px solid var(--monokai-border-subtle, #2d2e29);
+    padding: 6px 10px;
     text-align: left;
 }
 
 .markdown-body th {
-    background: #2a2b24;
-    color: #fff;
-    font-weight: bold;
+    background: var(--monokai-surface, #252623);
+    color: var(--monokai-fg, #f8f8f2);
+    font-weight: 600;
+    font-size: 11.5px;
 }
 
 .markdown-body tr:nth-child(even) {
-    background: #22241e;
+    background: var(--monokai-elevated, #2d2e29);
 }
 
 .markdown-body tr:hover {
-    background: #2a2b24;
+    background: var(--monokai-surface, #252623);
 }
 
 /* 列表样式 */
 .markdown-body ul, .markdown-body ol {
-    margin: 1em 0;
-    padding-left: 2em;
+    margin: 0.5em 0;
+    padding-left: 1.25em;
 }
 
 .markdown-body li {
-    margin: 0.3em 0;
+    margin: 0.25em 0;
 }
 
 .markdown-body ul li::marker {
-    color: #66d9ef;
+    color: var(--monokai-cyan, #66d9ef);
 }
 
 .markdown-body ol li::marker {
-    color: #a6e22e;
+    color: var(--monokai-accent, #a6e22e);
 }
 
 /* 区块引用 */
 .markdown-body blockquote {
-    border-left: 4px solid #66d9ef;
-    background: #2a2b24;
-    margin: 1em 0;
-    padding: 0.5em 1em;
-    color: #aaa;
+    border-left: 3px solid var(--monokai-cyan, #66d9ef);
+    background: var(--monokai-surface, #252623);
+    margin: 0.75em 0;
+    padding: 0.5em 0.85em;
+    color: var(--monokai-fg-muted, #d8d7cc);
+    border-radius: 0 6px 6px 0;
 }
 
 /* 水平线 */
 .markdown-body hr {
     border: none;
-    border-top: 1px solid #444;
-    margin: 2em 0;
+    border-top: 1px solid var(--monokai-border, #3a3b36);
+    margin: 1.5em 0;
+}
+
+/* TOC 导航高亮效果 */
+.toc-highlight {
+    outline: 2px solid #66d9ef !important;
+    outline-offset: 4px !important;
+    border-radius: 2px;
+    transition: outline 0.3s ease;
+}
+
+/* 修复 Markdown 中下划线被错误解析为 sub 标签的问题 */
+.markdown-body sub,
+.markdown-body sup,
+.markdown-body td sub,
+.markdown-body td sup {
+    font-style: italic !important;
+    color: #e6db74 !important;
+    font-size: inherit !important;
+    vertical-align: baseline !important;
+}
+
+/* =====================
+   SQL Syntax Highlighting - Global Monokai Theme
+   ===================== */
+.sql-highlight-container {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.6;
+    background: #1e1f1c;
+    padding: 12px;
+    border-radius: 6px;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.sql-keyword {
+    color: #ae81ff !important;
+    font-weight: 600;
+}
+
+.sql-function {
+    color: #66d9ef !important;
+    font-weight: 500;
+}
+
+.sql-string {
+    color: #a6e22e !important;
+    font-style: italic;
+}
+
+.sql-number {
+    color: #fd971f !important;
+}
+
+.sql-comment {
+    color: #75715e !important;
+    font-style: italic;
+}
+
+.sql-identifier {
+    color: #f8f8f2 !important;
+    font-style: italic;
+}
+
+/* ==================== Ontology Graph Edge Animations ==================== */
+
+.flow-edge-active path.react-flow__edge-path {
+  stroke-dasharray: 8 14;
+  animation: dash-flow 1.2s linear infinite;
+}
+
+.flow-edge-idle path.react-flow__edge-path {
+  animation: dash-flow-idle 3s linear infinite;
+  opacity: 0.4 !important;
+}
+
+@keyframes dash-flow {
+  from { stroke-dashoffset: 22; }
+  to   { stroke-dashoffset: 0; }
+}
+
+@keyframes dash-flow-idle {
+  from { stroke-dashoffset: 0; }
+  to   { stroke-dashoffset: -44; }
+  0%, 100% { opacity: 0.25; }
+  50%       { opacity: 0.55; }
+}
+
+/* ReactFlow edge text glow for highlighted paths */
+.flow-edge-active .react-flow__edge-text {
+  filter: drop-shadow(0 0 4px currentColor);
+}
+
+/* ClusterGroup hover effect */
+.react-flow__node-clusterGroup {
+  transition: opacity 0.2s !important;
+}
+
+/* Disabled transitions on react-flow__viewport to prevent zooming overlaps and lags */
+.react-flow__viewport {
+  transition: none !important;
+}
+
+@keyframes viewTransitionFlash {
+  0%   { opacity: 0; transform: scale(0.98); }
+  30%  { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.02); }
+}
+
+/* ==================== AI Skills Animation Keyframes ==================== */
+/* CONSOLIDATED — removed: glow-pulse, float, gradient-flow, flip-in, marquee-scroll */
+
+/* Core entrance animation - used for list items, cards, panels */
+@keyframes skill-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Focus glow for inputs and selections */
+@keyframes focus-glow {
+  from { box-shadow: 0 0 0 2px rgba(102, 217, 239, 0); }
+  to   { box-shadow: 0 0 0 2px rgba(102, 217, 239, 0.3); }
+}
+
+/* Success flash for copy actions */
+@keyframes success-flash {
+  0%   { background-color: rgba(166, 226, 46, 0); }
+  50%  { background-color: rgba(166, 226, 46, 0.15); }
+  100% { background-color: rgba(166, 226, 46, 0); }
+}
+
+/* Fade in from below */
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Fade in from left */
+@keyframes fade-in-left {
+  from { opacity: 0; transform: translateX(-16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* Scale in for modals */
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* Shake for validation errors */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%       { transform: translateX(-6px); }
+  40%       { transform: translateX(6px); }
+  60%       { transform: translateX(-4px); }
+  80%       { transform: translateX(4px); }
+}
+
+/* Ripple effect for buttons */
+@keyframes ripple-expand {
+  0%   { transform: scale(0); opacity: 0.6; }
+  100% { transform: scale(2.5); opacity: 0; }
+}
+
+/* Cursor blink */
+@keyframes cursor-blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+/* Light sweep for selected state */
+@keyframes light-sweep {
+  0%   { left: -100%; }
+  100% { left: 200%; }
+}
+
+/* Spin for loading */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* ============================================================
+   ANIMATION UTILITY CLASSES
+   ============================================================ */
+
+/* Staggered entrance - container class */
+.stagger-enter > * {
+  opacity: 0;
+  animation: skill-enter 0.35s var(--ease-out-expo, ease-out) forwards;
+}
+
+/* Stagger delays */
+.stagger-1  { animation-delay: 0ms; }
+.stagger-2  { animation-delay: 60ms; }
+.stagger-3  { animation-delay: 120ms; }
+.stagger-4  { animation-delay: 180ms; }
+.stagger-5  { animation-delay: 240ms; }
+.stagger-6  { animation-delay: 300ms; }
+.stagger-7  { animation-delay: 360ms; }
+.stagger-8  { animation-delay: 420ms; }
+.stagger-9  { animation-delay: 480ms; }
+.stagger-10 { animation-delay: 540ms; }
+
+/* Animation utility classes */
+.animate-skill-enter {
+  animation: skill-enter 0.35s var(--ease-out-expo, ease-out) both;
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.35s ease-out both;
+}
+
+.animate-fade-in-left {
+  animation: fade-in-left 0.35s ease-out both;
+}
+
+.animate-scale-in {
+  animation: scale-in 0.3s var(--ease-spring, ease-out) both;
+}
+
+.animate-shake {
+  animation: shake 0.4s ease-in-out;
+}
+
+.animate-success-flash {
+  animation: success-flash 0.6s ease-out;
+}
+
+.animate-light-sweep::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent);
+  animation: light-sweep 1.8s var(--ease-out-expo, ease-in-out) infinite;
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Focus ring utility */
+.focus-ring:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(102, 217, 239, 0.3);
+}
+
+/* ============================================================
+   LEGACY ANIMATION CLASSES (kept for compatibility)
+   Removed: float-anim, glow-pulse, gradient-flow-text
+   ============================================================ */
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.35s ease-out both;
+}
+
+/* ==================== DuckDB Skills Guide ==================== */
+
+/* Card hover glow ring */
+.skill-card-glow {
+  transition: box-shadow 0.3s ease, transform 0.2s ease;
+}
+.skill-card-glow:hover {
+  box-shadow: 0 0 20px rgba(189, 147, 249, 0.15);
+}
+
+/* Marquee text for skill descriptions */
+@keyframes marquee-scroll-left {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+@keyframes marquee-scroll-right {
+  0%   { transform: translateX(-50%); }
+  100% { transform: translateX(0); }
+}
+.animate-marquee-left {
+  animation: marquee-scroll-left var(--marquee-duration, 30s) linear infinite;
+}
+.animate-marquee-right {
+  animation: marquee-scroll-right var(--marquee-duration, 30s) linear infinite;
+}
+
+/* Skill chain button pulse */
+@keyframes chain-pulse {
+  0%, 100% { opacity: 0.6; }
+  50%       { opacity: 1; }
+}
+
+/* Copy flash animation */
+@keyframes copy-flash {
+  0%   { opacity: 0; transform: scale(0.8); }
+  50%  { opacity: 1; transform: scale(1.1); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.copy-flash {
+  animation: copy-flash 0.3s ease-out;
+}
+
+/* ============================================================
+   SkillResultCard — flat Monokai design system
+   ============================================================ */
+
+.skill-result-card {
+  padding: 16px;
+  border: 1px solid #3e3d32;
+  background: #272822;
+  border-radius: 0;
+}
+
+.skill-result-card.success {
+  border-color: #3e3d32;
+}
+
+.skill-result-card.error {
+  border-color: #3e3d32;
+}
+
+.skill-sql-block {
+  padding: 14px;
+  background: #1e1e1c;
+  border: 1px solid #3e3d32;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.6;
+  color: #f8f8f2;
+  white-space: pre-wrap;
+  word-break: break-word;
+  border-radius: 0;
+  overflow-x: auto;
+}
+
+.skill-btn-primary {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  border-radius: 0;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.skill-btn-primary:hover {
+  opacity: 0.9;
+}
+
+/* ============================================================
+   DuckDBGuide Component Styles
+   ============================================================ */
+
+.dsg-input-field {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border-width: 1px;
+  font-size: 12px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.dsg-input-field:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(189, 147, 249, 0.2);
+}
+
+.dsg-skill-pill {
+  transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+}
+
+.dsg-skill-pill:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* ============================================================
+   ResizablePanel — 可拖拽调整宽度的分割面板样式
+   ============================================================ */
+
+/* 分割线悬停效果 */
+.resizable-divider {
+  position: relative;
+  transition: background 0.2s ease;
+}
+
+.resizable-divider:hover {
+  background: #49483e !important;
+}
+
+/* 分割线拖拽手柄 - 三个点 */
+.resizable-divider::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 4px;
+  height: 24px;
+  background: linear-gradient(180deg, transparent 0%, #3e3d32 20%, #3e3d32 80%, transparent 100%);
+  border-radius: 2px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.resizable-divider:hover::before {
+  opacity: 1;
+}
+
+/* 拖拽中状态 */
+.resizable-divider.is-dragging {
+  background: linear-gradient(90deg, transparent 0%, #49483e 50%, transparent 100%) !important;
+  cursor: col-resize;
+}
+
+.resizable-divider.is-dragging::before {
+  opacity: 0;
+}
+
+/* 宽度指示器动画 */
+.resizable-indicator {
+  animation: resizable-fade-in 0.15s ease-out;
+}
+
+@keyframes resizable-fade-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(-50%);
+  }
+}
+
+/* 分割线宽度指示器 */
+.resizable-width-indicator {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 6px 12px;
+  background: linear-gradient(135deg, #272822 0%, #1e1f1c 100%);
+  border: 1px solid #49483e;
+  border-radius: 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  color: #f8f8f2;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 50;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(102, 217, 239, 0.1);
+  animation: resizable-indicator-pop 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.resizable-width-indicator svg {
+  opacity: 0.7;
+}
+
+/* 垂直分割线指示器 */
+.resizable-height-indicator {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 6px 12px;
+  background: linear-gradient(135deg, #272822 0%, #1e1f1c 100%);
+  border: 1px solid #49483e;
+  border-radius: 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  color: #f8f8f2;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 50;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(102, 217, 239, 0.1);
+  animation: resizable-indicator-pop 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* 分割线拖拽高亮条 */
+.resizable-divider-highlight {
+  position: absolute;
+  background: linear-gradient(90deg, transparent 0%, #49483e 50%, transparent 100%);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  pointer-events: none;
+}
+
+.resizable-divider:hover .resizable-divider-highlight {
+  opacity: 1;
+}
+
+/* 防止拖拽时选中文本 */
+body.is-resizing {
+  user-select: none !important;
+  cursor: col-resize !important;
+}
+
+body.is-resizing * {
+  user-select: none !important;
+  pointer-events: none !important;
+}
+
+body.is-resizing .resizable-divider,
+body.is-resizing .resizable-width-indicator {
+  pointer-events: auto !important;
+}
+
+/* ============================================================
+   SQL Preview CodeMirror 样式
+   ============================================================ */
+
+.sql-preview-codemirror {
+  font-size: 11px !important;
+  background: transparent !important;
+}
+
+.sql-preview-codemirror .cm-editor {
+  background: transparent !important;
+  font-family: var(--font-mono);
+}
+
+.sql-preview-codemirror .cm-editor .cm-content {
+  font-family: var(--font-mono);
+  font-size: 11px !important;
+  padding: 12px 0 !important;
+}
+
+.sql-preview-codemirror .cm-editor .cm-line {
+  font-family: var(--font-mono);
+  font-size: 11px !important;
+}
+
+.sql-preview-codemirror .cm-editor .cm-gutters {
+  display: none !important;
+}
+
+.sql-preview-codemirror .cm-editor .cm-focused {
+  outline: none !important;
+}
+
+/* ============================================================
+   TemplatePanel Redesign — Utility Classes
+   ============================================================ */
+
+/* Left accent bar for category cards */
+.card-accent-left {
+  border-left: 3px solid;
+}
+
+/* Compact action button row */
+.action-row {
+  gap: 6px;
+}
+
+/* Clean code header strip */
+.code-strip {
+  background: rgba(62, 61, 50, 0.5);
+}
+
+/* Init card: modern pill badge */
+.init-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 9999px;
+}
+
+/* ============================================================
+   TemplatePanel Redesign — New Utility Classes
+   ============================================================ */
+
+/* Expanded card state background tint */
+.template-card-expanded {
+  background-color: rgba(40, 41, 35, 0.6);
+}
+
+/* First card (一键完整初始化) special styling */
+.template-card-first {
+  border-color: rgba(189, 147, 249, 0.25) !important;
+  background-color: rgba(189, 147, 249, 0.04) !important;
+}
+
+.template-card-first:hover {
+  border-color: rgba(189, 147, 249, 0.45) !important;
+  background-color: rgba(189, 147, 249, 0.07) !important;
+}
+
+/* Compact count badge for category headers */
+.template-category-badge {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  padding: 1px 5px;
+  border-radius: 9999px;
+  background-color: rgba(62, 61, 50, 0.5);
+  border: 1px solid rgba(62, 61, 50, 0.7);
+  color: rgba(117, 113, 94, 0.85);
+}
+
+/* Redesigned status indicator as a pill instead of a tiny dot */
+.template-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  padding: 1px 7px;
+  border-radius: 9999px;
+  font-weight: 500;
+}
+
+.template-status-pill.pill-idle {
+  background-color: rgba(62, 61, 50, 0.3);
+  color: rgba(117, 113, 94, 0.7);
+}
+
+.template-status-pill.pill-loading {
+  background-color: rgba(230, 219, 116, 0.12);
+  color: rgba(230, 219, 116, 0.85);
+  border: 1px solid rgba(230, 219, 116, 0.2);
+}
+
+.template-status-pill.pill-success {
+  background-color: rgba(166, 226, 46, 0.1);
+  color: rgba(166, 226, 46, 0.8);
+  border: 1px solid rgba(166, 226, 46, 0.2);
+}
+
+.template-status-pill.pill-error {
+  background-color: rgba(249, 38, 114, 0.1);
+  color: rgba(249, 38, 114, 0.85);
+  border: 1px solid rgba(249, 38, 114, 0.2);
+}
+
+/* Separator between action buttons and code block in expanded card */
+.template-action-bar {
+  border-top: 1px solid rgba(62, 61, 50, 0.5);
+  padding-top: 10px;
+  margin-top: 2px;
+}
+
+/* Init banner gradient background */
+.template-init-banner {
+  background: linear-gradient(to right, rgba(189, 147, 249, 0.05), transparent);
+}
+
+/* Category card tinted backgrounds per category */
+.template-cat-setup {
+  background-color: rgba(189, 147, 249, 0.02);
+  border-top: 2px solid rgba(189, 147, 249, 0.35);
+}
+
+.template-cat-query {
+  background-color: rgba(102, 217, 239, 0.02);
+  border-top: 2px solid rgba(102, 217, 239, 0.25);
+}
+
+.template-cat-modify {
+  background-color: rgba(230, 219, 116, 0.02);
+  border-top: 2px solid rgba(230, 219, 116, 0.25);
+}
+
+.template-cat-export {
+  background-color: rgba(166, 226, 46, 0.02);
+  border-top: 2px solid rgba(166, 226, 46, 0.25);
+}
+
+/* Uppercase category label with wide tracking */
+.template-category-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* Compact tab bar item */
+.template-tab-item {
+  padding: 8px 6px;
+}
+
+.template-tab-item.active {
+  color: rgba(102, 217, 239, 1);
+}
+
+/* ============================================================
+   Graph Control Card Styles — Refined Glassmorphism & Centering
+   ============================================================ */
+.graph-control-card {
+  background: rgba(39, 40, 34, 0.85) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(248, 248, 242, 0.12) !important;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05) !important;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.graph-control-card:hover {
+  border-color: rgba(248, 248, 242, 0.2) !important;
+  box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Enforce text-align center on all text nodes inside control card */
+.graph-control-card,
+.graph-control-card span,
+.graph-control-card p,
+.graph-control-card div {
+  text-align: center !important;
+}
+
+/* Center all flex and grid div containers inside control card and force 100% width to guarantee horizontal centering */
+.graph-control-card div.flex,
+.graph-control-card div[class*="flex"] {
+  display: flex !important;
+  width: 100% !important;
+  justify-content: center !important;
+  align-items: center !important;
+  text-align: center !important;
+}
+
+.graph-control-card div.grid,
+.graph-control-card div[class*="grid"] {
+  display: grid !important;
+  width: 100% !important;
+  justify-content: center !important;
+  align-items: center !important;
+  justify-items: center !important;
+  text-align: center !important;
+}
+
+/* Center text and align content within buttons, inputs, select fields */
+.graph-control-card button,
+.graph-control-card input,
+.graph-control-card select,
+.graph-control-card .ctrl-btn,
+.graph-control-card .ctrl-pill,
+.graph-control-card .ctrl-btn-full {
+  text-align: center !important;
+  justify-content: center !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  transition: all 0.2s ease-in-out !important;
+}
+
+.graph-control-card button:hover,
+.graph-control-card .ctrl-btn:hover,
+.graph-control-card .ctrl-pill:hover,
+.graph-control-card .ctrl-btn-full:hover {
+  transform: translateY(-0.5px);
+  filter: brightness(1.1);
+}
+
+.graph-control-card input {
+  text-align: center !important;
+}
+
+.graph-control-card input::placeholder {
+  text-align: center !important;
+}
+
+
+
+/* ============================================================
+   TOUCH DEVICE COMPATIBILITY
+   On touch-only devices (tablets, phones), hover-only
+   interactions become tap-only. This ensures critical
+   action buttons are always visible, not hidden behind hover.
+   ============================================================ */
+@media (hover: none) and (pointer: coarse) {
+  /* Always show hover-only buttons on touch devices */
+  .opacity-0.group-hover\:opacity-100 {
+    opacity: 1 !important;
+  }
+
+  /* Show hover-only backgrounds on touch devices */
+  .bg-transparent.group-hover\:bg-monokai-surface {
+    background-color: rgba(30, 31, 28, 0.95) !important;
+  }
+}
+
+/* ============================================================
+   GRADIENT TECH THEME - Animation Keyframes
+   Modern gradient tech design system animations
+   ============================================================ */
+
+/* Pulse animation for status indicators */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(0.95);
+  }
+}
+
+/* Glow pulse for active states */
+@keyframes glow-pulse {
+  0%, 100% {
+    opacity: 0.3;
+    filter: blur(8px);
+  }
+  50% {
+    opacity: 0.5;
+    filter: blur(12px);
+  }
+}
+
+/* Subtle float animation for decorative elements */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+/* Gradient shift animation */
+@keyframes gradient-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* Shine sweep effect for buttons */
+@keyframes shine {
+  0% {
+    left: -100%;
+    opacity: 0;
+  }
+  50% {
+    opacity: 0.3;
+  }
+  100% {
+    left: 200%;
+    opacity: 0;
+  }
+}
+
+/* Scale in animation */
+@keyframes scale-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Fade in from below */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Modern Focus Ring */
+@keyframes focus-ring-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.5);
+  }
+}
+
+/* Status dot glow */
+@keyframes status-glow {
+  0%, 100% {
+    box-shadow: 0 0 6px currentColor;
+  }
+  50% {
+    box-shadow: 0 0 12px currentColor, 0 0 4px currentColor;
+  }
+}
+
+/* ============================================================
+   MODERN ANIMATION UTILITIES
+   ============================================================ */
+
+/* Animation utility classes */
+.animate-pulse-slow {
+  animation: pulse 3s ease-in-out infinite;
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+.animate-gradient-shift {
+  animation: gradient-shift 8s ease infinite;
+  background-size: 200% 200%;
+}
+
+.animate-scale-in {
+  animation: scale-in 0.2s ease-out forwards;
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.3s ease-out forwards;
+}
+
+.animate-focus-ring {
+  animation: focus-ring-pulse 2s ease-in-out infinite;
+}
+
+/* Shine effect for buttons */
+.animate-shine::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.1),
+    transparent
+  );
+  animation: shine 3s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* Status indicator with glow */
+.status-indicator-glow {
+  position: relative;
+}
+
+.status-indicator-glow::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  opacity: 0.5;
+  animation: glow-pulse 2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* Glass morphism effect */
+.glass {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.glass-dark {
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Gradient border effect */
+.gradient-border {
+  position: relative;
+}
+
+.gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  padding: 1px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, #10b981, #8b5cf6, #f43f5e);
+  background-size: 200% 200%;
+  animation: gradient-shift 4s ease infinite;
+  -webkit-mask: 
+    linear-gradient(#fff 0 0) content-box, 
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+/* Modern button press effect */
+.btn-press {
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.btn-press:active {
+  transform: scale(0.97);
+}
+
+/* Smooth hover transitions for interactive elements */
+.transition-modern {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Canvas relation link particle flowing animation */
+.animate-dash-flow {
+  animation: dash 0.8s linear infinite;
+}
+
+
+/* Responsive SQL workbench: side panels become temporary overlays on compact screens. */
+@media (max-width: 767px) {
+  .sql-workbench-left,
+  .sql-workbench-right {
+    position: absolute !important;
+    top: 0;
+    bottom: 0;
+    z-index: 80;
+    width: min(88vw, 340px) !important;
+    box-shadow: var(--shadow-lg);
+  }
+
+  .sql-workbench-left { left: 0; }
+  .sql-workbench-right { right: 0; }
+}
+/* Compact top bar: two independently scrollable rows with viewport-bound menus. */
+@media (max-width: 767px) {
+  .studio-topbar {
+    height: auto !important;
+    min-height: 82px;
+    flex-direction: column;
+    align-items: stretch !important;
+    justify-content: center !important;
+    gap: 2px;
+    padding: 4px 8px !important;
+  }
+
+  .studio-topbar-primary,
+  .studio-topbar-tools {
+    width: 100%;
+    min-width: 0;
+    flex: 0 0 auto !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    scrollbar-width: none;
+  }
+
+  .studio-topbar-tools {
+    margin-left: 0 !important;
+    padding-bottom: 2px;
+  }
+
+  .studio-topbar-primary::-webkit-scrollbar,
+  .studio-topbar-tools::-webkit-scrollbar { display: none; }
+
+  .studio-domain-menu,
+  .studio-topbar-popover {
+    position: fixed !important;
+    top: 82px !important;
+    left: 12px !important;
+    right: 12px !important;
+    width: auto !important;
+    max-height: 60dvh;
+    overflow-y: auto;
+  }
+}
+/* Analysis surfaces: preserve the desktop split while making both work areas reachable on phones. */
+@media (max-width: 767px) {
+  .metric-manager {
+    flex-direction: column;
+    overflow-y: auto !important;
+  }
+
+  .metric-builder-sidebar {
+    width: 100% !important;
+    min-height: 500px;
+    max-height: 68dvh;
+    border-right: 0 !important;
+    border-bottom: 1px solid var(--border-default);
+  }
+
+  .metric-workspace {
+    width: 100%;
+    min-height: 420px;
+    flex: 0 0 auto !important;
+  }
+
+  [role="dialog"] {
+    padding: 8px !important;
+  }
+
+  [role="dialog"] > :first-child {
+    max-height: calc(100dvh - 16px) !important;
+    border-radius: 8px !important;
+  }
+}
+@media (max-width: 767px) {
+  .audit-export-menu {
+    position: fixed !important;
+    top: 132px !important;
+    left: 12px !important;
+    right: 12px !important;
+    width: auto !important;
+  }
+}
+/* Knowledge and AI workbenches: stack fixed desktop columns on compact screens. */
+@media (max-width: 767px) {
+  .library-workbench,
+  .learn-workbench,
+  .skill-browser {
+    flex-direction: column;
+    overflow-y: auto !important;
+  }
+
+  .library-navigation,
+  .learn-navigation,
+  .skill-catalog {
+    width: 100% !important;
+    min-height: 220px;
+    max-height: 38dvh;
+    border-right: 0 !important;
+    border-bottom: 1px solid var(--border-default);
+  }
+
+  .library-content,
+  .skill-output {
+    width: 100%;
+    min-height: 420px;
+    flex: 0 0 auto !important;
+  }
+
+  .library-help-panel {
+    position: fixed;
+    top: 82px;
+    right: 0;
+    bottom: 0;
+    z-index: 70;
+    width: min(88vw, 320px) !important;
+    box-shadow: var(--shadow-lg);
+  }
+
+  .skill-parameters {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    min-height: 440px;
+    flex: 0 0 auto !important;
+  }
+
+  .preset-template-modal { height: calc(100dvh - 16px) !important; }
+  .preset-template-body { flex-direction: column; overflow-y: auto !important; }
+  .preset-template-sidebar {
+    width: 100% !important;
+    min-height: 230px;
+    max-height: 42%;
+    border-right: 0 !important;
+    border-bottom: 1px solid var(--border-default);
+  }
+}
+@media (max-width: 767px) {
+  .ontology-right-panel {
+    position: absolute !important;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40 !important;
+    width: min(88vw, 360px) !important;
+    box-shadow: var(--shadow-lg);
+  }
+
+  .ontology-right-resizer { display: none !important; }
 }

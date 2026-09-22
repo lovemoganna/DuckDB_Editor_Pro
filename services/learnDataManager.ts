@@ -1,9 +1,9 @@
 // Learn Data Manager Service
 // 统一管理 Learn 模块的所有数据导出、导入和备份
 
-import { getAllNotes, Note, exportNotes as exportNotesJson, importNotes as importNotesJson } from './learnNotesStorage';
-import { getAllFavorites, Favorite } from './favoritesStorage';
-import { getAllSnippets, CodeSnippet } from './codeSnippetsStorage';
+import { getAllNotes, Note, exportNotes as exportNotesJson, importNotes as importNotesJson, importNotes, deleteNote } from './learnNotesStorage';
+import { getAllFavorites, Favorite, addFavorite, removeFavorite } from './favoritesStorage';
+import { getAllSnippets, CodeSnippet, saveSnippet, deleteSnippet } from './codeSnippetsStorage';
 
 // 数据类型定义
 export interface LearnDataExport {
@@ -186,7 +186,6 @@ export const importData = async (
 
     // 合并或替换笔记
     if (importData.data.notes) {
-      const { importNotes } = await import('./learnNotesStorage');
       if (mode === 'replace') {
         // 删除现有笔记后导入
         // 需要逐个删除...
@@ -200,7 +199,6 @@ export const importData = async (
 
     // 合并或替换收藏
     if (importData.data.favorites) {
-      const { addFavorite } = await import('./favoritesStorage');
       if (mode === 'merge') {
         // 检查是否已存在
         const existing = await getAllFavorites();
@@ -221,7 +219,6 @@ export const importData = async (
 
     // 合并或替换代码片段
     if (importData.data.codeSnippets) {
-      const { saveSnippet } = await import('./codeSnippetsStorage');
       if (mode === 'merge') {
         const existing = await getAllSnippets();
         const existingCodes = new Set(existing.map(s => s.code.trim()));
@@ -359,23 +356,19 @@ export const clearAllData = async (): Promise<{
 
     // IndexedDB 数据需要逐个清除
     // 笔记
-    const { getAllNotes: getNotes } = await import('./learnNotesStorage');
-    const notes = await getNotes();
-    const { deleteNote } = await import('./learnNotesStorage');
+    const notes = await getAllNotes();
     for (const note of notes) {
       await deleteNote(note.id);
     }
 
     // 收藏
     const favorites = await getAllFavorites();
-    const { removeFavorite } = await import('./favoritesStorage');
     for (const fav of favorites) {
       await removeFavorite(fav.id);
     }
 
     // 代码片段
     const snippets = await getAllSnippets();
-    const { deleteSnippet } = await import('./codeSnippetsStorage');
     for (const snippet of snippets) {
       await deleteSnippet(snippet.id);
     }

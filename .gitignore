@@ -32,6 +32,24 @@ dist-ssr
 
 # Temporary files
 tmp/
+backup-*/
+output/
+_patch_*
+verification-*.png
+scratch/
+artifacts/
+test-output.js
+interaction-audit.json
+
+# QA / debug screenshots dumped into public/ (keep brand assets)
+/public/*.png
+/public/import_audit/
+/public/lesson_snaps/
+/public/switch_test/
+
+# DuckDB WASM is bundled from @duckdb/duckdb-wasm; do not duplicate it in public/.
+public/wasm/
+public/duckdb-wasm/
 
 # Environment variables
 .env
@@ -39,4 +57,11 @@ tmp/
 .env.*.local
 
 # Package lock (use pnpm-lock.yaml or yarn.lock instead)
-package-lock.json
+# package-lock.json
+# package-lock.json should be committed for applications to ensure deterministic builds
+
+# DuckDB database files
+*.db
+*.duckdb
+*.wal
+.gstack/

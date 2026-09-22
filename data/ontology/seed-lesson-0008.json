@@ -1,0 +1,136 @@
+{
+  "_meta": {
+    "name": "第 08 课：组装一个最小本体模型",
+    "description": "合并已验证的对象、过程、角色、状态和关系，消除冗余，构建最小可行自洽模型",
+    "case_background": "【案例背景材料】VIP 客户 Alice 在商城下单购买人体工学椅 ErgoX，系统派发顺丰特快运单 SF-9920 进行物流履约，形成闭环。",
+    "core_concept": "Minimal Viable Enterprise Ontology (MVO)",
+    "version": "1.0.0",
+    "author": "system",
+    "created_at": "2026-07-25",
+    "scenario": "lesson-0008",
+    "complexity": "medium"
+  },
+  "objectTypes": [
+    {
+      "id": 1,
+      "name": "商业要素",
+      "description": "客户主体、商品资产与物流履约单据"
+    },
+    {
+      "id": 2,
+      "name": "流转阶段",
+      "description": "交易达成、仓储就绪与签收交付终态"
+    }
+  ],
+  "objects": [
+    {
+      "id": 1,
+      "object_type_id": 1,
+      "name": "客户·Alice",
+      "properties": "{\"会员级别\":\"VIP金卡\",\"信用分\":850,\"常住城市\":\"北京\"}",
+      "annotations": "消费者主体"
+    },
+    {
+      "id": 2,
+      "object_type_id": 1,
+      "name": "工学椅·ErgoX",
+      "properties": "{\"SKU\":\"CHAIR-ERG-01\",\"售价\":\"￥2,499\",\"产地\":\"顺义仓\"}",
+      "annotations": "核心售卖商品"
+    },
+    {
+      "id": 3,
+      "object_type_id": 2,
+      "name": "商城下单",
+      "properties": "{\"交易流水\":\"ORD-ECOM-8821\",\"付款\":\"在线全额\",\"时间\":\"14:20\"}",
+      "annotations": "核心交易过程"
+    },
+    {
+      "id": 4,
+      "object_type_id": 2,
+      "name": "待出库状态",
+      "properties": "{\"仓储指令\":\"WMS-PICK-OK\",\"波次\":\"B-2026\",\"时限\":\"当日发\"}",
+      "annotations": "就绪流转状态"
+    },
+    {
+      "id": 5,
+      "object_type_id": 1,
+      "name": "顺丰运单",
+      "properties": "{\"运单号\":\"SF-9920-8801\",\"服务类型\":\"顺丰特快\",\"送达\":\"次日上午\"}",
+      "annotations": "履约物流实体"
+    },
+    {
+      "id": 6,
+      "object_type_id": 2,
+      "name": "客户已签收",
+      "properties": "{\"签收时间\":\"次日 10:15\",\"签收人\":\"本人面签\",\"状态\":\"交易闭环\"}",
+      "annotations": "交付完成终态"
+    }
+  ],
+  "linkTypes": [
+    {
+      "id": 1,
+      "name": "提交订单",
+      "description": "客户提交商城采购订单"
+    },
+    {
+      "id": 2,
+      "name": "包含商品",
+      "description": "下单过程包含具体选购商品"
+    },
+    {
+      "id": 3,
+      "name": "生成状态",
+      "description": "交易达成生成仓储待出库状态"
+    },
+    {
+      "id": 4,
+      "name": "派生物流",
+      "description": "出库指令派生物流特快运单"
+    },
+    {
+      "id": 5,
+      "name": "终端闭环",
+      "description": "物流终端派送达成客户签收终态"
+    }
+  ],
+  "links": [
+    {
+      "id": 1,
+      "link_type_id": 1,
+      "source_object_id": 1,
+      "target_object_id": 3,
+      "weight": 1
+    },
+    {
+      "id": 2,
+      "link_type_id": 2,
+      "source_object_id": 2,
+      "target_object_id": 3,
+      "weight": 1
+    },
+    {
+      "id": 3,
+      "link_type_id": 3,
+      "source_object_id": 3,
+      "target_object_id": 4,
+      "weight": 1
+    },
+    {
+      "id": 4,
+      "link_type_id": 4,
+      "source_object_id": 4,
+      "target_object_id": 5,
+      "weight": 1
+    },
+    {
+      "id": 5,
+      "link_type_id": 5,
+      "source_object_id": 5,
+      "target_object_id": 6,
+      "weight": 1
+    }
+  ],
+  "actions": [],
+  "introspections": [],
+  "insights": []
+}

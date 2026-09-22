@@ -1,0 +1,113 @@
+{
+  "_meta": {
+    "name": "我的人生 v2.0",
+    "description": "扩展版个人生活知识图谱 — 基于现有种子数据的自然延伸，测试日常真实场景下的图谱稳定性",
+    "version": "1.0.0",
+    "author": "system",
+    "created_at": "2025-05-06",
+    "scenario": "personal-life",
+    "complexity": "medium",
+    "entity_counts": {
+      "object_types": 5,
+      "objects": 18,
+      "link_types": 7,
+      "links": 28,
+      "actions": 5,
+      "introspections": 4,
+      "insights": 5
+    }
+  },
+
+  "objectTypes": [
+    { "id": 1, "name": "Aspect",     "description": "生活维度" },
+    { "id": 2, "name": "Person",    "description": "人物" },
+    { "id": 3, "name": "Goal",      "description": "目标" },
+    { "id": 4, "name": "Project",   "description": "项目" },
+    { "id": 5, "name": "Habit",      "description": "习惯" }
+  ],
+
+  "objects": [
+    { "id": 1,  "object_type_id": 1, "name": "心态",      "properties": "{\"state\": \"焦虑\", \"goal\": \"内心平静\", \"triggers\": [\"deadline\", \"conflict\"]}",    "annotations": "核心维度，其他所有维度都受其影响" },
+    { "id": 2,  "object_type_id": 1, "name": "工作",      "properties": "{\"role\": \"全栈工程师\", \"level\": \"senior\", \"satisfaction\": 6, \"hours_per_week\": 50}", "annotations": "主要收入来源，占据大部分清醒时间" },
+    { "id": 3,  "object_type_id": 1, "name": "家庭",      "properties": "{\"priority\": \"最高\", \"members\": 4, \"location\": \"同城\"}",                               "annotations": "" },
+    { "id": 4,  "object_type_id": 1, "name": "身体",      "properties": "{\"state\": \"亚健康\", \"bmi\": 23.5, \"exercise_freq\": \"每周1次\"}",                   "annotations": "" },
+    { "id": 5,  "object_type_id": 1, "name": "财务",      "properties": "{\"monthly_income\": 35000, \"monthly_expense\": 22000, \"savings_rate\": 0.37}",     "annotations": "" },
+    { "id": 6,  "object_type_id": 2, "name": "配偶小美",  "properties": "{\"relationship\": \"伴侣\", \"emotional_anchor\": true, \"love_language\": \"陪伴\"}",  "annotations": "" },
+    { "id": 7,  "object_type_id": 2, "name": "父亲",      "properties": "{\"relationship\": \"父子\", \"health\": \"慢性病稳定\", \"contact_freq\": \"每周\"}",    "annotations": "" },
+    { "id": 8,  "object_type_id": 2, "name": "母亲",      "properties": "{\"relationship\": \"母子\", \"health\": \"良好\", \"contact_freq\": \"每周\"}",           "annotations": "" },
+    { "id": 9,  "object_type_id": 2, "name": "老友老李",  "properties": "{\"relationship\": \"挚友\", \"known_since\": 2012, \"contact_freq\": \"每月\"}",        "annotations": "" },
+    { "id": 10, "object_type_id": 2, "name": "mentor张总","properties": "{\"relationship\": \"职业导师\", \"industry\": \"互联网\", \"contact_freq\": \"季度\"}",     "annotations": "" },
+    { "id": 11, "object_type_id": 3, "name": "副业变现",   "properties": "{\"deadline\": \"2025-12-31\", \"progress\": 20, \"revenue_target\": 5000}",         "annotations": "" },
+    { "id": 12, "object_type_id": 3, "name": "读完50本书","properties": "{\"deadline\": \"2025-12-31\", \"progress\": 38, \"categories\": [\"产品\", \"技术\"]}",   "annotations": "" },
+    { "id": 13, "object_type_id": 3, "name": "跑完半马",   "properties": "{\"deadline\": \"2025-06-01\", \"progress\": 60, \"target_time\": \"2h30m\"}",        "annotations": "" },
+    { "id": 14, "object_type_id": 3, "name": "掌握日语N3", "properties": "{\"deadline\": \"2025-12-31\", \"progress\": 45, \"study_method\": \"多邻国\"}",      "annotations": "" },
+    { "id": 15, "object_type_id": 4, "name": "重构核心模块","properties": "{\"status\": \"in_progress\", \"team_size\": 3, \"tech_debt_hours\": 80}",         "annotations": "" },
+    { "id": 16, "object_type_id": 4, "name": "招聘两名后端","properties": "{\"status\": \"pending\", \"urgency\": \"high\", \"interviews_conducted\": 0}",       "annotations": "" },
+    { "id": 17, "object_type_id": 5, "name": "每日冥想",   "properties": "{\"frequency\": \"daily\", \"duration_minutes\": 10, \"streak\": 14}",               "annotations": "" },
+    { "id": 18, "object_type_id": 5, "name": "每周跑步",   "properties": "{\"frequency\": \"weekly\", \"target_km\": 15, \"current_streak\": 3}",             "annotations": "" }
+  ],
+
+  "linkTypes": [
+    { "id": 1, "name": "影响",     "description": "A 作用于 B，强度可量化" },
+    { "id": 2, "name": "养活",     "description": "A 为 B 提供物质基础" },
+    { "id": 3, "name": "锚定",     "description": "A 为 B 提供精神支撑" },
+    { "id": 4, "name": "支撑",     "description": "A 为 B 提供基础条件" },
+    { "id": 5, "name": "依恋",     "description": "A 深度依赖 B" },
+    { "id": 6, "name": "协助",     "description": "A 帮助 B 完成任务" },
+    { "id": 7, "name": "推进",     "description": "A 是 B 的前置依赖" }
+  ],
+
+  "links": [
+    { "id": 1,  "link_type_id": 1, "source_object_id": 1,  "target_object_id": 2,  "weight": 0.90 },
+    { "id": 2,  "link_type_id": 2, "source_object_id": 2,  "target_object_id": 3,  "weight": 1.00 },
+    { "id": 3,  "link_type_id": 2, "source_object_id": 2,  "target_object_id": 5,  "weight": 1.00 },
+    { "id": 4,  "link_type_id": 3, "source_object_id": 3,  "target_object_id": 1,  "weight": 0.80 },
+    { "id": 5,  "link_type_id": 4, "source_object_id": 4,  "target_object_id": 1,  "weight": 0.70 },
+    { "id": 6,  "link_type_id": 4, "source_object_id": 4,  "target_object_id": 2,  "weight": 0.60 },
+    { "id": 7,  "link_type_id": 3, "source_object_id": 6,  "target_object_id": 1,  "weight": 0.95 },
+    { "id": 8,  "link_type_id": 3, "source_object_id": 7,  "target_object_id": 1,  "weight": 0.85 },
+    { "id": 9,  "link_type_id": 3, "source_object_id": 8,  "target_object_id": 1,  "weight": 0.90 },
+    { "id": 10, "link_type_id": 5, "source_object_id": 1,  "target_object_id": 6,  "weight": 0.75 },
+    { "id": 11, "link_type_id": 3, "source_object_id": 9,  "target_object_id": 1,  "weight": 0.65 },
+    { "id": 12, "link_type_id": 6, "source_object_id": 10, "target_object_id": 2,  "weight": 0.50 },
+    { "id": 13, "link_type_id": 1, "source_object_id": 2,  "target_object_id": 15, "weight": 0.95 },
+    { "id": 14, "link_type_id": 7, "source_object_id": 15, "target_object_id": 16, "weight": 0.70 },
+    { "id": 15, "link_type_id": 4, "source_object_id": 4,  "target_object_id": 13, "weight": 0.90 },
+    { "id": 16, "link_type_id": 4, "source_object_id": 5,  "target_object_id": 11, "weight": 0.60 },
+    { "id": 17, "link_type_id": 2, "source_object_id": 2,  "target_object_id": 11, "weight": 0.80 },
+    { "id": 18, "link_type_id": 1, "source_object_id": 1,  "target_object_id": 12, "weight": 0.50 },
+    { "id": 19, "link_type_id": 1, "source_object_id": 1,  "target_object_id": 13, "weight": 0.40 },
+    { "id": 20, "link_type_id": 1, "source_object_id": 1,  "target_object_id": 14, "weight": 0.45 },
+    { "id": 21, "link_type_id": 4, "source_object_id": 17, "target_object_id": 1,  "weight": 0.80 },
+    { "id": 22, "link_type_id": 4, "source_object_id": 18, "target_object_id": 4,  "weight": 0.85 },
+    { "id": 23, "link_type_id": 3, "source_object_id": 6,  "target_object_id": 3,  "weight": 0.95 },
+    { "id": 24, "link_type_id": 3, "source_object_id": 8,  "target_object_id": 3,  "weight": 0.90 },
+    { "id": 25, "link_type_id": 2, "source_object_id": 5,  "target_object_id": 3,  "weight": 0.70 },
+    { "id": 26, "link_type_id": 1, "source_object_id": 15, "target_object_id": 2,  "weight": 0.60 },
+    { "id": 27, "link_type_id": 4, "source_object_id": 12, "target_object_id": 2,  "weight": 0.30 },
+    { "id": 28, "link_type_id": 1, "source_object_id": 1,  "target_object_id": 18, "weight": 0.35 }
+  ],
+
+  "actions": [
+    { "id": 1, "object_id": 4,  "name": "早睡早起",        "description": "调整作息到22:30-06:30",                                          "status": "pending", "execute_at": "2025-05-15" },
+    { "id": 2, "object_id": 11, "name": "搭建 MVP",        "description": "完成副业项目第一个可演示版本，上线验证需求",                         "status": "in_progress", "execute_at": "2025-06-01" },
+    { "id": 3, "object_id": 13, "name": "月跑量80公里",    "description": "本月跑步总里程目标，平均每周20公里",                              "status": "pending", "execute_at": "2025-05-31" },
+    { "id": 4, "object_id": 16, "name": "安排首轮面试",    "description": "筛选简历并安排2名候选人的技术面试",                               "status": "pending", "execute_at": "2025-05-10" },
+    { "id": 5, "object_id": 17, "name": "连续冥想30天",    "description": "建立冥想习惯，达到30天连续记录",                                 "status": "pending", "execute_at": "2025-06-05" }
+  ],
+
+  "introspections": [
+    { "id": 1, "object_id": 1,  "question": "为什么最近总是焦虑？",          "answer": "因为工作沟通不顺畅，加上副业压力，把情绪带到了生活中。", "created_at": "2025-04-28" },
+    { "id": 2, "object_id": 2,  "question": "工作对我意味着什么？",          "answer": "既是收入来源，也是自我价值实现的途径，但不是唯一来源。",  "created_at": "2025-04-28" },
+    { "id": 3, "object_id": 11, "question": "副业真正想要的是什么？",         "answer": "不是为了钱，而是想验证自己能否独立做产品，积累非打工经验。","created_at": "2025-05-02" },
+    { "id": 4, "object_id": 6,  "question": "和小美在一起最珍贵的是什么？",   "answer": "无条件的接纳和陪伴，在她面前可以做真实的自己。",           "created_at": "2025-05-03" }
+  ],
+
+  "insights": [
+    { "id": 1, "object_id": 2,  "insight": "沟通是工程师最大的软技能壁垒",                      "tag": "职场真相",    "created_at": "2025-04-20" },
+    { "id": 2, "object_id": 6,  "insight": "家庭是情绪的稳定器，再忙也要留时间",                "tag": "家庭优先级",  "created_at": "2025-04-25" },
+    { "id": 3, "object_id": 9,  "insight": "老友不需要常常联系，但关键时刻一定在",               "tag": "友情",        "created_at": "2025-04-30" },
+    { "id": 4, "object_id": 11, "insight": "最小可行产品比完美更重要，先跑通再说",               "tag": "副业",        "created_at": "2025-05-01" },
+    { "id": 5, "object_id": 17, "insight": "冥想不需要很长时间，10分钟坚持比偶尔30分钟有效",     "tag": "习惯",        "created_at": "2025-05-04" }
+  ]
+}

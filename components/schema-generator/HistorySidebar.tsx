@@ -1,4 +1,5 @@
 import React from 'react';
+import { FolderOpen, X, Trash2, Database, Table2, Clock, Play } from 'lucide-react';
 import { SavedAnalysis } from '../../types';
 
 interface HistorySidebarProps {
@@ -25,69 +26,76 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex">
-      <div className="ml-auto w-96 bg-white h-full shadow-xl overflow-y-auto">
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-          <h3 className="text-lg font-bold text-gray-900">📂 分析历史</h3>
+    <div className="fixed inset-0 bg-black/50 z-50 flex backdrop-blur-xs animate-in fade-in duration-200">
+      <div className="ml-auto w-96 max-w-full bg-monokai-sidebar h-full shadow-2xl overflow-y-auto border-l border-monokai-border flex flex-col custom-scrollbar">
+        <div className="sticky top-0 bg-monokai-sidebar border-b border-monokai-border px-4 py-3.5 flex items-center justify-between z-10 shrink-0">
+          <h3 className="text-sm font-bold text-monokai-fg flex items-center gap-2">
+            <FolderOpen className="w-4 h-4 text-monokai-yellow" />
+            <span>分析历史</span>
+            <span className="text-[10px] text-monokai-comment font-mono ml-1">({history.length})</span>
+          </h3>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-monokai-comment hover:text-monokai-fg transition-colors p-1 rounded-md hover:bg-monokai-surface"
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <X className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="p-6">
+        <div className="p-4 flex-1 bg-monokai-bg">
           {history.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="text-6xl mb-4">📭</div>
-              <p className="text-gray-500">暂无分析历史</p>
+            <div className="flex flex-col items-center justify-center h-full text-center text-monokai-comment py-12">
+              <div className="w-12 h-12 rounded-full bg-monokai-surface flex items-center justify-center mb-3 border border-monokai-border">
+                <FolderOpen className="w-6 h-6 text-monokai-comment/60" />
+              </div>
+              <p className="text-xs font-medium text-monokai-fg">暂无分析历史</p>
+              <p className="text-[10px] mt-1 text-monokai-comment">完成 Schema 分析后将在此处保存历史</p>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {history.map((analysis) => (
-                <div key={analysis.id} className="bg-gray-50 rounded-lg p-4">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1">
-                      <h4 className="font-bold text-gray-900 truncate">{analysis.fileName}</h4>
-                      <p className="text-sm text-gray-500 mt-1">
-                        {formatDate(analysis.timestamp)}
+                <div key={analysis.id} className="bg-monokai-surface rounded-xl p-3.5 border border-monokai-border hover:border-monokai-accent/60 transition-all shadow-xs group">
+                  <div className="flex items-start justify-between gap-2 mb-2.5">
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-xs font-mono font-bold text-monokai-fg truncate group-hover:text-monokai-accent transition-colors">{analysis.fileName}</h4>
+                      <p className="text-[10px] text-monokai-comment mt-0.5 flex items-center gap-1 font-mono">
+                        <Clock className="w-3 h-3" />
+                        <span>{formatDate(analysis.timestamp)}</span>
                       </p>
                     </div>
                     <button
                       onClick={() => onDeleteAnalysis(analysis.id)}
-                      className="text-red-500 hover:text-red-700 transition-colors ml-2"
+                      className="text-monokai-comment hover:text-monokai-pink p-1 rounded hover:bg-monokai-bg transition-colors opacity-0 group-hover:opacity-100 cursor-pointer"
+                      title="删除分析记录"
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
+                  <div className="grid grid-cols-2 gap-2 mb-3 text-xs bg-monokai-bg/60 p-2 rounded-lg border border-monokai-border/60 font-mono">
                     <div>
-                      <span className="text-gray-500">数据行数:</span>
-                      <span className="font-medium ml-1">{analysis.summary.rowCount.toLocaleString()}</span>
+                      <span className="text-[10px] text-monokai-comment block">数据行数</span>
+                      <span className="font-medium text-monokai-fg">{analysis.summary.rowCount.toLocaleString()}</span>
                     </div>
                     <div>
-                      <span className="text-gray-500">列数:</span>
-                      <span className="font-medium ml-1">{analysis.summary.columnCount}</span>
+                      <span className="text-[10px] text-monokai-comment block">字段列数</span>
+                      <span className="font-medium text-monokai-fg">{analysis.summary.columnCount}</span>
                     </div>
                   </div>
 
-                  <div className="mb-4">
-                    <span className="text-gray-500 text-sm">表名:</span>
-                    <span className="font-medium ml-1">{analysis.summary.tableName}</span>
+                  <div className="mb-3 flex items-center gap-1.5 text-xs">
+                    <Table2 className="w-3 h-3 text-monokai-comment shrink-0" />
+                    <span className="text-[11px] text-monokai-comment">表名:</span>
+                    <span className="font-mono font-medium text-monokai-fg truncate">{analysis.summary.tableName}</span>
                   </div>
 
                   <div className="flex gap-2">
                     <button
                       onClick={() => onLoadAnalysis(analysis)}
-                      className="flex-1 bg-black text-white px-3 py-2 rounded text-sm hover:bg-gray-800 transition-colors"
+                      className="flex-1 bg-monokai-accent text-monokai-bg hover:bg-monokai-accent-hover py-1.5 px-3 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
                     >
-                      加载分析
+                      <Play className="w-3 h-3" />
+                      <span>加载分析</span>
                     </button>
                   </div>
                 </div>

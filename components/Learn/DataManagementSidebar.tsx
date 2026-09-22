@@ -1,5 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import {
+  Database,
+  X,
+  BarChart2,
+  Download,
+  Upload,
+  Clock,
+  AlertTriangle,
+  Trash2,
+} from 'lucide-react';
+import {
   getDataStats,
   exportAllData,
   exportSelectedData,
@@ -207,29 +217,29 @@ export const DataManagementSidebar: React.FC<DataManagementSidebarProps> = ({
       {/* 遮罩层 */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/30 z-40"
+          className="fixed inset-0 bg-black/50 z-40 backdrop-blur-xs"
           onClick={onClose}
         />
       )}
 
-      <div className={`fixed inset-y-0 right-0 w-[480px] bg-[#21222c] border-l border-monokai-accent/30 shadow-2xl z-50 flex flex-col transform transition-transform duration-300 ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+      <div data-learn-sidebar role="dialog" aria-modal="true" aria-label="教程辅助侧栏" className={`fixed inset-y-0 right-0 w-[480px] max-w-full bg-monokai-sidebar border-l border-monokai-border shadow-2xl z-50 flex flex-col transform transition-transform duration-300 ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}>
         {/* 头部 */}
-        <div className="flex items-center justify-between p-4 border-b border-monokai-accent/30 bg-[#282a36]/50">
+        <div className="flex items-center justify-between p-4 border-b border-monokai-border bg-monokai-sidebar shrink-0">
           <h3 className="text-sm font-bold text-monokai-fg flex items-center gap-2">
-            <span className="i-lucide-database w-4 h-4 text-monokai-green" />
-            数据管理
+            <Database className="w-4 h-4 text-monokai-green" />
+            <span>数据管理与备份</span>
           </h3>
           <button
             onClick={onClose}
-            className="text-monokai-comment hover:text-monokai-fg transition-colors p-1 rounded hover:bg-monokai-accent/20"
+            className="text-monokai-comment hover:text-monokai-fg transition-colors p-1 rounded-md hover:bg-monokai-surface"
           >
-            <span className="i-lucide-x w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* 消息提示 */}
         {message && (
-          <div className={`mx-4 mt-3 p-3 rounded-lg text-sm ${
+          <div className={`mx-4 mt-3 p-3 rounded-lg text-xs font-mono ${
             message.type === 'success'
               ? 'bg-monokai-green/10 border border-monokai-green/30 text-monokai-green'
               : 'bg-monokai-pink/10 border border-monokai-pink/30 text-monokai-pink'
@@ -239,28 +249,28 @@ export const DataManagementSidebar: React.FC<DataManagementSidebarProps> = ({
         )}
 
         {/* 内容区域 */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto p-4 space-y-5 custom-scrollbar bg-monokai-bg">
           {/* 数据统计 */}
           <div>
-            <h4 className="text-xs font-bold text-monokai-comment uppercase tracking-wider mb-3 flex items-center gap-2">
-              <span className="i-lucide-bar-chart-2 w-4 h-4" />
-              数据统计
+            <h4 className="text-xs font-bold text-monokai-comment uppercase tracking-wider mb-2.5 flex items-center gap-2 font-mono">
+              <BarChart2 className="w-3.5 h-3.5 text-monokai-yellow" />
+              <span>数据统计</span>
             </h4>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="bg-monokai-bg/50 rounded-lg p-3 border border-monokai-accent/30">
-                <div className="text-xl font-bold text-monokai-blue">{stats?.progressCount || 0}</div>
+            <div className="grid grid-cols-2 gap-2.5">
+              <div className="bg-monokai-surface rounded-lg p-3 border border-monokai-border">
+                <div className="text-lg font-bold font-mono text-monokai-blue">{stats?.progressCount || 0}</div>
                 <div className="text-xs text-monokai-comment">学习进度</div>
               </div>
-              <div className="bg-monokai-bg/50 rounded-lg p-3 border border-monokai-accent/30">
-                <div className="text-xl font-bold text-monokai-yellow">{stats?.notesCount || 0}</div>
+              <div className="bg-monokai-surface rounded-lg p-3 border border-monokai-border">
+                <div className="text-lg font-bold font-mono text-monokai-yellow">{stats?.notesCount || 0}</div>
                 <div className="text-xs text-monokai-comment">学习笔记</div>
               </div>
-              <div className="bg-monokai-bg/50 rounded-lg p-3 border border-monokai-accent/30">
-                <div className="text-xl font-bold text-monokai-pink">{stats?.favoritesCount || 0}</div>
+              <div className="bg-monokai-surface rounded-lg p-3 border border-monokai-border">
+                <div className="text-lg font-bold font-mono text-monokai-pink">{stats?.favoritesCount || 0}</div>
                 <div className="text-xs text-monokai-comment">收藏教程</div>
               </div>
-              <div className="bg-monokai-bg/50 rounded-lg p-3 border border-monokai-accent/30">
-                <div className="text-xl font-bold text-monokai-purple">{stats?.codeSnippetsCount || 0}</div>
+              <div className="bg-monokai-surface rounded-lg p-3 border border-monokai-border">
+                <div className="text-lg font-bold font-mono text-monokai-amethyst">{stats?.codeSnippetsCount || 0}</div>
                 <div className="text-xs text-monokai-comment">代码片段</div>
               </div>
             </div>
@@ -268,75 +278,75 @@ export const DataManagementSidebar: React.FC<DataManagementSidebarProps> = ({
 
           {/* 导出功能 */}
           <div>
-            <h4 className="text-xs font-bold text-monokai-comment uppercase tracking-wider mb-3 flex items-center gap-2">
-              <span className="i-lucide-download w-4 h-4" />
-              导出数据
+            <h4 className="text-xs font-bold text-monokai-comment uppercase tracking-wider mb-2.5 flex items-center gap-2 font-mono">
+              <Download className="w-3.5 h-3.5 text-monokai-blue" />
+              <span>导出数据</span>
             </h4>
 
             {/* 一键导出 */}
             <button
               onClick={handleExportAll}
               disabled={isExporting}
-              className="w-full py-3 bg-monokai-blue/20 hover:bg-monokai-blue/30 border border-monokai-blue/30 rounded-lg text-monokai-blue text-sm font-medium transition-colors flex items-center justify-center gap-2 mb-3 disabled:opacity-50"
+              className="w-full py-2.5 bg-monokai-blue/15 hover:bg-monokai-blue/25 border border-monokai-blue/30 rounded-lg text-monokai-blue text-xs font-medium transition-colors flex items-center justify-center gap-2 mb-2.5 disabled:opacity-50"
             >
-              <span className="i-lucide-download w-4 h-4" />
-              {isExporting ? '导出中...' : '一键导出全部数据'}
+              <Download className="w-3.5 h-3.5" />
+              <span>{isExporting ? '导出中...' : '一键导出全部数据'}</span>
             </button>
 
             {/* 选择性导出 */}
-            <div className="bg-monokai-bg/50 rounded-lg p-3 border border-monokai-accent/30">
-              <div className="text-xs text-monokai-comment mb-2">选择性导出：</div>
-              <div className="grid grid-cols-2 gap-2 mb-3">
-                <label className="flex items-center gap-2 text-xs cursor-pointer">
+            <div className="bg-monokai-surface rounded-lg p-3 border border-monokai-border space-y-2.5">
+              <div className="text-xs text-monokai-comment">选择性导出：</div>
+              <div className="grid grid-cols-2 gap-2">
+                <label className="flex items-center gap-2 text-xs cursor-pointer text-monokai-fg">
                   <input
                     type="checkbox"
                     checked={exportOptions.includeProgress}
                     onChange={(e) => setExportOptions(prev => ({ ...prev, includeProgress: e.target.checked }))}
-                    className="rounded border-monokai-accent"
+                    className="rounded border-monokai-border bg-monokai-bg accent-monokai-blue"
                   />
-                  <span className="text-monokai-fg">学习进度</span>
+                  <span>学习进度</span>
                 </label>
-                <label className="flex items-center gap-2 text-xs cursor-pointer">
+                <label className="flex items-center gap-2 text-xs cursor-pointer text-monokai-fg">
                   <input
                     type="checkbox"
                     checked={exportOptions.includeNotes}
                     onChange={(e) => setExportOptions(prev => ({ ...prev, includeNotes: e.target.checked }))}
-                    className="rounded border-monokai-accent"
+                    className="rounded border-monokai-border bg-monokai-bg accent-monokai-blue"
                   />
-                  <span className="text-monokai-fg">学习笔记</span>
+                  <span>学习笔记</span>
                 </label>
-                <label className="flex items-center gap-2 text-xs cursor-pointer">
+                <label className="flex items-center gap-2 text-xs cursor-pointer text-monokai-fg">
                   <input
                     type="checkbox"
                     checked={exportOptions.includeFavorites}
                     onChange={(e) => setExportOptions(prev => ({ ...prev, includeFavorites: e.target.checked }))}
-                    className="rounded border-monokai-accent"
+                    className="rounded border-monokai-border bg-monokai-bg accent-monokai-blue"
                   />
-                  <span className="text-monokai-fg">收藏教程</span>
+                  <span>收藏教程</span>
                 </label>
-                <label className="flex items-center gap-2 text-xs cursor-pointer">
+                <label className="flex items-center gap-2 text-xs cursor-pointer text-monokai-fg">
                   <input
                     type="checkbox"
                     checked={exportOptions.includeCodeSnippets}
                     onChange={(e) => setExportOptions(prev => ({ ...prev, includeCodeSnippets: e.target.checked }))}
-                    className="rounded border-monokai-accent"
+                    className="rounded border-monokai-border bg-monokai-bg accent-monokai-blue"
                   />
-                  <span className="text-monokai-fg">代码片段</span>
+                  <span>代码片段</span>
                 </label>
-                <label className="flex items-center gap-2 text-xs cursor-pointer col-span-2">
+                <label className="flex items-center gap-2 text-xs cursor-pointer text-monokai-fg col-span-2">
                   <input
                     type="checkbox"
                     checked={exportOptions.includeSettings}
                     onChange={(e) => setExportOptions(prev => ({ ...prev, includeSettings: e.target.checked }))}
-                    className="rounded border-monokai-accent"
+                    className="rounded border-monokai-border bg-monokai-bg accent-monokai-blue"
                   />
-                  <span className="text-monokai-fg">个人设置</span>
+                  <span>个人设置</span>
                 </label>
               </div>
               <button
                 onClick={handleExportSelected}
                 disabled={isExporting || (!exportOptions.includeProgress && !exportOptions.includeNotes && !exportOptions.includeFavorites && !exportOptions.includeCodeSnippets && !exportOptions.includeSettings)}
-                className="w-full py-2 bg-monokai-accent/20 hover:bg-monokai-accent/30 border border-monokai-accent/30 rounded-lg text-monokai-fg text-xs font-medium transition-colors disabled:opacity-50"
+                className="w-full py-2 bg-monokai-sidebar hover:bg-monokai-surface border border-monokai-border rounded-md text-monokai-fg text-xs font-medium transition-colors disabled:opacity-50"
               >
                 导出选中数据
               </button>
@@ -345,33 +355,33 @@ export const DataManagementSidebar: React.FC<DataManagementSidebarProps> = ({
 
           {/* 导入功能 */}
           <div>
-            <h4 className="text-xs font-bold text-monokai-comment uppercase tracking-wider mb-3 flex items-center gap-2">
-              <span className="i-lucide-upload w-4 h-4" />
-              导入数据
+            <h4 className="text-xs font-bold text-monokai-comment uppercase tracking-wider mb-2.5 flex items-center gap-2 font-mono">
+              <Upload className="w-3.5 h-3.5 text-monokai-green" />
+              <span>导入数据</span>
             </h4>
 
-            <div className="bg-monokai-bg/50 rounded-lg p-3 border border-monokai-accent/30">
+            <div className="bg-monokai-surface rounded-lg p-3 border border-monokai-border space-y-2.5">
               {/* 导入模式选择 */}
-              <div className="flex gap-4 mb-3">
-                <label className="flex items-center gap-2 text-xs cursor-pointer">
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 text-xs cursor-pointer text-monokai-fg">
                   <input
                     type="radio"
                     name="importMode"
                     checked={importMode === 'merge'}
                     onChange={() => setImportMode('merge')}
-                    className="border-monokai-accent"
+                    className="border-monokai-border bg-monokai-bg accent-monokai-green"
                   />
-                  <span className="text-monokai-fg">合并（保留现有）</span>
+                  <span>合并（保留现有）</span>
                 </label>
-                <label className="flex items-center gap-2 text-xs cursor-pointer">
+                <label className="flex items-center gap-2 text-xs cursor-pointer text-monokai-fg">
                   <input
                     type="radio"
                     name="importMode"
                     checked={importMode === 'replace'}
                     onChange={() => setImportMode('replace')}
-                    className="border-monokai-accent"
+                    className="border-monokai-border bg-monokai-bg accent-monokai-green"
                   />
-                  <span className="text-monokai-fg">替换（覆盖现有）</span>
+                  <span>替换（覆盖现有）</span>
                 </label>
               </div>
 
@@ -383,13 +393,13 @@ export const DataManagementSidebar: React.FC<DataManagementSidebarProps> = ({
                   disabled={isImporting}
                   className="hidden"
                 />
-                <div className="w-full py-3 bg-monokai-green/10 hover:bg-monokai-green/20 border border-monokai-green/30 rounded-lg text-monokai-green text-sm font-medium transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50">
-                  <span className="i-lucide-upload w-4 h-4" />
-                  {isImporting ? '导入中...' : '选择 JSON 文件导入'}
+                <div className="w-full py-2.5 bg-monokai-green/10 hover:bg-monokai-green/20 border border-monokai-green/30 rounded-lg text-monokai-green text-xs font-medium transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50">
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>{isImporting ? '导入中...' : '选择 JSON 文件导入'}</span>
                 </div>
               </label>
 
-              <p className="text-[10px] text-monokai-comment mt-2">
+              <p className="text-[10px] text-monokai-comment">
                 提示：合并模式会保留现有数据，仅新增不重复的内容
               </p>
             </div>
@@ -397,23 +407,23 @@ export const DataManagementSidebar: React.FC<DataManagementSidebarProps> = ({
 
           {/* 自动备份设置 */}
           <div>
-            <h4 className="text-xs font-bold text-monokai-comment uppercase tracking-wider mb-3 flex items-center gap-2">
-              <span className="i-lucide-clock w-4 h-4" />
-              自动备份
+            <h4 className="text-xs font-bold text-monokai-comment uppercase tracking-wider mb-2.5 flex items-center gap-2 font-mono">
+              <Clock className="w-3.5 h-3.5 text-monokai-orange" />
+              <span>自动备份</span>
             </h4>
 
-            <div className="bg-monokai-bg/50 rounded-lg p-3 border border-monokai-accent/30 space-y-3">
+            <div className="bg-monokai-surface rounded-lg p-3 border border-monokai-border space-y-3">
               {/* 开关 */}
               <div className="flex items-center justify-between">
-                <span className="text-sm text-monokai-fg">开启自动备份</span>
+                <span className="text-xs text-monokai-fg">开启自动备份</span>
                 <button
                   onClick={handleAutoBackupToggle}
-                  className={`w-12 h-6 rounded-full transition-colors ${
-                    autoBackupEnabled ? 'bg-monokai-green' : 'bg-monokai-accent'
+                  className={`w-10 h-5 rounded-full transition-colors relative flex items-center px-0.5 ${
+                    autoBackupEnabled ? 'bg-monokai-green' : 'bg-monokai-border'
                   }`}
                 >
-                  <div className={`w-5 h-5 bg-white rounded-full transition-transform ${
-                    autoBackupEnabled ? 'translate-x-6' : 'translate-x-0.5'
+                  <div className={`w-4 h-4 bg-white rounded-full transition-transform ${
+                    autoBackupEnabled ? 'translate-x-5' : 'translate-x-0'
                   }`} />
                 </button>
               </div>
@@ -426,10 +436,10 @@ export const DataManagementSidebar: React.FC<DataManagementSidebarProps> = ({
                       <button
                         key={interval}
                         onClick={() => handleIntervalChange(interval)}
-                        className={`flex-1 py-1.5 text-xs rounded transition-colors ${
+                        className={`flex-1 py-1 text-xs rounded transition-colors ${
                           autoBackupInterval === interval
-                            ? 'bg-monokai-blue text-white'
-                            : 'bg-monokai-accent/20 text-monokai-comment hover:bg-monokai-accent/40'
+                            ? 'bg-monokai-blue text-white font-medium'
+                            : 'bg-monokai-bg text-monokai-comment hover:text-monokai-fg border border-monokai-border'
                         }`}
                       >
                         {interval === 'daily' ? '每天' : interval === 'weekly' ? '每周' : '每月'}
@@ -439,7 +449,7 @@ export const DataManagementSidebar: React.FC<DataManagementSidebarProps> = ({
 
                   {/* 最后备份时间 */}
                   {stats?.lastBackup && (
-                    <div className="text-xs text-monokai-comment">
+                    <div className="text-xs text-monokai-comment font-mono">
                       上次备份：{new Date(stats.lastBackup).toLocaleString()}
                     </div>
                   )}
@@ -447,7 +457,7 @@ export const DataManagementSidebar: React.FC<DataManagementSidebarProps> = ({
                   {/* 手动备份按钮 */}
                   <button
                     onClick={handleManualBackup}
-                    className="w-full py-2 bg-monokai-accent/20 hover:bg-monokai-accent/30 border border-monokai-accent/30 rounded-lg text-monokai-fg text-xs font-medium transition-colors"
+                    className="w-full py-2 bg-monokai-sidebar hover:bg-monokai-bg border border-monokai-border rounded-md text-monokai-fg text-xs font-medium transition-colors"
                   >
                     立即备份
                   </button>
@@ -458,28 +468,28 @@ export const DataManagementSidebar: React.FC<DataManagementSidebarProps> = ({
 
           {/* 危险区域 */}
           <div>
-            <h4 className="text-xs font-bold text-monokai-pink uppercase tracking-wider mb-3 flex items-center gap-2">
-              <span className="i-lucide-alert-triangle w-4 h-4" />
-              危险操作
+            <h4 className="text-xs font-bold text-monokai-pink uppercase tracking-wider mb-2.5 flex items-center gap-2 font-mono">
+              <AlertTriangle className="w-3.5 h-3.5" />
+              <span>危险操作</span>
             </h4>
 
             <button
               onClick={handleClearAll}
               disabled={isClearing}
-              className="w-full py-3 bg-monokai-pink/10 hover:bg-monokai-pink/20 border border-monokai-pink/30 rounded-lg text-monokai-pink text-sm font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+              className="w-full py-2.5 bg-monokai-pink/10 hover:bg-monokai-pink/20 border border-monokai-pink/30 rounded-lg text-monokai-pink text-xs font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
             >
-              <span className="i-lucide-trash-2 w-4 h-4" />
-              {isClearing ? '清除中...' : '清除所有学习数据'}
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>{isClearing ? '清除中...' : '清除所有学习数据'}</span>
             </button>
 
-            <p className="text-[10px] text-monokai-comment mt-2">
+            <p className="text-[10px] text-monokai-comment mt-1.5">
               警告：此操作将永久删除所有学习进度、笔记、收藏和代码片段，且无法恢复！
             </p>
           </div>
         </div>
 
         {/* 底部信息 */}
-        <div className="p-3 border-t border-monokai-accent/30 text-[10px] text-monokai-comment text-center">
+        <div className="p-3 border-t border-monokai-border bg-monokai-sidebar text-[10px] text-monokai-comment text-center font-mono shrink-0">
           数据将导出为 JSON 格式，可在任意时间导入恢复
         </div>
       </div>

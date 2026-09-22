@@ -33,16 +33,16 @@ export const ChartDashboard: React.FC<ChartDashboardProps> = ({ charts, data, on
                 const options = getChartOptions(chart);
 
                 return (
-                    <div key={chart.id} id={`chart-container-${chart.id}`} className="bg-[#272822] border border-monokai-accent rounded-lg p-4 flex flex-col h-[300px] relative group hover:border-monokai-blue transition-colors">
-                        <div className="flex justify-between items-center mb-2">
-                            <h3 className="text-sm font-bold text-white truncate px-1">{chart.title || 'Untitled Chart'}</h3>
+                    <div key={chart.id} id={`chart-container-${chart.id}`} className="bg-monokai-sidebar border border-monokai-border rounded-xl p-4 flex flex-col h-[300px] relative group hover:border-monokai-border-strong transition-colors shadow-md">
+                        <div className="flex justify-between items-center mb-2 pb-1 border-b border-monokai-border/60">
+                            <h3 className="text-xs font-bold text-monokai-fg truncate px-1">{chart.title || '未命名图表'}</h3>
                             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button onClick={() => downloadChart(chart.id, chart.title)} className="p-1 hover:bg-monokai-accent rounded text-monokai-comment hover:text-white" title="Download Image"><Download size={14} /></button>
-                                <button onClick={() => onEdit(chart.id)} className="p-1 hover:bg-monokai-accent rounded text-monokai-comment hover:text-monokai-blue" title="Edit"><Edit size={14} /></button>
-                                <button onClick={() => onDelete(chart.id)} className="p-1 hover:bg-monokai-accent rounded text-monokai-comment hover:text-monokai-pink" title="Delete"><Trash2 size={14} /></button>
+                                <button onClick={() => downloadChart(chart.id, chart.title)} className="p-1 hover:bg-monokai-surface rounded-lg text-monokai-comment hover:text-monokai-fg transition-colors" title="下载图片"><Download size={13} /></button>
+                                <button onClick={() => onEdit(chart.id)} className="p-1 hover:bg-monokai-surface rounded-lg text-monokai-comment hover:text-monokai-fg transition-colors" title="编辑"><Edit size={13} /></button>
+                                <button onClick={() => onDelete(chart.id)} className="p-1 hover:bg-monokai-surface rounded-lg text-monokai-comment hover:text-monokai-pink transition-colors" title="删除"><Trash2 size={13} /></button>
                             </div>
                         </div>
-                        <div className="flex-1 relative min-h-0 w-full">
+                        <div className="flex-1 relative min-h-0 w-full bg-monokai-bg/40 p-2">
                             {chart.type === 'bar' && <Bar data={chartData} options={options} />}
                             {chart.type === 'line' && <Line data={chartData} options={options} />}
                             {chart.type === 'area' && <Line data={chartData} options={options} />}
@@ -53,8 +53,7 @@ export const ChartDashboard: React.FC<ChartDashboardProps> = ({ charts, data, on
                     </div>
                 );
             })}
-
-            {/* Add New Placeholder/Hint if desired, or handled by parent button */}
         </div>
     );
+
 };

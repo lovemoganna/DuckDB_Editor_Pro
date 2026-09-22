@@ -1,0 +1,136 @@
+{
+  "_meta": {
+    "name": "第 07 课：写出对象之间的直接关系",
+    "description": "表达不依赖特定过程的静态结构关系，严格注意有向性与层级继承",
+    "case_background": "【案例背景材料】前端工程师小赵隶属于 UI/UX 架构研发部，负责推进 Ontology 内核重构项目，形成清晰拓扑结构。",
+    "core_concept": "Bi-directional Link Traversal",
+    "version": "1.0.0",
+    "author": "system",
+    "created_at": "2026-07-25",
+    "scenario": "lesson-0007",
+    "complexity": "easy"
+  },
+  "objectTypes": [
+    {
+      "id": 1,
+      "name": "组织与团队",
+      "description": "组织机构与研发工程人员"
+    },
+    {
+      "id": 2,
+      "name": "研发与标准",
+      "description": "重点工程项目、技术依赖库与工程规范"
+    }
+  ],
+  "objects": [
+    {
+      "id": 1,
+      "object_type_id": 1,
+      "name": "架构总监·孙老师",
+      "properties": "{\"职级\":\"T10\",\"管辖跨度\":\"平台研发线\"}",
+      "annotations": "管理负责人"
+    },
+    {
+      "id": 2,
+      "object_type_id": 1,
+      "name": "前端·小赵",
+      "properties": "{\"工号\":\"FE-309\",\"方向\":\"图谱可视化与交互\"}",
+      "annotations": "核心研发骨干"
+    },
+    {
+      "id": 3,
+      "object_type_id": 1,
+      "name": "架构研发部",
+      "properties": "{\"部门代码\":\"DEPT-ARCH-01\",\"编制\":45}",
+      "annotations": "归属部门"
+    },
+    {
+      "id": 4,
+      "object_type_id": 2,
+      "name": "内核重构项目",
+      "properties": "{\"代号\":\"PROJ-ONTO-V2\",\"优先级\":\"P0\",\"里程碑\":\"M3\"}",
+      "annotations": "核心研发工程"
+    },
+    {
+      "id": 5,
+      "object_type_id": 2,
+      "name": "图引擎核心库",
+      "properties": "{\"包名\":\"@duckdb/graph-core\",\"版本\":\"v2.4.0\"}",
+      "annotations": "底层技术依赖"
+    },
+    {
+      "id": 6,
+      "object_type_id": 2,
+      "name": "工程发布规范",
+      "properties": "{\"规范编号\":\"STD-ENG-2026\",\"单测覆盖率\":\"≥90%\"}",
+      "annotations": "遵循质量准则"
+    }
+  ],
+  "linkTypes": [
+    {
+      "id": 1,
+      "name": "行政管辖",
+      "description": "总监对部门实施行政管辖与领导"
+    },
+    {
+      "id": 2,
+      "name": "组织隶属",
+      "description": "工程师隶属于架构研发部"
+    },
+    {
+      "id": 3,
+      "name": "主导推进",
+      "description": "工程师负责推进具体研发项目"
+    },
+    {
+      "id": 4,
+      "name": "核心依赖",
+      "description": "项目依赖底层核心图渲染库"
+    },
+    {
+      "id": 5,
+      "name": "严格遵从",
+      "description": "工程开发严格遵从发布质量规范"
+    }
+  ],
+  "links": [
+    {
+      "id": 1,
+      "link_type_id": 1,
+      "source_object_id": 1,
+      "target_object_id": 3,
+      "weight": 1
+    },
+    {
+      "id": 2,
+      "link_type_id": 2,
+      "source_object_id": 2,
+      "target_object_id": 3,
+      "weight": 1
+    },
+    {
+      "id": 3,
+      "link_type_id": 3,
+      "source_object_id": 2,
+      "target_object_id": 4,
+      "weight": 1
+    },
+    {
+      "id": 4,
+      "link_type_id": 4,
+      "source_object_id": 4,
+      "target_object_id": 5,
+      "weight": 0.95
+    },
+    {
+      "id": 5,
+      "link_type_id": 5,
+      "source_object_id": 4,
+      "target_object_id": 6,
+      "weight": 0.9
+    }
+  ],
+  "actions": [],
+  "introspections": [],
+  "insights": []
+}

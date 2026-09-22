@@ -1,0 +1,148 @@
+{
+  "_meta": {
+    "name": "第 06 课：记录状态的改变",
+    "description": "跟踪过程触发的对象状态变迁，显式刻画初始状态向目标状态的跃迁流转",
+    "case_background": "【案例背景材料】顾客针对订单 ORD-2026 完成了微信扫码支付，触发支付成功事件，订单状态跃迁为已支付待履约。",
+    "core_concept": "State Transition & Event Writeback",
+    "version": "1.0.0",
+    "author": "system",
+    "created_at": "2026-07-25",
+    "scenario": "lesson-0006",
+    "complexity": "easy"
+  },
+  "objectTypes": [
+    {
+      "id": 1,
+      "name": "业务主实体",
+      "description": "顾客主体、主订单与清算结算单据"
+    },
+    {
+      "id": 2,
+      "name": "事件与状态",
+      "description": "触发事件与生命周期状态节点"
+    }
+  ],
+  "objects": [
+    {
+      "id": 1,
+      "object_type_id": 1,
+      "name": "顾客·王女士",
+      "properties": "{\"客户编号\":\"CUST-9012\",\"支付渠道\":\"微信绑卡支付\"}",
+      "annotations": "付款人主体"
+    },
+    {
+      "id": 2,
+      "object_type_id": 1,
+      "name": "订单·2026",
+      "properties": "{\"订单号\":\"ORD-2026\",\"总额\":\"￥399.00\",\"创建时间\":\"10:05\"}",
+      "annotations": "核心业务对象"
+    },
+    {
+      "id": 3,
+      "object_type_id": 2,
+      "name": "待支付状态",
+      "properties": "{\"状态码\":\"INIT_UNPAID\",\"倒计时\":\"15分钟\",\"阶段\":\"初始态\"}",
+      "annotations": "前置生命周期"
+    },
+    {
+      "id": 4,
+      "object_type_id": 2,
+      "name": "扫码支付",
+      "properties": "{\"支付流水\":\"WX-PAY-889920\",\"耗时\":\"1.2s\",\"判定\":\"成功\"}",
+      "annotations": "触发事件"
+    },
+    {
+      "id": 5,
+      "object_type_id": 2,
+      "name": "已支付状态",
+      "properties": "{\"状态码\":\"PAID_CONFIRMED\",\"履约队列\":\"待分拣\",\"阶段\":\"达成终态\"}",
+      "annotations": "跃迁终态"
+    },
+    {
+      "id": 6,
+      "object_type_id": 1,
+      "name": "银行对账单",
+      "properties": "{\"对账流水\":\"REC-BANK-022\",\"手续费\":\"￥1.20\",\"清算\":\"T+1已入账\"}",
+      "annotations": "财务清算凭证"
+    }
+  ],
+  "linkTypes": [
+    {
+      "id": 1,
+      "name": "持有创建",
+      "description": "顾客创建并持有主订单"
+    },
+    {
+      "id": 2,
+      "name": "初始处于",
+      "description": "订单初始挂载待支付状态"
+    },
+    {
+      "id": 3,
+      "name": "执行付款",
+      "description": "顾客发起扫码支付动作"
+    },
+    {
+      "id": 4,
+      "name": "事件驱动跃迁",
+      "description": "待支付状态在付款成功后触发跃迁"
+    },
+    {
+      "id": 5,
+      "name": "达成目标状态",
+      "description": "支付成功促使生成已支付终态"
+    },
+    {
+      "id": 6,
+      "name": "沉淀清算凭证",
+      "description": "支付事件沉淀银行对账单据"
+    }
+  ],
+  "links": [
+    {
+      "id": 1,
+      "link_type_id": 1,
+      "source_object_id": 1,
+      "target_object_id": 2,
+      "weight": 1
+    },
+    {
+      "id": 2,
+      "link_type_id": 2,
+      "source_object_id": 2,
+      "target_object_id": 3,
+      "weight": 1
+    },
+    {
+      "id": 3,
+      "link_type_id": 3,
+      "source_object_id": 1,
+      "target_object_id": 4,
+      "weight": 1
+    },
+    {
+      "id": 4,
+      "link_type_id": 4,
+      "source_object_id": 3,
+      "target_object_id": 4,
+      "weight": 1
+    },
+    {
+      "id": 5,
+      "link_type_id": 5,
+      "source_object_id": 4,
+      "target_object_id": 5,
+      "weight": 1
+    },
+    {
+      "id": 6,
+      "link_type_id": 6,
+      "source_object_id": 4,
+      "target_object_id": 6,
+      "weight": 0.9
+    }
+  ],
+  "actions": [],
+  "introspections": [],
+  "insights": []
+}

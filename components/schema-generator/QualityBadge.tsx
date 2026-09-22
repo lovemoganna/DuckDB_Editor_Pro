@@ -11,15 +11,15 @@ export const QualityBadge: React.FC<QualityBadgeProps> = ({ report }) => {
     const score = report.overallScore || 0;
     const grade = score >= 90 ? 'A' : score >= 75 ? 'B' : score >= 60 ? 'C' : 'D';
 
-    const colorClass = score >= 90 ? 'text-green-600 bg-green-50 border-green-200' :
-        score >= 60 ? 'text-amber-600 bg-amber-50 border-amber-200' :
-            'text-red-600 bg-red-50 border-red-200';
+    const colorClass = score >= 90 ? 'text-monokai-green bg-monokai-green/10 border-monokai-green/30' :
+        score >= 60 ? 'text-monokai-yellow bg-monokai-yellow/10 border-monokai-yellow/30' :
+            'text-monokai-red bg-monokai-red/10 border-monokai-red/30';
 
     const issuesCount = report.issues?.length || 0;
 
     return (
-        <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm h-full flex flex-col justify-between">
-            <h4 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+        <div className="bg-monokai-surface rounded-xl border border-monokai-border p-5 shadow-sm h-full flex flex-col justify-between">
+            <h4 className="text-sm font-bold text-monokai-comment uppercase tracking-widest mb-4 flex items-center gap-2">
                 <span>🛡️</span> Data Quality
             </h4>
 
@@ -28,18 +28,18 @@ export const QualityBadge: React.FC<QualityBadgeProps> = ({ report }) => {
                     {grade}
                 </div>
                 <div>
-                    <div className="text-3xl font-bold text-gray-900">{score}<span className="text-sm text-gray-400 font-normal">/100</span></div>
-                    <div className="text-xs text-gray-500 font-medium">Auto-Audit Score</div>
+                    <div className="text-3xl font-bold text-monokai-fg">{score}<span className="text-sm text-monokai-comment font-normal">/100</span></div>
+                    <div className="text-xs text-monokai-comment font-medium">Auto-Audit Score</div>
                 </div>
             </div>
 
-            <div className="mt-4 pt-4 border-t border-gray-100">
+            <div className="mt-4 pt-4 border-t border-monokai-border">
                 {issuesCount === 0 ? (
-                    <div className="flex items-center gap-2 text-green-600 text-xs font-bold">
+                    <div className="flex items-center gap-2 text-monokai-green text-xs font-bold">
                         <span>✅</span> Healthy Dataset
                     </div>
                 ) : (
-                    <div className="flex items-center gap-2 text-amber-600 text-xs font-bold">
+                    <div className="flex items-center gap-2 text-monokai-yellow text-xs font-bold">
                         <span>⚠️</span> {issuesCount} Potential Issues
                     </div>
                 )}

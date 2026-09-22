@@ -1,0 +1,97 @@
+{
+  "_meta": {
+    "name": "商品目录知识图谱",
+    "description": "简单的商品-供应商-分类-标签本体论，用于快速验证 SQL 编辑器、本体导入和图谱可视化功能",
+    "version": "1.0.0",
+    "author": "system",
+    "created_at": "2026-05-17",
+    "scenario": "product-catalog",
+    "complexity": "low",
+    "entity_counts": {
+      "object_types": 4,
+      "objects": 17,
+      "link_types": 5,
+      "links": 20,
+      "actions": 4,
+      "introspections": 3,
+      "insights": 3
+    }
+  },
+
+  "objectTypes": [
+    { "id": 1, "name": "Product",   "description": "商品" },
+    { "id": 2, "name": "Category",  "description": "商品分类" },
+    { "id": 3, "name": "Supplier",  "description": "供应商" },
+    { "id": 4, "name": "Tag",       "description": "标签/属性" }
+  ],
+
+  "objects": [
+    { "id": 1,  "object_type_id": 1, "name": "晨光中性笔 0.5mm 黑",       "properties": "{\"price\": 2.50, \"stock\": 1200, \"status\": \"active\"}", "annotations": "" },
+    { "id": 2,  "object_type_id": 1, "name": "晨光荧光笔套装 6色",         "properties": "{\"price\": 12.00, \"stock\": 350, \"status\": \"active\"}", "annotations": "" },
+    { "id": 3,  "object_type_id": 1, "name": "小米移动电源3 10000mAh",     "properties": "{\"price\": 79.00, \"stock\": 580, \"status\": \"active\"}", "annotations": "" },
+    { "id": 4,  "object_type_id": 1, "name": "小米蓝牙耳机 AirDots 3",      "properties": "{\"price\": 199.00, \"stock\": 210, \"status\": \"active\"}", "annotations": "" },
+    { "id": 5,  "object_type_id": 1, "name": "得力订书机 省力型",           "properties": "{\"price\": 18.50, \"stock\": 720, \"status\": \"active\"}", "annotations": "" },
+    { "id": 6,  "object_type_id": 1, "name": "安踏跑步鞋 轻质款",         "properties": "{\"price\": 259.00, \"stock\": 145, \"status\": \"active\"}", "annotations": "" },
+    { "id": 7,  "object_type_id": 1, "name": "华为路由器 AX3 Pro",          "properties": "{\"price\": 329.00, \"stock\": 98, \"status\": \"active\"}", "annotations": "" },
+    { "id": 8,  "object_type_id": 1, "name": "晨光笔记本 A5 精装",        "properties": "{\"price\": 8.80, \"stock\": 2000, \"status\": \"active\"}", "annotations": "" },
+    { "id": 9,  "object_type_id": 1, "name": "索尼耳机 WF-1000XM5",        "properties": "{\"price\": 1799.00, \"stock\": 42, \"status\": \"active\"}", "annotations": "" },
+    { "id": 10, "object_type_id": 1, "name": "小米智能手环 9",             "properties": "{\"price\": 249.00, \"stock\": 180, \"status\": \"active\"}", "annotations": "" },
+    { "id": 11, "object_type_id": 2, "name": "办公文具",                   "properties": "{\"parent\": null}",                                  "annotations": "" },
+    { "id": 12, "object_type_id": 2, "name": "数码配件",                   "properties": "{\"parent\": null}",                                  "annotations": "" },
+    { "id": 13, "object_type_id": 2, "name": "音频设备",                   "properties": "{\"parent\": \"数码配件\"}",                           "annotations": "" },
+    { "id": 14, "object_type_id": 2, "name": "运动装备",                   "properties": "{\"parent\": null}",                                  "annotations": "" },
+    { "id": 15, "object_type_id": 2, "name": "穿戴设备",                   "properties": "{\"parent\": \"数码配件\"}",                           "annotations": "" },
+    { "id": 16, "object_type_id": 3, "name": "晨光文具",                   "properties": "{\"country\": \"中国\", \"rating\": 4.5}",              "annotations": "" },
+    { "id": 17, "object_type_id": 3, "name": "小米科技",                   "properties": "{\"country\": \"中国\", \"rating\": 4.8}",              "annotations": "" }
+  ],
+
+  "linkTypes": [
+    { "id": 1, "name": "属于",   "description": "A 商品属于 B 分类" },
+    { "id": 2, "name": "供应",   "description": "A 供应商供应 B 商品" },
+    { "id": 3, "name": "带有",   "description": "A 商品带有 B 标签" },
+    { "id": 4, "name": "子分类", "description": "A 是 B 的子分类" },
+    { "id": 5, "name": "关联",   "description": "A 与 B 相关联" }
+  ],
+
+  "links": [
+    { "id": 1,  "link_type_id": 1, "source_object_id": 1,  "target_object_id": 11, "weight": 1.00 },
+    { "id": 2,  "link_type_id": 1, "source_object_id": 2,  "target_object_id": 11, "weight": 1.00 },
+    { "id": 3,  "link_type_id": 1, "source_object_id": 3,  "target_object_id": 12, "weight": 1.00 },
+    { "id": 4,  "link_type_id": 1, "source_object_id": 4,  "target_object_id": 13, "weight": 1.00 },
+    { "id": 5,  "link_type_id": 1, "source_object_id": 6,  "target_object_id": 14, "weight": 1.00 },
+    { "id": 6,  "link_type_id": 1, "source_object_id": 7,  "target_object_id": 12, "weight": 1.00 },
+    { "id": 7,  "link_type_id": 1, "source_object_id": 8,  "target_object_id": 11, "weight": 1.00 },
+    { "id": 8,  "link_type_id": 1, "source_object_id": 9,  "target_object_id": 13, "weight": 1.00 },
+    { "id": 9,  "link_type_id": 1, "source_object_id": 10, "target_object_id": 15, "weight": 1.00 },
+    { "id": 10, "link_type_id": 2, "source_object_id": 16, "target_object_id": 1,  "weight": 1.00 },
+    { "id": 11, "link_type_id": 2, "source_object_id": 16, "target_object_id": 2,  "weight": 1.00 },
+    { "id": 12, "link_type_id": 2, "source_object_id": 16, "target_object_id": 8,  "weight": 1.00 },
+    { "id": 13, "link_type_id": 2, "source_object_id": 17, "target_object_id": 3,  "weight": 1.00 },
+    { "id": 14, "link_type_id": 2, "source_object_id": 17, "target_object_id": 4,  "weight": 1.00 },
+    { "id": 15, "link_type_id": 2, "source_object_id": 17, "target_object_id": 10, "weight": 1.00 },
+    { "id": 16, "link_type_id": 4, "source_object_id": 13, "target_object_id": 12, "weight": 1.00 },
+    { "id": 17, "link_type_id": 4, "source_object_id": 15, "target_object_id": 12, "weight": 1.00 },
+    { "id": 18, "link_type_id": 5, "source_object_id": 3,  "target_object_id": 4,  "weight": 0.70 },
+    { "id": 19, "link_type_id": 5, "source_object_id": 9,  "target_object_id": 4,  "weight": 0.80 },
+    { "id": 20, "link_type_id": 5, "source_object_id": 3,  "target_object_id": 10, "weight": 0.75 }
+  ],
+
+  "actions": [
+    { "id": 1, "object_id": 10, "name": "上架新品手环9",           "description": "小米手环9 拍摄主图、撰写详情页、按 SKU 配置库存和物流模板",      "status": "pending", "execute_at": "2026-05-20" },
+    { "id": 2, "object_id": 3,  "name": "移动电源降价促销",         "description": "将小米移动电源3 从 79 元调至 69 元，配合限时满减活动",         "status": "pending", "execute_at": "2026-05-25" },
+    { "id": 3, "object_id": 6,  "name": "安踏跑步鞋清仓处理",       "description": "库存 145 双接近临期，降价 20% 清仓，减少仓储成本",            "status": "pending", "execute_at": "2026-06-01" },
+    { "id": 4, "object_id": 1,  "name": "晨光中性笔批量补货",        "description": "当前库存 1200 支，低于安全库存 1500 支，需补货 2000 支",     "status": "pending", "execute_at": "2026-05-18" }
+  ],
+
+  "introspections": [
+    { "id": 1, "object_id": 9,  "question": "索尼耳机定价 1799 元是否过高导致转化率低？", "answer": "对比小米耳机 199 元档，索尼的月销量仅 5-8 单。建议在大促节点做限时降价 200 元测试需求弹性。", "created_at": "2026-05-10" },
+    { "id": 2, "object_id": 11, "question": "办公文具类商品单价低但动销率高，是否值得引入更多 SKU？", "answer": "文具类商品退货率不足 1%，仓储周转快，适合作为引流款。但利润空间薄，不宜作为主推品类。", "created_at": "2026-05-12" },
+    { "id": 3, "object_id": 17, "question": "小米供应商评分 4.8，但供货周期有时超过 7 天，如何优化？", "answer": "可以协商签订备货协议，由平台提前预付 30% 货款换取 3 天优先发货条款，同时建立双供应商机制。", "created_at": "2026-05-15" }
+  ],
+
+  "insights": [
+    { "id": 1, "object_id": 1,  "insight": "价格低于 10 元的商品转化率是高价商品的 3 倍，但客单价贡献有限，适合引流而非创收", "tag": "定价策略", "created_at": "2026-05-01" },
+    { "id": 2, "object_id": 12, "insight": "带有'热销'标签的商品点击率提升 40%，标签系统对流量分发有显著杠杆作用", "tag": "标签运营", "created_at": "2026-05-05" },
+    { "id": 3, "object_id": 16, "insight": "国产供应商的评分普遍高于进口供应商，但进口供应商在高端品类（如音频）的品牌溢价仍然明显", "tag": "供应商策略", "created_at": "2026-05-08" }
+  ]
+}
