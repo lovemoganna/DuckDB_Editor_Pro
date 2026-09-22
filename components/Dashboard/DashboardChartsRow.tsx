@@ -7,6 +7,7 @@ import {
   type DashboardDbMetrics,
   formatBytes,
 } from '../../hooks/useDashboardWorkflow';
+import { DB } from './dashboardUi';
 
 interface DashboardChartsRowProps {
   growthData: GrowthTrendItem[];
@@ -98,13 +99,13 @@ export const DashboardChartsRow: React.FC<DashboardChartsRowProps> = ({
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-3.5 w-full min-w-0">
+    <div className="grid w-full min-w-0 grid-cols-1 gap-3 lg:grid-cols-3">
       {/* 1. 数据增长趋势 (各表规模分布) */}
-      <div className="flex flex-col p-3.5 sm:p-4 rounded-xl bg-monokai-surface border border-monokai-border shadow-sm min-w-0 overflow-hidden">
-        <div className="flex items-center justify-between mb-2">
+      <div className={`${DB.panel} min-w-0 overflow-hidden`}>
+        <div className="mb-2 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <h3 className="text-xs font-semibold text-monokai-fg tracking-wide">数据增长趋势</h3>
-            <span className="text-2xs text-monokai-comment font-mono">
+            <h3 className={DB.sectionTitle}>数据增长趋势</h3>
+            <span className={DB.sectionMeta}>
               {growthMetric === 'size' ? '各表存储体积对比' : '各表行数规模对比'}
             </span>
           </div>
@@ -112,18 +113,20 @@ export const DashboardChartsRow: React.FC<DashboardChartsRowProps> = ({
           {/* Real Dimensional Controls */}
           <div className="flex items-center gap-1.5">
             {onGrowthMetricChange && (
-              <div className="flex items-center bg-monokai-elevated rounded-lg p-0.5 border border-monokai-border text-2xs">
+              <div className={DB.segment}>
                 <button
                   type="button"
                   onClick={() => onGrowthMetricChange('rows')}
-                  className={`px-2 py-0.5 rounded cursor-pointer transition-colors ${growthMetric === 'rows' ? 'bg-monokai-surface border border-monokai-accent/40 text-monokai-accent font-bold' : 'text-monokai-comment hover:text-monokai-fg'}`}
+                  aria-pressed={growthMetric === 'rows'}
+                  className={`${growthMetric === 'rows' ? DB.segmentItemActive : DB.segmentItem} ${DB.focus}`}
                 >
                   行数
                 </button>
                 <button
                   type="button"
                   onClick={() => onGrowthMetricChange('size')}
-                  className={`px-2 py-0.5 rounded cursor-pointer transition-colors ${growthMetric === 'size' ? 'bg-monokai-surface border border-monokai-accent/40 text-monokai-accent font-bold' : 'text-monokai-comment hover:text-monokai-fg'}`}
+                  aria-pressed={growthMetric === 'size'}
+                  className={`${growthMetric === 'size' ? DB.segmentItemActive : DB.segmentItem} ${DB.focus}`}
                 >
                   体积
                 </button>
@@ -210,21 +213,14 @@ export const DashboardChartsRow: React.FC<DashboardChartsRowProps> = ({
                         </div>
                       )}
 
-                      {/* Dual Bars */}
                       <div className="flex items-end gap-1">
                         <div
-                          className="w-2.5 sm:w-3 rounded-t-[3px] transition-all duration-200 group-hover:brightness-125 bg-monokai-accent"
-                          style={{
-                            height: `${hImp}px`,
-                            boxShadow: '0 0 8px rgba(166, 226, 46, 0.25)',
-                          }}
+                          className="w-2.5 sm:w-3 rounded-t-[3px] bg-monokai-accent transition-all duration-200 group-hover:brightness-110"
+                          style={{ height: `${hImp}px` }}
                         />
                         <div
-                          className="w-2.5 sm:w-3 rounded-t-[3px] transition-all duration-200 group-hover:brightness-125 bg-monokai-cyan"
-                          style={{
-                            height: `${hQry}px`,
-                            boxShadow: '0 0 8px rgba(102, 217, 239, 0.25)',
-                          }}
+                          className="w-2.5 sm:w-3 rounded-t-[3px] bg-monokai-cyan transition-all duration-200 group-hover:brightness-110"
+                          style={{ height: `${hQry}px` }}
                         />
                       </div>
 
@@ -242,14 +238,14 @@ export const DashboardChartsRow: React.FC<DashboardChartsRowProps> = ({
       </div>
 
       {/* 2. 查询性能与耗时分布 */}
-      <div className="flex flex-col p-3.5 sm:p-4 rounded-xl bg-monokai-surface border border-monokai-border shadow-sm min-w-0 overflow-hidden">
-        <div className="flex items-center justify-between mb-2 gap-2 min-w-0">
-          <h3 className="text-xs font-semibold text-monokai-fg tracking-wide shrink-0">查询性能</h3>
+      <div className={`${DB.panel} min-w-0 overflow-hidden`}>
+        <div className="mb-2 flex min-w-0 items-center justify-between gap-2">
+          <h3 className={`${DB.sectionTitle} shrink-0`}>查询性能</h3>
           {onLatencyFilterChange && latencyFilter !== 'all' && (
             <button
               type="button"
               onClick={() => onLatencyFilterChange('all')}
-              className="text-2xs text-monokai-cyan hover:underline cursor-pointer font-mono shrink-0"
+              className={`shrink-0 font-mono text-2xs text-monokai-comment hover:text-monokai-fg ${DB.focus}`}
             >
               清除过滤
             </button>
@@ -398,7 +394,7 @@ export const DashboardChartsRow: React.FC<DashboardChartsRowProps> = ({
                       {/* P95 Marker indicator */}
                       <div
                         data-testid={`p95-marker-${idx}`}
-                        className="absolute w-2 h-0.5 bg-monokai-amethyst rounded-full shadow-[0_0_4px_#ae81ff] pointer-events-none"
+                        className="absolute h-0.5 w-2 rounded-full bg-monokai-amethyst pointer-events-none"
                         style={{
                           bottom: `${p95Height}px`,
                         }}
@@ -416,10 +412,10 @@ export const DashboardChartsRow: React.FC<DashboardChartsRowProps> = ({
       </div>
 
       {/* 3. 表类型分布 & 数据质量巡检 */}
-      <div className="flex flex-col p-3.5 sm:p-4 rounded-xl bg-monokai-surface border border-monokai-border shadow-sm min-w-0 overflow-hidden">
-        <div className="flex items-center justify-between mb-2">
+      <div className={`${DB.panel} min-w-0 overflow-hidden`}>
+        <div className="mb-2 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <h3 className="text-xs font-semibold text-monokai-fg tracking-wide">表类型分布</h3>
+            <h3 className={DB.sectionTitle}>表类型分布</h3>
             {tableTypeFilter !== 'all' && onTableTypeFilterChange && (
               <button
                 type="button"

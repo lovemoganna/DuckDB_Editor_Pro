@@ -29,36 +29,36 @@ import {
 // ============================================================
 
 export const Colors = {
-  // Quality Semantics
+  // Quality Semantics — CSS vars (Monokai SSOT)
   quality: {
-    excellent: '#a6e22e',  // Monokai 绿 - A级
-    good: '#e6db74',       // Monokai 黄 - B级
-    warning: '#fd971f',    // Monokai 橙 - C级
-    error: '#f92672',      // Monokai 粉红 - D级
+    excellent: 'var(--monokai-accent)',
+    good: 'var(--monokai-yellow)',
+    warning: 'var(--monokai-orange)',
+    error: 'var(--monokai-pink)',
   },
   // Semantic Type Semantics
   semantic: {
-    dim: '#66d9ef',        // Monokai 青 - 维度
-    mea: '#a6e22e',        // Monokai 绿 - 指标
-    time: '#ae81ff',       // Monokai 紫 - 时间
-    id: '#f92672',         // Monokai 粉 - ID
-    text: '#75715e',       // Monokai 灰 - 文本
-    curr: '#e6db74',       // Monokai 橙黄 - 金额
-    pii: '#f92672',        // Monokai 红 - PII
+    dim: 'var(--monokai-cyan)',
+    mea: 'var(--monokai-accent)',
+    time: 'var(--monokai-purple)',
+    id: 'var(--monokai-pink)',
+    text: 'var(--monokai-comment)',
+    curr: 'var(--monokai-yellow)',
+    pii: 'var(--monokai-pink)',
   },
   // State Semantics
   state: {
-    success: '#a6e22e',
-    warning: '#e6db74',
-    error: '#f92672',
-    info: '#66d9ef',
-    neutral: '#75715e',
+    success: 'var(--monokai-accent)',
+    warning: 'var(--monokai-yellow)',
+    error: 'var(--monokai-pink)',
+    info: 'var(--monokai-cyan)',
+    neutral: 'var(--monokai-comment)',
   },
   // Confidence Semantics
   confidence: {
-    high: '#a6e22e',
-    medium: '#e6db74',
-    low: '#f92672',
+    high: 'var(--monokai-accent)',
+    medium: 'var(--monokai-yellow)',
+    low: 'var(--monokai-pink)',
   },
 };
 

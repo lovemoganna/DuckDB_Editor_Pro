@@ -39,22 +39,41 @@ describe('ActiveFeatureHost', () => {
     expect(screen.getByRole('alert').textContent).toContain('历史 is unavailable');
   });
 
+  it('renders data and schema tabs full-bleed without the context sidebar', () => {
+    for (const tab of [Tab.DATA, Tab.STRUCTURE]) {
+      const renderer = vi.fn(() => <div data-testid={`content-${tab}`}>Feature content</div>);
+      const { unmount } = render(
+        <ActiveFeatureHost
+          activeTab={tab}
+          context={{ currentTable: 'orders', tableCount: 3, runtimeLabel: 'OPFS', persistent: true }}
+          renderers={{ [tab]: renderer }}
+        />,
+      );
+
+      expect(renderer).toHaveBeenCalledOnce();
+      expect(screen.getByTestId(`content-${tab}`)).toBeTruthy();
+      expect(screen.queryByRole('complementary')).toBeNull();
+      expect(screen.queryByText('上下文')).toBeNull();
+      unmount();
+    }
+  });
+
   it('exposes real workspace context and sibling navigation in the inspector', () => {
     const onNavigate = vi.fn();
     render(
       <ActiveFeatureHost
-        activeTab={Tab.DATA}
+        activeTab={Tab.HISTORY}
         onNavigate={onNavigate}
         context={{ currentTable: 'orders', tableCount: 3, runtimeLabel: 'OPFS', persistent: true }}
-        renderers={{ [Tab.DATA]: () => <div>Data content</div> }}
+        renderers={{ [Tab.HISTORY]: () => <div>History content</div> }}
       />,
     );
 
     expect(screen.getByText('orders')).toBeTruthy();
     expect(screen.getByText('3 张表')).toBeTruthy();
     expect(screen.getByText('OPFS')).toBeTruthy();
-    fireEvent.click(screen.getByRole('complementary').querySelector('button')!);
-    expect(onNavigate).toHaveBeenCalledWith(Tab.DASHBOARD);
+    fireEvent.click(screen.getByRole('button', { name: '指标' }));
+    expect(onNavigate).toHaveBeenCalledWith(Tab.METRICS);
   });
 
   it('renders all AI cognitive tabs full-bleed directly without extra shell wrapping', () => {

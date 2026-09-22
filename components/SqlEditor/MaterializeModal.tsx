@@ -1,5 +1,6 @@
 import React from 'react';
-import { Database, X, Code } from 'lucide-react';
+import { Database, Code } from 'lucide-react';
+import { ActionButton, FormInput, ModalShell } from '../ui/Workbench';
 
 export interface MaterializeModalProps {
   isOpen: boolean;
@@ -17,77 +18,55 @@ export const MaterializeModal: React.FC<MaterializeModalProps> = ({
   materializeName,
   setMaterializeName,
   onConfirm,
-}) => {
-  if (!isOpen) return null;
+}) => (
+  <ModalShell
+    open={isOpen}
+    onClose={onClose}
+    title={`持久化为 ${materializeType === 'TABLE' ? '物理表 (Table)' : '视图 (View)'}`}
+    description="将查询结果实体化存储至当前数据库"
+    icon={Database}
+    iconColor={materializeType === 'TABLE' ? 'text-monokai-cyan' : 'text-monokai-amethyst'}
+    size="sm"
+    footer={
+      <>
+        <ActionButton variant="ghost" size="sm" onClick={onClose}>
+          取消
+        </ActionButton>
+        <ActionButton
+          variant="primary"
+          size="sm"
+          icon={Database}
+          onClick={onConfirm}
+          disabled={!materializeName.trim()}
+        >
+          立即创建
+        </ActionButton>
+      </>
+    }
+  >
+    <div className="space-y-4">
+      <div>
+        <label className="mb-2 block text-xs font-medium text-monokai-comment">
+          {materializeType === 'TABLE' ? '新建表名称' : '新建视图名称'}
+        </label>
+        <FormInput
+          autoFocus
+          fontVariant="mono"
+          value={materializeName}
+          onChange={e => setMaterializeName(e.target.value)}
+          placeholder={`输入 ${materializeType === 'TABLE' ? '表' : '视图'} 名称...`}
+        />
+      </div>
 
-  return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-150 p-4 select-none">
-      <div className="bg-monokai-sidebar border border-monokai-border rounded-xl shadow-2xl w-full max-w-[420px] overflow-hidden animate-[slideIn_0.25s_ease-out]">
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 bg-monokai-bg/90 border-b border-monokai-border shrink-0">
-          <div className="flex items-center gap-3">
-            <div className={`w-8 h-8 rounded-lg flex items-center justify-center border border-monokai-border bg-monokai-surface ${materializeType === 'TABLE' ? 'text-monokai-blue' : 'text-monokai-amethyst'}`}>
-              <Database className="w-4 h-4" />
-            </div>
-            <div>
-              <h3 className="text-sm font-bold text-monokai-fg">持久化为 {materializeType === 'TABLE' ? '物理表 (Table)' : '视图 (View)'}</h3>
-              <p className="text-[10px] text-monokai-comment">将查询结果实体化存储至当前数据库</p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="w-7 h-7 rounded-lg hover:bg-monokai-surface flex items-center justify-center text-monokai-comment hover:text-monokai-pink transition-colors cursor-pointer"
-            title="关闭窗口"
-          >
-            <X size={16} />
-          </button>
+      <div className="rounded-md border border-monokai-border/80 bg-monokai-bg/70 p-3">
+        <div className="mb-1.5 flex items-center gap-2">
+          <Code className="h-3 w-3 text-monokai-comment" aria-hidden="true" />
+          <span className="font-mono text-2xs font-medium text-monokai-comment">SQL Preview</span>
         </div>
-
-        {/* Content */}
-        <div className="p-5 space-y-4">
-          <div>
-            <label className="block text-xs font-medium text-monokai-comment mb-2">
-              {materializeType === 'TABLE' ? '新建表名称' : '新建视图名称'}
-            </label>
-            <input
-              autoFocus
-              value={materializeName}
-              onChange={e => setMaterializeName(e.target.value)}
-              placeholder={`输入 ${materializeType === 'TABLE' ? '表' : '视图'} 名称...`}
-              className="w-full bg-monokai-bg border border-monokai-border rounded-lg px-3 py-2 text-xs text-monokai-fg placeholder-monokai-comment/50 outline-none focus:border-monokai-accent transition-colors font-mono"
-            />
-          </div>
-
-          {/* SQL Preview */}
-          <div className="p-3 bg-monokai-bg/70 border border-monokai-border/80 rounded-lg">
-            <div className="flex items-center gap-2 mb-1.5">
-              <Code className="w-3 h-3 text-monokai-comment" />
-              <span className="text-[10px] font-medium text-monokai-comment font-mono">SQL Preview</span>
-            </div>
-            <pre className="text-[10.5px] text-monokai-fg/80 font-mono truncate bg-monokai-surface p-2 rounded border border-monokai-border/40">
-              CREATE {materializeType} "{materializeName || 'target_name'}" AS ...
-            </pre>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="flex justify-end gap-2.5 px-5 py-3.5 bg-monokai-bg border-t border-monokai-border">
-          <button
-            onClick={onClose}
-            className="px-3.5 py-1.5 text-xs font-medium text-monokai-comment hover:text-monokai-fg hover:bg-monokai-surface rounded-lg transition-colors cursor-pointer"
-          >
-            取消
-          </button>
-          <button
-            onClick={onConfirm}
-            disabled={!materializeName.trim()}
-            className="px-4 py-1.5 font-bold rounded-lg text-xs bg-monokai-accent text-monokai-bg hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
-          >
-            <Database size={13} />
-            立即创建
-          </button>
-        </div>
+        <pre className="truncate rounded-md border border-monokai-border/40 bg-monokai-surface p-2 font-mono text-2xs text-monokai-fg/80">
+          CREATE {materializeType} &quot;{materializeName || 'target_name'}&quot; AS ...
+        </pre>
       </div>
     </div>
-  );
-};
+  </ModalShell>
+);

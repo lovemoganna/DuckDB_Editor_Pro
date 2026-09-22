@@ -168,7 +168,7 @@ describe('AnalysisProfiler Component', () => {
       expect(screen.getByText('1,000')).toBeInTheDocument();
     });
 
-    expect(screen.getByText('全表健康度评分')).toBeInTheDocument();
+    expect(screen.getByText('健康度评分')).toBeInTheDocument();
     expect(screen.getByText('user_id')).toBeInTheDocument();
     expect(screen.getByText('score')).toBeInTheDocument();
   });
@@ -193,7 +193,7 @@ describe('AnalysisHubPanel Integration', () => {
       <AnalysisHubPanel />
     );
 
-    expect(screen.getByText(/分析中心 \(Analysis Hub\)/)).toBeInTheDocument();
+    expect(screen.getByText('分析中心')).toBeInTheDocument();
     expect(screen.getByText('数据体检')).toBeInTheDocument();
     expect(screen.getByText('透视聚合')).toBeInTheDocument();
     expect(screen.getByText('时序分析')).toBeInTheDocument();
@@ -214,7 +214,7 @@ describe('AnalysisHubPanel Integration', () => {
     // Click "场景配方"
     fireEvent.click(screen.getByText('场景配方'));
     await waitFor(() => {
-      expect(screen.getByText('业务分析场景配方库')).toBeInTheDocument();
+      expect(screen.getByText('业务分析场景配方')).toBeInTheDocument();
     });
   });
 
@@ -228,7 +228,7 @@ describe('AnalysisHubPanel Integration', () => {
       <AnalysisHubPanel />
     );
 
-    expect(screen.getByText('当前 DuckDB 数据库中暂无数据表')).toBeInTheDocument();
-    expect(screen.getByText('1秒载入全真电商分析数据集')).toBeInTheDocument();
+    expect(screen.getByText('暂无数据表可分析')).toBeInTheDocument();
+    expect(screen.getByText('载入示例数据集')).toBeInTheDocument();
   });
 });

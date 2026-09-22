@@ -3,6 +3,7 @@ import { ArrowRight, Table2, Layers, Key, Code2, Search, Eye, Copy, Trash2, Chec
 import { Tab } from '../../types';
 import { type TableItemDetail } from '../../hooks/useDashboardWorkflow';
 import { toastService } from '../../services/toastService';
+import { DB } from './dashboardUi';
 
 interface DashboardRecentTablesProps {
   tables: TableItemDetail[];
@@ -14,6 +15,8 @@ interface DashboardRecentTablesProps {
   onSelectTableDataFlow?: (tableName: string) => void;
   onQuickQuery?: (tableName: string) => void;
   onPeekTable?: (tableName: string) => void;
+  onOpenImport?: () => void;
+  onOpenCreate?: () => void;
   searchTerm?: string;
   onSearchChange?: (term: string) => void;
   typeFilter?: 'all' | 'table' | 'view';
@@ -31,6 +34,8 @@ export const DashboardRecentTables: React.FC<DashboardRecentTablesProps> = ({
   onSelectTableDataFlow,
   onQuickQuery,
   onPeekTable,
+  onOpenImport,
+  onOpenCreate,
   searchTerm = '',
   onSearchChange,
   typeFilter = 'all',
@@ -59,26 +64,24 @@ export const DashboardRecentTables: React.FC<DashboardRecentTablesProps> = ({
   };
 
   return (
-    <div className="flex flex-col p-3.5 sm:p-4 rounded-xl bg-monokai-surface border border-monokai-border shadow-sm h-full justify-between">
+    <div className={`${DB.panel} h-full justify-between`}>
       <div>
         {/* Header */}
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2 flex-wrap">
-            <Table2 className="w-3.5 h-3.5 text-monokai-yellow" />
-            <h3 className="text-xs font-semibold text-monokai-fg tracking-wide">最近的表</h3>
-            <span className="text-2xs font-mono px-1.5 py-0.5 rounded bg-monokai-elevated text-monokai-comment border border-monokai-border">
-              {tables.length} 个对象
-            </span>
+        <div className="mb-2 flex items-center justify-between">
+          <div className="flex flex-wrap items-center gap-2">
+            <Table2 className="h-3.5 w-3.5 text-monokai-fg-muted" />
+            <h3 className={DB.sectionTitle}>最近的表</h3>
+            <span className={DB.chip}>{tables.length} 个对象</span>
             {typeFilter !== 'all' && onTypeFilterChange && (
-              <span className="inline-flex items-center gap-1 text-2xs font-mono px-1.5 py-0.5 rounded bg-monokai-surface text-monokai-cyan border border-monokai-cyan/40">
+              <span className={`${DB.chip} border-monokai-border text-monokai-fg-muted`}>
                 <span>{typeFilter === 'view' ? '仅视图' : '仅数据表'}</span>
                 <button
                   type="button"
                   onClick={() => onTypeFilterChange('all')}
-                  className="hover:text-monokai-fg cursor-pointer p-0.2"
+                  className={`p-0.5 hover:text-monokai-fg cursor-pointer ${DB.focus}`}
                   title="清除类型过滤"
                 >
-                  <X className="w-2.5 h-2.5" />
+                  <X className="h-2.5 w-2.5" />
                 </button>
               </span>
             )}
@@ -86,32 +89,32 @@ export const DashboardRecentTables: React.FC<DashboardRecentTablesProps> = ({
           <button
             type="button"
             onClick={() => onNavigate(Tab.DATA)}
-            className="group flex items-center gap-1 text-meta text-monokai-comment hover:text-monokai-fg transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-monokai-accent rounded px-1"
+            className={`group ${DB.btnGhostLink} ${DB.focus}`}
           >
             <span>进入网格</span>
-            <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+            <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
           </button>
         </div>
 
         {/* Search Bar */}
         {onSearchChange && (
           <div className="relative mb-2">
-            <Search className="w-3 h-3 text-monokai-comment absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3 w-3 -translate-y-1/2 text-monokai-comment" />
             <input
               type="text"
               value={searchTerm}
               onChange={e => onSearchChange(e.target.value)}
               placeholder="搜索数据表名或视图…"
-              className="w-full pl-7 pr-7 py-1 rounded-lg bg-monokai-elevated border border-monokai-border focus:border-monokai-accent/70 focus:ring-1 focus:ring-monokai-accent/20 text-meta font-mono text-monokai-fg placeholder:text-monokai-comment focus:outline-none transition-colors"
+              className={DB.input}
             />
             {searchTerm && (
               <button
                 type="button"
                 onClick={() => onSearchChange('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-monokai-comment hover:text-monokai-fg cursor-pointer p-0.5"
+                className={`absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-monokai-comment hover:text-monokai-fg cursor-pointer ${DB.focus}`}
                 title="清除搜索"
               >
-                <X className="w-3 h-3" />
+                <X className="h-3 w-3" />
               </button>
             )}
           </div>
@@ -138,13 +141,20 @@ export const DashboardRecentTables: React.FC<DashboardRecentTablesProps> = ({
               {searchTerm ? '尝试更换搜索关键词' : '当前数据库尚未创建或导入任何表资产'}
             </p>
             {!searchTerm && (
-              <div className="flex items-center gap-2 mt-3">
+              <div className="mt-3 flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => onNavigate(Tab.DATA)}
-                  className="px-2.5 py-1 text-meta bg-monokai-elevated hover:bg-monokai-border/40 text-monokai-fg rounded border border-monokai-border transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-monokai-accent"
+                  onClick={() => (onOpenCreate ? onOpenCreate() : onNavigate(Tab.DATA))}
+                  className={`${DB.btnSecondary} ${DB.focus}`}
                 >
-                  新建 / 导入数据
+                  新建数据集
+                </button>
+                <button
+                  type="button"
+                  onClick={() => (onOpenImport ? onOpenImport() : onNavigate(Tab.DATA))}
+                  className={`${DB.btnSecondary} ${DB.focus}`}
+                >
+                  导入数据
                 </button>
               </div>
             )}
@@ -187,28 +197,27 @@ export const DashboardRecentTables: React.FC<DashboardRecentTablesProps> = ({
                   {tbl.formattedSize}
                 </div>
 
-                {/* Actions: Peek, Copy, Structure, Quick Query, Drop */}
-                <div className="col-span-3 flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
+                <div className="col-span-3 flex items-center justify-end gap-0.5" onClick={e => e.stopPropagation()}>
                   {onPeekTable && (
                     <button
                       type="button"
                       onClick={() => onPeekTable(tbl.name)}
                       title="快速预览样本与画像 (不跳转页面)"
-                      className="p-1 rounded hover:bg-monokai-border/50 text-monokai-comment hover:text-monokai-fg transition-colors cursor-pointer"
+                      className={`rounded p-1 text-monokai-comment hover:bg-monokai-border/50 hover:text-monokai-fg cursor-pointer ${DB.focus}`}
                     >
-                      <Eye className="w-3 h-3 text-monokai-accent" />
+                      <Eye className="h-3 w-3" />
                     </button>
                   )}
                   <button
                     type="button"
                     onClick={e => handleCopy(tbl.name, e)}
                     title="复制表名"
-                    className="p-1 rounded hover:bg-monokai-border/50 text-monokai-comment hover:text-monokai-fg transition-colors cursor-pointer"
+                    className={`rounded p-1 text-monokai-comment hover:bg-monokai-border/50 hover:text-monokai-fg cursor-pointer ${DB.focus}`}
                   >
                     {copiedTable === tbl.name ? (
-                      <Check className="w-3 h-3 text-monokai-accent" />
+                      <Check className="h-3 w-3 text-monokai-accent" />
                     ) : (
-                      <Copy className="w-3 h-3" />
+                      <Copy className="h-3 w-3" />
                     )}
                   </button>
                   {onSelectTableStructure && (
@@ -216,9 +225,9 @@ export const DashboardRecentTables: React.FC<DashboardRecentTablesProps> = ({
                       type="button"
                       onClick={() => onSelectTableStructure(tbl.name)}
                       title="表结构设计与 ER 关系"
-                      className="p-1 rounded hover:bg-monokai-border/50 text-monokai-comment hover:text-monokai-cyan transition-colors cursor-pointer"
+                      className={`rounded p-1 text-monokai-comment hover:bg-monokai-border/50 hover:text-monokai-fg cursor-pointer ${DB.focus}`}
                     >
-                      <Layers className="w-3 h-3" />
+                      <Layers className="h-3 w-3" />
                     </button>
                   )}
                   {onSelectTableAnalysis && (
@@ -226,9 +235,9 @@ export const DashboardRecentTables: React.FC<DashboardRecentTablesProps> = ({
                       type="button"
                       onClick={() => onSelectTableAnalysis(tbl.name)}
                       title="在分析中心探查此表"
-                      className="p-1 rounded hover:bg-monokai-border/50 text-monokai-comment hover:text-monokai-green transition-colors cursor-pointer"
+                      className={`rounded p-1 text-monokai-comment hover:bg-monokai-border/50 hover:text-monokai-fg cursor-pointer ${DB.focus}`}
                     >
-                      <Activity className="w-3 h-3" />
+                      <Activity className="h-3 w-3" />
                     </button>
                   )}
                   {onSelectTableMetrics && (
@@ -236,9 +245,9 @@ export const DashboardRecentTables: React.FC<DashboardRecentTablesProps> = ({
                       type="button"
                       onClick={() => onSelectTableMetrics(tbl.name)}
                       title="在指标中心为此表建模"
-                      className="p-1 rounded hover:bg-monokai-border/50 text-monokai-comment hover:text-monokai-amethyst transition-colors cursor-pointer"
+                      className={`rounded p-1 text-monokai-comment hover:bg-monokai-border/50 hover:text-monokai-fg cursor-pointer ${DB.focus}`}
                     >
-                      <BarChart3 className="w-3 h-3" />
+                      <BarChart3 className="h-3 w-3" />
                     </button>
                   )}
                   {onSelectTableDataFlow && (
@@ -246,9 +255,9 @@ export const DashboardRecentTables: React.FC<DashboardRecentTablesProps> = ({
                       type="button"
                       onClick={() => onSelectTableDataFlow(tbl.name)}
                       title="在数据流画布中定位此表"
-                      className="p-1 rounded hover:bg-monokai-border/50 text-monokai-comment hover:text-monokai-orange transition-colors cursor-pointer"
+                      className={`rounded p-1 text-monokai-comment hover:bg-monokai-border/50 hover:text-monokai-fg cursor-pointer ${DB.focus}`}
                     >
-                      <Network className="w-3 h-3" />
+                      <Network className="h-3 w-3" />
                     </button>
                   )}
                   {onQuickQuery && (
@@ -256,20 +265,20 @@ export const DashboardRecentTables: React.FC<DashboardRecentTablesProps> = ({
                       type="button"
                       onClick={() => onQuickQuery(tbl.name)}
                       title="快速查询前100行"
-                      className="p-1 rounded hover:bg-monokai-border/50 text-monokai-comment hover:text-monokai-yellow transition-colors cursor-pointer"
+                      className={`rounded p-1 text-monokai-comment hover:bg-monokai-border/50 hover:text-monokai-fg cursor-pointer ${DB.focus}`}
                     >
-                      <Code2 className="w-3 h-3" />
+                      <Code2 className="h-3 w-3" />
                     </button>
                   )}
                   {onDropTable && (
                     tableToConfirmDrop === tbl.name ? (
-                      <div className="flex items-center gap-1 bg-monokai-pink/15 border border-monokai-pink/40 rounded-md px-1.5 py-0.5 shadow-2xs">
+                      <div className="flex items-center gap-1 rounded-md border border-monokai-pink/40 bg-monokai-pink/15 px-1.5 py-0.5 shadow-2xs">
                         <button
                           type="button"
                           data-testid={`confirm-drop-table-${tbl.name}`}
                           onClick={e => handleConfirmDrop(tbl.name, e)}
                           title="确认删除数据表"
-                          className="text-2xs text-monokai-pink font-bold hover:underline cursor-pointer"
+                          className="cursor-pointer text-2xs font-bold text-monokai-pink hover:underline"
                         >
                           确认删除
                         </button>
@@ -277,9 +286,9 @@ export const DashboardRecentTables: React.FC<DashboardRecentTablesProps> = ({
                           type="button"
                           onClick={() => setTableToConfirmDrop(null)}
                           title="取消删除"
-                          className="text-monokai-comment hover:text-monokai-fg cursor-pointer p-0.5"
+                          className="cursor-pointer p-0.5 text-monokai-comment hover:text-monokai-fg"
                         >
-                          <X className="w-2.5 h-2.5" />
+                          <X className="h-2.5 w-2.5" />
                         </button>
                       </div>
                     ) : (
@@ -291,9 +300,9 @@ export const DashboardRecentTables: React.FC<DashboardRecentTablesProps> = ({
                           setTableToConfirmDrop(tbl.name);
                         }}
                         title="删除数据表"
-                        className="p-1 rounded hover:bg-monokai-pink/20 text-monokai-comment hover:text-monokai-pink transition-colors cursor-pointer"
+                        className={`rounded p-1 text-monokai-comment hover:bg-monokai-pink/20 hover:text-monokai-pink cursor-pointer ${DB.focus}`}
                       >
-                        <Trash2 className="w-3 h-3" />
+                        <Trash2 className="h-3 w-3" />
                       </button>
                     )
                   )}
@@ -305,7 +314,7 @@ export const DashboardRecentTables: React.FC<DashboardRecentTablesProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowAll(!showAll)}
-                  className="text-meta font-mono text-monokai-cyan hover:underline cursor-pointer transition-colors"
+                  className={`${DB.btnGhostLink} font-mono ${DB.focus}`}
                 >
                   {showAll ? '收起部分列表' : `展开查看全部 (${tables.length} 个对象) ↓`}
                 </button>

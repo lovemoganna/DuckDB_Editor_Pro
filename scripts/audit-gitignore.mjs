@@ -29,11 +29,11 @@ try {
 } catch (err) {
   // exit 1 = none ignored (good); other codes are real failures
   if (err.status === 1) {
-    console.log(`OK: ${tracked.length} tracked files, none match .gitignore`);
-    process.exit(0);
+    ignoredOut = '';
+  } else {
+    console.error(err.stderr || err.message);
+    process.exit(err.status ?? 1);
   }
-  console.error(err.stderr || err.message);
-  process.exit(err.status ?? 1);
 }
 
 // -z output: <source> <NUL> <pattern> <NUL> <pathname> <NUL> ...
@@ -46,19 +46,42 @@ for (let i = 0; i + 2 < parts.length; i += 3) {
   violations.push({ source, pattern, pathname });
 }
 
-if (violations.length === 0) {
-  console.log(`OK: ${tracked.length} tracked files, none match .gitignore`);
-  process.exit(0);
+// Check 1: Ignored files in git index
+if (violations.length > 0) {
+  console.error(
+    `FAIL: ${violations.length} tracked file(s) should be ignored.\n` +
+      `Untrack with: git rm -r --cached <path>\n`,
+  );
+  for (const v of violations.slice(0, 50)) {
+    console.error(`  ${v.pathname}  (${v.source}:${v.pattern})`);
+  }
+  if (violations.length > 50) {
+    console.error(`  ... and ${violations.length - 50} more`);
+  }
+  process.exit(1);
 }
 
-console.error(
-  `FAIL: ${violations.length} tracked file(s) should be ignored.\n` +
-    `Untrack with: git rm -r --cached <path>\n`,
-);
-for (const v of violations.slice(0, 50)) {
-  console.error(`  ${v.pathname}  (${v.source}:${v.pattern})`);
+// Check 2: Forbidden sensitive/temporary files
+const forbiddenPatterns = [
+  /^\.env(\.local|\.production|\.development|\.staging)?$/i,
+  /\.(pem|p12|pfx|key)$/i,
+  /\.(db|duckdb|wal|sqlite)$/i,
+  /^package-lock\.json$/i,
+  /^yarn\.lock$/i,
+  /\.DS_Store$/i,
+  /Thumbs\.db$/i,
+];
+
+const forbiddenViolations = tracked.filter((file) => {
+  if (file === '.env.example' || file.endsWith('.example')) return false;
+  return forbiddenPatterns.some((pattern) => pattern.test(file));
+});
+
+if (forbiddenViolations.length > 0) {
+  console.error(`FAIL: ${forbiddenViolations.length} forbidden file(s) found in repository:`);
+  forbiddenViolations.forEach((f) => console.error(`  - ${f}`));
+  process.exit(1);
 }
-if (violations.length > 50) {
-  console.error(`  ... and ${violations.length - 50} more`);
-}
-process.exit(1);
+
+console.log(`OK: ${tracked.length} tracked files clean, 0 gitignore violations, 0 forbidden files`);
+process.exit(0);

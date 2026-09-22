@@ -48,9 +48,9 @@ export const EmptyStateCockpit: React.FC<EmptyStateCockpitProps> = ({
             onBrowseFiles();
           }
         }}
-        className={`group flex min-h-[170px] flex-col items-center justify-center rounded-xl border border-dashed transition-all p-6 text-center cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-monokai-accent/70 focus-visible:ring-offset-1 focus-visible:ring-offset-monokai-bg ${
+        className={`group flex min-h-[170px] flex-col items-center justify-center rounded-md border border-dashed transition-all p-6 text-center cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-monokai-accent/70 focus-visible:ring-offset-1 focus-visible:ring-offset-monokai-bg ${
           isDraggingOver
-            ? 'border-monokai-border-strong bg-monokai-elevated/70 scale-[1.01] shadow-lg shadow-black/30'
+            ? 'border-monokai-accent/50 bg-monokai-accent/5 scale-[1.01] shadow-lg shadow-black/30'
             : 'border-monokai-border bg-monokai-surface/40 hover:border-monokai-border-strong hover:bg-monokai-surface/60 backdrop-blur-xs shadow-md shadow-black/20'
         }`}
       >
@@ -66,7 +66,7 @@ export const EmptyStateCockpit: React.FC<EmptyStateCockpitProps> = ({
           </div>
         ) : (
           <>
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-monokai-border bg-monokai-elevated text-monokai-comment group-hover:text-monokai-fg mb-3 group-hover:scale-105 transition-all shadow-xs">
+            <div className="flex h-12 w-12 items-center justify-center rounded-md border border-monokai-border bg-monokai-elevated text-monokai-comment group-hover:text-monokai-fg mb-3 group-hover:scale-105 transition-all shadow-xs">
               <UploadCloud className="h-6 w-6" />
             </div>
             <h3 className="text-sm font-bold text-monokai-fg">
@@ -83,7 +83,7 @@ export const EmptyStateCockpit: React.FC<EmptyStateCockpitProps> = ({
                   e.stopPropagation();
                   onBrowseFiles();
                 }}
-                className="rounded-lg border border-monokai-border bg-monokai-surface px-4 py-1.5 text-xs font-semibold text-monokai-fg hover:bg-monokai-hover hover:border-monokai-border-strong transition-all cursor-pointer shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-monokai-accent/70 focus-visible:ring-offset-1 focus-visible:ring-offset-monokai-bg"
+                className="rounded-md bg-monokai-accent px-4 py-1.5 text-xs font-semibold text-monokai-bg hover:bg-monokai-accent-hover transition-all cursor-pointer shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-monokai-accent/70 focus-visible:ring-offset-1 focus-visible:ring-offset-monokai-bg"
               >
                 浏览本地文件
               </button>
@@ -110,7 +110,7 @@ export const EmptyStateCockpit: React.FC<EmptyStateCockpitProps> = ({
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
           {/* Dataset 1: Ecommerce TPC-H */}
-          <div className="flex flex-col justify-between rounded-xl border border-monokai-border bg-monokai-surface/40 hover:border-monokai-border-strong hover:bg-monokai-surface/60 p-4 transition-all shadow-md shadow-black/20">
+          <div className="flex flex-col justify-between rounded-md border border-monokai-border bg-monokai-surface/40 hover:border-monokai-border-strong hover:bg-monokai-surface/60 p-4 transition-all shadow-md shadow-black/20">
             <div>
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 text-monokai-fg">
@@ -135,15 +135,15 @@ export const EmptyStateCockpit: React.FC<EmptyStateCockpitProps> = ({
               type="button"
               onClick={() => onLoadDemoDataset('ecommerce')}
               disabled={isSeedingDemo}
-              className="mt-4 flex h-8 w-full items-center justify-center gap-1.5 rounded-lg border border-monokai-border bg-monokai-surface text-xs font-medium text-monokai-fg hover:bg-monokai-hover hover:border-monokai-border-strong transition-all cursor-pointer disabled:opacity-50 shadow-xs"
+              className="mt-4 flex h-8 w-full items-center justify-center gap-1.5 rounded-md bg-monokai-accent text-xs font-semibold text-monokai-bg hover:bg-monokai-accent-hover transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-monokai-accent/70"
             >
-              <Sparkles className="h-3.5 w-3.5 text-monokai-comment" />
+              <Sparkles className="h-3.5 w-3.5 text-monokai-bg/80" />
               <span>{isSeedingDemo ? '载入中…' : '装载电商数据集'}</span>
             </button>
           </div>
 
           {/* Dataset 2: Web API Access Logs */}
-          <div className="flex flex-col justify-between rounded-xl border border-monokai-border bg-monokai-surface/40 hover:border-monokai-border-strong hover:bg-monokai-surface/60 p-4 transition-all shadow-md shadow-black/20">
+          <div className="flex flex-col justify-between rounded-md border border-monokai-border bg-monokai-surface/40 hover:border-monokai-border-strong hover:bg-monokai-surface/60 p-4 transition-all shadow-md shadow-black/20">
             <div>
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 text-monokai-fg">
@@ -168,15 +168,15 @@ export const EmptyStateCockpit: React.FC<EmptyStateCockpitProps> = ({
               type="button"
               onClick={() => onLoadDemoDataset('logs')}
               disabled={isSeedingDemo}
-              className="mt-4 flex h-8 w-full items-center justify-center gap-1.5 rounded-lg border border-monokai-border bg-monokai-surface text-xs font-medium text-monokai-fg hover:bg-monokai-hover hover:border-monokai-border-strong transition-all cursor-pointer disabled:opacity-50 shadow-xs"
+              className="mt-4 flex h-8 w-full items-center justify-center gap-1.5 rounded-md bg-monokai-accent text-xs font-semibold text-monokai-bg hover:bg-monokai-accent-hover transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-monokai-accent/70"
             >
-              <Sparkles className="h-3.5 w-3.5 text-monokai-comment" />
+              <Sparkles className="h-3.5 w-3.5 text-monokai-bg/80" />
               <span>{isSeedingDemo ? '载入中…' : '装载日志时序数据集'}</span>
             </button>
           </div>
 
           {/* Dataset 3: User Event Funnel */}
-          <div className="flex flex-col justify-between rounded-xl border border-monokai-border bg-monokai-surface/40 hover:border-monokai-border-strong hover:bg-monokai-surface/60 p-4 transition-all shadow-md shadow-black/20">
+          <div className="flex flex-col justify-between rounded-md border border-monokai-border bg-monokai-surface/40 hover:border-monokai-border-strong hover:bg-monokai-surface/60 p-4 transition-all shadow-md shadow-black/20">
             <div>
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 text-monokai-fg">
@@ -201,9 +201,9 @@ export const EmptyStateCockpit: React.FC<EmptyStateCockpitProps> = ({
               type="button"
               onClick={() => onLoadDemoDataset('funnel')}
               disabled={isSeedingDemo}
-              className="mt-4 flex h-8 w-full items-center justify-center gap-1.5 rounded-lg border border-monokai-border bg-monokai-surface text-xs font-medium text-monokai-fg hover:bg-monokai-hover hover:border-monokai-border-strong transition-all cursor-pointer disabled:opacity-50 shadow-xs"
+              className="mt-4 flex h-8 w-full items-center justify-center gap-1.5 rounded-md bg-monokai-accent text-xs font-semibold text-monokai-bg hover:bg-monokai-accent-hover transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-monokai-accent/70"
             >
-              <Sparkles className="h-3.5 w-3.5 text-monokai-comment" />
+              <Sparkles className="h-3.5 w-3.5 text-monokai-bg/80" />
               <span>{isSeedingDemo ? '载入中…' : '装载漏斗转化数据集'}</span>
             </button>
           </div>

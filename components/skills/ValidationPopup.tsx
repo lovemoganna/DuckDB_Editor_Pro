@@ -95,7 +95,7 @@ export const ValidationPopup: React.FC<ValidationPopupProps> = ({
       description={selectedSkill.name}
       onClose={onClose}
       size="md"
-      icon={SkillIcon}
+      icon={SkillIcon as any}
       iconColor={skillDesign.colors.text}
       footer={
         <>

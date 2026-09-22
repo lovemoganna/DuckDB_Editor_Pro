@@ -433,7 +433,7 @@ export const AiAssistantPanel: React.FC<AiAssistantPanelProps> = ({
             <span className="wb-panel-title">AI 助手</span>
             {!aiConfigured && (
               <span
-                className="px-1 py-0.5 rounded bg-monokai-yellow/15 border border-monokai-yellow/40 text-monokai-yellow text-[9px] font-mono font-bold"
+                className="px-1 py-0.5 rounded bg-monokai-yellow/15 border border-monokai-yellow/40 text-monokai-yellow text-3xs font-mono font-bold"
                 title="AI 服务未配置"
               >
                 未配置
@@ -511,19 +511,19 @@ export const AiAssistantPanel: React.FC<AiAssistantPanelProps> = ({
       </div>
 
       {/* 2. Header Row 2: Model & Query Context Strip (h-9: 36px) */}
-      <div className="flex h-9 shrink-0 items-center justify-between px-3 border-b border-monokai-border bg-monokai-sidebar text-[11px] font-mono">
+      <div className="flex h-9 shrink-0 items-center justify-between px-3 border-b border-monokai-border bg-monokai-sidebar text-meta font-mono">
         <div className="flex items-center gap-2 text-monokai-comment truncate">
           <span className="text-monokai-fg truncate max-w-[140px] font-sans">{activeTabTitle}</span>
-          <span className="px-1.5 py-0.5 rounded bg-monokai-surface text-monokai-cyan text-[10px] border border-monokai-border">
+          <span className="px-1.5 py-0.5 rounded bg-monokai-surface text-monokai-cyan text-2xs border border-monokai-border">
             {currentTab === 'explain' ? '语义剖析' : currentTab === 'analyze' ? '逻辑诊断' : '列画像'}
           </span>
           {currentTab === 'profile' && selectedColumnName && (
-            <span className="px-1.5 py-0.5 rounded bg-monokai-surface text-monokai-cyan text-[10px] border border-monokai-border truncate max-w-[160px]">
+            <span className="px-1.5 py-0.5 rounded bg-monokai-surface text-monokai-cyan text-2xs border border-monokai-border truncate max-w-[160px]">
               {selectedColumnName}
             </span>
           )}
         </div>
-        <div className="flex items-center gap-1 text-[10px] text-monokai-comment">
+        <div className="flex items-center gap-1 text-2xs text-monokai-comment">
           {aiConfigured ? (
             <>
               <span
@@ -579,15 +579,15 @@ export const AiAssistantPanel: React.FC<AiAssistantPanelProps> = ({
           <div className="space-y-4">
             {/* 当前语句 Card */}
             <div className="space-y-1">
-              <div className="flex items-center justify-between text-[11px]">
+              <div className="flex items-center justify-between text-meta">
                 <span className="font-semibold text-monokai-fg">当前语句</span>
-                <span className="text-monokai-comment text-[10px]">依据: SQL + Schema</span>
+                <span className="text-monokai-comment text-2xs">依据: SQL + Schema</span>
               </div>
-              <div className="p-2.5 rounded-lg bg-monokai-elevated border border-monokai-border font-mono text-[11px] space-y-1.5">
+              <div className="p-2.5 rounded-lg bg-monokai-elevated border border-monokai-border font-mono text-meta space-y-1.5">
                 <div className="text-monokai-fg truncate" title={activeSql}>
                   {activeSql ? activeSql.replace(/\s+/g, ' ').slice(0, 120) + (activeSql.length > 120 ? '…' : '') : '— 当前编辑器为空 —'}
                 </div>
-                <div className="flex items-center justify-between text-[10px] text-monokai-comment pt-1 border-t border-monokai-border-subtle">
+                <div className="flex items-center justify-between text-2xs text-monokai-comment pt-1 border-t border-monokai-border-subtle">
                   <span>{activeTabTitle}</span>
                   <button
                     onClick={() => setShowFullSqlModal(true)}
@@ -602,12 +602,12 @@ export const AiAssistantPanel: React.FC<AiAssistantPanelProps> = ({
             {/* Error / Loading state — keeps UI informative instead of leaving blanks */}
             {explainError && !isLoadingExplain && (
               <div className="p-3 rounded-lg bg-gradient-to-br from-monokai-pink/10 via-monokai-elevated to-monokai-elevated border border-monokai-pink/40 space-y-2 shadow-[inset_0_1px_0_rgba(249,38,114,0.08)]">
-                <div className="flex items-center gap-1.5 text-monokai-pink text-[11px] font-semibold">
+                <div className="flex items-center gap-1.5 text-monokai-pink text-meta font-semibold">
                   <span className="w-1 h-3 bg-gradient-to-b from-monokai-pink to-monokai-pink/40 rounded-full" />
                   <AlertCircle className="w-3.5 h-3.5" />
                   <span>AI 解释生成失败</span>
                 </div>
-                <div className="text-[11px] text-monokai-fg-muted leading-relaxed font-mono break-all bg-monokai-surface/80 p-2 rounded border border-monokai-border-subtle">{explainError}</div>
+                <div className="text-meta text-monokai-fg-muted leading-relaxed font-mono break-all bg-monokai-surface/80 p-2 rounded border border-monokai-border-subtle">{explainError}</div>
                 <button
                   onClick={() => void runExplain(activeSql, 'manual')}
                   className="h-6 px-2.5 rounded-md bg-monokai-elevated hover:bg-monokai-surface border border-monokai-border text-monokai-fg text-xs font-medium cursor-pointer transition-colors flex items-center gap-1 hover:border-monokai-cyan/40 hover:text-monokai-cyan"
@@ -632,7 +632,7 @@ export const AiAssistantPanel: React.FC<AiAssistantPanelProps> = ({
                 </span>
                 {isLoadingExplain && explainData && <Loader2 className="w-3 h-3 animate-spin text-monokai-comment" />}
               </div>
-              <div className="p-3 rounded-lg bg-gradient-to-br from-monokai-yellow/8 via-monokai-elevated to-monokai-elevated border border-monokai-yellow/30 text-monokai-fg-muted leading-relaxed text-[11px] shadow-[inset_0_1px_0_rgba(230,219,116,0.08)]">
+              <div className="p-3 rounded-lg bg-gradient-to-br from-monokai-yellow/8 via-monokai-elevated to-monokai-elevated border border-monokai-yellow/30 text-monokai-fg-muted leading-relaxed text-meta shadow-[inset_0_1px_0_rgba(230,219,116,0.08)]">
                 {explainData?.oneLiner || (isLoadingExplain ? '正在生成中...' : '等待 AI 生成解释。')}
               </div>
             </div>
@@ -640,18 +640,18 @@ export const AiAssistantPanel: React.FC<AiAssistantPanelProps> = ({
             {/* 执行逻辑 (Numbered Steps) */}
             <div className="space-y-1.5">
               <div className="font-semibold text-monokai-fg text-xs">执行逻辑</div>
-              <div className="p-2.5 rounded-lg bg-monokai-elevated border border-monokai-border space-y-2 text-[11px]">
+              <div className="p-2.5 rounded-lg bg-monokai-elevated border border-monokai-border space-y-2 text-meta">
                 {(explainData?.logicSteps ?? []).length > 0 ? (
                   (explainData!.logicSteps).map((step, idx) => (
                     <div key={idx} className="flex items-start gap-2">
-                      <span className="w-4 h-4 rounded-full bg-monokai-surface text-monokai-comment text-[10px] flex items-center justify-center shrink-0 mt-0.5 font-mono">
+                      <span className="w-4 h-4 rounded-full bg-monokai-surface text-monokai-comment text-2xs flex items-center justify-center shrink-0 mt-0.5 font-mono">
                         {idx + 1}
                       </span>
                       <span className="text-monokai-fg-muted leading-tight">{step}</span>
                     </div>
                   ))
                 ) : (
-                  <div className="text-[11px] text-monokai-comment italic">
+                  <div className="text-meta text-monokai-comment italic">
                     {isLoadingExplain ? '正在推断执行步骤…' : '暂无执行逻辑推断。'}
                   </div>
                 )}
@@ -661,7 +661,7 @@ export const AiAssistantPanel: React.FC<AiAssistantPanelProps> = ({
             {/* 涉及对象 (Badges) */}
             <div className="space-y-1.5">
               <div className="font-semibold text-monokai-fg text-xs">涉及对象</div>
-              <div className="flex flex-wrap gap-1.5 font-mono text-[11px]">
+              <div className="flex flex-wrap gap-1.5 font-mono text-meta">
                 {(explainData?.involvedObjects ?? []).length > 0 ? (
                   (explainData!.involvedObjects).map((obj, idx) => (
                     <span
@@ -672,7 +672,7 @@ export const AiAssistantPanel: React.FC<AiAssistantPanelProps> = ({
                     </span>
                   ))
                 ) : (
-                  <span className="text-[11px] text-monokai-comment italic">
+                  <span className="text-meta text-monokai-comment italic">
                     {isLoadingExplain ? '正在推断涉及对象…' : '暂无涉及对象。'}
                   </span>
                 )}
@@ -683,7 +683,7 @@ export const AiAssistantPanel: React.FC<AiAssistantPanelProps> = ({
             <div className="space-y-1.5">
               <div className="font-semibold text-monokai-fg text-xs">输出字段</div>
               <div className="rounded-lg border border-monokai-border bg-monokai-elevated overflow-hidden">
-                <table className="w-full text-left font-mono text-[11px]">
+                <table className="w-full text-left font-mono text-meta">
                   <thead className="bg-monokai-surface text-monokai-comment border-b border-monokai-border-subtle">
                     <tr>
                       <th className="px-2.5 py-1.5 font-sans font-normal">字段名</th>
@@ -702,7 +702,7 @@ export const AiAssistantPanel: React.FC<AiAssistantPanelProps> = ({
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={3} className="px-2.5 py-3 text-center text-monokai-comment italic text-[11px]">
+                        <td colSpan={3} className="px-2.5 py-3 text-center text-monokai-comment italic text-meta">
                           {isLoadingExplain ? '正在推断输出字段…' : '暂无输出字段。'}
                         </td>
                       </tr>
@@ -715,7 +715,7 @@ export const AiAssistantPanel: React.FC<AiAssistantPanelProps> = ({
             {/* 关键条件 */}
             <div className="space-y-1.5">
               <div className="font-semibold text-monokai-fg text-xs">关键条件</div>
-              <div className="p-2.5 rounded-lg bg-monokai-elevated border border-monokai-border space-y-1.5 text-[11px] font-mono">
+              <div className="p-2.5 rounded-lg bg-monokai-elevated border border-monokai-border space-y-1.5 text-meta font-mono">
                 {(explainData?.keyConditions ?? []).length > 0 ? (
                   (explainData!.keyConditions).map((c, idx) => (
                     <div key={idx}>
@@ -727,7 +727,7 @@ export const AiAssistantPanel: React.FC<AiAssistantPanelProps> = ({
                     </div>
                   ))
                 ) : (
-                  <div className="text-[11px] text-monokai-comment italic">
+                  <div className="text-meta text-monokai-comment italic">
                     {isLoadingExplain ? '正在抽取关键条件…' : '暂无关键条件。'}
                   </div>
                 )}
@@ -735,7 +735,7 @@ export const AiAssistantPanel: React.FC<AiAssistantPanelProps> = ({
             </div>
 
             {/* Footer Disclaimer + Feedback */}
-            <div className="pt-2 border-t border-monokai-border-subtle flex items-center justify-between text-[10px] text-monokai-comment">
+            <div className="pt-2 border-t border-monokai-border-subtle flex items-center justify-between text-2xs text-monokai-comment">
               <span>以上解释由 AI 生成，可能不完全准确，请结合实际业务确认。</span>
               <div className="flex items-center gap-1.5 text-monokai-comment">
                 <button
@@ -790,16 +790,16 @@ export const AiAssistantPanel: React.FC<AiAssistantPanelProps> = ({
             {/* AI 未配置引导 (FR-Q3: 完全移除 mock) */}
             {!aiService.isConfigured() && !analyzeData && !isLoadingAnalyze && !analyzeError && (
               <div className="p-3 rounded-lg bg-monokai-yellow/5 border border-monokai-yellow/30 space-y-2">
-                <div className="flex items-center gap-1.5 text-monokai-yellow text-[11px] font-semibold">
+                <div className="flex items-center gap-1.5 text-monokai-yellow text-meta font-semibold">
                   <Sparkles className="w-3.5 h-3.5" />
                   <span>AI 服务未配置</span>
                 </div>
-                <p className="text-[11px] text-monokai-fg-muted leading-relaxed">
+                <p className="text-meta text-monokai-fg-muted leading-relaxed">
                   「分析」Tab 需要先配置 AI 服务才能生成智能诊断。打开设置填写 API Key 后即可启用。
                 </p>
                 <button
                   onClick={() => window.dispatchEvent(new CustomEvent('open-ai-settings'))}
-                  className="h-6 px-2.5 rounded-md bg-monokai-yellow hover:bg-monokai-yellow/90 text-monokai-bg text-[11px] font-semibold cursor-pointer transition-colors flex items-center gap-1"
+                  className="h-6 px-2.5 rounded-md bg-monokai-yellow hover:bg-monokai-yellow/90 text-monokai-bg text-meta font-semibold cursor-pointer transition-colors flex items-center gap-1"
                 >
                   <Sparkles className="w-3 h-3" />
                   <span>前往设置</span>
@@ -815,12 +815,12 @@ export const AiAssistantPanel: React.FC<AiAssistantPanelProps> = ({
             {/* Error 状态 */}
             {analyzeError && !isLoadingAnalyze && (
               <div className="p-3 rounded-lg bg-gradient-to-br from-monokai-pink/10 via-monokai-elevated to-monokai-elevated border border-monokai-pink/40 space-y-2 shadow-[inset_0_1px_0_rgba(249,38,114,0.08)]">
-                <div className="flex items-center gap-1.5 text-monokai-pink text-[11px] font-semibold">
+                <div className="flex items-center gap-1.5 text-monokai-pink text-meta font-semibold">
                   <span className="w-1 h-3 bg-gradient-to-b from-monokai-pink to-monokai-pink/40 rounded-full" />
                   <AlertCircle className="w-3.5 h-3.5" />
                   <span>AI 分析生成失败</span>
                 </div>
-                <div className="text-[11px] text-monokai-fg-muted leading-relaxed font-mono break-all bg-monokai-surface/80 p-2 rounded border border-monokai-border-subtle">{analyzeError}</div>
+                <div className="text-meta text-monokai-fg-muted leading-relaxed font-mono break-all bg-monokai-surface/80 p-2 rounded border border-monokai-border-subtle">{analyzeError}</div>
                 <button
                   onClick={() => void runAnalyze(activeSql, 'manual')}
                   className="h-6 px-2.5 rounded-md bg-monokai-elevated hover:bg-monokai-surface border border-monokai-border text-monokai-fg text-xs font-medium cursor-pointer transition-colors flex items-center gap-1 hover:border-monokai-green/40 hover:text-monokai-green"
@@ -835,7 +835,7 @@ export const AiAssistantPanel: React.FC<AiAssistantPanelProps> = ({
             {aiService.isConfigured() && !analyzeData && !isLoadingAnalyze && !analyzeError && (
               <div className="p-3 rounded-lg bg-monokai-elevated border border-monokai-border space-y-1.5 text-center">
                 <Activity className="w-5 h-5 text-monokai-comment mx-auto" />
-                <p className="text-[11px] text-monokai-comment">等待 AI 生成分析。运行查询或切换到「分析」Tab 后将自动触发。</p>
+                <p className="text-meta text-monokai-comment">等待 AI 生成分析。运行查询或切换到「分析」Tab 后将自动触发。</p>
               </div>
             )}
 
@@ -850,10 +850,10 @@ export const AiAssistantPanel: React.FC<AiAssistantPanelProps> = ({
                   </div>
                   <SeverityBadge severity={analyzeData.severity} />
                 </div>
-                <p className="text-monokai-fg-muted text-[11px] leading-relaxed whitespace-pre-wrap">
+                <p className="text-monokai-fg-muted text-meta leading-relaxed whitespace-pre-wrap">
                   {analyzeData.summary}
                 </p>
-                <div className="text-[10px] text-monokai-comment pt-1 border-t border-monokai-border-subtle flex items-center gap-1.5">
+                <div className="text-2xs text-monokai-comment pt-1 border-t border-monokai-border-subtle flex items-center gap-1.5">
                   <span>依据: AI 综合评估</span>
                   <span className="w-px h-3 bg-monokai-border/60" />
                   <span>严重度: {analyzeData.severity} ({severityLabel(analyzeData.severity)})</span>
@@ -875,27 +875,27 @@ export const AiAssistantPanel: React.FC<AiAssistantPanelProps> = ({
                   <div key={`risk-${idx}`} className="p-3 rounded-lg bg-gradient-to-br from-monokai-yellow/5 via-monokai-elevated to-monokai-elevated border border-monokai-yellow/30 space-y-2 hover:border-monokai-yellow/45 transition-colors shadow-[inset_0_1px_0_rgba(230,219,116,0.05)]">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1.5">
-                        <span className="w-4 h-4 rounded bg-monokai-surface text-monokai-comment text-[10px] flex items-center justify-center font-mono font-bold border border-monokai-border">
+                        <span className="w-4 h-4 rounded bg-monokai-surface text-monokai-comment text-2xs flex items-center justify-center font-mono font-bold border border-monokai-border">
                           {idx + 1}
                         </span>
-                        <span className="font-semibold text-monokai-fg text-[11px]">{risk.title}</span>
+                        <span className="font-semibold text-monokai-fg text-meta">{risk.title}</span>
                       </div>
                       <div className="flex items-center gap-1.5">
                         <SeverityBadge severity={risk.severity} compact />
                         {extractLineNumber(risk.lineHint) !== null && (
                           <button
                             onClick={() => onLocateSqlLine?.(extractLineNumber(risk.lineHint)!, risk.lineHint)}
-                            className="text-monokai-cyan text-[10px] font-mono hover:underline cursor-pointer px-1.5 py-0.5 rounded bg-monokai-cyan/10 border border-monokai-cyan/30 hover:bg-monokai-cyan/15 transition-colors"
+                            className="text-monokai-cyan text-2xs font-mono hover:underline cursor-pointer px-1.5 py-0.5 rounded bg-monokai-cyan/10 border border-monokai-cyan/30 hover:bg-monokai-cyan/15 transition-colors"
                           >
                             {risk.lineHint.startsWith('Line') ? risk.lineHint : `Line ${risk.lineHint}`}
                           </button>
                         )}
                       </div>
                     </div>
-                    <div className="text-[11px] text-monokai-fg-muted leading-relaxed font-mono bg-monokai-surface/80 p-2 rounded border border-monokai-border-subtle">
+                    <div className="text-meta text-monokai-fg-muted leading-relaxed font-mono bg-monokai-surface/80 p-2 rounded border border-monokai-border-subtle">
                       {risk.detail}
                     </div>
-                    <div className="text-[10px] text-monokai-comment flex items-center justify-between">
+                    <div className="text-2xs text-monokai-comment flex items-center justify-between">
                       <span>依据: {risk.evidence || 'AI 推断'}</span>
                       {risk.impact && <span className="text-monokai-yellow font-medium">影响: {risk.impact}</span>}
                     </div>
@@ -916,22 +916,22 @@ export const AiAssistantPanel: React.FC<AiAssistantPanelProps> = ({
                   <div key={`perf-${idx}`} className="p-3 rounded-lg bg-gradient-to-br from-monokai-cyan/5 via-monokai-elevated to-monokai-elevated border border-monokai-cyan/30 space-y-2 hover:border-monokai-cyan/45 transition-colors shadow-[inset_0_1px_0_rgba(102,217,239,0.05)]">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1.5">
-                        <span className="w-4 h-4 rounded bg-monokai-surface text-monokai-comment text-[10px] flex items-center justify-center font-mono font-bold border border-monokai-border">
+                        <span className="w-4 h-4 rounded bg-monokai-surface text-monokai-comment text-2xs flex items-center justify-center font-mono font-bold border border-monokai-border">
                           {idx + 1}
                         </span>
-                        <span className="font-semibold text-monokai-fg text-[11px]">{perf.title}</span>
+                        <span className="font-semibold text-monokai-fg text-meta">{perf.title}</span>
                       </div>
                       <div className="flex items-center gap-1.5">
                         <SeverityBadge severity={perf.severity} compact />
-                        <span className="text-monokai-comment text-[10px] font-mono px-1.5 py-0.5 rounded bg-monokai-surface/80 border border-monokai-border">
+                        <span className="text-monokai-comment text-2xs font-mono px-1.5 py-0.5 rounded bg-monokai-surface/80 border border-monokai-border">
                           {perf.lineHint.startsWith('Line') ? perf.lineHint : `Line ${perf.lineHint}`}
                         </span>
                       </div>
                     </div>
-                    <div className="text-[11px] text-monokai-fg-muted leading-relaxed font-mono bg-monokai-surface/80 p-2 rounded border border-monokai-border-subtle">
+                    <div className="text-meta text-monokai-fg-muted leading-relaxed font-mono bg-monokai-surface/80 p-2 rounded border border-monokai-border-subtle">
                       {perf.detail}
                     </div>
-                    <div className="text-[10px] text-monokai-comment">依据: {perf.evidence || 'Query Plan / Runtime'}</div>
+                    <div className="text-2xs text-monokai-comment">依据: {perf.evidence || 'Query Plan / Runtime'}</div>
                   </div>
                 ))}
               </div>
@@ -944,14 +944,14 @@ export const AiAssistantPanel: React.FC<AiAssistantPanelProps> = ({
                   <Layers className="w-3.5 h-3.5 text-monokai-cyan" />
                   <span>结果解释</span>
                 </div>
-                <div className="p-2.5 rounded-lg bg-monokai-elevated border border-monokai-border space-y-1 text-[11px] font-mono text-monokai-fg-muted">
+                <div className="p-2.5 rounded-lg bg-monokai-elevated border border-monokai-border space-y-1 text-meta font-mono text-monokai-fg-muted">
                   {analyzeData.resultInsights.map((ins, idx) => (
                     <div key={`ins-${idx}`} className="flex justify-between">
                       <span>{ins.label}:</span>
                       <b className="text-monokai-fg">{ins.value}</b>
                     </div>
                   ))}
-                  <div className="text-[10px] text-monokai-comment pt-1 border-t border-monokai-border-subtle">依据: 查询结果</div>
+                  <div className="text-2xs text-monokai-comment pt-1 border-t border-monokai-border-subtle">依据: 查询结果</div>
                 </div>
               </div>
             )}
@@ -974,19 +974,19 @@ export const AiAssistantPanel: React.FC<AiAssistantPanelProps> = ({
 
                 <div className="p-3 rounded-lg bg-gradient-to-br from-monokai-green/5 via-monokai-elevated to-monokai-elevated border border-monokai-green/35 space-y-2.5 shadow-[inset_0_1px_0_rgba(166,226,46,0.08)]">
                   {analyzeData.suggestionRationale && (
-                    <p className="text-[11px] text-monokai-fg-muted leading-relaxed">
+                    <p className="text-meta text-monokai-fg-muted leading-relaxed">
                       {analyzeData.suggestionRationale}
                     </p>
                   )}
 
-                  <div className="p-2 rounded bg-monokai-surface/90 border border-monokai-border font-mono text-[10px] overflow-x-auto">
+                  <div className="p-2 rounded bg-monokai-surface/90 border border-monokai-border font-mono text-2xs overflow-x-auto">
                     <pre className="whitespace-pre-wrap text-monokai-fg leading-relaxed">
                       {analyzeData.suggestedSql}
                     </pre>
                   </div>
 
                   <div className="flex items-center justify-between pt-1">
-                    <span className="text-[10px] text-monokai-comment">依据: AI 优化建议</span>
+                    <span className="text-2xs text-monokai-comment">依据: AI 优化建议</span>
                     <button
                       onClick={() => {
                         setHasAppliedModification(true);
@@ -1008,7 +1008,7 @@ export const AiAssistantPanel: React.FC<AiAssistantPanelProps> = ({
 
             {/* No-suggestion empty state for analyze tab */}
             {analyzeData && !analyzeData.suggestedSql && (
-              <div className="p-2.5 rounded-lg bg-monokai-elevated border border-monokai-border text-[11px] text-monokai-comment italic text-center">
+              <div className="p-2.5 rounded-lg bg-monokai-elevated border border-monokai-border text-meta text-monokai-comment italic text-center">
                 AI 未给出具体的 SQL 修改建议，但已在上方列出潜在风险与性能关注。
               </div>
             )}
@@ -1016,11 +1016,11 @@ export const AiAssistantPanel: React.FC<AiAssistantPanelProps> = ({
             {/* FR-11: 修改后验证与性能对比 */}
             {hasAppliedModification && (
               <div className="p-2.5 rounded-lg bg-monokai-elevated border border-monokai-border space-y-1.5 text-xs font-mono">
-                <div className="font-semibold text-monokai-fg font-sans text-[11px] flex items-center justify-between">
+                <div className="font-semibold text-monokai-fg font-sans text-meta flex items-center justify-between">
                   <span>修改后验证与性能对比</span>
-                  <span className="text-monokai-green text-[10px]">已验证</span>
+                  <span className="text-monokai-green text-2xs">已验证</span>
                 </div>
-                <div className="grid grid-cols-2 gap-2 bg-monokai-surface p-2 rounded border border-monokai-border-subtle text-[10px]">
+                <div className="grid grid-cols-2 gap-2 bg-monokai-surface p-2 rounded border border-monokai-border-subtle text-2xs">
                   <div>
                     <div className="text-monokai-comment font-sans">修改前:</div>
                     <div className="text-monokai-fg-muted">耗时: 上一版本耗时</div>
@@ -1038,11 +1038,11 @@ export const AiAssistantPanel: React.FC<AiAssistantPanelProps> = ({
             {/* Deep Profile Output Banner if calculated */}
             {deepProfileResult && (
               <div className="p-2.5 rounded-lg bg-monokai-elevated border border-monokai-border space-y-1.5 text-xs font-mono">
-                <div className="font-semibold text-monokai-fg font-sans text-[11px] flex items-center justify-between">
+                <div className="font-semibold text-monokai-fg font-sans text-meta flex items-center justify-between">
                   <span>深入性能剖析 (EXPLAIN ANALYZE)</span>
-                  <span className="text-monokai-green text-[10px]">已验证</span>
+                  <span className="text-monokai-green text-2xs">已验证</span>
                 </div>
-                <div className="text-monokai-fg-muted text-[10px] leading-relaxed bg-monokai-surface p-2 rounded border border-monokai-border-subtle whitespace-pre-wrap">
+                <div className="text-monokai-fg-muted text-2xs leading-relaxed bg-monokai-surface p-2 rounded border border-monokai-border-subtle whitespace-pre-wrap">
                   {deepProfileResult}
                 </div>
               </div>
@@ -1051,7 +1051,7 @@ export const AiAssistantPanel: React.FC<AiAssistantPanelProps> = ({
             {/* Bottom Actions & Deep Analysis Trigger */}
             {analyzeData && (
               <div className="pt-2 border-t border-monokai-border-subtle space-y-2">
-                <div className="text-[10px] text-monokai-comment">
+                <div className="text-2xs text-monokai-comment">
                   分析依据: SQL、Schema、查询结果、运行时
                 </div>
 
@@ -1077,23 +1077,23 @@ export const AiAssistantPanel: React.FC<AiAssistantPanelProps> = ({
           <div className="space-y-4">
             {/* Header: 当前选中列信息 */}
             <div className="space-y-1">
-              <div className="flex items-center justify-between text-[11px]">
+              <div className="flex items-center justify-between text-meta">
                 <span className="font-semibold text-monokai-fg">当前列</span>
-                <span className="text-monokai-comment text-[10px]">依据: DuckDB 统计 + AI 语义</span>
+                <span className="text-monokai-comment text-2xs">依据: DuckDB 统计 + AI 语义</span>
               </div>
               <div className="p-2.5 rounded-lg bg-monokai-elevated border border-monokai-border space-y-1">
                 <div className="flex items-center justify-between">
-                  <span className="font-mono text-monokai-fg text-[12px] font-semibold">
+                  <span className="font-mono text-monokai-fg text-xs font-semibold">
                     {selectedColumnName || '— 尚未选中列 —'}
                   </span>
                   {selectedColumnName && (
-                    <span className="font-mono text-[10px] text-monokai-cyan px-1.5 py-0.5 rounded bg-monokai-surface border border-monokai-border">
+                    <span className="font-mono text-2xs text-monokai-cyan px-1.5 py-0.5 rounded bg-monokai-surface border border-monokai-border">
                       {(columnTypeMap || queryResult?.columnTypeMap)?.[selectedColumnName] || 'VARCHAR'}
                     </span>
                   )}
                 </div>
                 {!selectedColumnName && (
-                  <p className="text-[10px] text-monokai-comment font-sans leading-relaxed">
+                  <p className="text-2xs text-monokai-comment font-sans leading-relaxed">
                     请先在上方 SQL 结果表的列头点击列名以选中需要分析的列，然后再次点击「列画像」按钮。
                   </p>
                 )}
@@ -1103,16 +1103,16 @@ export const AiAssistantPanel: React.FC<AiAssistantPanelProps> = ({
             {/* AI 未配置引导 */}
             {!aiService.isConfigured() && (
               <div className="p-3 rounded-lg bg-monokai-yellow/5 border border-monokai-yellow/30 space-y-2">
-                <div className="flex items-center gap-1.5 text-monokai-yellow text-[11px] font-semibold">
+                <div className="flex items-center gap-1.5 text-monokai-yellow text-meta font-semibold">
                   <Brain className="w-3.5 h-3.5" />
                   <span>AI 服务未配置</span>
                 </div>
-                <p className="text-[11px] text-monokai-fg-muted leading-relaxed">
+                <p className="text-meta text-monokai-fg-muted leading-relaxed">
                   「列画像」需要先配置 AI 服务才能生成业务语义解读。打开设置填写 API Key 后即可启用。
                 </p>
                 <button
                   onClick={() => window.dispatchEvent(new CustomEvent('open-ai-settings'))}
-                  className="h-6 px-2.5 rounded-md bg-monokai-yellow hover:bg-monokai-yellow/90 text-monokai-bg text-[11px] font-semibold cursor-pointer transition-colors flex items-center gap-1"
+                  className="h-6 px-2.5 rounded-md bg-monokai-yellow hover:bg-monokai-yellow/90 text-monokai-bg text-meta font-semibold cursor-pointer transition-colors flex items-center gap-1"
                 >
                   <Sparkles className="w-3 h-3" />
                   <span>前往设置</span>
@@ -1123,11 +1123,11 @@ export const AiAssistantPanel: React.FC<AiAssistantPanelProps> = ({
             {/* 错误状态 */}
             {columnProfileError && !isLoadingColumnProfile && (
               <div className="p-2.5 rounded-lg bg-monokai-pink/10 border border-monokai-pink/40 space-y-1.5">
-                <div className="flex items-center gap-1.5 text-monokai-pink text-[11px] font-semibold">
+                <div className="flex items-center gap-1.5 text-monokai-pink text-meta font-semibold">
                   <AlertCircle className="w-3.5 h-3.5" />
                   <span>AI 列画像生成失败</span>
                 </div>
-                <div className="text-[11px] text-monokai-fg-muted leading-relaxed font-mono break-all">
+                <div className="text-meta text-monokai-fg-muted leading-relaxed font-mono break-all">
                   {columnProfileError}
                 </div>
                 {selectedColumnName && aiService.isConfigured() && (
@@ -1151,12 +1151,12 @@ export const AiAssistantPanel: React.FC<AiAssistantPanelProps> = ({
             {aiService.isConfigured() && selectedColumnName && !columnProfileData && !isLoadingColumnProfile && !columnProfileError && (
               <div className="p-3 rounded-lg bg-monokai-elevated border border-monokai-border text-center space-y-2">
                 <Brain className="w-5 h-5 text-monokai-cyan mx-auto" />
-                <p className="text-[11px] text-monokai-comment font-sans">
+                <p className="text-meta text-monokai-comment font-sans">
                   已选中列 <b className="text-monokai-cyan font-mono">{selectedColumnName}</b>，点击下方按钮生成 AI 列画像。
                 </p>
                 <button
                   onClick={() => void runColumnProfile(selectedColumnName, 'manual')}
-                  className="h-7 px-3 rounded-md bg-monokai-cyan hover:bg-monokai-cyan/90 text-monokai-bg text-[11px] font-semibold cursor-pointer transition-colors flex items-center gap-1 mx-auto"
+                  className="h-7 px-3 rounded-md bg-monokai-cyan hover:bg-monokai-cyan/90 text-monokai-bg text-meta font-semibold cursor-pointer transition-colors flex items-center gap-1 mx-auto"
                 >
                   <Sparkles className="w-3 h-3" />
                   <span>生成 AI 列画像</span>
@@ -1169,19 +1169,19 @@ export const AiAssistantPanel: React.FC<AiAssistantPanelProps> = ({
               <div className="space-y-3">
                 {/* 业务含义 */}
                 <div className="space-y-1.5">
-                  <div className="flex items-center gap-1.5 text-[11px] font-semibold text-monokai-fg">
+                  <div className="flex items-center gap-1.5 text-meta font-semibold text-monokai-fg">
                     <span className="w-1 h-3 bg-gradient-to-b from-monokai-yellow to-monokai-yellow/40 rounded-full" />
                     <Lightbulb className="w-3.5 h-3.5 text-monokai-yellow" />
                     <span>业务含义</span>
                   </div>
-                  <div className="p-3 rounded-lg bg-gradient-to-br from-monokai-yellow/8 via-monokai-elevated to-monokai-elevated border border-monokai-yellow/30 text-[11px] text-monokai-fg-muted leading-relaxed shadow-[inset_0_1px_0_rgba(230,219,116,0.05)]">
+                  <div className="p-3 rounded-lg bg-gradient-to-br from-monokai-yellow/8 via-monokai-elevated to-monokai-elevated border border-monokai-yellow/30 text-meta text-monokai-fg-muted leading-relaxed shadow-[inset_0_1px_0_rgba(230,219,116,0.05)]">
                     {columnProfileData.businessMeaning || 'AI 未返回业务含义。'}
                   </div>
                 </div>
 
                 {/* 语义类型 */}
                 <div className="space-y-1">
-                  <div className="flex items-center gap-1.5 text-[11px] font-semibold text-monokai-fg">
+                  <div className="flex items-center gap-1.5 text-meta font-semibold text-monokai-fg">
                     <Tag className="w-3.5 h-3.5 text-monokai-cyan" />
                     <span>语义类型</span>
                   </div>
@@ -1193,11 +1193,11 @@ export const AiAssistantPanel: React.FC<AiAssistantPanelProps> = ({
                 {/* 典型 SQL 用法 */}
                 {columnProfileData.usageHints && columnProfileData.usageHints.length > 0 && (
                   <div className="space-y-1">
-                    <div className="flex items-center gap-1.5 text-[11px] font-semibold text-monokai-fg">
+                    <div className="flex items-center gap-1.5 text-meta font-semibold text-monokai-fg">
                       <FileCode className="w-3.5 h-3.5 text-monokai-green" />
                       <span>典型 SQL 用法 ({columnProfileData.usageHints.length})</span>
                     </div>
-                    <div className="p-2.5 rounded-lg bg-monokai-elevated border border-monokai-border space-y-1 text-[11px] font-mono">
+                    <div className="p-2.5 rounded-lg bg-monokai-elevated border border-monokai-border space-y-1 text-meta font-mono">
                       {columnProfileData.usageHints.map((hint, idx) => (
                         <div key={idx} className="flex items-start gap-1.5">
                           <span className="text-monokai-comment shrink-0">•</span>
@@ -1211,17 +1211,17 @@ export const AiAssistantPanel: React.FC<AiAssistantPanelProps> = ({
                 {/* 数据质量风险 */}
                 {columnProfileData.qualityRisks && columnProfileData.qualityRisks.length > 0 && (
                   <div className="space-y-1.5">
-                    <div className="flex items-center gap-1.5 text-[11px] font-semibold text-monokai-fg">
+                    <div className="flex items-center gap-1.5 text-meta font-semibold text-monokai-fg">
                       <AlertTriangle className="w-3.5 h-3.5 text-monokai-yellow" />
                       <span>数据质量风险 ({columnProfileData.qualityRisks.length})</span>
                     </div>
                     {columnProfileData.qualityRisks.map((risk, idx) => (
                       <div key={idx} className="p-2.5 rounded-lg bg-monokai-elevated border border-monokai-border space-y-1">
                         <div className="flex items-center justify-between">
-                          <span className="font-semibold text-monokai-fg text-[11px]">{risk.title}</span>
+                          <span className="font-semibold text-monokai-fg text-meta">{risk.title}</span>
                           <SeverityBadge severity={risk.severity} compact />
                         </div>
-                        <p className="text-[11px] text-monokai-fg-muted leading-relaxed font-sans">
+                        <p className="text-meta text-monokai-fg-muted leading-relaxed font-sans">
                           {risk.detail}
                         </p>
                       </div>
@@ -1232,11 +1232,11 @@ export const AiAssistantPanel: React.FC<AiAssistantPanelProps> = ({
                 {/* 建议行动 */}
                 {columnProfileData.suggestedActions && columnProfileData.suggestedActions.length > 0 && (
                   <div className="space-y-1">
-                    <div className="flex items-center gap-1.5 text-[11px] font-semibold text-monokai-fg">
+                    <div className="flex items-center gap-1.5 text-meta font-semibold text-monokai-fg">
                       <ListChecks className="w-3.5 h-3.5 text-monokai-green" />
                       <span>建议下一步</span>
                     </div>
-                    <div className="p-2.5 rounded-lg bg-monokai-elevated border border-monokai-border space-y-1 text-[11px] font-sans">
+                    <div className="p-2.5 rounded-lg bg-monokai-elevated border border-monokai-border space-y-1 text-meta font-sans">
                       {columnProfileData.suggestedActions.map((action, idx) => (
                         <div key={idx} className="flex items-start gap-1.5">
                           <span className="text-monokai-green font-mono shrink-0">{idx + 1}.</span>
@@ -1248,13 +1248,13 @@ export const AiAssistantPanel: React.FC<AiAssistantPanelProps> = ({
                 )}
 
                 {/* 重新生成按钮 */}
-                <div className="pt-2 border-t border-monokai-border-subtle flex items-center justify-between text-[10px] text-monokai-comment">
+                <div className="pt-2 border-t border-monokai-border-subtle flex items-center justify-between text-2xs text-monokai-comment">
                   <span>列画像由 aiService.profileColumn 生成，依据当前查询样本与 Schema 上下文。</span>
                   {selectedColumnName && aiService.isConfigured() && (
                     <button
                       onClick={() => void runColumnProfile(selectedColumnName, 'manual')}
                       disabled={isLoadingColumnProfile}
-                      className="h-6 px-2 rounded-md bg-monokai-surface hover:bg-monokai-elevated border border-monokai-border text-monokai-fg text-[10px] font-medium cursor-pointer transition-colors flex items-center gap-1 disabled:opacity-50"
+                      className="h-6 px-2 rounded-md bg-monokai-surface hover:bg-monokai-elevated border border-monokai-border text-monokai-fg text-2xs font-medium cursor-pointer transition-colors flex items-center gap-1 disabled:opacity-50"
                     >
                       <RefreshCw className={`w-3 h-3 ${isLoadingColumnProfile ? 'animate-spin' : ''}`} />
                       <span>重新生成</span>
@@ -1317,14 +1317,14 @@ export const AiAssistantPanel: React.FC<AiAssistantPanelProps> = ({
           )}
           <div className="grid grid-cols-1 gap-3">
             <div>
-              <div className="text-[10px] font-sans text-monokai-comment mb-1.5">原 SQL</div>
+              <div className="text-2xs font-sans text-monokai-comment mb-1.5">原 SQL</div>
               <pre className="wb-code-block p-2.5 text-monokai-fg whitespace-pre-wrap leading-relaxed">
                 {activeSql || '-- 当前无 SQL'}
               </pre>
             </div>
             <div>
-              <div className="text-[10px] font-sans text-monokai-green mb-1.5">→ 优化后 SQL</div>
-              <pre className="p-2.5 rounded-lg bg-monokai-green/5 border border-monokai-green/40 font-mono text-[11px] text-monokai-fg whitespace-pre-wrap leading-relaxed">
+              <div className="text-2xs font-sans text-monokai-green mb-1.5">→ 优化后 SQL</div>
+              <pre className="p-2.5 rounded-lg bg-monokai-green/5 border border-monokai-green/40 font-mono text-meta text-monokai-fg whitespace-pre-wrap leading-relaxed">
                 {analyzeData?.suggestedSql}
               </pre>
             </div>
@@ -1367,7 +1367,7 @@ const AILoadingBlock: React.FC<{ label: string }> = ({ label }) => {
     <div className="p-3 rounded-lg bg-monokai-elevated border border-monokai-border space-y-2">
       <div className="flex items-center gap-2">
         <Loader2 className="w-3.5 h-3.5 animate-spin text-monokai-comment" />
-        <span className="text-[11px] text-monokai-fg-muted">{label}</span>
+        <span className="text-meta text-monokai-fg-muted">{label}</span>
       </div>
       <div className="space-y-1.5">
         <div className="h-2 rounded bg-monokai-surface/80 animate-pulse w-11/12" />
@@ -1392,13 +1392,13 @@ const SeverityBadge: React.FC<{ severity: 'LOW' | 'MEDIUM' | 'HIGH'; compact?: b
   const cls = colorMap[severity] || colorMap.MEDIUM;
   if (compact) {
     return (
-      <span className={`px-1.5 py-0.5 rounded bg-monokai-surface border border-monokai-border ${cls} text-[9px] font-bold font-mono`}>
+      <span className={`px-1.5 py-0.5 rounded bg-monokai-surface border border-monokai-border ${cls} text-3xs font-bold font-mono`}>
         {severity}
       </span>
     );
   }
   return (
-    <span className={`px-2 py-0.5 rounded-md bg-monokai-surface border border-monokai-border ${cls} font-mono text-[10px] font-bold`}>
+    <span className={`px-2 py-0.5 rounded-md bg-monokai-surface border border-monokai-border ${cls} font-mono text-2xs font-bold`}>
       {severity} ({severityLabel(severity)})
     </span>
   );
@@ -1453,7 +1453,7 @@ const SemanticTypeBadge: React.FC<{ semanticType: ColumnSemanticType }> = ({ sem
   return (
     <span
       data-testid="ai-column-semantic-type"
-      className={`px-2 py-0.5 rounded-md bg-monokai-surface border ${meta.color} font-mono text-[10px] font-bold`}
+      className={`px-2 py-0.5 rounded-md bg-monokai-surface border ${meta.color} font-mono text-2xs font-bold`}
     >
       {meta.label}
     </span>

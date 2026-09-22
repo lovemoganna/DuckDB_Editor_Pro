@@ -37,6 +37,7 @@ import {
   IconButton,
   Badge,
   InlineAlert,
+  NavJumpChip,
 } from './ui/Workbench';
 import { CodeHighlightBlock } from './ui/CodeHighlightBlock';
 import { EMPTY_STATE_MESSAGES } from '../designSystem';
@@ -83,25 +84,6 @@ export interface StructureTabProps {
   onNavigateToMetrics?: (tableName: string) => void;
   onNavigateToSql?: (sql: string) => void;
 }
-
-/** Shared cross-module jump chip — matches DataTab / AnalysisHub recipe. */
-const NavJumpChip: React.FC<{
-  label: string;
-  title: string;
-  toneClass: string;
-  icon: React.ReactNode;
-  onClick: () => void;
-}> = ({ label, title, toneClass, icon, onClick }) => (
-  <button
-    type="button"
-    onClick={onClick}
-    title={title}
-    className={`flex items-center gap-1 px-2 py-0.5 rounded-md bg-monokai-surface hover:bg-monokai-elevated border border-monokai-border text-[11px] cursor-pointer transition-colors ${toneClass}`}
-  >
-    {icon}
-    <span>{label}</span>
-  </button>
-);
 
 export type RightInspectorTab = 'profile' | 'add' | 'ddl';
 

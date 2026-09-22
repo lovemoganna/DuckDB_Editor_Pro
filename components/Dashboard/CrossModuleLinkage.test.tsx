@@ -278,7 +278,7 @@ describe('CrossModuleLinkage - End-to-End Cross-Module Workflows', () => {
         />
       );
 
-      expect(screen.getByText('诊断过滤已生效:')).toBeInTheDocument();
+      expect(screen.getByText('过滤条件已生效')).toBeInTheDocument();
       expect(screen.getByText('"name" IS NULL')).toBeInTheDocument();
 
       const sqlBtn = screen.getByTitle('将此过滤条件转化为完整 SQL 并在编辑器中执行');

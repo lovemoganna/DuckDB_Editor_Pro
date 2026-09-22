@@ -73,4 +73,35 @@ describe('useDataViewStore public state contract', () => {
       loadingData: false,
     });
   });
+
+  it('keeps table rows when profile fetch races in parallel', async () => {
+    const tableRows = deferred<any[]>();
+    const profileRows = deferred<any[]>();
+
+    vi.spyOn(duckDBService, 'query').mockImplementation(async (sql: string) => {
+      if (sql.startsWith('SUMMARIZE')) return profileRows.promise;
+      return [{ c: 1 }];
+    });
+    vi.spyOn(duckDBService, 'getTableSchema').mockResolvedValue([
+      { name: 'id', type: 'INTEGER', notnull: true, dflt_value: null, pk: true },
+    ]);
+    vi.spyOn(duckDBService, 'readQuery').mockImplementation(() => tableRows.promise);
+
+    const tablePromise = useDataViewStore.getState().fetchTableData('orders', 0, 50, [], '');
+    const profilePromise = useDataViewStore.getState().fetchProfileData('orders');
+
+    profileRows.resolve([{ column_name: 'id' }]);
+    await profilePromise;
+
+    tableRows.resolve([{ id: 42 }]);
+    await tablePromise;
+
+    expect(useDataViewStore.getState()).toMatchObject({
+      tableData: [{ id: 42 }],
+      tableColumns: ['id'],
+      profileData: [{ column_name: 'id' }],
+      filterQuery: '',
+      loadingData: false,
+    });
+  });
 });

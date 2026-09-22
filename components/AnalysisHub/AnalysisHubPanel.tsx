@@ -1,21 +1,18 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Activity,
-  BarChart3,
   Database,
   FlaskConical,
   Layers,
-  Play,
   RefreshCw,
   Sparkles,
-  Terminal,
-  TrendingUp,
-  Zap,
-  BookOpen,
-  ChevronDown,
   UploadCloud,
   LayoutDashboard,
   Table2,
+  Activity,
+  BarChart3,
+  TrendingUp,
+  Zap,
+  BookOpen,
 } from 'lucide-react';
 import { useAppStore } from '../../hooks/store/useAppStore';
 import { useSqlEditorStore } from '../../hooks/store/useSqlEditorStore';
@@ -25,8 +22,8 @@ import { duckDBService } from '../../services/duckdbService';
 import { seedDemoWorkbenchData } from '../Workbench/seedWorkbenchData';
 import { toastService } from '../../services/toastService';
 import { PageHeader, SegmentedTabs, ActionButton } from '../ui/Workbench';
+import { AH, AnalysisLoadingState } from './analysisUi';
 
-// Subviews
 import { AnalysisProfiler } from './AnalysisProfiler';
 import { AnalysisPivotWorkbench } from './AnalysisPivotWorkbench';
 import { AnalysisTimeSeries } from './AnalysisTimeSeries';
@@ -55,10 +52,8 @@ interface AnalysisHubPanelProps {
 export const AnalysisHubPanel: React.FC<AnalysisHubPanelProps> = ({
   initialSql,
   onInsertSql,
-  runtimeInfo,
   onNavigateToDashboard,
 }) => {
-  // Global Store
   const tables = useAppStore(s => s.tables);
   const currentTable = useAppStore(s => s.currentTable);
   const setCurrentTable = useAppStore(s => s.setCurrentTable);
@@ -66,37 +61,51 @@ export const AnalysisHubPanel: React.FC<AnalysisHubPanelProps> = ({
   const setActiveTab = useAppStore(s => s.setActiveTab);
   const setShowImportModal = useAppStore(s => s.setShowImportModal);
 
-  // Subview State
   const [activeSubView, setActiveSubView] = useState<AnalysisHubSubView>(() => {
     try {
       const stored = localStorage.getItem(SUBVIEW_STORAGE_KEY) as AnalysisHubSubView;
-      if (stored && ['profiler', 'pivot', 'timeseries', 'recipes', 'templates'].includes(stored)) {
+      if (stored && ANALYSIS_VIEWS.some(v => v.value === stored)) {
         return stored;
       }
-    } catch {}
+    } catch {
+      /* ignore */
+    }
     return 'profiler';
   });
 
-  // Table Schema State
   const [selectedTable, setSelectedTable] = useState<string>(currentTable || tables[0] || '');
   const [schema, setSchema] = useState<ColumnInfo[]>([]);
-  const [loadingSchema, setLoadingSchema] = useState<boolean>(false);
-  const [isSeedingDemo, setIsSeedingDemo] = useState<boolean>(false);
+  const [loadingSchema, setLoadingSchema] = useState(false);
+  const [isSeedingDemo, setIsSeedingDemo] = useState(false);
 
-  // Inter-view carryover parameters
   const [targetDimension, setTargetDimension] = useState<string | undefined>(undefined);
   const [targetTimeColumn, setTargetTimeColumn] = useState<string | undefined>(undefined);
 
-  // Keep selected table synced
+  const handleSetSubView = (view: AnalysisHubSubView) => {
+    setActiveSubView(view);
+    try {
+      localStorage.setItem(SUBVIEW_STORAGE_KEY, view);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  // If opened with SQL payload, land on templates for apply/edit continuity
+  useEffect(() => {
+    if (initialSql && initialSql.trim()) {
+      handleSetSubView('templates');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     if (currentTable && tables.includes(currentTable)) {
       setSelectedTable(currentTable);
     } else if (tables.length > 0 && (!selectedTable || !tables.includes(selectedTable))) {
       setSelectedTable(tables[0]);
     }
-  }, [currentTable, tables]);
+  }, [currentTable, tables, selectedTable]);
 
-  // Load Schema on table change
   const loadSchema = useCallback(async (tableName: string) => {
     if (!tableName) {
       setSchema([]);
@@ -120,13 +129,6 @@ export const AnalysisHubPanel: React.FC<AnalysisHubPanelProps> = ({
     }
   }, [selectedTable, loadSchema]);
 
-  const handleSetSubView = (view: AnalysisHubSubView) => {
-    setActiveSubView(view);
-    try {
-      localStorage.setItem(SUBVIEW_STORAGE_KEY, view);
-    } catch {}
-  };
-
   const handleTableChange = (newTableName: string) => {
     setSelectedTable(newTableName);
     setCurrentTable(newTableName);
@@ -143,9 +145,10 @@ export const AnalysisHubPanel: React.FC<AnalysisHubPanelProps> = ({
       if (selectedTable) {
         await loadSchema(selectedTable);
       }
-      toastService.success('数据表列表已刷新！');
+      toastService.success('数据表列表已刷新');
     } catch (err) {
       console.error(err);
+      toastService.error('刷新表列表失败');
     }
   };
 
@@ -154,14 +157,16 @@ export const AnalysisHubPanel: React.FC<AnalysisHubPanelProps> = ({
     try {
       await seedDemoWorkbenchData();
       const tList = await duckDBService.getTables();
+      setTables(tList);
       if (tList.length > 0) {
         setSelectedTable(tList[0]);
         setCurrentTable(tList[0]);
         await loadSchema(tList[0]);
       }
-      toastService.success('🚀 已成功载入全真电商分析数据集 (orders/customers/products)！');
-    } catch (err: any) {
-      toastService.error(`载入示例数据集失败: ${err?.message || String(err)}`);
+      toastService.success('已载入电商分析示例数据集 (orders / customers / products)');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toastService.error(`载入示例数据集失败: ${msg}`);
     } finally {
       setIsSeedingDemo(false);
     }
@@ -176,27 +181,42 @@ export const AnalysisHubPanel: React.FC<AnalysisHubPanelProps> = ({
     setActiveTab(Tab.SQL);
   };
 
-  // Profile jumps to Pivot
   const handleNavigateToPivot = (column: string) => {
     setTargetDimension(column);
     handleSetSubView('pivot');
   };
 
-  // Profile jumps to TimeSeries
   const handleNavigateToTimeSeries = (column: string) => {
     setTargetTimeColumn(column);
     handleSetSubView('timeseries');
   };
 
+  // One-shot seeds: keep for the destination mount, then clear so table switches don't re-apply
+  useEffect(() => {
+    if (activeSubView === 'pivot' && targetDimension) {
+      const id = window.setTimeout(() => setTargetDimension(undefined), 0);
+      return () => window.clearTimeout(id);
+    }
+    if (activeSubView === 'timeseries' && targetTimeColumn) {
+      const id = window.setTimeout(() => setTargetTimeColumn(undefined), 0);
+      return () => window.clearTimeout(id);
+    }
+    return undefined;
+  }, [activeSubView, targetDimension, targetTimeColumn]);
+
+  const needsTable = activeSubView !== 'templates';
+  const showEmptyState = tables.length === 0 && needsTable;
+  const showSchemaLoading = !showEmptyState && needsTable && loadingSchema && schema.length === 0 && Boolean(selectedTable);
+
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-monokai-bg font-sans">
-      {/* Top Universal Page Header */}
+    <div className={AH.root}>
       <PageHeader
-        title="分析中心 (Analysis Hub)"
-        description="开箱即用的多维透视、时序走势与业务建模工作台 • 毫秒级 DuckDB 本地内核直出"
+        title="分析中心"
+        description="多维透视 · 时序走势 · 业务配方 · SQL 模板 · DuckDB 本地内核"
         icon={FlaskConical}
+        tone="accent"
         actions={
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             {onNavigateToDashboard && (
               <ActionButton
                 variant="ghost"
@@ -209,15 +229,15 @@ export const AnalysisHubPanel: React.FC<AnalysisHubPanelProps> = ({
               </ActionButton>
             )}
 
-            {/* Table Context Selector */}
             {tables.length > 0 && (
-              <div className="flex items-center gap-1.5 h-8 rounded-md border border-monokai-border bg-monokai-surface px-2.5 text-xs">
-                <Database className="h-3.5 w-3.5 text-monokai-comment" />
-                <span className="text-[10px] text-monokai-comment font-mono">当前分析表:</span>
+              <div className="flex items-center gap-1.5 h-8 rounded-md border border-monokai-border bg-monokai-surface px-2 text-meta shadow-xs">
+                <Database className="h-3.5 w-3.5 text-monokai-comment" aria-hidden="true" />
+                <span className="text-2xs text-monokai-comment font-mono hidden sm:inline">分析表</span>
                 <select
                   value={selectedTable}
                   onChange={e => handleTableChange(e.target.value)}
-                  className="rounded border border-transparent bg-transparent font-mono font-bold text-monokai-fg hover:border-monokai-border/60 focus:border-monokai-accent focus:outline-none cursor-pointer text-xs"
+                  className="rounded-md border border-transparent bg-transparent font-mono font-semibold text-monokai-fg hover:border-monokai-border/60 focus:border-monokai-accent focus:outline-none cursor-pointer text-meta max-w-[140px]"
+                  aria-label="选择分析表"
                 >
                   {tables.map(t => (
                     <option key={t} value={t} className="bg-monokai-surface text-monokai-fg">
@@ -229,27 +249,26 @@ export const AnalysisHubPanel: React.FC<AnalysisHubPanelProps> = ({
                   type="button"
                   title="刷新数据表结构"
                   onClick={handleRefreshTables}
-                  className="p-1 rounded text-monokai-comment hover:text-monokai-fg hover:bg-monokai-bg transition-colors"
+                  className={AH.iconBtn}
                 >
-                  <RefreshCw className="h-3 w-3" />
+                  <RefreshCw className={`h-3 w-3 ${loadingSchema ? 'animate-spin' : ''}`} aria-hidden="true" />
                 </button>
               </div>
             )}
 
-            {/* Cross-Module Quick Links */}
             {selectedTable && (
-              <div className="hidden 2xl:flex items-center gap-1.5 border-l border-monokai-border/70 pl-2.5">
+              <div className="hidden xl:flex items-center gap-1.5 border-l border-monokai-border/70 pl-2">
                 <button
                   type="button"
                   onClick={() => {
                     setCurrentTable(selectedTable);
                     setActiveTab(Tab.DATA);
                   }}
-                  className="flex items-center gap-1 px-2 py-1 rounded bg-monokai-surface hover:bg-monokai-elevated border border-monokai-border text-[11px] text-monokai-cyan cursor-pointer transition-colors"
+                  className={`${AH.btnGhost} text-monokai-cyan`}
                   title="在数据网格中浏览当前表"
                 >
-                  <Table2 size={11} />
-                  <span>数据网格 ↗</span>
+                  <Table2 className="h-3 w-3" aria-hidden="true" />
+                  <span>数据网格</span>
                 </button>
                 <button
                   type="button"
@@ -257,73 +276,73 @@ export const AnalysisHubPanel: React.FC<AnalysisHubPanelProps> = ({
                     setCurrentTable(selectedTable);
                     setActiveTab(Tab.STRUCTURE);
                   }}
-                  className="flex items-center gap-1 px-2 py-1 rounded bg-monokai-surface hover:bg-monokai-elevated border border-monokai-border text-[11px] text-monokai-yellow cursor-pointer transition-colors"
+                  className={`${AH.btnGhost} text-monokai-yellow`}
                   title="查看当前表结构及约束"
                 >
-                  <Layers size={11} />
-                  <span>结构设计 ↗</span>
+                  <Layers className="h-3 w-3" aria-hidden="true" />
+                  <span>表结构</span>
                 </button>
               </div>
             )}
 
-            {/* Subview Navigation Tabs */}
             <SegmentedTabs
               aria-label="分析工具模式"
               value={activeSubView}
               items={ANALYSIS_VIEWS}
-              size="md"
+              size="sm"
+              tone="accent"
               onChange={handleSetSubView}
             />
           </div>
         }
       />
 
-      {/* Main Workspace Body */}
       <div className="flex-1 overflow-hidden relative">
-        {/* Zero-State Empty State when no tables in DuckDB */}
-        {tables.length === 0 && activeSubView !== 'templates' ? (
-          <div className="flex h-full flex-col items-center justify-center p-6 text-center text-monokai-fg">
-            <div className="relative mb-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-md border border-monokai-border bg-monokai-surface text-monokai-comment">
-                <FlaskConical className="h-6 w-6 text-monokai-comment" />
-              </div>
+        {showEmptyState ? (
+          <div className="flex h-full flex-col items-center justify-center p-4 text-center text-monokai-fg">
+            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-md border border-monokai-border bg-monokai-surface text-monokai-comment">
+              <FlaskConical className="h-5 w-5" aria-hidden="true" />
             </div>
-
-            <h3 className="text-base font-bold tracking-tight text-monokai-fg">
-              当前 DuckDB 数据库中暂无数据表
-            </h3>
-            <p className="mt-1.5 max-w-md text-xs text-monokai-comment leading-relaxed">
-              分析中心已准备就绪。您可以 1 秒载入包含 orders、customers、products 的全真多维电商数据集，即可立即体验即时体检、多维透视、时序走势与业务配方四大工作台。
+            <h3 className="text-meta font-bold tracking-tight text-monokai-fg">暂无数据表可分析</h3>
+            <p className="mt-1.5 max-w-md text-2xs text-monokai-comment leading-relaxed">
+              载入示例电商数据集，或导入 CSV / Parquet，即可使用体检、透视、时序与业务配方。
             </p>
-
-            <div className="mt-5 flex items-center gap-3">
+            <div className="mt-4 flex items-center gap-2">
               <button
                 type="button"
                 onClick={handleSeedDemoData}
                 disabled={isSeedingDemo}
-                className="flex items-center gap-2 h-8 rounded-md bg-monokai-green px-4 font-semibold text-xs text-monokai-bg hover:bg-monokai-green/90 transition-all cursor-pointer disabled:opacity-50"
+                className={AH.btnSuccess}
               >
                 {isSeedingDemo ? (
-                  <RefreshCw className="h-4 w-4 animate-spin" />
+                  <RefreshCw className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
                 ) : (
-                  <Sparkles className="h-4 w-4 fill-current" />
+                  <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
                 )}
-                <span>1秒载入全真电商分析数据集</span>
+                <span>载入示例数据集</span>
               </button>
-
               <button
                 type="button"
                 onClick={() => setShowImportModal(true)}
-                className="flex items-center gap-1.5 h-8 rounded-md border border-monokai-border bg-monokai-elevated px-3.5 font-medium text-xs text-monokai-fg hover:bg-monokai-hover hover:border-monokai-border-strong transition-colors cursor-pointer"
+                className={AH.btnGhost}
               >
-                <UploadCloud className="h-4 w-4 text-monokai-comment" />
-                <span>导入外部 CSV / Parquet</span>
+                <UploadCloud className="h-3.5 w-3.5 text-monokai-comment" aria-hidden="true" />
+                <span>导入 CSV / Parquet</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSetSubView('templates')}
+                className={AH.btnGhost}
+              >
+                <BookOpen className="h-3.5 w-3.5 text-monokai-comment" aria-hidden="true" />
+                <span>先浏览 SQL 模板</span>
               </button>
             </div>
           </div>
+        ) : showSchemaLoading ? (
+          <AnalysisLoadingState message={`正在读取表结构 [${selectedTable}]…`} />
         ) : (
           <>
-            {/* View 1: 即时数据体检 */}
             {activeSubView === 'profiler' && (
               <AnalysisProfiler
                 currentTable={selectedTable}
@@ -333,8 +352,6 @@ export const AnalysisHubPanel: React.FC<AnalysisHubPanelProps> = ({
                 onInsertSql={handleExecuteSql}
               />
             )}
-
-            {/* View 2: 交互透视聚合 */}
             {activeSubView === 'pivot' && (
               <AnalysisPivotWorkbench
                 currentTable={selectedTable}
@@ -343,8 +360,6 @@ export const AnalysisHubPanel: React.FC<AnalysisHubPanelProps> = ({
                 onInsertSql={handleExecuteSql}
               />
             )}
-
-            {/* View 3: 时序走势分析 */}
             {activeSubView === 'timeseries' && (
               <AnalysisTimeSeries
                 currentTable={selectedTable}
@@ -353,8 +368,6 @@ export const AnalysisHubPanel: React.FC<AnalysisHubPanelProps> = ({
                 onInsertSql={handleExecuteSql}
               />
             )}
-
-            {/* View 4: 业务分析配方 */}
             {activeSubView === 'recipes' && (
               <AnalysisRecipeCenter
                 currentTable={selectedTable}
@@ -362,10 +375,13 @@ export const AnalysisHubPanel: React.FC<AnalysisHubPanelProps> = ({
                 onInsertSql={handleExecuteSql}
               />
             )}
-
-            {/* View 5: SQL 模板与资产库 */}
             {activeSubView === 'templates' && (
-              <VisualSqlDashboard onInsertSql={handleExecuteSql} />
+              <VisualSqlDashboard
+                onInsertSql={handleExecuteSql}
+                currentTable={selectedTable || undefined}
+                columnNames={schema.map(c => c.name)}
+                initialSql={initialSql}
+              />
             )}
           </>
         )}

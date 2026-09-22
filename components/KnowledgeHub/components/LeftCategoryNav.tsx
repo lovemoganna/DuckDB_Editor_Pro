@@ -28,7 +28,7 @@ export interface LeftCategoryNavProps {
   onSearchChange?: (q: string) => void;
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
-  // 兼容性接口  selectedCategory?: AssetType | 'all' | 'favorites';
+  selectedCategory?: AssetType | 'all' | 'favorites';
   onSelectCategory?: (cat: AssetType | 'all' | 'favorites') => void;
   selectedTag?: string | null;
   onSelectTag?: (tag: string | null) => void;

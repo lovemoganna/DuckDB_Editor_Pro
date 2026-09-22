@@ -56,6 +56,10 @@ import {
 import type { QueryResult } from '../../types';
 import { duckDBService } from '../../services/duckdbService';
 import { formatCellValue, formatDate, formatTimestamp } from '../../utils/typeFormatter';
+import CodeMirror from '@uiw/react-codemirror';
+import { sql } from '@codemirror/lang-sql';
+import { monokai } from '@uiw/codemirror-theme-monokai';
+import { EditorView } from '@codemirror/view';
 import { Bar, Line, Pie, Doughnut, Scatter } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -74,6 +78,33 @@ import ChartDataLabels from 'chartjs-plugin-datalabels';
 import { toastService } from '../../services/toastService';
 import { SegmentedTabs, ModalShell, ActionButton, FormInput } from '../ui/Workbench';
 import { ExplainPlanView } from './ExplainPlanView';
+
+const GROUP_SQL_PREVIEW_EXTENSIONS = [
+  sql(),
+  EditorView.lineWrapping,
+  EditorView.editable.of(false),
+  EditorView.theme({
+    '&': {
+      fontSize: '11.5px',
+      backgroundColor: 'transparent',
+    },
+    '.cm-content': {
+      fontFamily: 'var(--font-sql-editor, var(--font-mono))',
+      fontSize: '11.5px',
+      lineHeight: '1.55',
+      padding: '10px 12px',
+    },
+    '.cm-line': {
+      fontFamily: 'var(--font-sql-editor, var(--font-mono))',
+      fontSize: '11.5px',
+      lineHeight: '1.55',
+    },
+    '.cm-scroller': {
+      overflow: 'auto',
+      fontFamily: 'var(--font-sql-editor, var(--font-mono))',
+    },
+  }),
+];
 
 ChartJS.register(
   CategoryScale,
@@ -1790,6 +1821,19 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
     }
   };
 
+  const handleCopyGroupSqlPreview = async () => {
+    if (!groupSqlPreview.trim()) {
+      toastService.info('当前无可复制的 SQL');
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(groupSqlPreview);
+      toastService.success('已复制分组 SQL');
+    } catch {
+      toastService.error('复制失败');
+    }
+  };
+
   const handleExecuteExport = () => {
     setShowExportModal(false);
     if (exportFormat === 'csv') {
@@ -1874,7 +1918,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
             {/* Filter Button — 条件筛选 */}
             <button
               onClick={() => setShowFilterModal(true)}
-              className={`group flex items-center gap-1.5 h-7 px-2.5 rounded-md transition-all duration-200 cursor-pointer text-[11px] font-semibold tracking-tight ${
+              className={`group flex items-center gap-1.5 h-7 px-2.5 rounded-md transition-all duration-200 cursor-pointer text-meta font-semibold tracking-tight ${
                 filterRules.some(r => r.column && (r.operator === 'is_null' || r.operator === 'is_not_null' || r.value.trim() !== ''))
                   ? 'bg-gradient-to-b from-monokai-yellow/22 to-monokai-yellow/10 text-monokai-yellow border border-monokai-yellow/45 shadow-[inset_0_0_0_1px_rgba(230,219,116,0.12)]'
                   : 'text-monokai-comment/85 hover:bg-gradient-to-b hover:from-monokai-elevated/80 hover:to-monokai-elevated/50 hover:text-monokai-yellow border border-transparent hover:border-monokai-yellow/35 hover:shadow-[0_0_0_1px_rgba(230,219,116,0.10)]'
@@ -1884,7 +1928,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
               <Filter className="w-3 h-3 transition-transform group-hover:scale-110" />
               <span>筛选</span>
               {filterRules.filter(r => r.column && (r.operator === 'is_null' || r.operator === 'is_not_null' || r.value.trim() !== '')).length > 0 && (
-                <span className="ml-0.5 inline-flex items-center justify-center min-w-3.5 h-3.5 px-1 rounded-full bg-monokai-yellow/35 text-[9px] font-bold text-monokai-bg tabular-nums">
+                <span className="ml-0.5 inline-flex items-center justify-center min-w-3.5 h-3.5 px-1 rounded-full bg-monokai-yellow/35 text-3xs font-bold text-monokai-bg tabular-nums">
                   {filterRules.filter(r => r.column && (r.operator === 'is_null' || r.operator === 'is_not_null' || r.value.trim() !== '')).length}
                 </span>
               )}
@@ -1893,7 +1937,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
             {/* Sort Panel Toggle — 排序管理 */}
             <button
               onClick={() => setShowSortPanel(!showSortPanel)}
-              className={`group flex items-center gap-1.5 h-7 px-2.5 rounded-md transition-all duration-200 cursor-pointer text-[11px] font-semibold tracking-tight ${
+              className={`group flex items-center gap-1.5 h-7 px-2.5 rounded-md transition-all duration-200 cursor-pointer text-meta font-semibold tracking-tight ${
                 showSortPanel || sortRules.length > 0 || sortColumn
                   ? 'bg-gradient-to-b from-monokai-cyan/22 to-monokai-cyan/10 text-monokai-cyan border border-monokai-cyan/45 shadow-[inset_0_0_0_1px_rgba(102,217,239,0.12)]'
                   : 'text-monokai-comment/85 hover:bg-gradient-to-b hover:from-monokai-elevated/80 hover:to-monokai-elevated/50 hover:text-monokai-cyan border border-transparent hover:border-monokai-cyan/35 hover:shadow-[0_0_0_1px_rgba(102,217,239,0.10)]'
@@ -1903,7 +1947,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
               <ArrowUpDown className="w-3 h-3 transition-transform group-hover:scale-110" />
               <span>排序</span>
               {(sortRules.length > 0 || sortColumn) && (
-                <span className="ml-0.5 inline-flex items-center justify-center min-w-3.5 h-3.5 px-1 rounded-full bg-monokai-cyan/35 text-[9px] font-bold text-monokai-bg tabular-nums">
+                <span className="ml-0.5 inline-flex items-center justify-center min-w-3.5 h-3.5 px-1 rounded-full bg-monokai-cyan/35 text-3xs font-bold text-monokai-bg tabular-nums">
                   {sortRules.length || (sortColumn ? 1 : 0)}
                 </span>
               )}
@@ -1919,7 +1963,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
             {/* Group + Aggregate Button — 分组聚合 */}
             <button
               onClick={() => setShowGroupModal(true)}
-              className={`group flex items-center gap-1.5 h-7 px-2.5 rounded-md transition-all duration-200 cursor-pointer text-[11px] font-semibold tracking-tight ${
+              className={`group flex items-center gap-1.5 h-7 px-2.5 rounded-md transition-all duration-200 cursor-pointer text-meta font-semibold tracking-tight ${
                 showGroupModal || groupByCols.length > 0
                   ? 'bg-gradient-to-b from-monokai-green/22 to-monokai-green/10 text-monokai-green border border-monokai-green/45 shadow-[inset_0_0_0_1px_rgba(166,226,46,0.12)]'
                   : 'text-monokai-comment/85 hover:bg-gradient-to-b hover:from-monokai-elevated/80 hover:to-monokai-elevated/50 hover:text-monokai-green border border-transparent hover:border-monokai-green/35 hover:shadow-[0_0_0_1px_rgba(166,226,46,0.10)]'
@@ -1933,7 +1977,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
             {/* Pivot Table Button — 透视表 (始终可见，优化尺寸) */}
             <button
               onClick={() => setActiveSubTab('pivot')}
-              className={`group flex items-center gap-1 h-7 px-2 rounded-md transition-all duration-200 cursor-pointer text-[11px] font-semibold tracking-tight ${
+              className={`group flex items-center gap-1 h-7 px-2 rounded-md transition-all duration-200 cursor-pointer text-meta font-semibold tracking-tight ${
                 activeSubTab === 'pivot'
                   ? 'bg-gradient-to-b from-monokai-green/22 to-monokai-green/10 text-monokai-green border border-monokai-green/45 shadow-[inset_0_0_0_1px_rgba(166,226,46,0.12)]'
                   : 'text-monokai-comment/85 hover:bg-gradient-to-b hover:from-monokai-elevated/80 hover:to-monokai-elevated/50 hover:text-monokai-green border border-transparent hover:border-monokai-green/35 hover:shadow-[0_0_0_1px_rgba(166,226,46,0.10)]'
@@ -1954,7 +1998,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
             {/* Chart/Visualize Button — 图表可视化 */}
             <button
               onClick={() => setActiveSubTab('chart')}
-              className={`group flex items-center gap-1.5 h-7 px-2.5 rounded-md transition-all duration-200 cursor-pointer text-[11px] font-semibold tracking-tight ${
+              className={`group flex items-center gap-1.5 h-7 px-2.5 rounded-md transition-all duration-200 cursor-pointer text-meta font-semibold tracking-tight ${
                 activeSubTab === 'chart'
                   ? 'bg-gradient-to-b from-monokai-orange/22 to-monokai-orange/10 text-monokai-orange border border-monokai-orange/45 shadow-[inset_0_0_0_1px_rgba(253,151,31,0.12)]'
                   : 'text-monokai-comment/85 hover:bg-gradient-to-b hover:from-monokai-elevated/80 hover:to-monokai-elevated/50 hover:text-monokai-orange border border-transparent hover:border-monokai-orange/35 hover:shadow-[0_0_0_1px_rgba(253,151,31,0.10)]'
@@ -1975,7 +2019,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
             {/* Export Button — 导出数据 */}
             <button
               onClick={() => setShowExportModal(true)}
-              className="group flex items-center gap-1.5 h-7 px-2.5 rounded-md text-monokai-comment/85 hover:bg-gradient-to-b hover:from-monokai-elevated/80 hover:to-monokai-elevated/50 hover:text-monokai-orange border border-transparent hover:border-monokai-orange/35 hover:shadow-[0_0_0_1px_rgba(253,151,31,0.10)] transition-all duration-200 cursor-pointer text-[11px] font-semibold tracking-tight"
+              className="group flex items-center gap-1.5 h-7 px-2.5 rounded-md text-monokai-comment/85 hover:bg-gradient-to-b hover:from-monokai-elevated/80 hover:to-monokai-elevated/50 hover:text-monokai-orange border border-transparent hover:border-monokai-orange/35 hover:shadow-[0_0_0_1px_rgba(253,151,31,0.10)] transition-all duration-200 cursor-pointer text-meta font-semibold tracking-tight"
               title="导出 — 下载为 Parquet/CSV/JSON/Arrow 格式 (Ctrl+E)"
             >
               <Download className="w-3 h-3 transition-transform group-hover:scale-110" />
@@ -1993,12 +2037,12 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                     <AlertCircle className="w-3 h-3" />
                     <span className="absolute inset-0 blur-[3px] bg-monokai-pink/55 animate-pulse rounded-full" />
                   </span>
-                  <span className="tracking-tight text-[10px]">执行出错</span>
+                  <span className="tracking-tight text-2xs">执行出错</span>
                 </span>
               ) : isStale ? (
                 <span className="flex items-center gap-1.5 text-monokai-yellow font-semibold px-2.5 py-1 rounded-md bg-gradient-to-b from-monokai-yellow/15 to-monokai-yellow/8 border border-monokai-yellow/40 shadow-[inset_0_0_0_1px_rgba(230,219,116,0.06),0_1px_2px_-1px_rgba(230,219,116,0.15)]">
                   <Clock className="w-3 h-3" />
-                  <span className="tracking-tight text-[10px]">待重新运行</span>
+                  <span className="tracking-tight text-2xs">待重新运行</span>
                 </span>
               ) : (
                 <span
@@ -2010,36 +2054,36 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                     <span className="absolute inset-0 blur-[3px] bg-monokai-green/55 rounded-full" />
                   </span>
                   <Check className="w-3 h-3 relative" strokeWidth={3} />
-                  <span className="tracking-tight text-[10px]">执行成功</span>
+                  <span className="tracking-tight text-2xs">执行成功</span>
                 </span>
               )}
               <div className="flex items-center gap-2 px-2.5 py-1 rounded-md bg-gradient-to-b from-monokai-bg/85 to-monokai-bg/65 border border-monokai-border/75 shadow-[inset_0_1px_0_rgba(255,255,255,0.03),0_1px_2px_-1px_rgba(0,0,0,0.42)] backdrop-blur-xs">
                 <span
                   title="数据行数"
                   data-testid="metric-rows"
-                  className="font-bold tabular-nums tracking-tight text-monokai-green text-[10px]"
+                  className="font-bold tabular-nums tracking-tight text-monokai-green text-2xs"
                 >
                   {rawRows.length.toLocaleString()}
                 </span>
-                <span className="text-[10px] text-monokai-comment/65">行</span>
+                <span className="text-2xs text-monokai-comment/65">行</span>
                 <span className="w-px h-3 bg-monokai-border/75" />
                 <span
                   title="字段列数"
                   data-testid="metric-cols"
-                  className="font-bold tabular-nums tracking-tight text-monokai-cyan text-[10px]"
+                  className="font-bold tabular-nums tracking-tight text-monokai-cyan text-2xs"
                 >
                   {columns.length}
                 </span>
-                <span className="text-[10px] text-monokai-comment/65">列</span>
+                <span className="text-2xs text-monokai-comment/65">列</span>
                 <span className="w-px h-3 bg-monokai-border/75" />
                 <span
                   title="执行耗时"
                   data-testid="metric-time"
-                  className="font-bold tabular-nums tracking-tight text-monokai-amethyst text-[10px]"
+                  className="font-bold tabular-nums tracking-tight text-monokai-amethyst text-2xs"
                 >
                   {executionTimeMs}
                 </span>
-                <span className="text-[10px] text-monokai-comment/65">ms</span>
+                <span className="text-2xs text-monokai-comment/65">ms</span>
               </div>
             </div>
           ) : (
@@ -2048,7 +2092,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                 <span className="w-1.5 h-1.5 rounded-full bg-monokai-comment/55" />
                 <span className="absolute inset-0 blur-sm bg-monokai-comment/30 rounded-full" />
               </span>
-              <span className="text-[10px] uppercase tracking-[0.12em] font-semibold">就绪待命</span>
+              <span className="text-2xs uppercase tracking-[0.12em] font-semibold">就绪待命</span>
             </div>
           )}
 
@@ -2061,7 +2105,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                   setTableLayoutMode(prev => prev === 'auto' ? 'fill' : 'auto');
                   toastService.info(tableLayoutMode === 'auto' ? '已切换为铺满容器宽度' : '已切换为紧凑内容自适应 (消除无效留白)');
                 }}
-                className="group flex items-center gap-1 px-2 py-1 rounded-md text-[10px] border border-monokai-border/70 bg-monokai-bg/70 text-monokai-fg-muted hover:text-monokai-cyan hover:bg-monokai-cyan/10 hover:border-monokai-cyan/45 transition-all duration-200 cursor-pointer font-semibold tracking-tight"
+                className="group flex items-center gap-1 px-2 py-1 rounded-md text-2xs border border-monokai-border/70 bg-monokai-bg/70 text-monokai-fg-muted hover:text-monokai-cyan hover:bg-monokai-cyan/10 hover:border-monokai-cyan/45 transition-all duration-200 cursor-pointer font-semibold tracking-tight"
                 title={tableLayoutMode === 'auto' ? '当前: 智能紧凑自适应 (点击切换为铺满全宽)' : '当前: 铺满容器全宽 (点击切换为紧凑自适应)'}
               >
                 <Columns className="w-3 h-3 text-monokai-cyan/85 group-hover:text-monokai-cyan transition-colors" />
@@ -2075,7 +2119,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                     setCustomColWidths({});
                     toastService.info('已重置所有列为默认自适应宽度');
                   }}
-                  className="group flex items-center gap-1 px-2 py-1 rounded-md text-[10px] border border-monokai-yellow/40 bg-gradient-to-b from-monokai-yellow/15 to-monokai-yellow/8 text-monokai-yellow hover:from-monokai-yellow/22 hover:to-monokai-yellow/14 hover:border-monokai-yellow/55 transition-all duration-200 cursor-pointer font-semibold tracking-tight shadow-[inset_0_0_0_1px_rgba(230,219,116,0.06)]"
+                  className="group flex items-center gap-1 px-2 py-1 rounded-md text-2xs border border-monokai-yellow/40 bg-gradient-to-b from-monokai-yellow/15 to-monokai-yellow/8 text-monokai-yellow hover:from-monokai-yellow/22 hover:to-monokai-yellow/14 hover:border-monokai-yellow/55 transition-all duration-200 cursor-pointer font-semibold tracking-tight shadow-[inset_0_0_0_1px_rgba(230,219,116,0.06)]"
                   title="重置自定义拖拽宽度为最佳自适应"
                 >
                   <RotateCcw className="w-3 h-3 group-hover:-rotate-90 transition-transform duration-300" />
@@ -2122,18 +2166,18 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                   </div>
                   <div className="space-y-0.5">
                     <span className="block tracking-tight">SQL 执行异常</span>
-                    <span className="block text-[10px] font-normal text-monokai-comment/75 tracking-tight">Query Execution Error · DuckDB Runtime</span>
+                    <span className="block text-2xs font-normal text-monokai-comment/75 tracking-tight">Query Execution Error · DuckDB Runtime</span>
                   </div>
                 </div>
                 {parsedErrorInfo && (
                   <div className="flex items-center gap-1.5">
                     {parsedErrorInfo.lineNum && (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-md bg-monokai-surface/85 border border-monokai-yellow/40 text-monokai-yellow font-bold shadow-[inset_0_0_0_1px_rgba(230,219,116,0.06)]">
+                      <span className="inline-flex items-center gap-1 text-2xs font-mono px-2 py-0.5 rounded-md bg-monokai-surface/85 border border-monokai-yellow/40 text-monokai-yellow font-bold shadow-[inset_0_0_0_1px_rgba(230,219,116,0.06)]">
                         <span className="text-monokai-comment/70">L</span>
                         {parsedErrorInfo.lineNum}
                       </span>
                     )}
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-mono border font-bold tracking-tight ${parsedErrorInfo.badgeClass}`}>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-2xs font-mono border font-bold tracking-tight ${parsedErrorInfo.badgeClass}`}>
                       {parsedErrorInfo.category}
                     </span>
                   </div>
@@ -2180,7 +2224,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                 )}
               </div>
             </div>
-            <div className="flex items-start gap-2 px-3 py-2.5 rounded-lg bg-monokai-bg/60 border border-monokai-border/60 text-[11px] text-monokai-comment font-sans leading-relaxed">
+            <div className="flex items-start gap-2 px-3 py-2.5 rounded-lg bg-monokai-bg/60 border border-monokai-border/60 text-meta text-monokai-comment font-sans leading-relaxed">
               <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-monokai-cyan/15 border border-monokai-cyan/30 shrink-0">
                 <Lightbulb className="w-3 h-3 text-monokai-cyan" />
               </span>
@@ -2198,7 +2242,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
               </div>
 
               <p className="mb-1 text-xs font-semibold text-monokai-fg-muted">等待执行查询</p>
-              <p className="mx-auto max-w-sm text-[11px] leading-relaxed text-monokai-comment">
+              <p className="mx-auto max-w-sm text-meta leading-relaxed text-monokai-comment">
                 运行 SQL 后结果会显示在此。可在上方切换数据、图表、AI 分析与执行计划。
               </p>
             </div>
@@ -2252,7 +2296,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
               <thead className="sticky top-0 z-20 select-none">
                 <tr className="h-11 border-b border-monokai-border/40">
                   <th className="w-12 px-2 py-1.5 text-center font-semibold text-monokai-comment/45 border-r border-monokai-border/30 sticky left-0 z-30" style={{ textAlign: 'center', fontFamily: RESULT_TABLE_FONT }}>
-                    <span className="text-[10px] uppercase tracking-[0.12em] font-sans">#</span>
+                    <span className="text-2xs uppercase tracking-[0.12em] font-sans">#</span>
                   </th>
                   {columns.map((col, colIdx) => {
                     const type = result?.columnTypeMap?.[col] || (result?.columnTypes ? result.columnTypes[colIdx] : undefined) || 'VARCHAR';
@@ -2292,7 +2336,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                         <div className="flex flex-col items-center justify-center gap-0.5 min-w-0 w-full leading-tight">
                           <div className="flex items-center justify-center gap-1 min-w-0 max-w-full">
                             <span
-                              className={`font-medium text-[11px] tracking-tight transition-colors truncate max-w-full ${
+                              className={`font-medium text-meta tracking-tight transition-colors truncate max-w-full ${
                                 isSelected ? 'text-monokai-fg font-semibold' : 'text-monokai-fg-muted/80 group-hover/th:text-monokai-fg'
                               }`}
                               title={col}
@@ -2300,13 +2344,13 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                               {col}
                             </span>
                             {isSorted && (
-                              <span className="text-monokai-comment/80 text-[9px] font-black shrink-0 animate-in fade-in zoom-in-95 duration-150 tabular-nums">
+                              <span className="text-monokai-comment/80 text-3xs font-black shrink-0 animate-in fade-in zoom-in-95 duration-150 tabular-nums">
                                 {sortDirection === 'asc' ? '▲' : '▼'}
                               </span>
                             )}
                           </div>
                           <span
-                            className={`text-[9px] font-sans uppercase tracking-[0.05em] font-semibold transition-colors max-w-full truncate ${typeTone}`}
+                            className={`text-3xs font-sans uppercase tracking-[0.05em] font-semibold transition-colors max-w-full truncate ${typeTone}`}
                             title={`列类型: ${type}`}
                           >
                             {type}
@@ -2334,7 +2378,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                       key={rIdx}
                       className="group hover:bg-gradient-to-r hover:from-monokai-elevated/55 hover:via-monokai-elevated/40 hover:to-monokai-elevated/25 even:bg-monokai-surface/12 transition-colors duration-100"
                     >
-                      <td className="w-12 px-2 py-2 text-center text-monokai-comment/80 text-[10px] tabular-nums border-r border-monokai-border/60 sticky left-0 bg-monokai-bg/95 group-hover:bg-monokai-elevated z-10 shadow-[1px_0_0_0_rgba(0,0,0,0.4)] font-semibold font-sans transition-colors backdrop-blur-xs" style={{ textAlign: 'center', fontFamily: RESULT_TABLE_FONT }}>
+                      <td className="w-12 px-2 py-2 text-center text-monokai-comment/80 text-2xs tabular-nums border-r border-monokai-border/60 sticky left-0 bg-monokai-bg/95 group-hover:bg-monokai-elevated z-10 shadow-[1px_0_0_0_rgba(0,0,0,0.4)] font-semibold font-sans transition-colors backdrop-blur-xs" style={{ textAlign: 'center', fontFamily: RESULT_TABLE_FONT }}>
                         <span className="group-hover:text-monokai-fg-muted transition-colors">{startIndex + rIdx + 1}</span>
                       </td>
                       {columns.map((col, colIdx) => {
@@ -2382,13 +2426,13 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                           formattedVal = (
                             <div className="flex flex-col items-center gap-1 py-0.5 w-full font-sans">
                               <div className="flex items-center justify-center gap-2 flex-wrap">
-                                <div className="flex items-center justify-center gap-1.5 font-sans text-[11px] min-w-0">
+                                <div className="flex items-center justify-center gap-1.5 font-sans text-meta min-w-0">
                                   <Code2 className={`w-3.5 h-3.5 shrink-0 ${badgeColor}`} />
-                                  <span className={`font-bold shrink-0 text-[10px] ${badgeColor}`}>[{badgeLabel}]</span>
+                                  <span className={`font-bold shrink-0 text-2xs ${badgeColor}`}>[{badgeLabel}]</span>
                                   {lineCount > 1 && (
-                                    <span className="text-monokai-comment/80 text-[10px] shrink-0">({lineCount} 行)</span>
+                                    <span className="text-monokai-comment/80 text-2xs shrink-0">({lineCount} 行)</span>
                                   )}
-                                  <span className="text-monokai-fg-muted truncate text-[10px] text-center">
+                                  <span className="text-monokai-fg-muted truncate text-2xs text-center">
                                     {previewSnippet}
                                   </span>
                                 </div>
@@ -2400,7 +2444,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                                       setExpandedCells(prev => ({ ...prev, [cellKey]: !isExpanded }));
                                       if (isExplain) setExpandedExplainRow(!isExpanded);
                                     }}
-                                    className="px-1.5 py-0.5 rounded bg-monokai-surface hover:bg-monokai-elevated border border-monokai-border text-[10px] text-monokai-fg hover:text-monokai-cyan font-sans cursor-pointer transition-colors"
+                                    className="px-1.5 py-0.5 rounded bg-monokai-surface hover:bg-monokai-elevated border border-monokai-border text-2xs text-monokai-fg hover:text-monokai-cyan font-sans cursor-pointer transition-colors"
                                   >
                                     {isExpanded ? '收起' : '展开'}
                                   </button>
@@ -2423,7 +2467,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                                         e.stopPropagation();
                                         setActiveSubTab('explain');
                                       }}
-                                      className="px-1.5 py-0.5 rounded bg-monokai-yellow/20 hover:bg-monokai-yellow/30 text-[10px] text-monokai-yellow font-sans cursor-pointer transition-colors"
+                                      className="px-1.5 py-0.5 rounded bg-monokai-yellow/20 hover:bg-monokai-yellow/30 text-2xs text-monokai-yellow font-sans cursor-pointer transition-colors"
                                     >
                                       拓扑图
                                     </button>
@@ -2431,7 +2475,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                                 </div>
                               </div>
                               {isExpanded && (
-                                <div className="mt-1.5 p-2.5 rounded-lg bg-monokai-sidebar border border-monokai-border font-sans text-[11px] text-monokai-fg leading-relaxed max-h-72 overflow-auto whitespace-pre custom-scrollbar select-text shadow-inner text-left">
+                                <div className="mt-1.5 p-2.5 rounded-lg bg-monokai-sidebar border border-monokai-border font-sans text-meta text-monokai-fg leading-relaxed max-h-72 overflow-auto whitespace-pre custom-scrollbar select-text shadow-inner text-left">
                                   {isJson ? (() => {
                                     try {
                                       return JSON.stringify(JSON.parse(String(val)), null, 2);
@@ -2444,7 +2488,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                             </div>
                           );
                         } else if (val === null || val === undefined) {
-                          formattedVal = <span className="text-monokai-comment/55 italic font-sans text-[11px] tracking-wide">NULL</span>;
+                          formattedVal = <span className="text-monokai-comment/55 italic font-sans text-meta tracking-wide">NULL</span>;
                         } else if (isTemporal) {
                           formattedVal = tUpper.includes('TIME') ? formatTimestamp(val) : formatDate(val);
                         } else if (typeof val === 'number') {
@@ -2485,7 +2529,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                             title={typeof val === 'string' || typeof val === 'number' ? String(val) : undefined}
                           >
                             {col === 'status' ? (
-                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold border ${
+                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-2xs font-semibold border ${
                                 val === 'completed' ? 'bg-monokai-green/15 text-monokai-green border-monokai-green/35' :
                                 val === 'pending' ? 'bg-monokai-yellow/15 text-monokai-yellow border-monokai-yellow/35' :
                                 'bg-monokai-pink/15 text-monokai-pink border-monokai-pink/35'
@@ -2544,7 +2588,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                           aria-selected={active}
                           title={item.hint}
                           onClick={() => handleChartTypeChange(item.value)}
-                          className={`group flex items-center gap-1 h-7 px-2 rounded-md text-[11px] font-semibold tracking-tight cursor-pointer transition-all duration-150 border ${
+                          className={`group flex items-center gap-1 h-7 px-2 rounded-md text-meta font-semibold tracking-tight cursor-pointer transition-all duration-150 border ${
                             active
                               ? 'bg-gradient-to-b from-monokai-cyan/22 to-monokai-cyan/10 text-monokai-cyan border-monokai-cyan/45'
                               : 'text-monokai-comment/85 border-transparent hover:bg-monokai-elevated/70 hover:text-monokai-fg'
@@ -2560,17 +2604,17 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
 
                 <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-gradient-to-b from-monokai-bg/85 to-monokai-bg/65 border border-monokai-border/75 font-mono shrink-0">
                   <span className="w-1.5 h-1.5 rounded-full bg-monokai-cyan shadow-[0_0_8px_rgba(102,217,239,0.85)] animate-pulse" aria-hidden />
-                  <span className="text-[10px] text-monokai-comment/65">实时</span>
-                  <span className="font-bold tabular-nums text-monokai-cyan text-[10px]">{rawRows.length.toLocaleString()}</span>
-                  <span className="text-[10px] text-monokai-comment/65">行</span>
+                  <span className="text-2xs text-monokai-comment/65">实时</span>
+                  <span className="font-bold tabular-nums text-monokai-cyan text-2xs">{rawRows.length.toLocaleString()}</span>
+                  <span className="text-2xs text-monokai-comment/65">行</span>
                 </div>
               </div>
 
               {/* 2. 编码 (Encoding) — field mapping only */}
               <div className="flex h-9 items-center gap-2 px-3 border-t border-monokai-border/60 text-xs overflow-x-auto scrollbar-hide">
-                <span className="text-[9px] font-bold uppercase tracking-[0.14em] text-monokai-comment/70 shrink-0 w-8">编码</span>
+                <span className="text-3xs font-bold uppercase tracking-[0.14em] text-monokai-comment/70 shrink-0 w-8">编码</span>
                 <label className="flex items-center gap-1.5 shrink-0">
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-monokai-comment">
+                  <span className="text-2xs font-semibold uppercase tracking-[0.1em] text-monokai-comment">
                     {chartType === 'scatter' ? 'X 数值' : isCircularChart(chartType) ? '分类' : 'X 维度'}
                   </span>
                   <div className="relative w-36">
@@ -2594,7 +2638,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                   <ArrowLeftRight className="w-3.5 h-3.5" />
                 </button>
                 <label className="flex items-center gap-1.5 shrink-0">
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-monokai-comment">
+                  <span className="text-2xs font-semibold uppercase tracking-[0.1em] text-monokai-comment">
                     {chartType === 'scatter' ? 'Y 数值' : 'Y 指标'}
                   </span>
                   <div className="relative w-36">
@@ -2611,7 +2655,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                 </label>
                 {usesSeriesEncoding(chartType) && (
                   <label className="flex items-center gap-1.5 shrink-0">
-                    <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-monokai-comment">系列</span>
+                    <span className="text-2xs font-semibold uppercase tracking-[0.1em] text-monokai-comment">系列</span>
                     <div className="relative w-36">
                       <select
                         aria-label="系列拆分字段"
@@ -2636,7 +2680,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
               <div className="flex h-9 items-center gap-2 px-3 border-t border-monokai-border/60 text-xs overflow-x-auto scrollbar-hide">
                 {usesAggregation(chartType) && (
                   <>
-                    <span className="text-[9px] font-bold uppercase tracking-[0.14em] text-monokai-comment/70 shrink-0">计算</span>
+                    <span className="text-3xs font-bold uppercase tracking-[0.14em] text-monokai-comment/70 shrink-0">计算</span>
                     <SegmentedTabs<ChartAgg>
                       aria-label="聚合方式"
                       value={chartAgg}
@@ -2662,7 +2706,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                             aria-selected={chartValueMode === item.value}
                             title={item.value === 'percent' ? (chartSeriesActive ? '类目内占比' : '整体占比') : '原始聚合值'}
                             onClick={() => setChartValueMode(item.value)}
-                            className={`h-6 px-1.5 rounded text-[10px] font-semibold cursor-pointer transition-colors ${
+                            className={`h-6 px-1.5 rounded text-2xs font-semibold cursor-pointer transition-colors ${
                               chartValueMode === item.value
                                 ? 'bg-monokai-green/15 text-monokai-green'
                                 : 'text-monokai-comment hover:text-monokai-fg'
@@ -2677,9 +2721,9 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                   </>
                 )}
 
-                <span className="text-[9px] font-bold uppercase tracking-[0.14em] text-monokai-comment/70 shrink-0">范围</span>
+                <span className="text-3xs font-bold uppercase tracking-[0.14em] text-monokai-comment/70 shrink-0">范围</span>
                 <label className="flex items-center gap-1 shrink-0">
-                  <span className="text-[10px] text-monokai-comment">{chartType === 'scatter' ? '点数' : 'Top'}</span>
+                  <span className="text-2xs text-monokai-comment">{chartType === 'scatter' ? '点数' : 'Top'}</span>
                   <div className="relative w-16">
                     <select
                       aria-label="显示数量"
@@ -2708,7 +2752,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                           aria-selected={active}
                           title={item.hint}
                           onClick={() => setChartSort(item.value)}
-                          className={`h-6 px-1.5 rounded text-[10px] font-semibold cursor-pointer transition-colors ${
+                          className={`h-6 px-1.5 rounded text-2xs font-semibold cursor-pointer transition-colors ${
                             active
                               ? 'bg-monokai-yellow/15 text-monokai-yellow'
                               : 'text-monokai-comment hover:text-monokai-fg'
@@ -2722,7 +2766,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                 )}
 
                 <div className="h-4 w-px bg-monokai-border/60 shrink-0" />
-                <span className="text-[9px] font-bold uppercase tracking-[0.14em] text-monokai-comment/70 shrink-0">呈现</span>
+                <span className="text-3xs font-bold uppercase tracking-[0.14em] text-monokai-comment/70 shrink-0">呈现</span>
                 <div className="flex items-center gap-0.5 p-0.5 rounded-lg border border-monokai-border/70 bg-monokai-bg/50 shrink-0">
                   {([
                     { value: 'right' as const, label: '图例右' },
@@ -2734,7 +2778,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                       type="button"
                       title={item.label}
                       onClick={() => setChartLegend(item.value)}
-                      className={`h-6 px-1.5 rounded text-[10px] font-semibold cursor-pointer transition-colors ${
+                      className={`h-6 px-1.5 rounded text-2xs font-semibold cursor-pointer transition-colors ${
                         chartLegend === item.value
                           ? 'bg-monokai-cyan/15 text-monokai-cyan'
                           : 'text-monokai-comment hover:text-monokai-fg'
@@ -2748,7 +2792,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                   type="button"
                   title={chartColorMode === 'categorical' ? '当前：分类配色' : '当前：单色'}
                   onClick={() => setChartColorMode(m => (m === 'categorical' ? 'mono' : 'categorical'))}
-                  className={`h-7 px-2 rounded-md border text-[10px] font-semibold cursor-pointer transition-colors shrink-0 ${
+                  className={`h-7 px-2 rounded-md border text-2xs font-semibold cursor-pointer transition-colors shrink-0 ${
                     chartColorMode === 'categorical'
                       ? 'border-monokai-border/70 bg-monokai-bg/60 text-monokai-fg'
                       : 'border-monokai-cyan/40 bg-monokai-cyan/10 text-monokai-cyan'
@@ -2761,7 +2805,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                     type="button"
                     title={chartShowLabels ? '隐藏数值标签' : '显示数值标签'}
                     onClick={() => setChartShowLabels(v => !v)}
-                    className={`h-7 px-2 inline-flex items-center gap-1 rounded-md border text-[10px] font-semibold cursor-pointer transition-colors shrink-0 ${
+                    className={`h-7 px-2 inline-flex items-center gap-1 rounded-md border text-2xs font-semibold cursor-pointer transition-colors shrink-0 ${
                       chartShowLabels
                         ? 'border-monokai-green/40 bg-monokai-green/10 text-monokai-green'
                         : 'border-monokai-border/70 bg-monokai-bg/60 text-monokai-comment hover:text-monokai-fg'
@@ -2776,7 +2820,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                   title="导出 PNG"
                   onClick={handleExportChartPng}
                   disabled={rawRows.length === 0}
-                  className="h-7 px-2 inline-flex items-center gap-1 rounded-md border border-monokai-border/70 bg-monokai-bg/60 text-[10px] font-semibold text-monokai-comment hover:text-monokai-cyan hover:border-monokai-cyan/40 cursor-pointer transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="h-7 px-2 inline-flex items-center gap-1 rounded-md border border-monokai-border/70 bg-monokai-bg/60 text-2xs font-semibold text-monokai-comment hover:text-monokai-cyan hover:border-monokai-cyan/40 cursor-pointer transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <Download className="w-3 h-3" />
                   导出
@@ -2791,8 +2835,8 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                     <BarChart2 className="w-4.5 h-4.5 text-monokai-cyan/80" strokeWidth={1.75} />
                   </div>
                   <div className="text-center space-y-0.5">
-                    <span className="block text-[12px] font-semibold tracking-tight text-monokai-fg-muted">暂无可可视化的数据行</span>
-                    <span className="block text-[10px] text-monokai-comment/75">执行 SQL 查询后将自动生成图表</span>
+                    <span className="block text-xs font-semibold tracking-tight text-monokai-fg-muted">暂无可可视化的数据行</span>
+                    <span className="block text-2xs text-monokai-comment/75">执行 SQL 查询后将自动生成图表</span>
                   </div>
                 </div>
               ) : (
@@ -3040,10 +3084,10 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                 <div className="flex items-center gap-2 min-w-0">
                   <TableProperties className="w-4 h-4 text-monokai-cyan shrink-0" />
                   <span className="font-bold text-sm text-monokai-fg tracking-tight truncate">多维透视表</span>
-                  <span className="hidden sm:inline text-[10px] text-monokai-comment/70 truncate">当前结果集即时交叉表（非分组 SQL 编排）</span>
+                  <span className="hidden sm:inline text-2xs text-monokai-comment/70 truncate">当前结果集即时交叉表（非分组 SQL 编排）</span>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
-                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-gradient-to-b from-monokai-bg/85 to-monokai-bg/65 border border-monokai-border/75 text-[10px]">
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-gradient-to-b from-monokai-bg/85 to-monokai-bg/65 border border-monokai-border/75 text-2xs">
                     <span className="text-monokai-comment/65">样本</span>
                     <span className="font-bold tabular-nums text-monokai-cyan">{rawRows.length.toLocaleString()}</span>
                     <span className="text-monokai-comment/50">·</span>
@@ -3057,7 +3101,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                   <button
                     type="button"
                     onClick={handleCopyPivotMatrix}
-                    className="h-7 px-2 rounded-md border border-monokai-border/70 bg-monokai-bg/60 text-monokai-comment hover:text-monokai-cyan hover:border-monokai-cyan/40 text-[11px] font-semibold inline-flex items-center gap-1 cursor-pointer transition-colors"
+                    className="h-7 px-2 rounded-md border border-monokai-border/70 bg-monokai-bg/60 text-monokai-comment hover:text-monokai-cyan hover:border-monokai-cyan/40 text-meta font-semibold inline-flex items-center gap-1 cursor-pointer transition-colors"
                     title="复制矩阵为 TSV"
                   >
                     <Copy className="w-3 h-3" />
@@ -3066,7 +3110,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                   <button
                     type="button"
                     onClick={handleGeneratePivotSql}
-                    className="h-7 px-2 rounded-md border border-monokai-green/40 bg-monokai-green/10 text-monokai-green hover:bg-monokai-green/18 text-[11px] font-semibold inline-flex items-center gap-1 cursor-pointer transition-colors"
+                    className="h-7 px-2 rounded-md border border-monokai-green/40 bg-monokai-green/10 text-monokai-green hover:bg-monokai-green/18 text-meta font-semibold inline-flex items-center gap-1 cursor-pointer transition-colors"
                     title="生成透视 SQL 并打开新标签"
                   >
                     <Code2 className="w-3 h-3" />
@@ -3077,7 +3121,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
 
               <div className="flex h-9 items-center gap-2 px-3 border-t border-monokai-border/60 text-xs overflow-x-auto scrollbar-hide">
                 <label className="flex items-center gap-1.5 shrink-0">
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-monokai-comment">行维度</span>
+                  <span className="text-2xs font-semibold uppercase tracking-[0.12em] text-monokai-comment">行维度</span>
                   <div className="relative w-36">
                     <select
                       aria-label="行维度"
@@ -3102,7 +3146,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                 </button>
 
                 <label className="flex items-center gap-1.5 shrink-0">
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-monokai-comment">列维度</span>
+                  <span className="text-2xs font-semibold uppercase tracking-[0.12em] text-monokai-comment">列维度</span>
                   <div className="relative w-36">
                     <select
                       aria-label="列维度"
@@ -3118,7 +3162,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                 </label>
 
                 {pivotRowCol && pivotColCol && pivotRowCol === pivotColCol && (
-                  <span className="text-[10px] text-monokai-yellow/85 shrink-0 px-1.5 py-0.5 rounded border border-monokai-yellow/35 bg-monokai-yellow/10">
+                  <span className="text-2xs text-monokai-yellow/85 shrink-0 px-1.5 py-0.5 rounded border border-monokai-yellow/35 bg-monokai-yellow/10">
                     与行相同，按单维汇总
                   </span>
                 )}
@@ -3126,7 +3170,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                 <div className="h-4 w-px bg-monokai-border/60 shrink-0" />
 
                 <label className="flex items-center gap-1.5 shrink-0">
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-monokai-comment">值</span>
+                  <span className="text-2xs font-semibold uppercase tracking-[0.12em] text-monokai-comment">值</span>
                   <div className="relative w-36">
                     <select
                       aria-label="值字段"
@@ -3166,7 +3210,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
               ) : (
                 <div className="space-y-3">
                   {(dynamicPivotMatrix.truncatedRows || dynamicPivotMatrix.truncatedCols) && (
-                    <div className="result-pivot-truncate flex items-center gap-2 px-3 py-2 rounded-lg border border-monokai-yellow/40 bg-monokai-yellow/10 text-[11px] text-monokai-yellow font-sans">
+                    <div className="result-pivot-truncate flex items-center gap-2 px-3 py-2 rounded-lg border border-monokai-yellow/40 bg-monokai-yellow/10 text-meta text-monokai-yellow font-sans">
                       <Info className="w-3.5 h-3.5 shrink-0" />
                       <span>
                         已截断展示：行键 {dynamicPivotMatrix.rowKeys.length}/{dynamicPivotMatrix.totalRowKeys}
@@ -3206,7 +3250,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                           >
                             <div className="flex flex-col items-center gap-0.5 leading-tight">
                               <span>{pivotRowCol} \ {pivotColCol || '汇总'}</span>
-                              <span className="text-[9px] font-semibold text-monokai-green tracking-wide">
+                              <span className="text-3xs font-semibold text-monokai-green tracking-wide">
                                 {pivotAgg.toUpperCase()}({pivotValCol})
                               </span>
                             </div>
@@ -3371,7 +3415,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
       <div className="h-8 shrink-0 border-t border-monokai-border bg-gradient-to-b from-monokai-sidebar/95 via-monokai-sidebar to-monokai-bg/40 px-3 flex items-center justify-between text-xs font-mono text-monokai-comment relative">
         {/* Subtle hairline for depth */}
         <span className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-monokai-fg/8 to-transparent" />
-        <div className="flex items-center gap-1 text-[11px]">
+        <div className="flex items-center gap-1 text-meta">
           <button
             onClick={() => setCurrentPage(1)}
             disabled={validCurrentPage <= 1}
@@ -3390,7 +3434,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
           </button>
 
           <span className="mx-1 flex items-center gap-1 font-sans">
-            <span className="px-2 py-0.5 rounded bg-monokai-surface border border-monokai-yellow/50 text-monokai-yellow font-mono text-[11px] font-bold">
+            <span className="px-2 py-0.5 rounded bg-monokai-surface border border-monokai-yellow/50 text-monokai-yellow font-mono text-meta font-bold">
               {validCurrentPage}
             </span>
           </span>
@@ -3412,12 +3456,12 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
             <ChevronsRight className="w-3.5 h-3.5" />
           </button>
 
-          <span className="text-monokai-comment text-[11px] ml-2 font-sans">
+          <span className="text-monokai-comment text-meta ml-2 font-sans">
             第 {validCurrentPage} 页, 共 {totalPages} 页
           </span>
         </div>
 
-        <div className="flex items-center gap-3 text-[11px]">
+        <div className="flex items-center gap-3 text-meta">
           {/* Page Size Selector */}
           <div className="flex items-center gap-1.5 font-sans">
             <span className="text-monokai-comment">每页:</span>
@@ -3464,7 +3508,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
               </div>
               <div>
                 <span className="text-sm font-semibold text-monokai-fg">排序规则</span>
-                <span className="ml-2 text-[9px] px-1.5 py-0.5 rounded bg-monokai-cyan/10 text-monokai-cyan font-medium">数据变换</span>
+                <span className="ml-2 text-3xs px-1.5 py-0.5 rounded bg-monokai-cyan/10 text-monokai-cyan font-medium">数据变换</span>
               </div>
             </div>
             <div className="flex items-center gap-1">
@@ -3493,21 +3537,21 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
             {(sortRules.length > 0 || sortColumn) ? (
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-monokai-comment">已添加排序</span>
-                  <span className="text-[9px] text-monokai-cyan/70">优先级: 按数字顺序</span>
+                  <span className="text-2xs font-semibold uppercase tracking-wider text-monokai-comment">已添加排序</span>
+                  <span className="text-3xs text-monokai-cyan/70">优先级: 按数字顺序</span>
                 </div>
                 {(sortColumn && !sortRules.some(r => r.column === sortColumn) ? [{ column: sortColumn, direction: sortDirection || 'asc', priority: -1 }] : sortRules).map((rule, idx) => (
                   <div
                     key={rule.column}
                     className="flex items-center gap-2 p-2 rounded-lg bg-monokai-bg/60 border border-monokai-border/60 hover:border-monokai-cyan/40 transition-colors"
                   >
-                    <span className="w-5 h-5 rounded bg-monokai-cyan/15 text-monokai-cyan text-[10px] font-bold flex items-center justify-center">
+                    <span className="w-5 h-5 rounded bg-monokai-cyan/15 text-monokai-cyan text-2xs font-bold flex items-center justify-center">
                       {idx + 1}
                     </span>
                     <span className="flex-1 text-xs font-mono text-monokai-fg truncate" title={rule.column}>{rule.column}</span>
                     <button
                       onClick={() => handleToggleSortDirection(rule.column)}
-                      className={`px-2 py-1 text-[10px] font-bold rounded border transition-colors ${
+                      className={`px-2 py-1 text-2xs font-bold rounded border transition-colors ${
                         rule.direction === 'asc'
                           ? 'bg-monokai-cyan/15 text-monokai-cyan border-monokai-cyan/40 hover:bg-monokai-cyan/25'
                           : 'bg-monokai-yellow/15 text-monokai-yellow border-monokai-yellow/40 hover:bg-monokai-yellow/25'
@@ -3526,7 +3570,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                 ))}
               </div>
             ) : (
-              <div className="py-6 text-center text-[11px] text-monokai-comment/70">
+              <div className="py-6 text-center text-meta text-monokai-comment/70">
                 <ArrowUpDown className="w-6 h-6 mx-auto mb-2 opacity-40" />
                 <p>暂无排序规则</p>
                 <p className="mt-1">点击下方列名添加排序</p>
@@ -3535,7 +3579,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
 
             {/* Add Sort Column */}
             <div className="pt-2 border-t border-monokai-border/40 space-y-1.5">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-monokai-comment">添加排序列</span>
+              <span className="text-2xs font-semibold uppercase tracking-wider text-monokai-comment">添加排序列</span>
               <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto custom-scrollbar">
                 {columns
                   .filter(col => !sortRules.some(r => r.column === col) && col !== sortColumn)
@@ -3544,7 +3588,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                     <button
                       key={col}
                       onClick={() => handleAddSortRule(col)}
-                      className="px-2 py-1 text-[10px] font-mono rounded border border-dashed border-monokai-border/60 hover:border-monokai-cyan/50 hover:text-monokai-cyan hover:bg-monokai-cyan/10 text-monokai-comment transition-colors"
+                      className="px-2 py-1 text-2xs font-mono rounded border border-dashed border-monokai-border/60 hover:border-monokai-cyan/50 hover:text-monokai-cyan hover:bg-monokai-cyan/10 text-monokai-comment transition-colors"
                     >
                       + {col}
                     </button>
@@ -3555,14 +3599,14 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
 
           {/* Footer with shortcuts hint */}
           <div className="px-4 py-2 border-t border-monokai-border bg-monokai-bg/60 space-y-1">
-            <div className="flex items-center gap-2 text-[10px] text-monokai-comment">
-              <kbd className="px-1 py-0.5 rounded bg-monokai-surface border border-monokai-border text-[9px] font-mono">Ctrl+Shift+S</kbd>
+            <div className="flex items-center gap-2 text-2xs text-monokai-comment">
+              <kbd className="px-1 py-0.5 rounded bg-monokai-surface border border-monokai-border text-3xs font-mono">Ctrl+Shift+S</kbd>
               <span>切换面板</span>
               <span className="mx-1">·</span>
-              <kbd className="px-1 py-0.5 rounded bg-monokai-surface border border-monokai-border text-[9px] font-mono">ESC</kbd>
+              <kbd className="px-1 py-0.5 rounded bg-monokai-surface border border-monokai-border text-3xs font-mono">ESC</kbd>
               <span>关闭</span>
             </div>
-            <p className="text-[9px] text-monokai-comment/60">💡 提示：多字段排序按优先级依次应用，点击表头可直接添加单字段排序</p>
+            <p className="text-3xs text-monokai-comment/60">💡 提示：多字段排序按优先级依次应用，点击表头可直接添加单字段排序</p>
           </div>
         </div>
       )}
@@ -3654,11 +3698,11 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                 </div>
                 <div>
                   <h2 className="text-sm font-semibold text-monokai-fg tracking-tight">条件筛选</h2>
-                  <p className="text-[11px] text-monokai-comment">多条件 AND/OR 逻辑，生成 SQL WHERE 子句</p>
+                  <p className="text-meta text-monokai-comment">多条件 AND/OR 逻辑，生成 SQL WHERE 子句</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-[10px] text-monokai-comment px-2 py-1 rounded-md bg-monokai-bg border border-monokai-border">
+                <span className="text-2xs text-monokai-comment px-2 py-1 rounded-md bg-monokai-bg border border-monokai-border">
                   {columns.length} 列
                 </span>
                 <button onClick={() => setShowFilterModal(false)} className="p-2 text-monokai-comment hover:text-monokai-fg hover:bg-monokai-surface rounded-md transition-colors">
@@ -3671,7 +3715,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
             <div className="px-5 py-4 space-y-3 max-h-[400px] overflow-y-auto custom-scrollbar">
               {/* Quick Presets */}
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-[10px] text-monokai-comment font-medium uppercase tracking-wide">快速添加:</span>
+                <span className="text-2xs text-monokai-comment font-medium uppercase tracking-wide">快速添加:</span>
                 {columns.slice(0, 4).map(col => (
                   <button
                     key={col}
@@ -3686,7 +3730,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                         }]);
                       }
                     }}
-                    className="px-2 py-1 text-[10px] rounded border border-dashed border-monokai-border/60 hover:border-monokai-yellow/50 hover:text-monokai-yellow hover:bg-monokai-yellow/10 text-monokai-comment transition-colors font-mono"
+                    className="px-2 py-1 text-2xs rounded border border-dashed border-monokai-border/60 hover:border-monokai-yellow/50 hover:text-monokai-yellow hover:bg-monokai-yellow/10 text-monokai-comment transition-colors font-mono"
                   >
                     + {col}
                   </button>
@@ -3706,7 +3750,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                               i === idx ? { ...r, conjunction: r.conjunction === 'AND' ? 'OR' : 'AND' } : r
                             ));
                           }}
-                          className={`px-2 py-1 text-[10px] font-bold rounded border transition-colors cursor-pointer ${
+                          className={`px-2 py-1 text-2xs font-bold rounded border transition-colors cursor-pointer ${
                             rule.conjunction === 'AND'
                               ? 'bg-monokai-cyan/15 text-monokai-cyan border-monokai-cyan/40 hover:bg-monokai-cyan/25'
                               : 'bg-monokai-yellow/15 text-monokai-yellow border-monokai-yellow/40 hover:bg-monokai-yellow/25'
@@ -3777,7 +3821,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                               placeholder="起始值"
                               className="flex-1 min-w-[80px] bg-monokai-surface border border-monokai-border/80 rounded-md px-2.5 py-1.5 text-xs text-monokai-fg focus:outline-none focus:border-monokai-cyan/60 font-mono"
                             />
-                            <span className="text-monokai-comment text-[10px]">至</span>
+                            <span className="text-monokai-comment text-2xs">至</span>
                             <input
                               type="text"
                               value={rule.value2 || ''}
@@ -3850,9 +3894,9 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
               <div className="space-y-1.5 pt-2 border-t border-monokai-border/40">
                 <div className="flex items-center gap-2">
                   <Code2 className="w-3.5 h-3.5 text-monokai-cyan" />
-                  <span className="text-[10px] font-semibold uppercase tracking-wide text-monokai-comment">SQL 预览</span>
+                  <span className="text-2xs font-semibold uppercase tracking-wide text-monokai-comment">SQL 预览</span>
                 </div>
-                <pre className="p-3 rounded-lg bg-monokai-sidebar border border-monokai-border/60 font-mono text-[11px] text-monokai-green overflow-x-auto whitespace-pre leading-relaxed">
+                <pre className="p-3 rounded-lg bg-monokai-sidebar border border-monokai-border/60 font-mono text-meta text-monokai-green overflow-x-auto whitespace-pre leading-relaxed">
                   {`SELECT * FROM (\n    ${activeTabSql?.replace(/;\s*$/, '').replace(/\n/g, '\n    ') || '原查询'}\n)\nWHERE ${filterRules.filter(r => r.column).map((r, idx) => {
                     const prefix = idx === 0 ? '' : (r.conjunction === 'OR' ? '\n    OR ' : '\n    AND ');
                     let clause = '';
@@ -3883,12 +3927,12 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                     setSortColumn(null);
                     setSortDirection(null);
                   }}
-                  className="px-3 py-1.5 text-[11px] rounded-md border border-monokai-border/60 text-monokai-comment hover:text-monokai-fg hover:border-monokai-border transition-colors flex items-center gap-1.5"
+                  className="px-3 py-1.5 text-meta rounded-md border border-monokai-border/60 text-monokai-comment hover:text-monokai-fg hover:border-monokai-border transition-colors flex items-center gap-1.5"
                 >
                   <RotateCcw className="w-3 h-3" />
                   重置全部
                 </button>
-                <span className="text-[10px] text-monokai-comment/70">
+                <span className="text-2xs text-monokai-comment/70">
                   {filterRules.filter(r => r.column && (r.operator === 'is_null' || r.operator === 'is_not_null' || r.value.trim() !== '')).length} 个有效条件
                 </span>
               </div>
@@ -3935,10 +3979,10 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
         <div className="space-y-5 font-sans text-xs">
           <section className="space-y-2">
             <div className="flex items-center justify-between gap-2">
-              <label className="text-[10px] font-semibold uppercase tracking-[0.12em] text-monokai-comment">
+              <label className="text-2xs font-semibold uppercase tracking-[0.12em] text-monokai-comment">
                 Group By 分组维度
               </label>
-              <span className="font-mono text-[10px] tabular-nums text-monokai-comment/80">
+              <span className="font-mono text-2xs tabular-nums text-monokai-comment/80">
                 {groupByCols.length} 列
               </span>
             </div>
@@ -3946,7 +3990,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
               {groupByCols.map(col => (
                 <span
                   key={col}
-                  className="inline-flex items-center gap-1 h-7 pl-2.5 pr-1 rounded-md bg-gradient-to-b from-monokai-green/18 to-monokai-green/8 text-monokai-green border border-monokai-green/45 font-mono text-[11px] font-semibold tracking-tight shadow-[inset_0_0_0_1px_rgba(166,226,46,0.08)]"
+                  className="inline-flex items-center gap-1 h-7 pl-2.5 pr-1 rounded-md bg-gradient-to-b from-monokai-green/18 to-monokai-green/8 text-monokai-green border border-monokai-green/45 font-mono text-meta font-semibold tracking-tight shadow-[inset_0_0_0_1px_rgba(166,226,46,0.08)]"
                 >
                   {col}
                   <button
@@ -3963,7 +4007,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                 const available = columns.filter(c => !groupByCols.includes(c));
                 if (available.length === 0) {
                   return (
-                    <span className="text-[11px] text-monokai-comment/70 px-1">已选择全部列</span>
+                    <span className="text-meta text-monokai-comment/70 px-1">已选择全部列</span>
                   );
                 }
                 if (available.length <= 8) {
@@ -3972,7 +4016,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                       type="button"
                       key={col}
                       onClick={() => setGroupByCols(cols => [...cols, col])}
-                      className="h-7 px-2.5 rounded-md border border-dashed border-monokai-border/80 bg-transparent text-monokai-comment hover:text-monokai-green hover:border-monokai-green/40 hover:bg-monokai-green/10 font-mono text-[11px] font-semibold tracking-tight cursor-pointer transition-all"
+                      className="h-7 px-2.5 rounded-md border border-dashed border-monokai-border/80 bg-transparent text-monokai-comment hover:text-monokai-green hover:border-monokai-green/40 hover:bg-monokai-green/10 font-mono text-meta font-semibold tracking-tight cursor-pointer transition-all"
                     >
                       + {col}
                     </button>
@@ -4005,7 +4049,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
 
           <section className="space-y-2">
             <div className="flex items-center justify-between gap-2">
-              <label className="text-[10px] font-semibold uppercase tracking-[0.12em] text-monokai-comment">
+              <label className="text-2xs font-semibold uppercase tracking-[0.12em] text-monokai-comment">
                 聚合指标 (Aggregations)
               </label>
               <ActionButton
@@ -4083,13 +4127,38 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
           </section>
 
           <section className="space-y-1.5">
-            <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-monokai-comment flex items-center gap-1.5">
-              <Code2 className="w-3 h-3 text-monokai-cyan" />
-              生成 SQL 预览
-            </span>
-            <pre className="p-3 rounded-lg bg-monokai-bg border border-monokai-border/80 font-mono text-[11px] text-monokai-green overflow-x-auto whitespace-pre leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-              {groupSqlPreview}
-            </pre>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-2xs font-semibold uppercase tracking-[0.12em] text-monokai-comment flex items-center gap-1.5">
+                <Code2 className="w-3 h-3 text-monokai-cyan" />
+                生成 SQL 预览
+              </span>
+              <button
+                type="button"
+                onClick={handleCopyGroupSqlPreview}
+                className="h-7 px-2 rounded-md border border-monokai-border/70 bg-monokai-bg/60 text-monokai-comment hover:text-monokai-cyan hover:border-monokai-cyan/40 text-meta font-semibold inline-flex items-center gap-1 cursor-pointer transition-colors"
+                title="复制生成的 SQL 到剪贴板"
+                aria-label="复制生成的 SQL"
+              >
+                <Copy className="w-3 h-3" />
+                复制
+              </button>
+            </div>
+            <div className="rounded-lg border border-monokai-border/80 bg-monokai-bg overflow-hidden shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+              <CodeMirror
+                value={groupSqlPreview}
+                theme={monokai}
+                extensions={GROUP_SQL_PREVIEW_EXTENSIONS}
+                editable={false}
+                basicSetup={{
+                  lineNumbers: false,
+                  foldGutter: false,
+                  highlightActiveLine: false,
+                  highlightActiveLineGutter: false,
+                  highlightSelectionMatches: false,
+                }}
+                className="text-[11.5px] font-mono [&_.cm-editor]:outline-none"
+              />
+            </div>
           </section>
         </div>
       </ModalShell>
@@ -4106,7 +4175,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                 </div>
                 <div>
                   <h2 className="text-sm font-semibold text-monokai-fg tracking-tight">导出数据</h2>
-                  <p className="text-[11px] text-monokai-comment">支持多种格式与压缩选项</p>
+                  <p className="text-meta text-monokai-comment">支持多种格式与压缩选项</p>
                 </div>
               </div>
               <button onClick={() => setShowExportModal(false)} className="p-2 text-monokai-comment hover:text-monokai-fg hover:bg-monokai-surface rounded-md transition-colors">
@@ -4117,7 +4186,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
             <div className="px-5 py-4 space-y-4">
               {/* Export Scope */}
               <div className="space-y-2">
-                <label className="text-[10px] font-semibold uppercase tracking-[0.12em] text-monokai-comment">导出范围</label>
+                <label className="text-2xs font-semibold uppercase tracking-[0.12em] text-monokai-comment">导出范围</label>
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={() => setExportScope('all')}
@@ -4127,8 +4196,8 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                         : 'bg-monokai-bg/50 border-monokai-border/60 hover:border-monokai-border text-monokai-comment'
                     }`}
                   >
-                    <div className="text-[11px] font-semibold mb-0.5">全部结果</div>
-                    <div className="text-[10px] text-monokai-comment font-mono">{totalRowCount.toLocaleString()} 行</div>
+                    <div className="text-meta font-semibold mb-0.5">全部结果</div>
+                    <div className="text-2xs text-monokai-comment font-mono">{totalRowCount.toLocaleString()} 行</div>
                   </button>
                   <button
                     onClick={() => setExportScope('selection')}
@@ -4138,15 +4207,15 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                         : 'bg-monokai-bg/50 border-monokai-border/60 hover:border-monokai-border text-monokai-comment'
                     }`}
                   >
-                    <div className="text-[11px] font-semibold mb-0.5">当前视图</div>
-                    <div className="text-[10px] text-monokai-comment font-mono">{loadedRowCount.toLocaleString()} 行</div>
+                    <div className="text-meta font-semibold mb-0.5">当前视图</div>
+                    <div className="text-2xs text-monokai-comment font-mono">{loadedRowCount.toLocaleString()} 行</div>
                   </button>
                 </div>
               </div>
 
               {/* Format Selection */}
               <div className="space-y-2">
-                <label className="text-[10px] font-semibold uppercase tracking-[0.12em] text-monokai-comment">导出格式</label>
+                <label className="text-2xs font-semibold uppercase tracking-[0.12em] text-monokai-comment">导出格式</label>
                 <div className="grid grid-cols-2 gap-2">
                   {[
                     { value: 'parquet', label: 'Parquet', desc: '高性能列式存储', badge: '推荐', color: 'cyan' },
@@ -4167,16 +4236,16 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                       }`}
                     >
                       <div className="flex items-center justify-between mb-1">
-                        <span className={`text-[12px] font-semibold ${
+                        <span className={`text-xs font-semibold ${
                           exportFormat === fmt.value ? `text-monokai-${fmt.color}` : 'text-monokai-fg'
                         }`}>{fmt.label}</span>
                         {fmt.badge && (
-                          <span className={`text-[9px] px-1.5 py-0.5 rounded bg-monokai-${fmt.color}/20 text-monokai-${fmt.color} font-bold`}>
+                          <span className={`text-3xs px-1.5 py-0.5 rounded bg-monokai-${fmt.color}/20 text-monokai-${fmt.color} font-bold`}>
                             {fmt.badge}
                           </span>
                         )}
                       </div>
-                      <div className="text-[10px] text-monokai-comment">{fmt.desc}</div>
+                      <div className="text-2xs text-monokai-comment">{fmt.desc}</div>
                     </button>
                   ))}
                 </div>
@@ -4185,7 +4254,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
               {/* Compression (for Parquet) */}
               {exportFormat === 'parquet' && (
                 <div className="space-y-2">
-                  <label className="text-[10px] font-semibold uppercase tracking-[0.12em] text-monokai-comment">压缩算法</label>
+                  <label className="text-2xs font-semibold uppercase tracking-[0.12em] text-monokai-comment">压缩算法</label>
                   <div className="grid grid-cols-4 gap-1.5">
                     {[
                       { value: 'ZSTD', label: 'ZSTD', desc: '推荐', speed: '快' },
@@ -4202,10 +4271,10 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                             : 'bg-monokai-bg/50 border-monokai-border/60 hover:border-monokai-border'
                         }`}
                       >
-                        <div className={`text-[11px] font-semibold ${
+                        <div className={`text-meta font-semibold ${
                           compression === opt.value ? 'text-monokai-cyan' : 'text-monokai-fg'
                         }`}>{opt.label}</div>
-                        <div className="text-[9px] text-monokai-comment mt-0.5">{opt.speed}</div>
+                        <div className="text-3xs text-monokai-comment mt-0.5">{opt.speed}</div>
                       </button>
                     ))}
                   </div>
@@ -4214,7 +4283,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
 
               {/* Filename */}
               <div className="space-y-2">
-                <label className="text-[10px] font-semibold uppercase tracking-[0.12em] text-monokai-comment">文件名</label>
+                <label className="text-2xs font-semibold uppercase tracking-[0.12em] text-monokai-comment">文件名</label>
                 <input
                   type="text"
                   value={exportFileName}
@@ -4234,15 +4303,15 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                   />
                   <span>包含列类型</span>
                 </label>
-                <span className="text-[10px] text-monokai-comment/60">·</span>
-                <span className="text-[10px] text-monokai-comment">
+                <span className="text-2xs text-monokai-comment/60">·</span>
+                <span className="text-2xs text-monokai-comment">
                   {columns.length} 列 × {exportScope === 'all' ? totalRowCount : loadedRowCount} 行
                 </span>
               </div>
 
               {/* Export Summary */}
               <div className="p-3 rounded-lg bg-monokai-sidebar/60 border border-monokai-border/40">
-                <div className="flex items-center justify-between text-[11px]">
+                <div className="flex items-center justify-between text-meta">
                   <span className="text-monokai-comment">预计文件大小</span>
                   <span className="font-mono font-semibold text-monokai-fg">
                     ≈ {Math.ceil((exportScope === 'all' ? totalRowCount : loadedRowCount) * columns.length * 12 / 1024 / 1024 * (compression === 'NONE' ? 2 : 1)).toLocaleString()} MB
@@ -4276,7 +4345,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
           <div className="w-full max-w-sm rounded-xl border border-monokai-border bg-monokai-elevated shadow-2xl p-5 space-y-4">
             <div className="flex items-center justify-between border-b border-monokai-border-subtle pb-2">
               <div className="flex items-center gap-2">
-                <span className="w-4 h-4 rounded-full bg-monokai-yellow/20 text-monokai-yellow text-[10px] font-bold flex items-center justify-center">
+                <span className="w-4 h-4 rounded-full bg-monokai-yellow/20 text-monokai-yellow text-2xs font-bold flex items-center justify-center">
                   2
                 </span>
                 <span className="text-sm font-semibold text-monokai-fg">结果流式读取中</span>
@@ -4290,7 +4359,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
               <div className="space-y-1">
                 <div className="text-monokai-fg-muted">查询执行中...</div>
                 <div className="text-monokai-fg font-bold text-sm">已加载 25,000 行</div>
-                <div className="text-monokai-comment text-[11px]">总行数 8,761,233 行 (持续流式读取)</div>
+                <div className="text-monokai-comment text-meta">总行数 8,761,233 行 (持续流式读取)</div>
               </div>
 
               {/* Progress bar */}
@@ -4298,7 +4367,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                 <div className="h-full bg-monokai-green w-1/3 rounded-full animate-pulse" />
               </div>
 
-              <div className="grid grid-cols-2 gap-2 p-2 rounded bg-monokai-surface border border-monokai-border text-[11px]">
+              <div className="grid grid-cols-2 gap-2 p-2 rounded bg-monokai-surface border border-monokai-border text-meta">
                 <div>
                   <span className="text-monokai-comment">速度:</span>
                   <div className="text-monokai-fg font-medium">125,000 行/秒</div>

@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Sparkles, Save, X } from 'lucide-react';
+import { Sparkles, Save } from 'lucide-react';
 import { saveEditorSqlAsTemplate } from '../../services/sqlTemplatesStorage';
 import { QUICK_TEMPLATE_CATEGORIES, TemplateCategoryKey } from '../../data/duckdbTemplatesData';
 import { toastService } from '../../services/toastService';
+import { ActionButton, FormInput, FormSelect, FormTextarea, ModalShell } from '../ui/Workbench';
 
 interface SaveTemplateModalProps {
   isOpen: boolean;
@@ -29,7 +30,6 @@ export const SaveTemplateModal: React.FC<SaveTemplateModalProps> = ({
     setSqlContent(defaultSql || '');
   }, [defaultSql]);
 
-  // Smart category & tag recommendation based on SQL keywords
   const recommendedCategory = React.useMemo<TemplateCategoryKey | null>(() => {
     const upper = sqlContent.toUpperCase();
     if (upper.includes('JOIN')) return 'join';
@@ -52,8 +52,6 @@ export const SaveTemplateModal: React.FC<SaveTemplateModalProps> = ({
     return tags;
   }, [sqlContent]);
 
-  if (!isOpen) return null;
-
   const handleSave = () => {
     if (!title.trim()) {
       toastService.warning('请输入模板标题！');
@@ -71,151 +69,126 @@ export const SaveTemplateModal: React.FC<SaveTemplateModalProps> = ({
 
     saveEditorSqlAsTemplate(title.trim(), sqlContent, category, purpose.trim(), tags);
     toastService.success(`已成功沉淀为 Analysis Hub 模板「${title.trim()}」！`);
-    if (onSaved) onSaved();
+    onSaved?.();
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-[160] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-150 select-none">
-      <div className="bg-monokai-sidebar border border-monokai-border rounded-xl shadow-2xl max-w-lg w-full overflow-hidden text-monokai-fg flex flex-col font-sans">
-        
-        {/* Header */}
-        <div className="px-5 py-4 border-b border-monokai-border bg-monokai-bg/90 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-monokai-amethyst/15 border border-monokai-amethyst/30 flex items-center justify-center text-monokai-amethyst">
-              <Sparkles size={16} />
-            </div>
-            <div>
-              <h3 className="text-sm font-bold text-monokai-fg">沉淀为 Analysis Hub 模板</h3>
-              <p className="text-[10px] text-monokai-comment">将当前 SQL 沉淀为可复用的团队分析模板与参数化查询</p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="w-7 h-7 rounded-lg hover:bg-monokai-surface flex items-center justify-center text-monokai-comment hover:text-monokai-pink transition-colors cursor-pointer"
-            title="关闭窗口"
-          >
-            <X size={16} />
-          </button>
-        </div>
-
-        {/* Content Body */}
-        <div className="p-5 space-y-4 max-h-[75vh] overflow-y-auto custom-scrollbar select-text text-xs">
-          <div>
-            <label className="block text-monokai-comment mb-1.5 font-medium">模板标题 (*)</label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="例如: 常用活跃用户多维度聚合"
-              className="w-full bg-monokai-bg border border-monokai-border rounded-lg px-3 py-2 text-xs text-monokai-fg placeholder-monokai-comment/50 outline-none focus:border-monokai-amethyst/70 focus:ring-1 focus:ring-monokai-amethyst/20 font-mono transition-all"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-monokai-comment font-medium">模板分类</label>
-                {recommendedCategory && recommendedCategory !== category && (
-                  <button
-                    onClick={() => setCategory(recommendedCategory)}
-                    className="text-[10px] text-monokai-amethyst hover:underline cursor-pointer font-bold flex items-center gap-0.5"
-                  >
-                    <Sparkles size={10} />
-                    推荐: {QUICK_TEMPLATE_CATEGORIES.find(c => c.key === recommendedCategory)?.label}
-                  </button>
-                )}
-              </div>
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value as TemplateCategoryKey)}
-                className="w-full bg-monokai-bg border border-monokai-border rounded-lg px-3 py-2 text-xs text-monokai-fg outline-none focus:border-monokai-amethyst cursor-pointer font-mono"
-              >
-                {QUICK_TEMPLATE_CATEGORIES.map(c => (
-                  <option key={c.key} value={c.key}>{c.label}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-monokai-comment mb-1.5 font-medium">标签 (逗号分隔)</label>
-              <input
-                type="text"
-                value={tagsInput}
-                onChange={(e) => setTagsInput(e.target.value)}
-                placeholder="编辑器沉淀, 常用"
-                className="w-full bg-monokai-bg border border-monokai-border rounded-lg px-3 py-2 text-xs text-monokai-fg placeholder-monokai-comment/50 outline-none focus:border-monokai-amethyst/70 focus:ring-1 focus:ring-monokai-amethyst/20 font-mono transition-all"
-              />
-            </div>
-          </div>
-
-          {/* Recommended Tag Chips */}
-          {recommendedTags.length > 0 && (
-            <div className="flex items-center gap-1.5 flex-wrap bg-monokai-bg/80 p-2.5 rounded-lg border border-monokai-border/80">
-              <span className="text-[10px] text-monokai-comment font-mono font-semibold">AI 智能推荐标签:</span>
-              {recommendedTags.map(tag => {
-                const isSelected = tagsInput.includes(tag);
-                return (
-                  <button
-                    key={tag}
-                    onClick={() => {
-                      if (!isSelected) {
-                        setTagsInput(prev => prev ? `${prev}, ${tag}` : tag);
-                      }
-                    }}
-                    disabled={isSelected}
-                    className={`px-2 py-0.5 text-[10px] rounded-md transition-all cursor-pointer border ${
-                      isSelected
-                        ? 'bg-monokai-green/20 text-monokai-green border-monokai-green/30 opacity-60 cursor-default'
-                        : 'bg-monokai-amethyst/15 text-monokai-amethyst border-monokai-amethyst/30 hover:bg-monokai-amethyst/25 active:scale-95'
-                    }`}
-                  >
-                    + {tag}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-
-          <div>
-            <label className="block text-monokai-comment mb-1.5 font-medium">解决什么问题 (用途描述)</label>
-            <input
-              type="text"
-              value={purpose}
-              onChange={(e) => setPurpose(e.target.value)}
-              placeholder="简述该 SQL 模板的应用场景与解决的问题..."
-              className="w-full bg-monokai-bg border border-monokai-border rounded-lg px-3 py-2 text-xs text-monokai-fg placeholder-monokai-comment/50 outline-none focus:border-monokai-amethyst/70 focus:ring-1 focus:ring-monokai-amethyst/20 transition-all font-mono"
-            />
-          </div>
-
-          <div>
-            <label className="block text-monokai-comment mb-1.5 font-medium">SQL 样例代码 (包含占位符)</label>
-            <textarea
-              rows={5}
-              value={sqlContent}
-              onChange={(e) => setSqlContent(e.target.value)}
-              className="w-full bg-monokai-bg border border-monokai-border rounded-lg p-3 text-xs font-mono text-monokai-fg/90 outline-none focus:border-monokai-amethyst/70 focus:ring-1 focus:ring-monokai-amethyst/20 custom-scrollbar leading-relaxed"
-            />
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="px-5 py-3.5 border-t border-monokai-border bg-monokai-bg/90 flex justify-end gap-2.5 shrink-0">
-          <button
-            onClick={onClose}
-            className="px-4 py-1.5 bg-monokai-surface text-monokai-comment hover:text-monokai-fg rounded-lg text-xs font-medium cursor-pointer transition-colors"
-          >
+    <ModalShell
+      open={isOpen}
+      onClose={onClose}
+      title="沉淀为 Analysis Hub 模板"
+      description="将当前 SQL 沉淀为可复用的团队分析模板与参数化查询"
+      icon={Sparkles}
+      iconColor="text-monokai-amethyst"
+      size="md"
+      footer={
+        <>
+          <ActionButton variant="ghost" size="sm" onClick={onClose}>
             取消
-          </button>
-          <button
-            onClick={handleSave}
-            className="px-4.5 py-1.5 bg-monokai-amethyst text-monokai-bg font-bold text-xs rounded-lg hover:brightness-110 transition-all flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95"
-          >
-            <Save size={13} />
-            <span>保存并沉淀</span>
-          </button>
+          </ActionButton>
+          <ActionButton variant="amethyst" size="sm" icon={Save} onClick={handleSave}>
+            保存并沉淀
+          </ActionButton>
+        </>
+      }
+    >
+      <div className="space-y-4 text-xs">
+        <div>
+          <label className="mb-1.5 block font-medium text-monokai-comment">模板标题 (*)</label>
+          <FormInput
+            fontVariant="mono"
+            value={title}
+            onChange={e => setTitle(e.target.value)}
+            placeholder="例如: 常用活跃用户多维度聚合"
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <div className="mb-1.5 flex items-center justify-between">
+              <label className="font-medium text-monokai-comment">模板分类</label>
+              {recommendedCategory && recommendedCategory !== category && (
+                <button
+                  type="button"
+                  onClick={() => setCategory(recommendedCategory)}
+                  className="inline-flex cursor-pointer items-center gap-0.5 text-2xs font-bold text-monokai-amethyst hover:underline"
+                >
+                  <Sparkles size={10} aria-hidden="true" />
+                  推荐: {QUICK_TEMPLATE_CATEGORIES.find(c => c.key === recommendedCategory)?.label}
+                </button>
+              )}
+            </div>
+            <FormSelect
+              className="font-mono"
+              value={category}
+              onChange={e => setCategory(e.target.value as TemplateCategoryKey)}
+            >
+              {QUICK_TEMPLATE_CATEGORIES.map(c => (
+                <option key={c.key} value={c.key}>
+                  {c.label}
+                </option>
+              ))}
+            </FormSelect>
+          </div>
+
+          <div>
+            <label className="mb-1.5 block font-medium text-monokai-comment">标签 (逗号分隔)</label>
+            <FormInput
+              fontVariant="mono"
+              value={tagsInput}
+              onChange={e => setTagsInput(e.target.value)}
+              placeholder="编辑器沉淀, 常用"
+            />
+          </div>
+        </div>
+
+        {recommendedTags.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5 rounded-md border border-monokai-border/80 bg-monokai-bg/80 p-2.5">
+            <span className="font-mono text-2xs font-semibold text-monokai-comment">AI 智能推荐标签:</span>
+            {recommendedTags.map(tag => {
+              const isSelected = tagsInput.includes(tag);
+              return (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => {
+                    if (!isSelected) setTagsInput(prev => (prev ? `${prev}, ${tag}` : tag));
+                  }}
+                  disabled={isSelected}
+                  className={`cursor-pointer rounded-md border px-2 py-0.5 text-2xs transition-all ${
+                    isSelected
+                      ? 'cursor-default border-monokai-accent/30 bg-monokai-accent/20 text-monokai-accent opacity-60'
+                      : 'border-monokai-amethyst/30 bg-monokai-amethyst/15 text-monokai-amethyst hover:bg-monokai-amethyst/25 active:scale-95'
+                  }`}
+                >
+                  + {tag}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        <div>
+          <label className="mb-1.5 block font-medium text-monokai-comment">解决什么问题 (用途描述)</label>
+          <FormInput
+            fontVariant="mono"
+            value={purpose}
+            onChange={e => setPurpose(e.target.value)}
+            placeholder="简述该 SQL 模板的应用场景与解决的问题..."
+          />
+        </div>
+
+        <div>
+          <label className="mb-1.5 block font-medium text-monokai-comment">SQL 样例代码 (包含占位符)</label>
+          <FormTextarea
+            rows={5}
+            fontVariant="mono"
+            value={sqlContent}
+            onChange={e => setSqlContent(e.target.value)}
+          />
         </div>
       </div>
-    </div>
+    </ModalShell>
   );
 };

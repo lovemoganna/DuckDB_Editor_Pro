@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { MetricDefinition } from '../types';
 import { Package, Search, X, Plus, Sparkles, Hash, DollarSign, Activity, TrendingUp, Filter } from 'lucide-react';
-import { ActionButton, IconButton } from './ui/Workbench';
+import { ActionButton, ModalShell } from './ui/Workbench';
 
 interface MetricTemplateModalProps {
   isOpen: boolean;
@@ -162,64 +162,50 @@ export const MetricTemplateModal: React.FC<MetricTemplateModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-label="选择指标模板"
+    <ModalShell
+      open={isOpen}
+      onClose={onClose}
+      title="标准语义指标模板库"
+      description="精选行业通用的标准原子指标与复合指标，支持一键注入当前指标包"
+      icon={Package}
+      badge={`${METRIC_TEMPLATES.length} 个经典模版`}
+      size="lg"
+      footer={
+        <>
+          <span className="mr-auto flex items-center gap-1.5 text-xs text-monokai-comment">
+            <Sparkles size={13} className="text-monokai-yellow" aria-hidden="true" />
+            点击任意模版卡片即可添加到当前指标包
+          </span>
+          <ActionButton variant="secondary" size="sm" onClick={onClose}>
+            关闭
+          </ActionButton>
+        </>
+      }
     >
-      <div
-        className="w-full max-w-3xl bg-monokai-sidebar border border-monokai-border rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-200"
-        onClick={e => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-monokai-border bg-monokai-sidebar/95">
-          <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-lg bg-monokai-surface border border-monokai-border flex items-center justify-center text-monokai-fg-muted shrink-0">
-              <Package size={18} />
-            </div>
-            <div>
-              <h2 className="text-sm font-bold text-monokai-fg flex items-center gap-2">
-                标准语义指标模板库
-                <span className="text-[10px] font-mono font-medium px-2 py-0.5 rounded-full bg-monokai-surface text-monokai-fg-muted border border-monokai-border">
-                  {METRIC_TEMPLATES.length} 个经典模版
-                </span>
-              </h2>
-              <p className="text-xs text-monokai-comment mt-0.5">
-                精选行业通用的标准原子指标与复合指标，支持一键注入当前指标包
-              </p>
-            </div>
-          </div>
-          <IconButton label="关闭" icon={X} onClick={onClose} size="sm" />
-        </div>
-
+      <div className="-m-5 flex min-h-0 flex-col">
         {/* Toolbar & Category Pills */}
-        <div className="p-4 border-b border-monokai-border bg-monokai-bg/60 space-y-3">
-          <div className="flex items-center gap-3">
-            <div className="relative flex-1">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-monokai-comment" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                placeholder="搜索指标名称、场景、公式语法..."
-                className="w-full bg-monokai-surface border border-monokai-border rounded-lg pl-9 pr-8 py-1.5 text-xs text-monokai-fg placeholder-monokai-comment/60 focus:border-monokai-accent focus:outline-none transition-colors"
-              />
-              {searchTerm && (
-                <button
-                  type="button"
-                  onClick={() => setSearchTerm('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-monokai-comment hover:text-monokai-fg p-0.5 cursor-pointer"
-                >
-                  <X size={12} />
-                </button>
-              )}
-            </div>
+        <div className="space-y-3 border-b border-monokai-border bg-monokai-bg/60 p-4">
+          <div className="relative flex-1">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-monokai-comment" aria-hidden="true" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              placeholder="搜索指标名称、场景、公式语法..."
+              className="w-full rounded-md border border-monokai-border bg-monokai-surface py-1.5 pl-9 pr-8 text-xs text-monokai-fg placeholder-monokai-comment/60 transition-colors focus:border-monokai-accent focus:outline-none"
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 cursor-pointer p-0.5 text-monokai-comment hover:text-monokai-fg"
+              >
+                <X size={12} aria-hidden="true" />
+              </button>
+            )}
           </div>
 
-          {/* Category Filter Pills */}
-          <div className="flex items-center gap-1.5 flex-wrap">
+          <div className="flex flex-wrap items-center gap-1.5">
             {categories.map(cat => {
               const IconComp = CATEGORY_ICONS[cat] || Filter;
               const isSelected = selectedCategory === cat;
@@ -228,13 +214,13 @@ export const MetricTemplateModal: React.FC<MetricTemplateModalProps> = ({
                   key={cat}
                   type="button"
                   onClick={() => setSelectedCategory(cat)}
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all cursor-pointer border ${
+                  className={`inline-flex cursor-pointer items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium transition-all ${
                     isSelected
-                      ? 'bg-monokai-surface text-monokai-fg border-monokai-border-strong shadow-xs'
-                      : 'bg-monokai-sidebar text-monokai-comment hover:text-monokai-fg border-monokai-border/70 hover:border-monokai-border'
+                      ? 'border-monokai-border-strong bg-monokai-surface text-monokai-fg shadow-xs'
+                      : 'border-monokai-border/70 bg-monokai-sidebar text-monokai-comment hover:border-monokai-border hover:text-monokai-fg'
                   }`}
                 >
-                  <IconComp size={12} className={isSelected ? 'text-monokai-fg' : 'text-monokai-comment'} />
+                  <IconComp size={12} className={isSelected ? 'text-monokai-fg' : 'text-monokai-comment'} aria-hidden="true" />
                   <span>{cat}</span>
                 </button>
               );
@@ -242,54 +228,59 @@ export const MetricTemplateModal: React.FC<MetricTemplateModalProps> = ({
           </div>
         </div>
 
-        {/* Template Cards Grid */}
-        <div className="flex-1 overflow-y-auto p-4 custom-scrollbar bg-monokai-bg">
+        <div className="flex-1 overflow-y-auto bg-monokai-bg p-4 custom-scrollbar">
           {filteredTemplates.length === 0 ? (
             <div className="py-12 text-center text-monokai-comment">
-              <Package size={36} className="mx-auto mb-2 opacity-30" />
+              <Package size={36} className="mx-auto mb-2 opacity-30" aria-hidden="true" />
               <p className="text-xs">未找到符合条件的指标模板</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               {filteredTemplates.map((t, idx) => (
                 <div
                   key={idx}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => onSelectTemplate(t)}
-                  className="group relative bg-monokai-sidebar border border-monokai-border rounded-lg p-3.5 hover:border-monokai-border-strong hover:bg-monokai-surface/60 transition-all cursor-pointer flex flex-col justify-between shadow-xs hover:shadow-md"
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      onSelectTemplate(t);
+                    }
+                  }}
+                  className="group relative flex cursor-pointer flex-col justify-between rounded-md border border-monokai-border bg-monokai-sidebar p-3.5 shadow-xs transition-all hover:border-monokai-border-strong hover:bg-monokai-surface/60 hover:shadow-md"
                 >
                   <div>
-                    <div className="flex items-start justify-between gap-2 mb-1.5">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="font-mono font-bold text-xs text-monokai-fg group-hover:text-monokai-accent transition-colors truncate">
+                    <div className="mb-1.5 flex items-start justify-between gap-2">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span className="truncate font-mono text-xs font-bold text-monokai-fg transition-colors group-hover:text-monokai-accent">
                           {t.name}
                         </span>
                         {t.unit && (
-                          <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-monokai-surface border border-monokai-border text-monokai-comment">
+                          <span className="rounded border border-monokai-border bg-monokai-surface px-1.5 font-mono text-2xs text-monokai-comment">
                             {t.unit}
                           </span>
                         )}
                       </div>
-                      <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-monokai-surface text-monokai-fg-muted border border-monokai-border shrink-0">
+                      <span className="shrink-0 rounded border border-monokai-border bg-monokai-surface px-2 py-0.5 text-2xs font-medium text-monokai-fg-muted">
                         {t.category}
                       </span>
                     </div>
 
-                    <p className="text-xs text-monokai-fg-muted mb-2 font-medium">{t.scenario}</p>
-                    <p className="text-[11px] text-monokai-comment leading-relaxed line-clamp-2 mb-2">
+                    <p className="mb-2 text-xs font-medium text-monokai-fg-muted">{t.scenario}</p>
+                    <p className="mb-2 line-clamp-2 text-meta leading-relaxed text-monokai-comment">
                       {t.definition}
                     </p>
 
-                    {/* Formula box */}
-                    <div className="bg-monokai-bg border border-monokai-border/80 rounded px-2.5 py-1.5 font-mono text-[11px] text-monokai-green break-all">
+                    <div className="break-all rounded border border-monokai-border/80 bg-monokai-bg px-2.5 py-1.5 font-mono text-meta text-monokai-accent">
                       <code>{t.formula}</code>
                     </div>
                   </div>
 
-                  {/* Footer metadata & quick add */}
-                  <div className="mt-3 pt-2.5 border-t border-monokai-border/60 flex items-center justify-between text-[11px] text-monokai-comment">
+                  <div className="mt-3 flex items-center justify-between border-t border-monokai-border/60 pt-2.5 text-meta text-monokai-comment">
                     <span className="truncate">{t.characteristics}</span>
-                    <span className="text-monokai-cyan group-hover:translate-x-0.5 transition-transform flex items-center gap-1 font-medium text-xs">
-                      <Plus size={13} /> 添加此指标
+                    <span className="flex items-center gap-1 text-xs font-medium text-monokai-cyan transition-transform group-hover:translate-x-0.5">
+                      <Plus size={13} aria-hidden="true" /> 添加此指标
                     </span>
                   </div>
                 </div>
@@ -297,18 +288,7 @@ export const MetricTemplateModal: React.FC<MetricTemplateModalProps> = ({
             </div>
           )}
         </div>
-
-        {/* Footer */}
-        <div className="px-6 py-3 border-t border-monokai-border bg-monokai-sidebar/95 flex items-center justify-between text-xs text-monokai-comment">
-          <span className="flex items-center gap-1.5">
-            <Sparkles size={13} className="text-monokai-yellow" />
-            点击任意模版卡片即可将其添加到当前指标包中
-          </span>
-          <ActionButton variant="secondary" size="sm" onClick={onClose}>
-            关闭
-          </ActionButton>
-        </div>
       </div>
-    </div>
+    </ModalShell>
   );
 };

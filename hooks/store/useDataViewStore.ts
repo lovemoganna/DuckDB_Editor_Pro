@@ -2,7 +2,9 @@ import { create } from 'zustand';
 import { ColumnInfo } from '../../types';
 import { duckDBService } from '../../services/duckdbService';
 
-let activeDataRequestId = 0;
+/** Separate cancellation tokens so table loads are not discarded by profile fetches (and vice versa). */
+let activeTableRequestId = 0;
+let activeProfileRequestId = 0;
 
 export interface DataViewState {
   dataViewMode: 'grid' | 'profile';
@@ -13,6 +15,7 @@ export interface DataViewState {
   pagination: { limit: number; offset: number; total: number };
   schema: ColumnInfo[];
   sortConfig: { key: string; direction: 'ASC' | 'DESC' }[];
+  /** Currently *applied* WHERE clause (empty = show full table). */
   filterQuery: string;
   selectedRows: Set<any>;
   profileData: any[];
@@ -36,7 +39,7 @@ export interface DataViewState {
   setExpandedRowIdx: (idx: number | null) => void;
   setSelectedRows: (rows: Set<any> | ((prev: Set<any>) => Set<any>)) => void;
   setSortConfig: (config: { key: string; direction: 'ASC' | 'DESC' }[]) => void;
-  
+
   // Data Fetching
   fetchTableData: (tableName: string, offset: number, limit: number, currentSort?: any, currentFilter?: string) => Promise<void>;
   fetchProfileData: (tableName: string) => Promise<void>;
@@ -86,10 +89,11 @@ export const useDataViewStore = create<DataViewState>((set, get) => ({
   setSortConfig: (sortConfig) => set({ sortConfig }),
 
   fetchTableData: async (tableName, offset, limit, currentSort = get().sortConfig, currentFilter = get().filterQuery) => {
-    const requestId = ++activeDataRequestId;
-    set({ loadingData: true });
+    const requestId = ++activeTableRequestId;
+    const appliedFilter = (currentFilter ?? '').trim();
+    set({ loadingData: true, filterQuery: appliedFilter });
     try {
-      const whereClause = currentFilter.trim() ? `WHERE ${currentFilter}` : '';
+      const whereClause = appliedFilter ? `WHERE ${appliedFilter}` : '';
       const countQuery = `SELECT COUNT(*) as c FROM "${tableName}" ${whereClause}`;
       let total = 0;
       try {
@@ -110,37 +114,35 @@ export const useDataViewStore = create<DataViewState>((set, get) => ({
       query += ` LIMIT ${limit} OFFSET ${offset}`;
 
       const data = await duckDBService.readQuery(query);
-      if (requestId !== activeDataRequestId) return;
+      if (requestId !== activeTableRequestId) return;
       set({
         tableData: data,
         schema: schemaInfo,
         tableColumns: schemaInfo.map((c: any) => c.name),
         pagination: { limit, offset, total },
         selectedRows: new Set(),
+        filterQuery: appliedFilter,
       });
     } catch (e: any) {
-      if (requestId !== activeDataRequestId) return;
+      if (requestId !== activeTableRequestId) return;
       set({ tableData: [] });
       throw e;
     } finally {
-      if (requestId === activeDataRequestId) {
+      if (requestId === activeTableRequestId) {
         set({ loadingData: false });
       }
     }
   },
 
   fetchProfileData: async (tableName) => {
-    const requestId = ++activeDataRequestId;
-    set({ loadingData: true });
+    const requestId = ++activeProfileRequestId;
     try {
       const profile = await duckDBService.query(`SUMMARIZE SELECT * FROM "${tableName}"`);
-      if (requestId === activeDataRequestId) {
+      if (requestId === activeProfileRequestId) {
         set({ profileData: profile });
       }
     } finally {
-      if (requestId === activeDataRequestId) {
-        set({ loadingData: false });
-      }
+      // Profile must not toggle loadingData — that flag belongs to the grid fetch.
     }
   },
 

@@ -11,44 +11,44 @@
 // 颜色方案 (Monokai 风格)
 // ============================================================
 
-/** 主题色 */
+/** 主题色 — 指向 index.css `:root` Monokai SSOT，禁止平行 hex 调色板 */
 export const THEME_COLORS = {
   /** 背景色 */
-  background: '#0c0d12',
-  surface: '#27272a',
-  elevated: '#3e3f4c',
-  border: '#4a4a52',
-  borderSubtle: '#3a3a42',
-  borderStrong: '#5a5a62',
-  
+  background: 'var(--monokai-bg)',
+  surface: 'var(--monokai-surface)',
+  elevated: 'var(--monokai-elevated)',
+  border: 'var(--monokai-border)',
+  borderSubtle: 'var(--monokai-border-subtle)',
+  borderStrong: 'var(--monokai-border-strong)',
+
   /** 文字色 */
-  fg: '#f8f8f2',
-  fgMuted: '#a8a8b2',
-  fgDim: '#78788a',
-  comment: '#75715e',
-  
+  fg: 'var(--monokai-fg)',
+  fgMuted: 'var(--monokai-fg-muted)',
+  fgDim: 'var(--monokai-comment)',
+  comment: 'var(--monokai-comment)',
+
   /** 强调色 */
-  accent: '#66d9ef',
-  cyan: '#66d9ef',
-  green: '#a6e22e',
-  yellow: '#e6db74',
-  orange: '#fd971f',
-  pink: '#f92672',
-  purple: '#ae81ff',
-  red: '#f92672',
-  blue: '#4cc9f0',
-  
+  accent: 'var(--monokai-cyan)',
+  cyan: 'var(--monokai-cyan)',
+  green: 'var(--monokai-accent)',
+  yellow: 'var(--monokai-yellow)',
+  orange: 'var(--monokai-orange)',
+  pink: 'var(--monokai-pink)',
+  purple: 'var(--monokai-purple)',
+  red: 'var(--monokai-pink)',
+  blue: 'var(--monokai-cyan)',
+
   /** 语义色 */
-  success: '#a6e22e',
-  warning: '#fd971f',
-  error: '#f92672',
-  info: '#66d9ef',
-  
+  success: 'var(--monokai-accent)',
+  warning: 'var(--monokai-orange)',
+  error: 'var(--monokai-pink)',
+  info: 'var(--monokai-cyan)',
+
   /** 特殊色 */
-  highlight: '#ffd166',
-  selected: '#66d9ef',
-  connected: '#a6e22e',
-  dimmed: 'rgba(248, 248, 242, 0.15)',
+  highlight: 'var(--monokai-yellow)',
+  selected: 'var(--monokai-cyan)',
+  connected: 'var(--monokai-accent)',
+  dimmed: 'color-mix(in srgb, var(--monokai-fg) 15%, transparent)',
 } as const;
 
 /** TypeHub 节点颜色 (暖色系) */

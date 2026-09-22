@@ -960,7 +960,7 @@ const DataFlowCanvasInner: React.FC<DataFlowCanvasProps> = ({
               type: 'dataFlowEdge',
               sourceHandle: 'output',
               targetHandle: 'input',
-            }}
+            } as any}
             fitView
             fitViewOptions={{ padding: 0.2 }}
             minZoom={0.2}

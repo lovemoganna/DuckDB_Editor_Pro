@@ -7,6 +7,8 @@ export default {
         "./types.ts",
         "./App.tsx"
     ],
+    // Product is dark-only via :root Monokai vars. Keep 'class' for Tailwind dark:
+    // utilities if needed, but do not ship a parallel light theme without :root tokens.
     darkMode: 'class',
     theme: {
         extend: {
@@ -90,7 +92,13 @@ export default {
                 'ds-6': 'var(--space-6)',
                 'ds-8': 'var(--space-8)',
             },
+            // Default Tailwind radii → CSS token SSOT (existing rounded-md/lg stay valid)
             borderRadius: {
+                sm: 'var(--radius-sm)',
+                DEFAULT: 'var(--radius-md)',
+                md: 'var(--radius-md)',
+                lg: 'var(--radius-lg)',
+                xl: 'var(--radius-xl)',
                 'ds-sm': 'var(--radius-sm)',
                 'ds-md': 'var(--radius-md)',
                 'ds-lg': 'var(--radius-lg)',

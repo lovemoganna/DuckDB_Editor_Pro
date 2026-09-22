@@ -1,17 +1,9 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
-  Calendar,
   TrendingUp,
   TrendingDown,
-  ArrowRight,
-  Activity,
   Terminal,
-  Copy,
-  Check,
-  RefreshCw,
-  Sliders,
-  Table as TableIcon,
-  BarChart2,
+  Download,
   AlertCircle,
 } from 'lucide-react';
 import {
@@ -22,6 +14,18 @@ import {
 import { AnalysisChartRenderer } from './AnalysisChartRenderer';
 import type { ColumnInfo, ChartConfig } from '../../types';
 import { toastService } from '../../services/toastService';
+import { InlineAlert } from '../ui/Workbench';
+import {
+  AH,
+  AnalysisLoadingState,
+  AnalysisSubViewHeader,
+  AnalysisKpiTile,
+  AnalysisResultTable,
+  AnalysisErrorState,
+  AnalysisEmptyHint,
+  AnalysisField,
+  AnalysisSqlBar,
+} from './analysisUi';
 
 interface AnalysisTimeSeriesProps {
   currentTable: string;
@@ -36,57 +40,55 @@ export const AnalysisTimeSeries: React.FC<AnalysisTimeSeriesProps> = ({
   initialTimeColumn,
   onInsertSql,
 }) => {
-  // Find date columns
-  const dateColumns = useMemo(() => {
-    return schema.filter(c => classifySemanticType(c.name, c.type) === 'temporal').map(c => c.name);
-  }, [schema]);
+  const dateColumns = useMemo(
+    () => schema.filter(c => classifySemanticType(c.name, c.type) === 'temporal').map(c => c.name),
+    [schema],
+  );
 
-  const numericColumns = useMemo(() => {
-    return schema.filter(c => classifySemanticType(c.name, c.type) === 'numeric').map(c => c.name);
-  }, [schema]);
+  const numericColumns = useMemo(
+    () => schema.filter(c => classifySemanticType(c.name, c.type) === 'numeric').map(c => c.name),
+    [schema],
+  );
 
-  // Config state
-  const [timeColumn, setTimeColumn] = useState<string>('');
-  const [valueColumn, setValueColumn] = useState<string>('');
+  const [timeColumn, setTimeColumn] = useState('');
+  const [valueColumn, setValueColumn] = useState('');
   const [granularity, setGranularity] = useState<TimeSeriesConfig['granularity']>('month');
   const [aggFunc, setAggFunc] = useState<TimeSeriesConfig['aggFunc']>('sum');
   const [windowMode, setWindowMode] = useState<TimeSeriesConfig['windowMode']>('raw');
 
-  // View state
   const [chartType, setChartType] = useState<ChartConfig['type']>('line');
-  const [loading, setLoading] = useState<boolean>(false);
+  const [showSqlDrawer, setShowSqlDrawer] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [rows, setRows] = useState<any[]>([]);
-  const [summary, setSummary] = useState<{
-    latestVal: number;
-    avgVal: number;
-    maxVal: number;
-    totalGrowthPct: number;
-  }>({
+  const [summary, setSummary] = useState({
     latestVal: 0,
     avgVal: 0,
     maxVal: 0,
     totalGrowthPct: 0,
   });
-  const [generatedSql, setGeneratedSql] = useState<string>('');
-  const [executionTimeMs, setExecutionTimeMs] = useState<number>(0);
-  const [copied, setCopied] = useState<boolean>(false);
+  const [generatedSql, setGeneratedSql] = useState('');
+  const [executionTimeMs, setExecutionTimeMs] = useState(0);
+  const [copied, setCopied] = useState(false);
 
-  // Initialize defaults
   useEffect(() => {
-    const selectedDateCol = initialTimeColumn && schema.some(c => c.name === initialTimeColumn)
-      ? initialTimeColumn
-      : dateColumns[0] || schema[0]?.name || '';
-
-    const selectedValCol = numericColumns[0] || schema.find(c => c.name !== selectedDateCol)?.name || selectedDateCol;
-
+    const selectedDateCol =
+      initialTimeColumn && schema.some(c => c.name === initialTimeColumn)
+        ? initialTimeColumn
+        : dateColumns[0] || schema[0]?.name || '';
+    const selectedValCol =
+      numericColumns[0] ||
+      schema.find(c => c.name !== selectedDateCol)?.name ||
+      selectedDateCol;
     setTimeColumn(selectedDateCol);
     setValueColumn(selectedValCol);
+    setError(null);
   }, [currentTable, schema, dateColumns, numericColumns, initialTimeColumn]);
 
-  // Execute time-series calculation
   const handleExecute = useCallback(async () => {
     if (!currentTable || !timeColumn || !valueColumn) return;
     setLoading(true);
+    setError(null);
     try {
       const config: TimeSeriesConfig = {
         tableName: currentTable,
@@ -96,15 +98,17 @@ export const AnalysisTimeSeries: React.FC<AnalysisTimeSeriesProps> = ({
         aggFunc,
         windowMode,
       };
-
       const res = await analysisEngine.executeTimeSeries(config);
       setGeneratedSql(res.sql);
       setRows(res.rows);
       setSummary(res.summary);
       setExecutionTimeMs(res.executionTimeMs);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('[AnalysisTimeSeries] Calculation failed:', err);
-      toastService.error(`时序计算失败: ${err?.message || String(err)}`);
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(msg);
+      setRows([]);
+      toastService.error(`时序计算失败: ${msg}`);
     } finally {
       setLoading(false);
     }
@@ -118,93 +122,112 @@ export const AnalysisTimeSeries: React.FC<AnalysisTimeSeriesProps> = ({
 
   const handleCopySql = () => {
     if (!generatedSql) return;
-    navigator.clipboard.writeText(generatedSql);
+    void navigator.clipboard.writeText(generatedSql);
     setCopied(true);
-    toastService.success('时序分析 SQL 已复制！');
+    toastService.success('时序 SQL 已复制');
     setTimeout(() => setCopied(false), 2000);
   };
 
   const handleOpenInSqlEditor = () => {
-    if (!generatedSql) return;
-    if (onInsertSql) {
-      onInsertSql(generatedSql, false);
-      toastService.success('已带入 SQL 工作台！');
-    }
+    if (!generatedSql || !onInsertSql) return;
+    onInsertSql(generatedSql, false);
+    toastService.success('已带入 SQL 工作台');
+  };
+
+  const handleExportCsv = () => {
+    if (rows.length === 0) return;
+    const cols = Object.keys(rows[0]);
+    const headers = cols.join(',');
+    const csvRows = rows.map(row =>
+      cols
+        .map(col => {
+          const val = row[col];
+          if (val === null || val === undefined) return '';
+          return `"${String(val).replace(/"/g, '""')}"`;
+        })
+        .join(','),
+    );
+    const blob = new Blob([`${headers}\n${csvRows.join('\n')}`], {
+      type: 'text/csv;charset=utf-8;',
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `timeseries_${currentTable}_${Date.now()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toastService.success('已导出 CSV');
   };
 
   const chartConfig: ChartConfig = useMemo(() => {
     const cols = rows.length > 0 ? Object.keys(rows[0]) : [];
-    const xKey = cols[0] || '时间周期';
-    const yKeys = cols.slice(1);
-
     return {
       id: 'timeseries_chart',
-      title: `${currentTable} 时序波动走势 (${windowMode.toUpperCase()})`,
+      title: `${currentTable} 时序走势 (${windowMode.toUpperCase()})`,
       type: chartType,
-      xKey,
-      yKeys,
+      xKey: cols[0] || '时间周期',
+      yKeys: cols.slice(1),
       showLegend: true,
       showValues: false,
     };
   }, [currentTable, rows, windowMode, chartType]);
 
-  return (
-    <div className="flex h-full flex-col overflow-hidden bg-monokai-bg font-sans">
-      {/* Top Configuration Bar */}
-      <div className="flex flex-col gap-3 border-b border-monokai-border bg-monokai-surface px-4 py-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <span className="flex h-6 w-6 items-center justify-center rounded bg-monokai-cyan/20 text-monokai-cyan">
-              <TrendingUp className="h-3.5 w-3.5" />
-            </span>
-            <div>
-              <h3 className="text-xs font-bold uppercase tracking-wider text-monokai-fg">
-                时序走势与波动分析
-              </h3>
-              <p className="text-[10px] text-monokai-comment">
-                自动对齐时间窗口 • 环比变动率 • 移动均线与累计总额计算
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleCopySql}
-              className="flex items-center gap-1 rounded bg-monokai-bg border border-monokai-border px-2.5 py-1 text-xs text-monokai-comment hover:text-monokai-fg font-mono transition-colors cursor-pointer"
-            >
-              {copied ? <Check className="h-3 w-3 text-monokai-green" /> : <Copy className="h-3 w-3" />}
-              <span>{copied ? '已复制' : '复制 SQL'}</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={handleOpenInSqlEditor}
-              className="flex items-center gap-1 rounded bg-monokai-orange text-monokai-bg px-3 py-1 text-xs font-semibold hover:bg-monokai-orange/90 transition-colors cursor-pointer"
-            >
-              <Terminal className="h-3.5 w-3.5" />
-              <span>在 SQL 工作台查看</span>
-            </button>
-          </div>
+  if (!currentTable || schema.length === 0) {
+    return (
+      <div className={AH.pane}>
+        <div className={AH.scrollBody}>
+          <AnalysisEmptyHint message="请选择数据表后再配置时序字段。" />
         </div>
+      </div>
+    );
+  }
 
-        {/* Warning if no date columns */}
+  return (
+    <div className={AH.pane}>
+      <div className={AH.configBar}>
+        <AnalysisSubViewHeader
+          icon={TrendingUp}
+          iconTone="cyan"
+          title="时序走势与波动分析"
+          description="时间窗口对齐 · 环比 · 移动均线 · 累计总额"
+          actions={
+            <>
+              <button
+                type="button"
+                onClick={handleExportCsv}
+                disabled={rows.length === 0}
+                className={AH.btnGhost}
+              >
+                <Download className="h-3 w-3" aria-hidden="true" />
+                导出 CSV
+              </button>
+              <button
+                type="button"
+                onClick={handleOpenInSqlEditor}
+                disabled={!generatedSql || !onInsertSql}
+                className={AH.btnWarning}
+              >
+                <Terminal className="h-3 w-3" aria-hidden="true" />
+                打开 SQL
+              </button>
+            </>
+          }
+        />
+
         {dateColumns.length === 0 && (
-          <div className="flex items-center gap-2 rounded bg-monokai-warning/10 border border-monokai-warning/30 p-2 text-xs text-monokai-warning">
-            <AlertCircle className="h-4 w-4 shrink-0" />
-            <span>当前表未显式包含 DATE 或 TIMESTAMP 字段，已使用默认字段进行时序转换。</span>
-          </div>
+          <InlineAlert tone="warning" icon={AlertCircle}>
+            <span className={AH.body}>
+              当前表未显式包含 DATE / TIMESTAMP 字段，已使用默认字段做时序转换。
+            </span>
+          </InlineAlert>
         )}
 
-        {/* Controls Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5 text-xs">
-          {/* Time Col */}
-          <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-monokai-comment font-mono">时间戳字段:</label>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+          <AnalysisField label="时间字段">
             <select
               value={timeColumn}
               onChange={e => setTimeColumn(e.target.value)}
-              className="rounded border border-monokai-border bg-monokai-bg px-2 py-1 text-xs text-monokai-orange font-mono focus:border-monokai-accent focus:outline-none"
+              className={`${AH.select} text-monokai-orange`}
             >
               {schema.map(c => (
                 <option key={c.name} value={c.name}>
@@ -212,31 +235,25 @@ export const AnalysisTimeSeries: React.FC<AnalysisTimeSeriesProps> = ({
                 </option>
               ))}
             </select>
-          </div>
-
-          {/* Granularity */}
-          <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-monokai-comment font-mono">时间粒度:</label>
+          </AnalysisField>
+          <AnalysisField label="时间粒度">
             <select
               value={granularity}
-              onChange={e => setGranularity(e.target.value as any)}
-              className="rounded border border-monokai-border bg-monokai-bg px-2 py-1 text-xs text-monokai-fg font-mono focus:border-monokai-accent focus:outline-none"
+              onChange={e => setGranularity(e.target.value as TimeSeriesConfig['granularity'])}
+              className={AH.select}
             >
-              <option value="day">按日 (Daily)</option>
-              <option value="week">按周 (Weekly)</option>
-              <option value="month">按月 (Monthly)</option>
-              <option value="quarter">按季度 (Quarterly)</option>
-              <option value="year">按年 (Yearly)</option>
+              <option value="day">按日</option>
+              <option value="week">按周</option>
+              <option value="month">按月</option>
+              <option value="quarter">按季</option>
+              <option value="year">按年</option>
             </select>
-          </div>
-
-          {/* Value Col */}
-          <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-monokai-comment font-mono">观测指标字段:</label>
+          </AnalysisField>
+          <AnalysisField label="观测指标">
             <select
               value={valueColumn}
               onChange={e => setValueColumn(e.target.value)}
-              className="rounded border border-monokai-border bg-monokai-bg px-2 py-1 text-xs text-monokai-cyan font-mono focus:border-monokai-accent focus:outline-none"
+              className={`${AH.select} text-monokai-cyan`}
             >
               {(numericColumns.length > 0 ? numericColumns : schema.map(c => c.name)).map(col => (
                 <option key={col} value={col}>
@@ -244,144 +261,101 @@ export const AnalysisTimeSeries: React.FC<AnalysisTimeSeriesProps> = ({
                 </option>
               ))}
             </select>
-          </div>
-
-          {/* Agg Func */}
-          <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-monokai-comment font-mono">聚合计算函数:</label>
+          </AnalysisField>
+          <AnalysisField label="聚合函数">
             <select
               value={aggFunc}
-              onChange={e => setAggFunc(e.target.value as any)}
-              className="rounded border border-monokai-border bg-monokai-bg px-2 py-1 text-xs text-monokai-fg font-mono focus:border-monokai-accent focus:outline-none"
+              onChange={e => setAggFunc(e.target.value as TimeSeriesConfig['aggFunc'])}
+              className={AH.select}
             >
-              <option value="sum">SUM (累计总额)</option>
-              <option value="avg">AVG (周期均值)</option>
-              <option value="count">COUNT (记录条数)</option>
-              <option value="max">MAX (周期极值)</option>
-              <option value="min">MIN (周期低谷)</option>
+              <option value="sum">SUM</option>
+              <option value="avg">AVG</option>
+              <option value="count">COUNT</option>
+              <option value="max">MAX</option>
+              <option value="min">MIN</option>
             </select>
-          </div>
-
-          {/* Window Mode */}
-          <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-monokai-comment font-mono">窗口分析模式:</label>
+          </AnalysisField>
+          <AnalysisField label="窗口模式">
             <select
               value={windowMode}
-              onChange={e => setWindowMode(e.target.value as any)}
-              className="rounded border border-monokai-border bg-monokai-bg px-2 py-1 text-xs text-monokai-green font-mono focus:border-monokai-accent focus:outline-none font-bold"
+              onChange={e => setWindowMode(e.target.value as TimeSeriesConfig['windowMode'])}
+              className={`${AH.select} text-monokai-green font-semibold`}
             >
-              <option value="raw">📊 原生趋势走势</option>
-              <option value="mom">⚡ 环比增长率 (LAG)</option>
-              <option value="moving_avg">📈 7周期移动均线</option>
-              <option value="cumulative">🎯 累计增长总和</option>
+              <option value="raw">原生趋势</option>
+              <option value="mom">环比增长 (LAG)</option>
+              <option value="moving_avg">7 周期移动均线</option>
+              <option value="cumulative">累计总和</option>
             </select>
-          </div>
+          </AnalysisField>
         </div>
       </div>
 
-      {/* KPI Tiles */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 pb-0">
-        <div className="rounded-lg border border-monokai-border bg-monokai-surface p-3">
-          <span className="text-[10px] font-mono text-monokai-comment">最新周期数值</span>
-          <div className="mt-1 text-lg font-bold font-mono text-monokai-fg">
-            {summary.latestVal.toLocaleString()}
-          </div>
-        </div>
-
-        <div className="rounded-lg border border-monokai-border bg-monokai-surface p-3">
-          <span className="text-[10px] font-mono text-monokai-comment">全周期均值</span>
-          <div className="mt-1 text-lg font-bold font-mono text-monokai-cyan">
-            {summary.avgVal.toLocaleString()}
-          </div>
-        </div>
-
-        <div className="rounded-lg border border-monokai-border bg-monokai-surface p-3">
-          <span className="text-[10px] font-mono text-monokai-comment">周期历史最高峰值</span>
-          <div className="mt-1 text-lg font-bold font-mono text-monokai-yellow">
-            {summary.maxVal.toLocaleString()}
-          </div>
-        </div>
-
-        <div className="rounded-lg border border-monokai-border bg-monokai-surface p-3">
-          <span className="text-[10px] font-mono text-monokai-comment">首末周期总增长率</span>
-          <div className="flex items-center gap-1.5 mt-1">
-            <span
-              className={`text-lg font-bold font-mono ${
-                summary.totalGrowthPct >= 0 ? 'text-monokai-green' : 'text-monokai-pink'
-              }`}
-            >
-              {summary.totalGrowthPct >= 0 ? `+${summary.totalGrowthPct}%` : `${summary.totalGrowthPct}%`}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 px-3 pt-2.5">
+        <AnalysisKpiTile label="最新周期" value={summary.latestVal.toLocaleString()} />
+        <AnalysisKpiTile
+          label="全周期均值"
+          value={summary.avgVal.toLocaleString()}
+          valueClassName="text-monokai-cyan"
+        />
+        <AnalysisKpiTile
+          label="历史峰值"
+          value={summary.maxVal.toLocaleString()}
+          valueClassName="text-monokai-yellow"
+        />
+        <AnalysisKpiTile
+          label="首末增长率"
+          value={
+            <span className="flex items-center gap-1">
+              <span
+                className={
+                  summary.totalGrowthPct >= 0 ? 'text-monokai-green' : 'text-monokai-pink'
+                }
+              >
+                {summary.totalGrowthPct >= 0
+                  ? `+${summary.totalGrowthPct}%`
+                  : `${summary.totalGrowthPct}%`}
+              </span>
+              {summary.totalGrowthPct >= 0 ? (
+                <TrendingUp className="h-3.5 w-3.5 text-monokai-green" aria-hidden="true" />
+              ) : (
+                <TrendingDown className="h-3.5 w-3.5 text-monokai-pink" aria-hidden="true" />
+              )}
             </span>
-            {summary.totalGrowthPct >= 0 ? (
-              <TrendingUp className="h-4 w-4 text-monokai-green" />
-            ) : (
-              <TrendingDown className="h-4 w-4 text-monokai-pink" />
-            )}
-          </div>
-        </div>
+          }
+        />
       </div>
 
-      {/* Main Content Area: Chart + Data Grid */}
-      <div className="flex-1 overflow-auto p-4 custom-scrollbar flex flex-col gap-4">
-        {loading ? (
-          <div className="flex h-64 flex-col items-center justify-center gap-2 text-xs font-mono text-monokai-comment">
-            <RefreshCw className="h-6 w-6 animate-spin text-monokai-orange" />
-            <span>DuckDB WASM 正在实时计算时序窗口函数…</span>
-          </div>
+      <div className={`${AH.scrollBody} flex flex-col gap-2.5`}>
+        {error ? (
+          <AnalysisErrorState title="时序计算异常" message={error} onRetry={handleExecute} />
+        ) : loading ? (
+          <AnalysisLoadingState message="正在计算时序窗口函数…" />
         ) : (
           <>
             <AnalysisChartRenderer
               data={rows}
               config={chartConfig}
-              height={280}
+              height={AH.chartHeight}
               onChartTypeChange={setChartType}
             />
-
-            {/* Detail Data Table */}
-            <div className="flex flex-col rounded-lg border border-monokai-border bg-monokai-surface overflow-hidden">
-              <div className="px-3.5 py-2 border-b border-monokai-border bg-monokai-bg flex items-center justify-between">
-                <span className="text-xs font-mono font-bold text-monokai-fg">
-                  时序明细数据 ({rows.length} 周期)
-                </span>
-                <span className="text-[10px] text-monokai-comment font-mono">
-                  执行耗时: {executionTimeMs} ms
-                </span>
-              </div>
-              <div className="max-h-56 overflow-auto custom-scrollbar">
-                <table className="w-full text-left border-collapse text-xs font-mono">
-                  <thead>
-                    <tr className="border-b border-monokai-border bg-monokai-bg/60 sticky top-0">
-                      {rows.length > 0 &&
-                        Object.keys(rows[0]).map(col => (
-                          <th key={col} className="px-3 py-2 text-monokai-comment">
-                            {col}
-                          </th>
-                        ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-monokai-border/40">
-                    {rows.map((row, rIdx) => (
-                      <tr key={rIdx} className="hover:bg-monokai-bg/30">
-                        {Object.keys(row).map((col, cIdx) => (
-                          <td key={cIdx} className="px-3 py-1.5 text-monokai-fg/90">
-                            {row[col] !== null && row[col] !== undefined
-                              ? typeof row[col] === 'number'
-                                ? Number.isInteger(row[col])
-                                  ? row[col].toLocaleString()
-                                  : row[col].toFixed(2)
-                                : String(row[col])
-                              : '-'}
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            <AnalysisResultTable
+              columns={rows.length > 0 ? Object.keys(rows[0]) : []}
+              rows={rows}
+              title={`时序明细 (${rows.length} 周期)`}
+              metaRight={`${executionTimeMs} ms`}
+              emptyMessage="暂无时序数据，请检查时间字段与聚合配置。"
+            />
           </>
         )}
       </div>
+
+      <AnalysisSqlBar
+        sql={generatedSql}
+        open={showSqlDrawer}
+        onToggle={() => setShowSqlDrawer(v => !v)}
+        onCopy={handleCopySql}
+        copied={copied}
+      />
     </div>
   );
 };

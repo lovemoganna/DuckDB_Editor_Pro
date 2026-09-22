@@ -29,6 +29,8 @@ const INSPECTOR_DEFAULT_OPEN = new Set<Tab>(Object.values(Tab));
 
 const FULL_BLEED_TABS = new Set<Tab>([
   Tab.DASHBOARD,
+  Tab.DATA,
+  Tab.STRUCTURE,
   Tab.SQL,
   Tab.ONTOLOGY,
   Tab.AI_SKILLS,

@@ -134,16 +134,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
       onDragOver={handleGlobalDragOver}
       onDragLeave={handleGlobalDragLeave}
       onDrop={handleGlobalDrop}
-      className="relative flex flex-col flex-1 h-full w-full overflow-y-auto bg-monokai-bg text-monokai-fg px-3.5 sm:px-5 lg:px-6 py-3 select-text custom-scrollbar space-y-3 sm:space-y-3.5 font-sans"
+      className="relative flex flex-col flex-1 h-full w-full overflow-y-auto bg-monokai-bg text-monokai-fg px-3.5 sm:px-5 lg:px-6 py-3 select-text custom-scrollbar space-y-3 font-sans text-meta"
     >
       {/* Global Drag-and-Drop Overlay */}
       {isDraggingOver && (
-        <div className="absolute inset-0 z-50 bg-monokai-bg/90 backdrop-blur-xs border-2 border-dashed border-monokai-accent m-3 rounded-2xl flex flex-col items-center justify-center pointer-events-none animate-in fade-in duration-150 select-none">
-          <div className="w-14 h-14 rounded-2xl bg-monokai-accent/10 border border-monokai-accent/30 flex items-center justify-center text-monokai-accent mb-2.5 shadow-[0_0_30px_rgba(166,226,46,0.3)]">
-            <UploadCloud className="w-7 h-7 animate-bounce" />
+        <div className="absolute inset-0 z-50 m-3 flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-monokai-accent bg-monokai-bg/90 backdrop-blur-xs pointer-events-none animate-in fade-in duration-150 select-none">
+          <div className="mb-2.5 flex h-12 w-12 items-center justify-center rounded-xl border border-monokai-border bg-monokai-elevated text-monokai-accent">
+            <UploadCloud className="h-6 w-6" />
           </div>
-          <h3 className="text-sm sm:text-base font-bold text-monokai-fg tracking-wide">释放文件以即时解析导入</h3>
-          <p className="text-[11px] text-monokai-comment mt-1 font-mono">
+          <h3 className="text-sm font-semibold tracking-wide text-monokai-fg">释放文件以即时解析导入</h3>
+          <p className="mt-1 font-mono text-2xs text-monokai-comment">
             支持 .csv, .xlsx, .xls, .parquet, .json, .arrow, .sqlite, .db, .tsv
           </p>
         </div>
@@ -151,15 +151,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
       {/* Real-time Import / Dataset Ingestion Progress Notification */}
       {importState.status === 'importing' && (
-        <div className="flex items-center justify-between px-4 py-2.5 rounded-xl bg-monokai-surface border border-monokai-accent/40 shadow-lg text-xs font-mono animate-in fade-in slide-in-from-top-2 duration-200">
-          <div className="flex items-center gap-3">
-            <Loader2 className="w-4 h-4 text-monokai-accent animate-spin shrink-0" />
+        <div className="flex items-center justify-between rounded-xl border border-monokai-border bg-monokai-surface px-3.5 py-2 text-meta font-mono shadow-sm animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="flex items-center gap-2.5">
+            <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-monokai-accent" />
             <span className="text-monokai-fg">
-              正在挂载并解析数据资产：
-              <span className="text-monokai-accent font-bold ml-1">{importState.filename || '数据表'}</span>
+              正在挂载并解析：
+              <span className="ml-1 font-semibold text-monokai-accent">{importState.filename || '数据表'}</span>
             </span>
           </div>
-          <span className="text-monokai-comment text-[11px]">WASM 内核流式处理中…</span>
+          <span className="text-2xs text-monokai-comment">WASM 流式处理中…</span>
         </div>
       )}
 
@@ -208,7 +208,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       />
 
       {/* 4. Bottom Data Management Row (3 Panels) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 w-full min-h-[320px] pb-10">
+      <div className="grid w-full min-h-[320px] grid-cols-1 gap-3 pb-10 lg:grid-cols-3">
         {/* Recent Tables with Search, Peek, Copy, Drop */}
         <DashboardRecentTables
           tables={displayTables}
@@ -220,6 +220,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
           onSelectTableDataFlow={workflowSelectTableDataFlow}
           onQuickQuery={handleQuickQuery}
           onPeekTable={handleOpenPeek}
+          onOpenImport={() => setShowImportModal(true)}
+          onOpenCreate={() => setShowCreateModal(true)}
           searchTerm={tableSearchTerm}
           onSearchChange={setTableSearchTerm}
           typeFilter={tableTypeFilter}

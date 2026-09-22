@@ -1,9 +1,14 @@
 /**
- * Design System Constants — SegmentedTabs tones, z-index, empty copy.
+ * Design System Constants — SegmentedTabs tones, z-index, empty copy, CTA rules.
  *
  * Visual values (color / spacing / radius) live in index.css `:root`.
- * Prefer Workbench primitives (ActionButton, ModalShell, DrawerShell, FormInput)
- * over ad-hoc Tailwind overlays.
+ * Prefer Workbench primitives (ActionButton, ModalShell, DrawerShell, FormInput,
+ * EmptyState, WorkbenchLoadingState) over ad-hoc Tailwind overlays.
+ *
+ * Product is dark-only (Monokai). Do not invent a parallel light palette.
+ *
+ * CTA rule: primary = monokai-accent (green). Orange = warning / highlight only.
+ * Module `*Ui` kits must compose these rules — never redefine a competing primary.
  *
  * @usage
  *   import { DESIGN_SYSTEM } from './designSystem';
@@ -39,6 +44,28 @@ export const DESIGN_SYSTEM = {
     analytics: 'accent' as const,
     knowledge: 'amethyst' as const,
     capability: 'pink' as const,
+  },
+
+  /**
+   * CTA / surface rules — keep module kits aligned with Workbench
+   */
+  CTA: {
+    /** Primary button fill — ActionButton variant="primary" */
+    primary: 'accent' as const,
+    /** Warning / destructive highlight — not primary CTA */
+    warning: 'orange' as const,
+    danger: 'pink' as const,
+  },
+
+  /**
+   * Radius aliases — map to CSS --radius-* (prefer rounded-md / rounded-lg in Tailwind;
+   * those now resolve to the same CSS vars via tailwind.config.js)
+   */
+  RADIUS: {
+    sm: 'var(--radius-sm)',
+    md: 'var(--radius-md)',
+    lg: 'var(--radius-lg)',
+    xl: 'var(--radius-xl)',
   },
 
   /**

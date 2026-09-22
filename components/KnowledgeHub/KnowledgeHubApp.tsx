@@ -26,6 +26,7 @@ import { RightDetailWorkbench } from './components/RightDetailWorkbench';
 import { AssetEditorModal } from './components/AssetEditorModal';
 import { AiAssistantModal } from './components/AiAssistantModal';
 import { toastService } from '../../services/toastService';
+import { useConfirmDialog } from '../ui/ConfirmDialog';
 
 export interface KnowledgeHubAppProps {
   isOpen?: boolean;
@@ -40,6 +41,7 @@ export const KnowledgeHubApp: React.FC<KnowledgeHubAppProps> = ({
   onOpenTable,
   onNavigateToMetrics,
 }) => {
+  const { confirm } = useConfirmDialog();
   const [assets, setAssets] = useState<KnowledgeAsset[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<AssetType | 'all' | 'favorites'>('all');
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
@@ -234,7 +236,13 @@ export const KnowledgeHubApp: React.FC<KnowledgeHubAppProps> = ({
   const handleDeleteAsset = async (id: string) => {
     const asset = assets.find((a) => a.id === id);
     const title = asset ? (asset.type === 'metric' ? asset.name : asset.title) : '此资产';
-    if (!window.confirm(`确定要彻底删除「${title}」吗？`)) {
+    const ok = await confirm({
+      title: '确认删除',
+      message: `确定要彻底删除「${title}」吗？`,
+      confirmText: '删除',
+      variant: 'danger',
+    });
+    if (!ok) {
       return;
     }
 
@@ -357,7 +365,13 @@ export const KnowledgeHubApp: React.FC<KnowledgeHubAppProps> = ({
 
   // 重置回预置种子
   const handleResetSeeds = async () => {
-    if (!window.confirm('重置将清除所有自建资产并恢复初始内置资产，是否继续？')) {
+    const ok = await confirm({
+      title: '重置知识资产',
+      message: '重置将清除所有自建资产并恢复初始内置资产，是否继续？',
+      confirmText: '重置',
+      variant: 'warning',
+    });
+    if (!ok) {
       return;
     }
     try {

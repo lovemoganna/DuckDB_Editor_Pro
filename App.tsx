@@ -400,7 +400,11 @@ const AppContent: React.FC = () => {
   };
 
   const handleApplyFilter = () => {
-    if (currentTable) fetchTableData(currentTable, 0, pagination.limit).catch(e => addNotification(`Filter Error: ${e.message}`, 'error'));
+    if (!currentTable) return;
+    const applied = (filterQuery || '').trim();
+    fetchTableData(currentTable, 0, pagination.limit, sortConfig, applied).catch(e =>
+      addNotification(`Filter Error: ${e.message}`, 'error'),
+    );
   };
 
   const downloadData = async (format: 'csv' | 'json' | 'parquet') => {

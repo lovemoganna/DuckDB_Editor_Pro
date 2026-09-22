@@ -89,14 +89,13 @@ afterEach(() => {
 });
 
 describe('DuckDB Studio Refactored Executive Dashboard', () => {
-  it('renders Studio Hero with dynamic greeting, primary CTA, secondary pills, and quote', async () => {
+  it('renders Studio Hero with dynamic greeting, primary CTA, and secondary pills', async () => {
     const onNavigate = vi.fn();
     renderDashboard(['orders', 'customers'], onNavigate);
 
-    // Hero title & quote
+    // Hero title
     expect(screen.getByText(/欢迎使用/)).toBeInTheDocument();
     expect(screen.getByText('本地高性能分析数据库 · 简单、快速、开放')).toBeInTheDocument();
-    expect(screen.getByText(/Fast Analytics for Everyone/)).toBeInTheDocument();
 
     // Primary CTA
     const openSqlBtn = screen.getByRole('button', { name: /打开 SQL 编辑器/ });
@@ -104,11 +103,11 @@ describe('DuckDB Studio Refactored Executive Dashboard', () => {
     fireEvent.click(openSqlBtn);
     expect(onNavigate).toHaveBeenCalledWith(Tab.SQL);
 
-    // Secondary Action Pills
-    expect(screen.getByText('导入数据')).toBeInTheDocument();
-    expect(screen.getByText('新建数据集')).toBeInTheDocument();
-    expect(screen.getByText('浏览数据')).toBeInTheDocument();
-    expect(screen.getByText('查看文档')).toBeInTheDocument();
+    // Secondary Action Pills (core data ops only; module nav in QuickActions)
+    expect(screen.getAllByRole('button', { name: '导入数据' }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('button', { name: '新建数据集' }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('button', { name: '浏览数据' }).length).toBeGreaterThan(0);
+    expect(screen.getByText('查看文档 · 社区支持')).toBeInTheDocument();
   });
 
   it('renders 6 Key Metric (KPI) cards', async () => {
@@ -121,8 +120,8 @@ describe('DuckDB Studio Refactored Executive Dashboard', () => {
     expect(screen.getByText('活跃会话')).toBeInTheDocument();
     expect(screen.getByText('内存使用')).toBeInTheDocument();
 
-    // Verify some values
-    expect(screen.getByText('当前连接')).toBeInTheDocument();
+    // Verify session hint
+    expect(screen.getByText(/当前连接/)).toBeInTheDocument();
   });
 
   it('renders 3 Analytics Chart panels (Growth, Performance, Table Distribution)', async () => {
@@ -192,20 +191,20 @@ describe('DuckDB Studio Refactored Executive Dashboard', () => {
     expect(screen.getByText('暂无查询记录')).toBeInTheDocument();
   });
 
-  it('renders 2x3 Quick Actions matrix and triggers action handlers', async () => {
+  it('renders Quick Actions matrix and triggers action handlers', async () => {
     const onNavigate = vi.fn();
     renderDashboard(['orders', 'customers'], onNavigate);
 
     expect(screen.getByText('快速操作')).toBeInTheDocument();
-    expect(screen.getByText('导入 CSV / Parquet')).toBeInTheDocument();
-    expect(screen.getByText('连接数据源')).toBeInTheDocument();
+    expect(screen.getByText('从文件导入')).toBeInTheDocument();
+    expect(screen.getByText('导入向导')).toBeInTheDocument();
     expect(screen.getByText('创建表')).toBeInTheDocument();
-    expect(screen.getByText('浏览示例数据')).toBeInTheDocument();
+    expect(screen.getByText('示例数据')).toBeInTheDocument();
     expect(screen.getByText('管理扩展')).toBeInTheDocument();
     expect(screen.getByText('系统设置')).toBeInTheDocument();
 
-    // Click "浏览示例数据"
-    const demoBtn = screen.getByText('浏览示例数据');
+    // Click "示例数据"
+    const demoBtn = screen.getByText('示例数据');
     fireEvent.click(demoBtn);
     await waitFor(() => {
       expect(mocks.seedDemoWorkbenchData).toHaveBeenCalled();
@@ -233,10 +232,10 @@ describe('DuckDB Studio Refactored Executive Dashboard', () => {
     expect(screen.queryByText('fact_orders')).not.toBeInTheDocument();
   });
 
-  it('triggers manual refresh when clicking 刷新数据 button', async () => {
+  it('triggers manual refresh when clicking 刷新 button', async () => {
     renderDashboard(['orders', 'customers']);
 
-    const refreshBtn = screen.getByRole('button', { name: /刷新数据/ });
+    const refreshBtn = screen.getByRole('button', { name: /刷新/ });
     expect(refreshBtn).toBeInTheDocument();
     fireEvent.click(refreshBtn);
 
@@ -271,12 +270,12 @@ describe('DuckDB Studio Refactored Executive Dashboard', () => {
     });
   });
 
-  it('renders extended quick actions (新建 SQL 查询, 导出 / 备份数据) and triggers handlers', async () => {
+  it('renders extended quick actions (新建 SQL 查询, 导出 / 备份) and triggers handlers', async () => {
     const onNavigate = vi.fn();
     renderDashboard(['orders', 'customers'], onNavigate);
 
     expect(screen.getByText('新建 SQL 查询')).toBeInTheDocument();
-    expect(screen.getByText('导出 / 备份数据')).toBeInTheDocument();
+    expect(screen.getByText('导出 / 备份')).toBeInTheDocument();
 
     // Click "新建 SQL 查询"
     const newSqlBtn = screen.getByText('新建 SQL 查询');
@@ -284,8 +283,8 @@ describe('DuckDB Studio Refactored Executive Dashboard', () => {
     expect(onNavigate).toHaveBeenCalledWith(Tab.SQL);
     expect(useAppStore.getState().pendingSql).toBe('');
 
-    // Click "导出 / 备份数据"
-    const exportBtn = screen.getByText('导出 / 备份数据');
+    // Click "导出 / 备份"
+    const exportBtn = screen.getByText('导出 / 备份');
     fireEvent.click(exportBtn);
     expect(useAppStore.getState().showExportModal).toBe(true);
   });
@@ -315,7 +314,7 @@ describe('DuckDB Studio Refactored Executive Dashboard', () => {
     const file = new File(['id,val\n1,2'], 'benchmark_sales.parquet', { type: 'application/octet-stream' });
     fireEvent.change(fileInput, { target: { files: [file] } });
 
-    expect(await screen.findByText(/正在挂载并解析数据资产：/)).toBeInTheDocument();
+    expect(await screen.findByText(/正在挂载并解析/)).toBeInTheDocument();
     expect(screen.getByText('benchmark_sales.parquet')).toBeInTheDocument();
 
     // Complete the import
@@ -460,20 +459,17 @@ describe('DuckDB Studio Refactored Executive Dashboard', () => {
     });
   });
 
-  it('navigates directly to Schema, Analysis Hub, and Metrics from Hero pills', async () => {
+  it('navigates to Schema, Analysis Hub, and Metrics from Quick Actions', async () => {
     const onNavigate = vi.fn();
     renderDashboard(['orders'], onNavigate);
 
-    const schemaPill = screen.getAllByRole('button', { name: /结构设计/ })[0];
-    fireEvent.click(schemaPill);
+    fireEvent.click(screen.getByTestId('action-schema-designer'));
     expect(onNavigate).toHaveBeenCalledWith(Tab.STRUCTURE);
 
-    const analysisPill = screen.getAllByRole('button', { name: /分析中心/ })[0];
-    fireEvent.click(analysisPill);
+    fireEvent.click(screen.getByTestId('action-analysis-hub'));
     expect(onNavigate).toHaveBeenCalledWith(Tab.ANALYSIS_HUB);
 
-    const metricsPill = screen.getAllByRole('button', { name: /指标中心/ })[0];
-    fireEvent.click(metricsPill);
+    fireEvent.click(screen.getByTestId('action-metric-manager'));
     expect(onNavigate).toHaveBeenCalledWith(Tab.METRICS);
   });
 

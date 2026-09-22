@@ -5,6 +5,7 @@ import {
   Target, 
   BookMarked,
   Tag as TagIcon,
+  Sparkles,
 } from 'lucide-react';
 import { format } from 'sql-formatter';
 import { KnowledgeAsset, AssetType, CodeAsset, MetricAsset, NoteAsset, CodeCategory, NoteTopic } from '../types';

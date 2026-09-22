@@ -468,8 +468,8 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
         <Icon className="h-6 w-6" aria-hidden="true" />
       </div>
     )}
-    <h3 className="text-sm font-semibold text-monokai-fg">{title}</h3>
-    {description && <p className="mt-1.5 max-w-md text-xs text-monokai-comment leading-relaxed">{description}</p>}
+    <h3 className="text-xs font-semibold text-monokai-fg">{title}</h3>
+    {description && <p className="mt-1.5 max-w-md text-meta text-monokai-comment leading-relaxed">{description}</p>}
     {(action || secondaryAction) && (
       <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
         {action}
@@ -523,7 +523,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
   ...props
 }) => (
   <span
-    className={`inline-flex min-h-5 items-center rounded-md px-2 py-0.5 text-[11px] font-semibold leading-none ${statusClasses[status]} ${className}`}
+    className={`inline-flex min-h-5 items-center rounded-md px-2 py-0.5 text-meta font-semibold leading-none ${statusClasses[status]} ${className}`}
     {...props}
   >
     {children}
@@ -688,7 +688,7 @@ export const ModalShell: React.FC<ModalShellProps> = ({
               <div className="flex items-center gap-2">
                 <h2 id={titleId} className="break-words text-base font-semibold text-monokai-fg">{title}</h2>
                 {badge && (
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-monokai-accent/15 text-monokai-accent border border-monokai-accent/30 shrink-0">
+                  <span className="text-2xs font-mono px-2 py-0.5 rounded-full bg-monokai-accent/15 text-monokai-accent border border-monokai-accent/30 shrink-0">
                     {badge}
                   </span>
                 )}
@@ -1066,22 +1066,61 @@ export interface WorkbenchLoadingStateProps {
   label?: string;
   message?: string;
   description?: string;
+  className?: string;
+  compact?: boolean;
 }
 
 export const WorkbenchLoadingState: React.FC<WorkbenchLoadingStateProps> = ({
   label,
   message,
-  description = 'DuckDB 正在准备数据与执行环境',
+  description,
+  className = '',
+  compact = false,
 }) => {
   const displayMessage = label || message || '正在加载工作区...';
+  const resolvedDescription =
+    description === undefined
+      ? (compact ? undefined : 'DuckDB 正在准备数据与执行环境')
+      : description || undefined;
   return (
-    <div className="flex min-h-[320px] h-full w-full flex-col items-center justify-center gap-3 p-8 text-center bg-monokai-bg font-sans">
-      <div className="relative flex h-12 w-12 items-center justify-center">
+    <div
+      className={`flex w-full flex-col items-center justify-center gap-3 text-center bg-monokai-bg font-sans ${
+        compact ? 'h-full min-h-0 p-4' : 'min-h-[320px] h-full p-8'
+      } ${className}`}
+      role="status"
+      aria-live="polite"
+    >
+      <div className={`relative flex items-center justify-center ${compact ? 'h-8 w-8' : 'h-12 w-12'}`}>
         <div className="absolute inset-0 rounded-full border-2 border-monokai-accent/20 animate-ping" />
-        <div className="h-8 w-8 rounded-full border-2 border-monokai-accent border-t-transparent animate-spin" />
+        <div
+          className={`rounded-full border-2 border-monokai-accent border-t-transparent animate-spin ${
+            compact ? 'h-5 w-5' : 'h-8 w-8'
+          }`}
+        />
       </div>
-      <p className="text-sm font-semibold text-monokai-fg">{displayMessage}</p>
-      {description && <p className="text-xs text-monokai-comment max-w-sm">{description}</p>}
+      <p className={`font-semibold text-monokai-fg ${compact ? 'text-meta' : 'text-xs'}`}>{displayMessage}</p>
+      {resolvedDescription && (
+        <p className="text-meta text-monokai-comment max-w-sm">{resolvedDescription}</p>
+      )}
     </div>
   );
 };
+
+/** Cross-module jump chip — shared by Data / Schema / Analysis surfaces. */
+export const NavJumpChip: React.FC<{
+  label: string;
+  title: string;
+  toneClass: string;
+  icon: React.ReactNode;
+  onClick: () => void;
+}> = ({ label, title, toneClass, icon, onClick }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    title={title}
+    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-monokai-surface hover:bg-monokai-elevated border border-monokai-border text-meta cursor-pointer transition-colors ${focusRing} ${toneClass}`}
+  >
+    {icon}
+    <span>{label}</span>
+  </button>
+);

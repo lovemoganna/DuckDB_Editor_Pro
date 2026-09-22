@@ -3,6 +3,7 @@ import { Sparkles, Code, Play, Check, Copy, Cpu, BookOpen, Target, Database, Tag
 import { DuckDbQuickTemplate } from '../../data/duckdbTemplatesData';
 import { CodeHighlightBlock } from '../ui/CodeHighlightBlock';
 import { ModalShell, ActionButton } from '../ui/Workbench';
+import { AH } from './analysisUi';
 
 interface TemplatePreviewModalProps {
   template: DuckDbQuickTemplate | null;
@@ -38,13 +39,12 @@ export const TemplatePreviewModal: React.FC<TemplatePreviewModalProps> = ({
 
   if (!template) return null;
 
-  // Substitute {table_name} and {column_name} in template example
   const substitutedSql = template.sqlExample
     .replace(/\{table_name\}/g, tableNameParam)
     .replace(/\{column_name\}/g, colNameParam);
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(substitutedSql);
+    void navigator.clipboard.writeText(substitutedSql);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -89,8 +89,8 @@ export const TemplatePreviewModal: React.FC<TemplatePreviewModalProps> = ({
       closeLabel="关闭模板预览"
       footer={
         <>
-          <span className="mr-auto flex items-center gap-2 font-mono text-[11px] text-monokai-comment">
-            <Tag className="h-3 w-3 text-monokai-yellow" />
+          <span className="mr-auto flex items-center gap-2 font-mono text-meta text-monokai-comment">
+            <Tag className="h-3 w-3 text-monokai-yellow" aria-hidden="true" />
             <span className="flex gap-1 flex-wrap">
               {template.tags.slice(0, 3).map(t => (
                 <span key={t} className="text-monokai-yellow font-mono">
@@ -106,11 +106,7 @@ export const TemplatePreviewModal: React.FC<TemplatePreviewModalProps> = ({
             取消
           </ActionButton>
           {onApplyAndExecute && (
-            <ActionButton
-              variant="success"
-              icon={Zap}
-              onClick={handleInsertAndRun}
-            >
+            <ActionButton variant="success" icon={Zap} onClick={handleInsertAndRun}>
               插入并立即执行
             </ActionButton>
           )}
@@ -120,111 +116,107 @@ export const TemplatePreviewModal: React.FC<TemplatePreviewModalProps> = ({
         </>
       }
     >
-      <div className="flex flex-col gap-4 text-xs">
-        {/* 顶部元数据卡片 */}
-        <div className="flex items-center gap-2 flex-wrap">
+      <div className="analysis-hub flex flex-col gap-2.5 text-meta">
+        <div className="flex items-center gap-1.5 flex-wrap">
           {difficulty && (
-            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold border ${difficulty.cls}`}>
+            <span
+              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-2xs font-mono font-semibold border ${difficulty.cls}`}
+            >
               难度 · {difficulty.label}
             </span>
           )}
           {template.notesRef && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded font-mono text-[10px] text-monokai-comment bg-monokai-surface border border-monokai-border/60">
-              <Database className="h-3 w-3" />
+            <span className={AH.badge}>
+              <Database className="h-3 w-3" aria-hidden="true" />
               笔记 #{template.notesRef}
             </span>
           )}
           {(template as any).estimatedRows && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded font-mono text-[10px] text-monokai-cyan bg-monokai-cyan/10 border border-monokai-cyan/30">
+            <span className={`${AH.badge} text-monokai-cyan border-monokai-cyan/30`}>
               预期 ~{(template as any).estimatedRows.toLocaleString()} 行
             </span>
           )}
         </div>
 
-        {/* 用途 + 场景双卡 */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="bg-monokai-surface/60 p-3 rounded-lg border border-monokai-border/80">
-            <div className="text-[10px] font-bold text-monokai-yellow uppercase tracking-wider mb-1.5 flex items-center gap-1.5 font-mono">
-              <Target className="h-3 w-3" />
-              模板用途与功能
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div className={`${AH.cardMuted} p-2.5`}>
+            <div className={`${AH.label} mb-1 flex items-center gap-1.5 uppercase tracking-wider text-monokai-yellow`}>
+              <Target className="h-3 w-3" aria-hidden="true" />
+              模板用途
             </div>
-            <div className="text-monokai-fg/90 text-[11px] leading-relaxed">
-              {template.purpose}
-            </div>
+            <div className={AH.body}>{template.purpose}</div>
           </div>
 
-          <div className="bg-monokai-surface/60 p-3 rounded-lg border border-monokai-border/80">
-            <div className="text-[10px] font-bold text-monokai-cyan uppercase tracking-wider mb-1.5 flex items-center gap-1.5 font-mono">
-              <Sparkles className="h-3 w-3" />
-              最佳适用场景
+          <div className={`${AH.cardMuted} p-2.5`}>
+            <div className={`${AH.label} mb-1 flex items-center gap-1.5 uppercase tracking-wider text-monokai-cyan`}>
+              <Sparkles className="h-3 w-3" aria-hidden="true" />
+              适用场景
             </div>
-            <div className="text-monokai-fg/90 text-[11px] leading-relaxed">
-              {applicableScenario}
-            </div>
+            <div className={AH.body}>{applicableScenario}</div>
           </div>
         </div>
 
-        {/* 上下文参数绑定 */}
-        <div className="p-3.5 bg-monokai-surface/80 border border-monokai-border rounded-lg flex flex-col gap-2.5">
-          <div className="text-[10.5px] font-semibold text-monokai-fg uppercase tracking-wider flex items-center gap-1.5 font-mono">
-            <Cpu className="h-3 w-3 text-monokai-accent" />
-            智能上下文绑定 (根据当前数据库自动注入)
+        <div className={`${AH.card} p-2.5 flex flex-col gap-2`}>
+          <div className={`${AH.label} flex items-center gap-1.5 uppercase tracking-wider text-monokai-fg`}>
+            <Cpu className="h-3 w-3 text-monokai-accent" aria-hidden="true" />
+            上下文绑定
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <div>
-              <label className="block text-[10px] text-monokai-comment mb-1 font-mono">
-                绑定表名 (<code className="text-monokai-accent">{'{table_name}'}</code>)
+              <label className={`${AH.label} block mb-1`}>
+                表名 (<code className={AH.inlineCode}>{'{table_name}'}</code>)
               </label>
               <input
                 type="text"
                 value={tableNameParam}
-                onChange={(e) => setTableNameParam(e.target.value)}
+                onChange={e => setTableNameParam(e.target.value)}
                 onKeyDown={handleParamKeyDown}
-                className="w-full bg-monokai-bg border border-monokai-border rounded-lg px-2.5 py-1.5 text-xs text-monokai-fg outline-none focus:border-monokai-accent focus:ring-1 focus:ring-monokai-accent/30 font-mono transition-all"
+                className={`w-full ${AH.input}`}
               />
             </div>
 
             <div>
-              <label className="block text-[10px] text-monokai-comment mb-1 font-mono">
-                绑定核心字段 (<code className="text-monokai-accent">{'{column_name}'}</code>)
+              <label className={`${AH.label} block mb-1`}>
+                字段 (<code className={AH.inlineCode}>{'{column_name}'}</code>)
               </label>
               {activeColumns.length > 0 ? (
                 <select
                   value={colNameParam}
-                  onChange={(e) => setColNameParam(e.target.value)}
+                  onChange={e => setColNameParam(e.target.value)}
                   onKeyDown={handleParamKeyDown}
-                  className="w-full bg-monokai-bg border border-monokai-border rounded-lg px-2.5 py-1.5 text-xs text-monokai-fg outline-none focus:border-monokai-accent focus:ring-1 focus:ring-monokai-accent/30 font-mono transition-all cursor-pointer"
+                  className={`w-full ${AH.select}`}
                 >
                   {activeColumns.map(col => (
-                    <option key={col} value={col}>{col}</option>
+                    <option key={col} value={col}>
+                      {col}
+                    </option>
                   ))}
                 </select>
               ) : (
                 <input
                   type="text"
                   value={colNameParam}
-                  onChange={(e) => setColNameParam(e.target.value)}
+                  onChange={e => setColNameParam(e.target.value)}
                   onKeyDown={handleParamKeyDown}
-                  className="w-full bg-monokai-bg border border-monokai-border rounded-lg px-2.5 py-1.5 text-xs text-monokai-fg outline-none focus:border-monokai-accent focus:ring-1 focus:ring-monokai-accent/30 font-mono transition-all"
+                  className={`w-full ${AH.input}`}
                 />
               )}
             </div>
           </div>
         </div>
 
-        {/* SQL 代码预览 */}
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-monokai-comment uppercase tracking-wider flex items-center gap-1 font-mono">
-              <Code className="h-3 w-3" />
+            <span className={`${AH.label} flex items-center gap-1 uppercase tracking-wider`}>
+              <Code className="h-3 w-3" aria-hidden="true" />
               注入后的最终 SQL 代码
             </span>
-            <button
-              type="button"
-              onClick={handleCopy}
-              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-mono text-monokai-comment hover:text-monokai-cyan hover:bg-monokai-cyan/10 border border-transparent hover:border-monokai-cyan/40 transition-all"
-            >
-              {copied ? <Check className="h-3 w-3 text-monokai-green" /> : <Copy className="h-3 w-3" />}
+            <button type="button" onClick={handleCopy} className={AH.btnGhost}>
+              {copied ? (
+                <Check className="h-3 w-3 text-monokai-green" aria-hidden="true" />
+              ) : (
+                <Copy className="h-3 w-3" aria-hidden="true" />
+              )}
               <span>{copied ? '已复制' : '复制 SQL'}</span>
             </button>
           </div>

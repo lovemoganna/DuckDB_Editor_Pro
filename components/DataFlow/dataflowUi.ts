@@ -20,11 +20,14 @@ export const dfPanelTitle =
 export const dfToolbarIsland =
   'flex items-center gap-0.5 rounded-md border border-monokai-border bg-monokai-surface/95 p-0.5 shadow-lg backdrop-blur-md font-mono text-2xs';
 
+const dfFocus =
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-monokai-accent/60 focus-visible:ring-offset-1 focus-visible:ring-offset-monokai-bg';
+
 export const dfIconBtn =
-  'p-1.5 rounded text-monokai-comment hover:text-monokai-fg hover:bg-white/[0.06] transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed';
+  `p-1.5 rounded-md text-monokai-comment hover:text-monokai-fg hover:bg-monokai-elevated transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${dfFocus}`;
 
 export const dfIconBtnActive =
-  'p-1.5 rounded bg-monokai-accent/20 text-monokai-accent font-semibold transition-colors cursor-pointer';
+  `p-1.5 rounded-md bg-monokai-accent/20 text-monokai-accent font-semibold transition-colors cursor-pointer ${dfFocus}`;
 
 export const dfDividerV = 'h-3.5 w-px bg-monokai-border mx-0.5 shrink-0';
 
@@ -40,26 +43,26 @@ export const dfTabUnderline = 'absolute bottom-0 left-0 right-0 h-0.5 bg-monokai
 export const dfLabel = 'block text-2xs font-medium text-monokai-comment mb-1';
 
 export const dfInput =
-  'w-full rounded-md border border-monokai-border bg-monokai-bg px-2 py-1 text-meta font-mono text-monokai-fg outline-none placeholder:text-monokai-comment focus:border-monokai-accent/70 transition-colors';
+  `w-full rounded-md border border-monokai-border bg-monokai-bg px-2 py-1 text-meta font-mono text-monokai-fg outline-none placeholder:text-monokai-comment focus:border-monokai-accent/70 transition-colors ${dfFocus}`;
 
 export const dfSelect =
-  'h-6 rounded-md border border-monokai-border bg-monokai-surface px-1.5 text-meta font-mono text-monokai-fg outline-none cursor-pointer focus:border-monokai-accent/70';
+  `h-6 rounded-md border border-monokai-border bg-monokai-surface px-1.5 text-meta font-mono text-monokai-fg outline-none cursor-pointer focus:border-monokai-accent/70 ${dfFocus}`;
 
 export const dfTextarea =
-  'w-full rounded-md border border-monokai-border bg-monokai-bg px-2 py-1.5 text-meta font-mono text-monokai-fg outline-none placeholder:text-monokai-comment focus:border-monokai-accent/70 resize-y min-h-[72px]';
+  `w-full rounded-md border border-monokai-border bg-monokai-bg px-2 py-1.5 text-meta font-mono text-monokai-fg outline-none placeholder:text-monokai-comment focus:border-monokai-accent/70 resize-y min-h-[72px] ${dfFocus}`;
 
-/** 按钮 */
+/** 按钮 — primary = accent green，与 Workbench ActionButton 一致 */
 export const dfBtnPrimary =
-  'inline-flex items-center justify-center gap-1.5 h-7 rounded-md bg-monokai-accent px-2.5 text-xs font-semibold text-monokai-bg hover:brightness-105 active:scale-[0.98] disabled:opacity-50 cursor-pointer transition-all shadow-sm';
+  `inline-flex items-center justify-center gap-1.5 h-7 rounded-md bg-monokai-accent px-2.5 text-xs font-semibold text-monokai-bg hover:bg-monokai-accent-hover active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-all shadow-sm ${dfFocus}`;
 
 export const dfBtnSecondary =
-  'inline-flex items-center justify-center gap-1 h-7 rounded-md border border-monokai-border bg-monokai-surface px-2 text-xs text-monokai-fg hover:bg-monokai-elevated cursor-pointer transition-colors disabled:opacity-50';
+  `inline-flex items-center justify-center gap-1 h-7 rounded-md border border-monokai-border bg-monokai-surface px-2 text-xs text-monokai-fg hover:bg-monokai-elevated cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${dfFocus}`;
 
 export const dfBtnGhost =
-  'inline-flex items-center gap-1 h-7 px-2 rounded-md text-xs text-monokai-comment hover:text-monokai-fg hover:bg-monokai-elevated cursor-pointer transition-colors disabled:opacity-40';
+  `inline-flex items-center gap-1 h-7 px-2 rounded-md text-xs text-monokai-comment hover:text-monokai-fg hover:bg-monokai-elevated cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${dfFocus}`;
 
 export const dfBtnDanger =
-  'inline-flex items-center justify-center gap-1 h-7 rounded-md border border-monokai-pink/40 bg-monokai-pink/10 px-2 text-xs text-monokai-pink hover:bg-monokai-pink/20 cursor-pointer transition-colors';
+  `inline-flex items-center justify-center gap-1 h-7 rounded-md border border-monokai-pink/40 bg-monokai-pink/10 px-2 text-xs text-monokai-pink hover:bg-monokai-pink/20 cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${dfFocus}`;
 
 /** 分区 / 卡片 */
 export const dfSection = 'space-y-2';
@@ -87,7 +90,7 @@ export const dfTableHead =
   'sticky top-0 z-10 border-b border-monokai-border bg-monokai-elevated/95 text-monokai-comment backdrop-blur-sm';
 
 export const dfTableRow =
-  'border-b border-monokai-border/30 hover:bg-white/[0.03] transition-colors';
+  'border-b border-monokai-border/30 hover:bg-monokai-elevated/40 transition-colors';
 
 /** 模式胶囊 */
 export const dfModePillGroup =

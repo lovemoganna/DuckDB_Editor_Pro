@@ -24,6 +24,8 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Repository hygiene and ignore audit
+        run: pnpm audit:gitignore
       - name: Production dependency audit
         run: pnpm audit --prod
       - name: Type check

@@ -1,18 +1,52 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
     TableIcon, LayoutDashboard, Trash2, Columns, FileText, Code, Database,
     Check, X, RefreshCw, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUp, ArrowDown,
-    Maximize, Maximize2, Filter, ListPlus, Copy, Plus, Eye, SlidersHorizontal,
-    ShieldCheck, Activity, Sparkles, TrendingUp, BarChart3, Key, Hash, Type, Calendar,
-    Search, ArrowUpDown, CheckCircle2, AlertTriangle, Layers, Zap, ExternalLink, Info, RotateCcw, Ruler
+    Maximize2, Filter, ListPlus, Copy, Plus, Eye, SlidersHorizontal,
+    ShieldCheck, Sparkles, BarChart3, Key, ArrowUpDown, CheckCircle2,
+    AlertTriangle, Layers, ExternalLink, Ruler
 } from 'lucide-react';
 import { ColumnInfo } from '../types';
 import { getTypeIcon } from '../utils';
 import { formatCellValue } from '../utils/typeFormatter';
 import { useSqlEditorStore } from '../hooks/store/useSqlEditorStore';
-import { SegmentedTabs, ActionButton, EmptyState } from './ui/Workbench';
+import {
+    PageShell,
+    PageHeader,
+    SegmentedTabs,
+    ActionButton,
+    EmptyState,
+    SearchInput,
+    FormSelect,
+    FormInput,
+    IconButton,
+    Badge,
+    InlineAlert,
+    ModalShell,
+    NavJumpChip,
+    WorkbenchLoadingState,
+} from './ui/Workbench';
 import { InsertRowModal } from './InsertRowModal';
 import { EMPTY_STATE_MESSAGES } from '../designSystem';
+
+const DATA_TAB_MONO_FONT =
+    'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
+
+let dataTabMeasureCanvas: HTMLCanvasElement | null = null;
+
+function measureDataTabTextPx(text: string, fontSizePx = 12, fontWeight: number | string = 400): number {
+    const safe = String(text ?? '');
+    if (typeof document === 'undefined') {
+        return Math.ceil([...safe].reduce((w, ch) => w + (/[\u4e00-\u9fff]/.test(ch) ? 1.9 : 1), 0) * fontSizePx * 0.62);
+    }
+    if (!dataTabMeasureCanvas) dataTabMeasureCanvas = document.createElement('canvas');
+    const ctx = dataTabMeasureCanvas.getContext('2d');
+    if (!ctx) {
+        return Math.ceil([...safe].reduce((w, ch) => w + (/[\u4e00-\u9fff]/.test(ch) ? 1.9 : 1), 0) * fontSizePx * 0.62);
+    }
+    ctx.font = `${fontWeight} ${fontSizePx}px ${DATA_TAB_MONO_FONT}`;
+    return Math.ceil(ctx.measureText(safe).width);
+}
 
 
 export interface DataTabProps {
@@ -74,7 +108,7 @@ interface FilterRule {
 export const DataTab: React.FC<DataTabProps> = ({
     currentTable, tableData, tableColumns, schema, hiddenColumns, loadingData,
     pagination, sortConfig, filterQuery, selectedRows, dataViewMode, profileData,
-    editingCell, showColMenu, pkColumn, expandedRowIdx,
+    editingCell, showColMenu, pkColumn,
     onToggleColumnVisibility, onSetShowColMenu, onSetHiddenColumns, onSetDataViewMode,
     onFetchProfileData, onFetchTableData, onSetFilterQuery, onSetEditingCell,
     onSaveCellEdit, onHandleSelectRow, onHandleSelectAll, onHandleBulkDelete,
@@ -133,6 +167,30 @@ export const DataTab: React.FC<DataTabProps> = ({
     // 6. 列配置下拉菜单即时搜索过滤状态
     const [colMenuSearch, setColMenuSearch] = useState('');
 
+    // 7. WHERE 草稿：仅点「应用」后才写入 filterQuery 并真正过滤；默认展示全表
+    const [filterDraft, setFilterDraft] = useState(filterQuery);
+
+    useEffect(() => {
+        setFilterDraft(filterQuery);
+    }, [filterQuery, currentTable]);
+
+    const applyFilterCondition = (nextFilter: string = filterDraft) => {
+        const applied = nextFilter.trim();
+        onSetFilterQuery(applied);
+        if (currentTable) {
+            onFetchTableData(currentTable, 0, pagination.limit, sortConfig, applied);
+        }
+    };
+
+    const clearFilterCondition = () => {
+        setFilterDraft('');
+        setVisualRules([]);
+        onSetFilterQuery('');
+        if (currentTable) {
+            onFetchTableData(currentTable, 0, pagination.limit, sortConfig, '');
+        }
+    };
+
     // 当切换数据表时，清空相关临时状态
     useEffect(() => {
         setColWidths({});
@@ -144,6 +202,7 @@ export const DataTab: React.FC<DataTabProps> = ({
         setProfileTypeFilter('ALL');
         setProfileSort('DEFAULT');
         setColMenuSearch('');
+        setFilterDraft('');
     }, [currentTable]);
 
     // 列类型分类归纳器
@@ -312,100 +371,6 @@ export const DataTab: React.FC<DataTabProps> = ({
         closeContextMenu();
     };
 
-    if (!currentTable) {
-        return (
-            <div className="h-full flex items-center justify-center text-monokai-fg flex-col bg-monokai-bg p-6 select-none font-sans overflow-y-auto">
-                <div className="flex flex-col items-center text-center max-w-xl">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-monokai-surface border border-monokai-border text-monokai-cyan mb-4 shadow-xl shadow-black/40">
-                        <TableIcon className="h-7 w-7" aria-hidden="true" />
-                    </div>
-                    <h2 className="text-base font-semibold text-monokai-fg tracking-tight">未选择数据表</h2>
-                    <p className="mt-1.5 text-xs text-monokai-comment leading-relaxed">
-                        请在左侧边栏选择一张数据表以开始流式浏览，或使用下方快捷动作快速开始分析。
-                    </p>
-                    {onNavigateToDashboard && (
-                        <button
-                            type="button"
-                            onClick={onNavigateToDashboard}
-                            className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-monokai-surface hover:bg-monokai-elevated text-xs text-monokai-fg border border-monokai-border hover:border-monokai-border-strong transition-all cursor-pointer"
-                        >
-                            <LayoutDashboard size={13} className="text-monokai-accent" />
-                            <span>返回首页仪表盘</span>
-                        </button>
-                    )}
-
-                    {tables && tables.length > 0 && onSelectTable && (
-                        <div className="mt-4 flex flex-wrap gap-2 justify-center max-w-md">
-                            <span className="text-xs text-monokai-comment w-full text-center mb-0.5">选择现有数据表开始浏览：</span>
-                            {tables.map(tbl => (
-                                <button
-                                    key={tbl}
-                                    type="button"
-                                    onClick={() => onSelectTable(tbl)}
-                                    className="px-2.5 py-1 text-xs font-mono rounded bg-monokai-surface hover:bg-monokai-elevated text-monokai-fg border border-monokai-border hover:border-monokai-border-strong cursor-pointer transition-colors"
-                                >
-                                    {tbl}
-                                </button>
-                            ))}
-                        </div>
-                    )}
-
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full mt-6 text-left">
-                        <button
-                            type="button"
-                            onClick={() => {
-                                if (onLoadDemo) onLoadDemo();
-                                else window.dispatchEvent(new CustomEvent('duckdb-load-demo'));
-                            }}
-                            className="group p-3.5 rounded-xl border border-monokai-border bg-monokai-surface/60 hover:bg-monokai-surface hover:border-monokai-border-strong transition-all text-left flex flex-col justify-between cursor-pointer"
-                        >
-                            <div className="flex items-center gap-2 mb-2">
-                                <div className="p-1.5 rounded-lg bg-monokai-surface border border-monokai-border text-monokai-accent">
-                                    <Sparkles className="w-4 h-4" />
-                                </div>
-                                <span className="text-xs font-semibold text-monokai-fg transition-colors">加载示例数据</span>
-                            </div>
-                            <p className="text-[11px] text-monokai-comment leading-normal">快速注入电商及日志样本，立即可用。</p>
-                        </button>
-
-                        <button
-                            type="button"
-                            onClick={() => {
-                                if (onShowCreateModal) onShowCreateModal();
-                            }}
-                            className="group p-3.5 rounded-xl border border-monokai-border bg-monokai-surface/60 hover:bg-monokai-surface hover:border-monokai-border-strong transition-all text-left flex flex-col justify-between cursor-pointer"
-                        >
-                            <div className="flex items-center gap-2 mb-2">
-                                <div className="p-1.5 rounded-lg bg-monokai-surface border border-monokai-border text-monokai-fg">
-                                    <Plus className="w-4 h-4" />
-                                </div>
-                                <span className="text-xs font-semibold text-monokai-fg transition-colors">新建数据表</span>
-                            </div>
-                            <p className="text-[11px] text-monokai-comment leading-normal">可视化定义字段类型、主键与约束。</p>
-                        </button>
-
-                        <button
-                            type="button"
-                            onClick={() => {
-                                if (onShowImportModal) onShowImportModal();
-                                else window.dispatchEvent(new CustomEvent('duckdb-open-import'));
-                            }}
-                            className="group p-3.5 rounded-xl border border-monokai-border bg-monokai-surface/60 hover:bg-monokai-surface hover:border-monokai-border-strong transition-all text-left flex flex-col justify-between cursor-pointer"
-                        >
-                            <div className="flex items-center gap-2 mb-2">
-                                <div className="p-1.5 rounded-lg bg-monokai-surface border border-monokai-border text-monokai-comment">
-                                    <Database className="w-4 h-4" />
-                                </div>
-                                <span className="text-xs font-semibold text-monokai-fg transition-colors">导入外部数据</span>
-                            </div>
-                            <p className="text-[11px] text-monokai-comment leading-normal">支持 Parquet, CSV, JSON 文件本地解析。</p>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
     const visibleColumns = tableColumns.filter(c => !hiddenColumns.has(c));
 
     const handleCellEdit = (rowIdx: number, col: string, val: any) => {
@@ -421,15 +386,16 @@ export const DataTab: React.FC<DataTabProps> = ({
         onHandleSort(key, e.shiftKey);
     };
 
-    // 拖拽宽度鼠标事件处理器
+    // 拖拽宽度：未手动调整时按自适应宽度起步
     const handleResizeMouseDown = (colName: string, e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
+        const th = (e.currentTarget as HTMLElement).closest('th');
         const startX = e.pageX;
-        const startWidth = colWidths[colName] || 150;
+        const startWidth = colWidths[colName] || autoColWidths[colName] || th?.offsetWidth || 120;
 
         const handleMouseMove = (moveEvent: MouseEvent) => {
-            const newWidth = Math.max(60, startWidth + (moveEvent.pageX - startX));
+            const newWidth = Math.max(72, startWidth + (moveEvent.pageX - startX));
             setColWidths(prev => ({ ...prev, [colName]: newWidth }));
         };
 
@@ -441,6 +407,81 @@ export const DataTab: React.FC<DataTabProps> = ({
         document.addEventListener('mousemove', handleMouseMove);
         document.addEventListener('mouseup', handleMouseUp);
     };
+
+    /** 按表头 + 当前页样本内容实测列宽（canvas），类型收紧上下限 */
+    const autoColWidths = useMemo(() => {
+        const PAD_PX = 24;
+        const RESIZE_HANDLE = 8;
+        const SAMPLE = 50;
+        const widths: Record<string, number> = {};
+
+        for (const col of visibleColumns) {
+            const colInfo = schema.find(s => s.name === col);
+            const typeLabel = colInfo?.type || 'VARCHAR';
+            const tUpper = typeLabel.toUpperCase();
+            const cat = getColCategory(typeLabel);
+            const isBool = tUpper.includes('BOOL');
+            const isShortId =
+                col.toLowerCase() === 'id' ||
+                col.toLowerCase().endsWith('_id') ||
+                col.toLowerCase().endsWith('id');
+
+            const nameW = measureDataTabTextPx(col, 12, 600);
+            const typeW = measureDataTabTextPx(typeLabel, 10, 500) + 22; // type pill + icon
+            const headerNeed = Math.max(nameW, typeW) + PAD_PX + RESIZE_HANDLE;
+
+            let maxContent = measureDataTabTextPx('NULL', 12, 400);
+            for (const row of tableData.slice(0, SAMPLE)) {
+                const raw = row[col];
+                if (raw === null || raw === undefined) continue;
+                const display = formatCellValue(raw, typeLabel);
+                const firstLine = String(display).split('\n')[0] || '';
+                maxContent = Math.max(
+                    maxContent,
+                    measureDataTabTextPx(firstLine.slice(0, 64), 12, 400),
+                );
+            }
+            const contentNeed = maxContent + PAD_PX;
+
+            let minW = 88;
+            let maxW = 320;
+            if (isBool) {
+                minW = 72;
+                maxW = 108;
+            } else if (isShortId) {
+                minW = 72;
+                maxW = 128;
+            } else if (cat === 'NUMERIC') {
+                minW = 80;
+                maxW = 168;
+            } else if (cat === 'TIME') {
+                minW = 118;
+                maxW = 196;
+            } else if (cat === 'TEXT') {
+                minW = 88;
+                maxW = 360;
+            }
+
+            const contentClamped = Math.min(Math.max(contentNeed, minW), maxW);
+            widths[col] = Math.max(headerNeed, contentClamped);
+        }
+        return widths;
+    }, [visibleColumns, tableData, schema]);
+
+    const getColumnWidthStyle = (col: string): React.CSSProperties => {
+        const width = colWidths[col] ?? autoColWidths[col] ?? 120;
+        return { width, minWidth: width, maxWidth: width, textAlign: 'center' };
+    };
+
+    const tableAutoWidth = useMemo(() => {
+        const checkboxCol = 40;
+        const expandCol = 40;
+        const colsTotal = visibleColumns.reduce(
+            (sum, col) => sum + (colWidths[col] ?? autoColWidths[col] ?? 120),
+            0,
+        );
+        return checkboxCol + expandCol + colsTotal;
+    }, [visibleColumns, colWidths, autoColWidths]);
 
     // 右键触发处理器
     const handleRowContextMenu = (e: React.MouseEvent, rowIdx: number, col: string, val: any) => {
@@ -462,7 +503,7 @@ export const DataTab: React.FC<DataTabProps> = ({
         if (!contextMenu) return;
         const text = contextMenu.val === null ? 'NULL' : String(contextMenu.val);
         navigator.clipboard.writeText(text);
-        onAddNotification('Cell value copied to clipboard', 'success');
+        onAddNotification('已复制单元格值到剪贴板', 'success');
         closeContextMenu();
     };
 
@@ -471,7 +512,7 @@ export const DataTab: React.FC<DataTabProps> = ({
         if (!contextMenu) return;
         const row = tableData[contextMenu.rowIdx];
         navigator.clipboard.writeText(JSON.stringify(row, (k, v) => typeof v === 'bigint' ? v.toString() : v, 2));
-        onAddNotification('Row JSON copied to clipboard', 'success');
+        onAddNotification('已复制整行 JSON 到剪贴板', 'success');
         closeContextMenu();
     };
 
@@ -488,7 +529,7 @@ export const DataTab: React.FC<DataTabProps> = ({
 
         const sql = `INSERT INTO "${currentTable}" (${fields}) VALUES (${values});`;
         navigator.clipboard.writeText(sql);
-        onAddNotification('SQL Insert statement copied', 'success');
+        onAddNotification('已复制 INSERT 语句到剪贴板', 'success');
         closeContextMenu();
     };
 
@@ -554,15 +595,13 @@ export const DataTab: React.FC<DataTabProps> = ({
 
     const applyVisualFilters = () => {
         if (visualRules.length === 0) {
-            onSetFilterQuery('');
-            onFetchTableData(currentTable, 0, pagination.limit, sortConfig, '');
+            clearFilterCondition();
             return;
         }
 
         const validRules = visualRules.filter(r => r.operator === 'IS NULL' || r.operator === 'IS NOT NULL' || r.value.trim() !== '');
         if (validRules.length === 0) {
-            onSetFilterQuery('');
-            onFetchTableData(currentTable, 0, pagination.limit, sortConfig, '');
+            clearFilterCondition();
             return;
         }
 
@@ -594,6 +633,8 @@ export const DataTab: React.FC<DataTabProps> = ({
 
         onSetFilterQuery(queryStr);
         onFetchTableData(currentTable, 0, pagination.limit, sortConfig, queryStr);
+        setFilterDraft(queryStr);
+        setShowVisualFilter(false);
     };
 
     const DATA_VIEW_TABS = [
@@ -601,24 +642,29 @@ export const DataTab: React.FC<DataTabProps> = ({
         { value: 'profile' as const, label: '画像仪表盘', icon: LayoutDashboard, badge: profileData.length > 0 ? `${profileData.length} 列` : undefined },
     ];
 
-
     if (!currentTable) {
+        const hasTables = Boolean(tables && tables.length > 0);
         return (
-            <div className="h-full flex items-center justify-center p-8 bg-monokai-bg font-sans">
+            <PageShell scroll="page" className="h-full items-center justify-center p-6 sm:p-8">
                 <EmptyState
-                    icon={Database}
-                    title={EMPTY_STATE_MESSAGES.DATA.title}
-                    description={EMPTY_STATE_MESSAGES.DATA.description}
+                    icon={TableIcon}
+                    title={hasTables ? EMPTY_STATE_MESSAGES.DATA.title : '未找到可浏览的数据表'}
+                    description={
+                        hasTables
+                            ? EMPTY_STATE_MESSAGES.DATA.description
+                            : '请导入或创建一张数据表以开始分页浏览与画像分析，或使用下方快捷动作开始。'
+                    }
+                    className="w-full max-w-2xl bg-transparent border-0"
                     action={
-                        <div className="flex flex-col items-center gap-3">
-                            {tables && tables.length > 0 && onSelectTable && (
-                                <div className="flex flex-wrap items-center justify-center gap-2 max-w-md">
-                                    {tables.map(tbl => (
+                        <div className="flex flex-col items-center gap-3 w-full">
+                            {hasTables && onSelectTable && (
+                                <div className="flex flex-wrap items-center justify-center gap-2 max-w-lg">
+                                    {tables!.map(tbl => (
                                         <button
                                             key={tbl}
                                             type="button"
                                             onClick={() => onSelectTable(tbl)}
-                                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-monokai-sidebar hover:bg-monokai-elevated border border-monokai-border text-xs font-mono text-monokai-fg hover:text-monokai-accent transition-colors cursor-pointer"
+                                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-monokai-surface hover:bg-monokai-elevated border border-monokai-border text-meta font-mono text-monokai-fg hover:text-monokai-accent transition-colors cursor-pointer"
                                         >
                                             <Database size={12} className="text-monokai-cyan" />
                                             <span>{tbl}</span>
@@ -626,14 +672,36 @@ export const DataTab: React.FC<DataTabProps> = ({
                                     ))}
                                 </div>
                             )}
-                            <div className="flex items-center gap-2 mt-2">
+                            <div className="flex flex-wrap items-center justify-center gap-2">
+                                <ActionButton
+                                    variant="primary"
+                                    size="sm"
+                                    icon={Sparkles}
+                                    onClick={() => {
+                                        if (onLoadDemo) onLoadDemo();
+                                        else window.dispatchEvent(new CustomEvent('duckdb-load-demo'));
+                                    }}
+                                >
+                                    加载示例数据
+                                </ActionButton>
                                 {onShowCreateModal && (
-                                    <ActionButton variant="primary" size="sm" icon={Plus} onClick={onShowCreateModal}>
-                                        新建表
+                                    <ActionButton variant="secondary" size="sm" icon={Plus} onClick={onShowCreateModal}>
+                                        新建数据表
                                     </ActionButton>
                                 )}
+                                <ActionButton
+                                    variant="secondary"
+                                    size="sm"
+                                    icon={Database}
+                                    onClick={() => {
+                                        if (onShowImportModal) onShowImportModal();
+                                        else window.dispatchEvent(new CustomEvent('duckdb-open-import'));
+                                    }}
+                                >
+                                    导入数据文件
+                                </ActionButton>
                                 {onNavigateToDashboard && (
-                                    <ActionButton variant="secondary" size="sm" icon={LayoutDashboard} onClick={onNavigateToDashboard}>
+                                    <ActionButton variant="ghost" size="sm" icon={LayoutDashboard} onClick={onNavigateToDashboard}>
                                         返回仪表盘
                                     </ActionButton>
                                 )}
@@ -641,97 +709,30 @@ export const DataTab: React.FC<DataTabProps> = ({
                         </div>
                     }
                 />
-            </div>
+            </PageShell>
         );
     }
 
     return (
-        <div className="h-full flex flex-col relative select-none font-sans" onClick={closeContextMenu}>
-            {/* Top Toolbar Container */}
-            <div className="px-4 py-2.5 bg-monokai-sidebar border-b border-monokai-border shrink-0 flex flex-col gap-2.5 shadow-sm">
-                <div className="flex flex-wrap justify-between items-center gap-3 min-h-8">
-                    <div className="flex flex-wrap items-center gap-2.5">
+        <PageShell scroll="none" className="h-full min-h-0 w-full flex-1 overflow-hidden" onClick={closeContextMenu}>
+            <PageHeader
+                title="数据浏览"
+                description="分页表格 · 排序筛选 · 单元格编辑 · 画像分析 · 导出"
+                icon={TableIcon}
+                tone="accent"
+                actions={
+                    <div className="flex items-center gap-2 flex-wrap justify-end">
                         {onNavigateToDashboard && (
-                            <button
-                                type="button"
+                            <ActionButton
+                                variant="ghost"
+                                size="sm"
+                                icon={LayoutDashboard}
                                 onClick={onNavigateToDashboard}
-                                className="flex items-center gap-1.5 h-8 px-2.5 rounded-md bg-monokai-surface/60 hover:bg-monokai-surface text-monokai-comment hover:text-monokai-fg border border-monokai-border transition-colors text-xs cursor-pointer group"
                                 title="返回首页仪表盘"
                             >
-                                <LayoutDashboard size={13} className="text-monokai-accent group-hover:scale-105 transition-transform" />
-                                <span className="font-medium">仪表盘</span>
-                                <ChevronRight size={12} className="text-monokai-comment/60" />
-                            </button>
+                                仪表盘
+                            </ActionButton>
                         )}
-                        <div className="flex items-center gap-2 h-8 px-3 rounded-md bg-monokai-surface border border-monokai-border">
-                            <Database size={14} className="text-monokai-green shrink-0" />
-                            {tables && tables.length > 1 && onSelectTable ? (
-                                <select
-                                    value={currentTable}
-                                    onChange={(e) => onSelectTable(e.target.value)}
-                                    className="bg-transparent text-xs font-mono text-monokai-fg font-semibold cursor-pointer outline-none hover:text-monokai-accent transition-colors"
-                                    title="快速切换当前数据表"
-                                >
-                                    {tables.map(tbl => (
-                                        <option key={tbl} value={tbl} className="bg-monokai-sidebar text-monokai-fg font-mono">
-                                            {tbl}
-                                        </option>
-                                    ))}
-                                </select>
-                            ) : (
-                                <h2 className="text-xs font-mono text-monokai-fg font-semibold tracking-tight">{currentTable}</h2>
-                            )}
-                        </div>
-
-                        {/* Cross-Module Quick Jump Buttons */}
-                        <div className="hidden xl:flex items-center gap-1.5 border-l border-monokai-border/70 pl-2.5">
-                            {onNavigateToStructure && (
-                                <button
-                                    type="button"
-                                    onClick={() => onNavigateToStructure(currentTable)}
-                                    title="查看及修改此表的 Schema 定义与索引约束"
-                                    className="flex items-center gap-1 px-2 py-1 rounded bg-monokai-surface hover:bg-monokai-elevated border border-monokai-border text-[11px] text-monokai-yellow cursor-pointer transition-colors"
-                                >
-                                    <Ruler size={11} />
-                                    <span>结构设计 ↗</span>
-                                </button>
-                            )}
-                            {onNavigateToAnalysis && (
-                                <button
-                                    type="button"
-                                    onClick={() => onNavigateToAnalysis(currentTable)}
-                                    title="在分析中心探查此表质量与分布"
-                                    className="flex items-center gap-1 px-2 py-1 rounded bg-monokai-surface hover:bg-monokai-elevated border border-monokai-border text-[11px] text-monokai-green cursor-pointer transition-colors"
-                                >
-                                    <Sparkles size={11} />
-                                    <span>分析中心 ↗</span>
-                                </button>
-                            )}
-                            {onNavigateToMetrics && (
-                                <button
-                                    type="button"
-                                    onClick={() => onNavigateToMetrics(currentTable)}
-                                    title="基于此表创建业务指标模型"
-                                    className="flex items-center gap-1 px-2 py-1 rounded bg-monokai-surface hover:bg-monokai-elevated border border-monokai-border text-[11px] text-monokai-purple cursor-pointer transition-colors"
-                                >
-                                    <BarChart3 size={11} />
-                                    <span>指标建模 ↗</span>
-                                </button>
-                            )}
-                            {onNavigateToSql && (
-                                <button
-                                    type="button"
-                                    onClick={() => onNavigateToSql(`SELECT * FROM "${currentTable}" LIMIT 50;`)}
-                                    title="在 SQL 工作台中查询分析此表"
-                                    className="flex items-center gap-1 px-2 py-1 rounded bg-monokai-surface hover:bg-monokai-elevated border border-monokai-border text-[11px] text-monokai-cyan cursor-pointer transition-colors"
-                                >
-                                    <Code size={11} />
-                                    <span>在 SQL 中查询 ↗</span>
-                                </button>
-                            )}
-                        </div>
-
-                        {/* Standard Segmented View Switcher */}
                         <SegmentedTabs
                             aria-label="数据视图模式"
                             value={dataViewMode}
@@ -743,7 +744,6 @@ export const DataTab: React.FC<DataTabProps> = ({
                                 if (val === 'profile') onFetchProfileData(currentTable);
                             }}
                         />
-
                         {selectedRows.size > 0 && dataViewMode === 'grid' && (
                             <ActionButton
                                 variant="danger"
@@ -754,6 +754,82 @@ export const DataTab: React.FC<DataTabProps> = ({
                                 删除已选 ({selectedRows.size})
                             </ActionButton>
                         )}
+                        <ActionButton
+                            variant="success"
+                            size="sm"
+                            icon={ListPlus}
+                            onClick={() => {
+                                setInsertInitialData(undefined);
+                                setShowInsertRowModal(true);
+                            }}
+                        >
+                            插入行
+                        </ActionButton>
+                    </div>
+                }
+            />
+
+            {/* Content Toolbar */}
+            <div className="px-4 py-2 bg-monokai-sidebar border-b border-monokai-border shrink-0 flex flex-col gap-2">
+                <div className="flex flex-wrap justify-between items-center gap-2 min-h-8">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <div className="flex items-center gap-2 h-8 px-2.5 rounded-md bg-monokai-surface border border-monokai-border">
+                            <Database size={14} className="text-monokai-green shrink-0" />
+                            {tables && tables.length > 1 && onSelectTable ? (
+                                <FormSelect
+                                    value={currentTable}
+                                    onChange={(e) => onSelectTable(e.target.value)}
+                                    sizeVariant="sm"
+                                    className="w-auto max-w-[12rem] border-0 bg-transparent font-mono font-semibold text-monokai-fg"
+                                    title="快速切换当前数据表"
+                                >
+                                    {tables.map(tbl => (
+                                        <option key={tbl} value={tbl}>{tbl}</option>
+                                    ))}
+                                </FormSelect>
+                            ) : (
+                                <h2 className="text-xs font-mono text-monokai-fg font-semibold tracking-tight">{currentTable}</h2>
+                            )}
+                        </div>
+
+                        <div className="hidden xl:flex items-center gap-1.5 border-l border-monokai-border pl-2.5">
+                            {onNavigateToStructure && (
+                                <NavJumpChip
+                                    label="结构设计 ↗"
+                                    title="查看及修改此表的 Schema 定义与索引约束"
+                                    toneClass="text-monokai-yellow"
+                                    icon={<Ruler size={11} />}
+                                    onClick={() => onNavigateToStructure(currentTable)}
+                                />
+                            )}
+                            {onNavigateToAnalysis && (
+                                <NavJumpChip
+                                    label="分析中心 ↗"
+                                    title="在分析中心探查此表质量与分布"
+                                    toneClass="text-monokai-green"
+                                    icon={<Sparkles size={11} />}
+                                    onClick={() => onNavigateToAnalysis(currentTable)}
+                                />
+                            )}
+                            {onNavigateToMetrics && (
+                                <NavJumpChip
+                                    label="指标建模 ↗"
+                                    title="基于此表创建业务指标模型"
+                                    toneClass="text-monokai-amethyst"
+                                    icon={<BarChart3 size={11} />}
+                                    onClick={() => onNavigateToMetrics(currentTable)}
+                                />
+                            )}
+                            {onNavigateToSql && (
+                                <NavJumpChip
+                                    label="在 SQL 中查询 ↗"
+                                    title="在 SQL 工作台中查询分析此表"
+                                    toneClass="text-monokai-cyan"
+                                    icon={<Code size={11} />}
+                                    onClick={() => onNavigateToSql(`SELECT * FROM "${currentTable}" LIMIT 50;`)}
+                                />
+                            )}
+                        </div>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
@@ -778,29 +854,20 @@ export const DataTab: React.FC<DataTabProps> = ({
                             {showColMenu && (
                                 <div className="absolute right-0 top-full mt-1.5 bg-monokai-sidebar border border-monokai-border p-3 rounded-lg shadow-xl z-30 min-w-[250px] max-w-sm font-sans flex flex-col gap-2 animate-in fade-in zoom-in-95 duration-100">
                                     <div className="flex items-center justify-between pb-2 border-b border-monokai-border">
-                                        <div className="text-[11px] font-semibold text-monokai-fg flex items-center gap-1.5">
+                                        <div className="text-meta font-semibold text-monokai-fg flex items-center gap-1.5">
                                             <Columns size={13} className="text-monokai-cyan" />
                                             <span>显示 / 隐藏列 ({visibleColumns.length}/{tableColumns.length})</span>
                                         </div>
                                     </div>
-                                    {/* Search column input */}
-                                    <div className="flex items-center gap-1.5 bg-monokai-surface px-2.5 py-1 rounded-md border border-monokai-border text-xs">
-                                        <Search size={12} className="text-monokai-comment shrink-0" />
-                                        <input
-                                            type="text"
-                                            placeholder="搜索列名..."
-                                            value={colMenuSearch}
-                                            onChange={e => setColMenuSearch(e.target.value)}
-                                            className="w-full bg-transparent text-xs text-monokai-fg font-mono placeholder-monokai-comment outline-none"
-                                        />
-                                        {colMenuSearch && (
-                                            <button onClick={() => setColMenuSearch('')} className="text-monokai-comment hover:text-monokai-fg cursor-pointer">
-                                                <X size={11} />
-                                            </button>
-                                        )}
-                                    </div>
-                                    {/* Quick Actions: All / Invert / Reset */}
-                                    <div className="flex items-center gap-1.5 text-[10px] font-mono">
+                                    <SearchInput
+                                        value={colMenuSearch}
+                                        onChange={setColMenuSearch}
+                                        onClear={() => setColMenuSearch('')}
+                                        placeholder="搜索列名..."
+                                        size="sm"
+                                        className="w-full max-w-none"
+                                    />
+                                    <div className="flex items-center gap-1.5 text-2xs font-mono">
                                         <button
                                             type="button"
                                             onClick={handleSelectAllColumns}
@@ -818,12 +885,11 @@ export const DataTab: React.FC<DataTabProps> = ({
                                         <button
                                             type="button"
                                             onClick={() => onSetHiddenColumns(new Set())}
-                                            className="flex-1 py-1 px-1.5 rounded-md bg-monokai-surface hover:bg-monokai-elevated text-monokai-cyan hover:underline border border-monokai-border transition-colors cursor-pointer text-center"
+                                            className="flex-1 py-1 px-1.5 rounded-md bg-monokai-surface hover:bg-monokai-elevated text-monokai-cyan border border-monokai-border transition-colors cursor-pointer text-center"
                                         >
                                             重置
                                         </button>
                                     </div>
-                                    {/* Column Checkboxes */}
                                     <div className="max-h-60 overflow-y-auto space-y-0.5 pr-1 custom-scrollbar">
                                         {filteredMenuColumns.map(col => {
                                             const colInfo = schema.find(s => s.name === col);
@@ -848,12 +914,10 @@ export const DataTab: React.FC<DataTabProps> = ({
                                                     </div>
                                                     <div className="flex items-center gap-1 shrink-0">
                                                         {isPk && (
-                                                            <span className="text-[10px] font-mono font-semibold px-1.5 py-0.2 rounded-md bg-monokai-surface text-monokai-warning border border-monokai-border">
-                                                                PK
-                                                            </span>
+                                                            <Badge tone="warning" size="sm">PK</Badge>
                                                         )}
                                                         {colInfo && (
-                                                            <span className="text-[9px] font-mono px-1 rounded bg-monokai-surface text-monokai-comment">
+                                                            <span className="text-2xs font-mono px-1 rounded bg-monokai-surface text-monokai-comment">
                                                                 {colInfo.type}
                                                             </span>
                                                         )}
@@ -867,9 +931,9 @@ export const DataTab: React.FC<DataTabProps> = ({
                             {showColMenu && <div className="fixed inset-0 z-20" onClick={() => onSetShowColMenu(false)} />}
                         </div>
 
-                        {/* Export Group */}
                         <div className="flex items-center gap-0.5 rounded-md bg-monokai-surface border border-monokai-border p-0.5 h-8">
                             <button
+                                type="button"
                                 onClick={() => onDownloadData('csv')}
                                 className="text-xs flex items-center gap-1 hover:bg-monokai-elevated px-2 py-1 rounded-md transition-all text-monokai-comment hover:text-monokai-fg cursor-pointer font-sans h-7"
                                 title="导出为 CSV 文件"
@@ -877,6 +941,7 @@ export const DataTab: React.FC<DataTabProps> = ({
                                 <FileText size={13} className="text-monokai-green" /> CSV
                             </button>
                             <button
+                                type="button"
                                 onClick={() => onDownloadData('json')}
                                 className="text-xs flex items-center gap-1 hover:bg-monokai-elevated px-2 py-1 rounded-md transition-all text-monokai-comment hover:text-monokai-fg cursor-pointer font-sans h-7"
                                 title="导出为 JSON 文件"
@@ -884,6 +949,7 @@ export const DataTab: React.FC<DataTabProps> = ({
                                 <Code size={13} className="text-monokai-yellow" /> JSON
                             </button>
                             <button
+                                type="button"
                                 onClick={() => onDownloadData('parquet')}
                                 className="text-xs flex items-center gap-1 hover:bg-monokai-elevated px-2 py-1 rounded-md text-monokai-comment hover:text-monokai-fg transition-all cursor-pointer font-sans h-7"
                                 title="导出为 Apache Parquet 文件"
@@ -891,87 +957,77 @@ export const DataTab: React.FC<DataTabProps> = ({
                                 <Database size={13} className="text-monokai-cyan" /> Parquet
                             </button>
                         </div>
-
-                        <ActionButton
-                            variant="success"
-                            size="sm"
-                            icon={ListPlus}
-                            onClick={() => {
-                                setInsertInitialData(undefined);
-                                setShowInsertRowModal(true);
-                            }}
-                        >
-                            插入行
-                        </ActionButton>
                     </div>
                 </div>
 
-                {/* SQL WHERE Input Bar */}
                 {!showVisualFilter && dataViewMode === 'grid' && (
-                    <div className="flex gap-2 items-center bg-monokai-surface border border-monokai-border px-3 py-1 rounded-md shadow-xs">
+                    <div className="flex gap-2 items-center bg-monokai-surface border border-monokai-border px-3 py-1 rounded-md">
                         <span className="text-xs font-semibold text-monokai-fg flex items-center gap-1.5 pl-0.5 font-mono shrink-0">
                             <Filter size={14} className="text-monokai-comment" /> WHERE
                         </span>
-                        <input
-                            className="flex-1 bg-transparent border-0 text-xs px-2 py-1 text-monokai-fg font-mono outline-none placeholder:text-monokai-comment transition-all"
-                            placeholder="如: id > 5 AND status = 'active'..."
-                            value={filterQuery}
-                            onChange={(e) => onSetFilterQuery(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && onHandleApplyFilter()}
+                        <FormInput
+                            className="flex-1 border-0 bg-transparent shadow-none focus:ring-0"
+                            sizeVariant="sm"
+                            fontVariant="mono"
+                            placeholder="可选过滤条件，如: id > 5 AND status = 'active'（留空并应用 = 全表）"
+                            value={filterDraft}
+                            onChange={(e) => setFilterDraft(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') applyFilterCondition();
+                            }}
                         />
                         <ActionButton
                             variant="secondary"
                             size="sm"
                             icon={Check}
-                            onClick={onHandleApplyFilter}
+                            onClick={() => applyFilterCondition()}
+                            title="将上方条件应用到当前表；条件为空时恢复全表浏览"
                         >
                             应用
                         </ActionButton>
-                        {filterQuery && (
-                            <button
-                                onClick={() => { onSetFilterQuery(''); onFetchTableData(currentTable, 0, pagination.limit, sortConfig, ''); }}
-                                className="text-monokai-comment hover:text-monokai-fg transition-colors p-1 cursor-pointer rounded hover:bg-monokai-bg"
-                                title="清空过滤"
-                            >
-                                <X size={14} />
-                            </button>
+                        {(filterDraft || filterQuery) && (
+                            <IconButton
+                                label="清空过滤并显示全表"
+                                icon={X}
+                                size="sm"
+                                onClick={clearFilterCondition}
+                                className="!h-7 !w-7"
+                            />
                         )}
                     </div>
                 )}
 
-                {/* Visual Filter Rules Panel */}
                 {showVisualFilter && dataViewMode === 'grid' && (
-                    <div className="bg-monokai-surface border border-monokai-border p-3 rounded-lg flex flex-col gap-2.5 shadow-md">
+                    <div className="bg-monokai-surface border border-monokai-border p-3 rounded-lg flex flex-col gap-2.5">
                         <div className="flex justify-between items-center pb-1.5 border-b border-monokai-border">
                             <span className="text-xs font-semibold text-monokai-fg flex items-center gap-1.5">
-                                <SlidersHorizontal size={13} className="text-monokai-comment" /> 可视化过滤规则 (Visual Filter Rules)
+                                <SlidersHorizontal size={13} className="text-monokai-comment" /> 可视化过滤规则
                             </span>
-                            <button
-                                onClick={addFilterRule}
-                                className="h-7 px-2.5 text-xs bg-monokai-surface hover:bg-monokai-elevated border border-monokai-border text-monokai-fg rounded-md flex items-center gap-1 cursor-pointer transition-colors"
-                            >
-                                <Plus size={11} /> 添加条件
-                            </button>
+                            <ActionButton variant="secondary" size="sm" icon={Plus} onClick={addFilterRule}>
+                                添加条件
+                            </ActionButton>
                         </div>
                         {visualRules.length === 0 ? (
-                            <div className="text-center py-4 text-xs text-monokai-comment italic">
+                            <div className="text-center py-4 text-xs text-monokai-comment">
                                 尚未添加过滤条件，点击「添加条件」以构建结构化查询
                             </div>
                         ) : (
                             <div className="flex flex-col gap-2 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
                                 {visualRules.map(rule => (
                                     <div key={rule.id} className="flex flex-wrap sm:flex-nowrap gap-2 items-center bg-monokai-bg p-2 rounded-md border border-monokai-border">
-                                        <select
+                                        <FormSelect
                                             value={rule.column}
                                             onChange={e => updateFilterRule(rule.id, { column: e.target.value })}
-                                            className="bg-monokai-surface border border-monokai-border text-xs px-2 py-1 rounded-md text-monokai-fg font-mono outline-none focus:border-monokai-fg/40"
+                                            sizeVariant="sm"
+                                            className="w-auto font-mono"
                                         >
                                             {tableColumns.map(col => <option key={col} value={col}>{col}</option>)}
-                                        </select>
-                                        <select
+                                        </FormSelect>
+                                        <FormSelect
                                             value={rule.operator}
                                             onChange={e => updateFilterRule(rule.id, { operator: e.target.value })}
-                                            className="bg-monokai-surface border border-monokai-border text-xs px-2 py-1 rounded-md text-monokai-fg font-mono font-medium outline-none focus:border-monokai-fg/40"
+                                            sizeVariant="sm"
+                                            className="w-auto font-mono"
                                         >
                                             <option value="=">=</option>
                                             <option value="<>">&lt;&gt;</option>
@@ -982,110 +1038,103 @@ export const DataTab: React.FC<DataTabProps> = ({
                                             <option value="LIKE">LIKE (模糊包含)</option>
                                             <option value="IS NULL">IS NULL (空值)</option>
                                             <option value="IS NOT NULL">IS NOT NULL (非空)</option>
-                                        </select>
+                                        </FormSelect>
                                         {rule.operator !== 'IS NULL' && rule.operator !== 'IS NOT NULL' && (
-                                            <input
+                                            <FormInput
                                                 type="text"
                                                 value={rule.value}
                                                 onChange={e => updateFilterRule(rule.id, { value: e.target.value })}
                                                 placeholder="输入匹配值…"
-                                                className="bg-monokai-surface border border-monokai-border text-xs px-2 py-1 rounded-md text-monokai-fg outline-none flex-1 font-mono focus:border-monokai-fg/40"
+                                                sizeVariant="sm"
+                                                fontVariant="mono"
+                                                className="flex-1"
                                             />
                                         )}
-                                        <button
+                                        <IconButton
+                                            label="删除此规则"
+                                            icon={X}
+                                            size="sm"
+                                            tone="danger"
                                             onClick={() => removeFilterRule(rule.id)}
-                                            className="text-monokai-comment hover:text-monokai-pink p-1 rounded-md hover:bg-monokai-surface transition-colors cursor-pointer shrink-0"
-                                            title="删除此规则"
-                                        >
-                                            <X size={13} />
-                                        </button>
+                                            className="!h-7 !w-7"
+                                        />
                                     </div>
                                 ))}
                             </div>
                         )}
                         <div className="flex justify-end gap-2 border-t border-monokai-border pt-2 mt-1">
-                            <button
-                                onClick={() => {
-                                    setVisualRules([]);
-                                    onSetFilterQuery('');
-                                    onFetchTableData(currentTable, 0, pagination.limit, sortConfig, '');
-                                }}
-                                className="h-7 px-3 text-xs text-monokai-comment hover:text-monokai-fg rounded-md transition-colors cursor-pointer"
+                            <ActionButton
+                                variant="ghost"
+                                size="sm"
+                                onClick={clearFilterCondition}
                             >
                                 清空规则
-                            </button>
-                            <button
-                                onClick={applyVisualFilters}
-                                className="h-7 px-3.5 bg-monokai-green text-monokai-bg font-medium text-xs rounded-md hover:bg-[#a6e22e]/90 transition-colors shadow-xs cursor-pointer"
-                            >
+                            </ActionButton>
+                            <ActionButton variant="primary" size="sm" onClick={applyVisualFilters}>
                                 应用过滤
-                            </button>
+                            </ActionButton>
                         </div>
                     </div>
                 )}
             </div>
 
             {/* Diagnostic Context Banner from Dashboard/External Workflow */}
-            {filterQuery && (
-                <div className="mx-4 mt-2 mb-1 p-2.5 rounded-lg bg-monokai-yellow/10 border border-monokai-yellow/30 flex items-center justify-between gap-3 text-xs shrink-0 animate-in fade-in duration-200">
-                    <div className="flex items-center gap-2 text-monokai-yellow overflow-hidden">
-                        <AlertTriangle size={14} className="shrink-0" />
-                        <span className="font-semibold shrink-0">诊断过滤已生效:</span>
-                        <code className="px-1.5 py-0.5 rounded bg-monokai-bg/60 border border-monokai-yellow/20 font-mono text-[11px] text-monokai-fg truncate">
+            {filterQuery.trim() && (
+                <InlineAlert
+                    tone="warning"
+                    title="过滤条件已生效"
+                    className="mx-4 mt-2 mb-1 shrink-0"
+                >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                        <code className="px-1.5 py-0.5 rounded bg-monokai-bg/60 border border-monokai-yellow/20 font-mono text-meta text-monokai-fg truncate max-w-full">
                             {filterQuery}
                         </code>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                        {onNavigateToSql && (
-                            <button
-                                type="button"
-                                onClick={() => onNavigateToSql(`SELECT * FROM "${currentTable}" WHERE ${filterQuery};`)}
-                                className="px-2 py-1 rounded bg-monokai-surface hover:bg-monokai-elevated border border-monokai-border text-[11px] text-monokai-fg flex items-center gap-1 cursor-pointer transition-colors"
-                                title="将此过滤条件转化为完整 SQL 并在编辑器中执行"
+                        <div className="flex items-center gap-2 shrink-0">
+                            {onNavigateToSql && (
+                                <ActionButton
+                                    variant="secondary"
+                                    size="sm"
+                                    icon={ExternalLink}
+                                    onClick={() => onNavigateToSql(`SELECT * FROM "${currentTable}" WHERE ${filterQuery};`)}
+                                    title="将此过滤条件转化为完整 SQL 并在编辑器中执行"
+                                >
+                                    在 SQL 中查看
+                                </ActionButton>
+                            )}
+                            <ActionButton
+                                variant="ghost"
+                                size="sm"
+                                icon={X}
+                                onClick={clearFilterCondition}
+                                title="清除当前过滤条件"
                             >
-                                <ExternalLink size={11} className="text-monokai-cyan" />
-                                <span>在 SQL 中查看</span>
-                            </button>
-                        )}
-                        <button
-                            type="button"
-                            onClick={() => {
-                                onSetFilterQuery('');
-                                onFetchTableData(currentTable, 0, pagination.limit, sortConfig, '');
-                            }}
-                            className="px-2 py-1 rounded bg-monokai-surface hover:bg-monokai-elevated border border-monokai-border text-[11px] text-monokai-comment hover:text-monokai-fg flex items-center gap-1 cursor-pointer transition-colors"
-                            title="清除当前过滤条件"
-                        >
-                            <X size={11} />
-                            <span>清除过滤</span>
-                        </button>
+                                清除过滤
+                            </ActionButton>
+                        </div>
                     </div>
-                </div>
+                </InlineAlert>
             )}
 
-            <div className="flex-1 overflow-auto bg-monokai-bg custom-scrollbar">
+            <div className="flex-1 overflow-auto bg-monokai-bg custom-scrollbar min-h-0">
                 {loadingData ? (
-                    <div className="h-full flex items-center justify-center text-monokai-comment flex-col gap-2 py-16">
-                        <RefreshCw size={32} className="text-monokai-blue animate-spin mb-3" />
-                        <div className="animate-pulse text-xs font-mono">正在分析与装载数据…</div>
-                    </div>
+                    <WorkbenchLoadingState message="正在分析与装载数据…" description="分页拉取当前表记录与元数据" />
                 ) : dataViewMode === 'profile' ? (
-                    <div className="p-4 sm:p-6 space-y-5">
+                    <div className="p-3 sm:p-4 space-y-4">
                         {/* 1. Top Table Profiling Telemetry HUD */}
                         <section aria-label="数据画像全景雷达" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                             {/* Card 1: 资产规模 */}
                             <div className="relative overflow-hidden bg-monokai-surface border border-monokai-border p-3.5 shadow-xs rounded-md">
                                 <div className="flex items-center justify-between">
-                                    <span className="text-[10px] font-mono uppercase tracking-wider text-monokai-comment">
+                                    <span className="text-2xs font-mono uppercase tracking-wider text-monokai-comment">
                                         数据资产结构 / SCHEMA SCOPE
                                     </span>
                                     <Layers size={15} className="text-monokai-blue opacity-80" />
                                 </div>
                                 <div className="mt-2">
-                                    <div className="font-mono text-xl font-bold text-monokai-blue">
+                                    <div className="font-mono text-base font-bold text-monokai-cyan">
                                         {profileSummary.totalCols} <span className="text-xs font-normal text-monokai-comment">列总计</span>
                                     </div>
-                                    <div className="mt-1 flex flex-wrap gap-1.5 text-[10px] font-mono text-monokai-comment">
+                                    <div className="mt-1 flex flex-wrap gap-1.5 text-2xs font-mono text-monokai-comment">
                                         <span className="text-monokai-blue">{profileSummary.numericCount} 数值</span>
                                         <span>•</span>
                                         <span className="text-monokai-green">{profileSummary.textCount} 文本</span>
@@ -1104,7 +1153,7 @@ export const DataTab: React.FC<DataTabProps> = ({
                             {/* Card 2: 完整度与健康指数 */}
                             <div className="bg-monokai-surface border border-monokai-border p-3.5 shadow-xs rounded-md">
                                 <div className="flex items-center justify-between">
-                                    <span className="text-[10px] font-mono uppercase tracking-wider text-monokai-comment">
+                                    <span className="text-2xs font-mono uppercase tracking-wider text-monokai-comment">
                                         数据完整度 / HEALTH SCORE
                                     </span>
                                     <ShieldCheck
@@ -1121,7 +1170,7 @@ export const DataTab: React.FC<DataTabProps> = ({
                                 <div className="mt-2">
                                     <div className="flex items-baseline gap-2">
                                         <span
-                                            className={`font-mono text-xl font-bold ${
+                                            className={`font-mono text-base font-bold ${
                                                 profileSummary.avgHealthScore >= 98
                                                     ? 'text-monokai-green'
                                                     : profileSummary.avgHealthScore >= 90
@@ -1132,7 +1181,7 @@ export const DataTab: React.FC<DataTabProps> = ({
                                             {profileSummary.avgHealthScore.toFixed(1)}%
                                         </span>
                                         <span
-                                            className={`text-[10px] font-mono font-bold uppercase px-1.5 py-0.2 rounded border border-monokai-border ${
+                                            className={`text-2xs font-mono font-bold uppercase px-1.5 py-0.2 rounded border border-monokai-border ${
                                                 profileSummary.avgHealthScore >= 98
                                                     ? 'bg-monokai-surface text-monokai-green'
                                                     : profileSummary.avgHealthScore >= 90
@@ -1157,22 +1206,22 @@ export const DataTab: React.FC<DataTabProps> = ({
                             {/* Card 3: 约束与基数特征 */}
                             <div className="bg-monokai-surface border border-monokai-border p-3.5 shadow-xs rounded-md">
                                 <div className="flex items-center justify-between">
-                                    <span className="text-[10px] font-mono uppercase tracking-wider text-monokai-comment">
+                                    <span className="text-2xs font-mono uppercase tracking-wider text-monokai-comment">
                                         约束与基数 / CONSTRAINTS & KEYS
                                     </span>
                                     <Key size={15} className="text-monokai-yellow opacity-80" />
                                 </div>
                                 <div className="mt-2">
-                                    <div className="font-mono text-sm font-bold text-monokai-fg truncate">
+                                    <div className="font-mono text-xs font-bold text-monokai-fg truncate">
                                         {pkColumn ? (
                                             <span className="text-monokai-yellow flex items-center gap-1">
-                                                <Key size={12} /> {pkColumn.name} <span className="text-[10px] text-monokai-comment font-normal">(主键)</span>
+                                                <Key size={12} /> {pkColumn.name} <span className="text-2xs text-monokai-comment font-normal">(主键)</span>
                                             </span>
                                         ) : (
                                             <span className="text-monokai-comment text-xs font-normal">无明确主键约束</span>
                                         )}
                                     </div>
-                                    <div className="mt-1.5 text-[11px] text-monokai-comment truncate font-mono">
+                                    <div className="mt-1.5 text-meta text-monokai-comment truncate font-mono">
                                         {profileSummary.maxUniqueCol ? (
                                             <span>
                                                 最高基数: <strong className="text-monokai-amethyst font-normal">{profileSummary.maxUniqueCol.name}</strong> ({profileSummary.maxUniqueCol.count.toLocaleString()})
@@ -1187,33 +1236,36 @@ export const DataTab: React.FC<DataTabProps> = ({
                             {/* Card 4: 快速操作工具 */}
                             <div className="bg-monokai-surface border border-monokai-border p-3.5 shadow-xs rounded-md flex flex-col justify-between">
                                 <div className="flex items-center justify-between">
-                                    <span className="text-[10px] font-mono uppercase tracking-wider text-monokai-comment">
+                                    <span className="text-2xs font-mono uppercase tracking-wider text-monokai-comment">
                                         画像工具箱 / PROFILE TOOLBOX
                                     </span>
                                     <Sparkles size={15} className="text-monokai-pink opacity-80" />
                                 </div>
                                 <div className="mt-2 flex items-center gap-2">
-                                    <button
-                                        type="button"
+                                    <ActionButton
+                                        variant="secondary"
+                                        size="sm"
+                                        icon={RefreshCw}
                                         onClick={() => onFetchProfileData(currentTable)}
-                                        className="h-7 flex-1 inline-flex items-center justify-center gap-1.5 bg-monokai-surface hover:bg-monokai-elevated border border-monokai-border px-2.5 text-xs text-monokai-fg rounded-md transition-colors cursor-pointer"
                                         title="重新执行 SUMMARIZE 分析"
+                                        className="flex-1"
                                     >
-                                        <RefreshCw size={12} /> 重新计算
-                                    </button>
-                                    <button
-                                        type="button"
+                                        重新计算
+                                    </ActionButton>
+                                    <ActionButton
+                                        variant="secondary"
+                                        size="sm"
+                                        icon={Code}
                                         onClick={() => {
                                             const sql = `SUMMARIZE SELECT * FROM "${currentTable}";`;
                                             navigator.clipboard.writeText(sql);
                                             useSqlEditorStore.getState().updateActiveTab({ code: sql });
                                             onAddNotification('已将画像 SQL 载入 SQL 编辑器并复制', 'success');
                                         }}
-                                        className="h-7 inline-flex items-center justify-center gap-1 bg-monokai-surface hover:bg-monokai-elevated border border-monokai-border px-2.5 text-xs text-monokai-fg rounded-md transition-colors cursor-pointer"
                                         title="复制 SUMMARIZE SQL"
                                     >
-                                        <Code size={12} /> SQL
-                                    </button>
+                                        SQL
+                                    </ActionButton>
                                 </div>
                             </div>
                         </section>
@@ -1221,28 +1273,20 @@ export const DataTab: React.FC<DataTabProps> = ({
                         {/* 2. Search, Filter & Sorter Toolbar */}
                         <section aria-label="画像筛选与排序" className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-monokai-surface border border-monokai-border p-2.5 rounded-md">
                             <div className="flex flex-wrap items-center gap-2">
-                                <div className="flex items-center gap-1.5 bg-monokai-bg border border-monokai-border px-2.5 py-1 text-xs rounded-md">
-                                    <Search size={13} className="text-monokai-comment" />
-                                    <input
-                                        type="text"
-                                        placeholder="过滤字段名 / 类型…"
-                                        value={profileSearch}
-                                        onChange={e => setProfileSearch(e.target.value)}
-                                        className="w-36 sm:w-48 bg-transparent text-xs text-monokai-fg placeholder-monokai-comment outline-none"
-                                    />
-                                    {profileSearch && (
-                                        <button onClick={() => setProfileSearch('')} className="text-monokai-comment hover:text-monokai-fg cursor-pointer">
-                                            <X size={12} />
-                                        </button>
-                                    )}
-                                </div>
+                                <SearchInput
+                                    value={profileSearch}
+                                    onChange={setProfileSearch}
+                                    onClear={() => setProfileSearch('')}
+                                    placeholder="过滤字段名 / 类型…"
+                                    size="sm"
+                                    className="w-44 sm:w-52"
+                                />
 
-                                {/* Category filter buttons */}
-                                <div className="flex items-center gap-1 bg-monokai-bg border border-monokai-border p-0.5 rounded-md text-[11px] font-mono">
+                                <div className="flex items-center gap-1 bg-monokai-bg border border-monokai-border p-0.5 rounded-md text-meta font-mono">
                                     <button
                                         type="button"
                                         onClick={() => setProfileTypeFilter('ALL')}
-                                        className={`px-2 py-0.5 rounded transition-colors ${
+                                        className={`px-2 py-0.5 rounded transition-colors cursor-pointer ${
                                             profileTypeFilter === 'ALL' ? 'bg-monokai-surface text-monokai-fg font-bold' : 'text-monokai-comment hover:text-monokai-fg'
                                         }`}
                                     >
@@ -1251,8 +1295,8 @@ export const DataTab: React.FC<DataTabProps> = ({
                                     <button
                                         type="button"
                                         onClick={() => setProfileTypeFilter('NUMERIC')}
-                                        className={`px-2 py-0.5 rounded transition-colors ${
-                                            profileTypeFilter === 'NUMERIC' ? 'bg-monokai-surface text-monokai-blue font-bold' : 'text-monokai-comment hover:text-monokai-blue'
+                                        className={`px-2 py-0.5 rounded transition-colors cursor-pointer ${
+                                            profileTypeFilter === 'NUMERIC' ? 'bg-monokai-surface text-monokai-cyan font-bold' : 'text-monokai-comment hover:text-monokai-cyan'
                                         }`}
                                     >
                                         数值 ({profileSummary.numericCount})
@@ -1260,7 +1304,7 @@ export const DataTab: React.FC<DataTabProps> = ({
                                     <button
                                         type="button"
                                         onClick={() => setProfileTypeFilter('TEXT')}
-                                        className={`px-2 py-0.5 rounded transition-colors ${
+                                        className={`px-2 py-0.5 rounded transition-colors cursor-pointer ${
                                             profileTypeFilter === 'TEXT' ? 'bg-monokai-surface text-monokai-green font-bold' : 'text-monokai-comment hover:text-monokai-green'
                                         }`}
                                     >
@@ -1269,7 +1313,7 @@ export const DataTab: React.FC<DataTabProps> = ({
                                     <button
                                         type="button"
                                         onClick={() => setProfileTypeFilter('TIME')}
-                                        className={`px-2 py-0.5 rounded transition-colors ${
+                                        className={`px-2 py-0.5 rounded transition-colors cursor-pointer ${
                                             profileTypeFilter === 'TIME' ? 'bg-monokai-surface text-monokai-yellow font-bold' : 'text-monokai-comment hover:text-monokai-yellow'
                                         }`}
                                     >
@@ -1279,19 +1323,20 @@ export const DataTab: React.FC<DataTabProps> = ({
                             </div>
 
                             <div className="flex items-center gap-2">
-                                <span className="text-[11px] text-monokai-comment flex items-center gap-1 font-mono">
+                                <span className="text-meta text-monokai-comment flex items-center gap-1 font-mono">
                                     <ArrowUpDown size={12} /> 排序:
                                 </span>
-                                <select
+                                <FormSelect
                                     value={profileSort}
-                                    onChange={e => setProfileSort(e.target.value as any)}
-                                    className="bg-monokai-bg border border-monokai-border px-2.5 py-1 text-xs text-monokai-fg font-mono outline-none rounded-md focus:border-monokai-fg/40"
+                                    onChange={e => setProfileSort(e.target.value as typeof profileSort)}
+                                    sizeVariant="sm"
+                                    className="w-auto font-mono"
                                 >
                                     <option value="DEFAULT">默认结构序</option>
                                     <option value="NULLS_DESC">缺失率最高</option>
                                     <option value="UNIQUE_DESC">唯一值基数最高</option>
                                     <option value="NAME_ASC">列名 A-Z</option>
-                                </select>
+                                </FormSelect>
                             </div>
                         </section>
 
@@ -1299,7 +1344,7 @@ export const DataTab: React.FC<DataTabProps> = ({
                         {filteredProfileData.length === 0 ? (
                             <div className="py-16 text-center bg-monokai-surface border border-monokai-border p-6 rounded-md">
                                 <LayoutDashboard size={36} className="mx-auto mb-2 text-monokai-comment/40" />
-                                <p className="text-sm font-bold text-monokai-fg">未匹配到任何字段画像</p>
+                                <p className="text-xs font-semibold text-monokai-fg">未匹配到任何字段画像</p>
                                 <p className="mt-1 text-xs text-monokai-comment">请尝试调整搜索关键字或类型分类条件</p>
                             </div>
                         ) : (
@@ -1322,7 +1367,7 @@ export const DataTab: React.FC<DataTabProps> = ({
                                                         <div className="flex items-center gap-1.5">
                                                             {isPk && (
                                                                 <span
-                                                                    className="px-1.5 py-0.2 rounded bg-monokai-surface border border-monokai-border text-monokai-yellow text-[9px] font-mono font-bold flex items-center gap-0.5 shrink-0"
+                                                                    className="px-1.5 py-0.2 rounded bg-monokai-surface border border-monokai-border text-monokai-yellow text-2xs font-mono font-bold flex items-center gap-0.5 shrink-0"
                                                                     title="主键列"
                                                                 >
                                                                     <Key size={10} /> PK
@@ -1339,7 +1384,7 @@ export const DataTab: React.FC<DataTabProps> = ({
                                                     </div>
 
                                                     <span
-                                                        className={`shrink-0 text-[10px] font-mono px-2 py-0.5 rounded border border-monokai-border uppercase tracking-wider flex items-center gap-1 ${
+                                                        className={`shrink-0 text-2xs font-mono px-2 py-0.5 rounded border border-monokai-border uppercase tracking-wider flex items-center gap-1 ${
                                                             cat === 'NUMERIC'
                                                                 ? 'text-monokai-blue bg-monokai-surface'
                                                                 : cat === 'TEXT'
@@ -1358,7 +1403,7 @@ export const DataTab: React.FC<DataTabProps> = ({
                                             <div className="p-3.5 space-y-3 flex-1">
                                                 {/* Health Bar (Valid vs Nulls) */}
                                                 <div>
-                                                    <div className="flex justify-between text-[10px] font-mono text-monokai-comment mb-1">
+                                                    <div className="flex justify-between text-2xs font-mono text-monokai-comment mb-1">
                                                         <span className="flex items-center gap-1 text-monokai-green">
                                                             <CheckCircle2 size={11} /> 有效: {validPct.toFixed(1)}%
                                                         </span>
@@ -1389,14 +1434,14 @@ export const DataTab: React.FC<DataTabProps> = ({
                                                 {/* Statistics Grid */}
                                                 <div className="grid grid-cols-2 gap-2 text-xs font-mono">
                                                     <div className="bg-monokai-bg p-2 rounded-md border border-monokai-border/60">
-                                                        <div className="text-[10px] uppercase text-monokai-comment tracking-wider">唯一值基数</div>
+                                                        <div className="text-2xs uppercase text-monokai-comment tracking-wider">唯一值基数</div>
                                                         <div className="font-bold text-monokai-amethyst mt-0.5 truncate">
                                                             {Number(col.approx_unique || 0).toLocaleString()}
                                                         </div>
                                                     </div>
 
                                                     <div className="bg-monokai-bg p-2 rounded-md border border-monokai-border/60">
-                                                        <div className="text-[10px] uppercase text-monokai-comment tracking-wider">非空计数</div>
+                                                        <div className="text-2xs uppercase text-monokai-comment tracking-wider">非空计数</div>
                                                         <div className="font-bold text-monokai-fg mt-0.5 truncate">
                                                             {col.count !== undefined && col.count !== null ? Number(col.count).toLocaleString() : '--'}
                                                         </div>
@@ -1405,7 +1450,7 @@ export const DataTab: React.FC<DataTabProps> = ({
 
                                                 {/* Range & Quantiles */}
                                                 {(col.min !== null || col.max !== null) && (
-                                                    <div className="bg-monokai-bg p-2.5 text-[11px] font-mono space-y-1 rounded-md border border-monokai-border/60">
+                                                    <div className="bg-monokai-bg p-2.5 text-meta font-mono space-y-1 rounded-md border border-monokai-border/60">
                                                         <div className="flex justify-between items-center text-monokai-comment">
                                                             <span>MIN:</span>
                                                             <span className="text-monokai-fg truncate max-w-[120px] font-medium" title={String(col.min)}>
@@ -1443,7 +1488,7 @@ export const DataTab: React.FC<DataTabProps> = ({
                                                 <button
                                                     type="button"
                                                     onClick={() => handleFilterNonNull(col.column_name)}
-                                                    className="inline-flex items-center gap-1 text-[11px] text-monokai-comment hover:text-monokai-fg transition-colors"
+                                                    className="inline-flex items-center gap-1 text-meta text-monokai-comment hover:text-monokai-fg transition-colors"
                                                     title="在网格视图中筛选此列非空"
                                                 >
                                                     <Filter size={11} /> 筛选非空
@@ -1453,7 +1498,7 @@ export const DataTab: React.FC<DataTabProps> = ({
                                                     <button
                                                         type="button"
                                                         onClick={() => handleDrilldownSql(col.column_name)}
-                                                        className="inline-flex items-center gap-1 text-[11px] text-monokai-comment hover:text-monokai-fg transition-colors"
+                                                        className="inline-flex items-center gap-1 text-meta text-monokai-comment hover:text-monokai-fg transition-colors"
                                                         title="生成频次分析 SQL"
                                                     >
                                                         <BarChart3 size={11} /> 频次分析
@@ -1461,7 +1506,7 @@ export const DataTab: React.FC<DataTabProps> = ({
                                                     <button
                                                         type="button"
                                                         onClick={(e) => void handleCopyColumnName(col.column_name, e)}
-                                                        className="inline-flex items-center gap-1 text-[11px] text-monokai-comment hover:text-monokai-fg transition-colors"
+                                                        className="inline-flex items-center gap-1 text-meta text-monokai-comment hover:text-monokai-fg transition-colors"
                                                         title="复制列名"
                                                     >
                                                         <Copy size={11} />
@@ -1475,157 +1520,182 @@ export const DataTab: React.FC<DataTabProps> = ({
                         )}
                     </div>
                 ) : (
-                    <table className="w-full text-left text-xs whitespace-nowrap border-collapse">
-                        <thead className="bg-monokai-sidebar border-b border-monokai-border sticky top-0 z-10 shadow-sm">
-                            <tr>
-                                <th className="p-2 w-10 border-b border-monokai-border bg-monokai-sidebar text-center left-0 sticky z-20">
-                                    {pkColumn && (
-                                        <input
-                                            type="checkbox"
-                                            className="cursor-pointer rounded border-monokai-border bg-monokai-surface text-monokai-green focus:ring-monokai-accent"
-                                            onChange={(e) => onHandleSelectAll(e.target.checked)}
-                                            checked={tableData.length > 0 && tableData.every(r => selectedRows.has(r[pkColumn.name]))}
-                                        />
-                                    )}
-                                </th>
-                                <th className="p-2 w-10 border-b border-monokai-border bg-monokai-sidebar z-10 text-center"></th>
-                                {visibleColumns.map((col, idx) => {
-                                    const colInfo = schema.find(s => s.name === col);
-                                    const isSticky = idx === 0 && pkColumn?.name === col;
-                                    const colSort = sortConfig.find(s => s.key === col);
-                                    const sortIndex = sortConfig.findIndex(s => s.key === col);
-                                    const width = colWidths[col] || 160;
-
-                                    return (
-                                        <th
-                                            key={col}
-                                            style={{ width, minWidth: width, maxWidth: width }}
-                                            className={`p-2.5 font-mono text-xs text-monokai-fg font-semibold border-b border-monokai-border cursor-pointer hover:bg-monokai-surface/60 select-none relative group transition-colors ${
-                                                isSticky ? 'sticky left-20 z-20 bg-monokai-sidebar shadow-[2px_0_6px_rgba(0,0,0,0.5)]' : ''
-                                            }`}
-                                            onClick={(e) => handleSort(col, e)}
-                                        >
-                                            <div className="flex items-center gap-2 justify-between">
-                                                <div className="flex items-center gap-1.5 truncate flex-1">
-                                                    <span className="truncate text-monokai-fg font-medium">{col}</span>
-                                                    {colInfo && (
-                                                        <span className="text-[9.5px] font-mono text-monokai-cyan px-1.5 py-0.5 rounded bg-monokai-surface border border-monokai-border/40 flex items-center gap-1 shrink-0" title={colInfo.type}>
-                                                            {getTypeIcon(colInfo.type)}
-                                                            <span>{colInfo.type}</span>
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                {colSort && (
-                                                    <span className="text-monokai-green flex items-center gap-0.5 shrink-0 font-bold">
-                                                        {colSort.direction === 'ASC' ? <ArrowUp size={12} /> : <ArrowDown size={12} />}
-                                                        {sortConfig.length > 1 && <span className="text-[8px] opacity-80">#{sortIndex + 1}</span>}
-                                                    </span>
-                                                )}
-                                            </div>
-                                            {/* Column resize handle */}
-                                            <div
-                                                className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-monokai-comment active:bg-monokai-fg z-30 transition-colors opacity-0 group-hover:opacity-100"
-                                                onMouseDown={(e) => handleResizeMouseDown(col, e)}
-                                            />
-                                        </th>
-                                    );
+                    <div className="data-tab-grid inline-block align-top font-mono text-xs">
+                        <table
+                            className="border-collapse"
+                            style={{ width: tableAutoWidth, tableLayout: 'fixed' }}
+                        >
+                            <colgroup>
+                                <col style={{ width: 40 }} />
+                                <col style={{ width: 40 }} />
+                                {visibleColumns.map((col) => {
+                                    const width = colWidths[col] ?? autoColWidths[col] ?? 120;
+                                    return <col key={col} style={{ width, minWidth: width, maxWidth: width }} />;
                                 })}
-                            </tr>
-                        </thead>
-                        <tbody className="font-mono">
-                            {tableData.length === 0 && !loadingData && (
-                                <tr>
-                                    <td colSpan={visibleColumns.length + 2} className="py-16 text-center text-monokai-comment">
-                                        <div className="flex flex-col items-center justify-center gap-2">
-                                            <TableIcon className="w-8 h-8 opacity-30 text-monokai-comment" />
-                                            <p className="text-xs font-semibold text-monokai-fg">当前表暂无数据记录</p>
-                                            <p className="text-[11px] text-monokai-comment">可以通过顶部「插入行」添加记录，或在 SQL 工作台中写入数据。</p>
-                                        </div>
-                                    </td>
-                                </tr>
-                            )}
-                            {tableData.map((row, rowIdx) => {
-                                const pkVal = pkColumn ? row[pkColumn.name] : null;
-                                const isSelected = pkVal !== null && selectedRows.has(pkVal);
-                                return (
-                                    <tr
-                                      key={rowIdx}
-                                      className={`border-b border-monokai-border/30 transition-colors group ${
-                                        isSelected
-                                          ? 'bg-monokai-elevated text-monokai-fg'
-                                          : 'odd:bg-monokai-bg even:bg-monokai-surface/30 hover:bg-monokai-surface/80'
-                                      }`}
-                                    >
-                                    <td className="p-2 text-center sticky left-0 z-10 bg-inherit">
+                            </colgroup>
+                            <thead className="sticky top-0 z-10 select-none">
+                                <tr className="h-11 border-b border-monokai-border/40">
+                                    <th className="p-2 w-10 left-0 sticky z-20 font-semibold text-monokai-comment/45" style={{ textAlign: 'center' }}>
                                         {pkColumn && (
                                             <input
                                                 type="checkbox"
-                                                checked={isSelected}
-                                                onChange={(e) => onHandleSelectRow(pkVal, e.target.checked)}
                                                 className="cursor-pointer rounded border-monokai-border bg-monokai-surface text-monokai-green focus:ring-monokai-accent"
+                                                onChange={(e) => onHandleSelectAll(e.target.checked)}
+                                                checked={tableData.length > 0 && tableData.every(r => selectedRows.has(r[pkColumn.name]))}
                                             />
                                         )}
-                                    </td>
-                                    <td className="p-2 text-center">
-                                        <button
-                                            onClick={() => onSetExpandedRowIdx(rowIdx)}
-                                            className="text-xs text-monokai-comment hover:text-monokai-cyan transition-colors cursor-pointer p-1 rounded hover:bg-monokai-surface"
-                                            title="在抽屉中查看该行完整详情"
-                                        >
-                                            <Maximize2 size={12} />
-                                        </button>
-                                    </td>
+                                    </th>
+                                    <th className="p-2 w-10 z-10 text-monokai-comment/45" style={{ textAlign: 'center' }}></th>
                                     {visibleColumns.map((col, idx) => {
-                                        const isEditing = editingCell?.rowIdx === rowIdx && editingCell?.col === col;
-                                        const cellValue = row[col];
                                         const colInfo = schema.find(s => s.name === col);
-                                        const isNum = colInfo?.type.includes('INT') || colInfo?.type.includes('FLOAT') || colInfo?.type.includes('DOUBLE');
-                                        const isNull = cellValue === null || cellValue === undefined;
                                         const isSticky = idx === 0 && pkColumn?.name === col;
-                                        const displayVal = formatCellValue(cellValue, colInfo?.type);
-                                        const width = colWidths[col] || 160;
+                                        const colSort = sortConfig.find(s => s.key === col);
+                                        const sortIndex = sortConfig.findIndex(s => s.key === col);
+                                        const tUpper = (colInfo?.type || '').toUpperCase();
+                                        let typeTone = 'text-monokai-cyan/80';
+                                        if (['INT', 'DECIMAL', 'FLOAT', 'DOUBLE', 'NUMERIC', 'REAL', 'BIGINT', 'HUGEINT', 'TINYINT', 'SMALLINT'].some(k => tUpper.includes(k))) {
+                                            typeTone = 'text-monokai-green/85';
+                                        } else if (tUpper.includes('DATE') || tUpper.includes('TIME')) {
+                                            typeTone = 'text-monokai-amethyst/85';
+                                        } else if (tUpper.includes('BOOL')) {
+                                            typeTone = 'text-monokai-pink/85';
+                                        } else if (tUpper.includes('JSON') || tUpper.includes('STRUCT') || tUpper.includes('LIST') || tUpper.includes('MAP')) {
+                                            typeTone = 'text-monokai-orange/85';
+                                        }
 
                                         return (
-                                            <td
-                                                key={`${rowIdx}-${col}`}
-                                                style={{ width, minWidth: width, maxWidth: width }}
-                                                className={`p-2 text-xs text-monokai-fg cursor-text truncate relative ${
-                                                    isNull ? 'italic' : ''
-                                                } ${
-                                                    isSticky ? 'sticky left-20 z-10 bg-inherit shadow-[2px_0_6px_rgba(0,0,0,0.4)]' : ''
+                                            <th
+                                                key={col}
+                                                style={getColumnWidthStyle(col)}
+                                                className={`relative px-2 py-1.5 cursor-pointer transition-colors duration-150 group/th align-middle overflow-hidden ${
+                                                    isSticky ? 'sticky left-20 z-20' : ''
                                                 }`}
-                                                onDoubleClick={() => handleCellEdit(rowIdx, col, cellValue)}
-                                                onContextMenu={(e) => handleRowContextMenu(e, rowIdx, col, cellValue)}
-                                                title={cellValue === null || cellValue === undefined ? '' : String(cellValue)}
+                                                onClick={(e) => handleSort(col, e)}
                                             >
-                                                {isEditing ? (
-                                                    <input
-                                                        autoFocus
-                                                        type={isNum ? 'number' : 'text'}
-                                                        value={editingCell.val}
-                                                        onChange={(e) => onSetEditingCell({ ...editingCell, val: isNum ? e.target.valueAsNumber : e.target.value })}
-                                                        onBlur={onSaveCellEdit}
-                                                        onKeyDown={(e) => {
-                                                             if (e.key === 'Enter') onSaveCellEdit();
-                                                             if (e.key === 'Escape') onSetEditingCell(null);
-                                                         }}
-                                                         className="w-full bg-monokai-surface border border-monokai-border px-2 py-0.5 rounded-md outline-none text-monokai-fg font-mono text-xs focus:border-monokai-fg/40"
-                                                    />
-                                                ) : (
-                                                    isNull ? (
-                                                        <span className="inline-flex items-center px-1.5 py-0.2 rounded-md text-[10px] font-mono font-medium bg-monokai-surface text-monokai-pink border border-monokai-border">
-                                                            NULL
+                                                <div className="flex flex-col items-center justify-center gap-0.5 min-w-0 w-full leading-tight px-1">
+                                                    <div className="flex items-center justify-center gap-1 min-w-0 max-w-full">
+                                                        <span
+                                                            className="truncate font-medium text-[11px] tracking-tight text-monokai-fg-muted/80 group-hover/th:text-monokai-fg transition-colors max-w-full"
+                                                            title={col}
+                                                        >
+                                                            {col}
                                                         </span>
-                                                    ) : displayVal
-                                                )}
-                                            </td>
+                                                        {colSort && (
+                                                            <span className="text-monokai-comment/80 text-[9px] font-black shrink-0 tabular-nums flex items-center gap-0.5">
+                                                                {colSort.direction === 'ASC' ? <ArrowUp size={10} /> : <ArrowDown size={10} />}
+                                                                {sortConfig.length > 1 && <span className="opacity-80">#{sortIndex + 1}</span>}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    {colInfo && (
+                                                        <span
+                                                            className={`text-[9px] uppercase tracking-[0.05em] font-semibold max-w-full truncate ${typeTone}`}
+                                                            title={colInfo.type}
+                                                        >
+                                                            {colInfo.type}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <div
+                                                    className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-monokai-fg/[0.04] active:bg-monokai-yellow/15 transition-all opacity-0 group-hover/th:opacity-100 z-30 flex items-center justify-center"
+                                                    onMouseDown={(e) => handleResizeMouseDown(col, e)}
+                                                >
+                                                    <div className="w-px h-3 bg-monokai-border/60" />
+                                                </div>
+                                            </th>
                                         );
                                     })}
                                 </tr>
-                              );
-                            })}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody className="font-mono">
+                                {/* Empty tbody matches SQL workbench ResultSection: headers only, no placeholder row */}
+                                {tableData.map((row, rowIdx) => {
+                                    const pkVal = pkColumn ? row[pkColumn.name] : null;
+                                    const isSelected = pkVal !== null && selectedRows.has(pkVal);
+                                    return (
+                                        <tr
+                                          key={rowIdx}
+                                          className={`border-b border-monokai-border/30 transition-colors group ${
+                                            isSelected
+                                              ? 'bg-monokai-elevated text-monokai-fg'
+                                              : 'odd:bg-monokai-bg even:bg-monokai-surface/30 hover:bg-monokai-surface/80'
+                                          }`}
+                                        >
+                                        <td className="p-2 sticky left-0 z-10 bg-inherit" style={{ textAlign: 'center' }}>
+                                            {pkColumn && (
+                                                <input
+                                                    type="checkbox"
+                                                    checked={isSelected}
+                                                    onChange={(e) => onHandleSelectRow(pkVal, e.target.checked)}
+                                                    className="cursor-pointer rounded border-monokai-border bg-monokai-surface text-monokai-green focus:ring-monokai-accent"
+                                                />
+                                            )}
+                                        </td>
+                                        <td className="p-2" style={{ textAlign: 'center' }}>
+                                            <button
+                                                onClick={() => onSetExpandedRowIdx(rowIdx)}
+                                                className="text-xs text-monokai-comment hover:text-monokai-cyan transition-colors cursor-pointer p-1 rounded hover:bg-monokai-surface"
+                                                title="在抽屉中查看该行完整详情"
+                                            >
+                                                <Maximize2 size={12} />
+                                            </button>
+                                        </td>
+                                        {visibleColumns.map((col, idx) => {
+                                            const isEditing = editingCell?.rowIdx === rowIdx && editingCell?.col === col;
+                                            const cellValue = row[col];
+                                            const colInfo = schema.find(s => s.name === col);
+                                            const isNum = colInfo?.type.includes('INT') || colInfo?.type.includes('FLOAT') || colInfo?.type.includes('DOUBLE');
+                                            const isNull = cellValue === null || cellValue === undefined;
+                                            const isSticky = idx === 0 && pkColumn?.name === col;
+                                            const displayVal = formatCellValue(cellValue, colInfo?.type);
+
+                                            return (
+                                                <td
+                                                    key={`${rowIdx}-${col}`}
+                                                    style={getColumnWidthStyle(col)}
+                                                    className={`p-2 text-xs text-monokai-fg cursor-text relative align-middle ${
+                                                        isNull ? 'italic' : ''
+                                                    } ${
+                                                        isSticky ? 'sticky left-20 z-10 bg-inherit shadow-[2px_0_6px_rgba(0,0,0,0.4)]' : ''
+                                                    }`}
+                                                    onDoubleClick={() => handleCellEdit(rowIdx, col, cellValue)}
+                                                    onContextMenu={(e) => handleRowContextMenu(e, rowIdx, col, cellValue)}
+                                                    title={cellValue === null || cellValue === undefined ? '' : String(cellValue)}
+                                                >
+                                                    <div className="flex w-full min-w-0 items-center justify-center">
+                                                        {isEditing ? (
+                                                            <input
+                                                                autoFocus
+                                                                type={isNum ? 'number' : 'text'}
+                                                                value={editingCell.val}
+                                                                onChange={(e) => onSetEditingCell({ ...editingCell, val: isNum ? e.target.valueAsNumber : e.target.value })}
+                                                                onBlur={onSaveCellEdit}
+                                                                onKeyDown={(e) => {
+                                                                     if (e.key === 'Enter') onSaveCellEdit();
+                                                                     if (e.key === 'Escape') onSetEditingCell(null);
+                                                                 }}
+                                                                 className="w-full bg-monokai-surface border border-monokai-border px-2 py-0.5 rounded-md outline-none text-monokai-fg font-mono text-xs focus:border-monokai-fg/40"
+                                                                 style={{ textAlign: 'center' }}
+                                                            />
+                                                        ) : isNull ? (
+                                                            <span className="inline-flex items-center justify-center px-1.5 py-0.2 rounded-md text-2xs font-mono font-medium bg-monokai-surface text-monokai-pink border border-monokai-border">
+                                                                NULL
+                                                            </span>
+                                                        ) : (
+                                                            <span className="block max-w-full truncate whitespace-nowrap text-center">
+                                                                {displayVal}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                            );
+                                        })}
+                                    </tr>
+                                  );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
                 )}
             </div>
             {dataViewMode === 'grid' && (
@@ -1633,7 +1703,7 @@ export const DataTab: React.FC<DataTabProps> = ({
                     <div className="flex items-center gap-3">
                         <span className="font-mono text-monokai-fg font-medium">共 {pagination.total.toLocaleString()} 条记录</span>
                         {selectedRows.size > 0 && (
-                            <span className="px-2 py-0.5 text-[11px] bg-monokai-surface text-monokai-fg border border-monokai-border rounded-md font-mono font-medium flex items-center gap-1.5">
+                            <span className="px-2 py-0.5 text-meta bg-monokai-surface text-monokai-fg border border-monokai-border rounded-md font-mono font-medium flex items-center gap-1.5">
                                 <span className="w-1.5 h-1.5 rounded-full bg-monokai-fg" />
                                 <span>已选中 {selectedRows.size} 行</span>
                             </span>
@@ -1791,7 +1861,7 @@ export const DataTab: React.FC<DataTabProps> = ({
                                     else onAddNotification("请在 Schema 结构页为表设置主键以开启行级修改", 'info');
                                     closeContextMenu();
                                 }}
-                                className="w-full text-left px-3 py-1.5 hover:bg-monokai-surface text-monokai-yellow hover:text-monokai-yellow flex items-center gap-2 transition-colors cursor-pointer text-[11px]"
+                                className="w-full text-left px-3 py-1.5 hover:bg-monokai-surface text-monokai-yellow hover:text-monokai-yellow flex items-center gap-2 transition-colors cursor-pointer text-meta"
                             >
                                 <Key size={13} className="text-monokai-yellow" /> 配置主键以开启行编辑 ↗
                             </button>
@@ -1801,75 +1871,76 @@ export const DataTab: React.FC<DataTabProps> = ({
             )}
 
             {/* Cell Preview Modal */}
-            {previewCell && (
-                <div className="fixed inset-0 z-[110] flex items-center justify-center font-sans p-4">
-                    <div className="absolute inset-0 bg-black/80 backdrop-blur-md animate-in fade-in duration-150" onClick={() => setPreviewCell(null)} />
-                    <div className="relative bg-monokai-sidebar border border-monokai-border rounded-lg shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-150">
-                        <div className="flex items-center justify-between px-4 py-3 border-b border-monokai-border bg-monokai-sidebar">
-                            <div className="flex items-center gap-2">
-                                <Database className="w-4 h-4 text-monokai-green" />
-                                <h3 className="text-sm font-semibold text-monokai-fg font-mono">
-                                    字段明细: <span className="text-monokai-fg font-bold">{previewCell.columnName}</span>
-                                </h3>
-                            </div>
-                            <button
-                                onClick={() => setPreviewCell(null)}
-                                className="p-1 rounded-md hover:bg-monokai-surface text-monokai-comment hover:text-monokai-fg transition-colors cursor-pointer"
-                            >
-                                <X className="w-4 h-4" />
-                            </button>
-                        </div>
-                        <div className="p-4 max-h-96 overflow-y-auto bg-monokai-bg custom-scrollbar">
-                            {(() => {
-                                const valStr = String(previewCell.val);
-                                // Detect Base64 image
-                                if (valStr.startsWith('data:image/') || (valStr.length > 50 && valStr.match(/^([A-Za-z0-9+/]{4})*([A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==)?$/) && (valStr.slice(0, 100).includes('PNG') || valStr.slice(0, 100).includes('JFIF')))) {
-                                    const src = valStr.startsWith('data:image/') ? valStr : `data:image/png;base64,${valStr}`;
-                                    return (
-                                        <div className="flex justify-center py-4 bg-monokai-surface rounded-md border border-monokai-border">
-                                            <img src={src} alt="Base64 Preview" className="max-h-64 object-contain shadow-md rounded-md" />
-                                        </div>
+            <ModalShell
+                open={Boolean(previewCell)}
+                onClose={() => setPreviewCell(null)}
+                title={previewCell ? `字段明细: ${previewCell.columnName}` : '字段明细'}
+                icon={Database}
+                iconColor="text-monokai-green"
+                size="sm"
+                badge={previewCell ? `${String(previewCell.val ?? '').length} 字符` : undefined}
+                footer={
+                    previewCell ? (
+                        <div className="flex items-center justify-end gap-2 w-full">
+                            <ActionButton variant="secondary" size="sm" onClick={() => setPreviewCell(null)}>
+                                关闭
+                            </ActionButton>
+                            <ActionButton
+                                variant="primary"
+                                size="sm"
+                                icon={Copy}
+                                onClick={() => {
+                                    navigator.clipboard.writeText(
+                                        typeof previewCell.val === 'object'
+                                            ? JSON.stringify(previewCell.val, (k, v) => (typeof v === 'bigint' ? v.toString() : v), 2)
+                                            : String(previewCell.val),
                                     );
-                                }
-                                // Detect JSON
-                                try {
-                                    if (typeof previewCell.val === 'object' && previewCell.val !== null) {
-                                        return <pre className="text-xs text-monokai-fg font-mono whitespace-pre-wrap leading-relaxed">{JSON.stringify(previewCell.val, (k, v) => typeof v === 'bigint' ? v.toString() : v, 2)}</pre>;
-                                    }
-                                    const parsed = JSON.parse(valStr);
-                                    return <pre className="text-xs text-monokai-fg font-mono whitespace-pre-wrap leading-relaxed">{JSON.stringify(parsed, (k, v) => typeof v === 'bigint' ? v.toString() : v, 2)}</pre>;
-                                } catch {
-                                    // Plain text
-                                    return <pre className="text-xs text-monokai-fg font-mono whitespace-pre-wrap leading-relaxed">{valStr}</pre>;
-                                }
-                            })()}
+                                    setPreviewCell(null);
+                                    onAddNotification('已复制单元格内容', 'success');
+                                }}
+                            >
+                                复制内容
+                            </ActionButton>
                         </div>
-                        <div className="flex items-center justify-between px-4 py-3 border-t border-monokai-border bg-monokai-sidebar">
-                            <span className="text-[11px] font-mono text-monokai-comment">
-                                长度: {String(previewCell.val ?? '').length} 字符
-                            </span>
-                            <div className="flex items-center gap-2">
-                                <button
-                                    onClick={() => setPreviewCell(null)}
-                                    className="h-8 px-3 text-xs rounded-md border border-monokai-border bg-monokai-surface hover:bg-monokai-elevated text-monokai-comment hover:text-monokai-fg transition-colors cursor-pointer"
-                                >
-                                    关闭
-                                </button>
-                                <button
-                                    onClick={() => {
-                                        navigator.clipboard.writeText(typeof previewCell.val === 'object' ? JSON.stringify(previewCell.val, (k, v) => typeof v === 'bigint' ? v.toString() : v, 2) : String(previewCell.val));
-                                        setPreviewCell(null);
-                                        onAddNotification('已复制单元格内容', 'success');
-                                    }}
-                                    className="h-8 px-4 text-xs font-medium rounded-md bg-monokai-green text-monokai-bg hover:bg-[#a6e22e]/90 transition-colors cursor-pointer shadow-xs"
-                                >
-                                    复制内容
-                                </button>
+                    ) : null
+                }
+            >
+                {previewCell && (() => {
+                    const valStr = String(previewCell.val);
+                    if (
+                        valStr.startsWith('data:image/') ||
+                        (valStr.length > 50 &&
+                            valStr.match(/^([A-Za-z0-9+/]{4})*([A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==)?$/) &&
+                            (valStr.slice(0, 100).includes('PNG') || valStr.slice(0, 100).includes('JFIF')))
+                    ) {
+                        const src = valStr.startsWith('data:image/') ? valStr : `data:image/png;base64,${valStr}`;
+                        return (
+                            <div className="flex justify-center py-4 bg-monokai-surface rounded-md border border-monokai-border">
+                                <img src={src} alt="单元格图片预览" className="max-h-64 object-contain rounded-md" />
                             </div>
-                        </div>
-                    </div>
-                </div>
-            )}
+                        );
+                    }
+                    try {
+                        if (typeof previewCell.val === 'object' && previewCell.val !== null) {
+                            return (
+                                <pre className="text-xs text-monokai-fg font-mono whitespace-pre-wrap leading-relaxed">
+                                    {JSON.stringify(previewCell.val, (k, v) => (typeof v === 'bigint' ? v.toString() : v), 2)}
+                                </pre>
+                            );
+                        }
+                        const parsed = JSON.parse(valStr);
+                        return (
+                            <pre className="text-xs text-monokai-fg font-mono whitespace-pre-wrap leading-relaxed">
+                                {JSON.stringify(parsed, (k, v) => (typeof v === 'bigint' ? v.toString() : v), 2)}
+                            </pre>
+                        );
+                    } catch {
+                        return (
+                            <pre className="text-xs text-monokai-fg font-mono whitespace-pre-wrap leading-relaxed">{valStr}</pre>
+                        );
+                    }
+                })()}
+            </ModalShell>
 
             {showInsertRowModal && currentTable && (
                 <InsertRowModal
@@ -1886,7 +1957,7 @@ export const DataTab: React.FC<DataTabProps> = ({
                     }}
                 />
             )}
-        </div>
+        </PageShell>
     );
 };
 

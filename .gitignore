@@ -66,6 +66,9 @@ Desktop.ini
 .cursor/**
 .gstack/
 .playwright-mcp/
+.antigravity/
+.gemini/
+.claude/
 playwright-report/
 test-results/
 blob-report/
@@ -75,6 +78,10 @@ tmp/
 backup-*/
 output/
 _patch_*
+*.bak
+*.tmp
+*.patch
+*.diff
 verification-*.png
 scratch/
 artifacts/
@@ -94,13 +101,17 @@ public/duckdb-wasm/
 # Accidental Vite build output at repo root
 /assets/
 
-# ----- DuckDB database files -----
+# ----- DuckDB & SQLite database files -----
 *.db
 *.duckdb
 *.wal
+*.sqlite
+*.sqlite3
 
 # ----- Certificates / private keys (never commit) -----
 *.pem
 *.p12
 *.pfx
 *.key
+*.cert
+*.crt

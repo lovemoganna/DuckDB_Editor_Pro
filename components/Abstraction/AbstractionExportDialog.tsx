@@ -1,10 +1,9 @@
 /**
- * AbstractionExportDialog — 导入导出对话框
+ * AbstractionExportDialog — 导入导出（ModalShell）
  */
 
 import React, { useState, useRef } from 'react';
 import {
-  X,
   Upload,
   Download,
   FileJson,
@@ -13,13 +12,13 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import {
-  exportAbstractionTables,
   importAbstractionTables,
   downloadAsFile,
   exportToClipboard,
   importFromClipboard,
   importFromFile,
 } from '../../utils/abstractionImportExport';
+import { ActionButton, FormTextarea, ModalShell, SegmentedTabs } from '../ui/Workbench';
 
 interface AbstractionExportDialogProps {
   isOpen: boolean;
@@ -32,7 +31,7 @@ export const AbstractionExportDialog: React.FC<AbstractionExportDialogProps> = (
   onClose,
   tableIds,
 }) => {
-  const [mode, setMode] = useState<'menu' | 'export' | 'import'>('menu');
+  const [mode, setMode] = useState<'export' | 'import'>('export');
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
@@ -57,11 +56,11 @@ export const AbstractionExportDialog: React.FC<AbstractionExportDialogProps> = (
     setResult(null);
     try {
       const success = await exportToClipboard(tableIds);
-      if (success) {
-        setResult({ success: true, message: '导出成功，内容已复制到剪贴板' });
-      } else {
-        setResult({ success: false, message: '导出失败：无法访问剪贴板' });
-      }
+      setResult(
+        success
+          ? { success: true, message: '导出成功，内容已复制到剪贴板' }
+          : { success: false, message: '导出失败：无法访问剪贴板' }
+      );
     } catch (e) {
       setResult({ success: false, message: `导出失败: ${e instanceof Error ? e.message : '未知错误'}` });
     } finally {
@@ -71,7 +70,6 @@ export const AbstractionExportDialog: React.FC<AbstractionExportDialogProps> = (
 
   const handleImportText = async () => {
     if (!importText.trim()) return;
-
     setIsImporting(true);
     setResult(null);
     try {
@@ -83,10 +81,7 @@ export const AbstractionExportDialog: React.FC<AbstractionExportDialogProps> = (
         });
         setImportText('');
       } else {
-        setResult({
-          success: false,
-          message: `导入失败: ${importResult.errors.join('; ')}`,
-        });
+        setResult({ success: false, message: `导入失败: ${importResult.errors.join('; ')}` });
       }
     } catch (e) {
       setResult({ success: false, message: `导入失败: ${e instanceof Error ? e.message : '未知错误'}` });
@@ -106,10 +101,7 @@ export const AbstractionExportDialog: React.FC<AbstractionExportDialogProps> = (
           message: `导入成功：${importResult.imported} 个，${importResult.skipped} 个已跳过`,
         });
       } else {
-        setResult({
-          success: false,
-          message: `导入失败: ${importResult.errors.join('; ')}`,
-        });
+        setResult({ success: false, message: `导入失败: ${importResult.errors.join('; ')}` });
       }
     } catch (e) {
       setResult({ success: false, message: `导入失败: ${e instanceof Error ? e.message : '未知错误'}` });
@@ -121,10 +113,8 @@ export const AbstractionExportDialog: React.FC<AbstractionExportDialogProps> = (
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     setIsImporting(true);
     setResult(null);
-
     try {
       const importResult = await importFromFile(file, { skipExisting: true });
       if (importResult.success) {
@@ -133,149 +123,142 @@ export const AbstractionExportDialog: React.FC<AbstractionExportDialogProps> = (
           message: `导入成功：${importResult.imported} 个，${importResult.skipped} 个已跳过`,
         });
       } else {
-        setResult({
-          success: false,
-          message: `导入失败: ${importResult.errors.join('; ')}`,
-        });
+        setResult({ success: false, message: `导入失败: ${importResult.errors.join('; ')}` });
       }
     } catch (err) {
       setResult({ success: false, message: `导入失败: ${err instanceof Error ? err.message : '未知错误'}` });
     } finally {
       setIsImporting(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-monokai-bg border border-monokai-accent rounded-lg w-full max-w-md overflow-hidden">
-        {/* 头部 */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-monokai-accent">
-          <h3 className="text-lg font-bold text-monokai-fg">导入/导出</h3>
-          <button
-            onClick={onClose}
-            className="p-1 rounded hover:bg-monokai-accent/30 text-monokai-comment"
+    <ModalShell
+      open={isOpen}
+      onClose={onClose}
+      title="导入 / 导出"
+      description="备份或分享抽象表 JSON"
+      icon={Download}
+      iconColor="text-monokai-amethyst"
+      size="sm"
+    >
+      <div className="space-y-4">
+        <SegmentedTabs
+          aria-label="导入导出模式"
+          value={mode}
+          onChange={value => {
+            setMode(value);
+            setResult(null);
+          }}
+          tone="amethyst"
+          size="sm"
+          items={[
+            { value: 'export' as const, label: '导出', icon: Download },
+            { value: 'import' as const, label: '导入', icon: Upload },
+          ]}
+        />
+
+        {mode === 'export' ? (
+          <div className="space-y-3">
+            <p className="text-xs text-monokai-comment leading-relaxed">
+              将抽象表导出为 JSON，可用于备份或分享。
+            </p>
+            <ActionButton
+              variant="amethyst"
+              size="sm"
+              icon={FileJson}
+              loading={isExporting}
+              onClick={handleExportFile}
+              className="w-full"
+            >
+              下载 JSON 文件
+            </ActionButton>
+            <ActionButton
+              variant="secondary"
+              size="sm"
+              icon={Clipboard}
+              loading={isExporting}
+              onClick={handleExportClipboard}
+              className="w-full"
+            >
+              复制到剪贴板
+            </ActionButton>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <p className="text-xs text-monokai-comment leading-relaxed">
+              从 JSON 文件或剪贴板导入抽象表（已存在项将跳过）。
+            </p>
+            <input
+              type="file"
+              ref={fileInputRef}
+              accept=".json"
+              onChange={handleFileChange}
+              className="hidden"
+            />
+            <ActionButton
+              variant="amethyst"
+              size="sm"
+              icon={FileJson}
+              loading={isImporting}
+              onClick={() => fileInputRef.current?.click()}
+              className="w-full"
+            >
+              选择 JSON 文件
+            </ActionButton>
+            <div className="text-center text-2xs text-monokai-comment">或</div>
+            <FormTextarea
+              value={importText}
+              onChange={e => setImportText(e.target.value)}
+              placeholder="粘贴 JSON 数据..."
+              rows={4}
+              fontVariant="mono"
+            />
+            <ActionButton
+              variant="success"
+              size="sm"
+              loading={isImporting}
+              disabled={!importText.trim()}
+              onClick={handleImportText}
+              className="w-full"
+            >
+              导入文本
+            </ActionButton>
+            <ActionButton
+              variant="secondary"
+              size="sm"
+              icon={Clipboard}
+              loading={isImporting}
+              onClick={handleImportClipboard}
+              className="w-full"
+            >
+              从剪贴板导入
+            </ActionButton>
+          </div>
+        )}
+
+        {result && (
+          <div
+            className={`flex items-center gap-2 rounded-md border p-3 ${
+              result.success
+                ? 'border-monokai-accent/30 bg-monokai-accent/10'
+                : 'border-monokai-pink/30 bg-monokai-pink/10'
+            }`}
+            role="status"
           >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Tab 切换 */}
-        <div className="flex border-b border-monokai-accent">
-          <button
-            onClick={() => { setMode('export'); setResult(null); }}
-            className={`flex-1 px-4 py-2 text-sm ${mode === 'export' ? 'text-monokai-amethyst border-b-2 border-monokai-amethyst' : 'text-monokai-comment hover:text-monokai-fg'}`}
-          >
-            <Download className="w-4 h-4 inline mr-1" />
-            导出
-          </button>
-          <button
-            onClick={() => { setMode('import'); setResult(null); }}
-            className={`flex-1 px-4 py-2 text-sm ${mode === 'import' ? 'text-monokai-amethyst border-b-2 border-monokai-amethyst' : 'text-monokai-comment hover:text-monokai-fg'}`}
-          >
-            <Upload className="w-4 h-4 inline mr-1" />
-            导入
-          </button>
-        </div>
-
-        {/* 内容 */}
-        <div className="p-4">
-          {mode === 'export' ? (
-            <div className="space-y-3">
-              <p className="text-sm text-monokai-comment">
-                将抽象表导出为 JSON 格式，可以备份或分享给其他人。
-              </p>
-
-              <button
-                onClick={handleExportFile}
-                disabled={isExporting}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-monokai-amethyst text-white rounded-lg text-sm hover:bg-monokai-amethyst/80 disabled:opacity-50"
-              >
-                <FileJson className="w-4 h-4" />
-                {isExporting ? '导出中...' : '下载 JSON 文件'}
-              </button>
-
-              <button
-                onClick={handleExportClipboard}
-                disabled={isExporting}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-monokai-blue/20 text-monokai-blue rounded-lg text-sm hover:bg-monokai-blue/30 disabled:opacity-50"
-              >
-                <Clipboard className="w-4 h-4" />
-                复制到剪贴板
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <p className="text-sm text-monokai-comment">
-                从 JSON 文件或剪贴板导入抽象表。
-              </p>
-
-              <input
-                type="file"
-                ref={fileInputRef}
-                accept=".json"
-                onChange={handleFileChange}
-                className="hidden"
-              />
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isImporting}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-monokai-amethyst text-white rounded-lg text-sm hover:bg-monokai-amethyst/80 disabled:opacity-50"
-              >
-                <FileJson className="w-4 h-4" />
-                {isImporting ? '导入中...' : '选择 JSON 文件'}
-              </button>
-
-              <div className="text-center text-xs text-monokai-comment">或</div>
-
-              <textarea
-                value={importText}
-                onChange={(e) => setImportText(e.target.value)}
-                placeholder="粘贴 JSON 数据..."
-                rows={4}
-                className="w-full px-3 py-2 text-sm bg-monokai-sidebar border border-monokai-accent rounded-lg text-monokai-fg placeholder-monokai-comment focus:outline-none focus:border-monokai-amethyst resize-none"
-              />
-              <button
-                onClick={handleImportText}
-                disabled={isImporting || !importText.trim()}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-monokai-green/20 text-monokai-green rounded-lg text-sm hover:bg-monokai-green/30 disabled:opacity-50"
-              >
-                导入文本
-              </button>
-
-              <button
-                onClick={handleImportClipboard}
-                disabled={isImporting}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-monokai-accent/20 text-monokai-comment rounded-lg text-sm hover:text-monokai-fg disabled:opacity-50"
-              >
-                <Clipboard className="w-4 h-4" />
-                从剪贴板导入
-              </button>
-            </div>
-          )}
-
-          {/* 结果 */}
-          {result && (
-            <div className={`mt-4 p-3 rounded-lg flex items-center gap-2 ${
-              result.success ? 'bg-monokai-green/10 border border-monokai-green/30' : 'bg-monokai-red/10 border border-monokai-red/30'
-            }`}>
-              {result.success ? (
-                <Check className="w-4 h-4 text-monokai-green flex-shrink-0" />
-              ) : (
-                <AlertCircle className="w-4 h-4 text-monokai-red flex-shrink-0" />
-              )}
-              <p className={`text-xs ${result.success ? 'text-monokai-green' : 'text-monokai-red'}`}>
-                {result.message}
-              </p>
-            </div>
-          )}
-        </div>
+            {result.success ? (
+              <Check className="h-4 w-4 shrink-0 text-monokai-accent" aria-hidden="true" />
+            ) : (
+              <AlertCircle className="h-4 w-4 shrink-0 text-monokai-pink" aria-hidden="true" />
+            )}
+            <p className={`text-xs ${result.success ? 'text-monokai-accent' : 'text-monokai-pink'}`}>
+              {result.message}
+            </p>
+          </div>
+        )}
       </div>
-    </div>
+    </ModalShell>
   );
 };
 
