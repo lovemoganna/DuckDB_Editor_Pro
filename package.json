@@ -17,7 +17,8 @@
     "test": "vitest",
     "test:run": "vitest run --pool=threads --maxWorkers=1 --no-file-parallelism",
     "test:coverage": "vitest run --coverage --pool=threads --maxWorkers=1 --no-file-parallelism",
-    "check": "pnpm audit --prod && pnpm typecheck && pnpm test:run && pnpm build"
+    "audit:gitignore": "node scripts/audit-gitignore.mjs",
+    "check": "pnpm audit:gitignore && pnpm audit --prod && pnpm typecheck && pnpm test:run && pnpm build"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.3",

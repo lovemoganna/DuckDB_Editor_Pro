@@ -1,5 +1,34 @@
-# Logs
-logs
+# =============================================================================
+# DuckDB Manager Pro — .gitignore
+# Keep this file committed. It is the shared ignore contract for every clone.
+# After changing rules, run: pnpm audit:gitignore
+# =============================================================================
+
+# ----- Dependencies -----
+node_modules/
+.pnpm-store/
+.pnp
+.pnp.js
+.pnp.cjs
+
+# ----- Build / cache / coverage -----
+dist/
+dist-ssr/
+build/
+.vite/
+.cache/
+.turbo/
+*.tsbuildinfo
+.eslintcache
+coverage/
+coverage-ts/
+*.local
+
+# Vite timestamp configs
+vite.config.*.timestamp-*
+
+# ----- Logs -----
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -7,30 +36,41 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
+# ----- Package managers (this repo uses pnpm; keep pnpm-lock.yaml) -----
+package-lock.json
+yarn.lock
+npm-shrinkwrap.json
 
-# Editor directories and files
+# ----- Environment / secrets -----
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# ----- Editors / OS -----
 .vscode/*
 !.vscode/extensions.json
-.idea
+.idea/
 .DS_Store
+Thumbs.db
+Desktop.ini
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+*~
 
-# Cursor IDE
+# ----- Cursor / local agent tooling -----
 .cursor/
 .cursor/**
-
-# Playwright MCP
+.gstack/
 .playwright-mcp/
+playwright-report/
+test-results/
+blob-report/
 
-# Temporary files
+# ----- Local scratch / backups / QA dumps -----
 tmp/
 backup-*/
 output/
@@ -51,17 +91,16 @@ interaction-audit.json
 public/wasm/
 public/duckdb-wasm/
 
-# Environment variables
-.env
-.env.local
-.env.*.local
+# Accidental Vite build output at repo root
+/assets/
 
-# Package lock (use pnpm-lock.yaml or yarn.lock instead)
-# package-lock.json
-# package-lock.json should be committed for applications to ensure deterministic builds
-
-# DuckDB database files
+# ----- DuckDB database files -----
 *.db
 *.duckdb
 *.wal
-.gstack/
+
+# ----- Certificates / private keys (never commit) -----
+*.pem
+*.p12
+*.pfx
+*.key
