@@ -140,7 +140,7 @@ export const SchemaInferencePanel: React.FC<SchemaInferencePanelProps> = ({ tabl
         const rows = await duckSvc.query(`SELECT * FROM "${tableName}"`);
         console.log(`[SchemaInference] Table "${tableName}": ${rows.length} rows fetched`);
         if (rows.length === 0) {
-          batchObjects.push({ name: `来自「${tableName}」的记录（暂无数据）`, objectTypeId, properties: JSON.stringify({ _sourceTable: tableName, _placeholder: true }) });
+          batchObjects.push({ name: `来自「${tableName}」的记录（暂无数据）`, objectTypeId: objTypeId, properties: JSON.stringify({ _sourceTable: tableName, _placeholder: true }) });
         }
         for (const row of rows) {
           const pkCol = Object.keys(row).find(k => k.toLowerCase().includes('id') || k.toLowerCase() === 'name');
@@ -150,12 +150,12 @@ export const SchemaInferencePanel: React.FC<SchemaInferencePanelProps> = ({ tabl
             if (k === 'id' || k === 'name' || k === 'title' || k === 'label') continue;
             if (v !== null && v !== undefined) props[k] = v;
           }
-          batchObjects.push({ name: String(name), objectTypeId, properties: JSON.stringify(props) });
+          batchObjects.push({ name: String(name), objectTypeId: objTypeId, properties: JSON.stringify(props) });
         }
         console.log(`[SchemaInference] Queued ${rows.length} objects for table "${tableName}"`);
       } catch (err: any) {
         console.error(`[SchemaInference] Failed to read table "${tableName}":`, err.message);
-        batchObjects.push({ name: `来自「${tableName}」（读取失败）`, objectTypeId, properties: JSON.stringify({ _sourceTable: tableName, _error: err.message }) });
+        batchObjects.push({ name: `来自「${tableName}」（读取失败）`, objectTypeId: objTypeId, properties: JSON.stringify({ _sourceTable: tableName, _error: err.message }) });
       }
     }
 
@@ -231,9 +231,11 @@ export const SchemaInferencePanel: React.FC<SchemaInferencePanelProps> = ({ tabl
       if (suggestions.length > 0) {
         setEditingOt(prev => {
           const next = { ...prev };
-          for (const sug of suggestions.slice(0, 5)) {
-            const key = Object.keys(prev).find(k => k.startsWith(sug.id.replace(/[^0-9]/g, '')));
-            if (key) next[key] = { name: sug.name, description: sug.description };
+          for (const [index, suggestion] of suggestions.filter(item => item.type === 'object').slice(0, 5).entries()) {
+            const objectType = inferred.objectTypes[index];
+            if (objectType) {
+              next[objectType.id] = { name: suggestion.title, description: suggestion.description };
+            }
           }
           return next;
         });
@@ -248,7 +250,7 @@ export const SchemaInferencePanel: React.FC<SchemaInferencePanelProps> = ({ tabl
   if (loading) {
     return (
       <div className="fixed inset-0 z-[500] flex items-center justify-center bg-black/70 backdrop-blur-sm">
-        <div className="w-[640px] max-h-[80vh] bg-monokai-bg border border-monokai-border/80 rounded-xl flex flex-col">
+        <div className="w-[640px] max-w-[calc(100vw-16px)] max-h-[80vh] bg-monokai-bg border border-monokai-border/80 rounded-xl flex flex-col">
           <div className="flex items-center gap-3 px-5 py-4 border-b border-monokai-border/50">
             <Loader2 className="w-4 h-4 animate-spin text-monokai-cyan" />
             <span className="text-sm text-monokai-comment">正在分析 {tables.length} 张表，推断概念和关系...</span>
@@ -261,7 +263,7 @@ export const SchemaInferencePanel: React.FC<SchemaInferencePanelProps> = ({ tabl
   if (!inferred) {
     return (
       <div className="fixed inset-0 z-[500] flex items-center justify-center bg-black/70 backdrop-blur-sm">
-        <div className="w-[640px] bg-monokai-bg border border-monokai-border/80 rounded-xl p-5">
+        <div className="w-[640px] max-w-[calc(100vw-16px)] bg-monokai-bg border border-monokai-border/80 rounded-xl p-5">
           <div className="flex items-center gap-3 text-monokai-orange">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span className="text-sm">{error || '推断失败'}</span>
@@ -276,7 +278,7 @@ export const SchemaInferencePanel: React.FC<SchemaInferencePanelProps> = ({ tabl
 
   return (
     <div className="fixed inset-0 z-[500] flex items-center justify-center bg-black/70 backdrop-blur-sm">
-      <div className="w-[760px] max-h-[88vh] bg-monokai-bg border border-monokai-border/80 rounded-xl flex flex-col">
+      <div className="w-[760px] max-w-[calc(100vw-16px)] max-h-[88vh] bg-monokai-bg border border-monokai-border/80 rounded-xl flex flex-col">
 
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-monokai-border/50 shrink-0">
@@ -331,7 +333,7 @@ export const SchemaInferencePanel: React.FC<SchemaInferencePanelProps> = ({ tabl
             title="让 AI 根据表名语义自动优化推断的名称和描述"
             className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px]
               bg-monokai-amethyst/10 text-monokai-amethyst border border-monokai-amethyst/20
-              hover:bg-monokai-amethyst/20 hover:border-monokai-amethyst/30 transition-all
+              hover:bg-monokai-amethyst/20 hover:border-monokai-border-strong transition-all
               disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {aiEnhancing
@@ -345,7 +347,7 @@ export const SchemaInferencePanel: React.FC<SchemaInferencePanelProps> = ({ tabl
             disabled={importing || objectTypes.length === 0}
             className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-[11px] font-medium
               bg-monokai-cyan/15 text-monokai-cyan border border-monokai-cyan/25
-              hover:bg-monokai-cyan/25 hover:border-monokai-cyan/40 transition-all
+              hover:bg-monokai-cyan/25 hover:border-monokai-border-strong transition-all
               disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {importing
@@ -401,7 +403,7 @@ export const SchemaInferencePanel: React.FC<SchemaInferencePanelProps> = ({ tabl
                               ...prev,
                               [ot.id]: { ...(prev[ot.id] || ot), name: e.target.value }
                             }))}
-                            className="text-[12px] font-medium text-monokai-fg bg-transparent border-b border-transparent focus:border-monokai-amethyst/60 outline-none w-full min-w-0"
+                            className="text-[12px] font-medium text-monokai-fg bg-transparent border-b border-transparent focus:border-monokai-accent outline-none w-full min-w-0"
                             placeholder="概念名称"
                           />
                           <ConfidenceBadge confidence={ot.confidence} />
@@ -459,7 +461,7 @@ export const SchemaInferencePanel: React.FC<SchemaInferencePanelProps> = ({ tabl
                               ...prev,
                               [lt.id]: { ...(prev[lt.id] || lt), name: e.target.value }
                             }))}
-                            className="text-[13px] font-medium text-monokai-green bg-transparent border-b border-transparent focus:border-monokai-green/60 outline-none flex-1 min-w-0"
+                            className="text-[13px] font-medium text-monokai-green bg-transparent border-b border-transparent focus:border-monokai-accent outline-none flex-1 min-w-0"
                             placeholder="关系名称"
                           />
                           <ChevronRight className="w-2.5 h-2.5 text-monokai-comment shrink-0" />

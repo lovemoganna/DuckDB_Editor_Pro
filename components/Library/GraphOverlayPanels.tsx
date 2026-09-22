@@ -21,7 +21,7 @@ const C = {
   green: '#a6e22e',
   yel:   '#e6db74',
   orange:'#fd971f',
-  pur:   '#ae81ff',
+  cyan:  '#66d9ef',
   pink:  '#f92672',
 } as const;
 
@@ -662,7 +662,7 @@ export const GraphStatsPanel: React.FC<GraphStatsPanelProps> = ({ stats, infoCon
 
 // ── GraphLegend ─────────────────────────────────────────────────────────────
 
-const NODE_COLORS = ['#c77dff', '#a070d0', '#fd971f', '#ae81ff', '#e6db74', '#a6e22e', '#66d9ef'];
+const NODE_COLORS = ['#66d9ef', '#38bdf8', '#fd971f', '#f92672', '#e6db74', '#a6e22e', '#4ade80'];
 const LINK_COLORS = ['#909090', '#ff5a8a'];
 
 interface GraphLegendProps { onClose: () => void; }
@@ -827,7 +827,7 @@ export const GraphContextMenu: React.FC<GraphContextMenuProps> = ({
       </button>
       {node.group === 'typeHub' && (
         <button onClick={onToggleTypeHubCollapse}
-          style={{ ...btnStyle, color: isTypeHubCollapsed ? C.orange : C.pur }}
+          style={{ ...btnStyle, color: isTypeHubCollapsed ? C.orange : C.cyan }}
           onMouseEnter={e => (e.currentTarget.style.background = 'rgba(62,61,50,0.4)')}
           onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
           {isTypeHubCollapsed ? '展开' : '折叠'}实例 ({(node as any)._instanceCount || 0})

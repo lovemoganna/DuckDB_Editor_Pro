@@ -55,18 +55,18 @@ export class ErrorBoundary extends Component<Props, State> {
           justifyContent: 'center',
           minHeight: 200,
           padding: 32,
-          background: '#1e1f1c',
-          color: '#f8f8f2',
+          background: 'var(--monokai-bg)',
+          color: 'var(--monokai-fg)',
           fontFamily: "'JetBrains Mono', monospace",
         }}>
           <AlertTriangle
             className="w-10 h-10 mb-4"
-            style={{ color: '#f92672' }}
+            style={{ color: 'var(--monokai-pink)' }}
           />
-          <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 8, color: '#f92672' }}>
+          <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 8, color: 'var(--monokai-pink)' }}>
             {this.props.section ? `Error in ${this.props.section}` : 'Something went wrong'}
           </h2>
-          <p style={{ fontSize: 12, color: '#75715e', marginBottom: 16, maxWidth: 480, textAlign: 'center' }}>
+          <p style={{ fontSize: 12, color: 'var(--monokai-comment)', marginBottom: 16, maxWidth: 480, textAlign: 'center' }}>
             {this.state.error?.message || 'An unexpected error occurred. The application is still running — this component just needs a refresh.'}
           </p>
           <button
@@ -76,10 +76,10 @@ export class ErrorBoundary extends Component<Props, State> {
               alignItems: 'center',
               gap: 6,
               padding: '8px 20px',
-              background: '#272822',
-              border: '1px solid #49483e',
+              background: 'var(--monokai-elevated)',
+              border: '1px solid var(--monokai-border-strong)',
               borderRadius: 6,
-              color: '#a6e22e',
+              color: 'var(--monokai-accent)',
               fontSize: 12,
               fontWeight: 600,
               cursor: 'pointer',
@@ -91,13 +91,13 @@ export class ErrorBoundary extends Component<Props, State> {
           </button>
           {import.meta.env.DEV && this.state.error?.stack && (
             <details style={{ marginTop: 16, maxWidth: 600, textAlign: 'left' }}>
-              <summary style={{ cursor: 'pointer', color: '#75715e', fontSize: 11, marginBottom: 8 }}>
+              <summary style={{ cursor: 'pointer', color: 'var(--monokai-comment)', fontSize: 11, marginBottom: 8 }}>
                 Stack trace
               </summary>
               <pre style={{
                 fontSize: 10,
-                color: '#f92672',
-                background: '#0d0d0d',
+                color: 'var(--monokai-pink)',
+                background: 'var(--monokai-bg)',
                 padding: 12,
                 borderRadius: 6,
                 overflow: 'auto',

@@ -18,6 +18,8 @@ import {
   CheckCircle,
   AlertCircle,
   Loader2,
+  Code,
+  Play,
 } from 'lucide-react';
 import { useAnalysisHubStore } from '../../hooks/store/analysisHubStore';
 import { useAbstractionSandbox } from '../../hooks/useAbstractionSandbox';
@@ -25,6 +27,8 @@ import { SandboxEditor } from './SandboxEditor';
 import { SandboxResults } from './SandboxResults';
 import { SandboxAIPanel } from './SandboxAIPanel';
 import { VersionHistoryPanel } from './VersionHistoryPanel';
+import { saveCustomSqlTemplate } from '../../services/sqlTemplatesStorage';
+import { toastService } from '../../services/toastService';
 
 interface AbstractionLabProps {
   initialSql?: string;
@@ -52,6 +56,7 @@ export const AbstractionLab: React.FC<AbstractionLabProps> = ({
   const domains = useAnalysisHubStore(s => s.domains);
 
   const {
+    handleExecute,
     handleClearDraft,
     saveVersion,
     getVersions,
@@ -63,9 +68,41 @@ export const AbstractionLab: React.FC<AbstractionLabProps> = ({
     if (initialSql) setSandboxSql(initialSql);
   }, [initialSql, setSandboxSql]);
 
+  const handleExecuteTest = async () => {
+    if (!sandboxSql.trim() || isGenerating) return;
+    setSandboxTab('results');
+    await handleExecute();
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        void handleExecuteTest();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [sandboxSql, isGenerating]);
+
   const handleSaveTemplate = async () => {
     if (!saveName.trim()) return;
     await useAnalysisHubStore.getState().saveSandboxAsTemplate(saveName.trim(), saveDomain);
+    
+    // Also sync to global custom SQL templates storage
+    saveCustomSqlTemplate({
+      id: `lab_tpl_${Date.now().toString(36)}`,
+      title: saveName.trim(),
+      category: 'basic_query',
+      categoryLabel: '🧪 实验台沉淀',
+      purpose: `由 Abstraction 实验台创建并归集的 SQL 模板 (${saveDomain})`,
+      keyParameters: ['{table_name}', '{column_name}'],
+      sqlExample: sandboxSql,
+      tags: ['实验台', saveDomain],
+      isSystem: false,
+      createdAt: Date.now(),
+    });
+
     setShowSaveDialog(false);
     setSaveName('');
   };
@@ -137,6 +174,17 @@ export const AbstractionLab: React.FC<AbstractionLabProps> = ({
 
           <div className="w-px h-4 bg-monokai-border" />
 
+          {/* 运行测试 */}
+          <button
+            onClick={handleExecuteTest}
+            disabled={!sandboxSql.trim() || isGenerating}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-md bg-monokai-green text-monokai-bg hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer shadow-xs active:scale-95"
+            title="快捷运行实验台 SQL (Ctrl/Cmd + Enter)"
+          >
+            <Play className="w-3.5 h-3.5 fill-current" />
+            运行测试
+          </button>
+
           {/* 版本历史 */}
           <button
             onClick={() => setShowVersions(!showVersions)}
@@ -157,11 +205,27 @@ export const AbstractionLab: React.FC<AbstractionLabProps> = ({
             )}
           </button>
 
+          {/* 带入主编辑器 */}
+          <button
+            onClick={() => {
+              if (!sandboxSql.trim()) return;
+              if (onInsertSql) {
+                onInsertSql(sandboxSql);
+                toastService.success('已将实验台 SQL 成功带入主编辑器');
+              }
+            }}
+            disabled={!sandboxSql.trim()}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-md bg-monokai-amethyst text-monokai-bg hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer shadow-xs active:scale-95"
+          >
+            <Code className="w-3.5 h-3.5" />
+            带入主编辑器
+          </button>
+
           {/* 保存模板 */}
           <button
             onClick={() => setShowSaveDialog(true)}
             disabled={!sandboxSql.trim()}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-monokai-blue text-white hover:bg-monokai-blue/80 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-monokai-blue text-white hover:bg-monokai-blue/80 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
           >
             <Save className="w-3.5 h-3.5" />
             保存模板
@@ -170,7 +234,7 @@ export const AbstractionLab: React.FC<AbstractionLabProps> = ({
           {/* 清空 */}
           <button
             onClick={handleClearDraft}
-            className="p-1.5 rounded-md text-monokai-fg-muted hover:text-monokai-fg hover:bg-monokai-bg transition-colors"
+            className="p-1.5 rounded-md text-monokai-fg-muted hover:text-monokai-fg hover:bg-monokai-bg transition-colors cursor-pointer"
             title="清空"
           >
             <RotateCcw className="w-3.5 h-3.5" />

@@ -174,10 +174,10 @@ export const CustomAssertionPanel: React.FC<CustomAssertionPanelProps> = ({
                 <button
                   key={template.id}
                   onClick={() => handleTemplateSelect(template)}
-                  className={`p-3 rounded-lg border text-left transition-all ${
+                  className={`p-3 rounded-lg border text-left transition-all cursor-pointer ${
                     selectedTemplate?.id === template.id
-                      ? 'border-monokai-red bg-monokai-red/10'
-                      : 'border-monokai-border hover:border-monokai-red bg-monokai-surface'
+                      ? 'border-monokai-accent bg-monokai-accent/10 text-monokai-fg'
+                      : 'border-monokai-border hover:border-monokai-accent/60 bg-monokai-surface'
                   }`}
                 >
                   <div className="flex items-center gap-2 mb-1">
@@ -193,7 +193,7 @@ export const CustomAssertionPanel: React.FC<CustomAssertionPanelProps> = ({
           {selectedTemplate && (
             <div className="p-3 bg-monokai-surface rounded-lg border border-monokai-border mb-3">
               <div className="text-xs font-bold text-monokai-fg mb-2">
-                配置 {selectedTemplate.name}
+                配置参数: {selectedTemplate.name}
               </div>
 
               {/* Column Selector (if needed) */}
@@ -203,7 +203,7 @@ export const CustomAssertionPanel: React.FC<CustomAssertionPanelProps> = ({
                   <select
                     value={selectedColumn}
                     onChange={(e) => setSelectedColumn(e.target.value)}
-                    className="w-full px-2 py-1.5 text-xs border border-monokai-accent rounded-lg bg-monokai-bg text-monokai-fg"
+                    className="w-full px-2 py-1.5 text-xs border border-monokai-border rounded-lg bg-monokai-bg text-monokai-fg focus:border-monokai-accent focus:outline-none transition-colors"
                   >
                     <option value="">选择字段...</option>
                     {columns.map(col => (
@@ -226,7 +226,7 @@ export const CustomAssertionPanel: React.FC<CustomAssertionPanelProps> = ({
                         type="number"
                         value={templateParams[param.name] || ''}
                         onChange={(e) => setTemplateParams({ ...templateParams, [param.name]: e.target.value })}
-                        className="w-full px-2 py-1.5 text-xs border border-monokai-accent rounded-lg bg-monokai-bg text-monokai-fg"
+                        className="w-full px-2 py-1.5 text-xs border border-monokai-border rounded-lg bg-monokai-bg text-monokai-fg focus:border-monokai-accent focus:outline-none transition-colors"
                         placeholder={param.default ? String(param.default) : ''}
                       />
                     ) : (
@@ -234,7 +234,7 @@ export const CustomAssertionPanel: React.FC<CustomAssertionPanelProps> = ({
                         type="text"
                         value={templateParams[param.name] || ''}
                         onChange={(e) => setTemplateParams({ ...templateParams, [param.name]: e.target.value })}
-                        className="w-full px-2 py-1.5 text-xs border border-monokai-accent rounded-lg bg-monokai-bg text-monokai-fg"
+                        className="w-full px-2 py-1.5 text-xs border border-monokai-border rounded-lg bg-monokai-bg text-monokai-fg focus:border-monokai-accent focus:outline-none transition-colors"
                         placeholder={param.default ? String(param.default) : ''}
                       />
                     )}
@@ -310,8 +310,8 @@ export const CustomAssertionPanel: React.FC<CustomAssertionPanelProps> = ({
                           </span>
                         )}
                         {status === 'running' && (
-                          <span className="flex items-center gap-1 px-2 py-0.5 bg-monokai-blue/20 text-monokai-blue text-[10px] font-bold rounded">
-                            <div className="w-3 h-3 border-2 border-monokai-blue border-t-transparent rounded-full animate-spin" />
+                          <span className="flex items-center gap-1 px-2 py-0.5 bg-monokai-accent/15 text-monokai-accent text-[10px] font-bold rounded">
+                            <div className="w-3 h-3 border-2 border-monokai-accent border-t-transparent rounded-full animate-spin" />
                             运行中
                           </span>
                         )}
@@ -343,7 +343,7 @@ export const CustomAssertionPanel: React.FC<CustomAssertionPanelProps> = ({
 
                     <p className="text-[10px] text-monokai-comment mb-2">{assertion.description}</p>
                     
-                    <pre className="text-[10px] font-mono bg-slate-900 text-slate-300 p-2 rounded overflow-x-auto">
+                    <pre className="text-[10px] font-mono bg-monokai-sidebar text-monokai-fg-muted p-2 rounded overflow-x-auto">
                       {assertion.sql}
                     </pre>
                   </div>

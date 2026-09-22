@@ -60,7 +60,7 @@ export const getNodeFillColor = (d: GraphNode): string => {
   const typeName = (d._typeName || '').toLowerCase();
   const label = (d.label || '').toLowerCase();
 
-  if (d.group === 'typeHub') return d.color || '#ae81ff';
+  if (d.group === 'typeHub') return d.color || '#66d9ef';
   if (d.group === 'action') return '#3b82f6';
 
   if (typeName.includes('host') || typeName.includes('主机') || label.includes('host') || label.includes('192.168.')) {

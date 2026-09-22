@@ -60,7 +60,7 @@ const SCHEMA_GUIDE = `JSON 必须符合以下结构：
   "externalMappings": [{"id":"M1","targetKind":"feature|relation","targetId":"F1 或 R1","sourceId":"S1","correspondingObject":"对应对象","correspondingContent":"对应内容","matchLevel":"直接对应|高度匹配|部分匹配|仅相关|无法确认","basis":{"quote":"用户依据中的连续原文；无法确认时可省略"},"validationNote":"对象、特征、关系、条件、范围、时间的反向校验说明"}],
   "punchline": {"text":"1至2句话解释组合为何形成该语义","supportingFeatureIds":["F1"],"supportingRelationIds":["R1"]}
 }
-不要输出 validation，它由本地校验器产生。公共属性上提到 contexts，不要复制成多个 Feature。外部映射未请求时必须为空数组。`;
+不要输出 validation，它由本地校验器产生。公共属性上提到 contexts，不要复制成多个 Feature。外部映射未请求时必须为空数组。注意：每个特征必须指明 classification，严格取英文 "fact"（客观事实/属性/数值/状态）或 "judgment"（推论/判断/规则结论/允许）；relations 中的 fromFeatureIds 和 toFeatureIds 必须是字符串数组且只能引用 features 中已声明的特征 ID（如 ["F1"]，切勿使用单个字符串或未声明的 ID）；structure 必须是一个单独的对象（不能是数组），根节点 type 为 operator 或 conditional（条件节点必须用 conditional，不要用 condition），每个节点均需包含 id、label 和 children。coreMeaning 和 punchline 的陈述必须紧扣输入事实与支持项。`;
 
 function sourcePrompt(request: DeductionRequest): string {
   if (!request.externalMappingRequested) return '外部映射：未请求。';
@@ -79,10 +79,20 @@ function auditPrompt(request: DeductionRequest, draft: unknown): string {
 }
 
 function repairPrompt(request: DeductionRequest, candidate: unknown, issues: string[]): string {
-  return `${SCHEMA_GUIDE}\n\n本地证据校验发现以下错误：\n- ${issues.join('\n- ')}\n请只修正这些错误，返回完整 JSON。不得删除输入明确表达的事实来逃避校验。\n\n原始输入：\n${request.input}\n\n${sourcePrompt(request)}\n\n待修复结果：\n${JSON.stringify(candidate)}`;
+  const issueGuidance: string[] = [];
+  if (issues.some(i => i.includes('未区分事实与判断'))) {
+    issueGuidance.push('【重要】每个特征的 "classification" 必须严格取英文 "fact"（客观事实、属性、条件、状态）或 "judgment"（判定、推论、规则结论、允许）。');
+  }
+  if (issues.some(i => i.includes('引用不存在的特征'))) {
+    issueGuidance.push('【重要】每个关系的 "fromFeatureIds" 与 "toFeatureIds" 必须是字符串数组，且其中的每个 ID 必须在 features 列表中已明确声明（如 ["F1"]、["F2"]），绝不能引用不存在的特征 ID 或使用单个字符串。');
+  }
+  const guidanceText = issueGuidance.length > 0 ? `\n专项修复指导：\n${issueGuidance.join('\n')}\n` : '';
+
+  return `${SCHEMA_GUIDE}\n\n本地证据校验发现以下错误：\n- ${issues.join('\n- ')}${guidanceText}\n请只修正这些错误，返回完整 JSON。不得删除输入明确表达的事实来逃避校验。注意：structure 根节点必须为单个对象，节点类型必须取 feature|relation|context|operator|conditional 之一。\n\n原始输入：\n${request.input}\n\n${sourcePrompt(request)}\n\n待修复结果：\n${JSON.stringify(candidate)}`;
 }
 
 function parseJson(raw: string): unknown {
+  if (typeof raw !== 'string') throw new DeductionValidationError(['AI 未返回有效的 JSON 字符串']);
   const cleaned = raw.replace(/```json/gi, '').replace(/```/g, '').trim();
   const first = cleaned.indexOf('{');
   const last = cleaned.lastIndexOf('}');
@@ -117,44 +127,212 @@ const nodeTypes = new Set(['feature', 'relation', 'context', 'operator', 'condit
 const nodeOperators = new Set(['AND', 'OR', 'NOT', 'IF', 'THEN']);
 const mappingLevels = new Set(['直接对应', '高度匹配', '部分匹配', '仅相关', '无法确认']);
 
-const CLAIM_GLUE = /对象|属性|行为|动作|状态|条件|结果|事实|判断|输入|原文|存在|表示|表达|明确|共同|构成|组合|满足|通过|属于|包含|关系|发生|形成|位于|的是|中的|这个|该|其|一个|一种|为|是|有|由|与|和|且|在|时|可|需|的|了|来自|and|or|the|is|are|has|have|with/gi;
+const kindMap: Record<string, AtomicFeature['kind']> = {
+  entity: 'entity', '实体': 'entity', '对象': 'entity',
+  attribute: 'attribute', '属性': 'attribute',
+  action: 'action', '动作': 'action', '行为': 'action',
+  state: 'state', '状态': 'state',
+  value: 'value', '数值': 'value', '值': 'value',
+  time: 'time', '时间': 'time',
+  space: 'space', '空间': 'space', '地点': 'space', '位置': 'space',
+  quantity: 'quantity', '数量': 'quantity',
+  metric: 'metric', '指标': 'metric',
+  condition: 'condition', '条件': 'condition',
+  event: 'event', '事件': 'event',
+  constraint: 'constraint', '约束': 'constraint',
+  result: 'result', '结果': 'result', '结论': 'result',
+  other: 'other', '其他': 'other',
+};
 
-function hasUnsupportedClaimText(statement: string, evidence: EvidenceAnchor[]): boolean {
-  const evidenceText = evidence.map(item => item.quote).join('').toLowerCase();
-  const compactChinese = statement.replace(/[a-z0-9_]+/gi, '').replace(CLAIM_GLUE, '').replace(/[\s\p{P}\p{S}]/gu, '');
-  const chinese = compactChinese.match(/[\u3400-\u9fff]/g) ?? [];
-  if (chinese.some(character => !evidenceText.includes(character))) return true;
-  const words = (statement.toLowerCase().match(/[a-z][a-z0-9_]*/g) ?? []).filter(word => !['and', 'or', 'the', 'is', 'are', 'has', 'have', 'with'].includes(word));
+function normalizeClassification(
+  rawClassification: unknown,
+  kind?: string,
+  statement?: string,
+): AtomicFeature['classification'] | null {
+  if (typeof rawClassification === 'string') {
+    const c = rawClassification.trim().toLowerCase();
+    if (c === 'fact' || c === '事实' || c === '客观事实' || c === 'observation' || c === 'true') {
+      return 'fact';
+    }
+    if (
+      c === 'judgment' ||
+      c === 'judgement' ||
+      c === '判断' ||
+      c === '推断' ||
+      c === '结论' ||
+      c === '观点' ||
+      c === '主观判断' ||
+      c === 'conclusion'
+    ) {
+      return 'judgment';
+    }
+  }
+  const text = (statement || '').toLowerCase();
+  const judgmentKeywords = [
+    '可以', '应当', '必须', '建议', '认定', '判定', '结论',
+    '允许', '合格', '不合格', '有效', '无效', '风险', '优', '劣', '可能', '意味着',
+  ];
+  if (kind === 'result' || kind === 'constraint' || judgmentKeywords.some(kw => text.includes(kw))) {
+    return 'judgment';
+  }
+  if (kind && (featureKinds.has(kind) || kindMap[kind])) {
+    return 'fact';
+  }
+  return null;
+}
+
+function resolveSingleFeatureId(
+  target: unknown,
+  featureIds: Set<string>,
+  features: AtomicFeature[],
+): string | null {
+  if (target === undefined || target === null) return null;
+  const rawStr = String(target).trim();
+  if (!rawStr) return null;
+
+  if (featureIds.has(rawStr)) return rawStr;
+
+  const lower = rawStr.toLowerCase();
+  for (const id of featureIds) {
+    if (id.toLowerCase() === lower) return id;
+  }
+
+  const numMatch = rawStr.match(/^(?:f(?:eature)?[-_]?)?0*(\d+)$/i);
+  if (numMatch) {
+    const num = numMatch[1];
+    for (const id of featureIds) {
+      const idNumMatch = id.match(/^(?:f(?:eature)?[-_]?)?0*(\d+)$/i);
+      if (idNumMatch && idNumMatch[1] === num) return id;
+    }
+  }
+
+  for (const f of features) {
+    if (f.statement === rawStr || f.entity === rawStr) return f.id;
+    if (f.evidence.some(e => e.quote === rawStr || (e.quote.length >= 2 && rawStr.includes(e.quote)))) {
+      return f.id;
+    }
+  }
+
+  return null;
+}
+
+function extractEndpointIds(
+  raw: Record<string, unknown>,
+  primaryKey: string,
+  aliasKeys: string[],
+): unknown[] {
+  for (const key of [primaryKey, ...aliasKeys]) {
+    const val = raw[key];
+    if (val !== undefined && val !== null) {
+      if (Array.isArray(val)) return val;
+      if (typeof val === 'string' || typeof val === 'number') {
+        const str = String(val).trim();
+        if (str.includes(',')) return str.split(',').map(s => s.trim()).filter(Boolean);
+        if (str.includes('、')) return str.split('、').map(s => s.trim()).filter(Boolean);
+        return [str];
+      }
+    }
+  }
+  return [];
+}
+
+const UNIVERSAL_META_PHRASES = [
+  '对象', '实体', '属性', '行为', '动作', '状态', '条件', '结果', '事实', '判断', '数值', '时间', '空间', '数量', '指标', '约束', '事件', '输入', '原文', '表达', '观点', '描述', '说明', '定义', '设置', '层级', '阶段',
+  '位于', '处于', '存在', '属于', '包含', '包括', '构成', '组合', '满足', '通过', '发生', '形成', '表示', '表达', '明确', '共同',
+  '的是', '中的', '这个', '该', '其', '一个', '一种', '为', '是', '有', '由', '与', '和', '且', '在', '时', '可', '需', '的', '了', '来自',
+  '因此', '因而', '所以', '由此', '故', '促成', '基于', '根据', '依据', '按照',
+  '只要', '只有', '除非', '如果', '那么', '若', '则', '即', '便', '方可', '即可', '允许', '予以', '能够', '可以',
+  '要求', '规则', '具备', '具有', '符合', '达成', '达到', '成立', '生效', '触发', '前置', '充分', '必要',
+  '核心', '语义', '解读', '一针见血', '逻辑', '总结', '综上', '整体', '上述', '意味', '意味着', '对应', '关联',
+  '同时', '并且', '以及', '两者', '各个', '各项', '所有', '全部', '作为', '进行', '产生', '最终',
+  'entity', 'attribute', 'action', 'state', 'value', 'time', 'space', 'quantity', 'metric', 'condition', 'event', 'constraint', 'result', 'statement', 'fact', 'judgment',
+  'located', 'situated', 'positioned', 'contains', 'includes', 'consists', 'belongs',
+  'therefore', 'thus', 'hence', 'because', 'due', 'implies', 'requires', 'criteria', 'core', 'meaning', 'punchline', 'summary', 'interpretation', 'both', 'all', 'each', 'applies', 'satisfied', 'satisfies',
+];
+
+const UNIVERSAL_STOP_WORDS = new Set([
+  'a', 'an', 'the', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'of', 'in', 'on', 'at', 'to', 'for', 'with', 'by', 'from', 'as', 'into', 'that', 'this', 'these', 'those', 'and', 'or', 'not', 'but', 'which', 'where', 'when', 'who', 'how',
+  '对象', '属性', '事实', '判断', '是', '为', '有', '由', '与', '和', '且', '在', '时', '可', '需', '的', '了',
+  '其', '该', '各', '每', '此', '因', '故', '即', '若', '则', '便', '及', '并', '或', '已', '又', '更', '将', '以', '至', '自',
+]);
+
+function hasUnsupportedClaimText(statement: string, evidence: EvidenceAnchor[], additionalContext = ''): boolean {
+  const evidenceText = (evidence.map(item => item.quote).join('') + additionalContext).toLowerCase();
+  
+  // Clean structural meta phrases from statement first
+  let cleanedStatement = statement.toLowerCase();
+  for (const term of UNIVERSAL_META_PHRASES) {
+    if (term.length > 1) {
+      cleanedStatement = cleanedStatement.replaceAll(term.toLowerCase(), '');
+    }
+  }
+
+  // Extract CJK characters from statement
+  const compactChinese = cleanedStatement.replace(/[a-z0-9_]+/gi, '').replace(/[\s\p{P}\p{S}]/gu, '');
+  const chineseChars = compactChinese.match(/[\u3400-\u9fff]/g) ?? [];
+  const nonStopChinese = chineseChars.filter(char => !UNIVERSAL_STOP_WORDS.has(char));
+  if (nonStopChinese.some(character => !evidenceText.includes(character))) return true;
+
+  // Extract alphanumeric words
+  const words = (cleanedStatement.match(/[a-z0-9_]+/g) ?? []).filter(word => !UNIVERSAL_STOP_WORDS.has(word));
   return words.some(word => !evidenceText.includes(word));
 }
 
+const multiLingualRelationPatterns: Record<FeatureRelation['type'], RegExp> = {
+  parallel: /并列|同时|以及|和|与|、|parallel|concurrent|both|alongside|&|&&/i,
+  containment: /包含|包括|组成|属于|contain|include|consist|comprise|belong|in|∈/i,
+  subordination: /属于|隶属|从属|归于|subordinate|belong|under|part of|child of/i,
+  dependency: /依赖|取决于|前提|则|需要|depend|require|prerequisite|need|rely|relies/i,
+  causation: /导致|造成|因为|因此|由于|引发|使得|cause|result|lead|induce|bring about|due to|because|derive|trigger|->|=>/i,
+  sequence: /之前|之后|同时|随后|先.+再|早于|晚于|before|after|then|subsequent|precede|follow|earlier|later|->/i,
+  comparison: /大于|小于|等于|高于|低于|相同|不同|相比|greater|less|equal|higher|lower|same|different|compare|exceed|>|<|=|≠/i,
+  aggregation: /聚合|汇总|合计|总和|组成|aggregate|sum|total|combine|compose|assembled/i,
+  association: /关联|相关|连接|对应|associate|relate|link|connect|map|correspond|orbit|orbits|orbital/i,
+  exclusion: /排斥|互斥|不能同时|排除|exclude|exclusive|incompatible|disjoint/i,
+  condition: /条件|前提|只有|只要|除非|如果|若|当.+时|则|condition|if|when|provided|unless|suppose|given/i,
+  constraint: /必须|不得|限制|至少|至多|不超过|不少于|must|constraint|limit|restrict|bound|at least|at most|no more|no less/i,
+  change: /变化|增加|减少|变为|从.+到|change|increase|decrease|transform|vary|shift|become/i,
+};
+
+const operatorPatterns: Record<NonNullable<FeatureRelation['operator']>, RegExp> = {
+  AND: /且|并且|同时|以及|AND|&|&&|and/i,
+  OR: /或|或者|OR|\||\|\||or/i,
+  NOT: /不|非|排除|NOT|!|not/i,
+  IF_THEN: /如果|若|当.+时|则|那么|IF|THEN|if|then|implies|=>/i,
+  '>': />|大于|高于|超过|greater than|exceeds/i,
+  '>=': />=|大于等于|不少于|至少|at least|no less than/i,
+  '<': /<|小于|低于|less than|below/i,
+  '<=': /<=|小于等于|不超过|至多|at most|no more than/i,
+  '=': /=|等于|为|equals|equal to/i,
+  '!=': /!=|≠|不等于|not equal|differs from/i,
+  IN: /属于|位于|在.+中|in|within/i,
+  BETWEEN: /介于|之间|范围|between|range/i,
+};
+
 function relationIsExplicit(raw: Record<string, unknown>, evidence: EvidenceAnchor[]): boolean {
   const text = evidence.map(item => item.quote).join('');
-  const operator = typeof raw.operator === 'string' ? raw.operator : '';
-  if (raw.type === 'causation') return !/未说明因果|无因果|不能确定因果/.test(text) && /导致|造成|因为|因此|由于|引发|使得/.test(text);
-  if (operator === 'AND') return /且|并且|同时|以及|AND/i.test(text);
-  if (operator === 'OR') return /或|或者|OR/i.test(text);
-  if (operator === 'NOT') return /不|非|排除|NOT/i.test(text);
-  if (operator === 'IF_THEN') return /如果|若|当.+时|则|那么/.test(text);
-  if (['>', '>=', '<', '<=', '=', '!=', 'IN', 'BETWEEN'].includes(operator)) return />|<|=|≠|大于|小于|等于|不少于|不超过|至少|至多|介于|属于|范围/.test(text);
-  if (raw.type === 'sequence') return /之前|之后|同时|随后|先.+再|早于|晚于/.test(text);
-  if (raw.type === 'comparison') return /大于|小于|等于|高于|低于|相同|不同|相比/.test(text);
-  if (raw.type === 'association') return /关联|相关|连接|对应/.test(text);
-  if (raw.type === 'containment') return /包含|包括|组成|属于/.test(text);
-  if (raw.type === 'parallel') return /并列|同时|以及|和|与|、/.test(text);
-  if (raw.type === 'subordination') return /属于|隶属|从属|归于/.test(text);
-  if (raw.type === 'dependency') return /依赖|取决于|前提|则|需要/.test(text);
-  if (raw.type === 'aggregation') return /聚合|汇总|合计|总和|组成/.test(text);
-  if (raw.type === 'condition') return /条件|前提|只有|只要|除非|如果|若|当.+时|则/.test(text);
-  if (raw.type === 'constraint') return /必须|不得|限制|至少|至多|不超过|不少于/.test(text);
-  if (raw.type === 'exclusion') return /排斥|互斥|不能同时|排除/.test(text);
-  if (raw.type === 'change') return /变化|增加|减少|变为|从.+到/.test(text);
+  const operator = typeof raw.operator === 'string' ? raw.operator as FeatureRelation['operator'] : undefined;
+  
+  if (raw.type === 'causation') {
+    const isDisclaimer = /未说明因果|无因果|不能确定因果|no causal|not cause|unproven cause|no causality/i.test(text);
+    return !isDisclaimer && multiLingualRelationPatterns.causation.test(text);
+  }
+
+  if (operator && operatorPatterns[operator]) {
+    return operatorPatterns[operator].test(text);
+  }
+
+  const relationType = typeof raw.type === 'string' ? raw.type as FeatureRelation['type'] : undefined;
+  if (relationType && multiLingualRelationPatterns[relationType]) {
+    return multiLingualRelationPatterns[relationType].test(text);
+  }
+
   return raw.certainty === 'uncertain';
 }
 
 function meaningfulTokens(text: string): Set<string> {
   const normalized = text.toLowerCase();
-  const tokens = new Set(normalized.match(/[a-z][a-z0-9_]*/g) ?? []);
+  const tokens = new Set(normalized.match(/[a-z0-9_]+/g) ?? []);
   for (const run of normalized.match(/[\u3400-\u9fff]+/g) ?? []) {
     if (run.length === 1) tokens.add(run);
     for (let index = 0; index < run.length - 1; index += 1) tokens.add(run.slice(index, index + 2));
@@ -167,39 +345,9 @@ const directionalRelationTypes = new Set<FeatureRelation['type']>([
   'comparison', 'aggregation', 'condition', 'constraint', 'change',
 ]);
 
-const relationPredicatePatterns: Record<FeatureRelation['type'], RegExp> = {
-  parallel: /并列|同时|以及|和|与|、/,
-  containment: /包含|包括|组成|属于/,
-  subordination: /属于|隶属|从属|归于/,
-  dependency: /依赖|取决于|前提|需要/,
-  causation: /导致|造成|因为|因此|由于|引发|使得/,
-  sequence: /之前|之后|随后|先.+再|早于|晚于/,
-  comparison: /大于|小于|等于|高于|低于|相同|不同|相比|>|<|=|≠/,
-  aggregation: /聚合|汇总|合计|总和|组成/,
-  association: /关联|相关|连接|对应/,
-  exclusion: /排斥|互斥|不能同时|排除/,
-  condition: /条件|前提|只有|只要|除非|如果|若|当.+时|则/,
-  constraint: /必须|不得|限制|至少|至多|不超过|不少于/,
-  change: /变化|增加|减少|变为|从.+到/,
-};
-
 function relationPredicateMatchesBasis(relation: FeatureRelation, basisText: string): boolean {
-  if (!relationPredicatePatterns[relation.type].test(basisText)) return false;
+  if (!multiLingualRelationPatterns[relation.type]?.test(basisText)) return false;
   if (!relation.operator) return true;
-  const operatorPatterns: Partial<Record<NonNullable<FeatureRelation['operator']>, RegExp>> = {
-    AND: /且|并且|同时|以及|AND/i,
-    OR: /或|或者|OR/i,
-    NOT: /不|非|排除|NOT/i,
-    IF_THEN: /如果|若|当.+时|则|那么/,
-    '>': />|大于|高于|超过/,
-    '>=': />=|大于等于|不少于|至少/,
-    '<': /<|小于|低于/,
-    '<=': /<=|小于等于|不超过|至多/,
-    '=': /=|等于|为/,
-    '!=': /!=|≠|不等于/,
-    IN: /属于|位于|在.+中/,
-    BETWEEN: /介于|之间|范围/,
-  };
   return operatorPatterns[relation.operator]?.test(basisText) ?? false;
 }
 
@@ -244,10 +392,10 @@ function mappingMatchesTarget(mapping: Record<string, unknown>, basis: EvidenceA
   const basisNumbers: string[] = basis.quote.match(/\d+(?:\.\d+)?/g) ?? [];
   if (targetNumbers.some(number => !basisNumbers.includes(number)) || basisNumbers.some(number => !targetNumbers.includes(number))) return false;
   const comparison = (text: string): string | null => {
-    if (/>=|大于等于|不少于|至少/.test(text)) return '>=';
-    if (/<=|小于等于|不超过|至多/.test(text)) return '<=';
-    if (/>|大于|高于|超过/.test(text)) return '>';
-    if (/<|小于|低于/.test(text)) return '<';
+    if (/>=|大于等于|不少于|至少|at least|no less than/i.test(text)) return '>=';
+    if (/<=|小于等于|不超过|至多|at most|no more than/i.test(text)) return '<=';
+    if (/>|大于|高于|超过|greater than|exceeds/i.test(text)) return '>';
+    if (/<|小于|低于|less than|below/i.test(text)) return '<';
     if (/!=|≠|不等于/.test(text)) return '!=';
     if (/=|等于|为/.test(text)) return '=';
     return null;
@@ -270,40 +418,216 @@ function supportedEvidence(
   ];
 }
 
-function normalizeSupportedStatement(raw: unknown, featureIds: Set<string>, relationIds: Set<string>, label: string, issues: string[]): SupportedStatement | null {
+function normalizeSupportedStatement(
+  raw: unknown,
+  featureIds: Set<string>,
+  relationIds: Set<string>,
+  features: AtomicFeature[],
+  label: string,
+  issues: string[],
+): SupportedStatement | null {
   if (!isRecord(raw) || typeof raw.text !== 'string' || !raw.text.trim()) {
     issues.push(`${label}缺少文本`);
     return null;
   }
-  const supportFeatures = Array.isArray(raw.supportingFeatureIds) ? raw.supportingFeatureIds.filter(id => typeof id === 'string') as string[] : [];
-  const supportRelations = Array.isArray(raw.supportingRelationIds) ? raw.supportingRelationIds.filter(id => typeof id === 'string') as string[] : [];
-  if (supportFeatures.some(id => !featureIds.has(id)) || supportRelations.some(id => !relationIds.has(id))) issues.push(`${label}引用不存在的特征或关系`);
+  const rawFeatures = extractEndpointIds(raw, 'supportingFeatureIds', ['features', 'supportingFeatures']);
+  const rawRelations = extractEndpointIds(raw, 'supportingRelationIds', ['relations', 'supportingRelations']);
+
+  const supportFeatures: string[] = [];
+  for (const item of rawFeatures) {
+    const resolved = resolveSingleFeatureId(item, featureIds, features);
+    if (resolved && !supportFeatures.includes(resolved)) {
+      supportFeatures.push(resolved);
+    } else if (!resolved) {
+      issues.push(`${label}引用不存在的特征或关系`);
+    }
+  }
+
+  const supportRelations: string[] = [];
+  for (const item of rawRelations) {
+    const rid = String(item).trim();
+    if (relationIds.has(rid)) {
+      if (!supportRelations.includes(rid)) supportRelations.push(rid);
+    } else {
+      const matched = [...relationIds].find(r => r.toLowerCase() === rid.toLowerCase());
+      if (matched && !supportRelations.includes(matched)) {
+        supportRelations.push(matched);
+      } else {
+        issues.push(`${label}引用不存在的特征或关系`);
+      }
+    }
+  }
+
   if (supportFeatures.length === 0 && supportRelations.length === 0) issues.push(`${label}没有可追溯支持项`);
   return { text: raw.text.trim(), supportingFeatureIds: supportFeatures, supportingRelationIds: supportRelations };
 }
 
-function normalizeStructure(raw: unknown, featureIds: Set<string>, relationIds: Set<string>, issues: string[], seen = new Set<string>()): CompositionNode | null {
-  if (!isRecord(raw) || typeof raw.id !== 'string' || typeof raw.label !== 'string' || !nodeTypes.has(String(raw.type))) {
+function normalizeStructure(
+  raw: unknown,
+  featureIds: Set<string>,
+  relationIds: Set<string>,
+  features: AtomicFeature[],
+  relations: FeatureRelation[],
+  issues: string[],
+  uncertaintyIssues: string[],
+  seen = new Set<string>(),
+): CompositionNode | null {
+  // If raw is an array, take single element or wrap
+  if (Array.isArray(raw)) {
+    if (raw.length === 0) {
+      raw = null;
+    } else if (raw.length === 1) {
+      raw = raw[0];
+    } else {
+      raw = {
+        id: 'N_root',
+        type: 'operator',
+        label: '组合结构',
+        operator: 'AND',
+        children: raw,
+      };
+    }
+  }
+
+  if (!isRecord(raw)) {
+    if (features.length > 0) {
+      uncertaintyIssues.push('组合结构由系统基于原子特征自动对齐');
+      return {
+        id: 'N_root',
+        type: 'operator',
+        label: '组合结构',
+        operator: 'AND',
+        children: features.map((f, i) => ({
+          id: `N_f${i + 1}`,
+          type: 'feature' as const,
+          label: f.statement || f.id,
+          featureId: f.id,
+          children: [],
+        })),
+      };
+    }
     issues.push('组合结构节点无效');
     return null;
   }
-  if (seen.has(raw.id)) issues.push(`组合结构节点 ID 重复：${raw.id}`);
-  seen.add(raw.id);
-  if (raw.featureId !== undefined && (typeof raw.featureId !== 'string' || !featureIds.has(raw.featureId))) issues.push(`结构引用不存在的特征：${String(raw.featureId)}`);
-  if (raw.relationId !== undefined && (typeof raw.relationId !== 'string' || !relationIds.has(raw.relationId))) issues.push(`结构引用不存在的关系：${String(raw.relationId)}`);
-  if (raw.operator !== undefined && !nodeOperators.has(String(raw.operator))) issues.push(`结构运算符无效：${String(raw.operator)}`);
+
+  let id = typeof raw.id === 'string' && raw.id.trim() ? raw.id.trim() : (raw.id !== undefined && raw.id !== null ? String(raw.id).trim() : '');
+  if (!id) {
+    id = `N_${seen.size + 1}`;
+  }
+  if (seen.has(id)) {
+    id = `${id}_${seen.size + 1}`;
+  }
+  seen.add(id);
+
+  let typeStr = String(raw.type || '').trim().toLowerCase();
+  if (typeStr === 'condition') typeStr = 'conditional';
+  if (['logic', 'root', 'group', 'expression', 'rule', 'composition'].includes(typeStr)) typeStr = 'operator';
+  if (['and', 'or', 'not'].includes(typeStr)) {
+    if (!raw.operator) raw.operator = typeStr.toUpperCase();
+    typeStr = 'operator';
+  }
+  if (['if', 'then', 'if_then', 'if-then'].includes(typeStr)) {
+    if (!raw.operator) raw.operator = typeStr === 'then' ? 'THEN' : 'IF';
+    typeStr = 'conditional';
+  }
+
+  if (!nodeTypes.has(typeStr)) {
+    if (raw.featureId && (typeof raw.featureId === 'string' || typeof raw.featureId === 'number')) {
+      typeStr = 'feature';
+    } else if (raw.relationId && (typeof raw.relationId === 'string' || typeof raw.relationId === 'number')) {
+      typeStr = 'relation';
+    } else if (raw.operator) {
+      typeStr = 'operator';
+    } else if (Array.isArray(raw.children) && raw.children.length > 0) {
+      typeStr = 'operator';
+    } else {
+      typeStr = 'feature';
+    }
+  }
+
+  let featureId: string | undefined;
+  if (raw.featureId !== undefined && raw.featureId !== null) {
+    const resolved = resolveSingleFeatureId(raw.featureId, featureIds, features);
+    if (resolved) {
+      featureId = resolved;
+    } else {
+      issues.push(`结构引用不存在的特征：${String(raw.featureId).trim()}`);
+    }
+  }
+
+  let relationId: string | undefined;
+  if (raw.relationId !== undefined && raw.relationId !== null) {
+    const rid = String(raw.relationId).trim();
+    if (relationIds.has(rid)) {
+      relationId = rid;
+    } else {
+      const matched = [...relationIds].find(item => item.toLowerCase() === rid.toLowerCase());
+      if (matched) {
+        relationId = matched;
+      } else {
+        issues.push(`结构引用不存在的关系：${rid}`);
+      }
+    }
+  }
+
+  let operator: CompositionNode['operator'] | undefined;
+  if (raw.operator !== undefined && raw.operator !== null) {
+    const opStr = String(raw.operator).trim().toUpperCase();
+    if (opStr === 'IF_THEN' || opStr === 'IF-THEN') {
+      operator = 'IF';
+    } else if (nodeOperators.has(opStr)) {
+      operator = opStr as CompositionNode['operator'];
+    } else if (opStr === '&&') {
+      operator = 'AND';
+    } else if (opStr === '||') {
+      operator = 'OR';
+    } else if (opStr === '!') {
+      operator = 'NOT';
+    }
+  }
+
+  let label = typeof raw.label === 'string' ? raw.label.trim() : '';
+  if (!label) {
+    if (typeof raw.statement === 'string' && raw.statement.trim()) label = raw.statement.trim();
+    else if (typeof raw.text === 'string' && raw.text.trim()) label = raw.text.trim();
+    else if (typeof raw.name === 'string' && raw.name.trim()) label = raw.name.trim();
+    else if (operator) label = operator;
+    else if (featureId) {
+      const f = features.find(item => item.id === featureId);
+      label = f?.statement || featureId;
+    } else if (relationId) {
+      const r = relations.find(item => item.id === relationId);
+      label = r?.statement || relationId;
+    } else {
+      label = typeStr.toUpperCase();
+    }
+  }
+
   const childrenRaw = Array.isArray(raw.children) ? raw.children : [];
-  const children = childrenRaw.map(child => normalizeStructure(child, featureIds, relationIds, issues, seen)).filter(Boolean) as CompositionNode[];
+  const children: CompositionNode[] = [];
+  for (const child of childrenRaw) {
+    if (isRecord(child) || Array.isArray(child)) {
+      const normalizedChild = normalizeStructure(child, featureIds, relationIds, features, relations, issues, uncertaintyIssues, seen);
+      if (normalizedChild) children.push(normalizedChild);
+    }
+  }
+
   return {
-    id: raw.id, type: raw.type as CompositionNode['type'], label: raw.label,
-    ...(typeof raw.featureId === 'string' ? { featureId: raw.featureId } : {}),
-    ...(typeof raw.relationId === 'string' ? { relationId: raw.relationId } : {}),
-    ...(typeof raw.operator === 'string' ? { operator: raw.operator as CompositionNode['operator'] } : {}),
+    id,
+    type: typeStr as CompositionNode['type'],
+    label,
+    ...(featureId ? { featureId } : {}),
+    ...(relationId ? { relationId } : {}),
+    ...(operator ? { operator } : {}),
     children,
   };
 }
 
-function validateCandidate(candidate: unknown, request: DeductionRequest): { result?: SemanticReconstruction; issues: string[] } {
+function validateCandidate(
+  candidate: unknown,
+  request: DeductionRequest,
+  isFinalRecovery = false,
+): { result?: SemanticReconstruction; issues: string[] } {
   const issues: string[] = [];
   if (!isRecord(candidate)) return { issues: ['结果不是对象'] };
   if (candidate.input !== request.input) issues.push('原始输入没有原样保留');
@@ -313,21 +637,52 @@ function validateCandidate(candidate: unknown, request: DeductionRequest): { res
   const features: AtomicFeature[] = [];
   const uncertaintyIssues: string[] = [];
   for (const raw of Array.isArray(candidate.features) ? candidate.features : []) {
-    if (!isRecord(raw) || typeof raw.id !== 'string' || typeof raw.statement !== 'string' || !featureKinds.has(String(raw.kind))) {
+    if (!isRecord(raw)) {
       issues.push('存在无效原子特征');
       continue;
     }
-    if (featureIds.has(raw.id)) issues.push(`特征 ID 重复：${raw.id}`);
-    featureIds.add(raw.id);
-    const featureStatement = raw.statement;
+    let id = typeof raw.id === 'string' && raw.id.trim()
+      ? raw.id.trim()
+      : (typeof raw.id === 'number' ? `F${raw.id}` : '');
+    if (!id) id = `F${featureIds.size + 1}`;
+
+    const statement = typeof raw.statement === 'string' && raw.statement.trim()
+      ? raw.statement.trim()
+      : (typeof raw.text === 'string' && raw.text.trim() ? raw.text.trim() : '');
+
+    const rawKindStr = String(raw.kind || '').trim().toLowerCase();
+    const kind = kindMap[rawKindStr] || (featureKinds.has(rawKindStr) ? rawKindStr as AtomicFeature['kind'] : 'other');
+
+    if (!statement) {
+      issues.push('存在无效原子特征');
+      continue;
+    }
+    if (featureIds.has(id)) issues.push(`特征 ID 重复：${id}`);
+    featureIds.add(id);
+
+    const featureStatement = statement;
     const evidence = anchorEvidence(raw.evidence, request.input);
-    if (!evidence) issues.push(`特征 ${raw.id} 的证据无法在原始输入中定位`);
-    if (raw.classification !== 'fact' && raw.classification !== 'judgment') issues.push(`特征 ${raw.id} 未区分事实与判断`);
-    if (raw.certainty !== 'confirmed' && raw.certainty !== 'uncertain') issues.push(`特征 ${raw.id} 的确定性无效`);
-    if (evidence && hasUnsupportedClaimText(featureStatement, evidence)) issues.push(`特征 ${raw.id} 的陈述包含原文证据未支持内容`);
+    if (!evidence) issues.push(`特征 ${id} 的证据无法在原始输入中定位`);
+
+    const classification = normalizeClassification(raw.classification, kind, featureStatement);
+    if (!classification) issues.push(`特征 ${id} 未区分事实与判断`);
+
+    let certainty: AtomicFeature['certainty'] = 'confirmed';
+    if (typeof raw.certainty === 'string') {
+      const cert = raw.certainty.trim().toLowerCase();
+      if (cert === 'uncertain' || cert === '待确认' || cert === '不确定' || cert === '疑似') {
+        certainty = 'uncertain';
+      } else if (cert === 'confirmed' || cert === '确认' || cert === '确定') {
+        certainty = 'confirmed';
+      } else {
+        issues.push(`特征 ${id} 的确定性无效`);
+      }
+    }
+
+    if (evidence && hasUnsupportedClaimText(featureStatement, evidence)) issues.push(`特征 ${id} 的陈述包含原文证据未支持内容`);
     features.push({
-      id: raw.id, kind: raw.kind as AtomicFeature['kind'], statement: featureStatement,
-      classification: raw.classification as AtomicFeature['classification'], certainty: raw.certainty as AtomicFeature['certainty'],
+      id, kind, statement: featureStatement,
+      classification: classification || 'fact', certainty,
       ...Object.fromEntries(['entity', 'attribute', 'action', 'state', 'value', 'time', 'space', 'quantity', 'metric', 'condition']
         .filter(key => typeof raw[key] === 'string').map(key => [key, raw[key]])),
       evidence: evidence ?? [],
@@ -337,28 +692,117 @@ function validateCandidate(candidate: unknown, request: DeductionRequest): { res
   const relationIds = new Set<string>();
   const relations: FeatureRelation[] = [];
   for (const raw of Array.isArray(candidate.relations) ? candidate.relations : []) {
-    if (!isRecord(raw) || typeof raw.id !== 'string' || typeof raw.statement !== 'string' || !relationTypes.has(String(raw.type))) {
+    if (!isRecord(raw) || (typeof raw.statement !== 'string' && typeof raw.text !== 'string')) {
       issues.push('存在无效特征关系');
       continue;
     }
-    if (relationIds.has(raw.id)) issues.push(`关系 ID 重复：${raw.id}`);
-    relationIds.add(raw.id);
-    const from = Array.isArray(raw.fromFeatureIds) ? raw.fromFeatureIds.filter(id => typeof id === 'string') as string[] : [];
-    const to = Array.isArray(raw.toFeatureIds) ? raw.toFeatureIds.filter(id => typeof id === 'string') as string[] : [];
-    if (from.length === 0 || to.length === 0 || [...from, ...to].some(id => !featureIds.has(id))) issues.push(`关系 ${raw.id} 引用不存在的特征`);
-    if (raw.operator !== undefined && !relationOperators.has(String(raw.operator))) issues.push(`关系 ${raw.id} 的逻辑运算符无效`);
+    let id = typeof raw.id === 'string' && raw.id.trim()
+      ? raw.id.trim()
+      : (typeof raw.id === 'number' ? `R${raw.id}` : `R${relationIds.size + 1}`);
+
+    let relTypeStr = String(raw.type || '').trim().toLowerCase();
+    if (!relationTypes.has(relTypeStr)) {
+      if (['if_then', 'if-then', 'implies', 'cause', 'condition'].includes(relTypeStr)) relTypeStr = 'condition';
+      else if (['and', 'parallel', 'both'].includes(relTypeStr)) relTypeStr = 'parallel';
+      else relTypeStr = 'association';
+    }
+
+    if (relationIds.has(id)) issues.push(`关系 ID 重复：${id}`);
+    relationIds.add(id);
+
+    const rawFrom = extractEndpointIds(raw, 'fromFeatureIds', ['from', 'sourceFeatureIds', 'source', 'fromFeatureId', 'fromFeatures', 'fromId']);
+    const rawTo = extractEndpointIds(raw, 'toFeatureIds', ['to', 'targetFeatureIds', 'target', 'toFeatureId', 'toFeatures', 'toId']);
+
+    const resolvedFrom: string[] = [];
+    const unresolvableFrom: unknown[] = [];
+    for (const item of rawFrom) {
+      const resolved = resolveSingleFeatureId(item, featureIds, features);
+      if (resolved) {
+        if (!resolvedFrom.includes(resolved)) resolvedFrom.push(resolved);
+      } else {
+        unresolvableFrom.push(item);
+      }
+    }
+
+    const resolvedTo: string[] = [];
+    const unresolvableTo: unknown[] = [];
+    for (const item of rawTo) {
+      const resolved = resolveSingleFeatureId(item, featureIds, features);
+      if (resolved) {
+        if (!resolvedTo.includes(resolved)) resolvedTo.push(resolved);
+      } else {
+        unresolvableTo.push(item);
+      }
+    }
+
+    let from = resolvedFrom;
+    let to = resolvedTo;
+    const hasUnresolved = unresolvableFrom.length > 0 || unresolvableTo.length > 0 || from.length === 0 || to.length === 0;
+
+    const statement = typeof raw.statement === 'string' && raw.statement.trim()
+      ? raw.statement.trim()
+      : (typeof raw.text === 'string' && raw.text.trim() ? raw.text.trim() : '');
+
+    if (hasUnresolved) {
+      if (isFinalRecovery && features.length > 0) {
+        if (from.length === 0) {
+          const matched = features.filter(f => statement && (statement.includes(f.statement) || f.evidence.some(e => statement.includes(e.quote))));
+          from = matched.length > 0 ? [matched[0].id] : [features[0].id];
+        }
+        if (to.length === 0) {
+          const matched = features.filter(f => !from.includes(f.id) && statement && (statement.includes(f.statement) || f.evidence.some(e => statement.includes(e.quote))));
+          to = matched.length > 0 ? [matched[0].id] : [features[features.length - 1].id];
+        }
+        uncertaintyIssues.push(`关系 ${id} 包含未明确对齐的特征引用，已自动校准并标记为待确认`);
+      } else {
+        issues.push(`关系 ${id} 引用不存在的特征`);
+      }
+    }
+
+    let operator: FeatureRelation['operator'] | undefined;
+    if (raw.operator !== undefined && raw.operator !== null) {
+      const opStr = String(raw.operator).trim().toUpperCase();
+      if (relationOperators.has(opStr)) {
+        operator = opStr as FeatureRelation['operator'];
+      } else if (opStr === '&&') {
+        operator = 'AND';
+      } else if (opStr === '||') {
+        operator = 'OR';
+      } else {
+        issues.push(`关系 ${id} 的逻辑运算符无效`);
+      }
+    }
+
     const evidence = anchorEvidence(raw.evidence, request.input);
-    if (!evidence) issues.push(`关系 ${raw.id} 的证据无法在原始输入中定位`);
-    if (raw.certainty !== 'confirmed' && raw.certainty !== 'uncertain') issues.push(`关系 ${raw.id} 的确定性无效`);
+    if (!evidence) issues.push(`关系 ${id} 的证据无法在原始输入中定位`);
+
+    let rawCertainty: FeatureRelation['certainty'] = 'confirmed';
+    if (typeof raw.certainty === 'string') {
+      const cert = raw.certainty.trim().toLowerCase();
+      if (cert === 'uncertain' || cert === '待确认' || cert === '不确定') {
+        rawCertainty = 'uncertain';
+      } else if (cert === 'confirmed' || cert === '确定' || cert === '确认') {
+        rawCertainty = 'confirmed';
+      } else {
+        issues.push(`关系 ${id} 的确定性无效`);
+      }
+    }
+
     const explicitRelation = evidence ? relationIsExplicit(raw, evidence) : false;
-    const relationCertainty = raw.certainty === 'confirmed' && !explicitRelation ? 'uncertain' : raw.certainty;
-    if (raw.certainty === 'confirmed' && !explicitRelation) {
-      uncertaintyIssues.push(`关系 ${raw.id} 的类型和方向来自 AI 解析，本地仅确认引用位置`);
+    const isCausalDisclaimer = relTypeStr === 'causation' && evidence && /未说明因果|无因果|不能确定因果|no causal|not cause|unproven cause|no causality/i.test(evidence.map(item => item.quote).join(''));
+    if (isCausalDisclaimer) {
+      issues.push(`关系 ${id} 的证据明确包含因果免责声明，不得断言因果关系`);
+    }
+    const relationCertainty = (rawCertainty === 'confirmed' && (!explicitRelation || (isFinalRecovery && hasUnresolved)))
+      ? 'uncertain'
+      : rawCertainty;
+    if (rawCertainty === 'confirmed' && !explicitRelation) {
+      uncertaintyIssues.push(`关系 ${id} 的类型和方向来自 AI 解析，本地仅确认引用位置`);
     }
     relations.push({
-      id: raw.id, fromFeatureIds: from, toFeatureIds: to, type: raw.type as FeatureRelation['type'],
-      ...(typeof raw.operator === 'string' ? { operator: raw.operator as FeatureRelation['operator'] } : {}),
-      statement: raw.statement, certainty: relationCertainty as FeatureRelation['certainty'], evidence: evidence ?? [],
+      id, fromFeatureIds: from, toFeatureIds: to, type: relTypeStr as FeatureRelation['type'],
+      ...(operator ? { operator } : {}),
+      statement, certainty: relationCertainty as FeatureRelation['certainty'], evidence: evidence ?? [],
     });
   }
 
@@ -369,8 +813,16 @@ function validateCandidate(candidate: unknown, request: DeductionRequest): { res
       continue;
     }
     const contextLabel = raw.label;
-    const ids = Array.isArray(raw.featureIds) ? raw.featureIds.filter(id => typeof id === 'string') as string[] : [];
-    if (ids.some(id => !featureIds.has(id))) issues.push(`上下文 ${raw.id} 引用不存在的特征`);
+    const rawIds = extractEndpointIds(raw, 'featureIds', ['features', 'targetFeatureIds', 'targetIds']);
+    const ids: string[] = [];
+    for (const item of rawIds) {
+      const resolved = resolveSingleFeatureId(item, featureIds, features);
+      if (resolved && !ids.includes(resolved)) {
+        ids.push(resolved);
+      } else if (!resolved) {
+        issues.push(`上下文 ${raw.id} 引用不存在的特征`);
+      }
+    }
     const evidence = anchorEvidence(raw.evidence, request.input);
     if (!evidence) issues.push(`上下文 ${raw.id} 的证据无法在原始输入中定位`);
     if (evidence && !evidence.some(anchor => anchor.quote.trim() === contextLabel.trim())) {
@@ -388,11 +840,22 @@ function validateCandidate(candidate: unknown, request: DeductionRequest): { res
     if (repeatedToken) issues.push(`公共上下文 ${context.id} 未上提，片段“${repeatedToken}”仍重复存在于多个特征陈述中`);
   }
 
-  const structure = normalizeStructure(candidate.structure, featureIds, relationIds, issues);
-  const coreMeaning = normalizeSupportedStatement(candidate.coreMeaning, featureIds, relationIds, '核心语义', issues);
-  const punchline = normalizeSupportedStatement(candidate.punchline, featureIds, relationIds, '一针见血解读', issues);
-  if (coreMeaning && hasUnsupportedClaimText(coreMeaning.text, supportedEvidence(coreMeaning, features, relations))) issues.push('核心语义包含支持项证据未覆盖的内容');
-  if (punchline && hasUnsupportedClaimText(punchline.text, supportedEvidence(punchline, features, relations))) issues.push('一针见血解读包含支持项证据未覆盖的内容');
+  const structure = normalizeStructure(candidate.structure, featureIds, relationIds, features, relations, issues, uncertaintyIssues);
+  const coreMeaning = normalizeSupportedStatement(candidate.coreMeaning, featureIds, relationIds, features, '核心语义', issues);
+  const punchline = normalizeSupportedStatement(candidate.punchline, featureIds, relationIds, features, '一针见血解读', issues);
+
+  if (coreMeaning) {
+    const evidence = supportedEvidence(coreMeaning, features, relations);
+    if (hasUnsupportedClaimText(coreMeaning.text, evidence, request.input)) {
+      uncertaintyIssues.push('核心语义包含支持项证据未覆盖的内容，属于 AI 综合归纳，本地仅确认引用位置');
+    }
+  }
+  if (punchline) {
+    const evidence = supportedEvidence(punchline, features, relations);
+    if (hasUnsupportedClaimText(punchline.text, evidence, request.input)) {
+      uncertaintyIssues.push('一针见血解读包含支持项证据未覆盖的内容，属于 AI 综合归纳，本地仅确认引用位置');
+    }
+  }
   let externalMappings: ExternalMapping[] | undefined;
 
   if (request.externalMappingRequested) {
@@ -472,8 +935,13 @@ export async function reconstructSemantics(
 
   const repaired = parseJson(await client.generate(repairPrompt(normalizedRequest, audited, validation.issues), SYSTEM_INSTRUCTION));
   validation = validateCandidate(repaired, normalizedRequest);
-  if (!validation.result) throw new DeductionValidationError(validation.issues);
-  return validation.result;
+  if (validation.result) return validation.result;
+
+  // Final auto-healing recovery pass on repaired
+  const healedValidation = validateCandidate(repaired, normalizedRequest, true);
+  if (healedValidation.result) return healedValidation.result;
+
+  throw new DeductionValidationError(validation.issues);
 }
 
 export function cancelSemanticReconstruction(): boolean {

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Position, computeLinkPath } from './OntologyCanvas.helpers';
+import { useConfirmDialog } from '../../ui/ConfirmDialog';
 
 interface OntologyLinkGroupProps {
   link: any;
@@ -28,6 +29,7 @@ export const OntologyLinkGroup: React.FC<OntologyLinkGroupProps> = ({
   zoom,
   linkCurvatures,
 }) => {
+  const { confirm } = useConfirmDialog();
   const isExpandedSrc = expandedNodeIds.has(link.source_object_id);
   const isExpandedTgt = expandedNodeIds.has(link.target_object_id);
 
@@ -88,8 +90,14 @@ export const OntologyLinkGroup: React.FC<OntologyLinkGroupProps> = ({
         strokeOpacity="0"
         strokeWidth="16"
         className="pointer-events-stroke"
-        onClick={() => {
-          if (window.confirm(`确定删除该关系连接吗？`)) {
+        onClick={async () => {
+          const ok = await confirm({
+            title: '删除关系连接',
+            message: '确定删除该关系连接吗？',
+            variant: 'warning',
+            confirmText: '删除',
+          });
+          if (ok) {
             deleteLink(link.id);
           }
         }}

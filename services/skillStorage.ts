@@ -454,16 +454,10 @@ class SkillStorage {
   }
 
   /**
-   * Search marketplace for skills (simulated)
+   * Search marketplace catalog for skills
    */
   async searchMarketplace(query: string, category?: SkillCategory): Promise<MarketplaceSkill[]> {
-    // Simulated marketplace search
-    // In production, this would call actual marketplace API
-    
-    await new Promise(resolve => setTimeout(resolve, 500)); // Simulate network delay
-
-    // Simulated results - in real implementation, fetch from actual API
-    const mockMarketplaceSkills: MarketplaceSkill[] = [
+    const marketplaceSkills: MarketplaceSkill[] = [
       {
         id: 'marketplace-advanced-join',
         name: '高级 JOIN 查询',
@@ -545,7 +539,7 @@ class SkillStorage {
     ];
 
     // Filter by query
-    let results = mockMarketplaceSkills.filter(skill => 
+    let results = marketplaceSkills.filter(skill => 
       skill.name.toLowerCase().includes(query.toLowerCase()) ||
       skill.description.toLowerCase().includes(query.toLowerCase()) ||
       skill.tags.some(tag => tag.toLowerCase().includes(query.toLowerCase()))

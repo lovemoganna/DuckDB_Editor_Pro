@@ -350,7 +350,7 @@ const OntologyEditor: React.FC<OntologyEditorProps> = ({ onDataChange }) => {
         console.log(`[OntologyEditor] Auto-creating missing tables: ${missingTables.join(', ')}`);
         const createStatements = [
           `CREATE TABLE IF NOT EXISTS life_object_type (id INTEGER PRIMARY KEY, name VARCHAR NOT NULL, description VARCHAR)`,
-          `CREATE TABLE IF NOT EXISTS life_object (id INTEGER PRIMARY KEY, object_type_id INTEGER REFERENCES life_object_type(id), name VARCHAR NOT NULL, properties JSON DEFAULT '{}')`,
+          `CREATE TABLE IF NOT EXISTS life_object (id INTEGER PRIMARY KEY, object_type_id INTEGER REFERENCES life_object_type(id), name VARCHAR NOT NULL, properties VARCHAR DEFAULT '{}')`,
           `CREATE TABLE IF NOT EXISTS life_link_type (id INTEGER PRIMARY KEY, name VARCHAR NOT NULL, description VARCHAR)`,
           `CREATE TABLE IF NOT EXISTS life_link (id INTEGER PRIMARY KEY, link_type_id INTEGER REFERENCES life_link_type(id), source_object_id INTEGER REFERENCES life_object(id), target_object_id INTEGER REFERENCES life_object(id), weight DECIMAL(3,2) DEFAULT 1.0)`,
           `CREATE TABLE IF NOT EXISTS life_action (id INTEGER PRIMARY KEY, name VARCHAR NOT NULL, description VARCHAR, status VARCHAR DEFAULT 'pending', execute_at DATE)`
@@ -709,14 +709,14 @@ const OntologyEditor: React.FC<OntologyEditorProps> = ({ onDataChange }) => {
 
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={closeEdit}>
-        <div className="w-full max-w-lg bg-monokai-bg border border-monokai-accent/50 rounded-xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="w-full max-w-lg bg-monokai-bg border border-monokai-border rounded-xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
           {/* Header */}
-          <div className="flex items-center justify-between px-5 py-3 border-b border-monokai-accent">
+          <div className="flex items-center justify-between px-5 py-3 border-b border-monokai-border">
             <div className="flex items-center gap-2">
               {iconMap[editMode]}
               <span className="text-sm font-semibold text-monokai-fg">{titleMap[editMode]}</span>
             </div>
-            <button onClick={closeEdit} className="p-1 rounded hover:bg-monokai-accent/30 text-monokai-comment">
+            <button onClick={closeEdit} className="p-1 rounded hover:bg-monokai-border/30 text-monokai-comment">
               <X className="w-4 h-4" />
             </button>
           </div>
@@ -733,7 +733,7 @@ const OntologyEditor: React.FC<OntologyEditorProps> = ({ onDataChange }) => {
                 value={formName}
                 onChange={e => setFormName(e.target.value)}
                 placeholder="输入名称..."
-                className="w-full px-3 py-2 text-sm bg-monokai-sidebar border border-monokai-accent text-monokai-fg placeholder-monokai-comment/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-monokai-amethyst/50 focus:border-monokai-amethyst/50 transition-all"
+                className="w-full px-3 py-2 text-sm bg-monokai-sidebar border border-monokai-border text-monokai-fg placeholder-monokai-comment/50 rounded-lg focus:outline-none focus:border-monokai-accent transition-all"
               />
             </div>
 
@@ -748,7 +748,7 @@ const OntologyEditor: React.FC<OntologyEditorProps> = ({ onDataChange }) => {
                   value={formDesc}
                   onChange={e => setFormDesc(e.target.value)}
                   placeholder="输入描述..."
-                  className="w-full px-3 py-2 text-sm bg-monokai-sidebar border border-monokai-accent text-monokai-fg placeholder-monokai-comment/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-monokai-amethyst/50 focus:border-monokai-amethyst/50 transition-all"
+                  className="w-full px-3 py-2 text-sm bg-monokai-sidebar border border-monokai-border text-monokai-fg placeholder-monokai-comment/50 rounded-lg focus:outline-none focus:border-monokai-accent transition-all"
                 />
               </div>
             )}
@@ -763,7 +763,7 @@ const OntologyEditor: React.FC<OntologyEditorProps> = ({ onDataChange }) => {
                   <select
                     value={formObjectTypeId}
                     onChange={e => setFormObjectTypeId(Number(e.target.value))}
-                    className="w-full px-3 py-2 text-sm bg-monokai-sidebar border border-monokai-accent text-monokai-fg rounded-lg focus:outline-none focus:ring-2 focus:ring-monokai-amethyst/50 focus:border-monokai-amethyst/50 transition-all"
+                    className="w-full px-3 py-2 text-sm bg-monokai-sidebar border border-monokai-border text-monokai-fg rounded-lg focus:outline-none focus:border-monokai-accent transition-all"
                   >
                     {objectTypes.map(ot => (
                       <option key={ot.id} value={ot.id}>{ot.name} — {ot.description}</option>
@@ -779,7 +779,7 @@ const OntologyEditor: React.FC<OntologyEditorProps> = ({ onDataChange }) => {
                     onChange={e => setFormProperties(e.target.value)}
                     placeholder='{"state": "焦虑", "goal": "内心平静"}'
                     rows={3}
-                    className="w-full px-3 py-2 text-sm bg-monokai-sidebar border border-monokai-accent text-monokai-fg placeholder-monokai-comment/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-monokai-amethyst/50 focus:border-monokai-amethyst/50 transition-all resize-none font-mono"
+                    className="w-full px-3 py-2 text-sm bg-monokai-sidebar border border-monokai-border text-monokai-fg placeholder-monokai-comment/50 rounded-lg focus:outline-none focus:border-monokai-accent transition-colors resize-none font-mono"
                   />
                 </div>
               </>
@@ -796,7 +796,7 @@ const OntologyEditor: React.FC<OntologyEditorProps> = ({ onDataChange }) => {
                     <select
                       value={formSourceId ?? ''}
                       onChange={e => setFormSourceId(e.target.value ? Number(e.target.value) : null)}
-                      className="w-full px-3 py-2 text-sm bg-monokai-sidebar border border-monokai-accent text-monokai-fg rounded-lg focus:outline-none focus:ring-2 focus:ring-monokai-amethyst/50 transition-all"
+                      className="w-full px-3 py-2 text-sm bg-monokai-sidebar border border-monokai-border text-monokai-fg rounded-lg focus:outline-none focus:border-monokai-accent transition-colors"
                     >
                       <option value="">选择源对象</option>
                       {objects.map(o => (
@@ -811,7 +811,7 @@ const OntologyEditor: React.FC<OntologyEditorProps> = ({ onDataChange }) => {
                     <select
                       value={formTargetId ?? ''}
                       onChange={e => setFormTargetId(e.target.value ? Number(e.target.value) : null)}
-                      className="w-full px-3 py-2 text-sm bg-monokai-sidebar border border-monokai-accent text-monokai-fg rounded-lg focus:outline-none focus:ring-2 focus:ring-monokai-amethyst/50 transition-all"
+                      className="w-full px-3 py-2 text-sm bg-monokai-sidebar border border-monokai-border text-monokai-fg rounded-lg focus:outline-none focus:border-monokai-accent transition-colors"
                     >
                       <option value="">选择目标对象</option>
                       {objects.map(o => (
@@ -827,7 +827,7 @@ const OntologyEditor: React.FC<OntologyEditorProps> = ({ onDataChange }) => {
                   <select
                     value={formLinkTypeId}
                     onChange={e => setFormLinkTypeId(Number(e.target.value))}
-                    className="w-full px-3 py-2 text-sm bg-monokai-sidebar border border-monokai-accent text-monokai-fg rounded-lg focus:outline-none focus:ring-2 focus:ring-monokai-amethyst/50 transition-all"
+                    className="w-full px-3 py-2 text-sm bg-monokai-sidebar border border-monokai-border text-monokai-fg rounded-lg focus:outline-none focus:border-monokai-accent transition-colors"
                   >
                     {linkTypes.map(lt => (
                       <option key={lt.id} value={lt.id}>{lt.name} — {lt.description}</option>
@@ -885,7 +885,7 @@ const OntologyEditor: React.FC<OntologyEditorProps> = ({ onDataChange }) => {
                   <select
                     value={formActionObjectId ?? ''}
                     onChange={e => setFormActionObjectId(e.target.value ? Number(e.target.value) : null)}
-                    className="w-full px-3 py-2 text-sm bg-monokai-sidebar border border-monokai-accent text-monokai-fg rounded-lg focus:outline-none focus:ring-2 focus:ring-monokai-amethyst/50 transition-all"
+                    className="w-full px-3 py-2 text-sm bg-monokai-sidebar border border-monokai-border text-monokai-fg rounded-lg focus:outline-none focus:border-monokai-accent transition-colors"
                   >
                     <option value="">(不关联对象)</option>
                     {objects.map(o => (
@@ -902,7 +902,7 @@ const OntologyEditor: React.FC<OntologyEditorProps> = ({ onDataChange }) => {
                     onChange={e => setFormDesc(e.target.value)}
                     placeholder="描述这个行动..."
                     rows={2}
-                    className="w-full px-3 py-2 text-sm bg-monokai-sidebar border border-monokai-accent text-monokai-fg placeholder-monokai-comment/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-monokai-amethyst/50 transition-all resize-none"
+                    className="w-full px-3 py-2 text-sm bg-monokai-sidebar border border-monokai-border text-monokai-fg placeholder-monokai-comment/50 rounded-lg focus:outline-none focus:border-monokai-accent transition-colors resize-none"
                   />
                 </div>
                 <div>
@@ -912,7 +912,7 @@ const OntologyEditor: React.FC<OntologyEditorProps> = ({ onDataChange }) => {
                   <select
                     value={formStatus}
                     onChange={e => setFormStatus(e.target.value)}
-                    className="w-full px-3 py-2 text-sm bg-monokai-sidebar border border-monokai-accent text-monokai-fg rounded-lg focus:outline-none focus:ring-2 focus:ring-monokai-amethyst/50 transition-all"
+                    className="w-full px-3 py-2 text-sm bg-monokai-sidebar border border-monokai-border text-monokai-fg rounded-lg focus:outline-none focus:border-monokai-accent transition-colors"
                   >
                     <option value="pending">待执行</option>
                     <option value="done">已完成</option>
@@ -926,7 +926,7 @@ const OntologyEditor: React.FC<OntologyEditorProps> = ({ onDataChange }) => {
                     type="date"
                     value={formExecuteAt}
                     onChange={e => setFormExecuteAt(e.target.value)}
-                    className="w-full px-3 py-2 text-sm bg-monokai-sidebar border border-monokai-accent text-monokai-fg rounded-lg focus:outline-none focus:ring-2 focus:ring-monokai-amethyst/50 transition-all"
+                    className="w-full px-3 py-2 text-sm bg-monokai-sidebar border border-monokai-border text-monokai-fg rounded-lg focus:outline-none focus:border-monokai-accent transition-colors"
                   />
                 </div>
               </>
@@ -934,7 +934,7 @@ const OntologyEditor: React.FC<OntologyEditorProps> = ({ onDataChange }) => {
           </div>
 
           {/* Footer */}
-          <div className="flex items-center justify-between px-5 py-3 border-t border-monokai-accent bg-monokai-sidebar/30">
+          <div className="flex items-center justify-between px-5 py-3 border-t border-monokai-border bg-monokai-sidebar/30">
             <button onClick={closeEdit} className="px-3 py-1.5 text-xs text-monokai-comment hover:text-monokai-fg rounded hover:bg-monokai-accent/20 transition-colors">
               取消
             </button>
@@ -1074,7 +1074,7 @@ const OntologyEditor: React.FC<OntologyEditorProps> = ({ onDataChange }) => {
               setFormExecuteAt('');
               setSearchTerm('');
             }}
-            className="flex items-center gap-1.5 px-2.5 py-1 text-xs rounded bg-monokai-pink/10 border border-monokai-pink/40 text-monokai-pink hover:bg-monokai-pink/20 transition-colors"
+            className="flex items-center gap-1.5 px-2.5 py-1 text-xs rounded bg-monokai-surface border border-monokai-border text-monokai-comment hover:text-monokai-fg hover:bg-monokai-elevated transition-colors cursor-pointer"
             title="一键清空所有表单和搜索"
           >
             <RotateCcw className="w-3.5 h-3.5" />
@@ -1135,7 +1135,7 @@ const OntologyEditor: React.FC<OntologyEditorProps> = ({ onDataChange }) => {
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
               placeholder="搜索..."
-              className="pl-7 pr-3 py-1 text-xs bg-monokai-sidebar border border-monokai-accent text-monokai-fg placeholder-monokai-comment/50 rounded focus:outline-none focus:ring-1 focus:ring-monokai-amethyst/50 w-36"
+              className="pl-7 pr-3 py-1 text-xs bg-monokai-sidebar border border-monokai-border text-monokai-fg placeholder-monokai-comment/50 rounded focus:outline-none focus:border-monokai-accent w-36 transition-colors"
             />
           </div>
         </div>

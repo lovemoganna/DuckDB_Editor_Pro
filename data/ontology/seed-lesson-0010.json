@@ -1,0 +1,136 @@
+{
+  "_meta": {
+    "name": "第 10 课：把模型用到新案例",
+    "description": "面向通用接口 (Interface) 多态复用模型，将已验证模式快速迁移到异构新业务场景",
+    "case_background": "【案例背景材料】AI 独角兽企业客户 B 采购了 H100 云算力集群月度订阅，平台为其自动绑定并分配了 GPU 计算节点 Cluster#04。",
+    "core_concept": "Object Interface & Polymorphic Pattern",
+    "version": "1.0.0",
+    "author": "system",
+    "created_at": "2026-07-25",
+    "scenario": "lesson-0010",
+    "complexity": "medium"
+  },
+  "objectTypes": [
+    {
+      "id": 1,
+      "name": "租户与硬件",
+      "description": "算力租户客户、服务客户经理与GPU物理计算节点"
+    },
+    {
+      "id": 2,
+      "name": "订阅与接口",
+      "description": "云集群月度订阅服务、多态通用算力接口及服务就绪终态"
+    }
+  ],
+  "objects": [
+    {
+      "id": 1,
+      "object_type_id": 1,
+      "name": "客户·独角兽B",
+      "properties": "{\"租户编号\":\"TENANT-AI-09\",\"行业\":\"大模型预训练\",\"级别\":\"战略级\"}",
+      "annotations": "算力需求方"
+    },
+    {
+      "id": 2,
+      "object_type_id": 1,
+      "name": "商务·周敏",
+      "properties": "{\"工号\":\"BD-088\",\"职务\":\"算力解决方案架构师\"}",
+      "annotations": "服务客户经理"
+    },
+    {
+      "id": 3,
+      "object_type_id": 2,
+      "name": "算力集群订阅",
+      "properties": "{\"订阅单号\":\"SUB-H100-M03\",\"计费\":\"月度预付\",\"配额\":\"8卡SXM5\"}",
+      "annotations": "业务订阅过程"
+    },
+    {
+      "id": 4,
+      "object_type_id": 2,
+      "name": "算力标准接口",
+      "properties": "{\"协议\":\"PCIe-RoCE-v2\",\"带宽\":\"3.2Tbps\",\"多态抽象\":true}",
+      "annotations": "多态抽象规范"
+    },
+    {
+      "id": 5,
+      "object_type_id": 1,
+      "name": "GPU节点04",
+      "properties": "{\"机架\":\"RACK-GPU-CL04\",\"芯片\":\"H100 SXM5\",\"园区\":\"乌兰察布A区\"}",
+      "annotations": "物理基础设施"
+    },
+    {
+      "id": 6,
+      "object_type_id": 2,
+      "name": "就绪接入状态",
+      "properties": "{\"凭证\":\"Kubeconfig-Ready\",\"资源池\":\"专有Namespace\",\"状态\":\"可用\"}",
+      "annotations": "资源开通终态"
+    }
+  ],
+  "linkTypes": [
+    {
+      "id": 1,
+      "name": "采购发起",
+      "description": "租户企业提交云算力集群采购订阅"
+    },
+    {
+      "id": 2,
+      "name": "商务推进",
+      "description": "客户经理推进技术参数与合同匹配"
+    },
+    {
+      "id": 3,
+      "name": "实现标准接口",
+      "description": "订阅流实现通用算力抽象接口协议"
+    },
+    {
+      "id": 4,
+      "name": "绑定物理硬件",
+      "description": "标准接口向下挂载具体的物理计算节点"
+    },
+    {
+      "id": 5,
+      "name": "交付激活",
+      "description": "硬件初始化完毕交付租户就绪接入状态"
+    }
+  ],
+  "links": [
+    {
+      "id": 1,
+      "link_type_id": 1,
+      "source_object_id": 1,
+      "target_object_id": 3,
+      "weight": 1
+    },
+    {
+      "id": 2,
+      "link_type_id": 2,
+      "source_object_id": 2,
+      "target_object_id": 3,
+      "weight": 1
+    },
+    {
+      "id": 3,
+      "link_type_id": 3,
+      "source_object_id": 3,
+      "target_object_id": 4,
+      "weight": 1
+    },
+    {
+      "id": 4,
+      "link_type_id": 4,
+      "source_object_id": 4,
+      "target_object_id": 5,
+      "weight": 1
+    },
+    {
+      "id": 5,
+      "link_type_id": 5,
+      "source_object_id": 5,
+      "target_object_id": 6,
+      "weight": 0.95
+    }
+  ],
+  "actions": [],
+  "introspections": [],
+  "insights": []
+}

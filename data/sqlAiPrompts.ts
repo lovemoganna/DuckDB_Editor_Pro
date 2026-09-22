@@ -10,7 +10,7 @@
  */
 
 /** Result-mode prompts — used by `handleAiContinueOptimize(type)`. */
-export const OPTIMIZATION_PROMPTS: Record<string, (sql: string) => string> = {
+export const OPTIMIZATION_PROMPTS: Record<string, (sql: string, bottleneck?: string) => string> = {
   improve: (sql) =>
     `请优化以下 SQL，提升性能和可读性。直接返回优化后的 SQL 代码，不要包含其他说明文字：\n\n${sql}`,
   explain: (sql) =>
@@ -23,7 +23,7 @@ export const OPTIMIZATION_PROMPTS: Record<string, (sql: string) => string> = {
     `SQL: ${sql}`,
   adapt: (sql) =>
     `请将以下 SQL 适配到 DuckDB 语法，利用 DuckDB 特有功能（如 SUMMARIZE、PIVOT、UNPIVOT、USING SAMPLE 等）优化。直接返回优化后的 SQL 代码：\n\n${sql}`,
-  diagnoseProfiling: (sql, bottleneck) =>
+  diagnoseProfiling: (sql, bottleneck = 'No bottleneck details supplied') =>
     `根据以下 SQL 的性能剖析瓶颈节点信息：\n瓶颈描述：${bottleneck}\n\n请对此 SQL 进行针对性的性能重构和优化，直接返回优化后的 SQL，不需要说明文字。在 SQL 注释中简要说明优化的原因。\n\nSQL: ${sql}`,
 };
 

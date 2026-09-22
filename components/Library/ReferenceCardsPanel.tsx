@@ -22,6 +22,10 @@ import {
   Lightbulb
 } from 'lucide-react';
 import { ReferenceCard } from '../../types';
+import { CodeHighlightBlock } from '../ui/CodeHighlightBlock';
+import { duckDBService } from '../../services/duckdbService';
+import { libraryAiService } from '../../services/libraryAiService';
+import { toastService } from '../../services/toastService';
 
 interface ReferenceCardsPanelProps {
   cards: ReferenceCard[];
@@ -179,21 +183,75 @@ export const ReferenceCardsPanel: React.FC<ReferenceCardsPanelProps> = ({
     setShowAISuggestions(false);
   }, []);
 
-  // AI 一键填充 - 生成速查卡片（模拟 AI 生成过程）
-  const handleAIFill = useCallback(() => {
+  // AI 一键填充 - 结合 DuckDB 真实表结构与 AI 智能生成速查卡片
+  const handleAIFill = useCallback(async () => {
     setIsAIFilling(true);
     setAiSuggestions([]);
     setShowAISuggestions(false);
 
-    // 模拟 AI 生成延迟（实际项目中可替换为真实 API 调用）
-    setTimeout(() => {
-      // 随机选择 2-3 个建议
-      const shuffled = [...AI_FILL_SUGGESTIONS].sort(() => 0.5 - Math.random());
-      const selected = shuffled.slice(0, Math.floor(Math.random() * 2) + 2);
-      setAiSuggestions(selected);
-      setIsAIFilling(false);
+    try {
+      const tables = await duckDBService.getTables().catch(() => []);
+      let generated: Array<typeof AI_FILL_SUGGESTIONS[0]> = [];
+
+      if (tables.length > 0) {
+        const targetTable = tables[0];
+        const schema = await duckDBService.getTableSchema(targetTable).catch(() => []);
+        
+        try {
+          const aiSnippets = await libraryAiService.generateTemplatesForTable(
+            targetTable,
+            schema.map((c: any) => ({ name: c.name, type: c.type || 'VARCHAR' }))
+          );
+          if (aiSnippets && aiSnippets.length > 0) {
+            generated = aiSnippets.map(s => ({
+              title: s.title,
+              syntax: s.sql.split('\n')[0] || s.sql,
+              example: s.sql,
+              scenario: s.description,
+              tags: s.tags.join(',')
+            }));
+          }
+        } catch {
+          // Fallback to dynamic schema-based templates
+          const colNames = schema.map((c: any) => c.name);
+          generated = [
+            {
+              title: `${targetTable} 表全字段探查`,
+              syntax: `SELECT * FROM "${targetTable}" LIMIT 50;`,
+              example: `-- 探查 ${targetTable} 表全量字段与前 50 行数据\nSELECT * FROM "${targetTable}" LIMIT 50;`,
+              scenario: `快速探查数据表 ${targetTable} 的数据分布与样本`,
+              tags: `${targetTable},dql,explore`
+            },
+            {
+              title: `${targetTable} 统计指标聚合 (Summarize)`,
+              syntax: `SUMMARIZE "${targetTable}";`,
+              example: `-- 计算 ${targetTable} 各列的 Min, Max, Null 比例与唯一值数\nSUMMARIZE "${targetTable}";`,
+              scenario: `DuckDB 原生列存储分布统计`,
+              tags: `${targetTable},summarize,stats`
+            },
+            {
+              title: `${targetTable} 行数与非空率检查`,
+              syntax: `SELECT COUNT(*) AS total_rows FROM "${targetTable}";`,
+              example: `-- 检查行数与列完整性\nSELECT COUNT(*) AS total_rows${colNames.length > 0 ? `, COUNT("${colNames[0]}") AS valid_count` : ''} FROM "${targetTable}";`,
+              scenario: `数据质量与完整性基础核验`,
+              tags: `${targetTable},quality,count`
+            }
+          ];
+        }
+      }
+
+      if (generated.length === 0) {
+        generated = AI_FILL_SUGGESTIONS.slice(0, 3);
+      }
+
+      setAiSuggestions(generated);
       setShowAISuggestions(true);
-    }, 800);
+      toastService.success(`AI 已生成 ${generated.length} 个速查建议卡片`);
+    } catch (err: any) {
+      toastService.error('生成速查建议失败: ' + (err?.message || String(err)));
+    } finally {
+      setIsAIFilling(false);
+    }
   }, []);
 
   // 采用 AI 建议
@@ -250,61 +308,61 @@ export const ReferenceCardsPanel: React.FC<ReferenceCardsPanelProps> = ({
 
       {/* 添加表单 */}
       {showAddForm && (
-        <div className="mb-4 p-4 bg-monokai-sidebar border border-monokai-accent rounded-lg">
-          <h4 className="text-sm font-medium text-monokai-fg mb-3">添加新速查卡片</h4>
+        <div className="mb-4 p-4 bg-monokai-surface/90 rounded-xl shadow-md">
+          <h4 className="text-xs font-semibold text-monokai-fg mb-3">添加新速查卡片</h4>
           <div className="space-y-3">
             <input
               type="text"
               placeholder="标题（如：SELECT 查询结构）"
               value={newCard.title}
               onChange={(e) => setNewCard(prev => ({ ...prev, title: e.target.value }))}
-              className="w-full px-3 py-2 bg-monokai-bg border border-monokai-accent rounded text-sm text-monokai-fg placeholder-monokai-comment focus:outline-none focus:border-monokai-blue"
+              className="w-full px-3 py-2 bg-monokai-bg rounded-lg text-xs text-monokai-fg placeholder-monokai-comment focus:outline-none focus:ring-1 focus:ring-monokai-cyan/70"
             />
             <input
               type="text"
               placeholder="语法模板"
               value={newCard.syntax}
               onChange={(e) => setNewCard(prev => ({ ...prev, syntax: e.target.value }))}
-              className="w-full px-3 py-2 bg-monokai-bg border border-monokai-accent rounded text-sm text-monokai-fg placeholder-monokai-comment focus:outline-none focus:border-monokai-blue font-mono"
+              className="w-full px-3 py-2 bg-monokai-bg rounded-lg text-xs text-monokai-fg placeholder-monokai-comment focus:outline-none focus:ring-1 focus:ring-monokai-cyan/70 font-mono"
             />
             <textarea
               placeholder="示例 SQL（可选）"
               value={newCard.example}
               onChange={(e) => setNewCard(prev => ({ ...prev, example: e.target.value }))}
               rows={3}
-              className="w-full px-3 py-2 bg-monokai-bg border border-monokai-accent rounded text-sm text-monokai-fg placeholder-monokai-comment focus:outline-none focus:border-monokai-blue font-mono resize-none"
+              className="w-full px-3 py-2 bg-monokai-bg rounded-lg text-xs text-monokai-fg placeholder-monokai-comment focus:outline-none focus:ring-1 focus:ring-monokai-cyan/70 font-mono resize-none"
             />
             <input
               type="text"
               placeholder="使用场景（可选）"
               value={newCard.scenario}
               onChange={(e) => setNewCard(prev => ({ ...prev, scenario: e.target.value }))}
-              className="w-full px-3 py-2 bg-monokai-bg border border-monokai-accent rounded text-sm text-monokai-fg placeholder-monokai-comment focus:outline-none focus:border-monokai-blue"
+              className="w-full px-3 py-2 bg-monokai-bg rounded-lg text-xs text-monokai-fg placeholder-monokai-comment focus:outline-none focus:ring-1 focus:ring-monokai-cyan/70"
             />
             <input
               type="text"
               placeholder="标签，逗号分隔（如：select, 基础, 高频）"
               value={newCard.tags}
               onChange={(e) => setNewCard(prev => ({ ...prev, tags: e.target.value }))}
-              className="w-full px-3 py-2 bg-monokai-bg border border-monokai-accent rounded text-sm text-monokai-fg placeholder-monokai-comment focus:outline-none focus:border-monokai-blue"
+              className="w-full px-3 py-2 bg-monokai-bg rounded-lg text-xs text-monokai-fg placeholder-monokai-comment focus:outline-none focus:ring-1 focus:ring-monokai-cyan/70"
             />
             <div className="flex gap-2">
               <button
                 onClick={handleAdd}
-                className="flex-1 px-3 py-2 bg-monokai-blue text-white rounded text-sm hover:bg-monokai-blue/80 transition-colors"
+                className="flex-1 px-3 py-1.5 bg-monokai-cyan text-monokai-bg font-semibold rounded-lg text-xs hover:bg-monokai-cyan/90 transition-colors cursor-pointer"
               >
-                保存
+                保存卡片
               </button>
               <button
                 onClick={handleQuickClear}
-                className="flex items-center gap-1 px-3 py-2 bg-monokai-accent/20 text-monokai-comment rounded text-sm hover:bg-monokai-accent/30 transition-colors"
+                className="flex items-center gap-1 px-3 py-1.5 bg-monokai-surface text-monokai-comment rounded-lg text-xs hover:text-monokai-fg transition-colors cursor-pointer"
                 title="快速清除（Esc）"
               >
-                <RotateCcw className="w-4 h-4" />
+                <RotateCcw className="w-3.5 h-3.5" />
               </button>
               <button
                 onClick={() => setShowAddForm(false)}
-                className="px-3 py-2 bg-monokai-accent/20 text-monokai-comment rounded text-sm hover:bg-monokai-accent/30 transition-colors"
+                className="px-3 py-1.5 bg-monokai-surface text-monokai-comment rounded-lg text-xs hover:text-monokai-fg transition-colors cursor-pointer"
               >
                 取消
               </button>
@@ -318,15 +376,15 @@ export const ReferenceCardsPanel: React.FC<ReferenceCardsPanelProps> = ({
         {cards.map(card => (
           <div
             key={card.id}
-            className="p-4 bg-monokai-sidebar border border-monokai-accent rounded-lg hover:border-monokai-blue/50 transition-colors"
+            className="p-4 bg-monokai-surface/90 rounded-xl transition-colors shadow-xs"
           >
             {/* 卡片头部 */}
             <div className="flex items-start justify-between mb-2">
               <div className="flex items-center gap-2">
-                <BookOpen className="w-4 h-4 text-monokai-blue" />
-                <h4 className="text-sm font-medium text-monokai-fg">{card.title}</h4>
+                <BookOpen className="w-4 h-4 text-monokai-cyan" />
+                <h4 className="text-xs font-semibold text-monokai-fg">{card.title}</h4>
                 {card.isSystem && (
-                  <span className="px-1.5 py-0.5 text-xs bg-monokai-green/20 text-monokai-green rounded">
+                  <span className="px-2 py-0.5 text-[10px] font-mono font-medium bg-monokai-cyan/15 text-monokai-cyan rounded">
                     预置
                   </span>
                 )}
@@ -334,18 +392,18 @@ export const ReferenceCardsPanel: React.FC<ReferenceCardsPanelProps> = ({
               <div className="flex items-center gap-1">
                 <button
                   onClick={() => handleCopy(card)}
-                  className="p-1.5 rounded hover:bg-monokai-accent/20 text-monokai-comment hover:text-monokai-fg transition-colors"
+                  className="p-1.5 rounded-lg hover:bg-monokai-surface text-monokai-comment hover:text-monokai-fg transition-colors cursor-pointer"
                   title="复制语法"
                 >
-                  {copiedId === card.id ? <Check className="w-4 h-4 text-monokai-green" /> : <Copy className="w-4 h-4" />}
+                  {copiedId === card.id ? <Check className="w-3.5 h-3.5 text-monokai-green" /> : <Copy className="w-3.5 h-3.5" />}
                 </button>
                 {card.example && (
                   <button
                     onClick={() => setExpandedCard(expandedCard === card.id ? null : card.id)}
-                    className="p-1.5 rounded hover:bg-monokai-accent/20 text-monokai-comment hover:text-monokai-fg transition-colors"
+                    className="p-1.5 rounded-lg hover:bg-monokai-surface text-monokai-comment hover:text-monokai-cyan border border-transparent hover:border-monokai-border/70 transition-colors cursor-pointer"
                     title="查看示例"
                   >
-                    <ExternalLink className="w-4 h-4" />
+                    <ExternalLink className="w-3.5 h-3.5" />
                   </button>
                 )}
                 {!card.isSystem && (
@@ -361,9 +419,14 @@ export const ReferenceCardsPanel: React.FC<ReferenceCardsPanelProps> = ({
             </div>
 
             {/* 语法模板 */}
-            <pre className="text-xs text-monokai-comment font-mono bg-monokai-bg p-2 rounded mb-2 overflow-x-auto">
-              {card.syntax}
-            </pre>
+            <CodeHighlightBlock
+              code={card.syntax}
+              language="sql"
+              title="SQL 语法"
+              showLineNumbers={false}
+              maxHeight="120px"
+              className="mb-2"
+            />
 
             {/* 使用场景 */}
             {card.scenario && (
@@ -383,27 +446,24 @@ export const ReferenceCardsPanel: React.FC<ReferenceCardsPanelProps> = ({
 
             {/* 展开的示例 */}
             {expandedCard === card.id && card.example && (
-              <div className="mt-3 p-3 bg-monokai-bg border border-monokai-accent rounded">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-medium text-monokai-fg">示例</span>
-                  <div className="flex gap-1">
-                    <button
-                      onClick={() => handleInsert(card.example)}
-                      className="text-xs text-monokai-blue hover:underline"
-                    >
-                      插入编辑器
-                    </button>
-                    <button
-                      onClick={() => handleCopy(card)}
-                      className="text-xs text-monokai-comment hover:text-monokai-fg"
-                    >
-                      复制
-                    </button>
-                  </div>
+              <div className="mt-3 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-monokai-fg">示例语句</span>
+                  <button
+                    type="button"
+                    onClick={() => handleInsert(card.example)}
+                    className="text-xs text-monokai-blue hover:underline cursor-pointer"
+                  >
+                    插入编辑器
+                  </button>
                 </div>
-                <pre className="text-xs text-monokai-comment font-mono whitespace-pre-wrap">
-                  {card.example}
-                </pre>
+                <CodeHighlightBlock
+                  code={card.example}
+                  language="sql"
+                  title="执行示例"
+                  maxHeight="200px"
+                  onCopy={() => handleCopy(card)}
+                />
               </div>
             )}
           </div>
@@ -421,7 +481,7 @@ export const ReferenceCardsPanel: React.FC<ReferenceCardsPanelProps> = ({
       {/* AI 建议弹窗 */}
       {showAISuggestions && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-monokai-bg border border-monokai-amethyst/30 rounded-xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
+          <div className="bg-monokai-bg border border-monokai-border rounded-xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
             {/* 弹窗头部 */}
             <div className="p-4 border-b border-monokai-accent flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -447,7 +507,7 @@ export const ReferenceCardsPanel: React.FC<ReferenceCardsPanelProps> = ({
                 {aiSuggestions.map((suggestion, idx) => (
                   <div
                     key={idx}
-                    className="p-4 bg-monokai-sidebar border border-monokai-amethyst/20 rounded-lg hover:border-monokai-amethyst/50 transition-colors cursor-pointer"
+                    className="p-4 bg-monokai-sidebar border border-monokai-border rounded-lg hover:border-monokai-border-strong transition-colors cursor-pointer"
                     onClick={() => handleApplySuggestion(suggestion)}
                   >
                     <div className="flex items-start justify-between mb-2">
@@ -471,7 +531,7 @@ export const ReferenceCardsPanel: React.FC<ReferenceCardsPanelProps> = ({
                 ))}
               </div>
 
-              <div className="mt-4 p-3 bg-monokai-amethyst/10 rounded-lg border border-monokai-amethyst/20">
+              <div className="mt-4 p-3 bg-monokai-amethyst/10 rounded-lg border border-monokai-border">
                 <p className="text-xs text-monokai-comment">
                   💡 <span className="text-monokai-amethyst font-medium">与 AI 二次优化：</span>
                   您可以点击上方卡片直接采用，也可以复制卡片内容后让 AI 为您定制更贴合业务的内容。

@@ -113,7 +113,7 @@ export const SkillExecutionHistory: React.FC<SkillExecutionHistoryProps> = ({ on
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             placeholder="搜索历史记录..."
-            className="w-full pl-9 pr-3 py-2 text-xs bg-monokai-sidebar border border-monokai-accent text-monokai-fg placeholder-monokai-comment rounded-lg focus:outline-none focus:border-monokai-amethyst transition-colors"
+            className="w-full pl-9 pr-3 py-2 text-xs bg-monokai-sidebar border border-monokai-accent text-monokai-fg placeholder-monokai-comment rounded-lg focus:outline-none focus:border-monokai-accent transition-colors"
           />
         </div>
 
@@ -125,7 +125,7 @@ export const SkillExecutionHistory: React.FC<SkillExecutionHistoryProps> = ({ on
             <select
               value={filterMode}
               onChange={e => setFilterMode(e.target.value as FilterMode)}
-              className="text-[10px] bg-monokai-sidebar border border-monokai-accent text-monokai-fg rounded px-1.5 py-1 focus:outline-none focus:border-monokai-amethyst"
+              className="text-[10px] bg-monokai-sidebar border border-monokai-accent text-monokai-fg rounded px-1.5 py-1 focus:outline-none focus:border-monokai-accent"
             >
               <option value="all">全部</option>
               <option value="success">仅成功</option>
@@ -140,7 +140,7 @@ export const SkillExecutionHistory: React.FC<SkillExecutionHistoryProps> = ({ on
             <select
               value={sortMode}
               onChange={e => setSortMode(e.target.value as SortMode)}
-              className="text-[10px] bg-monokai-sidebar border border-monokai-accent text-monokai-fg rounded px-1.5 py-1 focus:outline-none focus:border-monokai-amethyst"
+              className="text-[10px] bg-monokai-sidebar border border-monokai-accent text-monokai-fg rounded px-1.5 py-1 focus:outline-none focus:border-monokai-accent"
             >
               <option value="recent">最近</option>
               <option value="success">成功率</option>
@@ -155,7 +155,7 @@ export const SkillExecutionHistory: React.FC<SkillExecutionHistoryProps> = ({ on
             className={`flex items-center gap-1 px-2 py-1 text-[10px] border rounded transition-colors ${
               showStats
                 ? 'bg-monokai-amethyst/20 border-monokai-amethyst text-monokai-amethyst'
-                : 'bg-monokai-sidebar border-monokai-accent text-monokai-comment hover:border-monokai-amethyst/50'
+                : 'bg-monokai-sidebar border-monokai-accent text-monokai-comment hover:border-monokai-border-strong'
             }`}
           >
             <BarChart3 className="w-3 h-3" />
@@ -202,7 +202,7 @@ export const SkillExecutionHistory: React.FC<SkillExecutionHistoryProps> = ({ on
               <div
                 key={item.id}
                 className={`p-3 rounded-lg border transition-all hover:shadow-md ${
-                  isSuccess ? 'bg-monokai-sidebar hover:border-monokai-amethyst/50 border-monokai-accent' : 'bg-monokai-red/5 border-monokai-red/20'
+                  isSuccess ? 'bg-monokai-sidebar hover:border-monokai-border-strong border-monokai-accent' : 'bg-monokai-red/5 border-monokai-red/20'
                 }`}
               >
                 <div className="flex items-start justify-between mb-2">

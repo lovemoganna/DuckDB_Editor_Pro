@@ -11,11 +11,15 @@
 
 import { create } from 'zustand';
 import { Tab } from '../../types';
+import { aiConfigStore, AIProvider } from '../../services/aiConfigStore';
 
 interface AppState {
-  // Navigation
+  // Navigation & Workspace Mode
   activeTab: Tab;
   setActiveTab: (tab: Tab) => void;
+  isZenMode: boolean;
+  setIsZenMode: (v: boolean) => void;
+  toggleZenMode: () => void;
 
   // Database
   tables: string[];
@@ -60,11 +64,15 @@ interface AppState {
 }
 
 let notifCounter = 0;
+const initialAIConfig = aiConfigStore.getConfig();
 
 export const useAppStore = create<AppState>((set, get) => ({
-  // Navigation
+  // Navigation & Workspace Mode
   activeTab: Tab.DASHBOARD,
   setActiveTab: (tab) => set({ activeTab: tab }),
+  isZenMode: false,
+  setIsZenMode: (v) => set({ isZenMode: v }),
+  toggleZenMode: () => set((state) => ({ isZenMode: !state.isZenMode })),
 
   // Database
   tables: [],
@@ -92,41 +100,28 @@ export const useAppStore = create<AppState>((set, get) => ({
   setShowExportModal: (v) => set({ showExportModal: v }),
 
   // AI Config
-  aiProvider: localStorage.getItem('duckdb_ai_provider') || 'google',
-  aiApiKey: localStorage.getItem('duckdb_ai_api_key') || '',
-  aiBaseUrl: localStorage.getItem('duckdb_ai_base_url') || '',
-  aiModel: localStorage.getItem('duckdb_ai_model') || 'gemini-2.0-flash-exp',
+  aiProvider: initialAIConfig.provider,
+  aiApiKey: initialAIConfig.apiKey,
+  aiBaseUrl: initialAIConfig.baseUrl,
+  aiModel: initialAIConfig.model,
   setAiConfig: (config) => {
-    const s = get();
-    const updates: Partial<AppState> = {};
-    if (config.provider !== undefined) {
-      updates.aiProvider = config.provider;
-      localStorage.setItem('duckdb_ai_provider', config.provider);
-      if (!config.model) {
-        updates.aiModel = config.provider === 'google' ? 'gemini-2.0-flash-exp' : 'llama-3.3-70b-versatile';
-        localStorage.setItem('duckdb_ai_model', updates.aiModel);
-      }
-    }
-    if (config.apiKey !== undefined) {
-      updates.aiApiKey = config.apiKey;
-      localStorage.setItem('duckdb_ai_api_key', config.apiKey);
-    }
-    if (config.baseUrl !== undefined) {
-      updates.aiBaseUrl = config.baseUrl;
-      localStorage.setItem('duckdb_ai_base_url', config.baseUrl);
-    }
-    if (config.model !== undefined) {
-      updates.aiModel = config.model;
-      localStorage.setItem('duckdb_ai_model', config.model);
-    }
-    set(updates);
+    const next = aiConfigStore.setConfig({
+      ...config,
+      provider: config.provider as AIProvider | undefined,
+    });
+    set({
+      aiProvider: next.provider,
+      aiApiKey: next.apiKey,
+      aiBaseUrl: next.baseUrl,
+      aiModel: next.model,
+    });
   },
 
   // Notifications
   notifications: [],
   addNotification: (message, type = 'info') => {
     const id = `notif-${++notifCounter}-${Date.now()}`;
-    set(state => ({
+    set((state) => ({
       notifications: [...state.notifications, { id, message, type }],
     }));
     setTimeout(() => {
@@ -134,8 +129,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     }, 3000);
   },
   removeNotification: (id) => {
-    set(state => ({
-      notifications: state.notifications.filter(n => n.id !== id),
+    set((state) => ({
+      notifications: state.notifications.filter((n) => n.id !== id),
     }));
   },
 

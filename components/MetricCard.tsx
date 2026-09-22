@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { MetricDefinition } from '../types';
-import { 
-  Edit2, Trash2, Copy, Check, X, 
-  Tag, Lightbulb, Star, BookOpen, Calculator, 
-  FileText, Link, ChevronDown, ChevronUp,
-  Play, Wrench, AlertCircle, CheckCircle, BarChart2
+import {
+  Trash2, Copy, Check, Tag, Lightbulb, Star, BookOpen,
+  Calculator, FileText, Link, ChevronDown, ChevronUp,
+  Play, Wrench, AlertCircle, CheckCircle, BarChart2, GitBranch,
+  Edit3, MoreHorizontal, Sparkles, Terminal
 } from 'lucide-react';
+import { IconButton } from './ui/Workbench';
+import { toastService } from '../services/toastService';
 
 interface MetricCardProps {
   metric: MetricDefinition;
@@ -14,45 +16,56 @@ interface MetricCardProps {
   onValidate?: (metric: MetricDefinition) => void;
   onFix?: (metric: MetricDefinition) => void;
   onGenerateChart?: (metric: MetricDefinition) => void;
+  onShowLineage?: (metric: MetricDefinition) => void;
+  onExecuteInEditor?: (metric: MetricDefinition) => void;
   sourceTable?: string;
   hasChart?: boolean;
   onToggleFavorite?: (id: string) => void;
   isFavorite?: boolean;
 }
 
-export const MetricCard: React.FC<MetricCardProps> = ({ 
-  metric, 
-  onEdit, 
+export const MetricCard: React.FC<MetricCardProps> = ({
+  metric,
+  onEdit,
   onDelete,
   onValidate,
   onFix,
   onGenerateChart,
-  sourceTable,
+  onShowLineage,
+  onExecuteInEditor,
+  sourceTable: _sourceTable,
   hasChart = false,
   onToggleFavorite,
-  isFavorite = false
+  isFavorite = false,
 }) => {
   const [copied, setCopied] = useState(false);
+  const [copiedSql, setCopiedSql] = useState(false);
   const [expanded, setExpanded] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editForm, setEditForm] = useState<MetricDefinition>(metric);
   const [isValidating, setIsValidating] = useState(false);
   const [isGeneratingChart, setIsGeneratingChart] = useState(false);
 
-  const handleCopy = async () => {
-    await navigator.clipboard.writeText(JSON.stringify(metric, null, 2));
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const handleCopyJson = async () => {
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(metric, null, 2));
+      setCopied(true);
+      toastService.success('指标 JSON 已复制', metric.name);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toastService.error('复制失败', '请检查剪贴板权限');
+    }
   };
 
-  const handleSaveEdit = () => {
-    onEdit(editForm);
-    setIsEditing(false);
-  };
-
-  const handleCancelEdit = () => {
-    setEditForm(metric);
-    setIsEditing(false);
+  const handleCopySql = async () => {
+    const textToCopy = metric.sqlValidation || metric.formula;
+    if (!textToCopy) return;
+    try {
+      await navigator.clipboard.writeText(textToCopy);
+      setCopiedSql(true);
+      toastService.success('SQL 已复制到剪贴板', textToCopy);
+      setTimeout(() => setCopiedSql(false), 2000);
+    } catch {
+      toastService.error('复制失败', '请检查剪贴板权限');
+    }
   };
 
   const handleValidate = async () => {
@@ -85,283 +98,277 @@ export const MetricCard: React.FC<MetricCardProps> = ({
     }
   };
 
-  const handleCopySql = async () => {
-    if (metric.sqlValidation) {
-      await navigator.clipboard.writeText(metric.sqlValidation);
-    }
-  };
-
-  const FieldView: React.FC<{ icon: React.ReactNode; label: string; value: string | string[] }> = ({ 
-    icon, 
-    label, 
-    value 
-  }) => (
-    <div className="flex gap-2">
-      <div className="text-monokai-blue mt-0.5">{icon}</div>
-      <div className="flex-1">
-        <div className="text-xs text-monokai-comment uppercase">{label}</div>
-        {Array.isArray(value) ? (
-          <div className="flex flex-wrap gap-1 mt-1">
-            {value.map((v, i) => (
-              <span key={i} className="px-2 py-0.5 bg-monokai-accent/30 rounded text-xs text-monokai-fg">
-                {v}
-              </span>
-            ))}
-          </div>
-        ) : (
-          <div className="text-sm text-monokai-fg mt-0.5">{value}</div>
-        )}
-      </div>
-    </div>
-  );
-
-  const FieldEdit: React.FC<{ label: string; field: keyof MetricDefinition; multiline?: boolean }> = ({ 
-    label, 
-    field,
-    multiline 
-  }) => (
-    <div className="flex flex-col gap-1">
-      <label className="text-xs text-monokai-comment uppercase">{label}</label>
-      {multiline ? (
-        <textarea
-          value={editForm[field] as string}
-          onChange={(e) => setEditForm({ ...editForm, [field]: e.target.value })}
-          className="w-full bg-monokai-bg border border-monokai-accent p-2 rounded text-sm text-monokai-fg focus:border-monokai-blue outline-none resize-none"
-          rows={3}
-        />
-      ) : (
-        <input
-          type="text"
-          value={editForm[field] as string}
-          onChange={(e) => setEditForm({ ...editForm, [field]: e.target.value })}
-          className="w-full bg-monokai-bg border border-monokai-accent p-2 rounded text-sm text-monokai-fg focus:border-monokai-blue outline-none"
-        />
-      )}
-    </div>
-  );
-
-  if (isEditing) {
-    return (
-      <div className="bg-[#272822] border border-monokai-green rounded-lg p-4">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-sm font-bold text-monokai-green">编辑指标</h3>
-          <div className="flex gap-2">
-            <button
-              onClick={handleSaveEdit}
-              className="p-1.5 !bg-monokai-surface border border-monokai-green text-monokai-green rounded hover:opacity-90"
-              title="保存"
-            >
-              <Check size={14} />
-            </button>
-            <button
-              onClick={handleCancelEdit}
-              className="p-1.5 !bg-monokai-surface border border-monokai-accent text-monokai-accent rounded hover:opacity-80"
-              title="取消"
-            >
-              <X size={14} />
-            </button>
-          </div>
-        </div>
-
-        <div className="space-y-3">
-          <FieldEdit label="指标名称" field="name" />
-          <FieldEdit label="指标场景" field="scenario" />
-          <FieldEdit label="指标特点" field="characteristics" />
-          <FieldEdit label="价值说明" field="value" />
-          <FieldEdit label="指标定义" field="definition" multiline />
-          <FieldEdit label="计算公式" field="formula" />
-          <FieldEdit label="典型案例" field="example" />
-          <FieldEdit label="单位" field="unit" />
-          <FieldEdit label="分类" field="category" />
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="bg-[#272822] border border-monokai-accent rounded-lg p-4 hover:border-monokai-blue transition-colors">
-      {/* Header */}
-      <div className="flex justify-between items-start mb-3">
-        <div className="flex-1">
-          <h3 className="text-base font-bold text-monokai-fg flex items-center gap-2">
-            <span className="text-monokai-pink">{metric.name}</span>
-            {metric.category && (
-              <span className="px-2 py-0.5 bg-monokai-amethyst/30 rounded text-xs text-monokai-amethyst">
-                {metric.category}
+    <div className="group bg-monokai-sidebar rounded-md border border-monokai-border p-4 transition-all duration-150 shadow-xs hover:border-monokai-border-strong flex flex-col justify-between">
+      <div>
+        {/* Top Card Header */}
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-mono font-bold text-sm text-monokai-fg group-hover:text-monokai-accent transition-colors truncate">
+                {metric.name}
               </span>
+              {metric.category && (
+                <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-monokai-surface text-monokai-fg-muted border border-monokai-border">
+                  {metric.category}
+                </span>
+              )}
+              {metric.version && metric.version > 1 && (
+                <span className="px-1.5 py-0.2 rounded text-[10px] font-mono bg-monokai-surface text-monokai-comment">
+                  v{metric.version}
+                </span>
+              )}
+            </div>
+
+            {/* Badges row */}
+            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+              {metric.unit && (
+                <span className="text-[11px] text-monokai-comment">
+                  单位: <strong className="text-monokai-fg font-mono">{metric.unit}</strong>
+                </span>
+              )}
+              {metric.isValid === true && (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.2 bg-emerald-500/10 text-emerald-400 rounded text-[10px] font-medium">
+                  <CheckCircle size={10} /> 已验证
+                </span>
+              )}
+              {metric.isValid === false && (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.2 bg-rose-500/10 text-rose-400 rounded text-[10px] font-medium">
+                  <AlertCircle size={10} /> 验证失败
+                </span>
+              )}
+              {hasChart && (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.2 bg-white/[0.06] text-monokai-fg-muted rounded text-[10px] font-medium">
+                  <BarChart2 size={10} /> 已生成图表
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Quick Actions Row */}
+          <div className="flex items-center gap-1 shrink-0">
+            {/* Run in Editor */}
+            {onExecuteInEditor && (
+              <IconButton
+                label="在 SQL 编辑器中运行"
+                icon={Terminal}
+                size="sm"
+                tone="primary"
+                onClick={() => onExecuteInEditor(metric)}
+              />
             )}
-            {metric.version && metric.version > 1 && (
-              <span className="px-2 py-0.5 bg-monokai-blue/30 rounded text-xs text-monokai-blue" title={`版本 ${metric.version}`}>
-                v{metric.version}
-              </span>
+
+            {/* Validate */}
+            {onValidate && (
+              <IconButton
+                label="验证 SQL 计算"
+                icon={Play}
+                size="sm"
+                tone="success"
+                disabled={isValidating}
+                onClick={handleValidate}
+              />
             )}
-          </h3>
-          <div className="flex items-center gap-2 mt-1">
-            {metric.unit && (
-              <span className="text-xs text-monokai-comment">单位: {metric.unit}</span>
+
+            {/* AI Fix button (when invalid) */}
+            {onFix && metric.isValid === false && (
+              <IconButton
+                label="AI 自动修复公式"
+                icon={Wrench}
+                size="sm"
+                tone="warning"
+                disabled={isValidating}
+                onClick={handleFix}
+              />
             )}
-            {/* Validation Status */}
-            {metric.isValid === true && (
-              <span className="flex items-center gap-1 px-2 py-0.5 bg-monokai-green/20 rounded text-xs text-monokai-green">
-                <CheckCircle size={10} /> 已验证
-              </span>
+
+            {/* Generate Chart */}
+            {onGenerateChart && (
+              <IconButton
+                label={hasChart ? "已生成图表" : "生成图表"}
+                icon={BarChart2}
+                size="sm"
+                tone={hasChart ? "primary" : "neutral"}
+                disabled={isGeneratingChart}
+                onClick={handleGenerateChart}
+              />
             )}
-            {metric.isValid === false && (
-              <span className="flex items-center gap-1 px-2 py-0.5 bg-monokai-pink/20 rounded text-xs text-monokai-pink">
-                <AlertCircle size={10} /> 验证失败
-              </span>
+
+            {/* Favorite toggle */}
+            {onToggleFavorite && (
+              <button
+                type="button"
+                aria-label={isFavorite ? "取消收藏" : "收藏指标"}
+                title={isFavorite ? "取消收藏" : "收藏指标"}
+                onClick={() => onToggleFavorite(metric.id)}
+                className={`h-8 w-8 inline-flex items-center justify-center rounded-md cursor-pointer transition-all duration-150 active:scale-95 ${
+                  isFavorite
+                    ? 'text-monokai-yellow bg-monokai-surface border border-monokai-border'
+                    : 'text-monokai-comment hover:text-monokai-yellow hover:bg-monokai-surface border border-transparent'
+                }`}
+              >
+                <Star size={14} className={isFavorite ? 'fill-current' : ''} />
+              </button>
             )}
-            {/* Health Score */}
-            {hasChart && (
-              <span className="flex items-center gap-1 px-2 py-0.5 bg-monokai-blue/20 rounded text-xs text-monokai-blue" title="健康度评分">
-                <CheckCircle size={10} /> 满分
-              </span>
-            )}
-            {/* Version indicator */}
-            {metric.version && metric.version > 0 && (
-              <span className="flex items-center gap-1 px-2 py-0.5 bg-monokai-amethyst/20 rounded text-xs text-monokai-amethyst" title={`版本: v${metric.version}`}>
-                v{metric.version}
-              </span>
-            )}
+
+            {/* Edit */}
+            <IconButton
+              label="编辑指标定义"
+              icon={Edit3}
+              size="sm"
+              tone="neutral"
+              onClick={() => onEdit(metric)}
+            />
+
+            {/* Copy JSON */}
+            <IconButton
+              label="复制指标 JSON"
+              icon={copied ? Check : Copy}
+              size="sm"
+              tone="neutral"
+              onClick={handleCopyJson}
+            />
+
+            {/* Delete */}
+            <IconButton
+              label="删除指标"
+              icon={Trash2}
+              size="sm"
+              tone="danger"
+              onClick={() => onDelete(metric.id)}
+            />
           </div>
         </div>
-        <div className="flex gap-1">
-          {/* Validate Button */}
-          {onValidate && (
-            <button
-              onClick={handleValidate}
-              disabled={isValidating}
-              className="p-1.5 hover:bg-monokai-accent rounded text-monokai-comment hover:text-monokai-green transition-colors disabled:opacity-50"
-              title="验证SQL"
-            >
-              {isValidating ? (
-                <div className="w-3.5 h-3.5 border-2 border-monokai-green border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <Play size={14} />
-              )}
-            </button>
-          )}
-          {/* Fix Button */}
-          {onFix && metric.isValid === false && (
-            <button
-              onClick={handleFix}
-              disabled={isValidating}
-              className="p-1.5 hover:bg-monokai-accent rounded text-monokai-comment hover:text-monokai-orange transition-colors disabled:opacity-50"
-              title="修复字段"
-            >
-              <Wrench size={14} />
-            </button>
-          )}
-          {/* Generate Chart Button */}
-          {onGenerateChart && (
-            <button
-              onClick={handleGenerateChart}
-              disabled={isGeneratingChart}
-              className={`p-1.5 hover:bg-monokai-accent rounded transition-colors disabled:opacity-50 ${
-                hasChart 
-                  ? 'text-monokai-amethyst hover:text-monokai-amethyst' 
-                  : 'text-monokai-comment hover:text-monokai-amethyst'
-              }`}
-              title={hasChart ? "已生成图表" : "生成图表"}
-            >
-              {isGeneratingChart ? (
-                <div className="w-3.5 h-3.5 border-2 border-monokai-amethyst border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <BarChart2 size={14} />
-              )}
-            </button>
-          )}
-          {onToggleFavorite && (
-            <button
-              onClick={() => onToggleFavorite(metric.id)}
-              className={`p-1.5 hover:bg-monokai-accent rounded transition-colors ${
-                isFavorite 
-                  ? 'text-monokai-yellow hover:text-monokai-yellow' 
-                  : 'text-monokai-comment hover:text-monokai-yellow'
-              }`}
-              title={isFavorite ? "取消收藏" : "收藏指标"}
-            >
-              <Star size={14} className={isFavorite ? 'fill-current' : ''} />
-            </button>
-          )}
+
+        {/* Formula Preview Box */}
+        <div className="mb-3 bg-monokai-bg rounded-md border border-monokai-border p-2.5 flex items-start justify-between gap-2 group/formula shadow-inner">
+          <div className="flex-1 min-w-0">
+            <span className="text-[10px] font-mono uppercase text-monokai-comment block mb-0.5">计算公式 (SQL)</span>
+            <code className="text-xs font-mono text-monokai-accent break-all leading-relaxed">
+              {metric.formula}
+            </code>
+          </div>
           <button
-            onClick={handleCopy}
-            className="p-1.5 hover:bg-monokai-accent rounded text-monokai-comment hover:text-white transition-colors"
-            title="复制JSON"
+            type="button"
+            onClick={handleCopySql}
+            className="p-1 rounded text-monokai-comment hover:text-monokai-fg hover:bg-monokai-surface opacity-0 group-hover/formula:opacity-100 transition-opacity cursor-pointer shrink-0"
+            title="复制公式"
           >
-            {copied ? <Check size={14} /> : <Copy size={14} />}
-          </button>
-          <button
-            onClick={() => setIsEditing(true)}
-            className="p-1.5 hover:bg-monokai-accent rounded text-monokai-comment hover:text-monokai-blue transition-colors"
-            title="编辑"
-          >
-            <Edit2 size={14} />
-          </button>
-          <button
-            onClick={() => onDelete(metric.id)}
-            className="p-1.5 hover:bg-monokai-accent rounded text-monokai-comment hover:text-monokai-pink transition-colors"
-            title="删除"
-          >
-            <Trash2 size={14} />
+            {copiedSql ? <Check size={12} className="text-monokai-green" /> : <Copy size={12} />}
           </button>
         </div>
-      </div>
 
-      {/* Fields */}
-      <div className="space-y-2">
-        <FieldView icon={<Tag size={12} />} label="指标场景" value={metric.scenario} />
-        <FieldView icon={<Star size={12} />} label="指标特点" value={metric.characteristics} />
-        <FieldView icon={<Lightbulb size={12} />} label="价值说明" value={metric.value} />
-        
+        {/* Primary Meta Fields */}
+        <div className="space-y-1.5 text-xs">
+          {metric.scenario && (
+            <div className="flex items-start gap-2 text-monokai-fg">
+              <span className="text-[11px] text-monokai-comment shrink-0 mt-0.5">场景:</span>
+              <span className="text-xs leading-relaxed">{metric.scenario}</span>
+            </div>
+          )}
+          {metric.definition && (
+            <div className="flex items-start gap-2 text-monokai-comment">
+              <span className="text-[11px] text-monokai-comment shrink-0 mt-0.5">口径:</span>
+              <span className="text-xs text-monokai-fg-muted leading-relaxed line-clamp-2">{metric.definition}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Expanded Deep Details */}
         {expanded && (
-          <>
-            <FieldView icon={<BookOpen size={12} />} label="指标定义" value={metric.definition} />
-            <FieldView icon={<Calculator size={12} />} label="计算公式" value={metric.formula} />
-            <FieldView icon={<FileText size={12} />} label="典型案例" value={metric.example} />
-            <FieldView icon={<Link size={12} />} label="数据依赖" value={metric.dependencies} />
-            
-            {/* SQL Validation Section */}
-            {metric.sqlValidation && (
-              <div className="mt-2 p-2 bg-monokai-bg rounded border border-monokai-accent">
-                <div className="flex items-center justify-between mb-1">
-                  <div className="text-xs text-monokai-comment uppercase flex items-center gap-1">
-                    <Calculator size={12} /> SQL验证语句
-                  </div>
-                  <button
-                    onClick={handleCopySql}
-                    className="text-xs text-monokai-blue hover:underline"
-                  >
-                    复制
-                  </button>
-                </div>
-                <pre className="text-xs font-mono text-monokai-green overflow-x-auto whitespace-pre-wrap">
-                  {metric.sqlValidation}
-                </pre>
-                {/* Validation Error */}
-                {metric.validationError && (
-                  <div className="mt-2 p-2 bg-monokai-pink/20 rounded text-xs text-monokai-pink">
-                    <AlertCircle size={12} className="inline mr-1" />
-                    {metric.validationError}
-                  </div>
-                )}
+          <div className="mt-3 pt-3 border-t border-monokai-border/40 space-y-2 text-xs animate-in fade-in duration-150">
+            {metric.characteristics && (
+              <div className="flex items-start gap-2">
+                <span className="text-[11px] text-monokai-comment shrink-0">特点:</span>
+                <span className="text-xs text-monokai-fg">{metric.characteristics}</span>
               </div>
             )}
-          </>
+            {metric.value && (
+              <div className="flex items-start gap-2">
+                <span className="text-[11px] text-monokai-comment shrink-0">价值:</span>
+                <span className="text-xs text-monokai-fg">{metric.value}</span>
+              </div>
+            )}
+            {metric.example && (
+              <div className="flex items-start gap-2">
+                <span className="text-[11px] text-monokai-comment shrink-0">案例:</span>
+                <span className="text-xs text-monokai-fg font-mono">{metric.example}</span>
+              </div>
+            )}
+            {metric.dependencies && metric.dependencies.length > 0 && (
+              <div className="flex items-start gap-2">
+                <span className="text-[11px] text-monokai-comment shrink-0 mt-0.5">依赖字段:</span>
+                <div className="flex flex-wrap gap-1">
+                  {metric.dependencies.map((dep, idx) => (
+                    <span
+                      key={idx}
+                      className="px-1.5 py-0.5 bg-monokai-surface rounded text-[10px] font-mono text-monokai-fg-muted border border-monokai-border"
+                    >
+                      {dep}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* SQL Execution Validation Output */}
+            {metric.sqlValidation && (
+              <div className="mt-2.5 p-2.5 bg-monokai-bg rounded-md border border-monokai-border shadow-inner">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[10px] font-mono uppercase text-monokai-comment">执行验证语句</span>
+                  <div className="flex items-center gap-2">
+                    {onExecuteInEditor && (
+                      <button
+                        type="button"
+                        onClick={() => onExecuteInEditor(metric)}
+                        className="text-[10px] text-monokai-accent hover:underline cursor-pointer font-medium"
+                      >
+                        在编辑器中运行
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={handleCopySql}
+                      className="text-[10px] text-monokai-fg-muted hover:text-monokai-fg cursor-pointer"
+                    >
+                      复制验证 SQL
+                    </button>
+                  </div>
+                </div>
+                <pre className="text-[11px] font-mono text-monokai-fg whitespace-pre-wrap leading-relaxed overflow-x-auto">
+                  {metric.sqlValidation}
+                </pre>
+              </div>
+            )}
+
+            {/* Validation Error Banner */}
+            {metric.validationError && (
+              <div className="mt-2 p-2.5 bg-monokai-surface border border-monokai-border rounded-md text-xs text-monokai-pink flex items-start gap-2">
+                <AlertCircle size={14} className="shrink-0 mt-0.5" />
+                <div className="min-w-0">
+                  <div className="font-semibold text-[11px]">校验报错信息:</div>
+                  <div className="font-mono text-[11px] break-all mt-0.5">{metric.validationError}</div>
+                </div>
+              </div>
+            )}
+          </div>
         )}
       </div>
 
-      {/* Expand/Collapse */}
+      {/* Expand/Collapse Trigger */}
       <button
+        type="button"
         onClick={() => setExpanded(!expanded)}
-        className="w-full mt-3 pt-2 border-t border-monokai-accent/50 flex items-center justify-center gap-1 text-xs text-monokai-comment hover:text-white transition-colors"
+        className="w-full mt-3 pt-2 border-t border-monokai-border/40 flex items-center justify-center gap-1.5 text-xs text-monokai-comment hover:text-monokai-fg transition-colors cursor-pointer"
       >
         {expanded ? (
-          <>收起详细信息 <ChevronUp size={14} /></>
+          <>收起详细参数 <ChevronUp size={13} /></>
         ) : (
-          <>展开详细信息 <ChevronDown size={14} /></>
+          <>展开完整参数与血缘 <ChevronDown size={13} /></>
         )}
       </button>
     </div>
   );
 };
+
+export default MetricCard;

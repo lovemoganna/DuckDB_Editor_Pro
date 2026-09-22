@@ -1,5 +1,6 @@
 // Database service for managing analysis history (from schema generator)
 import { SavedAnalysis, SavedQuery } from '../types';
+import { closeDatabaseOnVersionChange } from './indexedDBLifecycle';
 
 class DBService {
   private dbName = 'DuckDBSchemaGenerator';
@@ -10,7 +11,7 @@ class DBService {
       const request = indexedDB.open(this.dbName, this.version);
 
       request.onerror = () => reject(request.error);
-      request.onsuccess = () => resolve(request.result);
+      request.onsuccess = () => resolve(closeDatabaseOnVersionChange(request.result));
 
       request.onupgradeneeded = (event) => {
         const db = (event.target as IDBOpenDBRequest).result;

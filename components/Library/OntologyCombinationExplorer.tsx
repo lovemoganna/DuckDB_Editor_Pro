@@ -1,9 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle, BarChart3, CheckCircle2, ChevronDown, ChevronRight,
-  Filter, Play, Search, XCircle, BookOpen, Tag, Plus,
+  Filter, Play, Search, XCircle, BookOpen, Tag, Plus, Layers, Database,
 } from 'lucide-react';
-
+import { useSqlEditorStore } from '../../hooks/store/useSqlEditorStore';
+import { useAppStore } from '../../hooks/store/useAppStore';
+import { Tab } from '../../types';
+import { toastService } from '../../services/toastService';
 
 import {
   compileRule,
@@ -31,21 +34,51 @@ export interface OntologyCombinationExplorerProps {
   rules?: RuleDefinition[];
 }
 
-
 const STATUS_META = {
-  ESTABLISHED: { label: '已成立', className: 'text-monokai-green bg-monokai-green/10', icon: CheckCircle2 },
-  POSSIBLE: { label: '可能出现', className: 'text-monokai-cyan bg-monokai-cyan/10', icon: Filter },
-  EXCLUDED: { label: '已排除', className: 'text-monokai-pink bg-monokai-pink/10', icon: XCircle },
+  ESTABLISHED: { label: '已成立', className: 'text-monokai-accent bg-emerald-500/10 border border-monokai-border-subtle', icon: CheckCircle2 },
+  POSSIBLE: { label: '可能出现', className: 'text-monokai-fg-muted bg-monokai-surface border border-monokai-border-subtle', icon: Filter },
+  EXCLUDED: { label: '已排除', className: 'text-rose-400 bg-rose-500/10 border border-monokai-border-subtle', icon: XCircle },
 } as const;
 
 const TRUTH_STYLE: Record<string, string> = {
-  TRUE: 'text-monokai-green bg-monokai-green/10',
-  FALSE: 'text-monokai-pink bg-monokai-pink/10',
-  UNKNOWN: 'text-monokai-yellow bg-monokai-yellow/10',
+  TRUE: 'text-monokai-accent bg-emerald-500/10 border border-monokai-border-subtle',
+  FALSE: 'text-rose-400 bg-rose-500/10 border border-monokai-border-subtle',
+  UNKNOWN: 'text-amber-400 bg-amber-500/10 border border-monokai-border-subtle',
 };
 
 const displayValue = (value: unknown): string =>
   typeof value === 'string' ? value : JSON.stringify(value);
+
+export function generateCandidateSql(candidate: SituationCandidate, objectTypeName = 'objects', isView = false): string {
+  const whereClauses = candidate.states.map(s => {
+    const val = typeof s.value === 'string' ? `'${s.value}'` : JSON.stringify(s.value);
+    return `json_extract_string(properties, '$.${s.featureName}') = ${val}`;
+  });
+  const whereStr = whereClauses.length > 0 ? whereClauses.join('\n  AND ') : '1 = 1';
+  const viewName = `v_situation_${candidate.rank}_${Date.now().toString(36).slice(-4)}`;
+
+  if (isView) {
+    return `-- [DuckDB 衍生视图] 情形 #${candidate.rank} (优先级: ${candidate.ranking.score.toFixed(2)}, 覆盖样本: ${candidate.count})
+CREATE OR REPLACE VIEW ${viewName} AS
+SELECT 
+  id,
+  name,
+  properties
+FROM ${objectTypeName}
+WHERE ${whereStr};
+
+-- 验证视图数据
+SELECT * FROM ${viewName} LIMIT 50;`;
+  }
+
+  return `-- [DuckDB 下推推演] 情形 #${candidate.rank} 样本验证 (覆盖 ${candidate.count} 个实体)
+SELECT 
+  id,
+  name,
+  properties
+FROM ${objectTypeName}
+WHERE ${whereStr};`;
+}
 
 const TraceNode: React.FC<{ trace: EvaluationTrace; depth?: number }> = ({ trace, depth = 0 }) => {
   const [expanded, setExpanded] = useState(depth < 2);
@@ -68,7 +101,7 @@ const TraceNode: React.FC<{ trace: EvaluationTrace; depth?: number }> = ({ trace
           <span className="mt-0.5 inline-block h-3 w-3 shrink-0" />
         )}
         <span className={`rounded px-1.5 py-0.5 font-mono ${style}`}>{trace.value}</span>
-        <span className="text-monokai-fg">{trace.label}</span>
+        <span className="text-monokai-fg-muted">{trace.label}</span>
         {trace.reason && (
           <span className="text-monokai-yellow">— {trace.reason}</span>
         )}
@@ -89,9 +122,9 @@ const TraceNode: React.FC<{ trace: EvaluationTrace; depth?: number }> = ({ trace
 const EvidenceBar: React.FC<{ value: number; max: number }> = ({ value, max }) => {
   const percent = max > 0 ? Math.min(100, (value / max) * 100) : 0;
   return (
-    <div className="h-1.5 w-full rounded-full bg-white/5">
+    <div className="h-1.5 w-full rounded-full bg-monokai-surface">
       <div
-        className="h-full rounded-full bg-gradient-to-r from-monokai-cyan/60 to-monokai-cyan transition-all duration-500"
+        className="h-full rounded-full bg-monokai-accent transition-all duration-300"
         style={{ width: `${percent}%` }}
       />
     </div>
@@ -99,12 +132,12 @@ const EvidenceBar: React.FC<{ value: number; max: number }> = ({ value, max }) =
 };
 
 export const PRESET_TAGS = [
-  { id: 'tag_key', label: '⭐ 重点衍生', color: 'monokai-yellow' },
-  { id: 'tag_freq', label: '📌 高频组合', color: 'monokai-cyan' },
-  { id: 'tag_evidence', label: '🔍 待验证', color: 'monokai-orange' },
-  { id: 'tag_established', label: '✅ 逻辑成立', color: 'monokai-green' },
-  { id: 'tag_missing', label: '⚠️ 条件缺失', color: 'monokai-pink' },
-  { id: 'tag_custom', label: '📁 观察分组', color: 'monokai-purple' },
+  { id: 'tag_key', label: '⭐ 重点衍生', color: 'amber' },
+  { id: 'tag_freq', label: '📌 高频组合', color: 'sky' },
+  { id: 'tag_evidence', label: '🔍 待验证', color: 'orange' },
+  { id: 'tag_established', label: '✅ 逻辑成立', color: 'emerald' },
+  { id: 'tag_missing', label: '⚠️ 条件缺失', color: 'rose' },
+  { id: 'tag_custom', label: '📁 观察分组', color: 'indigo' },
 ];
 
 export function generateCombinationExplanation(candidate: SituationCandidate): {
@@ -171,7 +204,7 @@ const CandidateCard: React.FC<{
   };
 
   return (
-    <article className="rounded-xl border border-white/[0.08] bg-black/15 p-3 text-xs transition-all duration-200 hover:border-white/20">
+    <article className="rounded-xl border border-monokai-border bg-monokai-sidebar/70 p-3 text-xs transition-all duration-150 hover:border-monokai-border-strong">
       <button
         type="button"
         onClick={onToggle}
@@ -179,10 +212,10 @@ const CandidateCard: React.FC<{
         aria-label={`${isExpanded ? '折叠' : '展开'}候选情形 ${candidate.rank}`}
       >
         <div className="flex items-center gap-2">
-          <span className={`flex items-center gap-1 rounded-full px-2 py-1 text-[10px] ${meta.className}`}>
+          <span className={`flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-medium ${meta.className}`}>
             <Icon className="h-3 w-3" />{meta.label}
           </span>
-          <strong className="text-monokai-fg">#{candidate.rank} · 优先分 {candidate.ranking.score.toFixed(2)}</strong>
+          <strong className="text-monokai-fg font-semibold">#{candidate.rank} · 优先分 {candidate.ranking.score.toFixed(2)}</strong>
         </div>
         <div className="flex items-center gap-2 text-[10px] text-monokai-comment">
           <span>覆盖 {candidate.count} 个对象</span>
@@ -196,50 +229,50 @@ const CandidateCard: React.FC<{
 
       <div className="mt-2 flex flex-wrap gap-1.5">
         {candidate.states.map(state => (
-          <span key={state.featureId} className="rounded bg-white/5 px-2 py-1">
-            {state.featureName} = {displayValue(state.value)}
+          <span key={state.featureId} className="rounded bg-monokai-surface border border-monokai-border px-2 py-0.5 text-[11px] text-monokai-fg-muted">
+            {state.featureName} = <span className="font-mono text-monokai-fg-muted">{displayValue(state.value)}</span>
           </span>
         ))}
       </div>
 
       {/* 组合自然语言解读说明 (直接回答3个核心问题) */}
-      <div className="mt-2.5 space-y-1.5 rounded-lg border border-monokai-cyan/20 bg-monokai-cyan/[0.04] p-2.5 text-xs text-monokai-fg">
-        <div className="flex items-center gap-1.5 font-bold text-monokai-cyan text-[11px]">
+      <div className="mt-2.5 space-y-1.5 rounded-lg border border-monokai-border bg-monokai-bg/70 p-2.5 text-xs">
+        <div className="flex items-center gap-1.5 font-semibold text-monokai-cyan text-[11px]">
           <BookOpen className="h-3.5 w-3.5" /> 特征组合自然语言解释说明
         </div>
-        <div className="text-[11px] leading-relaxed text-monokai-fg/90">
-          <span className="font-bold text-monokai-cyan">1. 组合特征：</span>{explanation.featuresCombined}
+        <div className="text-[11px] leading-relaxed text-monokai-fg-muted">
+          <span className="font-semibold text-monokai-cyan">1. 组合特征：</span>{explanation.featuresCombined}
         </div>
-        <div className="text-[11px] leading-relaxed text-monokai-fg/90">
-          <span className="font-bold text-monokai-yellow">2. 聚合原因：</span>{explanation.whyTogether}
+        <div className="text-[11px] leading-relaxed text-monokai-fg-muted">
+          <span className="font-semibold text-monokai-yellow">2. 聚合原因：</span>{explanation.whyTogether}
         </div>
-        <div className="text-[11px] leading-relaxed text-monokai-fg/90">
-          <span className="font-bold text-monokai-green">3. 情形表达：</span>{explanation.situationExpressed}
+        <div className="text-[11px] leading-relaxed text-monokai-fg-muted">
+          <span className="font-semibold text-monokai-accent">3. 情形表达：</span>{explanation.situationExpressed}
         </div>
       </div>
 
       {/* 标签管理与衍生探索操作栏 */}
-      <div className="mt-2.5 flex flex-wrap items-center justify-between gap-1.5 pt-1.5 border-t border-white/[0.05]">
+      <div className="mt-2.5 flex flex-wrap items-center justify-between gap-1.5 pt-2 border-t border-white/[0.06]">
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-[10px] text-monokai-comment font-bold mr-1 flex items-center gap-1">
-            <Tag className="h-3 w-3 text-monokai-yellow" /> 标签管理:
+          <span className="text-[10px] text-monokai-comment font-medium mr-1 flex items-center gap-1">
+            <Tag className="h-3 w-3 text-monokai-yellow" /> 标签:
           </span>
           {tags.map(t => (
-            <span key={t} className="inline-flex items-center gap-1 rounded bg-white/10 px-2 py-0.5 text-[10px] text-monokai-yellow font-bold">
+            <span key={t} className="inline-flex items-center gap-1 rounded bg-monokai-surface px-2 py-0.5 text-[10px] text-monokai-yellow font-medium border border-monokai-border-strong">
               {t}
-              <button type="button" onClick={() => onRemoveTag(candidate.id, t)} className="hover:text-monokai-pink">×</button>
+              <button type="button" onClick={() => onRemoveTag(candidate.id, t)} className="hover:text-monokai-pink text-monokai-comment">×</button>
             </span>
           ))}
           <div className="relative inline-block">
             <button
               type="button"
               onClick={() => setTagPickerOpen(prev => !prev)}
-              className="rounded border border-dashed border-white/20 px-2 py-0.5 text-[10px] text-monokai-comment hover:border-monokai-cyan hover:text-monokai-cyan transition-colors"
+              className="rounded border border-dashed border-monokai-border-strong bg-monokai-sidebar/60 px-2 py-0.5 text-[10px] text-monokai-comment hover:border-monokai-info hover:text-monokai-info transition-colors"
             >
               + 打标签
             </button>
             {tagPickerOpen && (
-              <div className="absolute left-0 top-full z-20 mt-1 flex w-44 flex-col gap-1 rounded-lg border border-white/10 bg-[#141622] p-2 shadow-xl">
+              <div className="absolute left-0 top-full z-20 mt-1 flex w-44 flex-col gap-1 rounded-lg border border-monokai-border-strong bg-monokai-sidebar p-2 shadow-xl">
                 <div className="text-[9px] font-bold text-monokai-comment mb-0.5">选择预置组合标签:</div>
                 {PRESET_TAGS.map(pt => (
                   <button
@@ -249,12 +282,12 @@ const CandidateCard: React.FC<{
                       onAddTag(candidate.id, pt.label);
                       setTagPickerOpen(false);
                     }}
-                    className="rounded px-2 py-1 text-left text-[10px] hover:bg-white/10 text-monokai-fg transition-colors"
+                    className="rounded px-2 py-1 text-left text-[10px] hover:bg-monokai-surface text-monokai-fg-muted transition-colors"
                   >
                     {pt.label}
                   </button>
                 ))}
-                <div className="my-1 h-px bg-white/10" />
+                <div className="my-1 h-px bg-monokai-surface" />
                 <div className="text-[9px] font-bold text-monokai-comment mb-0.5">自定义标签:</div>
                 <div className="flex items-center gap-1">
                   <input
@@ -263,12 +296,12 @@ const CandidateCard: React.FC<{
                     value={customTagInput}
                     onChange={e => setCustomTagInput(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter') handleAddCustom(); }}
-                    className="w-full rounded bg-black/40 px-1.5 py-0.5 text-[10px] text-monokai-fg border border-white/10 outline-none focus:border-monokai-cyan"
+                    className="w-full rounded bg-monokai-bg px-1.5 py-0.5 text-[10px] text-monokai-fg-muted border border-monokai-border-strong outline-none focus:border-monokai-info"
                   />
                   <button
                     type="button"
                     onClick={handleAddCustom}
-                    className="shrink-0 rounded bg-monokai-cyan/20 px-1.5 py-0.5 text-[10px] font-bold text-monokai-cyan hover:bg-monokai-cyan/30"
+                    className="shrink-0 rounded bg-monokai-accent/20 px-1.5 py-0.5 text-[10px] font-bold text-monokai-cyan hover:bg-monokai-accent/30"
                   >
                     <Plus className="h-3 w-3" />
                   </button>
@@ -278,8 +311,36 @@ const CandidateCard: React.FC<{
           </div>
         </div>
 
+        {/* Action: Push to DuckDB SQL / Create View */}
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            title="将该情形的下推条件带入 SQL 编辑器执行验证"
+            onClick={() => {
+              const sql = generateCandidateSql(candidate, 'objects', false);
+              useSqlEditorStore.getState().updateActiveTab({ code: sql });
+              useAppStore.getState().setActiveTab(Tab.SQL);
+              toastService.success('已带入 SQL 编辑器', `情形 #${candidate.rank} 下推验证查询`);
+            }}
+            className="flex items-center gap-1 rounded bg-monokai-surface border border-monokai-border px-2 py-0.5 text-[10px] font-medium text-monokai-fg-muted hover:text-monokai-accent hover:border-monokai-accent transition-colors cursor-pointer"
+          >
+            <Play className="h-3 w-3" /> SQL 验证
+          </button>
+          <button
+            type="button"
+            title="在 DuckDB 中为该情形创建持久化/临时视图"
+            onClick={() => {
+              const sql = generateCandidateSql(candidate, 'objects', true);
+              useSqlEditorStore.getState().updateActiveTab({ code: sql });
+              useAppStore.getState().setActiveTab(Tab.SQL);
+              toastService.success('已生成视图创建脚本', `视图 v_situation_${candidate.rank}`);
+            }}
+            className="flex items-center gap-1 rounded bg-monokai-surface border border-monokai-border px-2 py-0.5 text-[10px] font-medium text-monokai-fg-muted hover:bg-monokai-hover hover:text-white transition-colors cursor-pointer"
+          >
+            <Layers className="h-3 w-3" /> 建视图
+          </button>
+        </div>
       </div>
-
 
       {candidate.ranking.reasons.length > 0 && (
         <div className="mt-2 space-y-0.5 text-[10px] text-monokai-comment">
@@ -289,28 +350,27 @@ const CandidateCard: React.FC<{
         </div>
       )}
 
-
       {isExpanded && (
-        <div className="mt-3 space-y-3 border-t border-white/[0.06] pt-3">
+        <div className="mt-3 space-y-3 border-t border-monokai-border pt-3">
           {sourceObjectNames.length > 0 && (
-            <div className="rounded-lg border border-monokai-green/20 bg-monokai-green/5 p-2 text-[10px]">
-              <div className="mb-1 font-bold text-monokai-green">真实依据对象</div>
-              <div className="text-monokai-fg">{sourceObjectNames.join('、')}</div>
+            <div className="rounded-lg border border-monokai-border-subtle bg-emerald-500/5 p-2 text-[10px]">
+              <div className="mb-1 font-semibold text-monokai-accent">真实依据对象</div>
+              <div className="text-monokai-fg-muted">{sourceObjectNames.join('、')}</div>
             </div>
           )}
           {/* Ranking breakdown */}
           <div className="grid grid-cols-4 gap-1.5 text-[10px]">
             {([
-              ['覆盖', candidate.ranking.evidenceCoverage, 'monokai-cyan'],
-              ['可靠', candidate.ranking.reliability, 'monokai-green'],
-              ['满足', candidate.ranking.conditionSatisfaction, 'monokai-green'],
-              ['冲突', -candidate.ranking.conflictPenalty, 'monokai-pink'],
-              ['未知', -candidate.ranking.unknownPenalty, 'monokai-yellow'],
-              ['历史', candidate.ranking.historicalValidation, 'monokai-comment'],
-              ['人工', candidate.ranking.manualWeight, 'monokai-amethyst'],
-            ] as [string, number, string][]).map(([label, value, color]) => (
-              <div key={label} className={`rounded-lg bg-${color}/10 p-1.5 text-center`}>
-                <div className={`text-${color}`}>{label}</div>
+              ['覆盖', candidate.ranking.evidenceCoverage, 'text-monokai-fg-muted bg-monokai-surface border border-monokai-border-subtle'],
+              ['可靠', candidate.ranking.reliability, 'text-monokai-accent bg-emerald-500/10 border border-monokai-border-subtle'],
+              ['满足', candidate.ranking.conditionSatisfaction, 'text-monokai-accent bg-emerald-500/10 border border-monokai-border-subtle'],
+              ['冲突', -candidate.ranking.conflictPenalty, 'text-rose-400 bg-rose-500/10 border border-monokai-border-subtle'],
+              ['未知', -candidate.ranking.unknownPenalty, 'text-amber-400 bg-amber-500/10 border border-monokai-border-subtle'],
+              ['历史', candidate.ranking.historicalValidation, 'text-monokai-comment bg-monokai-surface/60 border border-monokai-border-subtle'],
+              ['人工', candidate.ranking.manualWeight, 'text-monokai-fg-muted bg-monokai-surface border border-monokai-border-subtle'],
+            ] as [string, number, string][]).map(([label, value, style]) => (
+              <div key={label} className={`rounded-lg border p-1.5 text-center ${style}`}>
+                <div className="opacity-90">{label}</div>
                 <div className="font-mono font-bold text-monokai-fg">{value.toFixed(2)}</div>
               </div>
             ))}
@@ -318,15 +378,15 @@ const CandidateCard: React.FC<{
 
           {/* Rule evaluation traces */}
           {candidate.ruleResults.length > 0 && (
-            <div className="rounded-lg border border-white/[0.06] bg-black/20 p-2">
-              <div className="mb-1.5 text-[10px] font-bold text-monokai-amethyst">规则评估路径</div>
+            <div className="rounded-lg border border-monokai-border bg-monokai-bg/80 p-2">
+              <div className="mb-1.5 text-[10px] font-semibold text-monokai-accent">规则评估路径</div>
               {candidate.ruleResults.map(result => (
                 <div key={result.ruleId} className="mb-2 last:mb-0">
                   <div className="flex items-center gap-2 text-[10px]">
                     <span className={`rounded px-1.5 py-0.5 font-mono ${TRUTH_STYLE[result.trace.value]}`}>
                       {result.trace.value}
                     </span>
-                    <span className="font-bold text-monokai-fg">{result.ruleName}</span>
+                    <span className="font-semibold text-monokai-fg-muted">{result.ruleName}</span>
                     <span className="text-monokai-comment">
                       T={result.trueCount} F={result.falseCount} U={result.unknownCount}
                     </span>
@@ -338,13 +398,13 @@ const CandidateCard: React.FC<{
           )}
 
           {candidate.missingConditions.length > 0 && (
-            <div className="rounded-lg bg-monokai-yellow/10 p-2 text-[10px] text-monokai-yellow">
-              <div className="mb-1 flex items-center gap-2 font-bold">
-              <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
+            <div className="rounded-lg border border-monokai-border-subtle bg-amber-500/10 p-2 text-[10px] text-amber-300">
+              <div className="mb-1 flex items-center gap-1.5 font-semibold text-amber-300">
+                <AlertTriangle className="h-3 w-3 shrink-0" />
                 仍缺具体条件
               </div>
               {candidate.missingConditions.map(condition => (
-                <div key={`${condition.ruleId}:${condition.nodeId}`} className="ml-5 mt-1">
+                <div key={`${condition.ruleId}:${condition.nodeId}`} className="ml-4 mt-1 text-monokai-fg-muted">
                   {condition.label} · {condition.reason}
                   {condition.expected !== undefined && ` · 期望 ${displayValue(condition.expected)}`}
                 </div>
@@ -353,10 +413,10 @@ const CandidateCard: React.FC<{
           )}
 
           {candidate.counterfactuals.length > 0 && (
-            <div className="rounded-lg border border-monokai-cyan/20 bg-monokai-cyan/5 p-2 text-[10px]">
-              <div className="mb-1 font-bold text-monokai-cyan">改变条件会得到什么</div>
+            <div className="rounded-lg border border-monokai-border-subtle bg-monokai-surface/60 p-2 text-[10px]">
+              <div className="mb-1 font-semibold text-monokai-accent">改变条件会得到什么</div>
               {candidate.counterfactuals.map(suggestion => (
-                <div key={suggestion.targetCandidateId} className="mt-1 text-monokai-comment">
+                <div key={suggestion.targetCandidateId} className="mt-1 text-monokai-fg-muted">
                   改变 {suggestion.editDistance} 项 → {STATUS_META[suggestion.targetStatus].label}：
                   {suggestion.changes.map(change =>
                     `${change.featureName} ${displayValue(change.from)} → ${displayValue(change.to)}`,
@@ -540,38 +600,38 @@ export const OntologyCombinationExplorer: React.FC<OntologyCombinationExplorerPr
 
   if (objectTypes.length === 0) {
     return (
-      <section aria-label="特征组合推演" className="flex h-full items-center justify-center rounded-xl border border-dashed border-white/10 p-8 text-sm text-monokai-comment">
+      <section aria-label="特征组合推演" className="flex h-full items-center justify-center rounded-xl border border-dashed border-monokai-border p-8 text-sm text-monokai-comment">
         当前 Ontology 没有对象类型，无法建立推演世界。
       </section>
     );
   }
 
   return (
-    <section aria-label="特征组合推演" className="flex h-full min-h-0 flex-col overflow-hidden">
-      {error && <div role="alert" className="mb-3 rounded-lg bg-monokai-pink/10 p-3 text-xs text-monokai-pink">{error}</div>}
+    <section aria-label="特征组合推演" className="flex h-full min-h-0 flex-col overflow-hidden text-monokai-fg">
+      {error && <div role="alert" className="mb-3 rounded-lg bg-rose-500/10 border border-rose-500/20 p-3 text-xs text-monokai-pink">{error}</div>}
 
       <div className="grid min-h-0 flex-1 gap-4 xl:grid-cols-[240px_minmax(280px,0.9fr)_minmax(440px,1.4fr)]">
         {/* Column 1: Object type & controls */}
         <div className="flex flex-col gap-4 overflow-auto">
-          <label className="text-xs font-bold text-monokai-fg">
+          <label className="text-xs font-semibold text-monokai-fg-muted">
             对象类型
             <select
               aria-label="推演对象类型"
               value={objectTypeId}
               onChange={event => setObjectTypeId(Number(event.target.value))}
-              className="mt-2 w-full rounded-lg border border-white/10 bg-[#0c0d12] px-3 py-2 text-xs"
+              className="mt-2 w-full rounded-lg border border-monokai-border bg-monokai-sidebar px-3 py-2 text-xs text-monokai-fg-muted outline-none focus:border-monokai-info"
             >
               {objectTypes.map(type => <option key={type.id} value={type.id}>{type.name}</option>)}
             </select>
           </label>
 
-          <label className="text-xs font-bold text-monokai-fg">
+          <label className="text-xs font-semibold text-monokai-fg-muted">
             组合生成数量 (Top-K)
             <select
               aria-label="组合生成数量"
               value={topKLimit}
               onChange={event => setTopKLimit(Number(event.target.value))}
-              className="mt-2 w-full rounded-lg border border-white/10 bg-[#0c0d12] px-3 py-2 text-xs text-monokai-fg"
+              className="mt-2 w-full rounded-lg border border-monokai-border bg-monokai-sidebar px-3 py-2 text-xs text-monokai-fg-muted outline-none focus:border-monokai-info"
             >
               {[10, 20, 30, 50, 100].map(k => (
                 <option key={k} value={k}>生成前 {k} 条情形组合</option>
@@ -579,18 +639,18 @@ export const OntologyCombinationExplorer: React.FC<OntologyCombinationExplorerPr
             </select>
           </label>
 
-          <div className="rounded-xl border border-white/[0.07] p-3 text-[11px] leading-5 text-monokai-comment">
-            <div>真实对象：{model.rows.length}</div>
-            <div>可执行约束：{executableRules.length}</div>
-            <div>已生成组合：{report?.rankedCandidates.length ?? 0} 条</div>
-            <div>未定义结构化规则时只展示当前事实；补充可执行规则后才能探索变化。</div>
+          <div className="rounded-xl border border-monokai-border bg-monokai-sidebar/50 p-3 text-[11px] leading-5 text-monokai-comment space-y-1">
+            <div className="flex justify-between"><span>真实对象：</span><span className="font-mono text-monokai-fg-muted">{model.rows.length}</span></div>
+            <div className="flex justify-between"><span>可执行约束：</span><span className="font-mono text-monokai-fg-muted">{executableRules.length}</span></div>
+            <div className="flex justify-between"><span>已生成组合：</span><span className="font-mono text-monokai-fg-muted">{report?.rankedCandidates.length ?? 0} 条</span></div>
+            <div className="text-[10px] text-monokai-comment pt-1 border-t border-monokai-border/80">未定义结构化规则时只展示当前事实；补充可执行规则后才能探索变化。</div>
           </div>
 
           <button
             type="button"
             onClick={run}
             disabled={selectedFeatureIds.length === 0}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-monokai-cyan px-3 py-2.5 text-xs font-black text-black transition-all duration-200 hover:brightness-110 disabled:opacity-40"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-monokai-accent px-3 py-2.5 text-xs font-semibold text-white shadow-sm transition-all duration-150 hover:bg-monokai-accent disabled:opacity-40"
           >
             <Play className="h-3.5 w-3.5" /> 生成并验证组合
           </button>
@@ -598,27 +658,27 @@ export const OntologyCombinationExplorer: React.FC<OntologyCombinationExplorerPr
 
         {/* Column 2: Feature selection */}
         <fieldset className="flex flex-col overflow-hidden">
-          <legend className="mb-2 text-xs font-bold text-monokai-fg">选择可组合特征</legend>
+          <legend className="mb-2 text-xs font-semibold text-monokai-fg-muted">选择可组合特征</legend>
           <div className="flex-1 space-y-2 overflow-auto pr-1">
             {model.features.map(feature => (
-              <label key={feature.id} className="flex cursor-pointer items-start gap-2 rounded-lg border border-white/[0.07] p-2 text-xs transition-all duration-150 hover:border-white/20">
+              <label key={feature.id} className="flex cursor-pointer items-start gap-2 rounded-lg border border-monokai-border bg-monokai-sidebar/40 p-2 text-xs transition-all duration-150 hover:border-monokai-border-strong hover:bg-monokai-sidebar/70">
                 <input
                   type="checkbox"
                   checked={selectedFeatureIds.includes(feature.id)}
                   onChange={() => setSelectedFeatureIds(current => current.includes(feature.id)
                     ? current.filter(id => id !== feature.id)
                     : [...current, feature.id])}
-                  className="mt-0.5"
+                  className="mt-0.5 rounded border-monokai-border-strong bg-monokai-surface text-monokai-cyan focus:ring-monokai-accent/70"
                 />
-                <span>
-                  <span className="block font-bold text-monokai-fg">{feature.name}</span>
+                <span className="flex-1">
+                  <span className="block font-medium text-monokai-fg-muted">{feature.name}</span>
                   <span className="text-[10px] text-monokai-comment">
                     {feature.source.kind === 'ontology_property' ? '真实属性' : '真实有向关系'} · {feature.valueType}
                   </span>
                   {selectedFeatureIds.includes(feature.id) && (
                     <span className="mt-1 grid grid-cols-2 gap-1 text-[9px] text-monokai-comment">
-                      <span>可靠度<input aria-label={`${feature.name} 可靠度`} type="number" min="0" max="1" step="0.1" value={featureReliability[feature.id] ?? 1} onChange={event => setFeatureReliability(current => ({ ...current, [feature.id]: Number(event.target.value) }))} className="ml-1 w-12 rounded bg-black/30 px-1" /></span>
-                      <span>权重<input aria-label={`${feature.name} 人工权重`} type="number" min="-1" max="1" step="0.1" value={manualWeights[feature.id] ?? 0} onChange={event => setManualWeights(current => ({ ...current, [feature.id]: Number(event.target.value) }))} className="ml-1 w-12 rounded bg-black/30 px-1" /></span>
+                      <span>可靠度<input aria-label={`${feature.name} 可靠度`} type="number" min="0" max="1" step="0.1" value={featureReliability[feature.id] ?? 1} onChange={event => setFeatureReliability(current => ({ ...current, [feature.id]: Number(event.target.value) }))} className="ml-1 w-12 rounded bg-monokai-surface border border-monokai-border-strong px-1 text-monokai-fg-muted" /></span>
+                      <span>权重<input aria-label={`${feature.name} 人工权重`} type="number" min="-1" max="1" step="0.1" value={manualWeights[feature.id] ?? 0} onChange={event => setManualWeights(current => ({ ...current, [feature.id]: Number(event.target.value) }))} className="ml-1 w-12 rounded bg-monokai-surface border border-monokai-border-strong px-1 text-monokai-fg-muted" /></span>
                     </span>
                   )}
                 </span>
@@ -630,33 +690,33 @@ export const OntologyCombinationExplorer: React.FC<OntologyCombinationExplorerPr
         {/* Column 3: Results */}
         <div className="flex flex-col overflow-hidden">
           {!report ? (
-            <div className="flex min-h-48 flex-1 items-center justify-center rounded-xl border border-dashed border-white/10 p-6 text-center text-xs text-monokai-comment">
+            <div className="flex min-h-48 flex-1 items-center justify-center rounded-xl border border-dashed border-monokai-border p-6 text-center text-xs text-monokai-comment">
               <div>
-                <BarChart3 className="mx-auto mb-3 h-8 w-8 text-monokai-cyan/30" />
-                <p>选择特征后生成候选情形</p>
-                <p className="mt-1 text-[10px]">结果会区分已成立、可能出现与已排除</p>
+                <BarChart3 className="mx-auto mb-3 h-8 w-8 text-monokai-comment" />
+                <p className="text-monokai-fg-muted">选择特征后生成候选情形</p>
+                <p className="mt-1 text-[10px] text-monokai-comment">结果会区分已成立、可能出现与已排除</p>
               </div>
             </div>
           ) : (
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
               {/* Summary stats */}
               <div className="mb-3 grid shrink-0 grid-cols-4 gap-2 text-center text-[11px]">
-                <div className="rounded-lg bg-monokai-green/10 p-2 text-monokai-green">已成立<br /><strong>{report.establishedCandidates.length}</strong></div>
-                <div className="rounded-lg bg-monokai-cyan/10 p-2 text-monokai-cyan">可能<br /><strong>{report.possibleCandidates.length}</strong></div>
-                <div className="rounded-lg bg-monokai-pink/10 p-2 text-monokai-pink">排除<br /><strong>{report.excludedCandidates.length}</strong></div>
-                <div className="rounded-lg bg-monokai-yellow/10 p-2 text-monokai-yellow">未知对象<br /><strong>{report.unknownPopulation}</strong></div>
+                <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-2 text-monokai-accent">已成立<br /><strong className="text-sm font-semibold">{report.establishedCandidates.length}</strong></div>
+                <div className="rounded-lg bg-monokai-accent/10 border border-monokai-cyan/40 p-2 text-monokai-cyan">可能<br /><strong className="text-sm font-semibold">{report.possibleCandidates.length}</strong></div>
+                <div className="rounded-lg bg-rose-500/10 border border-rose-500/20 p-2 text-monokai-pink">排除<br /><strong className="text-sm font-semibold">{report.excludedCandidates.length}</strong></div>
+                <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 p-2 text-monokai-yellow">未知对象<br /><strong className="text-sm font-semibold">{report.unknownPopulation}</strong></div>
               </div>
 
               {report.truncated && (
-                <div className="mb-3 flex shrink-0 gap-2 rounded-lg bg-monokai-yellow/10 p-2 text-[11px] text-monokai-yellow">
-                  <AlertTriangle className="h-3.5 w-3.5 shrink-0" /> 候选超过探索上限，当前展示为有界结果。
+                <div className="mb-3 flex shrink-0 gap-2 rounded-lg bg-amber-500/10 border border-amber-500/20 p-2 text-[11px] text-monokai-yellow">
+                  <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-monokai-yellow" /> 候选超过探索上限，当前展示为有界结果。
                 </div>
               )}
 
-              {/* Filter bar: Status, Probability (>50% / All), Tag Collection and Candidate Search */}
-              <div className="mb-3 flex shrink-0 flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-[#12141e] p-2">
+              {/* Filter bar: Status, Probability, Tag Collection and Candidate Search */}
+              <div className="mb-3 flex shrink-0 flex-wrap items-center gap-2 rounded-xl border border-monokai-border bg-monokai-sidebar/70 p-2">
                 <div className="flex items-center gap-1">
-                  <span className="mr-1 text-[10px] font-bold text-monokai-comment">状态:</span>
+                  <span className="mr-1 text-[10px] font-medium text-monokai-comment">状态:</span>
                   {(['all', 'ESTABLISHED', 'POSSIBLE', 'EXCLUDED'] as const).map(status => {
                     const labels = { all: '全部', ESTABLISHED: '已成立', POSSIBLE: '可能', EXCLUDED: '排除' };
                     const isActive = statusFilter === status;
@@ -665,10 +725,10 @@ export const OntologyCombinationExplorer: React.FC<OntologyCombinationExplorerPr
                         key={status}
                         type="button"
                         onClick={() => setStatusFilter(status)}
-                        className={`rounded-lg px-2.5 py-1 text-[10px] font-bold transition-all duration-150 ${
+                        className={`rounded-md px-2 py-1 text-[10px] font-medium transition-colors ${
                           isActive
-                            ? 'border border-monokai-cyan/30 bg-monokai-cyan/20 text-monokai-cyan'
-                            : 'border border-transparent bg-white/5 text-monokai-comment hover:bg-white/10'
+                            ? 'border border-monokai-cyan/40 bg-monokai-accent/20 text-monokai-cyan'
+                            : 'border border-transparent bg-monokai-surface text-monokai-comment hover:bg-monokai-elevated hover:text-monokai-fg-muted'
                         }`}
                       >
                         {labels[status]}
@@ -677,16 +737,16 @@ export const OntologyCombinationExplorer: React.FC<OntologyCombinationExplorerPr
                   })}
                 </div>
 
-                <div className="mx-1 h-4 w-px bg-white/10" />
+                <div className="mx-1 h-4 w-px bg-monokai-border" />
 
                 {/* 标签集合筛选 */}
                 <div className="flex items-center gap-1">
-                  <span className="mr-1 text-[10px] font-bold text-monokai-comment">标签集合:</span>
+                  <span className="mr-1 text-[10px] font-medium text-monokai-comment">标签:</span>
                   <select
                     aria-label="标签集合筛选"
                     value={tagFilter}
                     onChange={e => setTagFilter(e.target.value)}
-                    className="rounded-lg border border-white/10 bg-[#0c0d12] px-2 py-1 text-[10px] text-monokai-fg outline-none focus:border-monokai-cyan"
+                    className="rounded-md border border-monokai-border-strong bg-monokai-bg px-2 py-1 text-[10px] text-monokai-fg-muted outline-none focus:border-monokai-info"
                   >
                     <option value="all">全部标签</option>
                     <option value="tagged_only">已标记集合</option>
@@ -705,11 +765,11 @@ export const OntologyCombinationExplorer: React.FC<OntologyCombinationExplorerPr
                       placeholder="搜索候选情形..."
                       value={searchQuery}
                       onChange={event => setSearchQuery(event.target.value)}
-                      className="w-36 rounded-lg border border-white/10 bg-[#0c0d12] py-1 pl-7 pr-2 text-[10px] text-monokai-fg outline-none focus:border-monokai-cyan"
+                      className="w-36 rounded-md border border-monokai-border-strong bg-monokai-bg py-1 pl-7 pr-2 text-[10px] text-monokai-fg-muted outline-none focus:border-monokai-info placeholder-zinc-500"
                       aria-label="搜索候选情形"
                     />
                   </div>
-                  <span className="whitespace-nowrap text-[10px] text-monokai-comment">
+                  <span className="whitespace-nowrap text-[10px] text-monokai-comment font-mono">
                     ({filteredCandidates.length} / {report.rankedCandidates.length})
                   </span>
                 </div>
@@ -718,7 +778,7 @@ export const OntologyCombinationExplorer: React.FC<OntologyCombinationExplorerPr
               {/* Candidate list */}
               <div className="min-h-0 flex-1 space-y-2 overflow-auto pr-1">
                 {filteredCandidates.length === 0 ? (
-                  <div className="rounded-lg bg-black/20 p-4 text-center text-xs text-monokai-comment">
+                  <div className="rounded-lg border border-monokai-border bg-monokai-sidebar/40 p-4 text-center text-xs text-monokai-comment">
                     没有匹配的候选情形
                   </div>
                 ) : filteredCandidates.map(candidate => (
@@ -745,8 +805,8 @@ export const OntologyCombinationExplorer: React.FC<OntologyCombinationExplorerPr
 
               {/* Unknown reasons */}
               {report.unknownReasons.length > 0 && (
-                <details className="mt-3 shrink-0 rounded-lg border border-white/10 p-2 text-xs">
-                  <summary className="cursor-pointer font-bold text-monokai-yellow"><span>缺失证据</span> ({report.unknownReasons.length})</summary>
+                <details className="mt-3 shrink-0 rounded-lg border border-monokai-border bg-monokai-sidebar/40 p-2 text-xs">
+                  <summary className="cursor-pointer font-semibold text-monokai-yellow"><span>缺失证据</span> ({report.unknownReasons.length})</summary>
                   {report.unknownReasons.map(reason => (
                     <div key={reason.featureId} className="mt-1 text-[11px] text-monokai-comment">
                       {reason.featureName}：{reason.count} 个对象 · {reason.reason}
@@ -762,21 +822,21 @@ export const OntologyCombinationExplorer: React.FC<OntologyCombinationExplorerPr
 
       {/* Rule-Situation cross matrix */}
       {report && executableRules.length > 1 && report.rankedCandidates.length > 0 && (
-        <details className="mt-4 shrink-0 rounded-xl border border-white/[0.08] p-3 text-xs">
-          <summary className="cursor-pointer font-bold text-monokai-amethyst">规则 × 情形 交叉矩阵</summary>
+        <details className="mt-4 shrink-0 rounded-xl border border-monokai-border bg-monokai-sidebar/40 p-3 text-xs">
+          <summary className="cursor-pointer font-semibold text-indigo-400">规则 × 情形 交叉矩阵</summary>
           <div className="mt-3 overflow-auto">
             <table className="w-full text-[10px]">
               <thead>
-                <tr>
+                <tr className="border-b border-monokai-border">
                   <th className="p-1.5 text-left text-monokai-comment">情形</th>
                   {executableRules.map(rule => (
-                    <th key={rule.id} className="p-1.5 text-center text-monokai-fg">{rule.name}</th>
+                    <th key={rule.id} className="p-1.5 text-center text-monokai-fg-muted">{rule.name}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {report.rankedCandidates.slice(0, 20).map(candidate => (
-                  <tr key={candidate.id} className="border-t border-white/[0.04]">
+                  <tr key={candidate.id} className="border-t border-monokai-border/60">
                     <td className="p-1.5 text-monokai-comment">
                       #{candidate.rank} {candidate.states.map(state => `${state.featureName}=${displayValue(state.value)}`).join(' ')}
                     </td>
@@ -801,12 +861,12 @@ export const OntologyCombinationExplorer: React.FC<OntologyCombinationExplorerPr
 
       {/* AST / Lisp / SQL unified view */}
       {executableRules.length > 0 && (
-        <details className="mt-4 shrink-0 rounded-xl border border-white/[0.08] p-3 text-xs">
-          <summary className="cursor-pointer font-bold text-monokai-amethyst">同一 AST 的规则、中文 Lisp 与 SQL</summary>
+        <details className="mt-4 shrink-0 rounded-xl border border-monokai-border bg-monokai-sidebar/40 p-3 text-xs">
+          <summary className="cursor-pointer font-semibold text-indigo-400">同一 AST 的规则、中文 Lisp 与 SQL</summary>
           <div className="mt-3 grid gap-3 xl:grid-cols-2">
             {executableRules.map(rule => {
               const compiled = compileRule(rule, model.features, rules);
-              return <div key={rule.id} className="rounded-lg bg-black/20 p-3"><strong>{rule.name} · v{rule.version}</strong><pre className="mt-2 overflow-auto whitespace-pre-wrap text-[10px] text-monokai-comment">{renderRuleLisp(rule, model.features)}{`\n\nSQL: ${compiled.predicateSql}`}</pre></div>;
+              return <div key={rule.id} className="rounded-lg bg-monokai-bg border border-monokai-border p-3"><strong className="text-monokai-fg-muted">{rule.name} · v{rule.version}</strong><pre className="mt-2 overflow-auto whitespace-pre-wrap text-[10px] text-monokai-comment">{renderRuleLisp(rule, model.features)}{`\n\nSQL: ${compiled.predicateSql}`}</pre></div>;
             })}
           </div>
         </details>

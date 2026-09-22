@@ -188,15 +188,15 @@ export const ChartBuilder: React.FC<ChartBuilderProps> = ({ columns, data, initi
         </div>
     );
 
-    const selectClass = "w-full bg-monokai-bg border border-monokai-accent/60 p-2 rounded text-xs text-monokai-fg outline-none focus:border-monokai-accent transition-colors";
-    const inputClass  = "w-full bg-monokai-bg border border-monokai-accent/60 p-2 rounded text-xs text-monokai-fg outline-none focus:border-monokai-accent transition-colors placeholder-monokai-comment";
+    const selectClass = "w-full bg-monokai-surface border border-monokai-border p-2 rounded text-xs text-monokai-fg outline-none focus:border-monokai-border-strong transition-colors";
+    const inputClass  = "w-full bg-monokai-surface border border-monokai-border p-2 rounded text-xs text-monokai-fg outline-none focus:border-monokai-border-strong transition-colors placeholder-monokai-comment";
 
     const StyledCheckbox = ({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) => (
         <label className="flex items-center gap-2.5 cursor-pointer group">
             <div
                 onClick={() => onChange(!checked)}
                 className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${
-                    checked ? 'bg-monokai-accent border-monokai-accent' : 'border-monokai-comment group-hover:border-monokai-accent'
+                    checked ? 'bg-monokai-accent border-monokai-accent' : 'border-monokai-border group-hover:border-monokai-border-strong'
                 }`}
             >
                 {checked && <Check size={10} className="text-monokai-bg" />}
@@ -211,21 +211,21 @@ export const ChartBuilder: React.FC<ChartBuilderProps> = ({ columns, data, initi
         <div className="absolute inset-0 z-50 bg-monokai-surface flex flex-col animate-[fadeIn_0.2s]">
 
             {/* ── Header ───────────────────────────────────────────── */}
-            <div className="flex justify-between items-center px-5 py-3 border-b border-monokai-accent/40 bg-[#1d1d1b] flex-shrink-0">
+            <div className="flex justify-between items-center px-5 py-3.5 border-b border-monokai-border bg-monokai-bg/90 flex-shrink-0">
                 <h2 className="text-sm font-bold text-monokai-fg flex items-center gap-2">
-                    <BarChart2 size={15} className="text-monokai-accent" />
-                    Chart Builder
+                    <BarChart2 size={16} className="text-monokai-yellow" />
+                    SQL 结果可视化图表生成器 (Chart Builder)
                 </h2>
                 <div className="flex items-center gap-2">
                     <button
                         onClick={onCancel}
-                        className="px-3 py-1.5 border border-monokai-accent/50 text-monokai-comment hover:text-monokai-fg hover:border-monokai-accent rounded text-xs transition-colors"
+                        className="px-3 py-1.5 border border-monokai-border text-monokai-comment hover:text-monokai-fg hover:border-monokai-border-strong rounded-md text-xs transition-colors"
                     >
                         Cancel
                     </button>
                     <button
                         onClick={() => onSave(config)}
-                        className="px-3 py-1.5 bg-monokai-green text-monokai-bg font-bold rounded text-xs hover:opacity-90 active:scale-95 flex items-center gap-1.5 transition-all"
+                        className="px-3 py-1.5 bg-monokai-green text-monokai-bg font-bold rounded-md text-xs hover:opacity-90 active:scale-95 flex items-center gap-1.5 transition-all"
                     >
                         <Save size={12} />
                         Save Chart
@@ -236,19 +236,19 @@ export const ChartBuilder: React.FC<ChartBuilderProps> = ({ columns, data, initi
             <div className="flex flex-1 min-h-0">
 
                 {/* ── Configuration Sidebar ────────────────────────── */}
-                <div className="w-80 bg-monokai-sidebar border-r border-monokai-accent/40 flex flex-col min-h-0 flex-shrink-0">
-                    <div className="flex-1 overflow-y-auto custom-scrollbar p-4 flex flex-col gap-5 bg-[#121111]">
+                <div className="w-80 bg-monokai-sidebar border-r border-monokai-border flex flex-col min-h-0 flex-shrink-0">
+                    <div className="flex-1 overflow-y-auto custom-scrollbar p-4 flex flex-col gap-5 bg-monokai-bg">
 
                         {/* ── 创建方式 ── */}
                         <div>
                             {sectionLabel('创建方式')}
-                            <div className="flex rounded-md overflow-hidden border border-monokai-accent/40">
+                            <div className="flex rounded-md overflow-hidden border border-monokai-border bg-monokai-sidebar">
                                 <button
                                     onClick={() => { setCreateMode('manual'); setMetricError(null); }}
-                                    className={`flex-1 px-3 py-2 text-xs font-bold transition-colors border-r border-monokai-accent/40 ${
+                                    className={`flex-1 px-3 py-2 text-xs font-bold transition-colors border-r border-monokai-border ${
                                         createMode === 'manual'
-                                            ? 'bg-monokai-accent/15 text-monokai-accent'
-                                            : 'text-monokai-comment hover:text-monokai-fg hover:bg-monokai-bg/50'
+                                            ? 'bg-monokai-surface text-monokai-fg shadow-xs'
+                                            : 'text-monokai-comment hover:text-monokai-fg hover:bg-monokai-surface/60'
                                     }`}
                                 >
                                     手动创建
@@ -258,11 +258,11 @@ export const ChartBuilder: React.FC<ChartBuilderProps> = ({ columns, data, initi
                                     disabled={metricPackages.length === 0}
                                     className={`flex-1 px-3 py-2 text-xs font-bold transition-colors flex items-center justify-center gap-1 ${
                                         createMode === 'metric'
-                                            ? 'bg-monokai-amethyst/20 text-monokai-amethyst'
-                                            : 'text-monokai-comment hover:text-monokai-fg hover:bg-monokai-bg/50 disabled:opacity-40 disabled:cursor-not-allowed'
+                                            ? 'bg-monokai-surface text-monokai-fg shadow-xs'
+                                            : 'text-monokai-comment hover:text-monokai-fg hover:bg-monokai-surface/60 disabled:opacity-40 disabled:cursor-not-allowed'
                                     }`}
                                 >
-                                    <Sparkles size={11} />
+                                    <Sparkles size={11} className="text-monokai-yellow" />
                                     从指标创建
                                 </button>
                             </div>
@@ -270,7 +270,7 @@ export const ChartBuilder: React.FC<ChartBuilderProps> = ({ columns, data, initi
 
                         {/* ── 指标模式 ── */}
                         {createMode === 'metric' && (
-                            <div className="flex flex-col gap-3 p-3 bg-monokai-bg rounded-lg border border-monokai-amethyst/30">
+                            <div className="flex flex-col gap-3 p-3 bg-monokai-surface border border-monokai-border rounded-lg">
                                 {metricPackages.length === 0 ? (
                                     <p className="text-center text-monokai-comment text-xs py-3">
                                         暂无指标包，请先在"指标管理"中创建
@@ -360,15 +360,15 @@ export const ChartBuilder: React.FC<ChartBuilderProps> = ({ columns, data, initi
                                 {/* Chart Type */}
                                 <div>
                                     {sectionLabel('Type')}
-                                    <div className="grid grid-cols-3 gap-1.5 bg-[#1e1f1c]">
+                                    <div className="grid grid-cols-3 gap-1.5 bg-monokai-surface/60 p-1 rounded-md border border-monokai-border">
                                         {(['bar', 'line', 'area', 'pie', 'doughnut', 'scatter'] as ChartType[]).map(t => (
                                             <button
                                                 key={t}
                                                 onClick={() => handleTypeChange(t)}
-                                                className={`py-1.5 rounded border text-xs capitalize font-medium transition-all ${
+                                                className={`py-1.5 rounded text-xs capitalize font-medium transition-all ${
                                                     config.type === t
-                                                        ? 'bg-monokai-accent/20 border-monokai-accent text-monokai-accent font-bold'
-                                                        : 'bg-monokai-bg border-monokai-accent/40 text-monokai-comment hover:border-monokai-accent hover:text-monokai-fg'
+                                                        ? 'bg-monokai-elevated border-monokai-border-strong text-monokai-fg font-medium'
+                                                        : 'bg-monokai-bg border-monokai-border text-monokai-comment hover:border-monokai-border-strong hover:text-monokai-fg'
                                                 }`}
                                             >
                                                 {t}
@@ -392,12 +392,12 @@ export const ChartBuilder: React.FC<ChartBuilderProps> = ({ columns, data, initi
                                 {/* Y Axis */}
                                 <div>
                                     {sectionLabel('Y Axis (Values)')}
-                                    <div className="flex flex-col gap-0.5 max-h-36 overflow-y-auto border border-monokai-accent/40 rounded p-1.5 bg-[#121211] text-[#141414] custom-scrollbar">
+                                    <div className="flex flex-col gap-0.5 max-h-36 overflow-y-auto border border-monokai-border rounded-md p-1.5 bg-monokai-sidebar/80 text-monokai-fg custom-scrollbar">
                                         {availableColumns.map(c => {
                                             const isSelected = config.yKeys.includes(c);
                                             return (
-                                                <label key={c} className="flex items-center gap-2 px-1.5 py-1 hover:bg-monokai-accent/10 rounded cursor-pointer">
-                                                    <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${isSelected ? 'bg-monokai-accent border-monokai-accent' : 'border-monokai-comment hover:border-monokai-accent'}`}>
+                                                <label key={c} className="flex items-center gap-2 px-1.5 py-1 hover:bg-monokai-surface rounded cursor-pointer">
+                                                    <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${isSelected ? 'bg-monokai-accent border-monokai-accent' : 'border-monokai-border hover:border-monokai-border-strong'}`}>
                                                         {isSelected && <Check size={9} className="text-monokai-bg" />}
                                                     </div>
                                                     <input type="checkbox" className="hidden" checked={isSelected} onChange={() => toggleYKey(c)} />
@@ -409,13 +409,13 @@ export const ChartBuilder: React.FC<ChartBuilderProps> = ({ columns, data, initi
                                 </div>
 
                                 {/* Group By & Aggregation */}
-                                <div className="pt-3 border-t border-monokai-accent/30 flex flex-col gap-3">
+                                <div className="pt-3 border-t border-monokai-border flex flex-col gap-3">
                                     <div>
                                         {sectionLabel('Group By (Segmentation)')}
                                         <select
                                             value={config.groupBy || ''}
                                             onChange={e => setConfig({ ...config, groupBy: e.target.value || undefined })}
-                                            className={selectClass + ' focus:border-monokai-amethyst'}
+                                            className={selectClass}
                                         >
                                             <option value="">None</option>
                                             {availableColumns.map(c => <option key={c} value={c}>{c}</option>)}
@@ -439,7 +439,7 @@ export const ChartBuilder: React.FC<ChartBuilderProps> = ({ columns, data, initi
                                 </div>
 
                                 {/* Advanced Options */}
-                                <div className="pt-3 border-t border-monokai-accent/30 flex flex-col gap-2.5">
+                                <div className="pt-3 border-t border-monokai-border flex flex-col gap-2.5">
                                     {sectionLabel('Display Options', <Settings2 size={11} />)}
                                     <StyledCheckbox checked={config.stacked} onChange={v => setConfig({ ...config, stacked: v })} label="Stacked" />
                                     <StyledCheckbox checked={config.horizontal} onChange={v => setConfig({ ...config, horizontal: v })} label="Horizontal (Bar)" />
@@ -449,17 +449,17 @@ export const ChartBuilder: React.FC<ChartBuilderProps> = ({ columns, data, initi
 
                                 {/* Secondary Y-Axis */}
                                 {(config.type === 'bar' || config.type === 'line') && (
-                                    <div className="pt-3 border-t border-monokai-accent/30">
+                                    <div className="pt-3 border-t border-monokai-border">
                                         <div className="flex items-center gap-1.5 mb-2">
-                                            <span className="text-xs font-bold uppercase tracking-wider text-monokai-accent">Right Y-Axis</span>
+                                            <span className="text-xs font-bold uppercase tracking-wider text-monokai-fg">Right Y-Axis</span>
                                             <span className="text-xs text-monokai-comment">(Line Overlay)</span>
                                         </div>
-                                        <div className="flex flex-col gap-0.5 max-h-28 overflow-y-auto border border-monokai-accent/40 rounded p-1.5 bg-monokai-bg custom-scrollbar">
+                                        <div className="flex flex-col gap-0.5 max-h-28 overflow-y-auto border border-monokai-border rounded p-1.5 bg-monokai-bg custom-scrollbar">
                                             {availableColumns.map(c => {
                                                 const isSelected = config.yRightKeys?.includes(c);
                                                 return (
-                                                    <label key={c} className="flex items-center gap-2 px-1.5 py-1 hover:bg-monokai-accent/10 rounded cursor-pointer">
-                                                        <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${isSelected ? 'bg-monokai-accent border-monokai-accent' : 'border-monokai-comment hover:border-monokai-accent'}`}>
+                                                    <label key={c} className="flex items-center gap-2 px-1.5 py-1 hover:bg-monokai-surface rounded cursor-pointer">
+                                                        <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${isSelected ? 'bg-monokai-accent border-monokai-accent' : 'border-monokai-border hover:border-monokai-border-strong'}`}>
                                                             {isSelected && <Check size={9} className="text-monokai-bg" />}
                                                         </div>
                                                         <input type="checkbox" className="hidden" checked={!!isSelected} onChange={() => toggleYRightKey(c)} />
@@ -472,7 +472,7 @@ export const ChartBuilder: React.FC<ChartBuilderProps> = ({ columns, data, initi
                                 )}
 
                                 {/* Drill-Down */}
-                                <div className="pt-3 border-t border-monokai-accent/30">
+                                <div className="pt-3 border-t border-monokai-border">
                                     <label className="flex items-center gap-2.5 cursor-pointer group mb-3">
                                         <div
                                             onClick={() => setConfig({
@@ -538,13 +538,13 @@ export const ChartBuilder: React.FC<ChartBuilderProps> = ({ columns, data, initi
 
                 {/* ── Preview Area ─────────────────────────────────── */}
                 <div className="flex-1 bg-monokai-bg flex flex-col min-h-0">
-                    <div className="flex items-center justify-between px-5 py-2.5 border-b border-monokai-accent/30 bg-monokai-surface flex-shrink-0">
+                    <div className="flex items-center justify-between px-5 py-2.5 border-b border-monokai-border bg-monokai-surface flex-shrink-0">
                         <span className="text-xs font-bold uppercase tracking-wider text-monokai-comment flex items-center gap-1.5">
                             <SlidersHorizontal size={11} />
                             Preview
                         </span>
                         {config.title && (
-                            <span className="text-xs text-monokai-accent font-mono">{config.title}</span>
+                            <span className="text-xs text-monokai-fg font-mono">{config.title}</span>
                         )}
                     </div>
                     <div className="flex-1 p-8 flex items-center justify-center min-h-0 relative">

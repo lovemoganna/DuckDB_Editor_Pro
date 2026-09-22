@@ -12,6 +12,9 @@ import CodeMirror from '@uiw/react-codemirror';
 import { json } from '@codemirror/lang-json';
 import { monokai } from '@uiw/codemirror-theme-monokai';
 import { DataTab, TabMeta, CollapsibleJsonViewer, OntologyDataHeader, TAB_CONFIG } from './OntologyDataView/index';
+import { toastService } from '../../services/toastService';
+import { useConfirmDialog } from '../ui/ConfirmDialog';
+import { ModalShell, ActionButton, IconButton, Badge } from '../ui/Workbench';
 
 // ─── Component ───────────────────────────────────────────────
 
@@ -276,14 +279,13 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
         return next;
       });
     } catch (e: any) {
-      alert(`删除失败: ${e.message}`);
+      toastService.error('删除失败', e.message);
     }
   }, [activeDataTab, store]);
 
   // ── Batch deletion ──
   const handleBatchDelete = useCallback(async () => {
     if (selectedRowIds.size === 0) return;
-    if (!confirm(`确认删除选中的 ${selectedRowIds.size} 条记录吗？`)) return;
 
     try {
       const ids = Array.from(selectedRowIds);
@@ -297,9 +299,9 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
         else if (activeDataTab === 'insight') await store.deleteInsight(id);
       }
       setSelectedRowIds(new Set());
-      alert('批量删除成功');
+      toastService.success(`成功批量删除 ${ids.length} 条记录`);
     } catch (e: any) {
-      alert(`批量删除部分失败: ${e.message}`);
+      toastService.error('批量删除部分失败', e.message);
     }
   }, [selectedRowIds, activeDataTab, store]);
 
@@ -358,7 +360,7 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
         await store.updateInsight(id, objectId, insight, tag);
       }
     } catch (e: any) {
-      alert(`保存失败: ${e.message}`);
+      toastService.error('保存失败', e.message);
     }
   }, [activeDataTab, state, store]);
 
@@ -368,37 +370,38 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
     try {
       if (activeDataTab === 'objectType') {
         const { name, description } = addFormValues;
-        if (!name) return alert('名称不能为空');
+        if (!name) return toastService.warning('名称不能为空');
         await store.createObjectType(name, description || '');
       } else if (activeDataTab === 'object') {
         const { name, typeId, properties } = addFormValues;
-        if (!name || !typeId) return alert('名称与归属类型不能为空');
+        if (!name || !typeId) return toastService.warning('名称与归属类型不能为空');
         await store.createObject(name, Number(typeId), properties || '{}');
       } else if (activeDataTab === 'linkType') {
         const { name, description } = addFormValues;
-        if (!name) return alert('名称不能为空');
+        if (!name) return toastService.warning('名称不能为空');
         await store.createLinkType(name, description || '');
       } else if (activeDataTab === 'link') {
         const { linkTypeId, sourceId, targetId, weight } = addFormValues;
-        if (!linkTypeId || !sourceId || !targetId) return alert('请填满关系类型及两端节点');
+        if (!linkTypeId || !sourceId || !targetId) return toastService.warning('请填满关系类型及两端节点');
         await store.createLink(Number(linkTypeId), Number(sourceId), Number(targetId), Number(weight ?? 0.5));
       } else if (activeDataTab === 'action') {
         const { name, objectId, status, executeAt } = addFormValues;
-        if (!name || !objectId) return alert('任务标识与绑定实体不能为空');
+        if (!name || !objectId) return toastService.warning('任务标识与绑定实体不能为空');
         await store.createAction(name, Number(objectId), '', status || 'pending', executeAt || undefined);
       } else if (activeDataTab === 'introspection') {
         const { objectId, question, answer } = addFormValues;
-        if (!objectId || !question || !answer) return alert('关联实体、问题与回答均不能为空');
+        if (!objectId || !question || !answer) return toastService.warning('关联实体、问题与回答均不能为空');
         await store.createIntrospection(Number(objectId), question, answer);
       } else if (activeDataTab === 'insight') {
         const { objectId, insight, tag } = addFormValues;
-        if (!objectId || !insight) return alert('关联实体与洞察描述均不能为空');
+        if (!objectId || !insight) return toastService.warning('关联实体与洞察描述均不能为空');
         await store.createInsight(Number(objectId), insight, tag || '');
       }
       setShowAddForm(false);
       setAddFormValues({});
+      toastService.success('添加记录成功');
     } catch (err: any) {
-      alert(`添加记录失败: ${err.message}`);
+      toastService.error('添加记录失败', err.message);
     }
   }, [activeDataTab, addFormValues, store]);
 
@@ -678,7 +681,7 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
           value={val}
           onChange={(e) => onChange(Number(e.target.value))}
           onBlur={onSave}
-          className="bg-monokai-bg border border-monokai-cyan/40 rounded px-1.5 py-0.5 text-xs text-monokai-fg focus:outline-none"
+          className="bg-monokai-bg border border-monokai-border rounded px-1.5 py-0.5 text-xs text-monokai-fg focus:outline-none focus:border-monokai-accent transition-colors"
         >
           {state.objectTypes.map(ot => (
             <option key={ot.id} value={ot.id}>{ot.name}</option>
@@ -693,7 +696,7 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
           value={val}
           onChange={(e) => onChange(Number(e.target.value))}
           onBlur={onSave}
-          className="bg-monokai-bg border border-monokai-cyan/40 rounded px-1.5 py-0.5 text-xs text-monokai-fg focus:outline-none"
+          className="bg-monokai-bg border border-monokai-border rounded px-1.5 py-0.5 text-xs text-monokai-fg focus:outline-none focus:border-monokai-accent transition-colors"
         >
           {state.linkTypes.map(lt => (
             <option key={lt.id} value={lt.id}>{lt.name}</option>
@@ -708,7 +711,7 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
           value={val}
           onChange={(e) => onChange(Number(e.target.value))}
           onBlur={onSave}
-          className="bg-monokai-bg border border-monokai-cyan/40 rounded px-1.5 py-0.5 text-xs text-monokai-fg focus:outline-none"
+          className="bg-monokai-bg border border-monokai-border rounded px-1.5 py-0.5 text-xs text-monokai-fg focus:outline-none focus:border-monokai-accent transition-colors"
         >
           {state.objects.map(o => (
             <option key={o.id} value={o.id}>{o.name}</option>
@@ -723,7 +726,7 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
           value={val}
           onChange={(e) => onChange(e.target.value)}
           onBlur={onSave}
-          className="bg-monokai-bg border border-monokai-cyan/40 rounded px-1.5 py-0.5 text-xs text-monokai-fg focus:outline-none"
+          className="bg-monokai-bg border border-monokai-border rounded px-1.5 py-0.5 text-xs text-monokai-fg focus:outline-none focus:border-monokai-accent transition-colors"
         >
           <option value="pending">PENDING</option>
           <option value="done">DONE</option>
@@ -747,7 +750,7 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
         </div>
       );
     }
-    if (key === 'execute_at') {
+    if (key === 'execute_at' || key === 'timestamp') {
       return (
         <input
           autoFocus
@@ -756,7 +759,7 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
           onChange={(e) => onChange(e.target.value)}
           onBlur={onSave}
           onKeyDown={(e) => { if (e.key === 'Enter') onSave(); if (e.key === 'Escape') onCancel(); }}
-          className="bg-monokai-bg border border-monokai-cyan/40 rounded px-1.5 py-0.5 text-xs text-monokai-fg focus:outline-none"
+          className="bg-monokai-bg border border-monokai-border rounded px-1.5 py-0.5 text-xs text-monokai-fg focus:outline-none focus:border-monokai-accent transition-colors"
         />
       );
     }
@@ -769,7 +772,7 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
         onChange={(e) => onChange(e.target.value)}
         onBlur={onSave}
         onKeyDown={(e) => { if (e.key === 'Enter') onSave(); if (e.key === 'Escape') onCancel(); }}
-        className="bg-monokai-bg border border-monokai-cyan/40 rounded px-1.5 py-0.5 text-xs text-monokai-fg focus:outline-none w-full max-w-[200px]"
+        className="bg-monokai-bg border border-monokai-border rounded px-1.5 py-0.5 text-xs text-monokai-fg focus:outline-none focus:border-monokai-accent transition-colors w-full max-w-[200px]"
       />
     );
   };
@@ -791,27 +794,25 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
         <div className="flex flex-col h-full overflow-y-auto custom-scrollbar p-4 gap-4 text-left">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Hexagon className="w-5 h-5 text-[#FF9F1C]" />
+              <Hexagon className="w-5 h-5 text-monokai-orange" />
               <span className="font-bold text-sm text-monokai-fg">类型详情</span>
             </div>
-            <button onClick={onClose} className="p-1 rounded hover:bg-white/5 text-monokai-comment hover:text-white">
-              <X className="w-4 h-4" />
-            </button>
+            <IconButton icon={X} label="关闭详情" onClick={onClose} size="sm" />
           </div>
 
-          <div className="bg-black/20 p-3 rounded-xl border border-white/5">
-            <p className="text-[10px] text-monokai-comment font-bold uppercase tracking-wider">类型名称</p>
-            <p className="text-sm font-bold text-white font-mono mt-0.5">{row.name}</p>
-            <p className="text-[10px] text-monokai-comment font-mono mt-1">ID: {row.id}</p>
+          <div className="bg-monokai-surface/60 p-3 rounded-lg border border-monokai-border">
+            <p className="text-xs text-monokai-comment font-semibold uppercase tracking-wider">类型名称</p>
+            <p className="text-sm font-bold text-monokai-fg font-mono mt-0.5">{row.name}</p>
+            <p className="text-xs text-monokai-comment font-mono mt-1">ID: {row.id}</p>
           </div>
 
-          <div className="bg-black/20 p-3 rounded-xl border border-white/5">
-            <p className="text-[10px] text-monokai-comment font-bold uppercase tracking-wider">结构描述</p>
+          <div className="bg-monokai-surface/60 p-3 rounded-lg border border-monokai-border">
+            <p className="text-xs text-monokai-comment font-semibold uppercase tracking-wider">结构描述</p>
             <p className="text-xs text-monokai-fg/80 mt-1 leading-relaxed">{row.description || '无结构描述'}</p>
           </div>
 
           <div className="flex flex-col gap-2">
-            <p className="text-[10px] text-monokai-comment font-bold uppercase tracking-wider">所属实例 ({instances.length})</p>
+            <p className="text-xs text-monokai-comment font-semibold uppercase tracking-wider">所属实例 ({instances.length})</p>
             {instances.length === 0 ? (
               <p className="text-xs text-monokai-comment italic">该类型下暂无实体实例</p>
             ) : (
@@ -825,7 +826,7 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
                       setInspectorRowId(o.id);
                       setShowInspector(true);
                     }}
-                    className="w-full text-left p-2 rounded bg-black/10 border border-white/5 hover:border-monokai-cyan/35 hover:bg-monokai-cyan/5 transition-all text-xs font-mono text-monokai-cyan truncate"
+                    className="w-full text-left p-2 rounded-md bg-monokai-surface border border-monokai-border/60 hover:border-monokai-accent/60 hover:bg-monokai-elevated transition-all text-xs font-mono text-monokai-fg hover:text-monokai-accent truncate"
                   >
                     • {o.name}
                   </button>
@@ -849,18 +850,16 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
         <div className="flex flex-col h-full overflow-y-auto custom-scrollbar p-4 gap-4 text-left">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Box className="w-5 h-5 text-[#4CC9F0]" />
+              <Box className="w-5 h-5 text-monokai-cyan" />
               <span className="font-bold text-sm text-monokai-fg">实例详情</span>
             </div>
-            <button onClick={onClose} className="p-1 rounded hover:bg-white/5 text-monokai-comment hover:text-white">
-              <X className="w-4 h-4" />
-            </button>
+            <IconButton icon={X} label="关闭详情" onClick={onClose} size="sm" />
           </div>
 
-          <div className="bg-black/20 p-3 rounded-xl border border-white/5">
-            <p className="text-[10px] text-monokai-comment font-bold uppercase tracking-wider">实例名称</p>
-            <p className="text-sm font-bold text-white font-mono mt-0.5">{row.name}</p>
-            <p className="text-[10px] text-monokai-comment font-mono mt-1">ID: {row.id}</p>
+          <div className="bg-monokai-surface/60 p-3 rounded-lg border border-monokai-border">
+            <p className="text-xs text-monokai-comment font-semibold uppercase tracking-wider">实例名称</p>
+            <p className="text-sm font-bold text-monokai-fg font-mono mt-0.5">{row.name}</p>
+            <p className="text-xs text-monokai-comment font-mono mt-1">ID: {row.id}</p>
             {parentType && (
               <button
                 onClick={() => {
@@ -868,7 +867,7 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
                   setFilterText(parentType.name);
                   setInspectorRowId(parentType.id);
                 }}
-                className="mt-2 flex items-center gap-1 text-[10px] font-bold text-[#FF9F1C] hover:underline"
+                className="mt-2 flex items-center gap-1 text-xs font-semibold text-monokai-orange hover:underline"
               >
                 <Hexagon className="w-3 h-3" />
                 <span>类型: {parentType.name}</span>
@@ -876,18 +875,18 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
             )}
           </div>
 
-          <div className="bg-black/20 p-3 rounded-xl border border-white/5 flex flex-col gap-2">
+          <div className="bg-monokai-surface/60 p-3 rounded-lg border border-monokai-border flex flex-col gap-2">
             <div className="flex items-center justify-between">
-              <p className="text-[10px] text-monokai-comment font-bold uppercase tracking-wider">特性负载 (JSON)</p>
+              <p className="text-xs text-monokai-comment font-semibold uppercase tracking-wider">特性负载 (JSON)</p>
               <button
                 onClick={() => setJsonEditModal({ id: row.id, field: 'properties', text: row.properties || '{}', error: null })}
-                className="text-[10px] text-monokai-cyan hover:underline font-bold"
+                className="text-xs text-monokai-cyan hover:underline font-semibold"
               >
                 编辑 JSON
               </button>
             </div>
             {parsedJson && Object.keys(parsedJson).length > 0 ? (
-              <div className="text-[10px] bg-black/45 p-2.5 rounded-lg max-h-40 overflow-y-auto custom-scrollbar">
+              <div className="text-xs bg-monokai-bg p-2.5 rounded-md border border-monokai-border max-h-40 overflow-y-auto custom-scrollbar">
                 <CollapsibleJsonViewer data={parsedJson} />
               </div>
             ) : (
@@ -897,16 +896,16 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
 
           <div className="flex flex-col gap-3">
             <div>
-              <p className="text-[10px] text-monokai-comment font-bold uppercase tracking-wider mb-1.5">上游关系 (引向我)</p>
+              <p className="text-xs text-monokai-comment font-semibold uppercase tracking-wider mb-1.5">上游关系 (引向我)</p>
               {incomingLinks.length === 0 ? (
-                <p className="text-[10px] text-monokai-comment italic pl-2">无指向该实体的上游关系</p>
+                <p className="text-xs text-monokai-comment italic pl-2">无指向该实体的上游关系</p>
               ) : (
                 <div className="flex flex-col gap-1 max-h-32 overflow-y-auto custom-scrollbar">
                   {incomingLinks.map((l: any) => {
                     const srcObj = state.objects.find((o: any) => o.id === l.source_object_id);
                     const lType = state.linkTypes.find((lt: any) => lt.id === l.link_type_id);
                     return (
-                      <div key={l.id} className="p-1.5 rounded bg-black/10 border border-white/5 flex items-center justify-between gap-1 text-[10px] font-mono">
+                      <div key={l.id} className="p-1.5 rounded-md bg-monokai-surface border border-monokai-border/60 flex items-center justify-between gap-1 text-xs font-mono">
                         <button
                           onClick={() => {
                             if (srcObj) {
@@ -918,10 +917,10 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
                         >
                           {srcObj?.name || l.source_object_id}
                         </button>
-                        <span className="text-monokai-comment text-[9px] bg-black/20 px-1 rounded truncate max-w-[60px]" title={lType?.name}>
+                        <span className="text-monokai-comment text-xs bg-monokai-bg px-1 rounded truncate max-w-[60px]" title={lType?.name}>
                           {lType?.name || 'rel'}
                         </span>
-                        <span className="text-[#FF9CF7] text-right font-bold truncate">我 (w:{l.weight.toFixed(1)})</span>
+                        <span className="text-monokai-pink text-right font-bold truncate">我 (w:{l.weight.toFixed(1)})</span>
                       </div>
                     );
                   })}
@@ -930,18 +929,18 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
             </div>
 
             <div>
-              <p className="text-[10px] text-monokai-comment font-bold uppercase tracking-wider mb-1.5">下游关系 (从我出发)</p>
+              <p className="text-xs text-monokai-comment font-semibold uppercase tracking-wider mb-1.5">下游关系 (从我出发)</p>
               {outgoingLinks.length === 0 ? (
-                <p className="text-[10px] text-monokai-comment italic pl-2">无从该实体出发的下游关系</p>
+                <p className="text-xs text-monokai-comment italic pl-2">无从该实体出发的下游关系</p>
               ) : (
                 <div className="flex flex-col gap-1 max-h-32 overflow-y-auto custom-scrollbar">
                   {outgoingLinks.map((l: any) => {
                     const tgtObj = state.objects.find((o: any) => o.id === l.target_object_id);
                     const lType = state.linkTypes.find((lt: any) => lt.id === l.link_type_id);
                     return (
-                      <div key={l.id} className="p-1.5 rounded bg-black/10 border border-white/5 flex items-center justify-between gap-1 text-[10px] font-mono">
-                        <span className="text-[#4CC9F0] font-bold">我</span>
-                        <span className="text-monokai-comment text-[9px] bg-black/20 px-1 rounded truncate max-w-[60px]" title={lType?.name}>
+                      <div key={l.id} className="p-1.5 rounded-md bg-monokai-surface border border-monokai-border/60 flex items-center justify-between gap-1 text-xs font-mono">
+                        <span className="text-monokai-cyan font-bold">我</span>
+                        <span className="text-monokai-comment text-xs bg-monokai-bg px-1 rounded truncate max-w-[60px]" title={lType?.name}>
                           {lType?.name || 'rel'}
                         </span>
                         <button
@@ -955,7 +954,7 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
                         >
                           {tgtObj?.name || l.target_object_id}
                         </button>
-                        <span className="text-monokai-comment text-[9px]">w:{l.weight.toFixed(1)}</span>
+                        <span className="text-monokai-comment text-xs">w:{l.weight.toFixed(1)}</span>
                       </div>
                     );
                   })}
@@ -965,12 +964,12 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
 
             {actions.length > 0 && (
               <div>
-                <p className="text-[10px] text-monokai-comment font-bold uppercase tracking-wider mb-1.5">关联行动计划 ({actions.length})</p>
+                <p className="text-xs text-monokai-comment font-semibold uppercase tracking-wider mb-1.5">关联行动计划 ({actions.length})</p>
                 <div className="flex flex-col gap-1 max-h-32 overflow-y-auto custom-scrollbar">
                   {actions.map((a: any) => (
-                    <div key={a.id} className="p-1.5 rounded bg-black/10 border border-white/5 flex items-center justify-between text-[10px] font-mono">
+                    <div key={a.id} className="p-1.5 rounded-md bg-monokai-surface border border-monokai-border/60 flex items-center justify-between text-xs font-mono">
                       <span className="text-monokai-fg/80 truncate max-w-[130px]">{a.name}</span>
-                      <span className={`px-1 rounded text-[8px] font-bold ${a.status === 'done' ? 'bg-green-500/15 text-green-400' : 'bg-orange-500/15 text-orange-400'}`}>
+                      <span className={`px-1.5 py-0.5 rounded text-xs font-bold ${a.status === 'done' ? 'bg-monokai-accent/15 text-monokai-accent' : 'bg-monokai-orange/15 text-monokai-orange'}`}>
                         {a.status.toUpperCase()}
                       </span>
                     </div>
@@ -989,27 +988,25 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
         <div className="flex flex-col h-full overflow-y-auto custom-scrollbar p-4 gap-4 text-left">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <LayoutList className="w-5 h-5 text-[#E76F51]" />
+              <LayoutList className="w-5 h-5 text-monokai-orange" />
               <span className="font-bold text-sm text-monokai-fg">关系类型详情</span>
             </div>
-            <button onClick={onClose} className="p-1 rounded hover:bg-white/5 text-monokai-comment hover:text-white">
-              <X className="w-4 h-4" />
-            </button>
+            <IconButton icon={X} label="关闭详情" onClick={onClose} size="sm" />
           </div>
 
-          <div className="bg-black/20 p-3 rounded-xl border border-white/5">
-            <p className="text-[10px] text-monokai-comment font-bold uppercase tracking-wider">关系名称</p>
-            <p className="text-sm font-bold text-white font-mono mt-0.5">{row.name}</p>
-            <p className="text-[10px] text-monokai-comment font-mono mt-1">ID: {row.id}</p>
+          <div className="bg-monokai-surface/60 p-3 rounded-lg border border-monokai-border">
+            <p className="text-xs text-monokai-comment font-semibold uppercase tracking-wider">关系名称</p>
+            <p className="text-sm font-bold text-monokai-fg font-mono mt-0.5">{row.name}</p>
+            <p className="text-xs text-monokai-comment font-mono mt-1">ID: {row.id}</p>
           </div>
 
-          <div className="bg-black/20 p-3 rounded-xl border border-white/5">
-            <p className="text-[10px] text-monokai-comment font-bold uppercase tracking-wider">语义约束描述</p>
+          <div className="bg-monokai-surface/60 p-3 rounded-lg border border-monokai-border">
+            <p className="text-xs text-monokai-comment font-semibold uppercase tracking-wider">语义约束描述</p>
             <p className="text-xs text-monokai-fg/80 mt-1 leading-relaxed">{row.description || '无语义说明'}</p>
           </div>
 
           <div className="flex flex-col gap-2">
-            <p className="text-[10px] text-monokai-comment font-bold uppercase tracking-wider">关系引用实例 ({linkRefs.length})</p>
+            <p className="text-xs text-monokai-comment font-semibold uppercase tracking-wider">关系引用实例 ({linkRefs.length})</p>
             {linkRefs.length === 0 ? (
               <p className="text-xs text-monokai-comment italic">目前关系库中暂无此关系的实际引用实例</p>
             ) : (
@@ -1025,7 +1022,7 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
                         setFilterText(`${s?.name || l.source_object_id}`);
                         setInspectorRowId(l.id);
                       }}
-                      className="w-full text-left p-2 rounded bg-black/10 border border-white/5 hover:border-monokai-cyan/35 hover:bg-monokai-cyan/5 transition-all text-[10px] font-mono text-monokai-fg/70 flex items-center justify-between"
+                      className="w-full text-left p-2 rounded-md bg-monokai-surface border border-monokai-border/60 hover:border-monokai-accent/60 hover:bg-monokai-elevated transition-all text-xs font-mono text-monokai-fg/70 hover:text-monokai-fg flex items-center justify-between"
                     >
                       <span className="truncate max-w-[80px] text-monokai-cyan">{s?.name || l.source_object_id}</span>
                       <span className="text-monokai-comment">&rarr;</span>
@@ -1049,17 +1046,15 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
         <div className="flex flex-col h-full overflow-y-auto custom-scrollbar p-4 gap-4 text-left">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Link2 className="w-5 h-5 text-[#FFD166]" />
+              <Link2 className="w-5 h-5 text-monokai-yellow" />
               <span className="font-bold text-sm text-monokai-fg">拓扑关系详情</span>
             </div>
-            <button onClick={onClose} className="p-1 rounded hover:bg-white/5 text-monokai-comment hover:text-white">
-              <X className="w-4 h-4" />
-            </button>
+            <IconButton icon={X} label="关闭详情" onClick={onClose} size="sm" />
           </div>
 
-          <div className="bg-black/20 p-3 rounded-xl border border-white/5 flex flex-col gap-2">
-            <p className="text-[10px] text-monokai-comment font-bold uppercase tracking-wider">语义关联结构</p>
-            <div className="flex items-center justify-between gap-1.5 p-2 bg-black/30 rounded-lg">
+          <div className="bg-monokai-surface/60 p-3 rounded-lg border border-monokai-border flex flex-col gap-2">
+            <p className="text-xs text-monokai-comment font-semibold uppercase tracking-wider">语义关联结构</p>
+            <div className="flex items-center justify-between gap-1.5 p-2 bg-monokai-bg rounded-md border border-monokai-border/60">
               {srcObj && (
                 <button
                   onClick={() => {
@@ -1072,7 +1067,7 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
                   {srcObj.name}
                 </button>
               )}
-              <span className="text-[10px] font-bold text-[#FFD166] bg-black/40 px-1.5 py-0.5 rounded border border-white/5">
+              <span className="text-xs font-bold text-monokai-yellow bg-monokai-surface px-1.5 py-0.5 rounded border border-monokai-border">
                 {relationType?.name || row.link_type_id}
               </span>
               {tgtObj && (
@@ -1090,13 +1085,13 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
             </div>
           </div>
 
-          <div className="bg-black/20 p-3 rounded-xl border border-white/5">
-            <p className="text-[10px] text-monokai-comment font-bold uppercase tracking-wider">耦合权重 (Elastic Weight)</p>
+          <div className="bg-monokai-surface/60 p-3 rounded-lg border border-monokai-border">
+            <p className="text-xs text-monokai-comment font-semibold uppercase tracking-wider">耦合权重 (Elastic Weight)</p>
             <div className="mt-2 flex items-center gap-3">
-              <div className="h-2 flex-1 bg-black/40 rounded-full overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-monokai-cyan to-[#FF9CF7] rounded-full" style={{ width: `${row.weight * 100}%` }} />
+              <div className="h-2 flex-1 bg-monokai-bg rounded-full overflow-hidden border border-monokai-border">
+                <div className="h-full bg-gradient-to-r from-monokai-cyan to-monokai-accent rounded-full" style={{ width: `${row.weight * 100}%` }} />
               </div>
-              <span className="text-sm font-mono font-bold text-white">{row.weight.toFixed(2)}</span>
+              <span className="text-sm font-mono font-bold text-monokai-fg">{row.weight.toFixed(2)}</span>
             </div>
           </div>
         </div>
@@ -1109,36 +1104,34 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
         <div className="flex flex-col h-full overflow-y-auto custom-scrollbar p-4 gap-4 text-left">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Zap className="w-5 h-5 text-[#FF9CF7]" />
+              <Zap className="w-5 h-5 text-monokai-yellow" />
               <span className="font-bold text-sm text-monokai-fg">行动任务详情</span>
             </div>
-            <button onClick={onClose} className="p-1 rounded hover:bg-white/5 text-monokai-comment hover:text-white">
-              <X className="w-4 h-4" />
-            </button>
+            <IconButton icon={X} label="关闭详情" onClick={onClose} size="sm" />
           </div>
 
-          <div className="bg-black/20 p-3 rounded-xl border border-white/5">
-            <p className="text-[10px] text-monokai-comment font-bold uppercase tracking-wider">动作标识 (Action Key)</p>
-            <p className="text-sm font-bold text-white font-mono mt-0.5">{row.name}</p>
-            <p className="text-[10px] text-monokai-comment font-mono mt-1">ID: {row.id}</p>
+          <div className="bg-monokai-surface/60 p-3 rounded-lg border border-monokai-border">
+            <p className="text-xs text-monokai-comment font-semibold uppercase tracking-wider">动作标识 (Action Key)</p>
+            <p className="text-sm font-bold text-monokai-fg font-mono mt-0.5">{row.name}</p>
+            <p className="text-xs text-monokai-comment font-mono mt-1">ID: {row.id}</p>
           </div>
 
-          <div className="bg-black/20 p-3 rounded-xl border border-white/5 flex items-center justify-between">
+          <div className="bg-monokai-surface/60 p-3 rounded-lg border border-monokai-border flex items-center justify-between">
             <div>
-              <p className="text-[10px] text-monokai-comment font-bold uppercase tracking-wider">进度状态</p>
-              <span className={`inline-block mt-1.5 px-2 py-0.5 text-[9px] font-bold rounded-full uppercase ${row.status === 'done' ? 'bg-green-500/15 text-green-400 border border-green-500/20' : 'bg-orange-500/15 text-orange-400 border border-orange-500/20'}`}>
+              <p className="text-xs text-monokai-comment font-semibold uppercase tracking-wider">进度状态</p>
+              <span className={`inline-block mt-1.5 px-2 py-0.5 text-xs font-bold rounded-md uppercase ${row.status === 'done' ? 'bg-monokai-accent/15 text-monokai-accent border border-monokai-accent/30' : 'bg-monokai-orange/15 text-monokai-orange border border-monokai-orange/30'}`}>
                 {row.status}
               </span>
             </div>
             <div className="text-right">
-              <p className="text-[10px] text-monokai-comment font-bold uppercase tracking-wider">执行日期</p>
-              <p className="text-xs font-bold text-white font-mono mt-1.5">{row.execute_at || '—'}</p>
+              <p className="text-xs text-monokai-comment font-semibold uppercase tracking-wider">执行日期</p>
+              <p className="text-xs font-bold text-monokai-fg font-mono mt-1.5">{row.execute_at || '—'}</p>
             </div>
           </div>
 
           {boundObj && (
-            <div className="bg-black/20 p-3 rounded-xl border border-white/5">
-              <p className="text-[10px] text-monokai-comment font-bold uppercase tracking-wider">绑定关联实体</p>
+            <div className="bg-monokai-surface/60 p-3 rounded-lg border border-monokai-border">
+              <p className="text-xs text-monokai-comment font-semibold uppercase tracking-wider">绑定关联实体</p>
               <button
                 onClick={() => {
                   setActiveDataTab('object');
@@ -1162,29 +1155,27 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
         <div className="flex flex-col h-full overflow-y-auto custom-scrollbar p-4 gap-4 text-left">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <RefreshCw className="w-5 h-5 text-[#a6e22e]" />
+              <RefreshCw className="w-5 h-5 text-monokai-accent" />
               <span className="font-bold text-sm text-monokai-fg">反思记录详情</span>
             </div>
-            <button onClick={onClose} className="p-1 rounded hover:bg-white/5 text-monokai-comment hover:text-white">
-              <X className="w-4 h-4" />
-            </button>
+            <IconButton icon={X} label="关闭详情" onClick={onClose} size="sm" />
           </div>
 
-          <div className="bg-black/20 p-3 rounded-xl border border-white/5 flex flex-col gap-2">
+          <div className="bg-monokai-surface/60 p-3 rounded-lg border border-monokai-border flex flex-col gap-2">
             <div>
-              <p className="text-[10px] text-monokai-comment font-bold uppercase tracking-wider">反思问题</p>
-              <p className="text-xs text-white mt-1.5 leading-relaxed">{row.question}</p>
+              <p className="text-xs text-monokai-comment font-semibold uppercase tracking-wider">反思问题</p>
+              <p className="text-xs text-monokai-fg mt-1.5 leading-relaxed">{row.question}</p>
             </div>
-            <div className="border-t border-white/5 pt-2 mt-2">
-              <p className="text-[10px] text-monokai-comment font-bold uppercase tracking-wider">解答描述</p>
-              <p className="text-xs text-white mt-1.5 leading-relaxed">{row.answer}</p>
+            <div className="border-t border-monokai-border/60 pt-2 mt-2">
+              <p className="text-xs text-monokai-comment font-semibold uppercase tracking-wider">解答描述</p>
+              <p className="text-xs text-monokai-fg mt-1.5 leading-relaxed">{row.answer}</p>
             </div>
-            <p className="text-[10px] text-monokai-comment font-mono mt-1">ID: {row.id} | 日期: {row.created_at || '—'}</p>
+            <p className="text-xs text-monokai-comment font-mono mt-1">ID: {row.id} | 日期: {row.created_at || '—'}</p>
           </div>
 
           {boundObj && (
-            <div className="bg-black/20 p-3 rounded-xl border border-white/5">
-              <p className="text-[10px] text-monokai-comment font-bold uppercase tracking-wider">绑定关联实体</p>
+            <div className="bg-monokai-surface/60 p-3 rounded-lg border border-monokai-border">
+              <p className="text-xs text-monokai-comment font-semibold uppercase tracking-wider">绑定关联实体</p>
               <button
                 onClick={() => {
                   setActiveDataTab('object');
@@ -1208,33 +1199,31 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
         <div className="flex flex-col h-full overflow-y-auto custom-scrollbar p-4 gap-4 text-left">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-[#ae81ff]" />
+              <Sparkles className="w-5 h-5 text-monokai-yellow" />
               <span className="font-bold text-sm text-monokai-fg">洞察记录详情</span>
             </div>
-            <button onClick={onClose} className="p-1 rounded hover:bg-white/5 text-monokai-comment hover:text-white">
-              <X className="w-4 h-4" />
-            </button>
+            <IconButton icon={X} label="关闭详情" onClick={onClose} size="sm" />
           </div>
 
-          <div className="bg-black/20 p-3 rounded-xl border border-white/5 flex flex-col gap-2">
+          <div className="bg-monokai-surface/60 p-3 rounded-lg border border-monokai-border flex flex-col gap-2">
             <div>
-              <p className="text-[10px] text-monokai-comment font-bold uppercase tracking-wider">提炼的洞察</p>
-              <p className="text-xs text-white mt-1.5 leading-relaxed">{row.insight}</p>
+              <p className="text-xs text-monokai-comment font-semibold uppercase tracking-wider">提炼的洞察</p>
+              <p className="text-xs text-monokai-fg mt-1.5 leading-relaxed">{row.insight}</p>
             </div>
             {row.tag && (
-              <div className="border-t border-white/5 pt-2 mt-2">
-                <p className="text-[10px] text-monokai-comment font-bold uppercase tracking-wider">标签 (Tag)</p>
-                <span className="inline-block mt-1.5 px-2 py-0.5 text-[9px] font-bold rounded-full bg-monokai-pink/15 text-monokai-pink border border-monokai-pink/20">
+              <div className="border-t border-monokai-border/60 pt-2 mt-2">
+                <p className="text-xs text-monokai-comment font-semibold uppercase tracking-wider">标签 (Tag)</p>
+                <span className="inline-block mt-1.5 px-2 py-0.5 text-xs font-bold rounded-md bg-monokai-pink/15 text-monokai-pink border border-monokai-pink/30">
                   {row.tag}
                 </span>
               </div>
             )}
-            <p className="text-[10px] text-monokai-comment font-mono mt-1">ID: {row.id} | 日期: {row.created_at || '—'}</p>
+            <p className="text-xs text-monokai-comment font-mono mt-1">ID: {row.id} | 日期: {row.created_at || '—'}</p>
           </div>
 
           {boundObj && (
-            <div className="bg-black/20 p-3 rounded-xl border border-white/5">
-              <p className="text-[10px] text-monokai-comment font-bold uppercase tracking-wider">关联实体</p>
+            <div className="bg-monokai-surface/60 p-3 rounded-lg border border-monokai-border">
+              <p className="text-xs text-monokai-comment font-semibold uppercase tracking-wider">关联实体</p>
               <button
                 onClick={() => {
                   setActiveDataTab('object');
@@ -1283,7 +1272,7 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
                 setCurrentPage(1);
               }}
               placeholder="过滤 / Filter…"
-              className="pl-8 pr-8 py-2 text-xs bg-monokai-sidebar/50 border border-white/8 rounded-xl text-monokai-fg placeholder:text-monokai-comment/50 focus:outline-none focus:border-monokai-cyan/40 w-44 transition-all"
+              className="pl-8 pr-8 py-2 text-xs bg-monokai-sidebar/50 border border-monokai-border rounded-lg text-monokai-fg placeholder:text-monokai-comment/50 focus:outline-none focus:border-monokai-accent w-44 transition-colors"
             />
             {filterText && (
               <button
@@ -1305,7 +1294,7 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
               <button
                 onClick={() => handleExportData('csv')}
                 title="导出所有过滤记录为 CSV"
-                className="flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-bold border border-white/8 text-monokai-comment hover:text-monokai-cyan hover:border-monokai-cyan/30 hover:bg-monokai-cyan/5 transition-all"
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border border-monokai-border bg-monokai-surface text-monokai-comment hover:text-monokai-fg hover:bg-monokai-elevated transition-colors cursor-pointer"
               >
                 <Download className="w-3 h-3" />
                 <span>CSV</span>
@@ -1313,7 +1302,7 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
               <button
                 onClick={() => handleExportData('json')}
                 title="导出所有过滤记录为 JSON"
-                className="flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-bold border border-white/8 text-monokai-comment hover:text-monokai-cyan hover:border-monokai-cyan/30 hover:bg-monokai-cyan/5 transition-all"
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border border-monokai-border bg-monokai-surface text-monokai-comment hover:text-monokai-fg hover:bg-monokai-elevated transition-colors cursor-pointer"
               >
                 <Download className="w-3 h-3" />
                 <span>JSON</span>
@@ -1325,7 +1314,7 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
           <button
             onClick={() => setShowContext(p => !p)}
             title="场景说明与警戒"
-            className={`p-2 rounded-xl border transition-all text-xs ${showContext ? 'bg-monokai-cyan/10 border-monokai-cyan/30 text-monokai-cyan' : 'border-white/8 text-monokai-comment hover:text-monokai-cyan hover:border-monokai-cyan/20'}`}
+            className={`p-2 rounded-lg border transition-all text-xs cursor-pointer ${showContext ? 'bg-monokai-surface border-monokai-accent text-monokai-accent' : 'border-monokai-border text-monokai-comment hover:text-monokai-fg hover:bg-monokai-surface'}`}
           >
             <Info className="w-3.5 h-3.5" />
           </button>
@@ -1337,8 +1326,10 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
               setAddFormValues({});
             }}
             title="在当前模块快速新增记录"
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-all ${
-              showAddForm ? 'bg-green-500/15 border-green-500/30 text-green-400' : 'border-white/8 text-monokai-comment hover:text-green-400 hover:border-green-500/20'
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium border transition-all cursor-pointer ${
+              showAddForm
+                ? 'bg-monokai-accent/15 border-monokai-accent text-monokai-accent'
+                : 'bg-monokai-surface border-monokai-border text-monokai-fg hover:border-monokai-accent/50'
             }`}
           >
             <Plus className="w-3.5 h-3.5" />
@@ -1351,7 +1342,7 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
               onClick={() => setShowSeedPicker(p => !p)}
               disabled={importing}
               title="从示例模板导入数据"
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-monokai-cyan/15 to-[#FF9CF7]/10 border border-monokai-cyan/25 text-monokai-cyan hover:border-monokai-cyan/50 hover:from-monokai-cyan/25 transition-all disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-monokai-surface border border-monokai-border hover:border-monokai-accent/60 text-monokai-fg hover:bg-monokai-elevated transition-all disabled:opacity-50 cursor-pointer"
             >
               {importing
                 ? <RefreshCw className="w-3.5 h-3.5 animate-spin" />
@@ -1360,19 +1351,19 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
               <span>导入示例</span>
             </button>
             {showSeedPicker && (
-              <div className="absolute top-full right-0 mt-1.5 w-72 bg-monokai-bg border border-monokai-border/60 rounded-xl shadow-2xl z-50 overflow-hidden">
-                <div className="px-3 py-2 border-b border-monokai-border/30 text-[10px] text-monokai-comment uppercase tracking-widest font-semibold">
+              <div className="absolute top-full right-0 mt-1.5 w-72 bg-monokai-surface border border-monokai-border rounded-lg shadow-xl z-50 overflow-hidden p-1">
+                <div className="px-3 py-2 border-b border-monokai-border text-xs text-monokai-comment font-semibold uppercase tracking-wider">
                   选择示例模板
                 </div>
                 {SEED_OPTIONS.map(opt => (
                   <button
                     key={opt.file}
                     onClick={() => handleImportSeed(opt.file)}
-                    className="w-full px-4 py-3 text-left hover:bg-monokai-sidebar/60 transition-colors border-b border-monokai-border/20 last:border-b-0"
+                    className="w-full px-3 py-2 text-left hover:bg-monokai-elevated rounded-md transition-colors border-b border-monokai-border/40 last:border-b-0 cursor-pointer"
                   >
-                    <div className="text-xs font-semibold text-monokai-fg">{opt.label}</div>
-                    <div className="text-[10px] text-monokai-comment mt-0.5">{opt.desc}</div>
-                    <div className="text-[10px] text-monokai-cyan/60 mt-0.5 font-mono">{opt.count}</div>
+                    <div className="text-xs font-medium text-monokai-fg">{opt.label}</div>
+                    <div className="text-xs text-monokai-comment mt-0.5">{opt.desc}</div>
+                    <div className="text-xs text-monokai-cyan mt-0.5 font-mono">{opt.count}</div>
                   </button>
                 ))}
               </div>
@@ -1383,7 +1374,7 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
 
       {/* ── ADVANCED FILTERS PANEL ── */}
       {(activeDataTab === 'object' || activeDataTab === 'link' || activeDataTab === 'action' || activeDataTab === 'introspection' || activeDataTab === 'insight') && (
-        <div className="shrink-0 p-3 bg-monokai-sidebar/30 border border-white/5 rounded-2xl flex flex-wrap items-center gap-4 text-xs">
+        <div className="shrink-0 p-3 bg-monokai-sidebar/40 border border-monokai-border rounded-xl flex flex-wrap items-center gap-4 text-xs">
           <div className="flex items-center gap-1.5 text-monokai-comment">
             <Filter className="w-3.5 h-3.5" />
             <span className="font-bold uppercase tracking-wider text-[10px]">高级过滤 / Filter</span>
@@ -1397,7 +1388,7 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
                 onChange={e => {
                   setFilterObjectTypeId(e.target.value === '' ? '' : Number(e.target.value));
                 }}
-                className="bg-black/30 border border-white/8 rounded-xl px-2.5 py-1 text-xs text-monokai-fg focus:outline-none focus:border-monokai-cyan/40"
+                className="bg-monokai-bg border border-monokai-border rounded-lg px-2.5 py-1 text-xs text-monokai-fg focus:outline-none focus:border-monokai-accent transition-colors"
               >
                 <option value="">所有类型 (All Types)</option>
                 {state.objectTypes.map(ot => (
@@ -1416,7 +1407,7 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
                   onChange={e => {
                     setFilterLinkTypeId(e.target.value === '' ? '' : Number(e.target.value));
                   }}
-                  className="bg-black/30 border border-white/8 rounded-xl px-2.5 py-1 text-xs text-monokai-fg focus:outline-none focus:border-monokai-cyan/40"
+                  className="bg-monokai-bg border border-monokai-border rounded-lg px-2.5 py-1 text-xs text-monokai-fg focus:outline-none focus:border-monokai-accent transition-colors"
                 >
                   <option value="">所有关系 (All Relations)</option>
                   {state.linkTypes.map(lt => (
@@ -1434,13 +1425,13 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
                   step={0.1}
                   value={filterMinWeight}
                   onChange={e => setFilterMinWeight(Number(e.target.value))}
-                  className="w-24 accent-monokai-cyan"
+                  className="w-24 accent-monokai-accent cursor-pointer"
                 />
-                <span className="font-mono text-monokai-cyan">{filterMinWeight.toFixed(1)}</span>
+                <span className="font-mono text-monokai-accent font-semibold">{filterMinWeight.toFixed(1)}</span>
                 {filterMinWeight > 0 && (
                   <button
                     onClick={() => setFilterMinWeight(0)}
-                    className="text-monokai-comment hover:text-white ml-1 font-bold"
+                    className="text-monokai-comment hover:text-monokai-fg ml-1 text-xs font-medium cursor-pointer"
                   >
                     重置
                   </button>
@@ -1455,7 +1446,7 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
               <select
                 value={filterActionStatus}
                 onChange={e => setFilterActionStatus(e.target.value)}
-                className="bg-black/30 border border-white/8 rounded-xl px-2.5 py-1 text-xs text-monokai-fg focus:outline-none focus:border-monokai-cyan/40"
+                className="bg-monokai-bg border border-monokai-border rounded-lg px-2.5 py-1 text-xs text-monokai-fg focus:outline-none focus:border-monokai-accent transition-colors"
               >
                 <option value="">所有状态 (All Statuses)</option>
                 <option value="pending">PENDING</option>
@@ -1472,7 +1463,7 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
                 onChange={e => {
                   setFilterObjectTypeId(e.target.value === '' ? '' : Number(e.target.value));
                 }}
-                className="bg-black/30 border border-white/8 rounded-xl px-2.5 py-1 text-xs text-monokai-fg focus:outline-none focus:border-monokai-cyan/40"
+                className="bg-monokai-bg border border-monokai-border rounded-lg px-2.5 py-1 text-xs text-monokai-fg focus:outline-none focus:border-monokai-accent transition-colors"
               >
                 <option value="">所有实体 (All Objects)</option>
                 {state.objects.map(o => (
@@ -1491,7 +1482,7 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
                 setFilterMinWeight(0);
                 setFilterActionStatus('');
               }}
-              className="ml-auto px-2 py-1 rounded bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 hover:text-white transition-all text-[10px] font-bold"
+              className="ml-auto px-2.5 py-1 rounded-md bg-monokai-surface border border-monokai-border text-monokai-comment hover:text-monokai-red hover:border-monokai-red/40 transition-colors text-[10px] font-semibold cursor-pointer"
             >
               清除所有条件
             </button>
@@ -1501,10 +1492,10 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
 
       {/* ── ADD RECORD FORM ── */}
       {showAddForm && (
-        <form onSubmit={handleAddItem} className="shrink-0 rounded-2xl border border-green-500/20 bg-green-500/5 p-4 animate-in slide-in-from-top-2 duration-200">
+        <form onSubmit={handleAddItem} className="shrink-0 rounded-xl border border-monokai-border bg-monokai-surface/40 p-4 animate-in slide-in-from-top-2 duration-200">
           <div className="flex items-center gap-2 mb-3">
-            <Plus className="w-4 h-4 text-green-400" />
-            <span className="text-xs font-bold text-green-400">快速新增 - {currentTab.label}</span>
+            <Plus className="w-4 h-4 text-monokai-accent" />
+            <span className="text-xs font-bold text-monokai-fg">快速新增 - {currentTab.label}</span>
           </div>
           <div className="flex flex-wrap gap-4 items-end">
             {activeDataTab === 'objectType' && (
@@ -1517,7 +1508,7 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
                     placeholder="e.g. User"
                     value={addFormValues.name || ''}
                     onChange={e => setAddFormValues(p => ({ ...p, name: e.target.value }))}
-                    className="px-3 py-1.5 text-xs bg-monokai-sidebar/85 border border-white/8 rounded-lg text-monokai-fg placeholder:text-monokai-comment/30 focus:outline-none focus:border-green-500/40 w-44"
+                    className="px-3 py-1.5 text-xs bg-monokai-bg border border-monokai-border rounded-lg text-monokai-fg placeholder:text-monokai-comment/40 focus:outline-none focus:border-monokai-accent w-44 transition-colors"
                   />
                 </div>
                 <div className="flex flex-col gap-1 flex-1 min-w-[200px]">
@@ -1527,7 +1518,7 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
                     placeholder="请输入类型的结构与规则描述"
                     value={addFormValues.description || ''}
                     onChange={e => setAddFormValues(p => ({ ...p, description: e.target.value }))}
-                    className="px-3 py-1.5 text-xs bg-monokai-sidebar/85 border border-white/8 rounded-lg text-monokai-fg placeholder:text-monokai-comment/30 focus:outline-none focus:border-green-500/40 w-full"
+                    className="px-3 py-1.5 text-xs bg-monokai-bg border border-monokai-border rounded-lg text-monokai-fg placeholder:text-monokai-comment/40 focus:outline-none focus:border-monokai-accent w-full transition-colors"
                   />
                 </div>
               </>
@@ -1543,7 +1534,7 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
                     placeholder="e.g. Alice"
                     value={addFormValues.name || ''}
                     onChange={e => setAddFormValues(p => ({ ...p, name: e.target.value }))}
-                    className="px-3 py-1.5 text-xs bg-monokai-sidebar/85 border border-white/8 rounded-lg text-monokai-fg focus:outline-none focus:border-green-500/40 w-44"
+                    className="px-3 py-1.5 text-xs bg-monokai-bg border border-monokai-border rounded-lg text-monokai-fg focus:outline-none focus:border-monokai-accent w-44 transition-colors"
                   />
                 </div>
                 <div className="flex flex-col gap-1">
@@ -1552,7 +1543,7 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
                     required
                     value={addFormValues.typeId || ''}
                     onChange={e => setAddFormValues(p => ({ ...p, typeId: e.target.value }))}
-                    className="px-3 py-1.5 text-xs bg-monokai-sidebar/85 border border-white/8 rounded-lg text-monokai-fg focus:outline-none focus:border-green-500/40 w-44"
+                    className="px-3 py-1.5 text-xs bg-monokai-bg border border-monokai-border rounded-lg text-monokai-fg focus:outline-none focus:border-monokai-accent w-44 transition-colors"
                   >
                     <option value="">-- 选择归属类型 --</option>
                     {state.objectTypes.map(ot => (
@@ -1567,7 +1558,7 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
                     placeholder='e.g. {"age": 28}'
                     value={addFormValues.properties || ''}
                     onChange={e => setAddFormValues(p => ({ ...p, properties: e.target.value }))}
-                    className="px-3 py-1.5 text-xs bg-monokai-sidebar/85 border border-white/8 rounded-lg text-monokai-fg focus:outline-none focus:border-green-500/40 w-full font-mono"
+                    className="px-3 py-1.5 text-xs bg-monokai-bg border border-monokai-border rounded-lg text-monokai-fg focus:outline-none focus:border-monokai-accent w-full font-mono transition-colors"
                   />
                 </div>
               </>
@@ -1583,7 +1574,7 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
                     placeholder="e.g. knows"
                     value={addFormValues.name || ''}
                     onChange={e => setAddFormValues(p => ({ ...p, name: e.target.value }))}
-                    className="px-3 py-1.5 text-xs bg-monokai-sidebar/85 border border-white/8 rounded-lg text-monokai-fg focus:outline-none focus:border-green-500/40 w-44"
+                    className="px-3 py-1.5 text-xs bg-monokai-bg border border-monokai-border rounded-lg text-monokai-fg focus:outline-none focus:border-monokai-accent w-44 transition-colors"
                   />
                 </div>
                 <div className="flex flex-col gap-1 flex-1 min-w-[200px]">
@@ -1593,7 +1584,7 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
                     placeholder="请对该关联的语义约束进行描述"
                     value={addFormValues.description || ''}
                     onChange={e => setAddFormValues(p => ({ ...p, description: e.target.value }))}
-                    className="px-3 py-1.5 text-xs bg-monokai-sidebar/85 border border-white/8 rounded-lg text-monokai-fg focus:outline-none focus:border-green-500/40 w-full"
+                    className="px-3 py-1.5 text-xs bg-monokai-bg border border-monokai-border rounded-lg text-monokai-fg focus:outline-none focus:border-monokai-accent w-full transition-colors"
                   />
                 </div>
               </>
@@ -1607,7 +1598,7 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
                     required
                     value={addFormValues.linkTypeId || ''}
                     onChange={e => setAddFormValues(p => ({ ...p, linkTypeId: e.target.value }))}
-                    className="px-3 py-1.5 text-xs bg-monokai-sidebar/85 border border-white/8 rounded-lg text-monokai-fg focus:outline-none focus:border-green-500/40 w-44"
+                    className="px-3 py-1.5 text-xs bg-monokai-bg border border-monokai-border rounded-lg text-monokai-fg focus:outline-none focus:border-monokai-accent w-44 transition-colors"
                   >
                     <option value="">-- 选择关系类型 --</option>
                     {state.linkTypes.map(lt => (
@@ -1621,7 +1612,7 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
                     required
                     value={addFormValues.sourceId || ''}
                     onChange={e => setAddFormValues(p => ({ ...p, sourceId: e.target.value }))}
-                    className="px-3 py-1.5 text-xs bg-monokai-sidebar/85 border border-white/8 rounded-lg text-monokai-fg focus:outline-none focus:border-green-500/40 w-44"
+                    className="px-3 py-1.5 text-xs bg-monokai-bg border border-monokai-border rounded-lg text-monokai-fg focus:outline-none focus:border-monokai-accent w-44 transition-colors"
                   >
                     <option value="">-- 选择起点 --</option>
                     {state.objects.map(o => (
@@ -1635,7 +1626,7 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
                     required
                     value={addFormValues.targetId || ''}
                     onChange={e => setAddFormValues(p => ({ ...p, targetId: e.target.value }))}
-                    className="px-3 py-1.5 text-xs bg-monokai-sidebar/85 border border-white/8 rounded-lg text-monokai-fg focus:outline-none focus:border-green-500/40 w-44"
+                    className="px-3 py-1.5 text-xs bg-monokai-bg border border-monokai-border rounded-lg text-monokai-fg focus:outline-none focus:border-monokai-accent w-44 transition-colors"
                   >
                     <option value="">-- 选择终点 --</option>
                     {state.objects.map(o => (
@@ -1652,7 +1643,7 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
                     step={0.1}
                     value={addFormValues.weight ?? 0.5}
                     onChange={e => setAddFormValues(p => ({ ...p, weight: e.target.value }))}
-                    className="px-3 py-1.5 text-xs bg-monokai-sidebar/85 border border-white/8 rounded-lg text-monokai-fg focus:outline-none focus:border-green-500/40 w-24 font-mono"
+                    className="px-3 py-1.5 text-xs bg-monokai-bg border border-monokai-border rounded-lg text-monokai-fg focus:outline-none focus:border-monokai-accent w-24 font-mono transition-colors"
                   />
                 </div>
               </>
@@ -1668,7 +1659,7 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
                     placeholder="e.g. process_audit"
                     value={addFormValues.name || ''}
                     onChange={e => setAddFormValues(p => ({ ...p, name: e.target.value }))}
-                    className="px-3 py-1.5 text-xs bg-monokai-sidebar/85 border border-white/8 rounded-lg text-monokai-fg focus:outline-none focus:border-green-500/40 w-44"
+                    className="px-3 py-1.5 text-xs bg-monokai-bg border border-monokai-border rounded-lg text-monokai-fg focus:outline-none focus:border-monokai-accent w-44 transition-colors"
                   />
                 </div>
                 <div className="flex flex-col gap-1">
@@ -1677,7 +1668,7 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
                     required
                     value={addFormValues.objectId || ''}
                     onChange={e => setAddFormValues(p => ({ ...p, objectId: e.target.value }))}
-                    className="px-3 py-1.5 text-xs bg-monokai-sidebar/85 border border-white/8 rounded-lg text-monokai-fg focus:outline-none focus:border-green-500/40 w-44"
+                    className="px-3 py-1.5 text-xs bg-monokai-bg border border-monokai-border rounded-lg text-monokai-fg focus:outline-none focus:border-monokai-accent w-44 transition-colors"
                   >
                     <option value="">-- 选择实体 --</option>
                     {state.objects.map(o => (
@@ -1690,7 +1681,7 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
                   <select
                     value={addFormValues.status || 'pending'}
                     onChange={e => setAddFormValues(p => ({ ...p, status: e.target.value }))}
-                    className="px-3 py-1.5 text-xs bg-monokai-sidebar/85 border border-white/8 rounded-lg text-monokai-fg focus:outline-none focus:border-green-500/40 w-32"
+                    className="px-3 py-1.5 text-xs bg-monokai-bg border border-monokai-border rounded-lg text-monokai-fg focus:outline-none focus:border-monokai-accent w-32 transition-colors"
                   >
                     <option value="pending">PENDING</option>
                     <option value="done">DONE</option>
@@ -1702,7 +1693,7 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
                     type="date"
                     value={addFormValues.executeAt || ''}
                     onChange={e => setAddFormValues(p => ({ ...p, executeAt: e.target.value }))}
-                    className="px-3 py-1.5 text-xs bg-monokai-sidebar/85 border border-white/8 rounded-lg text-monokai-fg focus:outline-none focus:border-green-500/40 w-40"
+                    className="px-3 py-1.5 text-xs bg-monokai-bg border border-monokai-border rounded-lg text-monokai-fg focus:outline-none focus:border-monokai-accent w-40 transition-colors"
                   />
                 </div>
               </>
@@ -1716,7 +1707,7 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
                     required
                     value={addFormValues.objectId || ''}
                     onChange={e => setAddFormValues(p => ({ ...p, objectId: e.target.value }))}
-                    className="px-3 py-1.5 text-xs bg-monokai-sidebar/85 border border-white/8 rounded-lg text-monokai-fg focus:outline-none focus:border-green-500/40 w-44"
+                    className="px-3 py-1.5 text-xs bg-monokai-bg border border-monokai-border rounded-lg text-monokai-fg focus:outline-none focus:border-monokai-accent w-44 transition-colors"
                   >
                     <option value="">-- 选择实体 --</option>
                     {state.objects.map(o => (
@@ -1732,7 +1723,7 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
                     placeholder="请输入反思问题"
                     value={addFormValues.question || ''}
                     onChange={e => setAddFormValues(p => ({ ...p, question: e.target.value }))}
-                    className="px-3 py-1.5 text-xs bg-monokai-sidebar/85 border border-white/8 rounded-lg text-monokai-fg focus:outline-none focus:border-green-500/40 w-full"
+                    className="px-3 py-1.5 text-xs bg-monokai-bg border border-monokai-border rounded-lg text-monokai-fg focus:outline-none focus:border-monokai-accent w-full transition-colors"
                   />
                 </div>
                 <div className="flex flex-col gap-1 flex-1 min-w-[200px]">
@@ -1743,7 +1734,7 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
                     placeholder="请输入对问题的解答描述"
                     value={addFormValues.answer || ''}
                     onChange={e => setAddFormValues(p => ({ ...p, answer: e.target.value }))}
-                    className="px-3 py-1.5 text-xs bg-monokai-sidebar/85 border border-white/8 rounded-lg text-monokai-fg focus:outline-none focus:border-green-500/40 w-full"
+                    className="px-3 py-1.5 text-xs bg-monokai-bg border border-monokai-border rounded-lg text-monokai-fg focus:outline-none focus:border-monokai-accent w-full transition-colors"
                   />
                 </div>
               </>
@@ -1757,7 +1748,7 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
                     required
                     value={addFormValues.objectId || ''}
                     onChange={e => setAddFormValues(p => ({ ...p, objectId: e.target.value }))}
-                    className="px-3 py-1.5 text-xs bg-monokai-sidebar/85 border border-white/8 rounded-lg text-monokai-fg focus:outline-none focus:border-green-500/40 w-44"
+                    className="px-3 py-1.5 text-xs bg-monokai-bg border border-monokai-border rounded-lg text-monokai-fg focus:outline-none focus:border-monokai-accent w-44 transition-colors"
                   >
                     <option value="">-- 选择实体 --</option>
                     {state.objects.map(o => (
@@ -1773,7 +1764,7 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
                     placeholder="请输入闪念或认知洞察"
                     value={addFormValues.insight || ''}
                     onChange={e => setAddFormValues(p => ({ ...p, insight: e.target.value }))}
-                    className="px-3 py-1.5 text-xs bg-monokai-sidebar/85 border border-white/8 rounded-lg text-monokai-fg focus:outline-none focus:border-green-500/40 w-full"
+                    className="px-3 py-1.5 text-xs bg-monokai-bg border border-monokai-border rounded-lg text-monokai-fg focus:outline-none focus:border-monokai-accent w-full transition-colors"
                   />
                 </div>
                 <div className="flex flex-col gap-1">
@@ -1783,7 +1774,7 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
                     placeholder="e.g. 职场真相"
                     value={addFormValues.tag || ''}
                     onChange={e => setAddFormValues(p => ({ ...p, tag: e.target.value }))}
-                    className="px-3 py-1.5 text-xs bg-monokai-sidebar/85 border border-white/8 rounded-lg text-monokai-fg focus:outline-none focus:border-green-500/40 w-44"
+                    className="px-3 py-1.5 text-xs bg-monokai-bg border border-monokai-border rounded-lg text-monokai-fg focus:outline-none focus:border-monokai-accent w-44 transition-colors"
                   />
                 </div>
               </>
@@ -1792,14 +1783,14 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
             <div className="flex items-center gap-2">
               <button
                 type="submit"
-                className="px-4 py-1.5 bg-green-500 hover:bg-green-600 transition-colors text-white font-bold rounded-lg text-xs"
+                className="px-4 py-1.5 bg-monokai-accent hover:opacity-90 transition-all text-monokai-bg font-bold rounded-lg text-xs shadow-sm cursor-pointer"
               >
                 保存
               </button>
               <button
                 type="button"
                 onClick={() => setShowAddForm(false)}
-                className="px-3 py-1.5 border border-white/8 text-monokai-comment hover:text-white rounded-lg text-xs"
+                className="px-3 py-1.5 border border-monokai-border text-monokai-comment hover:text-monokai-fg hover:bg-monokai-surface rounded-lg text-xs transition-colors cursor-pointer"
               >
                 取消
               </button>
@@ -1810,15 +1801,15 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
 
       {/* ── CONTEXT PANEL ──(场景说明 + 警戒) */}
       {showContext && (
-        <div className="shrink-0 rounded-2xl border border-monokai-cyan/15 bg-monokai-sidebar/30 backdrop-blur-sm p-4 animate-in slide-in-from-top-2 duration-200 flex gap-4">
+        <div className="shrink-0 rounded-xl border border-monokai-border bg-monokai-surface/40 p-3.5 animate-in slide-in-from-top-2 duration-200 flex gap-4">
           <div className="flex-1">
-            <p className="text-xs font-black text-monokai-cyan mb-1 tracking-wide uppercase">{currentTab.scenarioTitle}</p>
-            <p className="text-xs text-monokai-fg/70 leading-relaxed">{currentTab.scenarioDesc}</p>
+            <p className="text-xs font-bold text-monokai-fg mb-1 tracking-wide uppercase">{currentTab.scenarioTitle}</p>
+            <p className="text-xs text-monokai-comment leading-relaxed">{currentTab.scenarioDesc}</p>
           </div>
-          <div className="border-l border-white/8 pl-4 flex-1">
+          <div className="border-l border-monokai-border pl-4 flex-1">
             <div className="flex items-start gap-2">
-              <AlertTriangle className="w-3.5 h-3.5 text-[#FF9F1C] mt-0.5 shrink-0" />
-              <p className="text-xs text-[#FF9F1C]/80 leading-relaxed">{currentTab.warningText}</p>
+              <AlertTriangle className="w-3.5 h-3.5 text-monokai-orange mt-0.5 shrink-0" />
+              <p className="text-xs text-monokai-orange/90 leading-relaxed">{currentTab.warningText}</p>
             </div>
           </div>
         </div>
@@ -1826,8 +1817,8 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
 
       {/* ── Import Result ─────────────────────────────── */}
       {importMsg && (
-        <div className={`shrink-0 rounded-2xl border p-4 animate-in slide-in-from-top-2 duration-200 ${importMsg.type === 'success' ? 'border-green-500/20 bg-green-500/5' : 'border-red-500/20 bg-red-500/5'}`}>
-          <p className={`text-xs font-bold ${importMsg.type === 'success' ? 'text-green-400' : 'text-red-400'}`}>{importMsg.text}</p>
+        <div className={`shrink-0 rounded-xl border p-3 animate-in slide-in-from-top-2 duration-200 ${importMsg.type === 'success' ? 'border-monokai-green/30 bg-monokai-green/10 text-monokai-green' : 'border-monokai-red/30 bg-monokai-red/10 text-monokai-red'}`}>
+          <p className="text-xs font-semibold">{importMsg.text}</p>
         </div>
       )}
 
@@ -1836,14 +1827,14 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
         {metrics.map((m, i) => {
           const Icon = m.icon;
           return (
-            <div key={i} className="flex-1 min-w-[150px] bg-monokai-sidebar/30 backdrop-blur-sm border border-white/5 rounded-2xl p-4 flex items-center justify-between gap-3 hover:border-monokai-cyan/25 transition-colors group">
+            <div key={i} className="flex-1 min-w-[150px] bg-monokai-surface/60 border border-monokai-border rounded-xl p-3.5 flex items-center justify-between gap-3 hover:border-monokai-accent/50 transition-colors group">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-black/30 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                  <Icon className="w-4 h-4 text-monokai-cyan opacity-75" />
+                <div className="w-8 h-8 rounded-lg bg-monokai-bg border border-monokai-border flex items-center justify-center shrink-0 group-hover:border-monokai-accent/40 transition-colors">
+                  <Icon className="w-4 h-4 text-monokai-accent" />
                 </div>
                 <div className="min-w-0">
                   <p className="text-[10px] font-bold text-monokai-comment uppercase tracking-wider truncate">{m.label}</p>
-                  <p className="text-xl font-black text-monokai-fg leading-none font-mono mt-0.5">{m.value}</p>
+                  <p className="text-lg font-bold text-monokai-fg leading-none font-mono mt-0.5">{m.value}</p>
                 </div>
               </div>
 
@@ -1854,7 +1845,7 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
                     <path
                       d={`M ${state.links.map((l: any, idx: number) => `${(idx / Math.max(state.links.length - 1, 1)) * 60},${30 - (l.weight * 25)}`).join(' L ')}`}
                       fill="none"
-                      stroke="#4CC9F0"
+                      stroke="#A6E22E"
                       strokeWidth="2"
                       strokeLinecap="round"
                     />
@@ -1864,12 +1855,12 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
               {activeDataTab === 'action' && m.label.includes('待处理') && state.actions.length > 0 && (
                 <div className="w-8 h-8 opacity-65 group-hover:opacity-90 transition-opacity">
                   <svg className="w-full h-full" viewBox="0 0 20 20">
-                    <circle cx="10" cy="10" r="8" fill="none" stroke="#FF9CF7" strokeWidth="2.5" />
+                    <circle cx="10" cy="10" r="8" fill="none" stroke="#75715E" strokeWidth="2" />
                     <circle
                       cx="10" cy="10" r="8"
                       fill="none"
-                      stroke="#4CC9F0"
-                      strokeWidth="2.5"
+                      stroke="#A6E22E"
+                      strokeWidth="2"
                       strokeDasharray={`${(state.actions.filter((a: any) => a.status === 'done').length / state.actions.length) * 50.2} 50.2`}
                       transform="rotate(-90 10 10)"
                     />
@@ -1882,42 +1873,42 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
 
         {/* Filter status badge */}
         {filterText && (
-          <div className="flex-none flex items-center gap-2 px-4 py-2 bg-monokai-cyan/10 border border-monokai-cyan/25 rounded-2xl text-xs text-monokai-cyan font-bold self-center">
-            <Search className="w-3 h-3 opacity-70" />
+          <div className="flex-none flex items-center gap-2 px-3 py-1.5 bg-monokai-surface border border-monokai-border rounded-xl text-xs text-monokai-fg font-medium self-center">
+            <Search className="w-3 h-3 text-monokai-comment" />
             <span>命中 {filteredAndSortedData.length} / {rawData.length}</span>
-            <button onClick={() => setFilterText('')} className="hover:text-white transition-colors"><X className="w-3 h-3" /></button>
+            <button onClick={() => setFilterText('')} className="hover:text-monokai-accent text-monokai-comment transition-colors cursor-pointer"><X className="w-3 h-3" /></button>
           </div>
         )}
       </div>
 
       {/* ── BATCH OPERATIONS TOOLBAR ── */}
       {selectedRowIds.size > 0 && (
-        <div className="shrink-0 px-5 py-3 bg-monokai-cyan/10 border border-monokai-cyan/35 rounded-2xl flex items-center justify-between gap-4 animate-in slide-in-from-bottom-2 duration-150">
-          <div className="flex items-center gap-2 text-xs font-bold text-monokai-cyan">
+        <div className="shrink-0 px-4 py-2.5 bg-monokai-surface border border-monokai-border rounded-xl flex items-center justify-between gap-4 animate-in slide-in-from-bottom-2 duration-150 shadow-lg">
+          <div className="flex items-center gap-2 text-xs font-semibold text-monokai-accent">
             <span>已选中 {selectedRowIds.size} 项</span>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => handleExportData('csv', true)}
-              className="px-3 py-1 bg-monokai-bg/60 border border-monokai-cyan/20 hover:border-monokai-cyan/40 hover:bg-monokai-cyan/20 text-xs font-bold rounded-lg text-monokai-fg transition-all"
+              className="px-3 py-1 bg-monokai-bg border border-monokai-border hover:border-monokai-accent/60 hover:text-monokai-accent text-xs font-medium rounded-lg text-monokai-fg transition-all cursor-pointer"
             >
               导出所选 (CSV)
             </button>
             <button
               onClick={() => handleExportData('json', true)}
-              className="px-3 py-1 bg-monokai-bg/60 border border-monokai-cyan/20 hover:border-monokai-cyan/40 hover:bg-monokai-cyan/20 text-xs font-bold rounded-lg text-monokai-fg transition-all"
+              className="px-3 py-1 bg-monokai-bg border border-monokai-border hover:border-monokai-accent/60 hover:text-monokai-accent text-xs font-medium rounded-lg text-monokai-fg transition-all cursor-pointer"
             >
               导出所选 (JSON)
             </button>
             <button
               onClick={handleBatchDelete}
-              className="px-3 py-1 bg-red-500/80 hover:bg-red-600 transition-colors text-xs font-bold rounded-lg text-white"
+              className="px-3 py-1 bg-monokai-red/90 hover:bg-monokai-red transition-colors text-xs font-semibold rounded-lg text-white cursor-pointer shadow-xs"
             >
               批量删除
             </button>
             <button
               onClick={() => setSelectedRowIds(new Set())}
-              className="px-3 py-1 text-xs border border-white/5 hover:text-white rounded-lg text-monokai-comment"
+              className="px-3 py-1 text-xs border border-monokai-border hover:text-monokai-fg hover:bg-monokai-elevated rounded-lg text-monokai-comment transition-colors cursor-pointer"
             >
               取消
             </button>
@@ -2103,55 +2094,52 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
 
       {/* ── JSON EDITOR MODAL ── */}
       {jsonEditModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-2xl bg-monokai-bg border border-monokai-border rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
-            <div className="px-5 py-4 border-b border-monokai-border/40 flex items-center justify-between bg-monokai-sidebar">
-              <div className="flex items-center gap-2">
-                <Database className="w-4 h-4 text-monokai-cyan" />
-                <span className="text-sm font-bold text-monokai-fg">编辑 Instance 特性负载 (JSON)</span>
-              </div>
-              <button onClick={() => setJsonEditModal(null)} className="text-monokai-comment hover:text-white transition-colors">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="p-5 flex-1 overflow-y-auto flex flex-col gap-3">
-              <p className="text-xs text-monokai-comment">请直接修改下方的 JSON 载荷配置。系统在保存时将自动执行格式校验。</p>
-              <div className="w-full flex-1 min-h-[300px] border border-white/8 rounded-xl overflow-hidden bg-black/40">
-                <CodeMirror
-                  value={jsonEditModal.text}
-                  theme={monokai}
-                  extensions={[json()]}
-                  onChange={value => setJsonEditModal(p => p ? { ...p, text: value, error: null } : null)}
-                  className="font-mono text-xs text-left"
-                  placeholder='e.g. {"key": "value"}'
-                  height="300px"
-                />
-              </div>
-              {jsonEditModal.error && (
-                <div className="px-4 py-2 border border-red-500/20 bg-red-500/5 text-red-400 text-xs font-bold rounded-xl flex items-center gap-2">
-                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-                  <span>{jsonEditModal.error}</span>
-                </div>
-              )}
-            </div>
-
-            <div className="px-5 py-4 border-t border-monokai-border/40 bg-monokai-sidebar flex justify-end gap-2 shrink-0">
-              <button
+        <ModalShell
+          open={!!jsonEditModal}
+          onClose={() => setJsonEditModal(null)}
+          title="编辑 Instance 特性负载 (JSON)"
+          description="系统在保存时将自动执行格式校验"
+          size="lg"
+          footer={
+            <>
+              <ActionButton
+                variant="secondary"
+                size="sm"
+                onClick={() => setJsonEditModal(null)}
+              >
+                取消
+              </ActionButton>
+              <ActionButton
+                variant="primary"
+                size="sm"
                 onClick={handleSaveJsonModal}
-                className="px-4 py-2 bg-monokai-cyan hover:bg-monokai-cyan/80 text-black font-bold rounded-xl text-xs transition-colors"
               >
                 保存
-              </button>
-              <button
-                onClick={() => setJsonEditModal(null)}
-                className="px-4 py-2 border border-white/8 hover:bg-white/5 text-monokai-comment hover:text-white rounded-xl text-xs transition-all"
-              >
-                关闭
-              </button>
+              </ActionButton>
+            </>
+          }
+        >
+          <div className="flex flex-col gap-3">
+            <p className="text-xs text-monokai-comment">请直接修改下方的 JSON 载荷配置。系统在保存时将自动执行格式校验。</p>
+            <div className="w-full min-h-[300px] border border-monokai-border rounded-lg overflow-hidden bg-monokai-bg">
+              <CodeMirror
+                value={jsonEditModal.text}
+                theme={monokai}
+                extensions={[json()]}
+                onChange={value => setJsonEditModal(p => p ? { ...p, text: value, error: null } : null)}
+                className="font-mono text-xs text-left"
+                placeholder='e.g. {"key": "value"}'
+                height="300px"
+              />
             </div>
+            {jsonEditModal.error && (
+              <div className="px-3 py-2 border border-monokai-pink/30 bg-monokai-pink/10 text-monokai-pink text-xs font-medium rounded-md flex items-center gap-2">
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                <span>{jsonEditModal.error}</span>
+              </div>
+            )}
           </div>
-        </div>
+        </ModalShell>
       )}
     </div>
   );

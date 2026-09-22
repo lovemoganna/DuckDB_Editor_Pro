@@ -53,8 +53,8 @@ const parseUnderscoreValue = (value: string): React.ReactNode => {
 export const ResultTable: React.FC<ResultTableProps> = ({ data, columns, error, loading, executionTime }) => {
     if (loading) {
         return (
-            <div className="p-4 bg-[#282a36] border-t border-monokai-accent/30 flex items-center gap-2 text-monokai-comment text-sm">
-                <div className="w-4 h-4 border-2 border-monokai-blue border-t-transparent rounded-full animate-spin"></div>
+            <div className="p-3 bg-monokai-bg border-t border-monokai-border flex items-center gap-2 text-monokai-comment text-xs">
+                <div className="w-3.5 h-3.5 border-2 border-monokai-blue border-t-transparent rounded-full animate-spin"></div>
                 Running query...
             </div>
         );
@@ -62,7 +62,7 @@ export const ResultTable: React.FC<ResultTableProps> = ({ data, columns, error, 
 
     if (error) {
         return (
-            <div className="p-4 bg-[#282a36] border-t border-monokai-accent/30 text-monokai-pink text-sm font-mono overflow-auto whitespace-pre-wrap">
+            <div className="p-3 bg-monokai-bg border-t border-monokai-border text-monokai-pink text-xs font-mono overflow-auto whitespace-pre-wrap">
                 Error: {error}
             </div>
         );
@@ -70,8 +70,8 @@ export const ResultTable: React.FC<ResultTableProps> = ({ data, columns, error, 
 
     if (!data || data.length === 0) {
         return (
-            <div className="p-4 bg-[#282a36] border-t border-monokai-accent/30 text-monokai-comment text-sm italic">
-                Query returned no results. {executionTime !== undefined && <span className='text-xs ml-2 opacity-70'>({executionTime.toFixed(2)}ms)</span>}
+            <div className="p-3 bg-monokai-bg border-t border-monokai-border text-monokai-comment text-xs italic">
+                Query returned no results. {executionTime !== undefined && <span className='text-[10px] ml-2 opacity-70 font-mono'>({executionTime.toFixed(2)}ms)</span>}
             </div>
         );
     }
@@ -80,32 +80,32 @@ export const ResultTable: React.FC<ResultTableProps> = ({ data, columns, error, 
     const displayColumns = columns || Object.keys(data[0]);
 
     return (
-        <div className="bg-[#282a36] border-t border-monokai-accent/30 flex flex-col max-h-[300px] overflow-hidden">
+        <div className="bg-monokai-bg border-t border-monokai-border flex flex-col max-h-[300px] overflow-hidden">
             {executionTime !== undefined && (
-                <div className="px-2 py-1 bg-monokai-sidebar/50 text-[10px] text-monokai-comment text-right border-b border-monokai-accent/20">
+                <div className="px-2.5 py-1 bg-monokai-surface/60 text-[10px] text-monokai-comment text-right border-b border-monokai-border/40 font-mono">
                     Executed in {executionTime.toFixed(2)}ms • {data.length} rows
                 </div>
             )}
             <div className="overflow-auto custom-scrollbar">
-                <table className="w-full text-left border-collapse text-xs font-mono">
-                    <thead className="bg-[#21222c] sticky top-0 z-10 shadow-sm">
+                <table className="w-full text-left border-collapse text-[11px] font-mono">
+                    <thead className="bg-monokai-surface sticky top-0 z-10 shadow-xs">
                         <tr>
                             {displayColumns.map(col => (
-                                <th key={col} className="p-2 border-b border-monokai-accent/30 text-monokai-blue font-semibold whitespace-nowrap">
+                                <th key={col} className="px-2.5 py-1.5 border-b border-monokai-border text-monokai-blue font-medium whitespace-nowrap">
                                     {parseUnderscoreValue(col)}
                                 </th>
                             ))}
                         </tr>
                     </thead>
-                    <tbody className="bg-[#282a36]">
+                    <tbody className="bg-monokai-bg">
                         {data.map((row, idx) => (
-                            <tr key={idx} className="hover:bg-monokai-accent/10 border-b border-monokai-accent/10 last:border-0">
+                            <tr key={idx} className="hover:bg-monokai-surface/60 border-b border-monokai-border/40 last:border-0 transition-colors">
                                 {displayColumns.map(col => {
                                     const val = row[col];
                                     const isNull = val === null || val === undefined;
                                     const cellContent = isNull ? 'NULL' : (typeof val === 'object' ? JSON.stringify(val) : String(val));
                                     return (
-                                        <td key={`${idx}-${col}`} className={`p-2 whitespace-nowrap text-monokai-fg ${isNull ? 'italic text-monokai-comment/60' : ''}`}>
+                                        <td key={`${idx}-${col}`} className={`px-2.5 py-1.5 whitespace-nowrap text-monokai-fg ${isNull ? 'italic text-monokai-comment/60' : ''}`}>
                                             {isNull ? cellContent : parseUnderscoreValue(cellContent)}
                                         </td>
                                     );

@@ -33,7 +33,7 @@ CREATE TABLE life_object (
     id INTEGER PRIMARY KEY,
     object_type_id INTEGER REFERENCES life_object_type(id),
     name VARCHAR NOT NULL,
-    properties JSON DEFAULT '{}',
+    properties VARCHAR DEFAULT '{}',
     annotations VARCHAR DEFAULT ''
 );
 
@@ -69,7 +69,7 @@ CREATE TABLE life_introspection (
     object_id INTEGER REFERENCES life_object(id),
     question VARCHAR,
     answer VARCHAR,
-    created_at DATE DEFAULT CURRENT_DATE
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- ⑦ 洞察表
@@ -78,7 +78,7 @@ CREATE TABLE life_insight (
     object_id INTEGER REFERENCES life_object(id),
     insight VARCHAR,
     tag VARCHAR,
-    created_at DATE DEFAULT CURRENT_DATE
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- ⑧ Canvas 布局状态表
@@ -90,7 +90,7 @@ CREATE TABLE life_canvas_state (
     color VARCHAR,
     x DOUBLE, y DOUBLE, width DOUBLE, height DOUBLE,
     node_type VARCHAR DEFAULT 'Source',
-    metadata JSON DEFAULT '{}'
+    metadata VARCHAR DEFAULT '{}'
 );
 
 -- ⑨ Canvas 画布连线表
@@ -98,6 +98,12 @@ CREATE TABLE life_canvas_edge (
     id VARCHAR PRIMARY KEY,
     source_id VARCHAR,
     target_id VARCHAR
+);
+
+-- ⑩ Canvas 布局优化表
+CREATE TABLE _sys_ontology_canvas_layout (
+    object_id VARCHAR PRIMARY KEY,
+    is_locked BOOLEAN DEFAULT FALSE
 );`;
 
 // ============================================
@@ -161,7 +167,7 @@ INSERT INTO life_insight VALUES
 
 -- Canvas 画布状态
 INSERT INTO life_canvas_state (id, space_id, object_id, title, color, x, y, width, height) VALUES
-    ('space-class', 'space-class', NULL, '关系拓扑', '#ae81ff', 100, 100, 320, 480),
+    ('space-class', 'space-class', NULL, '关系拓扑', '#66d9ef', 100, 100, 320, 480),
     ('item-c1',      'space-class', 1,    NULL,   NULL,      20,  50,  280, 100),
     ('item-c2',      'space-class', 2,    NULL,   NULL,      20,  180, 280, 100),
     ('item-c3',      'space-class', 3,    NULL,   NULL,      20,  310, 280, 100),
@@ -182,8 +188,8 @@ export const ONTOLOGY_CREATE_STATEMENTS: string[] = [
   `CREATE TABLE IF NOT EXISTS life_link_type (id INTEGER PRIMARY KEY, name VARCHAR NOT NULL, description VARCHAR)`,
   `CREATE TABLE IF NOT EXISTS life_link (id INTEGER PRIMARY KEY, link_type_id INTEGER, source_object_id INTEGER, target_object_id INTEGER, weight DECIMAL(3,2) DEFAULT 1.0)`,
   `CREATE TABLE IF NOT EXISTS life_action (id INTEGER PRIMARY KEY, object_id INTEGER, name VARCHAR NOT NULL, description VARCHAR, status VARCHAR DEFAULT 'pending', execute_at DATE)`,
-  `CREATE TABLE IF NOT EXISTS life_introspection (id INTEGER PRIMARY KEY, object_id INTEGER, question VARCHAR, answer VARCHAR, created_at DATE DEFAULT CURRENT_DATE)`,
-  `CREATE TABLE IF NOT EXISTS life_insight (id INTEGER PRIMARY KEY, object_id INTEGER, insight VARCHAR, tag VARCHAR, created_at DATE DEFAULT CURRENT_DATE)`,
+  `CREATE TABLE IF NOT EXISTS life_introspection (id INTEGER PRIMARY KEY, object_id INTEGER, question VARCHAR, answer VARCHAR, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
+  `CREATE TABLE IF NOT EXISTS life_insight (id INTEGER PRIMARY KEY, object_id INTEGER, insight VARCHAR, tag VARCHAR, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
   `CREATE TABLE IF NOT EXISTS life_canvas_state (id VARCHAR PRIMARY KEY, space_id VARCHAR, object_id INTEGER, title VARCHAR, color VARCHAR, x DOUBLE, y DOUBLE, width DOUBLE, height DOUBLE, node_type VARCHAR DEFAULT 'Source', metadata JSON DEFAULT '{}')`,
   `CREATE TABLE IF NOT EXISTS life_canvas_edge (id VARCHAR PRIMARY KEY, source_id VARCHAR, target_id VARCHAR)`,
   `CREATE TABLE IF NOT EXISTS _sys_ontology_pattern_library (id VARCHAR PRIMARY KEY, category_id VARCHAR, category_title VARCHAR, title VARCHAR, icon_name VARCHAR, brief VARCHAR, description VARCHAR, layer VARCHAR, seed_ids JSON DEFAULT '[]', core_nodes JSON DEFAULT '[]', principles JSON DEFAULT '[]', best_practices JSON DEFAULT '[]', anti_patterns JSON DEFAULT '[]', mermaid VARCHAR)`,

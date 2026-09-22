@@ -4,13 +4,14 @@
  * Extracted from SqlEditor.tsx (Loop 1 of SqlEditor Pro refactor).
  * Encapsulates:
  *   - execute(explain?) : run SQL against DuckDB with audit logging
- *   - cancel()          : mark current execution as cancelled (DuckDB WASM has
- *                         no native AbortController for in-flight queries;
- *                         flag-based cancellation is the best we can do)
+ *   - cancel()          : cancel the active DuckDB worker query and suppress
+ *                         any stale UI result
+ *   - handleKeyDown()   : global Ctrl/Cmd+Enter hotkey + Ctrl+Z undo-clear
  *   - handleKeyDown()   : global Ctrl/Cmd+Enter hotkey + Ctrl+Z undo-clear
  *
  * Cancellation semantics:
- *   - cancel() sets a local `cancelled` flag checked AFTER `await` resolves.
+ *   - cancel() calls DuckDB WASM's connection-level cancellation and sets a
+ *     local `cancelled` flag checked after the pending promise settles.
  *   - The active Tab is only mutated if the cancellation did not happen.
  *   - This prevents stale UI updates from slow queries.
  *
@@ -46,7 +47,7 @@ export interface UseSqlExecutionDeps {
 
 export interface UseSqlExecutionReturn {
   /** Run the active Tab's SQL. Pass `explain=true` to wrap with EXPLAIN. */
-  execute: (explain?: boolean, overrideSql?: string) => Promise<void>;
+  execute: (explain?: boolean, overrideSql?: string, cursorOffset?: number) => Promise<void>;
   /** Mark current execution as cancelled. No-op if not running. */
   cancel: () => void;
   /** Whether an execution is currently in-flight. */
@@ -229,11 +230,18 @@ export function useSqlExecution(deps: UseSqlExecutionDeps): UseSqlExecutionRetur
         const type = classifyOperation(sqlToRun);
         const table = extractTableName(sqlToRun);
 
-        let rows: any[];
+        let executionResult: {
+          rows: any[];
+          columns: string[];
+          columnTypes: string[];
+          columnTypeMap: Record<string, string>;
+          arrowTable?: any;
+        };
+
         if (explain) {
-          rows = await duckDBService.query(sqlToRun);
+          executionResult = await duckDBService.queryWithMetadata(sqlToRun);
         } else {
-          rows = await duckDBService.executeAndAudit(
+          executionResult = await duckDBService.executeAndAuditWithMetadata(
             sqlToRun,
             type,
             table,
@@ -255,11 +263,12 @@ export function useSqlExecution(deps: UseSqlExecutionDeps): UseSqlExecutionRetur
           refreshSchema?.();
         }
 
-        const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
-
         const result: QueryResult = {
-          columns,
-          rows,
+          columns: executionResult.columns,
+          columnTypes: executionResult.columnTypes,
+          columnTypeMap: executionResult.columnTypeMap,
+          rows: executionResult.rows,
+          arrowTable: executionResult.arrowTable,
           executionTime: endTime - startTime,
           isExplain: explain,
         };
@@ -293,10 +302,11 @@ export function useSqlExecution(deps: UseSqlExecutionDeps): UseSqlExecutionRetur
   const cancel = useCallback(() => {
     if (!isRunningRef.current) return;
     cancelledRef.current = true;
-    // DuckDB WASM has no native abort for in-flight queries; the flag is
-    // checked after the await resolves. As a UX aid, we immediately flip
-    // loading off so the spinner stops once the pending promise resolves.
-  }, []);
+    updateActiveTab({ loading: false });
+    void duckDBService.cancelActiveQuery().catch(error => {
+      console.warn('[SQL Execution] DuckDB cancellation failed', error);
+    });
+  }, [updateActiveTab]);
 
   const handleKeyDown = useCallback(
     (

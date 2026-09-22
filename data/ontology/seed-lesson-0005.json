@@ -1,0 +1,136 @@
+{
+  "_meta": {
+    "name": "第 05 课：为过程中的角色命名",
+    "description": "在连接线上明确标出对象在过程中扮演的业务角色，赋予连线精确的业务语义",
+    "case_background": "【案例背景材料】买方小张与卖方老李在二手车交易平台上达成协议，通过资金托管中间方进行车辆权属转让。",
+    "core_concept": "Link Role Qualification",
+    "version": "1.0.0",
+    "author": "system",
+    "created_at": "2026-07-25",
+    "scenario": "lesson-0005",
+    "complexity": "easy"
+  },
+  "objectTypes": [
+    {
+      "id": 1,
+      "name": "交易参与方",
+      "description": "具备不同法律地位与职责的市场主体"
+    },
+    {
+      "id": 2,
+      "name": "流转过程与资产",
+      "description": "核心交易事件、流通车辆与监管账户"
+    }
+  ],
+  "objects": [
+    {
+      "id": 1,
+      "object_type_id": 1,
+      "name": "买方·小张",
+      "properties": "{\"用户ID\":\"USR-BUY-09\",\"实名认证\":true,\"授信额度\":\"￥20万\"}",
+      "annotations": "出资买方"
+    },
+    {
+      "id": 2,
+      "object_type_id": 1,
+      "name": "卖方·老李",
+      "properties": "{\"用户ID\":\"USR-SEL-21\",\"车主身份\":\"原车主\",\"信用分\":780}",
+      "annotations": "转让卖方"
+    },
+    {
+      "id": 3,
+      "object_type_id": 1,
+      "name": "资金托管方",
+      "properties": "{\"机构代码\":\"ESCROW-BANK-01\",\"资质\":\"备付金银行托管\"}",
+      "annotations": "中立居间担保"
+    },
+    {
+      "id": 4,
+      "object_type_id": 2,
+      "name": "车辆转让交易",
+      "properties": "{\"合同号\":\"CAR-TR-2026-88\",\"成交价\":\"￥15.8万\",\"状态\":\"过户中\"}",
+      "annotations": "核心交易中枢"
+    },
+    {
+      "id": 5,
+      "object_type_id": 2,
+      "name": "车辆·Model3",
+      "properties": "{\"车架号VIN\":\"TESLA-2023-M3-908\",\"里程\":\"2.8万公里\"}",
+      "annotations": "交易标的物"
+    },
+    {
+      "id": 6,
+      "object_type_id": 2,
+      "name": "资金托管账户",
+      "properties": "{\"账户编码\":\"ACC-LOCK-9921\",\"锁定金额\":\"￥15.8万\",\"状态\":\"已冻结\"}",
+      "annotations": "保障资金实体"
+    }
+  ],
+  "linkTypes": [
+    {
+      "id": 1,
+      "name": "角色·买方出资",
+      "description": "小张在交易中担任出资买方角色"
+    },
+    {
+      "id": 2,
+      "name": "角色·卖方转让",
+      "description": "老李在交易中担任权属转让方角色"
+    },
+    {
+      "id": 3,
+      "name": "角色·居间监管",
+      "description": "平台机构在交易中担任资金托管担保角色"
+    },
+    {
+      "id": 4,
+      "name": "转移权属标的",
+      "description": "交易直接指向并转移的实物车辆"
+    },
+    {
+      "id": 5,
+      "name": "锁定保障资金",
+      "description": "交易过程冻结与划拨对应的履约保障账户"
+    }
+  ],
+  "links": [
+    {
+      "id": 1,
+      "link_type_id": 1,
+      "source_object_id": 1,
+      "target_object_id": 4,
+      "weight": 1
+    },
+    {
+      "id": 2,
+      "link_type_id": 2,
+      "source_object_id": 2,
+      "target_object_id": 4,
+      "weight": 1
+    },
+    {
+      "id": 3,
+      "link_type_id": 3,
+      "source_object_id": 3,
+      "target_object_id": 4,
+      "weight": 1
+    },
+    {
+      "id": 4,
+      "link_type_id": 4,
+      "source_object_id": 4,
+      "target_object_id": 5,
+      "weight": 1
+    },
+    {
+      "id": 5,
+      "link_type_id": 5,
+      "source_object_id": 4,
+      "target_object_id": 6,
+      "weight": 0.95
+    }
+  ],
+  "actions": [],
+  "introspections": [],
+  "insights": []
+}

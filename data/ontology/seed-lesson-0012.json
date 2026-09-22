@@ -1,0 +1,136 @@
+{
+  "_meta": {
+    "name": "第 12 课：用新事实更新模型",
+    "description": "面对业务增量新事实，保持既有模型主线不变，以增量子图形式平滑挂载演进",
+    "case_background": "【案例背景材料】客户账户 C-901 突发境外异地登录事件，反欺诈风控引擎实时捕获增量事实，平滑挂载 Level3 高危防盗标记。",
+    "core_concept": "Incremental Fact & Dynamic Risk Evolution",
+    "version": "1.0.0",
+    "author": "system",
+    "created_at": "2026-07-25",
+    "scenario": "lesson-0012",
+    "complexity": "medium"
+  },
+  "objectTypes": [
+    {
+      "id": 1,
+      "name": "存量业务要素",
+      "description": "既有存量主账户及正常运行的常态交易流"
+    },
+    {
+      "id": 2,
+      "name": "增量事实与防御",
+      "description": "突发增量新事实、反欺诈引擎、高危防盗标记及主动防御验证"
+    }
+  ],
+  "objects": [
+    {
+      "id": 1,
+      "object_type_id": 1,
+      "name": "账户·C-901",
+      "properties": "{\"账号\":\"ACC-C-901\",\"所属人\":\"白领客户\",\"开户地\":\"上海\"}",
+      "annotations": "核心存量账户"
+    },
+    {
+      "id": 2,
+      "object_type_id": 1,
+      "name": "正常交易流",
+      "properties": "{\"状态\":\"常态运行\",\"日均\":\"￥1,200\",\"基线\":\"国内商户消费\"}",
+      "annotations": "既有业务主线"
+    },
+    {
+      "id": 3,
+      "object_type_id": 2,
+      "name": "异地登录事件",
+      "properties": "{\"性质\":\"突发增量新事实\",\"来源IP\":\"境外动态代理\",\"时差\":\"10分钟\"}",
+      "annotations": "突发增量事件"
+    },
+    {
+      "id": 4,
+      "object_type_id": 2,
+      "name": "反欺诈引擎",
+      "properties": "{\"规则版本\":\"FRAUD-2026\",\"置信度\":0.98,\"判定\":\"撞库盗号高危\"}",
+      "annotations": "实时评估分析"
+    },
+    {
+      "id": 5,
+      "object_type_id": 2,
+      "name": "高危防盗标记",
+      "properties": "{\"级别\":\"Level-3\",\"作用\":\"全渠道转账拦截\",\"时效\":\"即时生效\"}",
+      "annotations": "增量风险标签"
+    },
+    {
+      "id": 6,
+      "object_type_id": 2,
+      "name": "强制人脸验证",
+      "properties": "{\"机制\":\"双因子生物识别\",\"渠道\":\"App强弹窗\",\"状态\":\"待用户核验\"}",
+      "annotations": "主动防御策略"
+    }
+  ],
+  "linkTypes": [
+    {
+      "id": 1,
+      "name": "维持常态主线",
+      "description": "账户维持既有存量正常业务流转"
+    },
+    {
+      "id": 2,
+      "name": "突发增量事实",
+      "description": "账户突发非典型境外异地登录事件"
+    },
+    {
+      "id": 3,
+      "name": "触发风控评估",
+      "description": "增量事实实时上报反欺诈引擎评估"
+    },
+    {
+      "id": 4,
+      "name": "平滑挂载标记",
+      "description": "引擎在拓扑上为账户动态挂载高危标记"
+    },
+    {
+      "id": 5,
+      "name": "激活防御动作",
+      "description": "高危标记驱动触发二次生物识别主动防御"
+    }
+  ],
+  "links": [
+    {
+      "id": 1,
+      "link_type_id": 1,
+      "source_object_id": 1,
+      "target_object_id": 2,
+      "weight": 1
+    },
+    {
+      "id": 2,
+      "link_type_id": 2,
+      "source_object_id": 1,
+      "target_object_id": 3,
+      "weight": 1
+    },
+    {
+      "id": 3,
+      "link_type_id": 3,
+      "source_object_id": 3,
+      "target_object_id": 4,
+      "weight": 1
+    },
+    {
+      "id": 4,
+      "link_type_id": 4,
+      "source_object_id": 4,
+      "target_object_id": 5,
+      "weight": 1
+    },
+    {
+      "id": 5,
+      "link_type_id": 5,
+      "source_object_id": 5,
+      "target_object_id": 6,
+      "weight": 0.95
+    }
+  ],
+  "actions": [],
+  "introspections": [],
+  "insights": []
+}

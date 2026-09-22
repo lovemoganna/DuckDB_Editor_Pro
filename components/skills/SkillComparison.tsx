@@ -250,7 +250,7 @@ export const SkillComparison: React.FC<SkillComparisonProps> = ({
                           <button
                             key={sim.id}
                             onClick={() => onSelectSkill?.(sim)}
-                            className="px-1.5 py-0.5 text-[9px] bg-monokai-bg border border-monokai-accent/30 text-monokai-comment hover:text-monokai-amethyst hover:border-monokai-amethyst/40 rounded transition-colors"
+                            className="px-1.5 py-0.5 text-[9px] bg-monokai-bg border border-monokai-accent/30 text-monokai-comment hover:text-monokai-amethyst hover:border-monokai-border-strong rounded transition-colors"
                           >
                             {sim.name}
                           </button>

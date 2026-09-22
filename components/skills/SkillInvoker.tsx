@@ -33,7 +33,7 @@ import { generateFillPrompt, generateContextHint } from '../../services/skills/p
 
 // ─── Category → accent color ─────────────────────────────────────────────────
 function categoryAccent(category: string): string {
-  return CATEGORY_ACCENT[category as keyof typeof CATEGORY_ACCENT] ?? '#66d9ef';
+  return CATEGORY_ACCENT[category as keyof typeof CATEGORY_ACCENT] ?? 'var(--monokai-cyan)';
 }
 
 // ============================================================
@@ -242,10 +242,10 @@ export const SkillInvoker: React.FC<SkillInvokerProps> = ({
   };
 
   return (
-    <div className="h-full flex flex-col bg-[#1e1f1c] text-monokai-fg" onKeyDown={handleKeyDown}>
+    <div className="h-full flex flex-col bg-monokai-bg text-monokai-fg" onKeyDown={handleKeyDown}>
 
       {/* ── Skill Header ── */}
-      <div className="px-4 pt-4 pb-3 border-b border-[#3e3d32] shrink-0">
+      <div className="px-4 pt-4 pb-3 border-b border-monokai-border shrink-0">
         <SkillHeader
           skill={skill}
           currentTable={currentTable}
@@ -254,13 +254,13 @@ export const SkillInvoker: React.FC<SkillInvokerProps> = ({
       </div>
 
       {/* ── Tactical Command Bar ── */}
-      <div className="flex items-center gap-2 px-4 py-2 border-b border-[#3e3d32] bg-[#1e1f1c]/80 shrink-0">
+      <div className="flex items-center gap-2 px-4 py-2 border-b border-monokai-border bg-monokai-bg/80 shrink-0">
         <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-monokai-amethyst/10 border border-monokai-amethyst/20">
-          <Zap className="w-3 h-3" style={{ color: '#bd93f9' }} />
+          <Zap className="w-3 h-3" style={{ color: 'var(--monokai-purple)' }} />
           <span className="text-[9px] font-bold uppercase tracking-widest font-mono text-monokai-amethyst">Tactical</span>
         </div>
 
-        <div className="w-px h-4 bg-[#3e3d32]" />
+        <div className="w-px h-4 bg-monokai-border" />
 
         <button
           onClick={handleAIFill}
@@ -276,7 +276,7 @@ export const SkillInvoker: React.FC<SkillInvokerProps> = ({
         <button
           onClick={handleClear}
           disabled={isExecuting}
-          className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider font-mono border border-[#3e3d32] text-monokai-comment hover:border-monokai-pink hover:text-monokai-pink hover:bg-monokai-pink/5 transition-all duration-200 disabled:opacity-30"
+          className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider font-mono border border-monokai-border text-monokai-comment hover:border-monokai-pink hover:text-monokai-pink hover:bg-monokai-pink/5 transition-all duration-200 disabled:opacity-30"
           title="清空输入"
         >
           <Trash2 className="w-3 h-3" />
@@ -286,7 +286,7 @@ export const SkillInvoker: React.FC<SkillInvokerProps> = ({
         <button
           onClick={handleReset}
           disabled={isExecuting}
-          className="flex items-center gap-1.5 px-2 py-1 text-[10px] font-bold uppercase tracking-wider font-mono border border-[#3e3d32] text-monokai-comment hover:border-monokai-fg hover:text-monokai-fg hover:bg-monokai-fg/5 transition-all duration-200 disabled:opacity-30"
+          className="flex items-center gap-1.5 px-2 py-1 text-[10px] font-bold uppercase tracking-wider font-mono border border-monokai-border text-monokai-comment hover:border-monokai-fg hover:text-monokai-fg hover:bg-monokai-fg/5 transition-all duration-200 disabled:opacity-30"
           title="恢复默认值"
         >
           <RotateCcw className="w-3 h-3" />
@@ -294,9 +294,9 @@ export const SkillInvoker: React.FC<SkillInvokerProps> = ({
 
         {/* Keyboard shortcut - right aligned */}
         <div className="ml-auto flex items-center gap-1.5 text-[9px] font-mono text-monokai-comment/60">
-          <kbd className="px-1.5 py-0.5 rounded border border-[#3e3d32] bg-[#272822] text-[9px]">Ctrl</kbd>
+          <kbd className="px-1.5 py-0.5 rounded border border-monokai-border bg-monokai-elevated text-[9px]">Ctrl</kbd>
           <span>+</span>
-          <kbd className="px-1.5 py-0.5 rounded border border-[#3e3d32] bg-[#272822] text-[9px]">Enter</kbd>
+          <kbd className="px-1.5 py-0.5 rounded border border-monokai-border bg-monokai-elevated text-[9px]">Enter</kbd>
           <span className="ml-1 text-[9px]">Run</span>
         </div>
       </div>
@@ -305,13 +305,13 @@ export const SkillInvoker: React.FC<SkillInvokerProps> = ({
       <div className="flex-1 flex overflow-hidden">
 
         {/* ── LEFT PANEL: Input Fields (tight, compact) ── */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar border-r border-[#3e3d32]">
+        <div className="flex-1 overflow-y-auto custom-scrollbar border-r border-monokai-border">
 
           {/* Help + Examples + AI Suggestion compact header */}
           <div className="px-3 pt-3 space-y-3">
 
             {/* Help Panel - Compact */}
-            <div className="p-2 border border-[#3e3d32] rounded bg-[#272822]">
+            <div className="p-2 border border-monokai-border rounded bg-monokai-elevated">
               <SkillHelpPanel category={skill.category} />
             </div>
 
@@ -330,14 +330,14 @@ export const SkillInvoker: React.FC<SkillInvokerProps> = ({
                       onClick={() => handleApplyExample(example.input, example.name)}
                       className="inline-flex items-center gap-1 px-2 py-1 text-[9px] font-mono border transition-all duration-200 hover:scale-[1.02]"
                       style={{
-                        borderColor: appliedExampleName === example.name ? accent : '#3e3d32',
-                        color: appliedExampleName === example.name ? accent : '#75715e',
+                        borderColor: appliedExampleName === example.name ? accent : 'var(--monokai-border)',
+                        color: appliedExampleName === example.name ? accent : 'var(--monokai-comment)',
                         background: appliedExampleName === example.name ? `${accent}12` : 'transparent',
                       }}
                     >
                       <span
                         className="w-1 h-1 rounded-sm"
-                        style={{ background: appliedExampleName === example.name ? accent : '#3e3d32' }}
+                        style={{ background: appliedExampleName === example.name ? accent : 'var(--monokai-border)' }}
                       />
                       {example.name}
                     </button>
@@ -360,8 +360,8 @@ export const SkillInvoker: React.FC<SkillInvokerProps> = ({
                     onChange={e => setAiSuggestion(e.target.value)}
                     placeholder={generateFillPrompt(skill, inputs, currentTable, currentColumns)}
                     rows={2}
-                    className="w-full px-2.5 py-1.5 text-[10px] font-mono bg-[#272822] border border-[#49483e] text-monokai-fg placeholder-monokai-comment/60 resize-none focus:outline-none transition-colors"
-                    style={{ borderColor: aiSuggestion ? accent : '#3e3d32' }}
+                    className="w-full px-2.5 py-1.5 text-[10px] font-mono bg-monokai-elevated border border-monokai-border-strong text-monokai-fg placeholder-monokai-comment/60 resize-none focus:outline-none transition-colors"
+                    style={{ borderColor: aiSuggestion ? accent : 'var(--monokai-border)' }}
                   />
                   {aiSuggestion && (
                     <button
@@ -409,13 +409,13 @@ export const SkillInvoker: React.FC<SkillInvokerProps> = ({
           <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar">
 
             {/* SQL Preview - Sticky at top of right panel */}
-            <div className="border-b border-[#3e3d32]">
+            <div className="border-b border-monokai-border">
               <div className="px-3 pt-3 pb-3">
                 {/* Preview Header */}
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-1.5">
                     <div className="w-5 h-5 rounded bg-monokai-orange/10 border border-monokai-orange/20 flex items-center justify-center">
-                      <Code className="w-3 h-3" style={{ color: '#fd971f' }} />
+                      <Code className="w-3 h-3" style={{ color: 'var(--monokai-orange)' }} />
                     </div>
                     <span className="text-[9px] font-bold uppercase tracking-widest font-mono text-monokai-fg">SQL Preview</span>
                     {isGeneratingPreview && (
@@ -429,7 +429,7 @@ export const SkillInvoker: React.FC<SkillInvokerProps> = ({
                     <button
                       onClick={generateLivePreview}
                       disabled={isGeneratingPreview}
-                      className="p-1 rounded text-monokai-comment hover:text-monokai-fg hover:bg-[#3e3d32]/50 transition-colors"
+                      className="p-1 rounded text-monokai-comment hover:text-monokai-fg hover:bg-monokai-border/50 transition-colors"
                       title="刷新预览"
                     >
                       <RefreshCw className={`w-3 h-3 ${isGeneratingPreview ? 'animate-spin' : ''}`} />
@@ -437,7 +437,7 @@ export const SkillInvoker: React.FC<SkillInvokerProps> = ({
                     {showLivePreview ? (
                       <button
                         onClick={() => setShowLivePreview(false)}
-                        className="p-1 rounded text-monokai-comment hover:text-monokai-fg hover:bg-[#3e3d32]/50 transition-colors"
+                        className="p-1 rounded text-monokai-comment hover:text-monokai-fg hover:bg-monokai-border/50 transition-colors"
                         title="隐藏预览"
                       >
                         <EyeOff className="w-3 h-3" />
@@ -445,7 +445,7 @@ export const SkillInvoker: React.FC<SkillInvokerProps> = ({
                     ) : (
                       <button
                         onClick={() => setShowLivePreview(true)}
-                        className="flex items-center gap-1 px-1.5 py-0.5 text-[8px] font-mono rounded border border-[#3e3d32] text-monokai-comment hover:border-monokai-fg hover:text-monokai-fg transition-all"
+                        className="flex items-center gap-1 px-1.5 py-0.5 text-[8px] font-mono rounded border border-monokai-border text-monokai-comment hover:border-monokai-fg hover:text-monokai-fg transition-all"
                       >
                         <Eye className="w-2.5 h-2.5" /> Show
                       </button>
@@ -455,12 +455,12 @@ export const SkillInvoker: React.FC<SkillInvokerProps> = ({
 
                 {/* Preview Body */}
                 {showLivePreview && (
-                  <div className="relative border border-[#3e3d32] rounded bg-[#272822] overflow-hidden">
+                  <div className="relative border border-monokai-border rounded bg-monokai-elevated overflow-hidden">
                     {isGeneratingPreview ? (
                       <div className="p-3 space-y-2">
-                        <div className="h-2 bg-[#3e3d32] w-3/4 animate-pulse rounded" />
-                        <div className="h-2 bg-[#3e3d32] w-1/2 animate-pulse rounded" />
-                        <div className="h-2 bg-[#3e3d32] w-5/6 animate-pulse rounded" />
+                        <div className="h-2 bg-monokai-border w-3/4 animate-pulse rounded" />
+                        <div className="h-2 bg-monokai-border w-1/2 animate-pulse rounded" />
+                        <div className="h-2 bg-monokai-border w-5/6 animate-pulse rounded" />
                       </div>
                     ) : liveSqlPreview && !liveSqlPreview.startsWith('//') ? (
                       <div className="max-h-48 overflow-auto custom-scrollbar">
@@ -490,14 +490,14 @@ export const SkillInvoker: React.FC<SkillInvokerProps> = ({
                         />
                       </div>
                     ) : (
-                      <div className="p-3 text-[10px] font-mono text-[#75715e] italic">
+                      <div className="p-3 text-[10px] font-mono text-monokai-comment italic">
                         {liveSqlPreview || '// Complete required fields for preview'}
                       </div>
                     )}
                     {liveSqlPreview && !liveSqlPreview.startsWith('//') && !isGeneratingPreview && (
                       <button
                         onClick={() => handleCopy(liveSqlPreview, 'livePreview')}
-                        className="absolute top-2 right-2 p-1 rounded border border-[#3e3d32] text-monokai-comment hover:text-monokai-fg hover:border-monokai-fg transition-all"
+                        className="absolute top-2 right-2 p-1 rounded border border-monokai-border text-monokai-comment hover:text-monokai-fg hover:border-monokai-fg transition-all"
                         title="复制 SQL"
                       >
                         {copiedField === 'livePreview' ? (
@@ -519,9 +519,9 @@ export const SkillInvoker: React.FC<SkillInvokerProps> = ({
                 disabled={isExecuting}
                 className="w-full flex items-center justify-center gap-2 px-4 py-3 font-bold text-[11px] uppercase tracking-widest font-mono rounded transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] disabled:hover:scale-100"
                 style={{
-                  background: isExecuting ? '#3e3d32' : accent,
-                  color: isExecuting ? '#75715e' : '#1e1f1c',
-                  border: `1px solid ${isExecuting ? '#3e3d32' : accent}`,
+                  background: isExecuting ? 'var(--monokai-border)' : accent,
+                  color: isExecuting ? 'var(--monokai-comment)' : 'var(--monokai-bg)',
+                  border: `1px solid ${isExecuting ? 'var(--monokai-border)' : accent}`,
                 }}
               >
                 {isExecuting ? (

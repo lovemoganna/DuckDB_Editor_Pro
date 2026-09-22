@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getOrthogonalRoute, GraphRect } from './OntologyRouting';
+import { getOrthogonalRoute, getEdgeHandleSides, pointsToRoundedOrthogonalPath, GraphRect } from './OntologyRouting';
 
 const intersectsInterior = (a: { x: number; y: number }, b: { x: number; y: number }, rect: GraphRect) => {
   if (a.x === b.x) {
@@ -26,5 +26,27 @@ describe('Ontology orthogonal routing', () => {
       expect(intersectsInterior(previous, point, blocker)).toBe(false);
     });
     expect(route.path).not.toMatch(/[CQ]/);
+  });
+
+  it('generates smooth fillet curves at corners with pointsToRoundedOrthogonalPath', () => {
+    const points = [
+      { x: 0, y: 50 },
+      { x: 100, y: 50 },
+      { x: 100, y: 150 },
+    ];
+    const roundedPath = pointsToRoundedOrthogonalPath(points, 12);
+    // Should contain a quadratic bezier command Q for the rounded corner
+    expect(roundedPath).toMatch(/Q/);
+    expect(roundedPath.startsWith('M 0 50')).toBe(true);
+    expect(roundedPath.endsWith('100 150')).toBe(true);
+  });
+
+  it('selects left/right handles intelligently when target is backwards to avoid looping U-turns', () => {
+    const source = { id: 'source', x: 500, y: 100, width: 200, height: 80 };
+    const target = { id: 'target', x: 100, y: 100, width: 200, height: 80 };
+    const sides = getEdgeHandleSides(source, target, 'hierarchical');
+    // Target is behind source horizontally; it should exit left and enter right
+    expect(sides.sourceSide).toBe('left');
+    expect(sides.targetSide).toBe('right');
   });
 });

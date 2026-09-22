@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { duckDBService } from '../services/duckdbService';
+import { toastService } from '../services/toastService';
+import { useConfirmDialog } from './ui/ConfirmDialog';
 import { Database, Upload, Trash2, Eye, Table as TableIcon, RefreshCw } from 'lucide-react';
 
 interface TableManagerProps {
@@ -28,6 +30,8 @@ export const TableManager: React.FC<TableManagerProps> = ({ onTableSelect, activ
         }
     };
 
+    const { confirm } = useConfirmDialog();
+
     const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!e.target.files?.length) return;
         setUploading(true);
@@ -38,22 +42,31 @@ export const TableManager: React.FC<TableManagerProps> = ({ onTableSelect, activ
             await duckDBService.importFile(file, tableName);
             await loadTables();
             onTableSelect(tableName);
-        } catch (e) {
+            toastService.success(`数据表 ${tableName} 上传成功`);
+        } catch (e: any) {
             console.error("Upload failed", e);
-            alert("Upload Failed: " + e);
+            toastService.error("上传失败", e.message || String(e));
         } finally {
             setUploading(false);
         }
     };
 
     const handleDelete = async (table: string) => {
-        if (!confirm(`Delete table ${table}?`)) return;
+        const ok = await confirm({
+            title: `删除数据表 "${table}"`,
+            message: `确认要永久删除数据表 ${table} 吗？此操作无法撤销。`,
+            confirmText: '确定删除',
+            variant: 'danger',
+        });
+        if (!ok) return;
         try {
             await duckDBService.dropTable(table);
             await loadTables();
             if (activeTable === table) onTableSelect('');
-        } catch (e) {
+            toastService.success(`数据表 ${table} 已删除`);
+        } catch (e: any) {
             console.error(e);
+            toastService.error(`删除表 ${table} 失败`, e.message || String(e));
         }
     };
 
@@ -99,8 +112,8 @@ export const TableManager: React.FC<TableManagerProps> = ({ onTableSelect, activ
             </div>
 
             <div className="p-3 border-t border-monokai-border bg-monokai-surface">
-                <label className={`flex items-center justify-center gap-2 w-full py-2 border-2 border-dashed border-monokai-accent rounded-lg cursor-pointer hover:border-monokai-blue hover:bg-monokai-blue/10 transition-all ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
-                    <Upload className="w-4 h-4 text-monokai-blue" />
+                <label className={`flex items-center justify-center gap-2 w-full py-2 border border-dashed border-monokai-border rounded-lg cursor-pointer hover:border-monokai-accent/60 hover:bg-monokai-bg/60 transition-all ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                    <Upload className="w-4 h-4 text-monokai-accent" />
                     <span className="text-xs font-medium text-monokai-fg">
                         {uploading ? 'Importing...' : 'Import CSV'}
                     </span>

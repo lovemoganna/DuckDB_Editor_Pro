@@ -7,28 +7,29 @@ import { LEVEL_CONFIG } from '../../types/abstraction';
 import { AbstractionTable } from '../../types';
 
 // 静态颜色映射（解决 Tailwind 动态类名问题）
+// 静态颜色映射（解决 Tailwind 动态类名问题）
 const LEVEL_COLOR_CLASSES: Record<string, string> = {
-  amethyst: 'bg-monokai-amethyst/20 text-monokai-amethyst',
-  blue:   'bg-monokai-blue/20 text-monokai-blue',
-  green:  'bg-monokai-green/20 text-monokai-green',
-  yellow: 'bg-monokai-yellow/20 text-monokai-yellow',
-  red:    'bg-monokai-red/20 text-monokai-red',
-  pink:   'bg-monokai-pink/20 text-monokai-pink',
-  orange: 'bg-monokai-orange/20 text-monokai-orange',
-  cyan:   'bg-monokai-cyan/20 text-monokai-cyan',
-  fg:     'bg-monokai-fg/20 text-monokai-fg',
+  amethyst: 'bg-monokai-surface text-monokai-fg-muted border border-monokai-border-subtle',
+  blue:   'bg-monokai-surface text-monokai-fg-muted border border-monokai-border-subtle',
+  green:  'bg-monokai-surface text-monokai-fg-muted border border-monokai-border-subtle',
+  yellow: 'bg-monokai-surface text-monokai-fg-muted border border-monokai-border-subtle',
+  red:    'bg-monokai-surface text-monokai-fg-muted border border-monokai-border-subtle',
+  pink:   'bg-monokai-surface text-monokai-fg-muted border border-monokai-border-subtle',
+  orange: 'bg-monokai-surface text-monokai-fg-muted border border-monokai-border-subtle',
+  cyan:   'bg-monokai-surface text-monokai-fg-muted border border-monokai-border-subtle',
+  fg:     'bg-monokai-surface text-monokai-fg-muted border border-monokai-border-subtle',
 };
 
 const LEVEL_BORDER_CLASSES: Record<string, string> = {
-  amethyst: 'border-monokai-amethyst/30',
-  blue:   'border-monokai-blue/30',
-  green:  'border-monokai-green/30',
-  yellow: 'border-monokai-yellow/30',
-  red:    'border-monokai-red/30',
-  pink:   'border-monokai-pink/30',
-  orange: 'border-monokai-orange/30',
-  cyan:   'border-monokai-cyan/30',
-  fg:     'border-monokai-fg/30',
+  amethyst: 'border-monokai-border-subtle',
+  blue:   'border-monokai-border-subtle',
+  green:  'border-monokai-border-subtle',
+  yellow: 'border-monokai-border-subtle',
+  red:    'border-monokai-border-subtle',
+  pink:   'border-monokai-border-subtle',
+  orange: 'border-monokai-border-subtle',
+  cyan:   'border-monokai-border-subtle',
+  fg:     'border-monokai-border-subtle',
 };
 
 interface AbstractionPathTagProps {

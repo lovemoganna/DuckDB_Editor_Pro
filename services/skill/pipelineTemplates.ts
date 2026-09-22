@@ -209,13 +209,9 @@ export function getTemplatesByCategory(category: PipelineTemplate['category']): 
 // Convert template to SkillChain
 export function templateToSkillChain(template: PipelineTemplate): SkillChain {
   return {
-    id: `chain-${template.id}`,
-    name: template.name,
-    description: template.description,
     steps: template.steps.map((step, idx) => ({
       ...step,
       stepId: `step-${idx}`,
-      status: 'pending',
     })),
   };
 }

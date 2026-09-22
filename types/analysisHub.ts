@@ -118,12 +118,11 @@ export interface AnalysisSlice {
 // Re-export Abstraction types (from abstraction.ts)
 // ============================================================
 
-export {
+export type {
   AbstractionFilters,
-  DEFAULT_FILTERS,
   AbstractionGenerationRequest,
   AbstractionGenerationResult,
   AISession,
   AISessionMessage,
 } from '../types/abstraction';
-export type { AnalysisHubMainTab } from '../types/analysisHub';
+export { DEFAULT_FILTERS } from '../types/abstraction';

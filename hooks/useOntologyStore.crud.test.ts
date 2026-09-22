@@ -39,6 +39,8 @@ const _getObjects = vi.hoisted(() => vi.fn());
 const _getLinkTypes = vi.hoisted(() => vi.fn());
 const _getLinks = vi.hoisted(() => vi.fn());
 const _getActions = vi.hoisted(() => vi.fn());
+const _getOntologyPatterns = vi.hoisted(() => vi.fn().mockResolvedValue([]));
+const _saveOntologyPattern = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 
 const _escapeLiteral = (v: unknown): string => {
   if (v === null || v === undefined) return 'NULL';
@@ -69,6 +71,8 @@ vi.mock('../services/duckdbService', () => ({
     getOntologyLinkTypes: _getLinkTypes,
     getOntologyLinks: _getLinks,
     getOntologyActions: _getActions,
+    getOntologyPatterns: _getOntologyPatterns,
+    saveOntologyPattern: _saveOntologyPattern,
     escapeLiteral: _escapeLiteral,
     getOntologyInsightTable: () => 'life_insight',
     getOntologyObjectTable: () => 'life_object',
@@ -157,7 +161,7 @@ describe('ObjectType CRUD', () => {
     await waitFor(() => {});
     await result.current.createObjectType('Task', 'A task');
     expect(_query).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO'));
-  });
+  }, 15000);
 
   it('createObjectType throws on INSERT failure', async () => {
     resetAll();

@@ -79,7 +79,7 @@ export const SkillHeader: React.FC<SkillHeaderProps> = ({
               className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[9px] font-medium rounded-lg border"
               style={{
                 background: 'rgba(253, 151, 31, 0.08)',
-                color: '#fd971f',
+                color: 'var(--monokai-orange)',
                 borderColor: 'rgba(253, 151, 31, 0.25)',
               }}
             >
@@ -92,7 +92,7 @@ export const SkillHeader: React.FC<SkillHeaderProps> = ({
               className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[9px] font-medium rounded-lg border"
               style={{
                 background: 'rgba(166, 226, 46, 0.08)',
-                color: '#a6e22e',
+                color: 'var(--monokai-accent)',
                 borderColor: 'rgba(166, 226, 46, 0.25)',
               }}
             >

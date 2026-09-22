@@ -63,3 +63,25 @@ export interface SavedQuery {
   widgetType?: 'value' | 'table' | 'chart';
   metricChartId?: string;
 }
+
+export interface DashboardItem {
+  i: string;
+  savedQueryId: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+export interface Dashboard {
+  id: string;
+  name: string;
+  description?: string;
+  items: DashboardItem[];
+  createdAt: number;
+  updatedAt: number;
+  tags?: string[];
+  theme?: string;
+  template?: string;
+}
+

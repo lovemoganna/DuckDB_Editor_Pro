@@ -48,14 +48,11 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onInsertSql }) => {
       {/* AI 切换按钮（浮动在右下角） */}
       <button
         onClick={() => setAiPanelOpen(v => !v)}
-        className={`fixed bottom-6 right-6 z-20 flex items-center gap-2 px-4 py-2.5 rounded-full shadow-lg transition-all duration-200 ${
+        className={`fixed bottom-6 right-6 z-20 flex items-center gap-2 px-4 py-2.5 rounded-full shadow-lg transition-all duration-200 cursor-pointer ${
           aiPanelOpen
             ? 'bg-monokai-surface border border-monokai-border text-monokai-fg-muted hover:text-monokai-fg'
-            : 'bg-gradient-to-r from-monokai-amethyst to-monokai-blue text-white shadow-monokai-glow-amethyst'
+            : 'bg-monokai-accent text-monokai-bg border border-monokai-accent font-semibold hover:brightness-105'
         }`}
-        style={{
-          boxShadow: aiPanelOpen ? undefined : '0 0 24px rgba(189,147,249,0.35)',
-        }}
         title={aiPanelOpen ? '收起 AI 面板' : 'AI 生成 SQL'}
       >
         {aiPanelOpen ? (
@@ -66,7 +63,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onInsertSql }) => {
         ) : (
           <>
             <Sparkles className="w-4 h-4" />
-            <span className="text-sm font-medium">AI 生成</span>
+            <span className="text-sm font-semibold">AI 生成</span>
           </>
         )}
       </button>
@@ -75,7 +72,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ onInsertSql }) => {
       {!aiPanelOpen && aiResult?.sql && (
         <button
           onClick={() => setAiPanelOpen(true)}
-          className="fixed bottom-6 right-36 z-20 flex items-center gap-1.5 px-3 py-2 rounded-full bg-monokai-amethyst/20 border border-monokai-amethyst/50 text-monokai-amethyst text-xs font-medium animate-pulse"
+          className="fixed bottom-6 right-36 z-20 flex items-center gap-1.5 px-3 py-2 rounded-full bg-monokai-surface border border-monokai-border text-monokai-accent text-xs font-medium shadow-md cursor-pointer hover:bg-monokai-sidebar"
         >
           <Sparkles className="w-3 h-3" />
           AI 已生成结果

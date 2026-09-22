@@ -83,7 +83,7 @@ export interface LearningStage {
 // Library Panel State
 // ============================================================
 
-export type LibraryTab = 'meta' | 'ddl' | 'dml' | 'dql' | 'functions' | 'dcl' | 'optimization';
+export type LibraryTab = 'ai-capabilities' | 'meta' | 'ddl' | 'dml' | 'dql' | 'functions' | 'dcl' | 'optimization';
 
 export interface LibraryPanelState {
   isOpen: boolean;

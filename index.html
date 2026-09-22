@@ -15,8 +15,10 @@
   <meta property="og:image" content="https://duckdb.org/images/logo-dl/duckdb-logo.png" />
 
   <link
-    href="https://fonts.loli.net/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;700&display=swap"
+    href="https://fonts.loli.net/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;700&display=swap"
     rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/jetbrains-mono@5.0.21/index.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/victor-mono@5.2.5/index.css" />
   <!-- CodeMirror handled by @uiw/react-codemirror -->
   <!-- Chart.js handled by npm -->
   <!-- SQL Formatter handled by npm -->
@@ -26,7 +28,7 @@
     pre[class*="language-"] {
       color: #f8f8f2;
       text-shadow: 0 1px rgba(0, 0, 0, 0.3);
-      font-family: 'JetBrains Mono', monospace;
+      font-family: 'Victor Mono', 'JetBrains Mono', monospace;
       direction: ltr;
       text-align: left;
       white-space: pre;
@@ -128,7 +130,7 @@
     .CodeMirror {
       height: 100% !important;
       font-size: 11px !important;
-      font-family: 'JetBrains Mono', monospace !important;
+      font-family: 'Victor Mono', 'JetBrains Mono', monospace !important;
       line-height: 1.6;
       background: transparent !important;
     }
@@ -162,12 +164,12 @@
     }
   </style>
 
-  <link rel="stylesheet" href="/index.css">
+  <link rel="stylesheet" href="./index.css">
 </head>
 
 <body class="bg-monokai-bg text-monokai-fg font-sans antialiased overflow-hidden">
   <div id="root"></div>
-  <script type="module" src="/index.tsx"></script>
+  <script type="module" src="./index.tsx"></script>
 </body>
 
 </html>

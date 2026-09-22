@@ -27,19 +27,23 @@ export const SaveQueryModal: React.FC<SaveQueryModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm animate-[fadeIn_0.2s]">
-      <div className="bg-monokai-sidebar border border-monokai-accent rounded-xl shadow-2xl w-[400px] overflow-hidden animate-[slideIn_0.25s_ease-out]">
+    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-150 p-4 select-none">
+      <div className="bg-monokai-sidebar border border-monokai-border rounded-xl shadow-2xl w-full max-w-[420px] overflow-hidden animate-[slideIn_0.25s_ease-out]">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 bg-monokai-bg border-b border-monokai-accent">
+        <div className="flex items-center justify-between px-5 py-4 bg-monokai-bg/90 border-b border-monokai-border shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-monokai-green/20 flex items-center justify-center">
-              <Save className="w-4 h-4 text-monokai-green" />
+            <div className="w-8 h-8 rounded-lg bg-monokai-surface border border-monokai-border flex items-center justify-center text-monokai-green">
+              <Save className="w-4 h-4" />
             </div>
-            <h3 className="text-base font-bold text-monokai-fg">保存查询</h3>
+            <div>
+              <h3 className="text-sm font-bold text-monokai-fg">保存查询为书签</h3>
+              <p className="text-[10px] text-monokai-comment">持久化当前 SQL 语句并可选择固定至看板</p>
+            </div>
           </div>
           <button
             onClick={onClose}
-            className="w-7 h-7 rounded-lg hover:bg-monokai-accent flex items-center justify-center text-monokai-comment hover:text-monokai-fg transition-colors"
+            className="w-7 h-7 rounded-lg hover:bg-monokai-surface flex items-center justify-center text-monokai-comment hover:text-monokai-pink transition-colors cursor-pointer"
+            title="关闭窗口"
           >
             <X size={16} />
           </button>
@@ -55,39 +59,39 @@ export const SaveQueryModal: React.FC<SaveQueryModalProps> = ({
               value={saveQueryName}
               onChange={e => setSaveQueryName(e.target.value)}
               placeholder="输入查询名称..."
-              className="w-full bg-monokai-bg border border-monokai-accent rounded-lg px-3 py-2.5 text-sm text-monokai-fg placeholder-monokai-comment/50 outline-none focus:border-monokai-green/50 focus:ring-1 focus:ring-monokai-green/20 transition-all"
+              className="w-full bg-monokai-bg border border-monokai-border rounded-lg px-3 py-2 text-xs text-monokai-fg placeholder-monokai-comment/50 outline-none focus:border-monokai-accent focus:ring-1 focus:ring-monokai-accent/30 transition-all font-mono"
             />
           </div>
 
           {/* Pin to Dashboard Option */}
-          <div className="p-4 bg-monokai-bg/50 border border-monokai-accent/50 rounded-lg">
+          <div className="p-3.5 bg-monokai-bg/70 border border-monokai-border/80 rounded-lg">
             <label className="flex items-center justify-between cursor-pointer">
               <div className="flex items-center gap-3">
                 <input
                   type="checkbox"
                   checked={saveAsWidget}
                   onChange={e => setSaveAsWidget(e.target.checked)}
-                  className="w-4 h-4 rounded border-monokai-accent bg-monokai-bg text-monokai-green focus:ring-monokai-green/30"
+                  className="w-4 h-4 rounded border-monokai-border bg-monokai-bg text-monokai-green focus:ring-monokai-accent/30 cursor-pointer"
                 />
                 <div>
-                  <span className="text-sm font-medium text-monokai-fg">固定到仪表板</span>
-                  <p className="text-[10px] text-monokai-comment mt-0.5">将此查询添加为小部件显示</p>
+                  <span className="text-xs font-semibold text-monokai-fg">固定到仪表板</span>
+                  <p className="text-[10px] text-monokai-comment mt-0.5">将此查询添加为仪表板小部件</p>
                 </div>
               </div>
             </label>
 
             {/* Widget Type Select */}
             {saveAsWidget && (
-              <div className="mt-4 pl-7">
-                <label className="block text-xs text-monokai-comment mb-2">小部件类型</label>
+              <div className="mt-3 pl-7">
+                <label className="block text-[10px] text-monokai-comment mb-1 font-mono">小部件展示类型</label>
                 <select
                   value={widgetType}
                   onChange={(e: any) => setWidgetType(e.target.value)}
-                  className="w-full bg-monokai-bg border border-monokai-accent rounded-lg px-3 py-2 text-sm text-monokai-fg outline-none focus:border-monokai-green/50"
+                  className="w-full bg-monokai-surface border border-monokai-border rounded-lg px-3 py-1.5 text-xs text-monokai-fg outline-none focus:border-monokai-accent cursor-pointer font-sans"
                 >
-                  <option value="table">迷你表格</option>
-                  <option value="value">单值显示</option>
-                  <option value="chart">图表</option>
+                  <option value="table">迷你表格 (Table)</option>
+                  <option value="value">单值显示 (KPI Value)</option>
+                  <option value="chart">图表 (Visualization)</option>
                 </select>
               </div>
             )}
@@ -95,19 +99,19 @@ export const SaveQueryModal: React.FC<SaveQueryModalProps> = ({
         </div>
 
         {/* Footer buttons */}
-        <div className="flex justify-end gap-3 px-5 py-4 bg-monokai-bg border-t border-monokai-accent">
+        <div className="flex justify-end gap-2.5 px-5 py-3.5 bg-monokai-bg border-t border-monokai-border">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-monokai-comment hover:text-monokai-fg hover:bg-monokai-accent rounded-lg transition-colors"
+            className="px-3.5 py-1.5 text-xs font-medium text-monokai-comment hover:text-monokai-fg hover:bg-monokai-surface rounded-lg transition-colors cursor-pointer"
           >
             取消
           </button>
           <button
             onClick={onSave}
             disabled={!saveQueryName.trim()}
-            className="px-5 py-2 bg-monokai-green text-monokai-bg font-bold rounded-lg text-sm hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-2"
+            className="px-4 py-1.5 bg-monokai-green text-monokai-bg font-bold rounded-lg text-xs hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
           >
-            <Save size={14} />
+            <Save size={13} />
             保存查询
           </button>
         </div>

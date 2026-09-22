@@ -78,6 +78,8 @@ async function resolveGenerator(skill: AISkill) {
 // AI-powered generation fallback (with cancellation support)
 // ============================================================
 
+import { duckDBService } from './duckdbService';
+
 async function generateWithAI(
   skill: AISkill,
   inputs: Record<string, any>,
@@ -88,7 +90,6 @@ async function generateWithAI(
   const startTime = Date.now();
 
   try {
-    // Check cancellation before starting
     if (cancelToken?.cancelled) {
       return {
         success: false,
@@ -108,7 +109,6 @@ async function generateWithAI(
       engineering: `基于以下需求生成 DuckDB 工程辅助 (Engineering) SQL：\n需求: ${inputDescription}\n表结构: ${schemaContext}\n\n请专注于测试数据生成、抽样、导入导出或数据质量检查逻辑。`,
     };
 
-    // Inject Official Handbook Skills if matched
     let officialSkillsContext = '';
     if (context.matchedOfficialSkills && context.matchedOfficialSkills.length > 0) {
       officialSkillsContext = '\n\n## 必须遵循的官方手册规则 (Handbook Rules):\n';
@@ -120,9 +120,8 @@ async function generateWithAI(
       });
     }
 
-    const prompt = (categoryPrompts[skill.category] || `生成 DuckDB SQL: ${inputDescription}\n表结构: ${schemaContext}`) + officialSkillsContext;
+    let prompt = (categoryPrompts[skill.category] || `生成 DuckDB SQL: ${inputDescription}\n表结构: ${schemaContext}`) + officialSkillsContext;
 
-    // Check cancellation before AI call
     if (cancelToken?.cancelled) {
       return {
         success: false,
@@ -131,9 +130,41 @@ async function generateWithAI(
       };
     }
 
-    const sql = await aiService.generateSql(prompt, schemaContext, onChunk);
+    let sql = await aiService.generateSql(prompt, schemaContext, onChunk);
+    let attempts = 0;
+    const maxRetries = 2;
+    let selfHealed = false;
 
-    // Check cancellation after AI call
+    // Self-Healing Validation Retry Loop
+    while (attempts < maxRetries) {
+      if (!sql || !sql.trim()) break;
+
+      try {
+        // Dry-run EXPLAIN query to validate SQL syntax against DuckDB kernel
+        const cleanSql = sql.trim().replace(/;+$/, '');
+        if (/^\s*(SELECT|WITH|EXPLAIN|SHOW|DESCRIBE)/i.test(cleanSql)) {
+          await duckDBService.query(`EXPLAIN ${cleanSql}`);
+        }
+        // Valid syntax, loop terminates
+        break;
+      } catch (validationErr: any) {
+        attempts++;
+        const errMsg = validationErr?.message || String(validationErr);
+        console.warn(`[Self-Healing SQL Retry #${attempts}] DuckDB Error: ${errMsg}`);
+
+        if (attempts >= maxRetries) {
+          console.warn('[Self-Healing SQL] Exceeded maximum retries, returning best effort SQL.');
+          break;
+        }
+
+        // Construct Self-Healing prompt with exact DuckDB error feedback
+        const selfHealingPrompt = `${prompt}\n\n[自我修复日志 - 尝试 #${attempts}]\n先前生成的 SQL:\n\`\`\`sql\n${sql}\n\`\`\`\n\nDuckDB 引擎抛出错误:\n${errMsg}\n\n请修改上述 SQL，修正错误的表名、字段名或语法约束，仅输出修复后的 SQL 代码段。`;
+        
+        sql = await aiService.generateSql(selfHealingPrompt, schemaContext, onChunk);
+        selfHealed = true;
+      }
+    }
+
     if (cancelToken?.cancelled) {
       return {
         success: false,
@@ -145,7 +176,7 @@ async function generateWithAI(
     return {
       success: true,
       sql: sql.trim(),
-      explanation: `基于 ${skill.name} 生成的 SQL 查询`,
+      explanation: `基于 ${skill.name} 生成的 SQL 查询${selfHealed ? ' (已自动自愈修复)' : ''}`,
       executionTime: Date.now() - startTime,
     };
   } catch (error: any) {
@@ -204,12 +235,20 @@ class SkillExecutor {
 
         // If template generated meaningful SQL (not just placeholders), use it directly
         if (sql && !sql.includes('col') && !sql.includes('table_name')) {
+          const sourceLabel = skill.execute ? '直接执行' : 'Generator注册表';
           result = {
             success: true,
             sql,
-            explanation: `基于 ${skill.name} 模板生成的 SQL`,
+            explanation: `基于 ${skill.name} (${sourceLabel}) 模板生成的 SQL`,
           };
           this.addToHistory(skillId, result, context, inputs);
+          if (simulateOnly) {
+            return {
+              ...result,
+              metadata: { ...(result.metadata || {}), simulated: true },
+              executionTime: Date.now() - startTime,
+            };
+          }
           return { ...result, executionTime: Date.now() - startTime };
         }
 
@@ -249,7 +288,11 @@ class SkillExecutor {
       this.addToHistory(skillId, result, context, inputs);
 
       if (simulateOnly) {
-        return { ...result, metadata: { ...result.metadata, simulated: true, executionTime: Date.now() - startTime } };
+        return {
+          ...result,
+          metadata: { ...(result.metadata || {}), simulated: true },
+          executionTime: Date.now() - startTime,
+        };
       }
 
       return { ...result, executionTime: Date.now() - startTime };

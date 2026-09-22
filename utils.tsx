@@ -1,15 +1,15 @@
 // --- Ontology Icons Helper ---
 export const getTypeIcon = (type: string) => {
     const t = type.toUpperCase();
-    if (t.includes('INT') || t.includes('FLOAT') || t.includes('DOUBLE') || t.includes('DECIMAL')) return '#️⃣';
-    if (t.includes('CHAR') || t.includes('TEXT') || t.includes('STRING')) return '🔤';
-    if (t.includes('DATE') || t.includes('TIME')) return '📅';
-    if (t.includes('BOOL')) return '☯';
-    if (t.includes('LIST') || t.includes('ARRAY')) return '📚';
-    if (t.includes('STRUCT') || t.includes('MAP')) return '📦';
-    if (t.includes('JSON')) return '📄';
-    if (t.includes('BLOB')) return '💾';
-    return '❓';
+    if (t.includes('INT') || t.includes('FLOAT') || t.includes('DOUBLE') || t.includes('DECIMAL') || t.includes('NUMERIC')) return 'INT';
+    if (t.includes('CHAR') || t.includes('TEXT') || t.includes('STRING') || t.includes('VARCHAR')) return 'TXT';
+    if (t.includes('DATE') || t.includes('TIME')) return 'TIME';
+    if (t.includes('BOOL')) return 'BOOL';
+    if (t.includes('LIST') || t.includes('ARRAY')) return 'ARR';
+    if (t.includes('STRUCT') || t.includes('MAP')) return 'MAP';
+    if (t.includes('JSON')) return 'JSON';
+    if (t.includes('BLOB') || t.includes('BYTE')) return 'BLOB';
+    return 'VAL';
 };
 
 // --- SQL Syntax Highlighting Utility ---

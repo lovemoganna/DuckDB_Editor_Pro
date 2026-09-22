@@ -23,20 +23,24 @@ import { duckDBService } from '../../services/duckdbService';
 import { ResultTable } from './ResultTable';
 import { NotesSidebar } from './NotesSidebar';
 import { FavoritesSidebar } from './FavoritesSidebar';
+import { toastService } from '../../services/toastService';
 import { CodeSnippetsSidebar } from './CodeSnippetsSidebar';
 import { DataManagementSidebar } from './DataManagementSidebar';
 import { SchemaSidebar } from './SchemaSidebar';
 import { ErrorBoundary } from '../ErrorBoundary';
+import { OntologyInteractiveViewer, OntologyLessonData } from './OntologyInteractiveViewer';
+import { SafeSvgImage } from '../ui/SafeSvgImage';
 import { saveNote, Note } from '../../services/learnNotesStorage';
 import { addFavorite, removeFavoriteByTutorialId, isFavorite } from '../../services/favoritesStorage';
 import { saveSnippet, isSnippetExists, CodeSnippet, generateSnippetId } from '../../services/codeSnippetsStorage';
+import { recordLearnExperiment } from '../../services/learnExperimentLog';
 import { Copy, Check, StickyNote, Code, Heart, HeartHandshake, Database, Play, X, Trash2, FileText, Library, Clock, BarChart2, Download, Upload, AlertTriangle, ChevronRight, Table } from 'lucide-react';
 
 // 初始化 mermaid
 mermaid.initialize({
   startOnLoad: false,
   theme: 'dark',
-  securityLevel: 'loose',
+  securityLevel: 'strict',
 });
 
 // Mermaid 组件
@@ -65,7 +69,9 @@ const Mermaid = ({ chart }: { chart: string }) => {
   if (error) return <div className="text-red-500 text-sm p-2 border border-red-500/50 rounded bg-red-500/10">Failed to render diagram</div>;
 
   return (
-    <div className="mermaid-wrapper my-6 flex justify-center bg-[#282a36] p-4 rounded-lg overflow-x-auto border border-monokai-accent/30" dangerouslySetInnerHTML={{ __html: svg }} />
+    <div className="mermaid-wrapper my-6 flex justify-center bg-monokai-sidebar/50 p-4 rounded-lg overflow-x-auto border border-monokai-border">
+      <SafeSvgImage svg={svg} alt="Tutorial diagram" className="max-w-none" />
+    </div>
   );
 };
 
@@ -260,9 +266,9 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, onTryCo
     // HTML/XSS 安全消毒过滤
     const sanitized = content
       .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '') // 过滤 script 标签
-      .replace(/\bon[a-z]+\s*=\s*(['"])[^\1]*?\1/gi, '') // 过滤 onload, onerror, onclick 等内联事件
+      .replace(/\bon[a-z]+\s*=\s*(['"])[^'"]*?\1/gi, '') // 过滤 onload, onerror, onclick 等内联事件
       .replace(/\bon[a-z]+\s*=\s*[^\s>]+/gi, '')
-      .replace(/href\s*=\s*(['"])javascript:[^\1]*?\1/gi, 'href="#"') // 过滤 javascript: 伪协议链接
+      .replace(/href\s*=\s*(['"])javascript:[^'"]*?\1/gi, 'href="#"') // 过滤 javascript: 伪协议链接
       .replace(/href\s*=\s*javascript:[^\s>]+/gi, 'href="#"');
 
     console.log('=== MarkdownViewer 原始 content ===', JSON.stringify(sanitized));
@@ -308,6 +314,41 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, onTryCo
 
   // 统一的右侧边栏状态，防止多个侧边栏同时开启重叠
   const [activeSidebar, setActiveSidebar] = useState<'notes' | 'favorites' | 'snippets' | 'data' | 'schema' | null>(null);
+  const sidebarTriggerRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!activeSidebar) return;
+    sidebarTriggerRef.current = document.activeElement as HTMLElement | null;
+    const focusTimer = window.setTimeout(() => {
+      document.querySelector<HTMLElement>('[data-learn-sidebar] button:not([disabled])')?.focus();
+    }, 0);
+    const handleSidebarKeyDown = (event: KeyboardEvent) => {
+      const sidebar = document.querySelector<HTMLElement>('[data-learn-sidebar]');
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setActiveSidebar(null);
+        return;
+      }
+      if (event.key !== 'Tab' || !sidebar) return;
+      const focusable = Array.from(sidebar.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])'));
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    window.addEventListener('keydown', handleSidebarKeyDown);
+    return () => {
+      window.clearTimeout(focusTimer);
+      window.removeEventListener('keydown', handleSidebarKeyDown);
+      sidebarTriggerRef.current?.focus();
+    };
+  }, [activeSidebar]);
 
   const showNotesSidebar = activeSidebar === 'notes';
   const setShowNotesSidebar = (show: boolean) => setActiveSidebar(show ? 'notes' : null);
@@ -401,7 +442,7 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, onTryCo
         setShowNotePopup(true);
       } else {
         // 延迟隐藏，让点击事件先触发
-        setTimeout(() => setShowNotePopup(false), 200);
+        setTimeout(() => setShowNotePopup(false), 2000);
       }
     };
 
@@ -511,7 +552,7 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, onTryCo
   // 字体大小状态
   const [fontSize, setFontSize] = useState<number>(() => {
     const saved = localStorage.getItem('duckdb_learn_fontsize');
-    return saved ? parseInt(saved, 10) : 14;
+    return saved ? parseInt(saved, 10) : 13;
   });
 
   // 字体大小变化处理
@@ -582,13 +623,14 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, onTryCo
   const handleCopyAllSql = async () => {
     const codes = extractAllSqlCodes(content);
     if (codes.length === 0) {
-      alert('当前页面没有 SQL 代码块');
+      toastService.warning('当前页面没有 SQL 代码块');
       return;
     }
 
-    const combinedCode = codes.join('\n\n---\n\n');
+    const combinedCode = codes.map(c => c.code).join('\n\n---\n\n');
     await navigator.clipboard.writeText(combinedCode);
     setCopiedAll(true);
+    toastService.success('所有 SQL 代码已复制到剪贴板');
     setTimeout(() => setCopiedAll(false), 2000);
   };
 
@@ -596,7 +638,7 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, onTryCo
   const handleExecuteAllSql = async () => {
     const codeBlocks = extractAllSqlCodes(content);
     if (codeBlocks.length === 0) {
-      alert('当前页面没有 SQL 代码块可执行');
+      toastService.warning('当前页面没有 SQL 代码块可执行');
       return;
     }
 
@@ -615,8 +657,8 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, onTryCo
       }));
 
       const startTime = performance.now();
+      const safeCode = ensureQueryLimit(code);
       try {
-        const safeCode = ensureQueryLimit(code);
         const res = await executeWithTimeout(() => duckDBService.query(safeCode), 10000);
         const endTime = performance.now();
         successCount++;
@@ -626,6 +668,15 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, onTryCo
           ...prev,
           [id]: { data: res, error: null, loading: false, timestamp: Date.now(), executionTime: endTime - startTime }
         }));
+        recordLearnExperiment({
+          tutorialId: tutorialId ?? 'embedded',
+          codeBlockId: id,
+          sql: code,
+          executedSql: safeCode,
+          engineVersion: duckDBService.getEngineVersion(),
+          durationMs: endTime - startTime,
+          rows: res,
+        });
 
         // 滚动到该代码块位置显示结果
         const element = document.getElementById(`result-${id}`);
@@ -636,40 +687,31 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, onTryCo
         }
       } catch (e: any) {
         errorCount++;
+        const durationMs = performance.now() - startTime;
         setExecutionResults(prev => ({
           ...prev,
           [id]: { data: null, error: e.message, loading: false, timestamp: Date.now() }
         }));
-
-        // 滚动到错误位置
-        const element = document.getElementById(`result-${id}`);
-        if (element) {
-          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          await new Promise(resolve => setTimeout(resolve, 500));
-        }
+        recordLearnExperiment({
+          tutorialId: tutorialId ?? 'embedded',
+          codeBlockId: id,
+          sql: code,
+          executedSql: safeCode,
+          engineVersion: duckDBService.getEngineVersion(),
+          durationMs,
+        });
       }
-
       setExecutedCount(i + 1);
     }
-
-    // 执行完成
     setExecutingAll(false);
-    alert(`执行完成！成功: ${successCount}, 失败: ${errorCount}`);
+    toastService.info('批量 SQL 执行完毕');
   };
 
-  // 清空所有数据表
   const handleClearAllTables = async () => {
-    if (!confirm('确定要清空所有数据表吗？此操作不可恢复！')) {
-      return;
-    }
-
     setClearingTables(true);
     try {
-      // 查询所有表
       const tables = await duckDBService.query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'main' AND table_type = 'BASE TABLE'");
-
       if (tables && tables.length > 0) {
-        // 逐个删除表
         for (const row of tables) {
           const tableName = row.table_name;
           try {
@@ -679,20 +721,20 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, onTryCo
             console.warn('[ClearTables] Failed to drop table:', tableName, e);
           }
         }
-        alert(`已清空 ${tables.length} 个数据表`);
+        window.dispatchEvent(new CustomEvent('duckdb-schema-changed'));
+        toastService.success(`已清空 ${tables.length} 个数据表`);
       } else {
-        alert('当前没有数据表');
+        toastService.info('当前没有数据表');
       }
     } catch (e) {
       console.error('[ClearTables] Error:', e);
-      alert('清空表失败: ' + (e as Error).message);
+      toastService.error('清空表失败: ' + (e as Error).message);
     }
     setClearingTables(false);
   };
 
   const toc = useMemo(() => extractToc(content), [content]);
   const tocTree = useMemo(() => buildTocTree(toc), [toc]);
-
   // 初始化展开所有一级章节
   useEffect(() => {
     const initialExpanded = new Set<string>();
@@ -730,20 +772,39 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, onTryCo
     }));
 
     const startTime = performance.now();
+    const safeCode = ensureQueryLimit(code);
     try {
       // 自动限制 SELECT 语句输出行数，并且设置超时（10秒）
-      const safeCode = ensureQueryLimit(code);
       const res = await executeWithTimeout(() => duckDBService.query(safeCode), 10000);
       const endTime = performance.now();
       setExecutionResults(prev => ({
         ...prev,
         [id]: { data: res, error: null, loading: false, timestamp: Date.now(), executionTime: endTime - startTime }
       }));
+      recordLearnExperiment({
+        tutorialId: tutorialId ?? 'embedded',
+        codeBlockId: id,
+        sql: code,
+        executedSql: safeCode,
+        engineVersion: duckDBService.getEngineVersion(),
+        durationMs: endTime - startTime,
+        rows: res,
+      });
     } catch (e: any) {
+      const durationMs = performance.now() - startTime;
       setExecutionResults(prev => ({
         ...prev,
         [id]: { data: null, error: e.message, loading: false, timestamp: Date.now() }
       }));
+      recordLearnExperiment({
+        tutorialId: tutorialId ?? 'embedded',
+        codeBlockId: id,
+        sql: code,
+        executedSql: safeCode,
+        engineVersion: duckDBService.getEngineVersion(),
+        durationMs,
+        error: e.message,
+      });
     }
   };
 
@@ -959,7 +1020,7 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, onTryCo
           {/* 右侧：操作按钮组 */}
           <div className="flex flex-wrap items-center gap-3 -mr-2">
             {/* 文档配置组 */}
-            <div className="flex items-center gap-1.5 bg-[#2a2b36] p-1 rounded-lg border border-monokai-accent/20">
+            <div className="flex items-center gap-1.5 bg-monokai-sidebar p-1 rounded-lg border border-monokai-accent/20">
               {/* 字号调节 */}
               <div className="flex justify-center items-center gap-0.5 px-1 py-0.5">
                 <button
@@ -1005,7 +1066,7 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, onTryCo
             </div>
 
             {/* SQL 核心操作组 */}
-            <div className="flex items-center gap-1 bg-[#2a2b36] p-1 rounded-lg border border-monokai-accent/20">
+            <div className="flex items-center gap-1 bg-monokai-sidebar p-1 rounded-lg border border-monokai-accent/20">
               {/* 全部执行 SQL */}
               <button
                 onClick={handleExecuteAllSql}
@@ -1062,7 +1123,7 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, onTryCo
             </div>
 
             {/* 个人学习辅助组 */}
-            <div className="flex items-center gap-1 bg-[#2a2b36] p-1 rounded-lg border border-monokai-accent/20">
+            <div className="flex items-center gap-1 bg-monokai-sidebar p-1 rounded-lg border border-monokai-accent/20">
               {/* 笔记按钮 */}
               <button
                 onClick={() => setShowNotesSidebar(true)}
@@ -1192,11 +1253,11 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, onTryCo
                 </h6>
               },
 
-              p: ({ children }) => <div className="text-monokai-fg leading-relaxed mb-4">{children}</div>,
-              ul: ({ children }) => <ul className="list-disc list-inside space-y-1 mb-4 text-monokai-fg ml-4 marker:text-monokai-pink">{children}</ul>,
-              ol: ({ children }) => <ol className="list-decimal list-inside space-y-1 mb-4 text-monokai-fg ml-4 marker:text-monokai-amethyst">{children}</ol>,
-              li: ({ children }) => <li className="pl-1 inline-block">{children}</li>,
-              blockquote: ({ children }) => <blockquote className="border-l-4 border-monokai-yellow pl-4 py-1 my-4 bg-monokai-yellow/10 rounded-r text-monokai-fg italic">{children}</blockquote>,
+              p: ({ children }) => <div className="text-[13px] text-monokai-fg leading-relaxed mb-4">{children}</div>,
+              ul: ({ children }) => <ul className="text-[13px] list-disc list-inside space-y-1.5 mb-4 text-monokai-fg ml-3 marker:text-monokai-pink leading-relaxed">{children}</ul>,
+              ol: ({ children }) => <ol className="text-[13px] list-decimal list-inside space-y-1.5 mb-4 text-monokai-fg ml-3 marker:text-monokai-amethyst leading-relaxed">{children}</ol>,
+              li: ({ children }) => <li className="pl-1 text-[13px] leading-relaxed">{children}</li>,
+              blockquote: ({ children }) => <blockquote className="border-l-2 border-monokai-accent/60 pl-3.5 py-2 my-4 bg-monokai-surface/60 rounded-r text-monokai-fg/90 italic text-[12.5px] leading-relaxed">{children}</blockquote>,
 
               code({ node, className, children, ...props }: any) {
                 const match = /language-(\w+)/.exec(className || '');
@@ -1216,10 +1277,21 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, onTryCo
                   return <Mermaid chart={codeString} />;
                 }
 
+                if (isBlock && (language === 'json' || language === 'text')) {
+                  try {
+                    const parsedJson = JSON.parse(codeString);
+                    if (parsedJson && parsedJson._meta && parsedJson.objectTypes && parsedJson.objects) {
+                      return <OntologyInteractiveViewer data={parsedJson as OntologyLessonData} />;
+                    }
+                  } catch (e) {
+                    // Not an ontology JSON, proceed with normal codeblock
+                  }
+                }
+
                 if (isBlock) {
                   return (
-                    <div className="code-block-wrapper my-6 rounded-md overflow-hidden bg-[#272822] border border-monokai-accent/30 shadow-lg relative group">
-                      <div className="code-block-header flex justify-between items-center px-4 py-2 bg-[#3e3d32] border-b border-monokai-accent/30">
+                    <div className="code-block-wrapper my-6 rounded-md overflow-hidden bg-monokai-bg border border-monokai-accent/30 shadow-lg relative group">
+                      <div className="code-block-header flex justify-between items-center px-4 py-2 bg-monokai-surface border-b border-monokai-accent/30">
                         <div className="flex items-center gap-3">
                           <span className="code-lang text-xs text-monokai-blue font-bold uppercase">{language}</span>
                           {/* 执行状态指示器 */}
@@ -1521,7 +1593,7 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, onTryCo
 
         {/* 底部悬浮工具栏：上一章/下一章/回到顶部 */}
         {toc.length > 0 && (
-          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2.5 bg-[#21222c]/95 backdrop-blur-sm border border-monokai-accent/50 rounded-full shadow-xl z-40 transition-all duration-300 translate-y-0 opacity-100">
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2.5 bg-monokai-sidebar/95 backdrop-blur-sm border border-monokai-accent/50 rounded-full shadow-xl z-40 transition-all duration-300 translate-y-0 opacity-100">
             {/* 上一章 */}
             <button
               onClick={scrollToPrevChapter}
@@ -1678,7 +1750,7 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, onTryCo
       {/* 添加笔记弹窗 */}
       {showNotePopup && selectedText && tutorialId && (
         <div
-          className="fixed z-[100] bg-[#21222c] border border-monokai-yellow/30 rounded-xl shadow-2xl p-4 w-72 animate-in fade-in zoom-in-95 duration-200"
+          className="fixed z-[100] bg-monokai-sidebar border border-monokai-border rounded-xl shadow-2xl p-4 w-72 animate-in fade-in zoom-in-95 duration-200"
           style={{
             left: Math.min(notePopupPos.x, window.innerWidth - 320),
             top: Math.max(notePopupPos.y - 180, 20),
@@ -1686,15 +1758,9 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, onTryCo
           }}
           onClick={(e) => e.stopPropagation()}
         >
-          {/* 装饰性角落 */}
-          <div className="absolute top-0 left-0 w-2 h-2 border-t-2 border-l-2 border-monokai-yellow rounded-tl-lg" />
-          <div className="absolute top-0 right-0 w-2 h-2 border-t-2 border-r-2 border-monokai-yellow rounded-tr-lg" />
-          <div className="absolute bottom-0 left-0 w-2 h-2 border-b-2 border-l-2 border-monokai-yellow rounded-bl-lg" />
-          <div className="absolute bottom-0 right-0 w-2 h-2 border-b-2 border-r-2 border-monokai-yellow rounded-br-lg" />
-
           <div className="flex items-center justify-between mb-3">
             <h4 className="text-sm font-bold text-monokai-fg flex items-center gap-2">
-              <StickyNote className="w-4 h-4 text-monokai-yellow" />
+              <StickyNote className="w-4 h-4 text-monokai-accent" />
               添加笔记
             </h4>
             <button
@@ -1706,7 +1772,7 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, onTryCo
           </div>
 
           {/* 选中的文本 */}
-          <div className="text-xs text-monokai-comment mb-3 p-2.5 bg-monokai-bg/60 rounded-lg border-l-2 border-monokai-amethyst/60 italic leading-relaxed">
+          <div className="text-xs text-monokai-comment mb-3 p-2.5 bg-monokai-bg/60 rounded-lg border-l-2 border-monokai-border italic leading-relaxed">
             "{selectedText.length > 80 ? selectedText.substring(0, 80) + '...' : selectedText}"
           </div>
 
@@ -1715,7 +1781,7 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, onTryCo
             value={noteContent}
             onChange={(e) => setNoteContent(e.target.value)}
             placeholder="记录你的想法..."
-            className="w-full h-20 p-2.5 text-sm bg-monokai-bg/80 border border-monokai-accent/20 rounded-lg text-monokai-fg placeholder-monokai-comment/40 focus:border-monokai-yellow/50 focus:outline-none resize-none transition-colors"
+            className="w-full h-20 p-2.5 text-sm bg-monokai-bg/80 border border-monokai-border rounded-lg text-monokai-fg placeholder-monokai-comment/40 focus:border-monokai-accent focus:outline-none resize-none transition-colors"
             autoFocus
           />
 
@@ -1723,14 +1789,14 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, onTryCo
           <div className="flex justify-end gap-2 mt-3">
             <button
               onClick={() => setShowNotePopup(false)}
-              className="px-3 py-1.5 text-xs text-monokai-comment hover:text-monokai-fg transition-colors rounded-md hover:bg-monokai-accent/10"
+              className="px-3 py-1.5 text-xs text-monokai-comment hover:text-monokai-fg transition-colors rounded-md hover:bg-monokai-surface border border-monokai-border"
             >
               取消
             </button>
             <button
               onClick={handleSaveNote}
               disabled={!noteContent.trim() || isSavingNote}
-              className="px-3 py-1.5 text-xs bg-monokai-yellow/20 text-monokai-yellow rounded-md hover:bg-monokai-yellow/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+              className="px-3 py-1.5 text-xs bg-monokai-accent text-monokai-bg font-bold rounded-md hover:bg-monokai-accent-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
             >
               {isSavingNote ? (
                 <>保存中...</>
@@ -1748,7 +1814,7 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, onTryCo
       {/* 代码片段收藏弹窗 */}
       {snippetToSave && (
         <div
-          className="fixed z-[100] bg-[#21222c] border border-monokai-blue/30 rounded-xl shadow-2xl p-4 w-80 animate-in fade-in zoom-in-95 duration-200"
+          className="fixed z-[100] bg-monokai-sidebar border border-monokai-border rounded-xl shadow-2xl p-4 w-80 animate-in fade-in zoom-in-95 duration-200"
           style={{
             left: Math.min(snippetPopupPos.x, window.innerWidth - 360),
             top: Math.max(snippetPopupPos.y - 280, 20),
@@ -1756,15 +1822,9 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, onTryCo
           }}
           onClick={(e) => e.stopPropagation()}
         >
-          {/* 装饰性角落 */}
-          <div className="absolute top-0 left-0 w-2 h-2 border-t-2 border-l-2 border-monokai-blue rounded-tl-lg" />
-          <div className="absolute top-0 right-0 w-2 h-2 border-t-2 border-r-2 border-monokai-blue rounded-tr-lg" />
-          <div className="absolute bottom-0 left-0 w-2 h-2 border-b-2 border-l-2 border-monokai-blue rounded-bl-lg" />
-          <div className="absolute bottom-0 right-0 w-2 h-2 border-b-2 border-r-2 border-monokai-blue rounded-br-lg" />
-
           <div className="flex items-center justify-between mb-3">
             <h4 className="text-sm font-bold text-monokai-fg flex items-center gap-2">
-              <Code className="w-4 h-4 text-monokai-blue" />
+              <Code className="w-4 h-4 text-monokai-accent" />
               收藏代码片段
             </h4>
             <button
@@ -1776,7 +1836,7 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, onTryCo
           </div>
 
           {/* 代码预览 */}
-          <div className="text-xs text-monokai-comment mb-3 p-2.5 bg-monokai-bg/60 rounded-lg border-l-2 border-monokai-blue/60 font-mono max-h-20 overflow-auto">
+          <div className="text-xs text-monokai-comment mb-3 p-2.5 bg-monokai-bg/60 rounded-lg border-l-2 border-monokai-border font-mono max-h-20 overflow-auto">
             {snippetToSave.code.length > 150 ? snippetToSave.code.substring(0, 150) + '...' : snippetToSave.code}
           </div>
 
@@ -1785,7 +1845,7 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, onTryCo
             value={snippetDescription}
             onChange={(e) => setSnippetDescription(e.target.value)}
             placeholder="添加描述（可选）..."
-            className="w-full h-16 p-2.5 text-sm bg-monokai-bg/80 border border-monokai-accent/20 rounded-lg text-monokai-fg placeholder-monokai-comment/40 focus:border-monokai-blue/50 focus:outline-none resize-none transition-colors mb-2"
+            className="w-full h-16 p-2.5 text-sm bg-monokai-bg/80 border border-monokai-border rounded-lg text-monokai-fg placeholder-monokai-comment/40 focus:border-monokai-accent focus:outline-none resize-none transition-colors mb-2"
             autoFocus
           />
 
@@ -1795,21 +1855,21 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, onTryCo
             value={snippetTags}
             onChange={(e) => setSnippetTags(e.target.value)}
             placeholder="标签（用逗号分隔）"
-            className="w-full px-3 py-2 text-sm bg-monokai-bg/80 border border-monokai-accent/20 rounded-lg text-monokai-fg placeholder-monokai-comment/40 focus:border-monokai-blue/50 focus:outline-none transition-colors mb-3"
+            className="w-full px-3 py-2 text-sm bg-monokai-bg/80 border border-monokai-border rounded-lg text-monokai-fg placeholder-monokai-comment/40 focus:border-monokai-accent focus:outline-none transition-colors mb-3"
           />
 
           {/* 按钮 */}
           <div className="flex justify-end gap-2">
             <button
               onClick={handleCloseSnippetPopup}
-              className="px-3 py-1.5 text-xs text-monokai-comment hover:text-monokai-fg transition-colors rounded-md hover:bg-monokai-accent/10"
+              className="px-3 py-1.5 text-xs text-monokai-comment hover:text-monokai-fg transition-colors rounded-md hover:bg-monokai-surface border border-monokai-border"
             >
               取消
             </button>
             <button
               onClick={handleSaveSnippet}
               disabled={isSavingSnippet}
-              className="px-3 py-1.5 text-xs bg-monokai-blue/20 text-monokai-blue rounded-md hover:bg-monokai-blue/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+              className="px-3 py-1.5 text-xs bg-monokai-accent text-monokai-bg font-bold rounded-md hover:bg-monokai-accent-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
             >
               {isSavingSnippet ? (
                 <>保存中...</>

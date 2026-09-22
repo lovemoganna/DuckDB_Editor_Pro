@@ -1,16 +1,39 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { GenerationResult, AnalysisSummary, DriverAnalysis, CorrelationMatrix, DeepInsight } from '../types';
+import type { ColumnAiProfile, ColumnsAiProfileResult, ColumnProfileInput } from '../types/ai';
 import { AIValidator, AIStage } from './aiValidator';
 import { PromptBuilder } from './PromptBuilder';
 import { duckDBService } from './duckdbService';
 
-export type AIProvider = 'google' | 'groq' | 'openai' | 'claude';
+export type AIProvider = 'google' | 'groq' | 'openai' | 'claude' | 'ollama' | 'lmstudio';
 
 export interface AIConfig {
     provider: AIProvider;
     apiKey: string;
     baseUrl?: string;
     model: string;
+}
+
+async function extractErrorMessage(response: Response, defaultPrefix: string): Promise<string> {
+    let errorDetails = response.statusText;
+    try {
+        const err = await response.json();
+        if (typeof err === 'string') {
+            errorDetails = err;
+        } else if (typeof err.error === 'string') {
+            errorDetails = err.error;
+        } else if (err.error?.message) {
+            errorDetails = err.error.message;
+        } else if (err.message) {
+            errorDetails = err.message;
+        }
+    } catch (_) {
+        try {
+            const txt = await response.text();
+            if (txt) errorDetails = txt;
+        } catch { /* ignore */ }
+    }
+    return `${defaultPrefix} (${response.status}): ${errorDetails}`;
 }
 
 /**
@@ -22,7 +45,7 @@ class AIThrottler {
     private readonly COOLDOWN_MS = 5000; // 5s gap (aligned with standard 15 RPM)
     private queue: Promise<void> = Promise.resolve();
 
-    async acquireLock(): Promise<void> {
+    async acquireLock(provider?: AIProvider): Promise<void> {
         const currentTask = this.queue.then(async () => {
             let now = Date.now();
 
@@ -34,10 +57,12 @@ class AIThrottler {
                 now = Date.now(); // Update now after wait
             }
 
-            // 2. Check Standard Cooldown
+            // 2. Check Standard Cooldown (Bypass for local providers like Ollama / LM Studio)
+            const isLocal = provider === 'ollama' || provider === 'lmstudio';
+            const cooldown = isLocal ? 0 : this.COOLDOWN_MS;
             const elapsed = now - this.lastCallTimestamp;
-            if (elapsed < this.COOLDOWN_MS) {
-                const wait = this.COOLDOWN_MS - elapsed;
+            if (cooldown > 0 && elapsed < cooldown) {
+                const wait = cooldown - elapsed;
                 console.log(`[AIThrottler] Throttling for ${wait}ms...`);
                 await new Promise(r => setTimeout(r, wait));
             }
@@ -54,9 +79,14 @@ class AIThrottler {
         this.pausedUntil = Date.now() + ms;
     }
 
-    getRemainingTime(): number {
+    getRemainingTime(provider?: AIProvider): number {
         const now = Date.now();
         const pauseRemaining = Math.max(0, this.pausedUntil - now);
+        const activeProvider = provider || (typeof localStorage !== 'undefined' ? localStorage.getItem('duckdb_ai_provider') as AIProvider : undefined);
+        const isLocal = activeProvider === 'ollama' || activeProvider === 'lmstudio';
+        if (isLocal) {
+            return pauseRemaining;
+        }
         const cooldownRemaining = Math.max(0, this.COOLDOWN_MS - (now - this.lastCallTimestamp));
         return Math.max(pauseRemaining, cooldownRemaining);
     }
@@ -70,17 +100,36 @@ class AIThrottler {
 export const aiThrottler = new AIThrottler();
 
 class AIService {
+    private activeAbortController: AbortController | null = null;
+
+    cancelActiveRequest(): boolean {
+        if (!this.activeAbortController || this.activeAbortController.signal.aborted) return false;
+        this.activeAbortController.abort();
+        return true;
+    }
+
     private getConfig(): AIConfig {
-        const provider = (localStorage.getItem('duckdb_ai_provider') as AIProvider) || 'google';
-        const apiKey = localStorage.getItem('duckdb_ai_api_key') || import.meta.env.VITE_API_KEY || '';
-        const baseUrl = localStorage.getItem('duckdb_ai_base_url') || '';
+        const storedProvider = (localStorage.getItem('duckdb_ai_provider') as AIProvider) || 'google';
+        const provider: AIProvider = ['google', 'groq', 'openai', 'claude', 'ollama', 'lmstudio'].includes(storedProvider) ? storedProvider : 'google';
+        const apiKey = localStorage.getItem('duckdb_ai_api_key') || import.meta.env.VITE_API_KEY || (provider === 'ollama' ? 'ollama' : provider === 'lmstudio' ? 'lm-studio' : '');
+        const baseUrl = localStorage.getItem('duckdb_ai_base_url') || (provider === 'ollama' ? 'http://localhost:11434' : provider === 'lmstudio' ? 'http://localhost:1234/v1' : '');
         const defaultModel = provider === 'google' ? 'gemini-2.0-flash-exp'
             : provider === 'claude' ? 'claude-sonnet-4-20250514'
             : provider === 'openai' ? 'gpt-4o'
+            : provider === 'ollama' ? 'llama3.2'
+            : provider === 'lmstudio' ? 'qwen2.5-coder-7b-instruct'
             : 'llama-3.3-70b-versatile';
         const model = localStorage.getItem('duckdb_ai_model') || defaultModel;
 
         return { provider, apiKey, baseUrl, model };
+    }
+
+    isConfigured(): boolean {
+        const config = this.getConfig();
+        if (config.provider === 'ollama' || config.provider === 'lmstudio') {
+            return true;
+        }
+        return Boolean(config.apiKey && config.apiKey.trim().length > 0);
     }
 
     private async callProvider(
@@ -90,11 +139,11 @@ class AIService {
         modelOverride?: string,
         onChunk?: (chunk: string) => void
     ): Promise<string> {
-        // Enforce global throttling before any actual network request
-        await aiThrottler.acquireLock();
-
         const config = this.getConfig();
-        if (!config.apiKey) throw new Error("AI API Key not configured");
+        // Enforce global throttling before any actual network request (local providers bypass 5s cooldown)
+        await aiThrottler.acquireLock(config.provider);
+
+        if (!config.apiKey && config.provider !== 'ollama' && config.provider !== 'lmstudio') throw new Error("AI API Key not configured");
 
         const modelToUse = modelOverride || config.model;
         let fullText = "";
@@ -153,8 +202,7 @@ class AIService {
             });
 
             if (!response.ok) {
-                const err = await response.json().catch(() => ({ error: { message: response.statusText } }));
-                throw new Error(`Claude API Error (${response.status}): ${err.error?.message || response.statusText}`);
+                throw new Error(await extractErrorMessage(response, 'Claude API Error'));
             }
 
             if (onChunk && response.body) {
@@ -188,10 +236,15 @@ class AIService {
                 return data.content?.[0]?.text || "";
             }
         } else {
-            // Groq / OpenAI REST API
-            let url = config.baseUrl || (config.provider === 'groq' ? 'https://api.groq.com/openai/v1' : 'https://api.openai.com/v1');
+            // Groq / OpenAI / Ollama / LM Studio REST API
+            let url = config.baseUrl || (config.provider === 'groq' ? 'https://api.groq.com/openai/v1' : config.provider === 'ollama' ? 'http://localhost:11434/v1' : config.provider === 'lmstudio' ? 'http://localhost:1234/v1' : 'https://api.openai.com/v1');
+            url = url.replace(/\/+$/, '');
             if (!url.endsWith('/chat/completions')) {
-                url = url.replace(/\/?$/, '/chat/completions');
+                if ((config.provider === 'ollama' || config.provider === 'lmstudio') && !url.endsWith('/v1')) {
+                    url = `${url}/v1/chat/completions`;
+                } else {
+                    url = `${url}/chat/completions`;
+                }
             }
 
             const messages = [];
@@ -200,24 +253,50 @@ class AIService {
             }
             messages.push({ role: 'user', content: prompt });
 
-            const response = await fetch(url, {
+            const headers: Record<string, string> = {
+                'Content-Type': 'application/json'
+            };
+            if (config.apiKey && config.apiKey !== 'ollama' && config.apiKey !== 'lm-studio') {
+                headers['Authorization'] = `Bearer ${config.apiKey}`;
+            }
+
+            const isLmStudio = config.provider === 'lmstudio' || url.includes(':1234');
+            // LM Studio /v1/chat/completions strictly requires response_format.type to be 'json_schema' or 'text'.
+            // Passing { type: 'json_object' } results in HTTP 400 Bad Request.
+            // Other cloud providers like OpenAI and Groq support json_object.
+            let responseFormat: { type: string } | undefined = (isJSON && !onChunk && !isLmStudio) ? { type: 'json_object' } : undefined;
+
+            let response = await fetch(url, {
                 method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${config.apiKey}`,
-                    'Content-Type': 'application/json'
-                },
+                headers,
                 body: JSON.stringify({
                     model: modelToUse,
                     messages,
-                    response_format: (isJSON && !onChunk) ? { type: 'json_object' } : undefined, // Stream mode doesn't strictly need json_object for some providers or might conflict
+                    response_format: responseFormat,
                     temperature: 0.1,
                     stream: !!onChunk
                 })
             });
 
+            // Resilient fallback: if the endpoint returns 400 when response_format was sent, retry once without it
+            // (handles custom local/proxy OpenAI servers that do not support json_object)
+            if (!response.ok && response.status === 400 && responseFormat) {
+                console.warn('[AIService] 400 Bad Request with response_format, retrying without response_format...');
+                responseFormat = undefined;
+                response = await fetch(url, {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({
+                        model: modelToUse,
+                        messages,
+                        temperature: 0.1,
+                        stream: !!onChunk
+                    })
+                });
+            }
+
             if (!response.ok) {
-                const err = await response.json().catch(() => ({ error: { message: response.statusText } }));
-                throw new Error(`AI Provider Error (${response.status}): ${err.error?.message || response.statusText}`);
+                throw new Error(await extractErrorMessage(response, 'AI Provider Error'));
             }
 
             if (onChunk && response.body) {
@@ -381,6 +460,9 @@ class AIService {
             return response.trim() || "-- No SQL generated";
         } catch (error: any) {
             console.error("AIService Error:", error);
+            if (error.message?.includes("API Key not configured")) {
+                throw error;
+            }
             return `-- Error generating SQL: ${error.message}`;
         }
     }
@@ -393,6 +475,200 @@ class AIService {
         } catch (error: any) {
             return `-- AI Fix Failed: ${error.message}`;
         }
+    }
+
+    /**
+     * Build a compact text summary of a QueryResult suitable for AI context.
+     * Includes column names + first 3 sample rows. Returns '' on failure.
+     */
+    private summarizeQueryResult(queryResult: any): string {
+        try {
+            if (!queryResult) return '';
+            const cols: string[] = Array.isArray(queryResult.columns) ? queryResult.columns : [];
+            const rows: any[] = Array.isArray(queryResult.rows) ? queryResult.rows : [];
+            const totalRows = queryResult.totalRows ?? rows.length;
+            const sampleRows = rows.slice(0, 3).map((r: any) => {
+                if (!Array.isArray(r)) return JSON.stringify(r);
+                return '[' + r.slice(0, 6).map((v: any) => {
+                    if (v === null || v === undefined) return 'NULL';
+                    const s = typeof v === 'object' ? JSON.stringify(v) : String(v);
+                    return s.length > 24 ? s.slice(0, 24) + '…' : s;
+                }).join(', ') + (r.length > 6 ? ', ...]' : ']');
+            });
+            return [
+                `总行数: ${totalRows}`,
+                `列 (${cols.length}): ${cols.join(', ') || '(无列)'}`,
+                ...(sampleRows.length ? ['前 3 行样本:'] : []),
+                ...sampleRows.map(r => `  ${r}`),
+            ].join('\n');
+        } catch {
+            return '';
+        }
+    }
+
+    /**
+     * Resolve schema context from DuckDB. Falls back to '' when unavailable.
+     */
+    private async resolveSchemaContext(): Promise<string> {
+        try {
+            const ctx = await duckDBService.getSchemaContext();
+            if (!ctx || typeof ctx !== 'object') return '';
+            // Format: "tableA(col1 TYPE, col2 TYPE, ...); tableB(...)"
+            return Object.entries(ctx)
+                .map(([table, cols]: [string, any]) => {
+                    const colList = Array.isArray(cols)
+                        ? cols.map((c: any) => `${c.name} ${c.type || 'VARCHAR'}`).join(', ')
+                        : '';
+                    return `${table}(${colList})`;
+                })
+                .slice(0, 40) // cap to top 40 tables to avoid blowing up the prompt
+                .join('; ');
+        } catch {
+            return '';
+        }
+    }
+
+    /**
+     * Workbench AI Assistant — 解释当前 SQL 的语义与执行逻辑。
+     * Returns a structured object with oneLiner / logicSteps / involvedObjects / outputFields / keyConditions.
+     */
+    async explainSql(
+        sql: string,
+        options?: { schemaContext?: string; queryResult?: any; onChunk?: (text: string) => void }
+    ): Promise<{
+        oneLiner: string;
+        logicSteps: string[];
+        involvedObjects: { name: string; alias?: string }[];
+        outputFields: { name: string; type: string; meaning: string }[];
+        keyConditions: { label: string; expression: string; note: string }[];
+    }> {
+        const schema = options?.schemaContext ?? (await this.resolveSchemaContext());
+        const resultSummary = this.summarizeQueryResult(options?.queryResult);
+        const prompt = PromptBuilder.buildSqlExplainPrompt(sql, schema, resultSummary);
+        return await this.robustCall<any>('sql_explain', prompt, PromptBuilder.CORE_ENGINE_SYSTEM, true, 2, options?.onChunk);
+    }
+
+    /**
+     * Workbench AI Assistant — 分析当前 SQL 的业务风险 / 性能关注 / 结果洞察 / 优化建议。
+     * Returns a structured object suitable for the Analyze tab UI.
+     */
+    async analyzeSql(
+        sql: string,
+        options?: { schemaContext?: string; queryResult?: any; onChunk?: (text: string) => void }
+    ): Promise<{
+        severity: 'LOW' | 'MEDIUM' | 'HIGH';
+        summary: string;
+        logicRisks: Array<{
+            title: string;
+            severity: 'LOW' | 'MEDIUM' | 'HIGH';
+            detail: string;
+            evidence: string;
+            impact: string;
+            lineHint: string;
+        }>;
+        perfConcerns: Array<{
+            title: string;
+            severity: 'LOW' | 'MEDIUM' | 'HIGH';
+            detail: string;
+            evidence: string;
+            lineHint: string;
+        }>;
+        resultInsights: Array<{ label: string; value: string; note: string }>;
+        suggestedSql: string;
+        suggestionRationale: string;
+    }> {
+        const schema = options?.schemaContext ?? (await this.resolveSchemaContext());
+        const resultSummary = this.summarizeQueryResult(options?.queryResult);
+        const prompt = PromptBuilder.buildSqlAnalyzePrompt(sql, schema, resultSummary);
+        return await this.robustCall<any>('sql_analyze', prompt, PromptBuilder.CORE_ENGINE_SYSTEM, true, 2, options?.onChunk);
+    }
+
+    // =========================================================================
+    // v6.2: Workbench AI Assistant — Column Profiling (单列 / 批量)
+    // =========================================================================
+
+    /**
+     * 单列 AI 解读 - 业务含义 + 语义类型 + 质量风险 + 使用建议。
+     * 适合: 用户在 Inspector 中选中某列，需要详细解读。
+     */
+    async profileColumn(
+        columnName: string,
+        columnData: ColumnProfileInput['data'],
+        options?: { schemaContext?: string; queryResult?: any; onChunk?: (text: string) => void }
+    ): Promise<ColumnAiProfile> {
+        if (!this.isConfigured()) {
+            throw new Error('尚未配置 AI 服务 (请在设置中填写 API Key)');
+        }
+        if (!columnName || !columnData) {
+            throw new Error('列名与列画像数据不能为空');
+        }
+
+        const schema = options?.schemaContext ?? (await this.resolveSchemaContext());
+        const prompt = PromptBuilder.buildColumnProfilePrompt(
+            {
+                columnName,
+                columnType: columnData.columnType || 'VARCHAR',
+                isNumeric: columnData.isNumeric ?? false,
+                isDate: columnData.isDate ?? false,
+                totalRows: columnData.totalRows ?? 0,
+                nullCount: columnData.nullCount ?? 0,
+                nullPct: columnData.nullPct || '0.00%',
+                distinctCount: columnData.distinctCount ?? 0,
+                distinctPct: columnData.distinctPct || '0.00%',
+                min: columnData.min,
+                max: columnData.max,
+                avg: columnData.avg,
+                median: columnData.median,
+                sum: columnData.sum,
+                topValues: columnData.topValues || [],
+                sampleValues: columnData.sampleValues || [],
+            },
+            schema
+        );
+        const result = await this.robustCall<any>('sql_column_profile', prompt, PromptBuilder.CORE_ENGINE_SYSTEM, true, 2, options?.onChunk);
+        return { columnName, ...result } as ColumnAiProfile;
+    }
+
+    /**
+     * 批量列 AI 解读 - 单次 API 调用覆盖 ≤8 列。
+     * 适合: Inspector 中一次性展示多列 AI 解读，节省 token 与限速次数。
+     *
+     * 错误码:
+     * - columns.length === 0 → "没有需要分析的列"
+     * - columns.length > 8    → "批量列画像最多支持 8 列/次"
+     * - !isConfigured()       → "尚未配置 AI 服务"
+     */
+    async profileColumns(
+        columns: ColumnProfileInput[],
+        options?: { schemaContext?: string; queryResult?: any; onChunk?: (text: string) => void }
+    ): Promise<ColumnsAiProfileResult> {
+        const MAX_BATCH = 8;
+        if (!this.isConfigured()) {
+            throw new Error('尚未配置 AI 服务 (请在设置中填写 API Key)');
+        }
+        if (!Array.isArray(columns) || columns.length === 0) {
+            throw new Error('没有需要分析的列');
+        }
+        if (columns.length > MAX_BATCH) {
+            throw new Error(`批量列画像最多支持 ${MAX_BATCH} 列/次，当前传入 ${columns.length} 列`);
+        }
+
+        const schema = options?.schemaContext ?? (await this.resolveSchemaContext());
+        const normalizedColumns = columns.map(c => ({
+            columnName: c.columnName,
+            columnType: c.data.columnType || 'VARCHAR',
+            isNumeric: c.data.isNumeric ?? false,
+            isDate: c.data.isDate ?? false,
+            totalRows: c.data.totalRows ?? 0,
+            nullCount: c.data.nullCount ?? 0,
+            nullPct: c.data.nullPct || '0.00%',
+            distinctCount: c.data.distinctCount ?? 0,
+            distinctPct: c.data.distinctPct || '0.00%',
+            topValues: c.data.topValues || [],
+            sampleValues: c.data.sampleValues || [],
+        }));
+        const prompt = PromptBuilder.buildColumnsProfilePrompt(normalizedColumns, schema);
+        return await this.robustCall<ColumnsAiProfileResult>('sql_columns_profile', prompt, PromptBuilder.CORE_ENGINE_SYSTEM, true, 2, options?.onChunk);
     }
 
     /**
@@ -662,9 +938,203 @@ class AIService {
         return narrative.replace(/\[\/?NARRATIVE\]/g, '').trim();
     }
 
+    async diagnoseConnection(configOverride?: Partial<AIConfig>): Promise<{
+        success: boolean;
+        latencyMs: number;
+        modelCount: number;
+        models: { id: string; name: string }[];
+        message: string;
+        errorCategory?: 'service_not_running' | 'unreachable' | 'auth_failed' | 'timeout' | 'model_not_found' | 'other';
+    }> {
+        const config = { ...this.getConfig(), ...configOverride };
+        const startTime = Date.now();
+
+        if (config.provider === 'ollama') {
+            const rawBaseUrl = (config.baseUrl || 'http://localhost:11434').replace(/\/+$/, '');
+            const rootUrl = rawBaseUrl.replace(/\/v1\/?$/, '');
+
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 4000);
+
+                const response = await fetch(`${rootUrl}/api/tags`, {
+                    signal: controller.signal,
+                });
+                clearTimeout(timeoutId);
+                const latencyMs = Date.now() - startTime;
+
+                if (response.ok) {
+                    const data = await response.json();
+                    const models = Array.isArray(data.models) ? data.models.map((m: any) => ({
+                        id: m.name || m.model,
+                        name: `${m.name || m.model}${m.size ? ` (${(m.size / (1024 * 1024 * 1024)).toFixed(1)} GB)` : ''}`,
+                    })) : [];
+
+                    return {
+                        success: true,
+                        latencyMs,
+                        modelCount: models.length,
+                        models,
+                        message: `已连接本地 Ollama (延迟: ${latencyMs}ms，已安装 ${models.length} 个模型)`,
+                    };
+                } else if (response.status === 401 || response.status === 403) {
+                    return {
+                        success: false,
+                        latencyMs,
+                        modelCount: 0,
+                        models: [],
+                        message: '认证失败: Ollama 实例启用了访问鉴权',
+                        errorCategory: 'auth_failed',
+                    };
+                } else {
+                    return {
+                        success: false,
+                        latencyMs,
+                        modelCount: 0,
+                        models: [],
+                        message: `Endpoint 无法正常连接 (HTTP ${response.status})`,
+                        errorCategory: 'unreachable',
+                    };
+                }
+            } catch (err: any) {
+                const latencyMs = Date.now() - startTime;
+                if (err.name === 'AbortError') {
+                    return {
+                        success: false,
+                        latencyMs,
+                        modelCount: 0,
+                        models: [],
+                        message: '请求超时: 无法在 4 秒内收到本地 Ollama 响应',
+                        errorCategory: 'timeout',
+                    };
+                }
+                return {
+                    success: false,
+                    latencyMs,
+                    modelCount: 0,
+                    models: [],
+                    message: `Ollama 服务未启动或无法访问 (${rootUrl})`,
+                    errorCategory: 'service_not_running',
+                };
+            }
+        } else if (config.provider === 'lmstudio') {
+            const rawBaseUrl = (config.baseUrl || 'http://localhost:1234/v1').replace(/\/+$/, '');
+            const rootUrl = rawBaseUrl.replace(/\/v1\/?$/, '');
+
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 4000);
+
+                const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+                if (config.apiKey && config.apiKey !== 'lm-studio' && config.apiKey !== 'ollama') {
+                    headers['Authorization'] = `Bearer ${config.apiKey}`;
+                }
+
+                const response = await fetch(`${rootUrl}/v1/models`, {
+                    signal: controller.signal,
+                    headers,
+                });
+                clearTimeout(timeoutId);
+                const latencyMs = Date.now() - startTime;
+
+                if (response.ok) {
+                    const data = await response.json();
+                    const models = Array.isArray(data.data) ? data.data
+                        .filter((m: any) => m.id)
+                        .map((m: any) => ({
+                            id: m.id,
+                            name: `${m.id}${m.state === 'loaded' ? ' (已加载)' : ''}`,
+                        })) : [];
+
+                    return {
+                        success: true,
+                        latencyMs,
+                        modelCount: models.length,
+                        models,
+                        message: models.length > 0
+                            ? `已连接本地 LM Studio (延迟: ${latencyMs}ms，检测到 ${models.length} 个可用模型)`
+                            : `已连接本地 LM Studio (延迟: ${latencyMs}ms，当前暂未加载模型，请在 LM Studio 中加载模型)`,
+                    };
+                } else if (response.status === 401 || response.status === 403) {
+                    return {
+                        success: false,
+                        latencyMs,
+                        modelCount: 0,
+                        models: [],
+                        message: '认证失败: LM Studio 服务启用了 API Key 鉴权',
+                        errorCategory: 'auth_failed',
+                    };
+                } else {
+                    return {
+                        success: false,
+                        latencyMs,
+                        modelCount: 0,
+                        models: [],
+                        message: `Endpoint 无法正常连接 (HTTP ${response.status})`,
+                        errorCategory: 'unreachable',
+                    };
+                }
+            } catch (err: any) {
+                const latencyMs = Date.now() - startTime;
+                if (err.name === 'AbortError') {
+                    return {
+                        success: false,
+                        latencyMs,
+                        modelCount: 0,
+                        models: [],
+                        message: '请求超时: 无法在 4 秒内收到本地 LM Studio 响应',
+                        errorCategory: 'timeout',
+                    };
+                }
+                return {
+                    success: false,
+                    latencyMs,
+                    modelCount: 0,
+                    models: [],
+                    message: `LM Studio 本地服务未启动或无法访问 (${rootUrl})`,
+                    errorCategory: 'service_not_running',
+                };
+            }
+        } else {
+            // Cloud providers
+            if (!config.apiKey?.trim()) {
+                return {
+                    success: false,
+                    latencyMs: 0,
+                    modelCount: 0,
+                    models: [],
+                    message: '认证失败: 尚未填写 API Key',
+                    errorCategory: 'auth_failed',
+                };
+            }
+
+            try {
+                const models = await this.fetchAvailableModels();
+                const latencyMs = Date.now() - startTime;
+                return {
+                    success: true,
+                    latencyMs,
+                    modelCount: models.length,
+                    models,
+                    message: `已连接 ${config.provider} (延迟: ${latencyMs}ms，检测到 ${models.length} 个可用模型)`,
+                };
+            } catch (err: any) {
+                const latencyMs = Date.now() - startTime;
+                return {
+                    success: false,
+                    latencyMs,
+                    modelCount: 0,
+                    models: [],
+                    message: `连接失败: ${err.message || '网络请求错误'}`,
+                    errorCategory: 'other',
+                };
+            }
+        }
+    }
+
     async fetchAvailableModels(): Promise<{ id: string; name: string }[]> {
         const config = this.getConfig();
-        if (!config.apiKey) {
+        if (!config.apiKey && config.provider !== 'ollama' && config.provider !== 'lmstudio') {
             throw new Error("API Key not configured. Please save your API key first.");
         }
 
@@ -682,6 +1152,69 @@ class AIService {
                     }
                 }
                 return models.length > 0 ? models : this.getDefaultModels(config.provider);
+            } else if (config.provider === 'ollama') {
+                const rawBaseUrl = (config.baseUrl || 'http://localhost:11434').replace(/\/+$/, '');
+                const rootUrl = rawBaseUrl.replace(/\/v1\/?$/, '');
+
+                // 1. First attempt: Standard Ollama /api/tags endpoint listing currently downloaded/installed models
+                try {
+                    const response = await fetch(`${rootUrl}/api/tags`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (Array.isArray(data.models) && data.models.length > 0) {
+                            return data.models.map((m: any) => {
+                                const id = m.name || m.model;
+                                const sizeGB = m.size ? ` (${(m.size / (1024 * 1024 * 1024)).toFixed(1)} GB)` : '';
+                                return { id, name: `${id}${sizeGB}` };
+                            });
+                        }
+                    }
+                } catch (tagErr) {
+                    console.warn('[AIService] Ollama /api/tags request failed, trying /v1/models...', tagErr);
+                }
+
+                // 2. Second attempt: OpenAI compatible /v1/models on Ollama
+                try {
+                    const response = await fetch(`${rootUrl}/v1/models`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        const models = (data.data || [])
+                            .filter((m: any) => m.id)
+                            .map((m: any) => ({ id: m.id, name: m.id }))
+                            .sort((a: any, b: any) => a.name.localeCompare(b.name));
+                        if (models.length > 0) return models;
+                    }
+                } catch (v1Err) {
+                    console.warn('[AIService] Ollama /v1/models request failed, using default models...', v1Err);
+                }
+
+                return this.getDefaultModels(config.provider);
+            } else if (config.provider === 'lmstudio') {
+                const rawBaseUrl = (config.baseUrl || 'http://localhost:1234/v1').replace(/\/+$/, '');
+                const rootUrl = rawBaseUrl.replace(/\/v1\/?$/, '');
+
+                try {
+                    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+                    if (config.apiKey && config.apiKey !== 'lm-studio' && config.apiKey !== 'ollama') {
+                        headers['Authorization'] = `Bearer ${config.apiKey}`;
+                    }
+                    const response = await fetch(`${rootUrl}/v1/models`, { headers });
+                    if (response.ok) {
+                        const data = await response.json();
+                        const models = (data.data || [])
+                            .filter((m: any) => m.id)
+                            .map((m: any) => ({
+                                id: m.id,
+                                name: `${m.id}${m.state === 'loaded' ? ' (已加载)' : ''}`,
+                            }))
+                            .sort((a: any, b: any) => a.name.localeCompare(b.name));
+                        if (models.length > 0) return models;
+                    }
+                } catch (err) {
+                    console.warn('[AIService] LM Studio /v1/models request failed, using default models...', err);
+                }
+
+                return this.getDefaultModels(config.provider);
             } else {
                 let baseUrl = config.baseUrl || (config.provider === 'groq' ? 'https://api.groq.com/openai/v1' : config.provider === 'claude' ? 'https://api.anthropic.com' : 'https://api.openai.com/v1');
                 baseUrl = baseUrl.replace(/\/chat\/completions\/?$/, '');
@@ -731,6 +1264,21 @@ class AIService {
                     { id: 'claude-sonnet-4-20250514', name: 'Claude Sonnet 4 (May 2025)' },
                     { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet' },
                     { id: 'claude-3-5-haiku-20241022', name: 'Claude 3.5 Haiku' },
+                ];
+            case 'ollama':
+                return [
+                    { id: 'llama3.2', name: 'Llama 3.2 (Local)' },
+                    { id: 'qwen2.5-coder', name: 'Qwen 2.5 Coder (Local)' },
+                    { id: 'deepseek-r1', name: 'DeepSeek R1 (Local)' },
+                    { id: 'mistral', name: 'Mistral (Local)' },
+                    { id: 'codellama', name: 'CodeLlama (Local)' },
+                ];
+            case 'lmstudio':
+                return [
+                    { id: 'qwen2.5-coder-7b-instruct', name: 'Qwen 2.5 Coder 7B (LM Studio)' },
+                    { id: 'deepseek-r1-distill-qwen-7b', name: 'DeepSeek R1 Distill Qwen 7B (LM Studio)' },
+                    { id: 'llama-3.2-3b-instruct', name: 'Llama 3.2 3B (LM Studio)' },
+                    { id: 'mistral-nemo-instruct-2407', name: 'Mistral Nemo 12B (LM Studio)' },
                 ];
             default:
                 return [];

@@ -1,5 +1,6 @@
 // User Tutorial Storage Service
 // 使用 IndexedDB 存储用户上传的 Markdown 教程
+import { closeDatabaseOnVersionChange } from './indexedDBLifecycle';
 
 const DB_NAME = 'duckdb_tutorials';
 const DB_VERSION = 1;
@@ -22,7 +23,7 @@ const openDB = (): Promise<IDBDatabase> => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
 
     request.onerror = () => reject(request.error);
-    request.onsuccess = () => resolve(request.result);
+    request.onsuccess = () => resolve(closeDatabaseOnVersionChange(request.result));
 
     request.onupgradeneeded = (event) => {
       const db = (event.target as IDBOpenDBRequest).result;

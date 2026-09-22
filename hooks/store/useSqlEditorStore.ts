@@ -24,7 +24,10 @@
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import type { SqlTab, QueryHistoryItem, SavedQuery, ColumnInfo } from '../../types';
+import type { SqlTab, QueryHistoryItem, SavedQuery, ColumnInfo, QueryResult } from '../../types';
+import type { EditorThemeId } from '../../themes/sqlEditorThemes';
+import type { AiCapabilityDefinition } from '../../services/aiCapabilitiesStorage';
+import { toastService } from '../../services/toastService';
 
 // ============================================================
 // tabsSlice
@@ -127,6 +130,8 @@ interface HistorySlice {
   setHistory: (history: QueryHistoryItem[]) => void;
   setHistoryFilter: (q: string) => void;
   addHistory: (item: QueryHistoryItem) => void;
+  toggleStarHistoryItem: (id: string) => void;
+  removeHistoryItem: (id: string) => void;
   clearHistory: () => void;
 }
 
@@ -186,6 +191,46 @@ interface UiSlice {
   setShowAiExplanation: (v: boolean) => void;
   aiExplanationHistory: any[];
   setAiExplanationHistory: (h: any[]) => void;
+
+  // AI Proposal Diff Safety Modal State
+  aiProposal: {
+    isOpen: boolean;
+    title: string;
+    explanation: string;
+    originalSql: string;
+    proposedSql: string;
+  } | null;
+  setAiProposal: (
+    p: {
+      isOpen: boolean;
+      title: string;
+      explanation: string;
+      originalSql: string;
+      proposedSql: string;
+    } | null
+  ) => void;
+  // AI Capability Prompt Input Modal State
+  aiCapabilityPromptModal: {
+    isOpen: boolean;
+    capability: AiCapabilityDefinition;
+    substitutedPrompt: string;
+    schemaContext: string;
+  } | null;
+  setAiCapabilityPromptModal: (m: {
+    isOpen: boolean;
+    capability: AiCapabilityDefinition;
+    substitutedPrompt: string;
+    schemaContext: string;
+  } | null) => void;
+
+  // AI Result Insights Modal State
+  aiResultInsights: {
+    isOpen: boolean;
+    result: QueryResult | null;
+    insightMarkdown: string;
+    isLoading: boolean;
+  } | null;
+  setAiResultInsights: (r: { isOpen: boolean; result: QueryResult | null; insightMarkdown: string; isLoading: boolean } | null) => void;
 
   // Loading flags
   isAiLoading: boolean;
@@ -254,6 +299,10 @@ interface UiSlice {
   // Auto-save draft
   lastSavedAt: number | null;
   setLastSavedAt: (t: number | null) => void;
+
+  // Editor theme
+  editorTheme: EditorThemeId;
+  setEditorTheme: (id: EditorThemeId) => void;
 }
 
 // ============================================================
@@ -328,6 +377,22 @@ export const useSqlEditorStore = create<Store>()(
           localStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
         } catch {}
       },
+      toggleStarHistoryItem: (id) => {
+        const updated = get().history.map(item =>
+          item.id === id ? { ...item, isStarred: !item.isStarred } : item
+        );
+        set({ history: updated });
+        try {
+          localStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
+        } catch {}
+      },
+      removeHistoryItem: (id) => {
+        const updated = get().history.filter(item => item.id !== id);
+        set({ history: updated });
+        try {
+          localStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
+        } catch {}
+      },
       clearHistory: () => {
         set({ history: [] });
         try {
@@ -351,7 +416,11 @@ export const useSqlEditorStore = create<Store>()(
       setActiveSidebarTab: (t) => set({ activeSidebarTab: t }),
 
       toast: null,
-      showToast: (message, type = 'info') => set({ toast: { message, type } }),
+      showToast: (message, type = 'info') => {
+        set({ toast: { message, type } });
+        const severity = type === 'warning' ? 'warning' : type === 'success' ? 'success' : 'info';
+        toastService.show(message, severity);
+      },
       clearToast: () => set({ toast: null }),
 
       showSnippetsMenu: false,
@@ -384,6 +453,13 @@ export const useSqlEditorStore = create<Store>()(
       setShowAiExplanation: (v) => set({ showAiExplanation: v }),
       aiExplanationHistory: [],
       setAiExplanationHistory: (h) => set({ aiExplanationHistory: h }),
+
+      aiProposal: null,
+      setAiProposal: (p) => set({ aiProposal: p }),
+      aiCapabilityPromptModal: null,
+      setAiCapabilityPromptModal: (m) => set({ aiCapabilityPromptModal: m }),
+      aiResultInsights: null,
+      setAiResultInsights: (r) => set({ aiResultInsights: r }),
 
       isAiLoading: false,
       setIsAiLoading: (v) => set({ isAiLoading: v }),
@@ -443,6 +519,9 @@ export const useSqlEditorStore = create<Store>()(
 
       lastSavedAt: null,
       setLastSavedAt: (t) => set({ lastSavedAt: t }),
+
+      editorTheme: 'monokai-pro' as EditorThemeId,
+      setEditorTheme: (id) => set({ editorTheme: id }),
     }),
     {
       name: 'sql-editor-ui-v1',
@@ -456,6 +535,7 @@ export const useSqlEditorStore = create<Store>()(
         selectedSqlType: state.selectedSqlType,
         activeSidebarTab: state.activeSidebarTab,
         aiOptimizationHistory: state.aiOptimizationHistory,
+        editorTheme: state.editorTheme,
       }),
       // On rehydrate, migrate legacy tab shapes.
       onRehydrateStorage: () => (state) => {

@@ -61,7 +61,7 @@ export const TAB_CONFIG: TabMeta[] = [
     id: 'insight',
     label: '洞察 (Insight)',
     icon: Sparkles,
-    color: 'text-[#ae81ff]',
+    color: 'text-[#e6db74]',
     scenarioTitle: '闪念洞察层 — 提炼价值碎片',
     scenarioDesc: '收集散落在各个实体之上的核心洞察与标签分类。支持通过标签分类对知识进行归纳整合。',
     warningText: '洞察记录必须关联实体。支持设置任意形式的 tag，用于快速聚合及检索高价值闪念。',

@@ -22,6 +22,7 @@ interface ProfileOperator {
 interface ProfileNodeProps {
   node: any;
   totalTiming: number;
+  isRoot?: boolean;
 }
 
 // Case-insensitive property lookup helper
@@ -108,18 +109,18 @@ const ProfileNode: React.FC<ProfileNodeProps> = ({ node, totalTiming, isRoot = f
   let textColor = 'text-monokai-fg';
 
   if (isBottleneck) {
-    borderColor = 'border-monokai-pink/80 shadow-[0_0_10px_rgba(249,38,114,0.15)]';
+    borderColor = 'border-monokai-border shadow-[0_0_10px_rgba(249,38,114,0.15)]';
     badgeColor = 'bg-monokai-pink/20 text-monokai-pink';
     textColor = 'text-monokai-pink font-bold';
   } else if (isWarning) {
-    borderColor = 'border-monokai-orange/80 shadow-[0_0_8px_rgba(253,151,31,0.1)]';
+    borderColor = 'border-monokai-border shadow-[0_0_8px_rgba(253,151,31,0.1)]';
     badgeColor = 'bg-monokai-orange/20 text-monokai-orange';
     textColor = 'text-monokai-orange font-bold';
   } else if (isLight) {
-    borderColor = 'border-monokai-yellow/60';
+    borderColor = 'border-monokai-border';
     badgeColor = 'bg-monokai-yellow/20 text-monokai-yellow';
   } else {
-    borderColor = 'border-monokai-green/40';
+    borderColor = 'border-monokai-border';
     badgeColor = 'bg-monokai-green/10 text-monokai-green';
   }
 
@@ -353,25 +354,27 @@ export const SqlEditorProfilingView: React.FC<SqlEditorProfilingViewProps> = ({ 
 
   return (
     <div className="p-4 h-full overflow-auto custom-scrollbar flex flex-col gap-4 bg-monokai-bg">
-      <div className="flex justify-between items-center bg-monokai-surface p-3 rounded border border-monokai-accent/40 flex-wrap gap-3">
-        <div className="flex items-center gap-2">
-          <BarChart2 className="text-monokai-cyan w-5 h-5 animate-pulse" />
+      <div className="flex justify-between items-center bg-monokai-sidebar/95 backdrop-blur-md p-3.5 rounded-xl border border-monokai-border/70 flex-wrap gap-3 shadow-xs">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-monokai-cyan/15 border border-monokai-border flex items-center justify-center text-monokai-cyan">
+            <BarChart2 className="w-4 h-4" />
+          </div>
           <div>
-            <h3 className="text-xs font-bold text-monokai-fg uppercase tracking-wider">Performance Profiling Panel</h3>
-            <p className="text-[10px] text-monokai-comment">DuckDB Operator-level Cost and execution analysis</p>
+            <h3 className="text-xs font-bold font-mono text-monokai-fg uppercase tracking-wider">Performance Profiling</h3>
+            <p className="text-[10.5px] text-monokai-comment">DuckDB 算子级开销、行数与耗时剖析</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <div className="flex bg-monokai-bg p-0.5 rounded border border-monokai-accent/30 mr-2">
+          <div className="flex bg-monokai-bg/90 p-0.5 rounded-lg border border-monokai-border/60 mr-1 gap-1">
             <button
               onClick={() => setViewMode('tree')}
-              className={`px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded transition-colors ${viewMode === 'tree' ? 'bg-monokai-accent text-monokai-fg shadow-sm' : 'text-monokai-comment hover:text-monokai-fg'}`}
+              className={`px-3 py-1 text-[10.5px] font-mono font-bold uppercase tracking-wider rounded-md transition-all cursor-pointer ${viewMode === 'tree' ? 'bg-monokai-surface text-monokai-fg shadow-xs border border-monokai-border/80' : 'text-monokai-comment hover:text-monokai-fg'}`}
             >
               Tree View
             </button>
             <button
               onClick={() => setViewMode('table')}
-              className={`px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded transition-colors ${viewMode === 'table' ? 'bg-monokai-accent text-monokai-fg shadow-sm' : 'text-monokai-comment hover:text-monokai-fg'}`}
+              className={`px-3 py-1 text-[10.5px] font-mono font-bold uppercase tracking-wider rounded-md transition-all cursor-pointer ${viewMode === 'table' ? 'bg-monokai-surface text-monokai-fg shadow-xs border border-monokai-border/80' : 'text-monokai-comment hover:text-monokai-fg'}`}
             >
               Table View
             </button>
@@ -380,20 +383,20 @@ export const SqlEditorProfilingView: React.FC<SqlEditorProfilingViewProps> = ({ 
             <button
               onClick={handleAiOptimize}
               disabled={isAiLoading || loading}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-monokai-amethyst text-monokai-bg font-bold rounded text-xs hover:opacity-90 disabled:opacity-40 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-monokai-amethyst text-monokai-bg font-bold rounded-lg text-xs hover:brightness-110 disabled:opacity-40 transition-all cursor-pointer shadow-xs active:scale-95"
               title={`瓶颈算子: ${bottleneckOperator.name} (${bottleneckOperator.percentage.toFixed(1)}%)`}
             >
               {isAiLoading ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
-              AI 性能重构
+              <span>AI 性能重构</span>
             </button>
           )}
           <button
             onClick={runProfiling}
             disabled={loading}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-monokai-cyan text-monokai-bg font-bold rounded text-xs hover:bg-monokai-cyan/90 disabled:opacity-40 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-monokai-cyan text-monokai-bg font-bold rounded-lg text-xs hover:brightness-110 disabled:opacity-40 transition-all cursor-pointer shadow-xs active:scale-95"
           >
-            {loading ? <Loader2 size={12} className="animate-spin" /> : <Play size={12} />}
-            Recalculate Profile
+            {loading ? <Loader2 size={12} className="animate-spin" /> : <Play size={12} fill="currentColor" />}
+            <span>重新分析</span>
           </button>
         </div>
       </div>
@@ -401,19 +404,19 @@ export const SqlEditorProfilingView: React.FC<SqlEditorProfilingViewProps> = ({ 
       {loading && (
         <div className="flex-1 py-12 flex flex-col items-center justify-center gap-3">
           <Loader2 size={36} className="text-monokai-cyan animate-spin" />
-          <span className="text-xs text-monokai-comment tracking-wider animate-pulse uppercase font-mono">Running Profiler...</span>
+          <span className="text-xs text-monokai-comment tracking-wider uppercase font-mono">正在分析算子执行开销...</span>
         </div>
       )}
 
       {error && (
-        <div className="bg-monokai-pink/10 border border-monokai-pink/30 text-monokai-pink p-3 rounded text-xs font-mono">
-          <strong>Error:</strong> {error}
+        <div className="bg-monokai-pink/10 border border-monokai-border text-monokai-pink p-3.5 rounded-xl text-xs font-mono leading-relaxed">
+          <strong className="font-bold">Error:</strong> {error}
         </div>
       )}
 
       {!loading && !error && !profileData && (
-        <div className="text-center py-12 text-monokai-comment">
-          No profiling data loaded. Click recalculate to trigger profiling.
+        <div className="text-center py-12 text-monokai-comment font-mono text-xs">
+          暂无执行性能数据。点击“重新分析”启动 DuckDB Profiler。
         </div>
       )}
 
@@ -421,27 +424,33 @@ export const SqlEditorProfilingView: React.FC<SqlEditorProfilingViewProps> = ({ 
         <div className="flex flex-col gap-4">
           {/* Key Metrics Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="bg-monokai-surface p-3 rounded border border-monokai-accent/30 flex items-center gap-3">
-              <Cpu className="text-monokai-pink w-8 h-8" />
+            <div className="bg-monokai-sidebar/80 p-3.5 rounded-xl border border-monokai-border/70 flex items-center gap-3.5 shadow-xs">
+              <div className="w-10 h-10 rounded-lg bg-monokai-pink/15 border border-monokai-border flex items-center justify-center text-monokai-pink shrink-0">
+                <Cpu className="w-5 h-5" />
+              </div>
               <div>
-                <div className="text-[9px] text-monokai-comment uppercase font-bold tracking-wider">Total CPU Time</div>
-                <div className="text-lg font-bold text-monokai-fg font-mono">{(totalTiming * 1000).toFixed(2)} ms</div>
+                <div className="text-[10px] text-monokai-comment uppercase font-bold tracking-wider font-mono">Total CPU Time</div>
+                <div className="text-lg font-bold text-monokai-fg font-mono tabular-nums">{(totalTiming * 1000).toFixed(2)} ms</div>
               </div>
             </div>
 
-            <div className="bg-monokai-surface p-3 rounded border border-monokai-accent/30 flex items-center gap-3">
-              <TrendingUp className="text-monokai-green w-8 h-8" />
+            <div className="bg-monokai-sidebar/80 p-3.5 rounded-xl border border-monokai-border/70 flex items-center gap-3.5 shadow-xs">
+              <div className="w-10 h-10 rounded-lg bg-monokai-green/15 border border-monokai-border flex items-center justify-center text-monokai-green shrink-0">
+                <TrendingUp className="w-5 h-5" />
+              </div>
               <div>
-                <div className="text-[9px] text-monokai-comment uppercase font-bold tracking-wider">Peak Memory</div>
-                <div className="text-lg font-bold text-monokai-green font-mono">{peakMemoryInfo}</div>
+                <div className="text-[10px] text-monokai-comment uppercase font-bold tracking-wider font-mono">Peak Memory</div>
+                <div className="text-lg font-bold text-monokai-green font-mono tabular-nums">{peakMemoryInfo}</div>
               </div>
             </div>
 
-            <div className="bg-monokai-surface p-3 rounded border border-monokai-accent/30 flex items-center gap-3">
-              <HelpCircle className="text-monokai-yellow w-8 h-8" />
+            <div className="bg-monokai-sidebar/80 p-3.5 rounded-xl border border-monokai-border/70 flex items-center gap-3.5 shadow-xs">
+              <div className="w-10 h-10 rounded-lg bg-monokai-yellow/15 border border-monokai-border flex items-center justify-center text-monokai-yellow shrink-0">
+                <HelpCircle className="w-5 h-5" />
+              </div>
               <div>
-                <div className="text-[9px] text-monokai-comment uppercase font-bold tracking-wider">Plan Operators</div>
-                <div className="text-lg font-bold text-monokai-fg font-mono">{flattenedOperators.length}</div>
+                <div className="text-[10px] text-monokai-comment uppercase font-bold tracking-wider font-mono">Plan Operators</div>
+                <div className="text-lg font-bold text-monokai-fg font-mono tabular-nums">{flattenedOperators.length}</div>
               </div>
             </div>
           </div>
@@ -512,48 +521,48 @@ export const SqlEditorProfilingView: React.FC<SqlEditorProfilingViewProps> = ({ 
           </details>
 
           {showAiModal && optimizedSql && (
-            <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/75 backdrop-blur-sm animate-[fadeIn_0.2s]">
-              <div className="bg-monokai-sidebar border border-monokai-amethyst/50 rounded-xl shadow-2xl w-[600px] overflow-hidden animate-[slideIn_0.25s_ease-out]">
+            <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-150 p-4">
+              <div className="bg-monokai-sidebar border border-monokai-border rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col text-monokai-fg">
                 {/* Header */}
-                <div className="flex items-center justify-between px-5 py-4 bg-monokai-bg border-b border-monokai-accent">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-monokai-amethyst/20 flex items-center justify-center">
-                      <Sparkles className="w-4 h-4 text-monokai-amethyst" />
+                <div className="flex items-center justify-between px-5 py-4 bg-monokai-bg/90 border-b border-monokai-border shrink-0">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-monokai-amethyst/15 border border-monokai-border flex items-center justify-center text-monokai-amethyst">
+                      <Sparkles className="w-4 h-4" />
                     </div>
                     <div>
-                      <h3 className="text-base font-bold text-monokai-fg">AI SQL 性能重构建议</h3>
-                      <p className="text-[10px] text-monokai-comment">针对算子 [{bottleneckOperator?.name}] 瓶颈进行的性能优化建议</p>
+                      <h3 className="text-sm font-bold text-monokai-fg">AI SQL 性能重构建议</h3>
+                      <p className="text-[10.5px] text-monokai-comment">针对瓶颈算子 [{bottleneckOperator?.name}] 提供的针对性改写建议</p>
                     </div>
                   </div>
                   <button
                     onClick={() => setShowAiModal(false)}
-                    className="w-7 h-7 rounded-lg hover:bg-monokai-accent flex items-center justify-center text-monokai-comment hover:text-monokai-fg transition-colors"
+                    className="w-7 h-7 rounded-lg hover:bg-monokai-surface flex items-center justify-center text-monokai-comment hover:text-monokai-pink transition-colors cursor-pointer"
                   >
                     <X size={16} />
                   </button>
                 </div>
 
                 {/* Diff/Code View */}
-                <div className="p-5 space-y-4">
+                <div className="p-5 space-y-3 flex-1 overflow-y-auto custom-scrollbar">
                   <div>
-                    <span className="block text-[10px] font-bold text-monokai-comment uppercase tracking-wider mb-2">优化后 SQL 预览</span>
-                    <pre className="text-xs text-monokai-fg font-mono bg-monokai-bg p-4 rounded-lg border border-monokai-accent/30 max-h-[300px] overflow-auto whitespace-pre-wrap">
+                    <span className="block text-[10px] font-bold font-mono text-monokai-comment uppercase tracking-wider mb-2">优化后 SQL 预览</span>
+                    <pre className="text-xs text-monokai-fg/90 font-mono bg-monokai-bg/90 p-4 rounded-xl border border-monokai-border/70 max-h-[320px] overflow-auto whitespace-pre-wrap custom-scrollbar">
                       {optimizedSql}
                     </pre>
                   </div>
                 </div>
 
                 {/* Buttons */}
-                <div className="flex justify-end gap-3 px-5 py-4 bg-monokai-bg border-t border-monokai-accent">
+                <div className="flex justify-end gap-2.5 px-5 py-3.5 bg-monokai-bg/90 border-t border-monokai-border shrink-0">
                   <button
                     onClick={() => setShowAiModal(false)}
-                    className="px-4 py-2 text-sm font-medium text-monokai-comment hover:text-monokai-fg hover:bg-monokai-accent rounded-lg transition-colors"
+                    className="px-3.5 py-1.5 text-xs font-medium text-monokai-comment hover:text-monokai-fg hover:bg-monokai-surface rounded-lg transition-colors cursor-pointer"
                   >
                     取消
                   </button>
                   <button
                     onClick={applyOptimizedSql}
-                    className="px-5 py-2 bg-monokai-amethyst text-monokai-bg font-bold rounded-lg text-sm hover:opacity-90 transition-all flex items-center gap-2"
+                    className="px-4 py-1.5 bg-monokai-amethyst text-monokai-bg font-bold rounded-lg text-xs hover:brightness-110 active:scale-95 transition-all flex items-center gap-1.5 shadow-xs cursor-pointer"
                   >
                     <Check size={14} />
                     应用优化 SQL 到编辑器

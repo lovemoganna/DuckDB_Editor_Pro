@@ -7,7 +7,7 @@ import {
   generateTutorialId,
   UserTutorial,
 } from '../../services/userTutorialStorage';
-import { Link, FileUp, Loader2, AlertCircle } from 'lucide-react';
+import { Link, FileUp, Loader2, AlertCircle, X, Check } from 'lucide-react';
 
 interface UploadTutorialModalProps {
   isOpen: boolean;
@@ -30,7 +30,7 @@ export const UploadTutorialModal: React.FC<UploadTutorialModalProps> = ({
   const [error, setError] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // 新增：导入模式（文件/URL）
+  // 导入模式（文件/URL）
   const [importMode, setImportMode] = useState<'file' | 'url'>('file');
   const [url, setUrl] = useState<string>('');
   const [isFetching, setIsFetching] = useState(false);
@@ -40,27 +40,22 @@ export const UploadTutorialModal: React.FC<UploadTutorialModalProps> = ({
     const selectedFile = e.target.files?.[0];
     if (!selectedFile) return;
 
-    // 检查文件类型
     if (!selectedFile.name.endsWith('.md')) {
       setError('请选择 .md 格式的 Markdown 文件');
       return;
     }
 
-    // 读取文件内容
     try {
       const text = await selectedFile.text();
       setFile(selectedFile);
       setContent(text);
 
-      // 自动提取标题
       const extractedTitle = extractTitleFromMarkdown(text);
       setTitle(extractedTitle);
 
-      // 自动判断难度
       const extractedDifficulty = extractDifficultyFromMarkdown(text);
       setDifficulty(extractedDifficulty);
 
-      // 自动设置分类
       const extractedCategory = extractCategoryFromMarkdown(text);
       setCategory(extractedCategory);
 
@@ -78,7 +73,6 @@ export const UploadTutorialModal: React.FC<UploadTutorialModalProps> = ({
       return;
     }
 
-    // 验证 URL 格式
     try {
       new URL(url);
     } catch {
@@ -97,7 +91,6 @@ export const UploadTutorialModal: React.FC<UploadTutorialModalProps> = ({
       
       const text = await response.text();
       
-      // 检查内容是否为有效的 Markdown
       if (!text.trim()) {
         setError('获取的内容为空');
         return;
@@ -105,30 +98,28 @@ export const UploadTutorialModal: React.FC<UploadTutorialModalProps> = ({
 
       setContent(text);
 
-      // 自动提取标题
       const extractedTitle = extractTitleFromMarkdown(text);
-      setTitle(extractedTitle);
+      setTitle(extractedTitle || '从 URL 导入的教程');
 
-      // 自动判断难度
       const extractedDifficulty = extractDifficultyFromMarkdown(text);
       setDifficulty(extractedDifficulty);
 
-      // 自动设置分类
       const extractedCategory = extractCategoryFromMarkdown(text);
-      setCategory(extractedCategory);
+      setCategory(extractedCategory || '在线教程');
 
-    } catch (err) {
+      setError('');
+    } catch (err: any) {
+      setError(`从 URL 获取失败: ${err.message}`);
       console.error('URL fetch error:', err);
-      setError('获取失败，请检查 URL 是否正确或是否存在跨域问题');
     } finally {
       setIsFetching(false);
     }
   };
 
-  // 处理保存
+  // 保存教程
   const handleSave = async () => {
-    if (!content) {
-      setError('请先选择 Markdown 文件或输入 URL 获取内容');
+    if (!content.trim()) {
+      setError('教程内容不能为空');
       return;
     }
 
@@ -144,10 +135,10 @@ export const UploadTutorialModal: React.FC<UploadTutorialModalProps> = ({
       const tutorial: UserTutorial = {
         id: generateTutorialId(),
         title: title.trim(),
-        content,
-        category,
+        content: content.trim(),
         difficulty,
-        tags: tags.split(',').map(t => t.trim()).filter(t => t),
+        category: category.trim() || '我的教程',
+        tags: tags.split(/[,， ]+/).map(t => t.trim()).filter(Boolean),
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -175,7 +166,6 @@ export const UploadTutorialModal: React.FC<UploadTutorialModalProps> = ({
     setUrl('');
     setImportMode('file');
     onClose();
-    // 清空文件输入
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -184,58 +174,61 @@ export const UploadTutorialModal: React.FC<UploadTutorialModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center font-sans select-none">
       {/* 背景遮罩 */}
       <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/70 backdrop-blur-xs"
         onClick={handleClose}
       />
 
       {/* 模态框 */}
-      <div className="relative w-full max-w-lg mx-4 bg-monokai-sidebar border border-monokai-accent rounded-xl shadow-2xl overflow-hidden">
+      <div className="relative w-full max-w-lg mx-4 bg-[#12171f] border border-zinc-800 rounded-xl shadow-2xl overflow-hidden">
         {/* 头部 */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-monokai-accent/50">
-          <h2 className="text-lg font-bold text-white">上传教程</h2>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800 bg-[#0c1015]">
+          <h2 className="text-sm font-bold text-white flex items-center gap-2">
+            <FileUp className="w-4 h-4 text-cyan-400" />
+            <span>导入自定义 Markdown 课程</span>
+          </h2>
           <button
             onClick={handleClose}
-            className="text-monokai-comment hover:text-white transition-colors"
+            className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
           >
-            <span className="text-xl">&times;</span>
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* 内容 */}
-        <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
+        <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto custom-scrollbar">
           {/* 导入方式切换 */}
-          <div className="flex gap-2 mb-2">
+          <div className="flex gap-2 mb-1">
             <button
               onClick={() => { setImportMode('file'); setError(''); }}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                 importMode === 'file'
-                  ? 'bg-monokai-blue/20 text-monokai-blue border border-monokai-blue/50'
-                  : 'bg-monokai-bg text-monokai-comment border border-monokai-accent/30 hover:border-monokai-accent/60'
+                  ? 'bg-cyan-500/15 text-cyan-400 border border-cyan-500/40 shadow-xs'
+                  : 'bg-zinc-900 text-zinc-400 border border-zinc-800 hover:text-white'
               }`}
             >
-              <FileUp className="w-4 h-4" />
-              本地文件
+              <FileUp className="w-3.5 h-3.5" />
+              本地文件 (.md)
             </button>
             <button
               onClick={() => { setImportMode('url'); setError(''); }}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                 importMode === 'url'
-                  ? 'bg-monokai-blue/20 text-monokai-blue border border-monokai-blue/50'
-                  : 'bg-monokai-bg text-monokai-comment border border-monokai-accent/30 hover:border-monokai-accent/60'
+                  ? 'bg-cyan-500/15 text-cyan-400 border border-cyan-500/40 shadow-xs'
+                  : 'bg-zinc-900 text-zinc-400 border border-zinc-800 hover:text-white'
               }`}
             >
-              <Link className="w-4 h-4" />
-              网络链接
+              <Link className="w-3.5 h-3.5" />
+              网络链接 (URL)
             </button>
           </div>
 
           {/* 文件选择 - 仅在文件模式下显示 */}
           {importMode === 'file' && (
-            <div>
-              <label className="block text-sm text-monokai-fg mb-2">
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-zinc-300">
                 选择 Markdown 文件
               </label>
               <input
@@ -243,10 +236,11 @@ export const UploadTutorialModal: React.FC<UploadTutorialModalProps> = ({
                 type="file"
                 accept=".md"
                 onChange={handleFileChange}
-                className="w-full px-3 py-2 bg-monokai-bg border border-monokai-accent/50 rounded-lg text-sm text-monokai-fg file:mr-4 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-monokai-blue/20 file:text-monokai-blue hover:file:bg-monokai-blue/30 cursor-pointer"
+                className="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-xs text-zinc-300 file:mr-3 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-cyan-500/20 file:text-cyan-400 hover:file:bg-cyan-500/30 cursor-pointer"
               />
               {file && (
-                <p className="mt-1 text-xs text-monokai-green">
+                <p className="text-[11px] text-emerald-400 flex items-center gap-1">
+                  <Check className="w-3 h-3" />
                   已选择: {file.name}
                 </p>
               )}
@@ -255,8 +249,8 @@ export const UploadTutorialModal: React.FC<UploadTutorialModalProps> = ({
 
           {/* URL 导入 - 仅在 URL 模式下显示 */}
           {importMode === 'url' && (
-            <div>
-              <label className="block text-sm text-monokai-fg mb-2">
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-zinc-300">
                 输入 Markdown 文件 URL
               </label>
               <div className="flex gap-2">
@@ -265,35 +259,32 @@ export const UploadTutorialModal: React.FC<UploadTutorialModalProps> = ({
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
                   placeholder="https://example.com/tutorial.md"
-                  className="flex-1 px-3 py-2 bg-monokai-bg border border-monokai-accent/50 rounded-lg text-sm text-monokai-fg placeholder-monokai-comment focus:outline-none focus:border-monokai-blue"
+                  className="flex-1 px-3 py-1.5 bg-zinc-900 border border-zinc-800 rounded-lg text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-cyan-400 transition-colors"
                 />
                 <button
                   onClick={handleUrlFetch}
                   disabled={isFetching}
-                  className="px-4 py-2 bg-monokai-blue/20 text-monokai-blue rounded-lg text-sm font-medium hover:bg-monokai-blue/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  className="px-3 py-1.5 bg-zinc-800 text-cyan-400 border border-zinc-700 rounded-lg text-xs font-semibold hover:bg-zinc-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 cursor-pointer shrink-0"
                 >
                   {isFetching ? (
                     <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      获取中
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>获取中</span>
                     </>
                   ) : (
                     <>
-                      <Link className="w-4 h-4" />
-                      获取
+                      <Link className="w-3.5 h-3.5" />
+                      <span>获取</span>
                     </>
                   )}
                 </button>
               </div>
-              <p className="mt-1 text-xs text-monokai-comment">
-                支持 .md 文件的直接链接，部分网站可能因跨域限制无法获取
-              </p>
             </div>
           )}
 
           {/* 标题 */}
-          <div>
-            <label className="block text-sm text-monokai-fg mb-2">
+          <div className="space-y-1.5">
+            <label className="block text-xs font-semibold text-zinc-300">
               教程标题
             </label>
             <input
@@ -301,30 +292,31 @@ export const UploadTutorialModal: React.FC<UploadTutorialModalProps> = ({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="请输入教程标题"
-              className="w-full px-3 py-2 bg-monokai-bg border border-monokai-accent/50 rounded-lg text-sm text-monokai-fg placeholder-monokai-comment focus:outline-none focus:border-monokai-blue"
+              className="w-full px-3 py-1.5 bg-zinc-900 border border-zinc-800 rounded-lg text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-cyan-400 transition-colors"
             />
           </div>
 
           {/* 难度选择 */}
-          <div>
-            <label className="block text-sm text-monokai-fg mb-2">
+          <div className="space-y-1.5">
+            <label className="block text-xs font-semibold text-zinc-300">
               难度级别
             </label>
             <div className="flex gap-2">
               {(['Beginner', 'Intermediate', 'Advanced', 'Expert'] as const).map((level) => (
                 <button
                   key={level}
+                  type="button"
                   onClick={() => setDifficulty(level)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                     difficulty === level
                       ? level === 'Beginner'
-                        ? 'bg-monokai-green/20 text-monokai-green border border-monokai-green/50'
+                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
                         : level === 'Intermediate'
-                        ? 'bg-monokai-orange/20 text-monokai-orange border border-monokai-orange/50'
+                        ? 'bg-amber-500/20 text-amber-400 border border-amber-500/50'
                         : level === 'Advanced'
-                        ? 'bg-monokai-amethyst/20 text-monokai-amethyst border border-monokai-amethyst/50'
-                        : 'bg-monokai-blue/20 text-monokai-blue border border-monokai-blue/50'
-                      : 'bg-monokai-bg text-monokai-comment border border-monokai-accent/30 hover:border-monokai-accent/60'
+                        ? 'bg-rose-500/20 text-rose-400 border border-rose-500/50'
+                        : 'bg-purple-500/20 text-purple-400 border border-purple-500/50'
+                      : 'bg-zinc-900 text-zinc-400 border border-zinc-800 hover:text-white'
                   }`}
                 >
                   {level === 'Beginner' ? '入门' :
@@ -336,68 +328,70 @@ export const UploadTutorialModal: React.FC<UploadTutorialModalProps> = ({
           </div>
 
           {/* 分类 */}
-          <div>
-            <label className="block text-sm text-monokai-fg mb-2">
-              分类
+          <div className="space-y-1.5">
+            <label className="block text-xs font-semibold text-zinc-300">
+              所属分类
             </label>
             <input
               type="text"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
               placeholder="我的教程"
-              className="w-full px-3 py-2 bg-monokai-bg border border-monokai-accent/50 rounded-lg text-sm text-monokai-fg placeholder-monokai-comment focus:outline-none focus:border-monokai-blue"
+              className="w-full px-3 py-1.5 bg-zinc-900 border border-zinc-800 rounded-lg text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-cyan-400 transition-colors"
             />
           </div>
 
           {/* 标签 */}
-          <div>
-            <label className="block text-sm text-monokai-fg mb-2">
-              标签 <span className="text-monokai-comment">(用逗号分隔)</span>
+          <div className="space-y-1.5">
+            <label className="block text-xs font-semibold text-zinc-300">
+              标签 <span className="text-zinc-500 font-normal">(用逗号分隔)</span>
             </label>
             <input
               type="text"
               value={tags}
               onChange={(e) => setTags(e.target.value)}
               placeholder="SQL, 数据库, 入门"
-              className="w-full px-3 py-2 bg-monokai-bg border border-monokai-accent/50 rounded-lg text-sm text-monokai-fg placeholder-monokai-comment focus:outline-none focus:border-monokai-blue"
+              className="w-full px-3 py-1.5 bg-zinc-900 border border-zinc-800 rounded-lg text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-cyan-400 transition-colors"
             />
           </div>
 
           {/* 错误提示 */}
           {error && (
-            <div className="p-3 bg-monokai-pink/10 border border-monokai-pink/30 rounded-lg text-sm text-monokai-pink flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 flex-shrink-0" />
-              {error}
+            <div className="p-3 bg-rose-950/30 border border-rose-500/30 rounded-lg text-xs text-rose-300 flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+              <span>{error}</span>
             </div>
           )}
 
           {/* 预览提示 */}
           {content && (
-            <div className="p-3 bg-monokai-blue/10 border border-monokai-blue/30 rounded-lg">
-              <div className="text-xs text-monokai-blue mb-1">内容预览</div>
-              <div className="text-sm text-monokai-fg line-clamp-3">{content.slice(0, 200)}...</div>
+            <div className="p-3 bg-cyan-950/20 border border-cyan-500/30 rounded-lg space-y-1">
+              <div className="text-[11px] font-mono text-cyan-400 font-bold">内容预览 ({content.length} 字符)</div>
+              <div className="text-xs text-zinc-300 line-clamp-3 leading-relaxed">{content.slice(0, 200)}...</div>
             </div>
           )}
         </div>
 
         {/* 底部按钮 */}
-        <div className="flex items-center justify-end gap-3 px-5 py-4 border-t border-monokai-accent/50 bg-monokai-bg/50">
+        <div className="flex items-center justify-end gap-2.5 px-5 py-3.5 border-t border-zinc-800 bg-[#0c1015]">
           <button
+            type="button"
             onClick={handleClose}
-            className="px-4 py-2 text-sm text-monokai-comment hover:text-white transition-colors"
+            className="px-3.5 py-1.5 text-xs text-zinc-400 hover:text-white transition-colors cursor-pointer"
           >
             取消
           </button>
           <button
+            type="button"
             onClick={handleSave}
             disabled={loading || !content}
-            className={`px-5 py-2 text-sm font-medium rounded-lg transition-all ${
+            className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
               loading || !content
-                ? 'bg-monokai-accent/30 text-monokai-comment cursor-not-allowed'
-                : 'bg-monokai-blue text-white hover:bg-monokai-blue/80'
+                ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed border border-zinc-700'
+                : 'bg-cyan-500 text-black hover:bg-cyan-400 shadow-sm active:scale-95'
             }`}
           >
-            {loading ? '保存中...' : '保存教程'}
+            {loading ? '保存中...' : '确认导入'}
           </button>
         </div>
       </div>

@@ -1,5 +1,15 @@
+/**
+ * OntologyRouting - 实体路由算法
+ * 
+ * MECE重构：
+ * 1. 优化锚点计算 - 确保连线准确连接到节点边缘中心
+ * 2. 增强正交路由 - 改善复杂布局下的路径规划
+ * 3. 改进碰撞检测 - 更精确的障碍物检测
+ */
+
 import { Edge, Node, Position } from 'reactflow';
 import { getOntologyNodeDimensions, OntologyLayoutMode } from './OntologyLayout';
+import { NODE_DEFAULT_WIDTH, NODE_COLLAPSED_HEIGHT } from './OntologyCanvas.helpers';
 
 export interface GraphPoint {
   x: number;
@@ -24,24 +34,29 @@ export interface OrthogonalRoute {
   targetSide: HandleSide;
 }
 
-const round = (value: number) => Math.round(value * 10) / 10;
-const pointKey = (point: GraphPoint) => `${round(point.x)}:${round(point.y)}`;
-
+/**
+ * MECE重构：获取节点的边界矩形
+ * 确保使用节点的实际尺寸，而非固定值
+ */
 export const getGraphNodeRect = (node: Node, isExport = false): GraphRect => {
-  let width = 220;
-  let height = 82;
+  let width = NODE_DEFAULT_WIDTH;
+  let height = NODE_COLLAPSED_HEIGHT;
+  
   if (isExport) {
-    width = 260;
+    width = 220;
     const raw = node.data?.obj?.properties;
     let propCount = 0;
     try {
       const parsed = typeof raw === 'string' ? JSON.parse(raw || '{}') : (raw ?? {});
-      propCount = Math.min(6, Object.keys(parsed).length);
+      propCount = Math.min(5, Object.keys(parsed).length);
     } catch {}
-    height = propCount > 0 ? 82 + propCount * 18 + 14 : 95;
+    height = propCount > 0 ? NODE_COLLAPSED_HEIGHT + propCount * 18 + 6 : NODE_COLLAPSED_HEIGHT;
   }
+  
+  // 使用实际节点尺寸
   const dimensions = getOntologyNodeDimensions(node, width, height);
   const position = node.positionAbsolute ?? node.position;
+  
   return {
     id: node.id,
     x: position.x,
@@ -51,27 +66,64 @@ export const getGraphNodeRect = (node: Node, isExport = false): GraphRect => {
   };
 };
 
+/**
+ * 辅助函数
+ */
+const round = (value: number) => Math.round(value * 10) / 10;
+const pointKey = (point: GraphPoint) => `${round(point.x)}:${round(point.y)}`;
+
 const centerOf = (rect: GraphRect): GraphPoint => ({
   x: rect.x + rect.width / 2,
   y: rect.y + rect.height / 2,
 });
 
+/**
+ * MECE重构：锚点计算
+ * 确保连线准确连接到节点边缘中心点
+ * 修复了之前固定像素偏移导致的问题
+ */
 export const getEdgeHandleSides = (
   source: GraphRect,
   target: GraphRect,
   mode: OntologyLayoutMode,
 ): { sourceSide: HandleSide; targetSide: HandleSide } => {
-  if (mode === 'hierarchical' || mode === 'orthogonal') {
-    return { sourceSide: 'right', targetSide: 'left' };
-  }
-  if (mode === 'tree') {
-    return { sourceSide: 'bottom', targetSide: 'top' };
-  }
-
   const sourceCenter = centerOf(source);
   const targetCenter = centerOf(target);
   const dx = targetCenter.x - sourceCenter.x;
   const dy = targetCenter.y - sourceCenter.y;
+
+  if (mode === 'hierarchical' || mode === 'orthogonal') {
+    // Normal forward flow: source on the left, target on the right
+    if (dx >= 20) {
+      return { sourceSide: 'right', targetSide: 'left' };
+    }
+    // Backward edge / cycle: target is significantly to the left of source
+    // Rather than looping all the way around source and target, use shortest clean path
+    if (dx <= -20) {
+      if (Math.abs(dy) > Math.abs(dx) * 1.2) {
+        return dy > 0
+          ? { sourceSide: 'bottom', targetSide: 'top' }
+          : { sourceSide: 'top', targetSide: 'bottom' };
+      }
+      return { sourceSide: 'left', targetSide: 'right' };
+    }
+    // Roughly aligned vertically
+    return dy >= 0
+      ? { sourceSide: 'bottom', targetSide: 'top' }
+      : { sourceSide: 'top', targetSide: 'bottom' };
+  }
+  if (mode === 'tree') {
+    if (dy >= 20) {
+      return { sourceSide: 'bottom', targetSide: 'top' };
+    }
+    if (dy <= -20) {
+      return { sourceSide: 'top', targetSide: 'bottom' };
+    }
+    return dx >= 0
+      ? { sourceSide: 'right', targetSide: 'left' }
+      : { sourceSide: 'left', targetSide: 'right' };
+  }
+
   if (Math.abs(dx) >= Math.abs(dy)) {
     return dx >= 0
       ? { sourceSide: 'right', targetSide: 'left' }
@@ -92,12 +144,33 @@ export const sideToPosition = (side: HandleSide): Position => ({
 export const sideToHandleId = (side: HandleSide, type: 'source' | 'target') =>
   `${side}-${type}`;
 
+/**
+ * MECE重构：锚点位置计算
+ * 根据指定的边返回该边中心点的精确坐标
+ * 这是确保连线准确连接节点的核心函数
+ */
 const anchorForSide = (rect: GraphRect, side: HandleSide): GraphPoint => {
   switch (side) {
-    case 'left': return { x: rect.x, y: rect.y + rect.height / 2 };
-    case 'right': return { x: rect.x + rect.width, y: rect.y + rect.height / 2 };
-    case 'top': return { x: rect.x + rect.width / 2, y: rect.y };
-    case 'bottom': return { x: rect.x + rect.width / 2, y: rect.y + rect.height };
+    case 'left': 
+      return { 
+        x: rect.x, 
+        y: rect.y + rect.height / 2 
+      };
+    case 'right': 
+      return { 
+        x: rect.x + rect.width, 
+        y: rect.y + rect.height / 2 
+      };
+    case 'top': 
+      return { 
+        x: rect.x + rect.width / 2, 
+        y: rect.y 
+      };
+    case 'bottom': 
+      return { 
+        x: rect.x + rect.width / 2, 
+        y: rect.y + rect.height 
+      };
   }
 };
 
@@ -229,10 +302,10 @@ const findManhattanPath = (
   laneOffset: number,
 ) => {
   const directBounds = {
-    x: Math.min(source.x, target.x) - 500,
-    y: Math.min(source.y, target.y) - 500,
-    width: Math.abs(target.x - source.x) + 1000,
-    height: Math.abs(target.y - source.y) + 1000,
+    x: Math.min(source.x, target.x) - 600,
+    y: Math.min(source.y, target.y) - 600,
+    width: Math.abs(target.x - source.x) + 1200,
+    height: Math.abs(target.y - source.y) + 1200,
   };
   const nearby = obstacles.filter((rect) =>
     rect.x < directBounds.x + directBounds.width
@@ -241,8 +314,13 @@ const findManhattanPath = (
     && rect.y + rect.height > directBounds.y);
   const preferredX = (source.x + target.x) / 2 + laneOffset;
   const preferredY = (source.y + target.y) / 2 + laneOffset;
-  const xs = uniqueSorted([source.x, target.x, preferredX, ...nearby.flatMap((rect) => [rect.x, rect.x + rect.width])]);
-  const ys = uniqueSorted([source.y, target.y, preferredY, ...nearby.flatMap((rect) => [rect.y, rect.y + rect.height])]);
+
+  // Add obstacle boundary gutters (±20px offset) into grid lines so paths can travel safely around corners
+  const gutterX = nearby.flatMap((rect) => [rect.x - 20, rect.x, rect.x + rect.width, rect.x + rect.width + 20]);
+  const gutterY = nearby.flatMap((rect) => [rect.y - 20, rect.y, rect.y + rect.height, rect.y + rect.height + 20]);
+
+  const xs = uniqueSorted([source.x, target.x, preferredX, ...gutterX]);
+  const ys = uniqueSorted([source.y, target.y, preferredY, ...gutterY]);
   const valid = new Set<string>();
   xs.forEach((x, xi) => ys.forEach((y, yi) => {
     if (!nearby.some((rect) => pointInside({ x, y }, rect))) valid.add(`${xi}:${yi}`);
@@ -284,7 +362,7 @@ const findManhattanPath = (
       const b = { x: xs[neighbor.xi], y: ys[neighbor.yi] };
       if (segmentBlocked(a, b, nearby)) return;
       const segmentLength = Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
-      const bendPenalty = current.direction !== 'start' && current.direction !== neighbor.direction ? 72 : 0;
+      const bendPenalty = current.direction !== 'start' && current.direction !== neighbor.direction ? 120 : 0;
       const lanePenalty = neighbor.direction === 'v'
         ? Math.abs(b.x - preferredX) * 0.002
         : Math.abs(b.y - preferredY) * 0.002;
@@ -313,6 +391,64 @@ const findManhattanPath = (
 export const pointsToOrthogonalPath = (points: GraphPoint[]) => {
   if (points.length === 0) return '';
   return points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${round(point.x)} ${round(point.y)}`).join(' ');
+};
+
+/**
+ * Generate a smooth orthogonal path with rounded fillet corners.
+ * Replaces harsh, stiff 90-degree right angles with elegant curved transitions.
+ */
+export const pointsToRoundedOrthogonalPath = (points: GraphPoint[], borderRadius = 12): string => {
+  if (points.length === 0) return '';
+  if (points.length === 1) return `M ${round(points[0].x)} ${round(points[0].y)}`;
+  if (points.length === 2 || borderRadius <= 0) {
+    return pointsToOrthogonalPath(points);
+  }
+
+  let path = `M ${round(points[0].x)} ${round(points[0].y)}`;
+
+  for (let i = 1; i < points.length - 1; i++) {
+    const prev = points[i - 1];
+    const curr = points[i];
+    const next = points[i + 1];
+
+    const dx1 = curr.x - prev.x;
+    const dy1 = curr.y - prev.y;
+    const len1 = Math.hypot(dx1, dy1);
+
+    const dx2 = next.x - curr.x;
+    const dy2 = next.y - curr.y;
+    const len2 = Math.hypot(dx2, dy2);
+
+    if (len1 < 0.1 || len2 < 0.1) {
+      continue;
+    }
+
+    // Check if points are collinear
+    const crossProduct = dx1 * dy2 - dy1 * dx2;
+    if (Math.abs(crossProduct) < 0.01) {
+      path += ` L ${round(curr.x)} ${round(curr.y)}`;
+      continue;
+    }
+
+    // Clamp radius to at most half of the segment lengths
+    const r = Math.min(borderRadius, len1 / 2, len2 / 2);
+
+    const u1x = dx1 / len1;
+    const u1y = dy1 / len1;
+    const u2x = dx2 / len2;
+    const u2y = dy2 / len2;
+
+    const startX = curr.x - u1x * r;
+    const startY = curr.y - u1y * r;
+    const endX = curr.x + u2x * r;
+    const endY = curr.y + u2y * r;
+
+    path += ` L ${round(startX)} ${round(startY)} Q ${round(curr.x)} ${round(curr.y)} ${round(endX)} ${round(endY)}`;
+  }
+
+  const last = points[points.length - 1];
+  path += ` L ${round(last.x)} ${round(last.y)}`;
+  return path;
 };
 
 export const getPolylineMidpoint = (points: GraphPoint[]): GraphPoint => {
@@ -365,7 +501,7 @@ export const getOrthogonalRouteForEdge = (
   mode: OntologyLayoutMode,
   laneOffset = 0,
 ) => {
-  const rects = nodes.map(getGraphNodeRect);
+  const rects = nodes.map(node => getGraphNodeRect(node));
   const byId = new Map(rects.map((rect) => [rect.id, rect]));
   const sourceRect = byId.get(edge.source);
   const targetRect = byId.get(edge.target);

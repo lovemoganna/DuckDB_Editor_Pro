@@ -18,14 +18,14 @@ import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 // 静态颜色映射
 const OPERATION_TAG_CLASSES: Record<string, string> = {
-  SELECT:    'bg-monokai-blue/15 text-monokai-blue border-monokai-blue/30',
-  INSERT:    'bg-monokai-green/15 text-monokai-green border-monokai-green/30',
-  UPDATE:    'bg-monokai-yellow/15 text-monokai-yellow border-monokai-yellow/30',
-  DELETE:    'bg-monokai-red/15 text-monokai-red border-monokai-red/30',
-  AGGREGATE: 'bg-monokai-amethyst/15 text-monokai-amethyst border-monokai-amethyst/30',
-  JOIN:      'bg-monokai-pink/15 text-monokai-pink border-monokai-pink/30',
-  WINDOW:    'bg-monokai-orange/15 text-monokai-orange border-monokai-orange/30',
-  CTE:       'bg-monokai-cyan/15 text-monokai-cyan border-monokai-cyan/30',
+  SELECT:    'bg-sky-500/10 text-sky-400 border-monokai-border-subtle',
+  INSERT:    'bg-emerald-500/10 text-emerald-400 border-monokai-border-subtle',
+  UPDATE:    'bg-amber-500/10 text-amber-400 border-monokai-border-subtle',
+  DELETE:    'bg-rose-500/10 text-rose-400 border-monokai-border-subtle font-medium',
+  AGGREGATE: 'bg-monokai-surface text-monokai-fg-muted border-monokai-border-subtle',
+  JOIN:      'bg-rose-500/10 text-rose-400 border-monokai-border-subtle',
+  WINDOW:    'bg-amber-500/10 text-amber-400 border-monokai-border-subtle',
+  CTE:       'bg-sky-500/10 text-sky-400 border-monokai-border-subtle',
 };
 
 // 判断是否为 Markdown 表格（有表头分隔行 |---|）
@@ -49,9 +49,9 @@ function renderPipeTable(content: string) {
   return (
     <table className="w-full text-xs border-collapse">
       <thead>
-        <tr className="bg-monokai-amethyst/10 text-monokai-amethyst">
+        <tr className="bg-monokai-surface text-monokai-fg border-b border-monokai-border">
           {rows[0].map((cell, i) => (
-            <th key={i} className="px-3 py-1.5 text-left font-semibold border-b border-monokai-border text-[11px]">
+            <th key={i} className="px-3 py-1.5 text-left font-semibold text-[11px]">
               {cell}
             </th>
           ))}
@@ -63,7 +63,7 @@ function renderPipeTable(content: string) {
             {row.map((cell, ci) => (
               <td key={ci} className="px-3 py-1.5 border-b border-monokai-border/50 text-monokai-fg-muted font-mono">
                 {isNumeric(cell) ? (
-                  <span className="text-monokai-orange">{cell}</span>
+                  <span className="text-amber-400">{cell}</span>
                 ) : cell}
               </td>
             ))}
@@ -83,9 +83,9 @@ function renderMarkdownTable(content: string) {
   return (
     <table className="w-full text-xs border-collapse">
       <thead>
-        <tr className="bg-monokai-amethyst/10 text-monokai-amethyst">
+        <tr className="bg-monokai-surface text-monokai-fg border-b border-monokai-border">
           {rows[0].map((cell, i) => (
-            <th key={i} className="px-3 py-1.5 text-left font-semibold border-b border-monokai-border text-[11px]">
+            <th key={i} className="px-3 py-1.5 text-left font-semibold text-[11px]">
               {cell}
             </th>
           ))}
@@ -163,7 +163,7 @@ export const TableDetail: React.FC<TableDetailProps> = ({ onInsert }) => {
                 <Star className="w-4 h-4 text-monokai-yellow fill-monokai-yellow flex-shrink-0" />
               )}
               {table.isSystem && (
-                <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-monokai-green/15 text-monokai-green border border-monokai-green/30">
+                <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-emerald-500/10 text-emerald-400 border border-monokai-border-subtle">
                   系统
                 </span>
               )}
@@ -174,26 +174,26 @@ export const TableDetail: React.FC<TableDetailProps> = ({ onInsert }) => {
           <div className="flex items-center gap-2 flex-shrink-0">
             <button
               onClick={() => toggleFavorite(table.id)}
-              className="p-2 rounded-lg bg-monokai-surface border border-monokai-border text-monokai-fg-muted hover:text-monokai-yellow hover:border-monokai-yellow/40 transition-all"
+              className="p-2 rounded-lg bg-monokai-surface border border-monokai-border text-monokai-fg-muted hover:text-amber-400 hover:border-monokai-border-strong transition-all cursor-pointer"
               title={table.isFavorite ? '取消收藏' : '添加收藏'}
             >
-              <Star className={`w-4 h-4 ${table.isFavorite ? 'fill-monokai-yellow text-monokai-yellow' : 'text-monokai-fg-muted'}`} />
+              <Star className={`w-4 h-4 ${table.isFavorite ? 'fill-amber-400 text-amber-400' : 'text-monokai-fg-muted'}`} />
             </button>
             <button
               onClick={() => onInsert && onInsert(table.sqlConfig.template)}
-              className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg bg-gradient-to-r from-monokai-amethyst/20 to-monokai-blue/20 text-monokai-amethyst border border-monokai-amethyst/30 hover:from-monokai-amethyst/30 hover:to-monokai-blue/30 transition-all"
+              className="flex items-center gap-1.5 px-3 py-2 text-sm font-semibold rounded-lg bg-monokai-accent text-monokai-bg hover:brightness-105 shadow-xs transition-colors cursor-pointer"
             >
               <ArrowRight className="w-3.5 h-3.5" />
               插入
             </button>
             <button
               onClick={handleCopy}
-              className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg bg-monokai-surface border border-monokai-border text-monokai-fg-muted hover:text-monokai-fg hover:border-monokai-fg-muted transition-all"
+              className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg bg-monokai-surface border border-monokai-border text-monokai-fg-muted hover:text-monokai-fg hover:border-monokai-border-strong transition-colors cursor-pointer"
             >
               {isCopied ? (
                 <>
-                  <Copy className="w-3.5 h-3.5 text-monokai-green" />
-                  <span className="text-monokai-green">已复制</span>
+                  <Copy className="w-3.5 h-3.5 text-emerald-400" />
+                  <span className="text-emerald-400">已复制</span>
                 </>
               ) : (
                 <>
@@ -263,14 +263,8 @@ export const TableDetail: React.FC<TableDetailProps> = ({ onInsert }) => {
               {table.sqlConfig.parameters.map((param, idx) => (
                 <div key={idx} className="flex items-start gap-3 px-3 py-2.5 bg-monokai-bg rounded-lg border border-monokai-border">
                   <div className="flex items-center gap-2 min-w-[100px] flex-shrink-0">
-                    <code className="text-xs font-mono text-monokai-amethyst">{param.name}</code>
-                    <span className={`px-1.5 py-0.5 text-[10px] font-medium rounded border flex-shrink-0 ${
-                      param.type === 'table' ? 'bg-monokai-blue/15 text-monokai-blue border-monokai-blue/30' :
-                      param.type === 'column' ? 'bg-monokai-green/15 text-monokai-green border-monokai-green/30' :
-                      param.type === 'number' ? 'bg-monokai-orange/15 text-monokai-orange border-monokai-orange/30' :
-                      param.type === 'date' ? 'bg-monokai-amethyst/15 text-monokai-amethyst border-monokai-amethyst/30' :
-                      'bg-monokai-fg/10 text-monokai-fg border-monokai-fg/20'
-                    }`}>
+                    <code className="text-xs font-mono text-monokai-fg font-semibold">{param.name}</code>
+                    <span className="px-1.5 py-0.5 text-[10px] font-medium rounded border border-monokai-border-subtle bg-monokai-surface text-monokai-fg-muted flex-shrink-0">
                       {param.type}
                     </span>
                   </div>
@@ -279,12 +273,12 @@ export const TableDetail: React.FC<TableDetailProps> = ({ onInsert }) => {
                       <span className="text-xs text-monokai-fg-muted flex-1">{param.description}</span>
                     )}
                     {param.required && (
-                      <span className="text-[10px] text-monokai-red bg-monokai-red/10 px-1.5 py-0.5 rounded border border-monokai-red/20 flex-shrink-0">
+                      <span className="text-[10px] text-rose-400 bg-rose-500/10 px-1.5 py-0.5 rounded border border-monokai-border-subtle flex-shrink-0">
                         必填
                       </span>
                     )}
                     {param.defaultValue && (
-                      <span className="text-[10px] text-monokai-green bg-monokai-green/10 px-1.5 py-0.5 rounded border border-monokai-green/20 flex-shrink-0">
+                      <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-monokai-border-subtle flex-shrink-0">
                         默认: {param.defaultValue}
                       </span>
                     )}
@@ -324,7 +318,7 @@ export const TableDetail: React.FC<TableDetailProps> = ({ onInsert }) => {
         <div className="flex items-center gap-2 pt-4 border-t border-monokai-border">
           <button
             onClick={() => openEditForm(table)}
-            className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg bg-monokai-surface border border-monokai-border text-monokai-fg-muted hover:text-monokai-fg hover:border-monokai-fg-muted transition-all"
+            className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg bg-monokai-surface border border-monokai-border text-monokai-fg-muted hover:text-monokai-fg hover:border-monokai-border-strong transition-colors cursor-pointer"
           >
             <Edit3 className="w-3.5 h-3.5" />
             编辑模板
@@ -332,7 +326,7 @@ export const TableDetail: React.FC<TableDetailProps> = ({ onInsert }) => {
           {!table.isSystem && (
             <button
               onClick={() => removeTable(table.id)}
-              className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg bg-monokai-pink/10 border border-monokai-pink/30 text-monokai-pink hover:bg-monokai-pink/20 transition-all"
+              className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 hover:bg-rose-500/20 transition-colors cursor-pointer"
             >
               <Trash2 className="w-3.5 h-3.5" />
               删除

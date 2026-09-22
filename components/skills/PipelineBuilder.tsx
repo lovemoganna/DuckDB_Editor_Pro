@@ -273,17 +273,17 @@ export const PipelineBuilder: React.FC<PipelineBuilderProps> = ({ currentTable, 
           fitView
           className="!bg-monokai-surface"
         >
-          <Background color="#3e3d32" gap={24} size={2} />
+          <Background color="var(--monokai-border)" gap={24} size={2} />
           <Controls className="[&_button]:!bg-monokai-bg [&_button]:!border-monokai-sidebar [&_circle]:!fill-monokai-fg [&_circle]:!stroke-monokai-sidebar [&_path]:!stroke-monokai-fg [&_path]:!stroke-monokai-sidebar [&_svg]:!fill-monokai-fg hover:[&_button]:!bg-monokai-sidebar" />
           <MiniMap
             nodeColor={(node) => {
-              if (node.data?.status === 'running') return '#e6db74';
-              if (node.data?.status === 'success') return '#a6e22e';
-              if (node.data?.status === 'error') return '#f92672';
-              return '#3e3d32';
+              if (node.data?.status === 'running') return 'var(--monokai-yellow)';
+              if (node.data?.status === 'success') return 'var(--monokai-accent)';
+              if (node.data?.status === 'error') return 'var(--monokai-pink)';
+              return 'var(--monokai-border)';
             }}
             maskColor="rgba(30, 30, 30, 0.7)"
-            style={{ backgroundColor: '#272822', border: '1px solid #3e3d32' }}
+            style={{ backgroundColor: 'var(--monokai-elevated)', border: '1px solid var(--monokai-border)' }}
           />
         </ReactFlow>
       </div>

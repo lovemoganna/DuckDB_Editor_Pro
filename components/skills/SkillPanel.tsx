@@ -12,7 +12,8 @@
  */
 
 import React, { lazy, Suspense } from 'react';
-import { Library, Terminal } from 'lucide-react';
+import { Library, Terminal, Sparkles } from 'lucide-react';
+import { SegmentedTabs } from '../ui/Workbench';
 
 // Context
 import { SkillProvider, useSkillContext } from './context/SkillContext';
@@ -32,6 +33,11 @@ interface SkillPanelProps {
   currentTable?: string;
   currentColumns?: { name: string; type: string }[];
 }
+
+const SKILL_VIEW_TABS = [
+  { value: 'guide' as const, label: 'AI Skills', icon: Terminal },
+  { value: 'browse' as const, label: '技能方案', icon: Library },
+];
 
 // ─────────────────────────────────────────────────────────────────────
 // Inner panel — lives inside SkillProvider so children can use the hook
@@ -55,39 +61,26 @@ const SkillPanelInner: React.FC<Pick<SkillPanelProps, 'onExecuteSql'>> = ({
         />
       </Suspense>
 
-      <div className="flex h-full w-full flex-col overflow-hidden border border-monokai-accent bg-monokai-bg">
-        {/* Navigation Tabs — flat segmented control */}
-        <div className="flex items-center px-4 bg-monokai-sidebar border-b border-monokai-accent h-12 flex-shrink-0">
-          {/* Flat segmented group */}
-          <div className="flex items-center gap-0 p-0.5 bg-monokai-bg border border-monokai-accent">
-            <button
-              onClick={() => setViewMode('guide')}
-              className={`flex items-center gap-1.5 px-3 py-1 text-[11px] font-mono font-medium transition-all duration-200 ${
-                viewMode === 'guide'
-                  ? 'bg-monokai-accent text-monokai-amethyst border border-monokai-accent'
-                  : 'text-monokai-comment hover:text-monokai-fg'
-              }`}
-            >
-              <Terminal className="w-3.5 h-3.5" />
-              AI Skills
-            </button>
-            <button
-              onClick={() => setViewMode('browse')}
-              className={`flex items-center gap-1.5 px-3 py-1 text-[11px] font-mono font-medium transition-all duration-200 ${
-                viewMode === 'browse'
-                  ? 'bg-monokai-accent text-monokai-blue border border-monokai-accent'
-                  : 'text-monokai-comment hover:text-monokai-fg'
-              }`}
-            >
-              <Library className="w-3.5 h-3.5" />
-              技能方案
-            </button>
+      <div className="flex h-full w-full flex-col overflow-hidden border border-monokai-border bg-monokai-bg font-sans">
+        {/* Navigation Tabs — Standard Segmented Control Bar */}
+        <div className="flex min-h-16 items-center justify-between px-5 sm:px-6 bg-monokai-sidebar/95 border-b border-monokai-border/80 shrink-0 select-none backdrop-blur-md shadow-xs">
+          <div className="flex items-center gap-3.5">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-monokai-accent/30 bg-monokai-accent/10 text-monokai-accent shadow-inner">
+              <Sparkles className="h-5 w-5" aria-hidden="true" />
+            </div>
+            <SegmentedTabs
+              aria-label="Skill 模式"
+              value={viewMode}
+              items={SKILL_VIEW_TABS}
+              size="md"
+              onChange={setViewMode}
+            />
           </div>
 
-          <div className="ml-auto flex items-center gap-3">
-             <div className="flex items-center gap-1.5 px-2 py-1 bg-monokai-bg border border-monokai-accent">
-                <div className="w-1.5 h-1.5 bg-monokai-green animate-pulse" />
-                <span className="text-[10px] text-monokai-comment font-mono">DUCKDB READY</span>
+          <div className="flex items-center gap-3">
+             <div className="flex items-center gap-2 px-3 py-1.5 bg-monokai-surface rounded-lg border border-monokai-border/80 text-monokai-comment text-xs font-mono shadow-inner">
+                <div className="w-2 h-2 rounded-full bg-monokai-green animate-pulse" />
+                <span className="text-xs text-monokai-comment font-mono font-medium">DUCKDB ENGINE READY</span>
              </div>
           </div>
         </div>

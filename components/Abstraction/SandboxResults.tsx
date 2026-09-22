@@ -24,12 +24,18 @@ import {
   Maximize2,
   ChevronLeft,
   ChevronRight,
-  X
+  X,
+  Sparkles,
+  Wand2,
 } from 'lucide-react';
 import { useAbstractionSandbox } from '../../hooks/useAbstractionSandbox';
+import { useAbstractionAI } from '../../hooks/useAbstractionAI';
+import { useAnalysisHubStore } from '../../hooks/store/analysisHubStore';
+import { toastService } from '../../services/toastService';
 
 export const SandboxResults: React.FC = () => {
-  const { sandboxResult, sandboxError, isExecuting } = useAbstractionSandbox();
+  const { sandboxResult, sandboxError, isExecuting, sandboxSql, setSql } = useAbstractionSandbox();
+  const { generate, isGenerating } = useAbstractionAI();
 
   // 本地过滤、分页与排序状态
   const [viewMode, setViewMode] = useState<'grid' | 'profile'>('grid');
@@ -213,12 +219,38 @@ export const SandboxResults: React.FC = () => {
   if (sandboxError) {
     return (
       <div className="h-full flex items-center justify-center bg-monokai-bg">
-        <div className="text-center max-w-md px-6">
-          <div className="w-14 h-14 rounded-2xl bg-monokai-pink/10 border border-monokai-pink/30 flex items-center justify-center mx-auto mb-4">
+        <div className="text-center max-w-md px-6 flex flex-col items-center gap-3">
+          <div className="w-14 h-14 rounded-2xl bg-monokai-pink/10 border border-monokai-pink/30 flex items-center justify-center">
             <AlertCircle className="w-7 h-7 text-monokai-pink" />
           </div>
-          <h3 className="text-sm font-semibold text-monokai-pink mb-2">执行失败</h3>
-          <p className="text-xs text-monokai-fg-muted leading-relaxed">{sandboxError}</p>
+          <h3 className="text-sm font-extrabold text-monokai-pink">SQL 执行报错</h3>
+          <pre className="text-xs text-monokai-fg/90 bg-monokai-sidebar p-3 rounded-xl border border-monokai-pink/30 max-h-36 overflow-y-auto custom-scrollbar font-mono text-left w-full whitespace-pre-wrap">
+            {sandboxError}
+          </pre>
+
+          <button
+            onClick={async () => {
+              toastService.info('AI 正在分析报错信息并自动修正 SQL...');
+              try {
+                await generate({
+                  concept: `修复报错 SQL: ${sandboxSql}\n错误日志: ${sandboxError}`,
+                  operation: 'SELECT',
+                });
+                const fixedSql = useAnalysisHubStore.getState().aiResult?.sql;
+                if (fixedSql) {
+                  setSql(fixedSql);
+                  toastService.success('AI 已成功修复 SQL 并写回编辑器！');
+                }
+              } catch (e: any) {
+                toastService.error(`修复失败: ${e.message}`);
+              }
+            }}
+            disabled={isGenerating}
+            className="mt-1 px-4 py-2 bg-monokai-amethyst text-monokai-bg font-extrabold text-xs rounded-xl hover:opacity-90 transition-all flex items-center gap-1.5 shadow-md cursor-pointer disabled:opacity-50"
+          >
+            <Wand2 size={14} />
+            <span>{isGenerating ? 'AI 修复中...' : '🪄 AI 智能分析并修复 SQL'}</span>
+          </button>
         </div>
       </div>
     );

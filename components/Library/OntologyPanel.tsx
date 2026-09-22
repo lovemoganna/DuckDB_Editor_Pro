@@ -15,7 +15,8 @@ import {
   ChevronLeft, X, Search, RefreshCw, Play, ArrowRight, Loader2,
   Table2, Link2, Layers, AlertTriangle, Check, Plus, Edit3, Trash2,
   Lightbulb, Zap, PanelRightDashed, AlignLeft, GripVertical, Target,
-  List, Map, BarChart2, Pencil, Download, Upload, Brain, Wand2, BookOpen, GraduationCap
+  List, Map, BarChart2, Pencil, Download, Upload, Brain, Wand2, BookOpen, GraduationCap,
+  Workflow
 } from 'lucide-react';
 import { FlaskConical } from 'lucide-react';
 import CodeMirror from '@uiw/react-codemirror';
@@ -23,20 +24,27 @@ import { sql as sqlLang } from '@codemirror/lang-sql';
 import { EditorView } from '@codemirror/view';
 import { monokai } from '@uiw/codemirror-theme-monokai';
 import { toastService } from '../../services/toastService';
+import { MultiHopDeductionExplorer } from './MultiHopDeductionExplorer';
 import { useAppStore } from '../../hooks/store/useAppStore';
 import { Tab } from '../../types';
 
 import { useOntologyStore, ontologyActions, ONTOLOGY_SEED_INFOS, OntologyStoreState } from '../../hooks/useOntologyStore';
 import { ontologyAiService } from '../../services/ontologyAiService';
-import { PatternLibraryPanel } from './PatternLibrary';
+// 视图同步 Hook
+import { useGraphViewSync, useGraphViewSwitcher, layoutEventBus, type LayoutInfo } from '../../hooks/useGraphViewSync';
+// 布局性能监控
+import { getLayoutStats, getLayoutMetricsHistory } from '../../services/graphLayoutService';
+import { PatternLibraryPanel } from './PatternLibraryPanel';
+import { CRUDList } from './CRUDList';
 import RightInspector from './OntologyPanelRightInspector';
 import type { EditMode } from './OntologyPanel.types';
-import D3GraphView from './D3GraphView';
+import D3GraphView, { D3GraphView as D3GraphViewComponent, type KnowledgeGraphRenderMode } from './D3GraphView';
 import OntologyCanvas from './OntologyCanvas';
 import OntologyInsightsPanel from './OntologyInsightsPanel';
 import { OntologyDataView } from './OntologyDataView';
 import { OntologyModelingWizard } from './OntologyModelingWizard';
 import { OntologyReasoningCatalogEditor } from './OntologyReasoningCatalogEditor';
+import { DeductionWorkbench } from './DeductionWorkbench';
 import {
   downloadOntologyJSON,
   executeOntologyDraft,
@@ -48,14 +56,20 @@ import { ResizableLayout } from '../ui/ResizableLayout';
 import { MappingConsole } from './MappingConsole';
 import { QuickClearMenu } from './QuickClearMenu';
 import { planOntologyCommand } from './ontologyCommandRouter';
-import { ConfirmDialogProvider } from '../ui/ConfirmDialog';
+import { ConfirmDialogProvider, useConfirmDialog } from '../ui/ConfirmDialog';
+import { SegmentedTabs, ActionButton, SearchInput, ModalShell, IconButton, type SegmentedTab } from '../ui/Workbench';
+import {
+  ONTOLOGY_DRAWER_PREFERENCE_KEY,
+  resolveOntologyDrawerMode,
+} from './ontologyViewportPolicy';
+
 
 // ============================================================
 // Types
 // ============================================================
 
 type ViewTab = 'graph' | 'data' | 'canvas';
-type DrawerTab = 'templates' | 'crud' | 'insights' | 'mapping';
+type DrawerTab = 'templates' | 'crud' | 'insights' | 'mapping' | 'deduction';
 
 interface ExecutionResult {
   data: any[] | null;
@@ -74,27 +88,14 @@ interface FormState {
 // Live Clock
 // ============================================================
 
-const LiveClock: React.FC = () => {
-  const [time, setTime] = useState(() => new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
-
-  useEffect(() => {
-    const id = setInterval(() => {
-      setTime(new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
-    }, 1000);
-    return () => clearInterval(id);
-  }, []);
-
-  return <span className="text-monokai-fg font-mono text-xs tabular-nums">{time}</span>;
-};
-
 // ============================================================
 // View Tabs Configuration
 // ============================================================
 
-const VIEW_TABS: { id: ViewTab; label: string; icon: React.ElementType }[] = [
-  { id: 'graph', label: '知识图谱', icon: Network },
-  { id: 'data',  label: '数据视图', icon: Database },
-  { id: 'canvas', label: '实体画布', icon: LayoutGrid },
+const VIEW_TABS: readonly SegmentedTab<ViewTab>[] = [
+  { value: 'graph', label: '知识图谱', icon: Network },
+  { value: 'data',  label: '数据视图', icon: Database },
+  { value: 'canvas', label: '实体画布', icon: LayoutGrid },
 ];
 
 // ============================================================
@@ -123,51 +124,59 @@ const AIDraftModal: React.FC<{
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-      <div className="w-[720px] max-h-[85vh] bg-monokai-bg border border-monokai-accent/20 rounded-2xl shadow-2xl flex flex-col">
-        <div className="flex items-center justify-between px-6 py-5 border-b border-monokai-accent/10">
-          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 rounded-xl bg-monokai-amethyst/15 flex items-center justify-center">
-              <Sparkles className="w-5 h-5 text-monokai-amethyst" />
-            </div>
-            <div>
-              <h3 className="text-base font-bold text-monokai-fg">AI 生成预览</h3>
-              <p className="text-xs text-monokai-comment mt-1">请审核并确认即将注入图谱的新知数据</p>
-            </div>
-          </div>
-          <button onClick={onCancel} className="p-2 rounded-xl hover:bg-monokai-accent/10 text-monokai-comment hover:text-monokai-fg transition-colors">
-            <X className="w-5 h-5" />
-          </button>
+    <ModalShell
+      open={true}
+      title="AI 生成预览"
+      description="请审核并确认即将注入图谱的新知数据"
+      size="lg"
+      onClose={onCancel}
+      footer={
+        <div className="flex items-center justify-end gap-2.5">
+          <ActionButton variant="ghost" onClick={onCancel}>
+            取消
+          </ActionButton>
+          <ActionButton
+            variant="primary"
+            loading={committing}
+            icon={Check}
+            onClick={handleCommit}
+          >
+            确认并注入
+          </ActionButton>
+        </div>
+      }
+    >
+      <div className="space-y-3">
+        <div className="flex items-center gap-6 text-xs p-3 rounded-lg bg-monokai-surface border border-monokai-border font-medium">
+          {payload.objects?.length > 0 && (
+            <span className="text-monokai-cyan flex items-center gap-1.5">
+              <Table2 className="w-3.5 h-3.5" /> 对象 × {payload.objects.length}
+            </span>
+          )}
+          {payload.links?.length > 0 && (
+            <span className="text-monokai-amethyst flex items-center gap-1.5">
+              <Link2 className="w-3.5 h-3.5" /> 关系 × {payload.links.length}
+            </span>
+          )}
+          {payload.actions?.length > 0 && (
+            <span className="text-monokai-yellow flex items-center gap-1.5">
+              <Zap className="w-3.5 h-3.5" /> 行动 × {payload.actions.length}
+            </span>
+          )}
         </div>
 
-        <div className="px-6 py-4 border-b border-monokai-accent/10 bg-monokai-sidebar/30 flex items-center gap-6 text-sm">
-          {payload.objects?.length > 0 && <span className="text-monokai-blue flex items-center gap-2"><Table2 className="w-4 h-4" /> 对象 × {payload.objects.length}</span>}
-          {payload.links?.length > 0 && <span className="text-monokai-amethyst flex items-center gap-2"><Link2 className="w-4 h-4" /> 关系 × {payload.links.length}</span>}
-          {payload.actions?.length > 0 && <span className="text-monokai-yellow flex items-center gap-2"><Zap className="w-4 h-4" /> 行动 × {payload.actions.length}</span>}
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-2">
+        <div className="rounded-lg border border-monokai-border overflow-hidden bg-monokai-surface">
           <CodeMirror
             value={jsonStr}
-            height="400px"
+            height="360px"
             theme={monokai}
-            extensions={[sqlLang(), EditorView.lineWrapping, EditorView.theme({ "&": { fontSize: "14px" } })]}
+            extensions={[sqlLang(), EditorView.lineWrapping, EditorView.theme({ "&": { fontSize: "13px" } })]}
             editable={false}
             basicSetup={false}
           />
         </div>
-
-        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-monokai-accent/10">
-          <button onClick={onCancel} className="px-5 py-2.5 text-sm rounded-xl text-monokai-comment hover:text-monokai-fg hover:bg-monokai-accent/10 transition-colors">
-            取消
-          </button>
-          <button onClick={handleCommit} disabled={committing} className="flex items-center gap-2 px-5 py-2.5 text-sm rounded-xl bg-monokai-amethyst/20 text-monokai-amethyst hover:bg-monokai-amethyst/30 transition-colors disabled:opacity-50 font-medium">
-            {committing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-            确认并注入
-          </button>
-        </div>
       </div>
-    </div>
+    </ModalShell>
   );
 };
 
@@ -176,11 +185,11 @@ const AIDraftModal: React.FC<{
 // ============================================================
 
 const CATEGORY_ACCENT: Record<string, string> = {
-  setup:  'from-monokai-amethyst/30 via-monokai-amethyst/10 to-transparent',
+  setup:  'from-sky-500/25 via-sky-500/10 to-transparent',
   query:  'from-monokai-cyan/30 via-monokai-cyan/10 to-transparent',
   modify: 'from-monokai-yellow/30 via-monokai-yellow/10 to-transparent',
   export: 'from-monokai-green/30 via-monokai-green/10 to-transparent',
-  industry: 'from-monokai-amethyst/30 via-monokai-amethyst/10 to-transparent',
+  industry: 'from-amber-500/25 via-amber-500/10 to-transparent',
 };
 
 const CATEGORY_ICONS: Record<string, React.ElementType> = {
@@ -192,9 +201,9 @@ const CATEGORY_ICONS: Record<string, React.ElementType> = {
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
-  setup: 'text-monokai-amethyst', query: 'text-monokai-cyan',
+  setup: 'text-monokai-cyan', query: 'text-monokai-cyan',
   modify: 'text-monokai-yellow', export: 'text-monokai-green',
-  industry: 'text-monokai-amethyst',
+  industry: 'text-monokai-yellow',
 };
 
 
@@ -289,7 +298,7 @@ const TemplateCard: React.FC<{
           : hasError
           ? 'border-monokai-red/30 bg-monokai-red/[0.04] hover:border-monokai-red/50'
           : hasData
-          ? 'border-monokai-green/25 bg-monokai-green/[0.03] hover:border-monokai-green/40'
+          ? 'border-monokai-green/25 bg-monokai-green/[0.03] hover:border-monokai-border-strong'
           : 'border-monokai-border/40 bg-monokai-surface hover:border-monokai-border/70 hover:bg-monokai-sidebar/30'
         }
       `}
@@ -397,468 +406,20 @@ const TemplateCard: React.FC<{
 // ============================================================
 const MECESectionDivider: React.FC<{ label: string; color: string }> = ({ label, color }) => {
   const colorMap: Record<string, string> = {
-    amethyst: 'bg-monokai-amethyst/30 text-monokai-amethyst',
-    blue: 'bg-monokai-blue/30 text-monokai-blue',
+    cyan: 'bg-monokai-cyan/30 text-monokai-cyan',
+    blue: 'bg-monokai-cyan/30 text-monokai-cyan',
     green: 'bg-monokai-green/30 text-monokai-green',
     yellow: 'bg-monokai-yellow/30 text-monokai-yellow',
   };
   return (
     <div className="flex items-center gap-2 mb-3 mt-1">
-      <div className={`w-1 h-2.5 rounded-full ${colorMap[color] || colorMap.amethyst}`} />
-      <span className={`text-xs font-bold uppercase tracking-widest ${colorMap[color] || colorMap.amethyst} opacity-60`}>{label}</span>
-      <div className="flex-1 h-px bg-gradient-to-r from-monokai-border/30 to-transparent" />
+      <div className={`w-1 h-2.5 rounded-full ${colorMap[color] || colorMap.cyan}`} />
+      <span className={`text-xs font-bold uppercase tracking-widest ${colorMap[color] || colorMap.cyan} opacity-80`}>{label}</span>
+      <div className="flex-1 h-px bg-gradient-to-r from-monokai-border/40 to-transparent" />
     </div>
   );
 };
 
-// ============================================================
-// CRUD List (Left Pane Content)
-// MECE 分类：Schema(类型定义) / Node(实体实例) / Edge(关系实例) / Action(行动)
-// ============================================================
-
-// ============================================================
-// CRUD List (Left Pane Content)
-// MECE 分类：Schema(类型定义) / Node(实体实例) / Edge(关系实例) / Action(行动)
-// ============================================================
-
-const CRUDList: React.FC<{
-  onInspect: (mode: EditMode, target: any) => void;
-  onRequestDelete: (type: string, id: number, label: string) => void;
-}> = ({ onInspect, onRequestDelete }) => {
-  const store = useOntologyStore();
-  const { state } = store;
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({
-    objectTypes: true, objects: true, linkTypes: true, links: true, actions: true,
-    introspections: false, insights: false,
-  });
-  const [search, setSearch] = useState('');
-  const [activeSubTab, setActiveSubTab] = useState<'schema' | 'instances' | 'reflection'>('schema');
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [importError, setImportError] = useState<string | null>(null);
-  const [importSuccess, setImportSuccess] = useState<string | null>(null);
-  const [isOperating, setIsOperating] = useState(false);
-
-  const exportOntologyJSON = useCallback(async () => {
-    setIsOperating(true);
-    try {
-      await downloadOntologyJSON(state.mapping);
-      setImportSuccess('数据成功导出为 JSON 文件');
-      setTimeout(() => setImportSuccess(null), 3000);
-    } catch (e: any) {
-      setImportError('导出失败: ' + e.message);
-      setTimeout(() => setImportError(null), 4000);
-    } finally {
-      setIsOperating(false);
-    }
-  }, [state.mapping]);
-
-  const importOntologyJSON = useCallback(() => {
-    fileInputRef.current?.click();
-  }, []);
-
-  const handleFileImport = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setIsOperating(true);
-    setImportError(null);
-    setImportSuccess(null);
-    try {
-      const text = await file.text();
-      const data = JSON.parse(text);
-      if (!data.objectTypes || !data.objects) throw new Error('无效的本体论 JSON 格式');
-      
-      await importOntologyFromJSON(state.mapping, data);
-      await store.refresh();
-      setImportSuccess(`成功导入：${(data.objects || []).length}个节点，${(data.links || []).length}个关系`);
-      setTimeout(() => setImportSuccess(null), 4000);
-    } catch (err: any) {
-      setImportError('导入失败: ' + err.message);
-      setTimeout(() => setImportError(null), 5005);
-    } finally {
-      setIsOperating(false);
-    }
-    e.target.value = '';
-  }, [state.mapping, store]);
-
-  // Lists filtered by search query
-  const filteredObjects = useMemo(() => {
-    if (!search) return state.objects;
-    const t = search.toLowerCase();
-    return state.objects.filter(o =>
-      o.name.toLowerCase().includes(t) ||
-      (store.objectTypeMap[o.object_type_id]?.name || '').toLowerCase().includes(t)
-    );
-  }, [state.objects, search, store.objectTypeMap]);
-
-  const filteredLinks = useMemo(() => {
-    if (!search) return state.links;
-    const t = search.toLowerCase();
-    return state.links.filter(l =>
-      store.objectNameMap[l.source_object_id]?.toLowerCase().includes(t) ||
-      store.objectNameMap[l.target_object_id]?.toLowerCase().includes(t) ||
-      (store.linkTypeMap[l.link_type_id]?.name || '').toLowerCase().includes(t)
-    );
-  }, [state.links, search, store.objectNameMap, store.linkTypeMap]);
-
-  const filteredObjectTypes = useMemo(() => {
-    if (!search) return state.objectTypes;
-    const t = search.toLowerCase();
-    return state.objectTypes.filter(ot => ot.name.toLowerCase().includes(t) || (ot.description || '').toLowerCase().includes(t));
-  }, [state.objectTypes, search]);
-
-  const filteredLinkTypes = useMemo(() => {
-    if (!search) return state.linkTypes || [];
-    const t = search.toLowerCase();
-    return (state.linkTypes || []).filter(lt => lt.name.toLowerCase().includes(t) || (lt.description || '').toLowerCase().includes(t));
-  }, [state.linkTypes, search]);
-
-  const filteredActions = useMemo(() => {
-    if (!search) return state.actions;
-    const t = search.toLowerCase();
-    return state.actions.filter(a => a.name.toLowerCase().includes(t) || (a.description || '').toLowerCase().includes(t));
-  }, [state.actions, search]);
-
-  const filteredIntrospections = useMemo(() => {
-    if (!search) return state.introspections;
-    const t = search.toLowerCase();
-    return state.introspections.filter(i =>
-      (i.question || '').toLowerCase().includes(t) ||
-      (i.answer || '').toLowerCase().includes(t)
-    );
-  }, [state.introspections, search]);
-
-  const filteredInsights = useMemo(() => {
-    if (!search) return state.insights;
-    const t = search.toLowerCase();
-    return state.insights.filter(i =>
-      (i.insight || '').toLowerCase().includes(t) ||
-      (i.tag || '').toLowerCase().includes(t)
-    );
-  }, [state.insights, search]);
-
-  // Stats calculation
-  const totalSchemaCount = state.objectTypes.length + (state.linkTypes || []).length;
-  const matchedSchemaCount = filteredObjectTypes.length + filteredLinkTypes.length;
-
-  const totalInstanceCount = state.objects.length + state.links.length + state.actions.length;
-  const matchedInstanceCount = filteredObjects.length + filteredLinks.length + filteredActions.length;
-
-  const totalReflectionCount = state.introspections.length + state.insights.length;
-  const matchedReflectionCount = filteredIntrospections.length + filteredInsights.length;
-
-  // Global expand/collapse toggle helper
-  const allCollapsed = Object.values(expanded).every(v => !v);
-  const toggleAllExpanded = () => {
-    const nextVal = allCollapsed;
-    setExpanded({
-      objectTypes: nextVal,
-      objects: nextVal,
-      linkTypes: nextVal,
-      links: nextVal,
-      actions: nextVal,
-      introspections: nextVal,
-      insights: nextVal,
-    });
-  };
-
-  // Helper to highlight matching text in search results
-  const renderHighlight = (text: string, query: string) => {
-    if (!query) return <span>{text}</span>;
-    const parts = text.split(new RegExp(`(${query.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')})`, 'gi'));
-    return (
-      <span>
-        {parts.map((part, i) => 
-          part.toLowerCase() === query.toLowerCase() 
-            ? <mark key={i} className="bg-monokai-yellow/30 text-monokai-yellow font-bold px-0.5 rounded">{part}</mark>
-            : <span key={i}>{part}</span>
-        )}
-      </span>
-    );
-  };
-
-  return (
-    <div className="flex-1 flex flex-col overflow-hidden">
-      <div className="px-3 py-3 shrink-0 border-b border-monokai-border/50 flex items-center gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-monokai-comment/50" />
-          <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="搜索节点、关系..."
-            className="w-full pl-8 pr-8 py-2 text-xs bg-monokai-surface border border-monokai-border/30 hover:border-monokai-accent/40 text-monokai-fg placeholder-monokai-comment/40 rounded-lg focus:outline-none focus:border-monokai-cyan/50 focus:bg-monokai-bg transition-all" />
-          {search && (
-            <button onClick={() => setSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-monokai-comment/40 hover:text-monokai-fg transition-colors">
-              <X className="w-3 h-3" />
-            </button>
-          )}
-        </div>
-        <button onClick={toggleAllExpanded} title={allCollapsed ? "展开全部区域" : "收起全部区域"}
-          className={`shrink-0 p-1.5 rounded-lg border transition-all ${
-            allCollapsed ? 'text-monokai-comment border-monokai-border/20 hover:text-monokai-fg' : 'text-monokai-cyan border-monokai-cyan/20 bg-monokai-cyan/5 hover:bg-monokai-cyan/15'
-          }`}>
-          <List className="w-3.5 h-3.5" />
-        </button>
-        <button onClick={() => importOntologyJSON()} title="导入 JSON" disabled={isOperating}
-          className="shrink-0 p-1.5 rounded-lg text-monokai-comment/50 hover:text-monokai-cyan hover:bg-monokai-cyan/10 transition-colors disabled:opacity-40">
-          <Upload className="w-3.5 h-3.5" />
-        </button>
-        <button onClick={() => exportOntologyJSON()} title="导出 JSON" disabled={isOperating}
-          className="shrink-0 p-1.5 rounded-lg text-monokai-comment/50 hover:text-monokai-cyan hover:bg-monokai-cyan/10 transition-colors disabled:opacity-40">
-          <Download className="w-3.5 h-3.5" />
-        </button>
-      </div>
-      <input ref={fileInputRef} type="file" accept=".json" className="hidden" onChange={handleFileImport} />
-
-      {/* Floating Micro Banners for operation toasts */}
-      {(importSuccess || importError || isOperating) && (
-        <div className="px-3 py-1.5 shrink-0 bg-monokai-surface/60 border-b border-monokai-border/30 flex items-center justify-between text-[11px] animate-in slide-in-from-top-2 duration-300">
-          <span className="flex items-center gap-1.5 min-w-0">
-            {isOperating && <Loader2 className="w-3 h-3 text-monokai-amethyst animate-spin" />}
-            {isOperating && <span className="text-monokai-comment">正在读写本体论仓...</span>}
-            {!isOperating && importSuccess && <span className="text-monokai-green font-medium truncate">✓ {importSuccess}</span>}
-            {!isOperating && importError && <span className="text-monokai-red font-medium truncate">✗ {importError}</span>}
-          </span>
-        </div>
-      )}
-
-      {/* Sub-segmented Tab Control with Sliding/Glowing Track animation */}
-      <div className="px-3 py-2 shrink-0 border-b border-monokai-border/20 bg-monokai-sidebar/10">
-        <div className="relative flex gap-1 p-1 bg-black/40 rounded-lg border border-monokai-accent/5">
-          <button
-            type="button"
-            onClick={() => setActiveSubTab('schema')}
-            className={`z-10 flex-1 py-1.5 text-[10px] font-bold rounded-md transition-all ${
-              activeSubTab === 'schema' ? 'text-monokai-amethyst' : 'text-monokai-comment/70 hover:text-monokai-fg'
-            }`}
-          >
-            📂 Schema ({search ? `${matchedSchemaCount}/${totalSchemaCount}` : totalSchemaCount})
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveSubTab('instances')}
-            className={`z-10 flex-1 py-1.5 text-[10px] font-bold rounded-md transition-all ${
-              activeSubTab === 'instances' ? 'text-monokai-blue' : 'text-monokai-comment/70 hover:text-monokai-fg'
-            }`}
-          >
-            💎 实例 ({search ? `${matchedInstanceCount}/${totalInstanceCount}` : totalInstanceCount})
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveSubTab('reflection')}
-            className={`z-10 flex-1 py-1.5 text-[10px] font-bold rounded-md transition-all ${
-              activeSubTab === 'reflection' ? 'text-monokai-cyan' : 'text-monokai-comment/70 hover:text-monokai-fg'
-            }`}
-          >
-            🧠 沉思 ({search ? `${matchedReflectionCount}/${totalReflectionCount}` : totalReflectionCount})
-          </button>
-
-          {/* Glowing slide indicator background */}
-          <div 
-            className="absolute top-1 bottom-1 rounded-md transition-all duration-300 ease-out" 
-            style={{
-              width: 'calc(33.333% - 4px)',
-              left: activeSubTab === 'schema' ? '4px' : activeSubTab === 'instances' ? '33.333%' : '66.666%',
-              backgroundColor: activeSubTab === 'schema' ? 'rgba(174,129,255,0.08)' : activeSubTab === 'instances' ? 'rgba(102,217,239,0.08)' : 'rgba(166,226,46,0.08)',
-              border: activeSubTab === 'schema' ? '1px solid rgba(174,129,255,0.3)' : activeSubTab === 'instances' ? '1px solid rgba(102,217,239,0.3)' : '1px solid rgba(166,226,46,0.3)',
-              boxShadow: activeSubTab === 'schema' ? '0 0 10px rgba(174,129,255,0.15)' : activeSubTab === 'instances' ? '0 0 10px rgba(102,217,239,0.15)' : '0 0 10px rgba(166,226,46,0.15)'
-            }}
-          />
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-y-auto custom-scrollbar px-3 py-4 space-y-5">
-        {state.initState === 'no-tables' ? (
-          <div className="flex flex-col items-center justify-center py-12 text-center rounded-2xl bg-monokai-sidebar/30">
-            <AlertTriangle className="w-10 h-10 mb-4 text-monokai-orange opacity-40" />
-            <p className="text-sm font-medium text-monokai-fg mb-4">知识图谱数据仓未链接</p>
-            <button onClick={() => store.initOntology()} disabled={state.initting}
-              className="px-6 py-2.5 text-sm font-medium rounded-xl bg-monokai-amethyst/20 text-monokai-amethyst hover:bg-monokai-amethyst/30 transition-colors disabled:opacity-50">
-              {state.initting ? '挂载中...' : '一键构建并挂载'}
-            </button>
-          </div>
-        ) : (
-          <>
-            {/* ── SubTab 1: Definition Layer (Schema) ── */}
-            {activeSubTab === 'schema' && (
-              <div className="space-y-4 animate-in fade-in-50 duration-150">
-                <MECESectionDivider label="Ⅰ. 类型定义 Object & Link Types" color="amethyst" />
-
-                <CRUDSection title="对象类型" icon={Layers} color="amethyst" count={state.objectTypes.length} matchedCount={search ? filteredObjectTypes.length : undefined}
-                  expanded={expanded.objectTypes} onToggle={() => setExpanded(p => ({...p, objectTypes: !p.objectTypes}))} onAdd={() => onInspect('objectType', null)}>
-                  {filteredObjectTypes.length === 0 ? (
-                    <p className="text-[11px] text-monokai-comment p-2">暂无匹配的对象类型</p>
-                  ) : (
-                    filteredObjectTypes.map(ot => <CRUDRow key={ot.id} name={ot.name} desc={ot.description} query={search} onEdit={() => onInspect('objectType', ot)} onDelete={() => onRequestDelete('objectType', ot.id, ot.name)} onQuickAdd={() => onInspect('object', { object_type_id: ot.id })} renderHighlight={renderHighlight} />)
-                  )}
-                </CRUDSection>
-
-                <CRUDSection title="关系类型" icon={Link2} color="amethyst" count={(state.linkTypes || []).length} matchedCount={search ? filteredLinkTypes.length : undefined}
-                  expanded={expanded.linkTypes} onToggle={() => setExpanded(p => ({...p, linkTypes: !p.linkTypes}))} onAdd={() => onInspect('linkType', null)}>
-                  {filteredLinkTypes.length === 0 ? (
-                    <p className="text-[11px] text-monokai-comment p-2">暂无匹配的关系类型</p>
-                  ) : (
-                    filteredLinkTypes.map(lt => <CRUDRow key={lt.id} name={lt.name} desc={lt.description} query={search} onEdit={() => onInspect('linkType', lt)} onDelete={() => onRequestDelete('linkType', lt.id, lt.name)} onQuickAdd={() => onInspect('link', { link_type_id: lt.id })} renderHighlight={renderHighlight} />)
-                  )}
-                </CRUDSection>
-              </div>
-            )}
-
-            {/* ── SubTab 2: Instance Layer (Data Nodes / Edges / Actions) ── */}
-            {activeSubTab === 'instances' && (
-              <div className="space-y-4 animate-in fade-in-50 duration-150">
-                <MECESectionDivider label="Ⅱ. 实体节点 Nodes" color="blue" />
-
-                <CRUDSection title="结构化实例" icon={Table2} color="blue" count={state.objects.length} matchedCount={search ? filteredObjects.length : undefined}
-                  expanded={expanded.objects} onToggle={() => setExpanded(p => ({...p, objects: !p.objects}))} onAdd={() => onInspect('object', null)}>
-                  {filteredObjects.length === 0 ? (
-                    <p className="text-[11px] text-monokai-comment p-2">暂无匹配的实体实例</p>
-                  ) : (
-                    filteredObjects.map(obj => (
-                      <div key={obj.id} className="flex items-center justify-between px-2 py-2 rounded-lg bg-monokai-surface/30 border border-monokai-border/10 hover:border-monokai-blue/30 hover:bg-monokai-sidebar/60 group transition-all duration-200 cursor-pointer" onClick={() => onInspect('object', obj)}>
-                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                          <div className="w-1.5 h-1.5 rounded-full bg-monokai-blue shrink-0 shadow-[0_0_8px_rgba(102,217,239,0.8)]" />
-                          <span className="text-xs text-monokai-fg truncate">{renderHighlight(obj.name, search)}</span>
-                          <span className="text-[9px] px-1.5 py-0.5 bg-monokai-amethyst/10 text-monokai-amethyst/80 border border-monokai-amethyst/20 rounded-md shrink-0">{renderHighlight(store.objectTypeMap[obj.object_type_id]?.name || '?', search)}</span>
-                        </div>
-                        <div className="opacity-0 translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 group-focus-within:opacity-100 group-focus-within:translate-x-0 transition-all duration-200 ml-2 shrink-0 flex items-center gap-1">
-                          <button onClick={(e) => { e.stopPropagation(); if ((window as any).__d3FocusNode) (window as any).__d3FocusNode(obj.id, 'instance'); }} title="在图谱中定位聚焦" className="p-1 rounded-lg text-monokai-comment hover:text-monokai-cyan hover:bg-monokai-cyan/10"><Target className="w-3.5 h-3.5" /></button>
-                          <button onClick={(e) => { e.stopPropagation(); onRequestDelete('object', obj.id, obj.name); }} className="p-1 rounded-lg text-monokai-comment hover:text-monokai-orange hover:bg-monokai-orange/10"><Trash2 className="w-3.5 h-3.5" /></button>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </CRUDSection>
-
-                <MECESectionDivider label="Ⅲ. 关系连线 Edges" color="green" />
-
-                <CRUDSection title="拓扑关系" icon={Network} color="green" count={state.links.length} matchedCount={search ? filteredLinks.length : undefined}
-                  expanded={expanded.links} onToggle={() => setExpanded(p => ({...p, links: !p.links}))} onAdd={() => onInspect('link', null)}>
-                  {filteredLinks.length === 0 ? (
-                    <p className="text-[11px] text-monokai-comment p-2">暂无匹配的拓扑关系</p>
-                  ) : (
-                    filteredLinks.map(link => (
-                      <div key={link.id} className="flex items-center justify-between px-2 py-2 rounded-lg bg-monokai-surface/30 border border-monokai-border/10 hover:border-monokai-green/30 hover:bg-monokai-sidebar/60 group transition-all duration-200 cursor-pointer" onClick={() => onInspect('link', link)}>
-                        <div className="flex items-center gap-1.5 min-w-0 flex-1 flex-wrap">
-                          <span className="text-[11px] text-monokai-amethyst truncate max-w-[80px] font-medium">{renderHighlight(store.objectNameMap[link.source_object_id] || '', search)}</span>
-                          <ChevronRight className="w-3 h-3 text-monokai-comment/50 shrink-0" />
-                          <span className="text-[10px] px-1.5 py-0.5 bg-monokai-green/10 text-monokai-green border border-monokai-green/20 rounded shrink-0 font-medium">{renderHighlight(store.linkTypeMap[link.link_type_id]?.name || '', search)}</span>
-                          <ChevronRight className="w-3 h-3 text-monokai-comment/50 shrink-0" />
-                          <span className="text-[11px] text-monokai-blue truncate max-w-[80px] font-medium">{renderHighlight(store.objectNameMap[link.target_object_id] || '', search)}</span>
-                        </div>
-                        <div className="opacity-0 translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 group-focus-within:opacity-100 group-focus-within:translate-x-0 transition-all duration-200 ml-2 shrink-0 flex items-center gap-1">
-                          <button onClick={(e) => { e.stopPropagation(); if ((window as any).__d3FocusNode) (window as any).__d3FocusNode(link.source_object_id, 'instance'); }} title="在图谱中定位关系起点" className="p-1 rounded-lg text-monokai-comment hover:text-monokai-cyan hover:bg-monokai-cyan/10"><Target className="w-3.5 h-3.5" /></button>
-                          <button onClick={(e) => { e.stopPropagation(); onRequestDelete('link', link.id, `关系 #${link.id}`); }} className="p-1 rounded-lg text-monokai-comment hover:text-monokai-orange hover:bg-monokai-orange/10"><Trash2 className="w-3.5 h-3.5" /></button>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </CRUDSection>
-
-                <MECESectionDivider label="Ⅳ. 行动执行 Actions" color="yellow" />
-
-                <CRUDSection title="逻辑驱动" icon={Zap} color="yellow" count={state.actions.length} matchedCount={search ? filteredActions.length : undefined}
-                   expanded={expanded.actions} onToggle={() => setExpanded(p => ({...p, actions: !p.actions}))} onAdd={() => onInspect('action', null)}>
-                   {filteredActions.length === 0 ? (
-                     <p className="text-[11px] text-monokai-comment p-2">暂无匹配的行动逻辑</p>
-                   ) : (
-                     filteredActions.map(action => (
-                       <CRUDRow key={action.id} name={action.name} desc={action.description || 'Action'} query={search} onEdit={() => onInspect('action', action)} onDelete={() => onRequestDelete('action', action.id, action.name)} renderHighlight={renderHighlight} />
-                     ))
-                   )}
-                </CRUDSection>
-              </div>
-            )}
-
-            {/* ── SubTab 3: Reflection Layer (Introspection / Insights) ── */}
-            {activeSubTab === 'reflection' && (
-              <div className="space-y-4 animate-in fade-in-50 duration-150">
-                <MECESectionDivider label="Ⅴ. 沉思与洞察 Reflection" color="cyan" />
-
-                <CRUDSection title="引导反思" icon={Brain} color="cyan" count={state.introspections.length} matchedCount={search ? filteredIntrospections.length : undefined}
-                  expanded={expanded.introspections} onToggle={() => setExpanded(p => ({...p, introspections: !p.introspections}))}
-                  onAdd={() => onInspect('introspection', null)}>
-                  {filteredIntrospections.length === 0 ? (
-                    <p className="text-[11px] text-monokai-comment p-2">暂无匹配的沉思记录</p>
-                  ) : (
-                    filteredIntrospections.map(intro => (
-                      <div key={intro.id} className="flex items-center justify-between px-2 py-2 rounded-lg bg-monokai-surface/30 border border-monokai-border/10 hover:border-monokai-cyan/30 hover:bg-monokai-sidebar/60 group transition-all duration-200 cursor-pointer" onClick={() => onInspect('introspection', intro)}>
-                        <div className="min-w-0 flex-1">
-                          <div className="text-xs font-medium text-monokai-fg truncate">{renderHighlight(intro.question || '无标题', search)}</div>
-                          {intro.answer && <div className="text-[11px] text-monokai-comment mt-0.5 line-clamp-1 truncate">{renderHighlight(intro.answer, search)}</div>}
-                        </div>
-                        <div className="opacity-0 translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 group-focus-within:opacity-100 group-focus-within:translate-x-0 transition-all duration-200 ml-2 shrink-0">
-                          <button onClick={(e) => { e.stopPropagation(); onRequestDelete('introspection', intro.id, intro.question || `反思 #${intro.id}`); }} className="p-1 rounded-lg text-monokai-comment hover:text-monokai-red hover:bg-monokai-red/10"><Trash2 className="w-3.5 h-3.5" /></button>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </CRUDSection>
-
-                <CRUDSection title="洞察记录" icon={Lightbulb} color="pink" count={state.insights.length} matchedCount={search ? filteredInsights.length : undefined}
-                  expanded={expanded.insights} onToggle={() => setExpanded(p => ({...p, insights: !p.insights}))}
-                  onAdd={() => onInspect('insight', null)}>
-                  {filteredInsights.length === 0 ? (
-                    <p className="text-[11px] text-monokai-comment p-2">暂无匹配的洞察记录</p>
-                  ) : (
-                    filteredInsights.map(insight => (
-                      <div key={insight.id} className="flex items-center justify-between px-2 py-2 rounded-lg bg-monokai-surface/30 border border-monokai-border/10 hover:border-monokai-pink/30 hover:bg-monokai-sidebar/60 group transition-all duration-200 cursor-pointer" onClick={() => onInspect('insight', insight)}>
-                        <div className="min-w-0 flex-1">
-                          <div className="text-xs font-medium text-monokai-fg truncate">{renderHighlight(insight.insight || '无标题', search)}</div>
-                          {insight.tag && (
-                            <span className="inline-block mt-1 text-[9px] px-1.5 py-0.5 rounded-full bg-monokai-pink/10 text-monokai-pink border border-monokai-pink/20 font-semibold">{renderHighlight(insight.tag, search)}</span>
-                          )}
-                        </div>
-                        <div className="opacity-0 translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 group-focus-within:opacity-100 group-focus-within:translate-x-0 transition-all duration-200 ml-2 shrink-0">
-                          <button onClick={(e) => { e.stopPropagation(); onRequestDelete('insight', insight.id, insight.insight || `洞察 #${insight.id}`); }} className="p-1 rounded-lg text-monokai-comment hover:text-monokai-red hover:bg-monokai-red/10"><Trash2 className="w-3.5 h-3.5" /></button>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </CRUDSection>
-              </div>
-            )}
-          </>
-        )}
-      </div>
-    </div>
-  );
-};
-
-const CRUDSection: React.FC<{ title: string; icon: React.ElementType; color: string; count: number; matchedCount?: number; expanded: boolean; onToggle: () => void; onAdd: () => void; children: React.ReactNode; }> = ({ title, icon: Icon, color, count, matchedCount, expanded, onToggle, onAdd, children }) => {
-  const colorClasses: Record<string, string> = { amethyst: 'text-monokai-amethyst', blue: 'text-monokai-blue', green: 'text-monokai-green', yellow: 'text-monokai-yellow', cyan: 'text-monokai-cyan', pink: 'text-monokai-pink' };
-  const badgeClasses: Record<string, string> = { amethyst: 'bg-monokai-amethyst/10 text-monokai-amethyst', blue: 'bg-monokai-blue/10 text-monokai-blue', green: 'bg-monokai-green/10 text-monokai-green', yellow: 'bg-monokai-yellow/10 text-monokai-yellow', cyan: 'bg-monokai-cyan/10 text-monokai-cyan', pink: 'bg-monokai-pink/10 text-monokai-pink' };
-
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between group cursor-pointer" onClick={onToggle}>
-        <div className="flex items-center gap-3">
-          <Icon className={`w-4 h-4 ${colorClasses[color]}`} />
-          <h4 className="text-xs font-semibold text-monokai-fg tracking-wide">{title}</h4>
-          <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${badgeClasses[color]}`}>
-            {matchedCount !== undefined ? `${matchedCount}/${count}` : count}
-          </span>
-        </div>
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
-          <button onClick={e => { e.stopPropagation(); onAdd(); }} className="p-1.5 rounded-lg text-monokai-comment hover:text-monokai-fg hover:bg-black/20"><Plus className="w-4 h-4" /></button>
-          {expanded ? <ChevronDown className="w-4 h-4 text-monokai-comment ml-1" /> : <ChevronRight className="w-4 h-4 text-monokai-comment ml-1" />}
-        </div>
-      </div>
-      {expanded && <div className="pl-2 space-y-1">{children || <p className="text-[11px] text-monokai-comment p-2">暂无记录</p>}</div>}
-    </div>
-  );
-};
-
-const CRUDRow: React.FC<{ name: string; desc: string; query: string; onEdit: () => void; onDelete: () => void; onQuickAdd?: () => void; renderHighlight: (t: string, q: string) => React.ReactNode }> = ({ name, desc, query, onEdit, onDelete, onQuickAdd, renderHighlight }) => (
-  <div className="flex items-center justify-between px-2 py-2.5 rounded-lg hover:bg-monokai-sidebar/60 group transition-all duration-200 cursor-pointer" onClick={onEdit}>
-    <div className="min-w-0 flex-1">
-      <div className="text-xs font-medium text-monokai-fg truncate">{renderHighlight(name, query)}</div>
-      {desc && <div className="text-[11px] text-monokai-comment truncate mt-0.5">{renderHighlight(desc, query)}</div>}
-    </div>
-    <div className="opacity-0 translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 group-focus-within:opacity-100 group-focus-within:translate-x-0 transition-all duration-200 ml-2 flex gap-1 shrink-0">
-      {onQuickAdd && (
-        <button onClick={(e) => { e.stopPropagation(); onQuickAdd(); }} title="快速在此类型下创建实例" className="p-1 rounded-lg text-monokai-comment hover:text-monokai-cyan hover:bg-monokai-cyan/10"><Plus className="w-3.5 h-3.5" /></button>
-      )}
-      <button onClick={(e) => { e.stopPropagation(); onDelete(); }} className="p-1.5 rounded-lg text-monokai-comment hover:text-monokai-orange hover:bg-monokai-orange/10"><Trash2 className="w-4 h-4" /></button>
-    </div>
-  </div>
-);
 
 // ============================================================
 // Date normalization helper
@@ -903,7 +464,7 @@ const OntologyPanelContent: React.FC<{
     initState: 'loading', initting: false, activeTemplateId: 'ontology-lv1', patterns: [], patternsLoading: false,
     objectTypes: [], objects: [], linkTypes: [], links: [], actions: [],
     introspections: [], insights: [],
-    activeTab: 'graph', drawerOpen: true, drawerTab: 'templates',
+    activeTab: 'graph', drawerOpen: false, drawerTab: 'templates',
     insightsOpen: false, search: '', aiTopic: '', isGenerating: false,
     draftPayload: null, draftJsonStr: '', error: null, pendingCommand: null,
     stats: { objectTypes: 0, objects: 0, linkTypes: 0, links: 0, actions: 0, introspections: 0, insights: 0 },
@@ -928,14 +489,117 @@ const OntologyPanelContent: React.FC<{
   const [aiInput, setAiInput] = useState('');
   const { activeTab, drawerOpen, drawerTab } = state;
 
+  // ============================================================
+  // 视图同步 Hook - 确保 D3GraphView 和 OntologyCanvas 布局同步
+  // ============================================================
+  const { 
+    syncState, 
+    pushLayout, 
+    pullLayout, 
+    forceSync,
+    getCachedLayout,
+    resetSync
+  } = useGraphViewSync({
+    enabled: true,
+    syncDelay: 150,
+    syncOnTabChange: true,
+  });
+
+  // D3GraphView 刷新引用和布局应用引用
+  const d3GraphRefreshRef = useRef<(() => void) | null>(null);
+  const d3ApplyLayoutRef = useRef<((layout: LayoutInfo) => void) | null>(null);
+  
+  // 记录上一次活跃的 tab，用于检测切换
+  const lastActiveTabRef = useRef<ViewTab>(activeTab);
+
+  // 当布局变化时，推送到全局存储
+  const handleLayoutChange = useCallback((layout: LayoutInfo) => {
+    pushLayout(layout);
+  }, [pushLayout]);
+
+  // 渲染模式切换回调: D3GraphView 顶部"渲染模式"下拉菜单点击后触发,
+  // 将 KnowledgeGraphRenderMode 映射回 ViewTab 并 dispatch activeTab。
+  // 视图状态(节点位置、缩放、选择、过滤)由 useGraphViewSync/layoutEventBus 自动保持。
+  const handleRenderModeChange = useCallback((mode: KnowledgeGraphRenderMode) => {
+    if (mode === activeTab) return;
+    dispatch(ontologyActions.setActiveTab(mode));
+    console.log('[OntologyPanel] Render mode switch → activeTab =', mode);
+  }, [activeTab, dispatch]);
+
+  // 视图切换时同步布局
+  useEffect(() => {
+    // 检测 tab 变化
+    if (lastActiveTabRef.current === activeTab) return;
+    
+    const previousTab = lastActiveTabRef.current;
+    lastActiveTabRef.current = activeTab;
+    
+    // Graph -> Canvas: cancel pending D3 pushLayout so debounced force-coords
+    // cannot overwrite the canvas first-entry layout a moment later.
+    if (previousTab === 'graph' && activeTab === 'canvas') {
+      resetSync();
+      const cachedLayout = getCachedLayout();
+      if (cachedLayout?.nodePositions) {
+        // Inform any legacy listeners; OntologyCanvas does its own first-entry layout.
+        layoutEventBus.publish(cachedLayout);
+        console.log('[OntologyPanel] Graph -> Canvas: 同步布局', Object.keys(cachedLayout.nodePositions).length, '个节点');
+      }
+    }
+    
+    // Canvas -> Graph: 刷新图谱视图
+    if (previousTab === 'canvas' && activeTab === 'graph') {
+      // 延迟刷新以确保组件已挂载
+      setTimeout(() => {
+        d3GraphRefreshRef.current?.();
+        console.log('[OntologyPanel] Canvas -> Graph: 刷新图谱视图');
+      }, 100);
+    }
+  }, [activeTab, getCachedLayout, resetSync]);
+
+  // ============================================================
+  // 视图性能统计显示状态
+  // ============================================================
+  const [layoutStatsVisible, setLayoutStatsVisible] = useState(false);
+
   // New states for the Inspector architecture
   const [inspectorMode, setInspectorMode] = useState<EditMode>('none');
   const [inspectorTarget, setInspectorTarget] = useState<any>(null);
-  const d3GraphRefreshRef = useRef<(() => void) | null>(null);
-  const [deleteConfirm, setDeleteConfirm] = useState<{ type: string; id: number; label: string } | null>(null);
+  const { confirm } = useConfirmDialog();
   const [modelingWizardOpen, setModelingWizardOpen] = useState(false);
   const [reasoningCatalogOpen, setReasoningCatalogOpen] = useState(false);
+  const [deductionWorkbenchOpen, setDeductionWorkbenchOpen] = useState(false);
   const [reseedMessage, setReseedMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  const [viewportWidth, setViewportWidth] = useState(() =>
+    typeof window === 'undefined' ? 1440 : window.innerWidth,
+  );
+  const drawerPreferenceReady = useRef(false);
+  const drawerMode = resolveOntologyDrawerMode(viewportWidth);
+
+  useEffect(() => {
+    const handleResize = () => setViewportWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
+    const preferredOpen = window.localStorage.getItem(ONTOLOGY_DRAWER_PREFERENCE_KEY) === 'true';
+    if (preferredOpen && !state.drawerOpen) dispatch(ontologyActions.toggleDrawer());
+    drawerPreferenceReady.current = true;
+  }, []);
+
+  useEffect(() => {
+    if (!drawerPreferenceReady.current) return;
+    window.localStorage.setItem(ONTOLOGY_DRAWER_PREFERENCE_KEY, String(state.drawerOpen));
+  }, [state.drawerOpen]);
+
+  // Sidebar toggle changes center width in inline mode — re-fit the graph so it doesn't look "gone".
+  useEffect(() => {
+    if (activeTab !== 'graph') return;
+    const timer = window.setTimeout(() => {
+      (window as any).__d3FitAll?.();
+    }, 80);
+    return () => window.clearTimeout(timer);
+  }, [drawerOpen, activeTab]);
 
   useEffect(() => {
     const command = state.pendingCommand;
@@ -1001,6 +665,30 @@ const OntologyPanelContent: React.FC<{
     d3GraphRefreshRef.current?.();
   }, []);
 
+  const handleDeleteEntity = useCallback(async (type: string, id: number, label: string) => {
+    const ok = await confirm({
+      title: '破坏性操作确认',
+      message: `确定要销毁「${label}」吗？此操作将永久修改知识图谱库数据。`,
+      variant: 'danger',
+      confirmText: '确认销毁',
+      cancelText: '取消',
+    });
+    if (!ok) return;
+    try {
+      if (type === 'objectType') await deleteObjectType(id);
+      else if (type === 'object') await deleteObject(id);
+      else if (type === 'linkType') await deleteLinkType(id);
+      else if (type === 'link') await deleteLink(id);
+      else if (type === 'action') await deleteAction(id);
+      else if (type === 'introspection') await deleteIntrospection(id);
+      else if (type === 'insight') await deleteInsight(id);
+      setInspectorMode('none');
+      await refresh();
+    } catch (e: any) {
+      console.error('销毁失败:', e.message);
+    }
+  }, [confirm, deleteObjectType, deleteObject, deleteLinkType, deleteLink, deleteAction, deleteIntrospection, deleteInsight, refresh]);
+
   const openInspector = (mode: EditMode, target: any) => {
     setInspectorMode(mode);
     setInspectorTarget(target);
@@ -1008,88 +696,97 @@ const OntologyPanelContent: React.FC<{
   };
 
   const openSimulationLab = () => {
-    useAppStore.getState().setActiveTab(Tab.COMPOSITIONAL_DEDUCTION);
+    setDeductionWorkbenchOpen(true);
   };
 
   const DRAWER_TABS: { id: DrawerTab; label: string; icon: React.ElementType; sub?: string }[] = [
     { id: 'templates', label: '本体教程', icon: GraduationCap, sub: '14 课建模实战路线' },
     { id: 'crud',     label: '实体库', icon: List, sub: 'Schema · Node · Edge' },
-    { id: 'mapping',  label: '映射台', icon: Map, sub: '数据 → 本体' },
+    { id: 'mapping',  label: '物理映射', icon: Map, sub: 'DuckDB 物理表 ↔ 本体' },
+    { id: 'deduction', label: '多跳推演', icon: Workflow, sub: '拓扑链路与语义推演' },
   ];
 
   return (
-    <div className="h-full w-full flex flex-col bg-monokai-bg overflow-hidden text-monokai-fg">
+    <div className="h-full w-full flex flex-col bg-monokai-bg overflow-hidden text-monokai-fg font-sans">
       {/* ── Top Master Header ── */}
-      <div className="h-16 px-6 flex items-center justify-between border-b border-monokai-accent/10 bg-monokai-bg shrink-0 z-20 relative shadow-sm">
+      <div className="min-h-13 px-5 py-2.5 flex items-center justify-between border-b border-monokai-border bg-monokai-sidebar shrink-0 z-20 relative backdrop-blur-md">
         
         {/* Branding & Global Drawer Toggle */}
-        <div className="flex items-center gap-4">
-          <button onClick={() => dispatch(ontologyActions.toggleDrawer())} className="p-2 rounded-xl text-monokai-comment hover:text-white hover:bg-monokai-accent/10 transition-colors">
-            {drawerOpen ? <AlignLeft className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
+        <div className="flex items-center gap-3.5">
+          <button
+            type="button"
+            aria-label={drawerOpen ? "收起本体侧栏" : "展开本体侧栏"}
+            aria-expanded={drawerOpen}
+            aria-controls="ontology-tool-drawer"
+            onClick={() => dispatch(ontologyActions.toggleDrawer())}
+            className="h-9 w-9 flex items-center justify-center rounded-lg border border-monokai-border bg-monokai-surface text-monokai-comment hover:text-monokai-fg hover:bg-monokai-border/40 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-monokai-accent cursor-pointer active:scale-95"
+          >
+            {drawerOpen ? <AlignLeft className="w-4.5 h-4.5 text-monokai-cyan" /> : <ChevronRight className="w-4.5 h-4.5 text-monokai-comment" />}
           </button>
-          <div className="flex items-center gap-2">
-            <Network className="w-5 h-5 text-monokai-cyan" />
-            <span className="text-sm font-bold tracking-widest uppercase text-monokai-fg">DATA ONTOLOGY</span>
+
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-monokai-cyan/15 border border-monokai-cyan/30 flex items-center justify-center text-monokai-cyan font-bold text-xs shadow-xs">
+              <Network className="w-5 h-5" />
+            </div>
+            <div>
+              <span className="font-bold text-sm text-monokai-fg tracking-tight">本体知识空间 (Ontology Studio)</span>
+            </div>
           </div>
         </div>
 
-        {/* View Segmented Control */}
-        <div className="flex items-center bg-black/30 p-1.5 rounded-xl border border-monokai-accent/5">
-          {VIEW_TABS.map(tab => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button key={tab.id} onClick={() => dispatch(ontologyActions.setActiveTab(tab.id))}
-                className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-                  isActive ? 'bg-monokai-sidebar shadow text-monokai-cyan' : 'text-monokai-comment hover:text-monokai-fg'
-                }`}>
-                <Icon className="w-4 h-4" /> {tab.label}
-              </button>
-            );
-          })}
-        </div>
+        {/* View Switcher (知识图谱 / 数据视图 / 实体画布) */}
+        <SegmentedTabs<ViewTab>
+          value={activeTab}
+          items={VIEW_TABS}
+          onChange={(tab) => dispatch(ontologyActions.setActiveTab(tab))}
+          aria-label="本体视图切换"
+          tone="accent"
+          size="md"
+        />
 
-        {/* AI Cmd Bar */}
-        <div className="flex items-center gap-3">
-          <>
-              <div className="relative group">
-                <Sparkles className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-monokai-amethyst/60 group-hover:text-monokai-amethyst transition-colors" />
-                <input type="text" value={aiInput} onChange={e => setAiInput(e.target.value)} placeholder="使用自然语言建立映射脉络..."
-                  className="pl-9 pr-4 py-2.5 text-sm w-72 bg-monokai-sidebar/30 border border-monokai-accent/20 text-monokai-fg placeholder-monokai-comment/50 rounded-xl focus:outline-none focus:border-monokai-amethyst/60 focus:bg-monokai-sidebar/80 transition-all shadow-inner" />
-              </div>
+        {/* Action Buttons */}
+        <div className="flex items-center gap-2.5">
+          <ActionButton
+            variant="secondary"
+            size="md"
+            icon={Wand2}
+            onClick={() => setModelingWizardOpen(true)}
+          >
+            本体建模
+          </ActionButton>
 
-              <button onClick={() => setModelingWizardOpen(true)}
-                className="flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl
-                  bg-monokai-amethyst/15 text-monokai-amethyst hover:bg-monokai-amethyst/25 border border-monokai-amethyst/20
-                  transition-all">
-                <Wand2 className="w-4 h-4" /> 本体建模
-              </button>
-          </>
-
-          <button
+          <ActionButton
+            variant="secondary"
+            size="md"
+            icon={FlaskConical}
             onClick={openSimulationLab}
-            className="flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl border transition-all bg-monokai-sidebar/30 text-monokai-comment border-transparent hover:bg-monokai-sidebar hover:text-white hover:border-monokai-accent/20">
-            <FlaskConical className="w-4 h-4" /> 组合推演
-          </button>
+          >
+            组合推演
+          </ActionButton>
 
-          <button
+          <ActionButton
+            variant="secondary"
+            size="md"
+            icon={Brain}
             onClick={() => setReasoningCatalogOpen(true)}
-            className="flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl border border-monokai-amethyst/20 bg-monokai-amethyst/10 px-4 py-2.5 text-sm font-medium text-monokai-amethyst transition-all hover:bg-monokai-amethyst/20">
-            <Brain className="w-4 h-4" /> 推演定义
-          </button>
+          >
+            推演定义
+          </ActionButton>
 
-          <button onClick={() => { setInspectorMode('none'); dispatch(ontologyActions.toggleInsights()); }}
-            className={`flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-xl transition-all ${
-              state.insightsOpen ? 'bg-monokai-yellow/15 text-monokai-yellow' : 'bg-monokai-sidebar/30 text-monokai-comment hover:bg-monokai-sidebar hover:text-white border border-transparent hover:border-monokai-accent/20'
-            }`}>
-            <Lightbulb className="w-4 h-4" /> 聚合洞察
-          </button>
+          <ActionButton
+            variant={state.insightsOpen ? "warning" : "secondary"}
+            size="md"
+            icon={Lightbulb}
+            onClick={() => { setInspectorMode("none"); dispatch(ontologyActions.toggleInsights()); }}
+          >
+            聚合洞察
+          </ActionButton>
         </div>
       </div>
 
       {/* ── Sub Header / Status Bar ── */}
-      <div className="h-9 px-6 flex items-center justify-between bg-black/40 border-b border-monokai-accent/5 shrink-0">
-        <div className="flex items-center gap-6 text-xs text-monokai-comment uppercase font-mono tracking-wider">
+      <div className="h-9 px-5 flex items-center justify-between bg-monokai-surface/60 border-b border-monokai-border shrink-0">
+        <div className="flex items-center gap-4 text-xs text-monokai-comment font-mono">
           {state.initState === 'loading' ? (
             <span className="flex items-center gap-2">
               <Loader2 className="w-3.5 h-3.5 animate-spin text-monokai-cyan" />
@@ -1097,89 +794,166 @@ const OntologyPanelContent: React.FC<{
             </span>
           ) : state.initState === 'no-tables' ? (
             <span className="flex items-center gap-2">
-              <Database className="w-3.5 h-3.5 text-monokai-amethyst/70" />
-              <span className="text-monokai-orange/80">本体论未初始化 — 请在左侧点击「一键构建并挂载」</span>
+              <Database className="w-3.5 h-3.5 text-monokai-comment" />
+              <span className="text-monokai-yellow">本体论未初始化</span>
+              <button
+                type="button"
+                onClick={() => void initOntology()}
+                disabled={state.initting}
+                className="rounded border border-monokai-green/40 bg-monokai-green/15 px-2.5 py-0.5 text-xs font-bold text-monokai-green hover:bg-monokai-green/25 disabled:opacity-50 cursor-pointer"
+              >
+                {state.initting ? '初始化中...' : state.error ? '重试初始化' : '一键初始化'}
+              </button>
             </span>
           ) : (
             <>
-              <span>Entities: <strong className="text-monokai-blue">{state.objects?.length ?? 0}</strong></span>
-              <span>Edges: <strong className="text-monokai-amethyst">{state.links?.length ?? 0}</strong></span>
-              <span>Schemas: <strong className="text-monokai-yellow">{state.objectTypes?.length ?? 0}</strong></span>
-              <span>LinkTypes: <strong className="text-monokai-green">{state.linkTypes?.length ?? 0}</strong></span>
-              <span>Actions: <strong className="text-monokai-orange">{state.actions?.length ?? 0}</strong></span>
+              <span>实体: <strong className="text-monokai-cyan font-bold">{state.objects?.length ?? 0}</strong></span>
+              <span>关系: <strong className="text-monokai-fg font-bold">{state.links?.length ?? 0}</strong></span>
+              <span>概念模式: <strong className="text-monokai-yellow font-bold">{state.objectTypes?.length ?? 0}</strong></span>
+              <span>关系类型: <strong className="text-monokai-green font-bold">{state.linkTypes?.length ?? 0}</strong></span>
+              <span>行动规则: <strong className="text-monokai-orange font-bold">{state.actions?.length ?? 0}</strong></span>
               {state.introspections?.length > 0 && (
-                <span>Introspections: <strong className="text-monokai-cyan">{state.introspections.length}</strong></span>
+                <span>反思记录: <strong className="text-monokai-cyan font-bold">{state.introspections.length}</strong></span>
               )}
               {state.insights?.length > 0 && (
-                <span>Insights: <strong className="text-monokai-pink">{state.insights.length}</strong></span>
+                <span>洞察结论: <strong className="text-monokai-yellow font-bold">{state.insights.length}</strong></span>
               )}
             </>
           )}
         </div>
-        {/* Right side: clock + refresh + reseed */}
-        <div className="flex items-center gap-4">
-          <button onClick={() => refresh()} title="刷新图谱数据"
-            className="p-1.5 rounded-lg text-monokai-comment hover:text-monokai-cyan hover:bg-monokai-cyan/10 transition-colors">
+        {/* Right side: refresh + reseed */}
+        <div className="flex items-center gap-3">
+          <button onClick={() => refresh()} title="刷新图谱数据" aria-label="刷新图谱数据"
+            className="p-1.5 rounded-lg text-monokai-comment hover:text-monokai-cyan hover:bg-monokai-surface transition-colors cursor-pointer">
             <RefreshCw className="w-3.5 h-3.5" />
           </button>
           {state.initState === 'ready' && (
             <div className="flex shrink-0 items-center gap-2 whitespace-nowrap">
-              <button onClick={handleReseedSupplement} disabled={state.initting} title="补充缺失的人物和目标数据"
-                className="shrink-0 whitespace-nowrap px-2 py-1 rounded-lg text-xs bg-monokai-amethyst/10 text-monokai-amethyst hover:bg-monokai-amethyst/20 transition-colors disabled:opacity-50">
+              <button onClick={handleReseedSupplement} disabled={state.initting} title="补充缺失的实体数据"
+                className="shrink-0 whitespace-nowrap px-2.5 py-1 rounded-lg text-xs bg-monokai-surface text-monokai-cyan border border-monokai-border hover:bg-monokai-border/40 transition-colors disabled:opacity-50 cursor-pointer">
                 {state.initting ? '写入中...' : '补充数据'}
               </button>
               {reseedMessage && (
-                <span className={`shrink-0 text-[10px] font-mono ${reseedMessage.type === 'success' ? 'text-monokai-green' : 'text-monokai-pink'}`}>
+                <span className={`shrink-0 text-xs font-mono ${reseedMessage.type === 'success' ? 'text-monokai-green' : 'text-monokai-pink'}`}>
                   {reseedMessage.text}
                 </span>
               )}
               <QuickClearMenu onClear={refresh} />
             </div>
           )}
-          <LiveClock />
         </div>
       </div>
 
       {/* ── Main Workspace ── */}
-      <div className="flex-1 overflow-hidden relative">
-        <ResizableLayout leftInitialWidth={340} rightInitialWidth={380} minWidth={220} maxLeftRatio={0.35} maxRightRatio={0.40}>
-          {({ leftWidth, rightWidth, startResizingLeft, startResizingRight }) => (
-            <div className="flex h-full w-full overflow-hidden">
+      <div className="flex-1 min-h-0 h-full overflow-hidden relative">
+        <ResizableLayout
+          leftInitialWidth={440}
+          rightInitialWidth={380}
+          minWidth={360}
+          maxLeftRatio={0.50}
+          maxRightRatio={0.40}
+          storagePrefix="ontology-drawer-layout"
+          className="w-full h-full"
+        >
+          {({ leftWidth, rightWidth, setLeftWidth, startResizingLeft, startResizingRight }) => (
+            <div className="flex h-full w-full min-h-0 overflow-hidden">
               
-              {/* LEFT NAV PANEL */}
+              {/* LEFT NAV PANEL — inline push on workbench; overlay only on very narrow viewports.
+                  Never use a full-bleed dimmer: it made the graph look like it was toggled off. */}
+              {drawerOpen && drawerMode === 'overlay' && (
+                <button
+                  type="button"
+                  aria-label="关闭本体侧栏"
+                  onClick={() => dispatch(ontologyActions.toggleDrawer())}
+                  className="absolute inset-y-0 right-0 z-20 bg-transparent"
+                  style={{ left: Math.min(leftWidth, Math.max(0, viewportWidth - 32)) }}
+                />
+              )}
               {drawerOpen && (
-                <div style={{ width: leftWidth }} className="flex-shrink-0 flex flex-col border-r border-monokai-accent/10 bg-monokai-bg/80 backdrop-blur-xl relative z-10 shadow-2xl">
+                <aside
+                  id="ontology-tool-drawer"
+                  aria-label="本体工具侧栏"
+                  style={{ width: drawerMode === 'overlay' ? Math.min(leftWidth, viewportWidth - 32) : leftWidth }}
+                  className={`${drawerMode === 'overlay' ? 'absolute inset-y-0 left-0 z-30 shadow-2xl' : 'relative z-10 flex-shrink-0'} flex flex-col h-full min-h-0 overflow-hidden border-r border-white/10 bg-monokai-bg`}
+                >
                   {/* Resizer Handle Left */}
                   <div onMouseDown={startResizingLeft} onTouchStart={startResizingLeft}
-                    className="absolute right-0 top-0 w-[4px] h-full cursor-col-resize hover:bg-gradient-to-b hover:from-monokai-cyan hover:to-monokai-amethyst transition-all duration-300 z-20 group hover:shadow-[0_0_12px_rgba(102,217,239,0.8)]">
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity"><GripVertical className="w-4 h-4 text-monokai-cyan" /></div>
+                    aria-hidden={drawerMode === 'overlay'}
+                    className={`${drawerMode === 'overlay' ? 'hidden' : ''} absolute right-0 top-0 w-[5px] h-full cursor-col-resize hover:bg-monokai-cyan transition-colors z-20 group`}>
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-monokai-sidebar border border-monokai-cyan/50 p-0.5 rounded shadow"><GripVertical className="w-3.5 h-3.5 text-monokai-cyan" /></div>
                   </div>
 
-                  <div className="flex items-center pt-2 px-3 pb-0 shrink-0 relative gap-1">
+                  {/* Drawer Control Header with Width Presets & Collapse */}
+                  <div className="h-8 px-2.5 flex items-center justify-between border-b border-white/5 bg-monokai-sidebar/40 shrink-0 select-none">
+                    <div className="flex items-center gap-1.5 text-[11px] text-monokai-comment font-medium">
+                      <Layers className="w-3 h-3 text-monokai-cyan" />
+                      <span>控制仓</span>
+                      <span className="text-[10px] font-mono text-monokai-comment/60">({Math.round(leftWidth)}px)</span>
+                    </div>
+
+                    <div className="flex items-center gap-1">
+                      {/* Width preset toggles */}
+                      {drawerMode !== 'overlay' && setLeftWidth && (
+                        <div className="flex items-center gap-0.5 bg-monokai-bg rounded p-0.5 border border-white/5 text-[10px] font-mono">
+                          <button
+                            type="button"
+                            onClick={() => setLeftWidth(360)}
+                            title="紧凑宽度 (360px)"
+                            className={`px-1.5 py-0.5 rounded transition-colors cursor-pointer ${leftWidth <= 380 ? 'bg-monokai-cyan/20 text-monokai-cyan font-bold' : 'text-monokai-comment hover:text-white'}`}
+                          >
+                            紧凑
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setLeftWidth(440)}
+                            title="标准宽度 (440px)"
+                            className={`px-1.5 py-0.5 rounded transition-colors cursor-pointer ${leftWidth > 380 && leftWidth <= 480 ? 'bg-monokai-cyan/20 text-monokai-cyan font-bold' : 'text-monokai-comment hover:text-white'}`}
+                          >
+                            标准
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setLeftWidth(580)}
+                            title="宽屏宽视 (580px)"
+                            className={`px-1.5 py-0.5 rounded transition-colors cursor-pointer ${leftWidth > 480 ? 'bg-monokai-cyan/20 text-monokai-cyan font-bold' : 'text-monokai-comment hover:text-white'}`}
+                          >
+                            宽屏
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Quick collapse button */}
+                      <button
+                        type="button"
+                        onClick={() => dispatch(ontologyActions.toggleDrawer())}
+                        title="收起本体侧栏"
+                        className="p-1 rounded hover:bg-white/5 text-monokai-comment hover:text-white transition-colors cursor-pointer"
+                      >
+                        <ChevronLeft className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center pt-1.5 px-2 pb-1 shrink-0 relative gap-1 border-b border-white/5 bg-monokai-surface/30">
                     {DRAWER_TABS.map(tab => {
                       const Icon = tab.icon;
                       const isActive = drawerTab === tab.id;
                       return (
                         <button key={tab.id} onClick={() => dispatch(ontologyActions.setDrawerTab(tab.id))}
                           title={tab.sub}
-                          className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-2 px-1 rounded-lg text-xs transition-all relative ${
+                          className={`flex-1 flex flex-row items-center justify-center gap-1.5 py-1.5 px-1.5 rounded-lg text-xs transition-all relative cursor-pointer ${
                             isActive
-                              ? 'bg-monokai-cyan/12 text-monokai-cyan'
-                              : 'text-monokai-comment/50 hover:text-monokai-fg hover:bg-monokai-sidebar/40'
+                              ? 'bg-monokai-cyan/15 text-monokai-cyan font-semibold border border-monokai-cyan/30 shadow-xs'
+                              : 'text-monokai-comment hover:text-white hover:bg-monokai-surface/80'
                           }`}>
-                          <Icon className={`w-4 h-4 transition-transform ${isActive ? 'scale-110' : ''}`} />
-                          <span className="font-semibold tracking-tight leading-none text-[10px]">{tab.label}</span>
-                          {isActive && (
-                            <div className="absolute bottom-0 left-3 right-3 h-0.5 rounded-full bg-monokai-cyan shadow-[0_0_8px_rgba(102,217,239,0.6)]" />
-                          )}
+                          <Icon className={`w-3.5 h-3.5 shrink-0 transition-transform ${isActive ? 'scale-105 text-monokai-cyan' : ''}`} />
+                          <span className="tracking-tight leading-none text-xs truncate">{tab.label}</span>
                         </button>
                       );
                     })}
-                    {/* Tab bar bottom border */}
-                    <div className="absolute bottom-0 left-2 right-2 h-px bg-gradient-to-r from-transparent via-monokai-accent/20 to-transparent" />
                   </div>
 
-                  <div className="flex-1 overflow-y-auto custom-scrollbar p-3">
+                  <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
                     {drawerTab === 'templates' && (
                       <PatternLibraryPanel
                         state={state}
@@ -1188,26 +962,65 @@ const OntologyPanelContent: React.FC<{
                         onTablesReady={onTablesReady}
                       />
                     )}
-                    {drawerTab === 'crud' && <CRUDList onInspect={openInspector} onRequestDelete={(type, id, label) => setDeleteConfirm({ type, id, label })} />}
-                    {drawerTab === 'mapping' && <MappingConsole />}
+                    {drawerTab === 'crud' && (
+                      <CRUDList
+                        onInspect={openInspector}
+                        onRequestDelete={handleDeleteEntity}
+                        activeEntity={inspectorTarget && inspectorMode !== 'none' ? { mode: inspectorMode, id: inspectorTarget.id } : null}
+                      />
+                    )}
+                    {drawerTab === 'mapping' && (
+                      <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
+                        <MappingConsole />
+                      </div>
+                    )}
+                    {drawerTab === 'deduction' && (
+                      <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
+                        <MultiHopDeductionExplorer
+                          onInsert={onInsert}
+                          onOpenWorkbench={openSimulationLab}
+                          onInspectNode={(node) => openInspector('object', node)}
+                        />
+                      </div>
+                    )}
                   </div>
-                </div>
+                </aside>
               )}
 
               {/* CENTER CANVAS */}
-              <div className="flex-1 relative overflow-hidden bg-[#0c0d12]">
-                {activeTab === 'graph' && <D3GraphView onRefreshRef={fn => d3GraphRefreshRef.current = fn} ontologyState={state} isActive={isActive} onInspect={openInspector} />}
+              <div className="flex-1 h-full min-h-0 relative overflow-hidden bg-monokai-bg">
+                {activeTab === 'graph' && (
+                  <D3GraphView 
+                    onRefreshRef={fn => d3GraphRefreshRef.current = fn} 
+                    ontologyState={state} 
+                    isActive={isActive} 
+                    onInspect={openInspector}
+                    onLayoutChange={handleLayoutChange}
+                  />
+                )}
                 {activeTab === 'data' && <OntologyDataView ontologyState={state} />}
                 {activeTab === 'canvas' && <OntologyCanvas onInsert={onInsert} ontologyState={state} onInspect={openInspector} />}
               </div>
 
+              {drawerMode === 'overlay' && (inspectorMode !== 'none' || state.insightsOpen) && (
+                <button
+                  type="button"
+                  aria-label="关闭右侧详情面板"
+                  className="absolute inset-0 z-30 bg-black/45 backdrop-blur-[1px] cursor-default"
+                  onClick={() => {
+                    setInspectorMode('none');
+                    if (state.insightsOpen) dispatch(ontologyActions.toggleInsights());
+                  }}
+                />
+              )}
+
               {/* RIGHT SIMULATION LAB — independent from the left tutorial drawer */}
               {/* RIGHT INSPECTOR PANEL */}
               {inspectorMode !== 'none' && (
-                <div style={{ width: rightWidth }} className="flex-shrink-0 flex flex-col shadow-[-10px_0_30px_rgba(0,0,0,0.5)] z-20 relative bg-monokai-bg/90 backdrop-blur-2xl">
+                <div style={{ width: rightWidth }} className="ontology-right-panel flex-shrink-0 flex flex-col h-full min-h-0 overflow-hidden border-l border-monokai-border z-20 relative bg-monokai-sidebar shadow-md">
                    {/* Resizer Handle Right */}
                   <div onMouseDown={startResizingRight} onTouchStart={startResizingRight}
-                    className="absolute left-0 top-0 w-[4px] h-full cursor-col-resize hover:bg-gradient-to-b hover:from-monokai-cyan hover:to-monokai-amethyst transition-all duration-300 z-20 group hover:shadow-[0_0_12px_rgba(102,217,239,0.8)]">
+                    className="absolute left-0 top-0 w-[4px] h-full cursor-col-resize hover:bg-monokai-cyan transition-colors z-20 group">
                     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity"><GripVertical className="w-4 h-4 text-monokai-cyan" /></div>
                   </div>
                   <RightInspector key={`inspector-${inspectorMode}-${inspectorTarget?.id ?? 'new'}`} mode={inspectorMode} target={inspectorTarget} onClose={() => setInspectorMode('none')} onSave={handleGraphSaved} onInspect={openInspector} />
@@ -1216,10 +1029,10 @@ const OntologyPanelContent: React.FC<{
 
               {/* INSIGHTS PANEL (Alternative Right Pane) */}
               {state.insightsOpen && inspectorMode === 'none' && (
-                <div style={{ width: rightWidth }} className="flex-shrink-0 flex flex-col bg-monokai-bg/90 border-l border-monokai-accent/20 shadow-[-10px_0_30px_rgba(0,0,0,0.5)] z-20 relative backdrop-blur-2xl">
+                <div style={{ width: rightWidth }} className="ontology-right-panel flex-shrink-0 flex flex-col h-full min-h-0 overflow-hidden bg-monokai-sidebar border-l border-monokai-border shadow-md z-20 relative">
                    {/* Resizer Handle Right for Insights */}
                   <div onMouseDown={startResizingRight} onTouchStart={startResizingRight}
-                    className="absolute left-0 top-0 w-[4px] h-full cursor-col-resize hover:bg-gradient-to-b hover:from-monokai-cyan hover:to-monokai-amethyst transition-all duration-300 z-20 group hover:shadow-[0_0_12px_rgba(102,217,239,0.8)]">
+                    className="absolute left-0 top-0 w-[4px] h-full cursor-col-resize hover:bg-monokai-cyan transition-colors z-20 group">
                     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity"><GripVertical className="w-4 h-4 text-monokai-cyan" /></div>
                   </div>
                   <OntologyInsightsPanel objects={state.objects} objectTypes={state.objectTypes} links={state.links} linkTypes={state.linkTypes} />
@@ -1229,47 +1042,6 @@ const OntologyPanelContent: React.FC<{
           )}
         </ResizableLayout>
       </div>
-
-      {/* Delete Confirmation Alert */}
-      {deleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm transition-all">
-          <div className="w-96 bg-monokai-bg border border-monokai-accent/20 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="p-6">
-               <div className="flex items-center gap-4 mb-4">
-                 <div className="w-12 h-12 rounded-xl bg-monokai-red/10 flex items-center justify-center shrink-0">
-                    <AlertTriangle className="w-6 h-6 text-monokai-red" />
-                 </div>
-                 <div>
-                   <h4 className="text-lg font-bold text-monokai-fg">破坏性操作确认</h4>
-                   <p className="text-sm text-monokai-comment mt-1">此操作将永久修改知识图谱库数据。</p>
-                 </div>
-               </div>
-               <p className="text-sm text-monokai-fg p-4 bg-monokai-sidebar/40 rounded-xl font-medium border border-monokai-accent/10">确定要销毁「{deleteConfirm.label}」吗？</p>
-            </div>
-            <div className="px-6 py-4 bg-monokai-sidebar/30 flex justify-end gap-3 border-t border-monokai-accent/10">
-              <button onClick={() => setDeleteConfirm(null)} className="px-5 py-2.5 text-sm font-medium rounded-xl text-monokai-fg bg-black/40 hover:bg-black/60 transition-colors">取消</button>
-              <button
-                onClick={async () => {
-                try {
-                  if (deleteConfirm.type === 'objectType') await deleteObjectType(deleteConfirm.id);
-                  else if (deleteConfirm.type === 'object') await deleteObject(deleteConfirm.id);
-                  else if (deleteConfirm.type === 'linkType') await deleteLinkType(deleteConfirm.id);
-                  else if (deleteConfirm.type === 'link') await deleteLink(deleteConfirm.id);
-                  else if (deleteConfirm.type === 'action') await deleteAction(deleteConfirm.id);
-                  else if (deleteConfirm.type === 'introspection') await deleteIntrospection(deleteConfirm.id);
-                  else if (deleteConfirm.type === 'insight') await deleteInsight(deleteConfirm.id);
-                  setDeleteConfirm(null);
-                  setInspectorMode('none');
-                  await refresh();
-                } catch (e: any) { console.error('销毁失败:', e.message); }
-              }}
-                className="px-5 py-2.5 text-sm font-bold rounded-xl bg-monokai-red/20 text-monokai-red hover:bg-monokai-red hover:text-white transition-colors shadow-[0_0_15px_rgba(249,38,114,0.3)]">
-                确认销毁
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* AI Draft Global Alert */}
       {state.draftPayload && (
@@ -1299,6 +1071,11 @@ const OntologyPanelContent: React.FC<{
       )}
       {reasoningCatalogOpen && (
         <OntologyReasoningCatalogEditor source={{ ...state, activeTemplateId }} onClose={() => setReasoningCatalogOpen(false)} />
+      )}
+      {deductionWorkbenchOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 p-6 backdrop-blur-sm">
+          <DeductionWorkbench isOpen onClose={() => setDeductionWorkbenchOpen(false)} />
+        </div>
       )}
     </div>
   );

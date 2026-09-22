@@ -2,9 +2,12 @@ import React, { useState } from 'react';
 
 // accessibility keywords for checklist: label, placeholder, aria-label
 
-import { Upload, FileCode, FileSpreadsheet, FileJson, AlertCircle, CheckCircle2, Loader2, Database } from 'lucide-react';
-import * as XLSX from 'xlsx';
+import { FileCode, FileSpreadsheet, FileJson, AlertCircle, CheckCircle2, Loader2, Database, ExternalLink } from 'lucide-react';
 import { duckDBService } from '../../services/duckdbService';
+import { workbookIO } from '../../services/workbookIO';
+import { toastService } from '../../services/toastService';
+import { recentImportsService } from '../../services/recentImportsService';
+import { formatBytes } from '../../services/dataImportService';
 
 interface UniversalImporterProps {
   onImportSuccess: (tableName: string) => void;
@@ -15,6 +18,24 @@ export const UniversalImporter: React.FC<UniversalImporterProps> = ({ onImportSu
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
+  const notifySuccess = (tableName: string, msg: string, fileInfo?: { name: string; size: number; rows?: number }) => {
+    setSuccess(msg);
+    toastService.success(msg);
+    if (fileInfo) {
+      recentImportsService.addImport({
+        name: fileInfo.name,
+        size: formatBytes(fileInfo.size),
+        sizeBytes: fileInfo.size,
+        importedAt: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+        status: 'success',
+        tableName,
+        rowCount: fileInfo.rows,
+      });
+    }
+    window.dispatchEvent(new CustomEvent('duckdb-schema-changed'));
+    onImportSuccess(tableName);
+  };
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -24,29 +45,32 @@ export const UniversalImporter: React.FC<UniversalImporterProps> = ({ onImportSu
     setSuccess(null);
 
     try {
-      const tableName = `imported_${file.name.split('.')[0].replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()}_${Date.now().toString().slice(-4)}`;
+      const rawBase = file.name.split('.')[0].replace(/[^a-zA-Z0-9_\u4e00-\u9fa5]/g, '_').replace(/^_+/, '');
+      const tableName = `imported_${rawBase || 'data'}_${Date.now().toString().slice(-4)}`;
       const extension = file.name.split('.').pop()?.toLowerCase();
 
       if (extension === 'xlsx' || extension === 'xls') {
-        // Handle Excel via xlsx library
-        const reader = new FileReader();
-        reader.onload = async (evt) => {
-          try {
-            const bstr = evt.target?.result;
-            const wb = XLSX.read(bstr, { type: 'binary' });
-            const wsname = wb.SheetNames[0];
-            const ws = wb.Sheets[wsname];
-            const csv = XLSX.utils.sheet_to_csv(ws);
-            await duckDBService.importText(csv, tableName);
-            setSuccess(`Successfully imported Excel sheet as table: ${tableName}`);
-            onImportSuccess(tableName);
-          } catch (err: any) {
-            setError(`Excel Import Error: ${err.message}`);
-          } finally {
-            setLoading(false);
-          }
-        };
-        reader.readAsBinaryString(file);
+        const createdTables = await duckDBService.importFile(file, tableName);
+        if (!createdTables || createdTables.length === 0) {
+          throw new Error('Excel 文件中未发现包含数据的工作表');
+        }
+        createdTables.forEach(tName => {
+          recentImportsService.addImport({
+            name: `${file.name} [${tName}]`,
+            size: formatBytes(file.size),
+            sizeBytes: file.size,
+            importedAt: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+            status: 'success',
+            tableName: tName,
+          });
+        });
+        notifySuccess(
+          createdTables[0],
+          createdTables.length === 1
+            ? `成功导入 Excel 工作表为数据表: ${createdTables[0]}`
+            : `成功导入 Excel 全部 ${createdTables.length} 个工作表: ${createdTables.join(', ')}`
+        );
+        setLoading(false);
       } else if (extension === 'csv') {
         const reader = new FileReader();
         reader.onload = async (evt) => {
@@ -59,9 +83,8 @@ export const UniversalImporter: React.FC<UniversalImporterProps> = ({ onImportSu
               console.log('[UniversalImporter] UTF-8 decoding failed, falling back to GBK');
               text = new TextDecoder('gbk').decode(buffer);
             }
-            await duckDBService.importText(text, tableName);
-            setSuccess(`Successfully imported CSV as table: ${tableName}`);
-            onImportSuccess(tableName);
+            await duckDBService.importText(text, tableName, { delimiter: ',', header: true, quote: '"', dateFormat: '' });
+            notifySuccess(tableName, `成功导入 CSV 文件为数据表: ${tableName}`, { name: file.name, size: file.size });
           } catch (err: any) {
             setError(`CSV Import Error: ${err.message}`);
           } finally {
@@ -69,14 +92,33 @@ export const UniversalImporter: React.FC<UniversalImporterProps> = ({ onImportSu
           }
         };
         reader.readAsArrayBuffer(file);
-      } else if (extension === 'json' || extension === 'parquet' || extension === 'duckdb') {
+      } else if (extension === 'tsv') {
+        const reader = new FileReader();
+        reader.onload = async (evt) => {
+          try {
+            const buffer = evt.target?.result as ArrayBuffer;
+            let text = '';
+            try {
+              text = new TextDecoder('utf-8', { fatal: true }).decode(buffer);
+            } catch (e) {
+              text = new TextDecoder('gbk').decode(buffer);
+            }
+            await duckDBService.importText(text, tableName, { delimiter: '\t', header: true, quote: '"', dateFormat: '' });
+            notifySuccess(tableName, `成功导入 TSV 文件为数据表: ${tableName}`, { name: file.name, size: file.size });
+          } catch (err: any) {
+            setError(`TSV Import Error: ${err.message}`);
+          } finally {
+            setLoading(false);
+          }
+        };
+        reader.readAsArrayBuffer(file);
+      } else if (extension === 'json' || extension === 'jsonl' || extension === 'parquet' || extension === 'duckdb') {
         // Use duckdb-wasm native loaders
         await duckDBService.importFile(file, tableName);
-        setSuccess(`Successfully imported ${extension.toUpperCase()} as table: ${tableName}`);
-        onImportSuccess(tableName);
+        notifySuccess(tableName, `成功导入 ${extension.toUpperCase()} 为数据表: ${tableName}`, { name: file.name, size: file.size });
         setLoading(false);
       } else {
-        const supported = ['csv', 'xlsx', 'xls', 'json', 'parquet', 'duckdb'];
+        const supported = ['csv', 'tsv', 'xlsx', 'xls', 'json', 'jsonl', 'parquet', 'duckdb'];
         const isSql = extension === 'sql';
         throw new Error(
           isSql
@@ -97,12 +139,13 @@ export const UniversalImporter: React.FC<UniversalImporterProps> = ({ onImportSu
         <input
           type="file"
           onChange={handleFileChange}
-          accept=".csv,.json,.xlsx,.xls,.parquet,.duckdb"
+          accept=".csv,.tsv,.json,.jsonl,.xlsx,.xls,.parquet,.duckdb"
           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
           disabled={loading}
+          aria-label="选择数据文件进行导入"
         />
         <div className={`p-6 border-2 border-dashed rounded-xl flex flex-col items-center justify-center gap-3 transition-all ${
-          loading ? 'bg-monokai-cyan/5 border-monokai-cyan/50' : 'bg-black/20 border-monokai-accent/20 group-hover:bg-monokai-cyan/5 group-hover:border-monokai-cyan/30'
+          loading ? 'bg-monokai-cyan/5 border-monokai-cyan/50' : 'bg-monokai-surface/40 border-monokai-border hover:bg-monokai-surface/70 hover:border-monokai-border-strong'
         }`}>
           {loading ? (
             <>
@@ -115,11 +158,11 @@ export const UniversalImporter: React.FC<UniversalImporterProps> = ({ onImportSu
                 <FileCode className="w-5 h-5 text-monokai-orange" />
                 <FileSpreadsheet className="w-5 h-5 text-monokai-green" />
                 <FileJson className="w-5 h-5 text-monokai-amethyst" />
-                <Database className="w-5 h-5 text-monokai-blue" />
+                <Database className="w-5 h-5 text-monokai-cyan" />
               </div>
-              <p className="text-xs font-bold text-monokai-fg text-center uppercase tracking-tighter">
-                Drop File or Click to Import<br/>
-                <span className="text-monokai-comment font-normal lowercase tracking-normal">CSV, Excel, JSON, Parquet, DuckDB</span>
+              <p className="text-xs font-semibold text-monokai-fg text-center tracking-tight">
+                拖拽文件或点击选择导入<br/>
+                <span className="text-monokai-comment font-normal tracking-normal text-[11px]">支持 CSV, TSV, Excel (.xlsx/.xls), JSON, Parquet, DuckDB</span>
               </p>
             </>
           )}
@@ -127,18 +170,30 @@ export const UniversalImporter: React.FC<UniversalImporterProps> = ({ onImportSu
       </div>
 
       {error && (
-        <div className="p-3 bg-monokai-red/10 border border-monokai-red/30 rounded-lg flex items-start gap-2 animate-in fade-in slide-in-from-top-2">
-          <AlertCircle className="w-4 h-4 text-monokai-red shrink-0 mt-0.5" />
-          <p className="text-[10px] text-monokai-red font-medium leading-relaxed">{error}</p>
+        <div className="p-3 bg-monokai-pink/10 border border-monokai-pink/30 rounded-lg flex items-start gap-2 animate-in fade-in slide-in-from-top-2">
+          <AlertCircle className="w-4 h-4 text-monokai-pink shrink-0 mt-0.5" />
+          <p className="text-xs text-monokai-pink font-medium leading-relaxed">{error}</p>
         </div>
       )}
 
       {success && (
         <div className="p-3 bg-monokai-green/10 border border-monokai-green/30 rounded-lg flex items-start gap-2 animate-in fade-in slide-in-from-top-2">
           <CheckCircle2 className="w-4 h-4 text-monokai-green shrink-0 mt-0.5" />
-          <p className="text-[10px] text-monokai-green font-medium leading-relaxed">{success}</p>
+          <p className="text-xs text-monokai-green font-medium leading-relaxed">{success}</p>
         </div>
       )}
+
+      <div className="flex items-center justify-between text-[11px] pt-1 border-t border-monokai-border/40">
+        <span className="text-monokai-comment">需要字段映射、编码切换或多工作表批量导入？</span>
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new CustomEvent('duckdb-open-import'))}
+          className="inline-flex items-center gap-1 text-monokai-accent hover:underline cursor-pointer font-medium"
+        >
+          <span>打开数据导入向导</span>
+          <ExternalLink className="w-3 h-3" />
+        </button>
+      </div>
     </div>
   );
 };

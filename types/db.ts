@@ -15,12 +15,64 @@ export interface ColumnInfo {
   cid?: number;
 }
 
+export interface ObjectRef {
+  connectionId: string;
+  databaseOid?: string | number;
+  databaseName: string;
+  schemaOid?: string | number;
+  schemaName: string;
+  objectOid?: string | number;
+  objectName: string;
+  objectType: 'TABLE' | 'VIEW';
+  estimatedRows?: number | null;
+  columnCount?: number;
+  sql?: string;
+}
+
+export interface CatalogDatabaseNode {
+  databaseOid: string | number;
+  databaseName: string;
+  path?: string;
+  readonly?: boolean;
+  type?: string;
+  schemas: CatalogSchemaNode[];
+}
+
+export interface CatalogSchemaNode {
+  schemaOid?: string | number;
+  schemaName: string;
+  databaseName: string;
+  tables: ObjectRef[];
+  views: ObjectRef[];
+}
+
+export interface CatalogTreeResult {
+  connectionId: string;
+  currentCatalog: string;
+  currentSchema: string;
+  databases: CatalogDatabaseNode[];
+}
+
 export interface QueryResult {
+  resultId?: string;
+  queryTitle?: string;
+  sourceType?: 'query' | 'table_preview' | 'table_sample';
+  sourceName?: string;
   columns: string[];
   rows: any[];
   executionTime: number;
   error?: string;
+  errorContext?: {
+    catalog?: string;
+    currentCatalog: string;
+    currentSchema: string;
+    availableCatalogs: string[];
+    missingObject?: string;
+    suggestion?: string;
+  };
   isExplain?: boolean;
+  limitClause?: number;
+  executedAt?: string;
 }
 
 export interface AuditLogEntry {
@@ -57,8 +109,8 @@ export interface QueryHistoryItem {
 export interface ImportOptions {
   header: boolean;
   delimiter: string;
-  quote: string;
-  dateFormat: string;
+  quote?: string;
+  dateFormat?: string;
 }
 
 export interface TopKEntry {
@@ -115,5 +167,8 @@ export enum Tab {
   METRICS = 'metrics',
   AI_SKILLS = 'ai_skills',
   LIBRARY = 'library',
+  AI_CAPABILITIES = 'ai_capabilities',
   ONTOLOGY = 'ontology',
+  COMPOSITIONAL_DEDUCTION = 'compositional_deduction',
+  DATAFLOW = 'dataflow',
 }

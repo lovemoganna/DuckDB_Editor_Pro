@@ -1,0 +1,136 @@
+{
+  "_meta": {
+    "name": "第 02 课：找出需要保持身份的对象",
+    "description": "识别具备独立连续唯一 Identity 的实体，区分对象身份与易变数值属性",
+    "case_background": "【案例背景材料】上午，小林进入仓库1。管理员周姐把包裹B交给小林。随后，小林离开仓库。",
+    "core_concept": "Entity Identity & Instance Tracking",
+    "version": "1.0.0",
+    "author": "system",
+    "created_at": "2026-07-25",
+    "scenario": "lesson-0002",
+    "complexity": "easy"
+  },
+  "objectTypes": [
+    {
+      "id": 1,
+      "name": "身份实体",
+      "description": "具备全局唯一业务主键的物理与业务对象"
+    },
+    {
+      "id": 2,
+      "name": "交接过程",
+      "description": "连接多个实体的动态流转动作与存证凭单"
+    }
+  ],
+  "objects": [
+    {
+      "id": 1,
+      "object_type_id": 1,
+      "name": "仓管·周姐",
+      "properties": "{\"工号\":\"ADM-2001\",\"权限\":\"库区主管\",\"身份主键\":\"ID_ZHOU_01\"}",
+      "annotations": "交付管理员"
+    },
+    {
+      "id": 2,
+      "object_type_id": 1,
+      "name": "配送·小林",
+      "properties": "{\"工号\":\"EMP-1008\",\"岗位\":\"末端配送\",\"身份主键\":\"ID_LIN_01\"}",
+      "annotations": "领件经办人"
+    },
+    {
+      "id": 3,
+      "object_type_id": 1,
+      "name": "1号仓库",
+      "properties": "{\"仓区编码\":\"WH-001-A\",\"位置\":\"华北物流园\",\"身份主键\":\"LOC_WH01\"}",
+      "annotations": "空间设施"
+    },
+    {
+      "id": 4,
+      "object_type_id": 2,
+      "name": "包裹交接",
+      "properties": "{\"事件流水\":\"PROC-TR-9901\",\"时间\":\"09:15\",\"状态\":\"已完成\"}",
+      "annotations": "核心交接事件"
+    },
+    {
+      "id": 5,
+      "object_type_id": 1,
+      "name": "包裹B",
+      "properties": "{\"运单号\":\"PKG-2026-B\",\"重量KG\":2.4,\"身份主键\":\"PKG_2026_B\"}",
+      "annotations": "流转物资标的"
+    },
+    {
+      "id": 6,
+      "object_type_id": 2,
+      "name": "签收凭单",
+      "properties": "{\"单据号\":\"DOC-SIGN-880\",\"防伪码\":\"SHA256-EF99\",\"状态\":\"双人已签\"}",
+      "annotations": "存证凭据"
+    }
+  ],
+  "linkTypes": [
+    {
+      "id": 1,
+      "name": "经办交付",
+      "description": "管理员在过程中交出物资"
+    },
+    {
+      "id": 2,
+      "name": "作为领件人",
+      "description": "经办业务员参与过程接收包裹"
+    },
+    {
+      "id": 3,
+      "name": "提供场地",
+      "description": "仓储设施为交接过程提供物理空间"
+    },
+    {
+      "id": 4,
+      "name": "流转标的",
+      "description": "过程转移核心物资对象"
+    },
+    {
+      "id": 5,
+      "name": "固化存证",
+      "description": "交接过程生成不可篡改签收凭证"
+    }
+  ],
+  "links": [
+    {
+      "id": 1,
+      "link_type_id": 1,
+      "source_object_id": 1,
+      "target_object_id": 4,
+      "weight": 1
+    },
+    {
+      "id": 2,
+      "link_type_id": 2,
+      "source_object_id": 2,
+      "target_object_id": 4,
+      "weight": 1
+    },
+    {
+      "id": 3,
+      "link_type_id": 3,
+      "source_object_id": 3,
+      "target_object_id": 4,
+      "weight": 0.95
+    },
+    {
+      "id": 4,
+      "link_type_id": 4,
+      "source_object_id": 4,
+      "target_object_id": 5,
+      "weight": 1
+    },
+    {
+      "id": 5,
+      "link_type_id": 5,
+      "source_object_id": 4,
+      "target_object_id": 6,
+      "weight": 0.9
+    }
+  ],
+  "actions": [],
+  "introspections": [],
+  "insights": []
+}

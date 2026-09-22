@@ -28,7 +28,6 @@ interface SkillFormFieldProps {
   showHints?: boolean;
 }
 
-// Field type metadata for better UX
 const FIELD_TYPE_HINTS: Record<string, { hint: string; shortcut?: string; example?: string; icon: React.ReactNode }> = {
   text: { hint: '输入文本内容', shortcut: 'Ctrl+Enter 执行', icon: <Type className="w-3.5 h-3.5" /> },
   textarea: { hint: '支持多行输入，可使用 SQL', shortcut: 'Ctrl+Enter 执行', icon: <AlignLeft className="w-3.5 h-3.5" /> },
@@ -39,16 +38,59 @@ const FIELD_TYPE_HINTS: Record<string, { hint: string; shortcut?: string; exampl
   column: { hint: '选择表列，支持多选', example: 'id, name, created_at', icon: <Columns className="w-3.5 h-3.5" /> },
 };
 
-// Field type accent colors
-const FIELD_TYPE_COLORS: Record<string, string> = {
-  text: '#66d9ef',
-  textarea: '#ae81ff',
-  select: '#fd971f',
-  number: '#a6e22e',
-  boolean: '#bd93f9',
-  table: '#ff79c6',
-  column: '#8be9fd',
+const FIELD_TYPE_TONES: Record<string, { icon: string; focus: string; soft: string; badge: string; on: string }> = {
+  text: {
+    icon: 'bg-monokai-cyan/15 text-monokai-cyan',
+    focus: 'border-monokai-cyan/50 ring-1 ring-monokai-cyan/30',
+    soft: 'bg-monokai-cyan/10 border-monokai-cyan/40',
+    badge: 'bg-monokai-cyan/20 text-monokai-cyan',
+    on: 'text-monokai-cyan',
+  },
+  textarea: {
+    icon: 'bg-monokai-amethyst/15 text-monokai-amethyst',
+    focus: 'border-monokai-amethyst/50 ring-1 ring-monokai-amethyst/30',
+    soft: 'bg-monokai-amethyst/10 border-monokai-amethyst/40',
+    badge: 'bg-monokai-amethyst/20 text-monokai-amethyst',
+    on: 'text-monokai-amethyst',
+  },
+  select: {
+    icon: 'bg-monokai-orange/15 text-monokai-orange',
+    focus: 'border-monokai-orange/50 ring-1 ring-monokai-orange/30',
+    soft: 'bg-monokai-orange/10 border-monokai-orange/40',
+    badge: 'bg-monokai-orange/20 text-monokai-orange',
+    on: 'text-monokai-orange',
+  },
+  number: {
+    icon: 'bg-monokai-green/15 text-monokai-green',
+    focus: 'border-monokai-green/50 ring-1 ring-monokai-green/30',
+    soft: 'bg-monokai-green/10 border-monokai-green/40',
+    badge: 'bg-monokai-green/20 text-monokai-green',
+    on: 'text-monokai-green',
+  },
+  boolean: {
+    icon: 'bg-monokai-amethyst/15 text-monokai-amethyst',
+    focus: 'border-monokai-amethyst/50 ring-1 ring-monokai-amethyst/30',
+    soft: 'bg-monokai-amethyst/10 border-monokai-amethyst/40',
+    badge: 'bg-monokai-amethyst/20 text-monokai-amethyst',
+    on: 'text-monokai-amethyst',
+  },
+  table: {
+    icon: 'bg-monokai-pink/15 text-monokai-pink',
+    focus: 'border-monokai-pink/50 ring-1 ring-monokai-pink/30',
+    soft: 'bg-monokai-pink/10 border-monokai-pink/40',
+    badge: 'bg-monokai-pink/20 text-monokai-pink',
+    on: 'text-monokai-pink',
+  },
+  column: {
+    icon: 'bg-monokai-cyan/15 text-monokai-cyan',
+    focus: 'border-monokai-cyan/50 ring-1 ring-monokai-cyan/30',
+    soft: 'bg-monokai-cyan/10 border-monokai-cyan/40',
+    badge: 'bg-monokai-cyan/20 text-monokai-cyan',
+    on: 'text-monokai-cyan',
+  },
 };
+
+const DEFAULT_TONE = FIELD_TYPE_TONES.text;
 
 export const SkillFormField: React.FC<SkillFormFieldProps> = ({
   field,
@@ -66,18 +108,13 @@ export const SkillFormField: React.FC<SkillFormFieldProps> = ({
     hint: '', icon: <Info className="w-3.5 h-3.5" />,
   };
   const hasHint = showHints && (field.description || typeHint.hint || typeHint.example);
-  const accentColor = FIELD_TYPE_COLORS[field.type] || '#66d9ef';
+  const tone = FIELD_TYPE_TONES[field.type] || DEFAULT_TONE;
 
   const fieldId = `field-${field.name}`;
 
-  // Enhanced label with tooltip toggle
   const labelEl = (
     <div className="flex items-center gap-2 mb-2">
-      {/* Type icon */}
-      <div
-        className="w-6 h-6 rounded flex items-center justify-center"
-        style={{ background: `${accentColor}15`, color: accentColor }}
-      >
+      <div className={`w-6 h-6 rounded flex items-center justify-center ${tone.icon}`}>
         {typeHint.icon}
       </div>
       <label
@@ -90,7 +127,6 @@ export const SkillFormField: React.FC<SkillFormFieldProps> = ({
         )}
       </label>
 
-      {/* Tooltip toggle */}
       {hasHint && (
         <button
           type="button"
@@ -104,9 +140,8 @@ export const SkillFormField: React.FC<SkillFormFieldProps> = ({
     </div>
   );
 
-  // Enhanced tooltip content
   const tooltipEl = showTooltip && hasHint && (
-    <div className="absolute left-0 top-full mt-1 z-50 w-64 p-3 bg-[#272822] border border-monokai-amethyst/30 rounded-lg shadow-xl text-xs">
+    <div className="absolute left-0 top-full mt-1 z-50 w-64 p-3 bg-monokai-surface border border-monokai-amethyst/30 rounded-lg shadow-xl text-xs">
       {field.description && (
         <div className="mb-3 text-monokai-fg">
           <div className="text-[9px] text-monokai-amethyst uppercase mb-1.5 font-bold tracking-wider">说明</div>
@@ -122,7 +157,7 @@ export const SkillFormField: React.FC<SkillFormFieldProps> = ({
       {typeHint.example && (
         <div className="mb-3 text-monokai-green">
           <div className="text-[9px] text-monokai-amethyst uppercase mb-1.5 font-bold tracking-wider">示例</div>
-          <code className="text-[11px] font-mono bg-[#1e1f1c] px-2 py-1 rounded inline-block">{typeHint.example}</code>
+          <code className="text-[11px] font-mono bg-monokai-bg px-2 py-1 rounded inline-block">{typeHint.example}</code>
         </div>
       )}
       {typeHint.shortcut && (
@@ -134,7 +169,6 @@ export const SkillFormField: React.FC<SkillFormFieldProps> = ({
     </div>
   );
 
-  // Base description (shown below label, not in tooltip)
   const descEl = field.description && !showTooltip ? (
     <p className="text-[10px] text-monokai-comment mb-2 flex items-center gap-1.5">
       <Info className="w-3 h-3 shrink-0" />
@@ -172,23 +206,18 @@ export const SkillFormField: React.FC<SkillFormFieldProps> = ({
     </div>
   );
 
-  // Common input styles with accent focus
   const inputBaseClass = [
     'w-full px-3 py-2 text-[12px] font-mono',
-    'bg-[#1e1e1e] border rounded-lg',
+    'bg-monokai-bg border rounded-lg',
     'focus:outline-none transition-all duration-200',
     'text-monokai-fg placeholder-monokai-comment/50',
   ].join(' ');
 
-  const inputStyle = error ? {
-    borderColor: '#f92672',
-    boxShadow: `0 0 0 1px #f92672, 0 0 8px rgba(249, 38, 114, 0.15)`,
-  } : hasValue ? {
-    borderColor: `${accentColor}50`,
-    boxShadow: `0 0 0 1px ${accentColor}30`,
-  } : {
-    borderColor: '#3e3d32',
-  };
+  const inputToneClass = error
+    ? 'border-monokai-pink ring-1 ring-monokai-pink/30'
+    : hasValue
+      ? tone.focus
+      : 'border-monokai-border';
 
   switch (field.type) {
     case 'textarea':
@@ -203,8 +232,7 @@ export const SkillFormField: React.FC<SkillFormFieldProps> = ({
               onChange={(e) => onChange(field.name, e.target.value)}
               placeholder={field.placeholder}
               rows={field.rows || 4}
-              className={`${inputBaseClass} min-h-[100px] resize-y ${error ? 'shake' : ''}`}
-              style={inputStyle}
+              className={`${inputBaseClass} min-h-[100px] resize-y ${inputToneClass} ${error ? 'shake' : ''}`}
             />
             {copyBtn(value || '')}
           </div>
@@ -223,15 +251,14 @@ export const SkillFormField: React.FC<SkillFormFieldProps> = ({
               id={fieldId}
               value={value || ''}
               onChange={(e) => onChange(field.name, e.target.value)}
-              className={`${inputBaseClass} appearance-none cursor-pointer`}
-              style={inputStyle}
+              className={`${inputBaseClass} appearance-none cursor-pointer ${inputToneClass}`}
             >
               <option value="">请选择...</option>
               {field.options?.map(opt => (
                 <option key={opt} value={opt}>{opt}</option>
               ))}
             </select>
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: accentColor }}>
+            <div className={`absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none ${tone.on}`}>
               <ChevronDown className="w-4 h-4" />
             </div>
           </div>
@@ -254,11 +281,10 @@ export const SkillFormField: React.FC<SkillFormFieldProps> = ({
               min={field.min}
               max={field.max}
               placeholder={field.placeholder}
-              className={inputBaseClass}
-              style={inputStyle}
+              className={`${inputBaseClass} ${inputToneClass}`}
             />
             {hasValue && (
-              <div className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: accentColor }}>
+              <div className={`absolute right-3 top-1/2 -translate-y-1/2 ${tone.on}`}>
                 <CheckCircle2 className="w-4 h-4" />
               </div>
             )}
@@ -272,24 +298,19 @@ export const SkillFormField: React.FC<SkillFormFieldProps> = ({
       return (
         <div key={field.name} className="group mb-2 relative">
           <label
-            className="flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-all duration-200 hover:scale-[1.01]"
-            style={{
-              background: value ? `${accentColor}08` : '#1e1e1e',
-              borderColor: value ? `${accentColor}40` : '#3e3d32',
-            }}
+            className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-all duration-200 hover:scale-[1.01] ${
+              value ? tone.soft : 'bg-monokai-bg border-monokai-border'
+            }`}
           >
             <div className="flex items-center gap-3">
-              <div
-                className="w-8 h-8 rounded-lg flex items-center justify-center"
-                style={{ background: `${accentColor}15`, color: accentColor }}
-              >
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${tone.icon}`}>
                 {typeHint.icon}
               </div>
               <span className="text-[12px] font-medium text-monokai-fg">{field.label}</span>
             </div>
             <div className="flex items-center gap-2">
               {value ? (
-                <span className="text-[10px] font-bold px-2 py-1 rounded" style={{ background: `${accentColor}20`, color: accentColor }}>ON</span>
+                <span className={`text-[10px] font-bold px-2 py-1 rounded ${tone.badge}`}>ON</span>
               ) : (
                 <span className="text-[10px] font-bold text-monokai-comment px-2 py-1">OFF</span>
               )}
@@ -317,13 +338,12 @@ export const SkillFormField: React.FC<SkillFormFieldProps> = ({
               id={fieldId}
               value={value || ''}
               onChange={(e) => onChange(field.name, e.target.value)}
-              className={`${inputBaseClass} appearance-none cursor-pointer`}
-              style={inputStyle}
+              className={`${inputBaseClass} appearance-none cursor-pointer ${inputToneClass}`}
             >
               <option value="">请选择表...</option>
               {currentTable && <option value={currentTable}>{currentTable}</option>}
             </select>
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: accentColor }}>
+            <div className={`absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none ${tone.on}`}>
               <Table className="w-4 h-4" />
             </div>
           </div>
@@ -348,15 +368,14 @@ export const SkillFormField: React.FC<SkillFormFieldProps> = ({
               id={fieldId}
               value={value || ''}
               onChange={(e) => onChange(field.name, e.target.value)}
-              className={`${inputBaseClass} appearance-none cursor-pointer`}
-              style={inputStyle}
+              className={`${inputBaseClass} appearance-none cursor-pointer ${inputToneClass}`}
             >
               <option value="">请选择列...</option>
               {currentColumns?.map(col => (
                 <option key={col.name} value={col.name}>{col.name} ({col.type})</option>
               ))}
             </select>
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: accentColor }}>
+            <div className={`absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none ${tone.on}`}>
               <Columns className="w-4 h-4" />
             </div>
           </div>
@@ -377,11 +396,10 @@ export const SkillFormField: React.FC<SkillFormFieldProps> = ({
               value={value || ''}
               onChange={(e) => onChange(field.name, e.target.value)}
               placeholder={field.placeholder}
-              className={inputBaseClass}
-              style={inputStyle}
+              className={`${inputBaseClass} ${inputToneClass}`}
             />
             {hasValue && (
-              <div className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: accentColor }}>
+              <div className={`absolute right-3 top-1/2 -translate-y-1/2 ${tone.on}`}>
                 <CheckCircle2 className="w-4 h-4" />
               </div>
             )}

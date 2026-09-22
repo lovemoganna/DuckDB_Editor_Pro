@@ -272,11 +272,8 @@ class OntologyAiService {
   "insights": []
 }`;
 
-    const configStr = localStorage.getItem('ab-app-config');
-    const aiConfig = configStr ? JSON.parse(configStr).ai : null;
-
-    if (!aiConfig?.apiKey) {
-      throw new Error('AI Provider API key not configured. Please set it in Settings.');
+    if (!aiService.isConfigured()) {
+      throw new Error('AI Provider not configured. Please set it in Settings.');
     }
 
     try {
@@ -783,10 +780,8 @@ action 模式：
   // Introspection Panel — Guided Questions
   // ============================================================
   async generateIntrospectionGuidance(topic: string): Promise<IntrospectionGuidance> {
-    const configStr = localStorage.getItem('ab-app-config');
-    const aiConfig = configStr ? JSON.parse(configStr).ai : null;
-    if (!aiConfig?.apiKey) {
-      console.warn('[OntologyAI] API Key not set. Falling back to local introspection questions.');
+    if (!aiService.isConfigured()) {
+      console.warn('[OntologyAI] AI Provider not configured. Falling back to local introspection questions.');
       return {
         topic,
         questions: [
@@ -844,10 +839,8 @@ action 模式：
     objectCount: number,
     linkCount: number
   ): Promise<SuggestionItem[]> {
-    const configStr = localStorage.getItem('ab-app-config');
-    const aiConfig = configStr ? JSON.parse(configStr).ai : null;
-    if (!aiConfig?.apiKey) {
-      console.warn('[OntologyAI] API Key not set. Falling back to local graph analysis rule-engine.');
+    if (!aiService.isConfigured()) {
+      console.warn('[OntologyAI] AI Provider not configured. Falling back to local graph analysis rule-engine.');
       const localSuggestions: SuggestionItem[] = [];
       if (objectCount === 0) {
         localSuggestions.push({
@@ -906,16 +899,14 @@ action 模式：
   // Private helper
   // ============================================================
   private async _callAI<T>(taskName: string, prompt: string, role: string): Promise<T> {
-    const configStr = localStorage.getItem('ab-app-config');
-    const aiConfig = configStr ? JSON.parse(configStr).ai : null;
-    if (!aiConfig?.apiKey) {
-      throw new Error('AI Provider API key not configured. Please set it in Settings.');
+    if (!aiService.isConfigured()) {
+      throw new Error('AI Provider not configured. Please set it in Settings.');
     }
     try {
       return await aiService.robustCall<T>(taskName as AIStage, prompt, role);
-    } catch (err) {
+    } catch (err: any) {
       console.error(`[OntologyAI] ${taskName} failed:`, err);
-      throw new Error(`AI 返回格式无效，无法完成 ${taskName} 操作。`);
+      throw new Error(err?.message || `AI 返回格式无效，无法完成 ${taskName} 操作。`);
     }
   }
 }

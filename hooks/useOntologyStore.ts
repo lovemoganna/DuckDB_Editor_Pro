@@ -35,7 +35,22 @@ import seedProjectTracker from '../data/ontology/seed-project-tracker.json';
 import seedRiskInvestigation from '../data/ontology/seed-risk-investigation.json';
 import seedTaskTracker from '../data/ontology/seed-task-tracker.json';
 import seedWorkflow from '../data/ontology/seed-workflow.json';
-import seedStressTest from '../data/ontology/seed-stress-test.json';import { DEFAULT_PATTERNS } from '../components/Library/defaultPatterns';
+import seedStressTest from '../data/ontology/seed-stress-test.json';
+import seedLesson0001 from '../data/ontology/seed-lesson-0001.json';
+import seedLesson0002 from '../data/ontology/seed-lesson-0002.json';
+import seedLesson0003 from '../data/ontology/seed-lesson-0003.json';
+import seedLesson0004 from '../data/ontology/seed-lesson-0004.json';
+import seedLesson0005 from '../data/ontology/seed-lesson-0005.json';
+import seedLesson0006 from '../data/ontology/seed-lesson-0006.json';
+import seedLesson0007 from '../data/ontology/seed-lesson-0007.json';
+import seedLesson0008 from '../data/ontology/seed-lesson-0008.json';
+import seedLesson0009 from '../data/ontology/seed-lesson-0009.json';
+import seedLesson0010 from '../data/ontology/seed-lesson-0010.json';
+import seedLesson0011 from '../data/ontology/seed-lesson-0011.json';
+import seedLesson0012 from '../data/ontology/seed-lesson-0012.json';
+import seedLesson0013 from '../data/ontology/seed-lesson-0013.json';
+import seedLesson0014 from '../data/ontology/seed-lesson-0014.json';
+import { DEFAULT_PATTERNS } from '../components/Library/defaultPatterns';
 
 export const ONTOLOGY_SEEDS: Record<string, any> = {
   'ontology-lv1': seedOntologyLv1,
@@ -52,6 +67,20 @@ export const ONTOLOGY_SEEDS: Record<string, any> = {
   'task-tracker': seedTaskTracker,
   'workflow': seedWorkflow,
   'stress-test': seedStressTest,
+  'lesson-0001': seedLesson0001,
+  'lesson-0002': seedLesson0002,
+  'lesson-0003': seedLesson0003,
+  'lesson-0004': seedLesson0004,
+  'lesson-0005': seedLesson0005,
+  'lesson-0006': seedLesson0006,
+  'lesson-0007': seedLesson0007,
+  'lesson-0008': seedLesson0008,
+  'lesson-0009': seedLesson0009,
+  'lesson-0010': seedLesson0010,
+  'lesson-0011': seedLesson0011,
+  'lesson-0012': seedLesson0012,
+  'lesson-0013': seedLesson0013,
+  'lesson-0014': seedLesson0014,
 };
 
 export const ONTOLOGY_SEED_INFOS = [
@@ -73,7 +102,23 @@ export const ONTOLOGY_SEED_INFOS = [
   { id: 'health-tracker', name: '健康追踪 (Health)', category: 'Personal', icon: '🏥', description: '记录饮食、运动、体征、睡眠，以及健康指标的波动和交叉影响关系' },
   { id: 'project-tracker', name: '项目追踪管理 (Project)', category: 'Personal', icon: '📅', description: '针对工程项目的里程碑、团队、依赖组件等进行建模与风险监控' },
   { id: 'task-tracker', name: '任务追踪 (Task)', category: 'Personal', icon: '✅', description: '任务依赖、优先级、执行人等本体建模，管理细粒度研发工作流' },
-  { id: 'stress-test', name: '本体压力测试 (Stress)', category: 'Personal', icon: '⚡', description: '高基数、多层级拓扑结构的测试种子，用于评估画布在极端数据下的性能' }
+  { id: 'stress-test', name: '本体压力测试 (Stress)', category: 'Personal', icon: '⚡', description: '高基数、多层级拓扑结构的测试种子，用于评估画布在极端数据下的性能' },
+
+  // ── 14 课建模实战 (Lessons 1-14) ──
+  { id: 'lesson-0001', name: '第 01 课：只写材料真正告诉你的事', category: 'Tutorial-Lessons', icon: '📖', description: '区分事实、推断与未知，严格只画原文直接证明的线索' },
+  { id: 'lesson-0002', name: '第 02 课：找出需要保持身份的对象', category: 'Tutorial-Lessons', icon: '✨', description: '识别具备独立连续唯一 Identity 的人员、设备与组织实体' },
+  { id: 'lesson-0003', name: '第 03 课：找出发生了什么过程', category: 'Tutorial-Lessons', icon: '⚡', description: '识别带时间起止、连接多个对象的动态过程事件' },
+  { id: 'lesson-0004', name: '第 04 课：把对象连接到过程', category: 'Tutorial-Lessons', icon: '🌿', description: '以过程为枢纽向外辐射连接各业务参与主体与目标对象' },
+  { id: 'lesson-0005', name: '第 05 课：为过程中的角色命名', category: 'Tutorial-Lessons', icon: '🏷️', description: '在连接线上明确标出对象扮演的业务角色（交付人/接收人等）' },
+  { id: 'lesson-0006', name: '第 06 课：记录状态的改变', category: 'Tutorial-Lessons', icon: '⏱️', description: '跟踪过程触发的对象状态变迁（前置状态 ➔ 目标状态）' },
+  { id: 'lesson-0007', name: '第 07 课：写出对象之间的直接关系', category: 'Tutorial-Lessons', icon: '🔗', description: '表达不依赖特定过程的静态结构有向连线（归属、包含）' },
+  { id: 'lesson-0008', name: '第 08 课：组装一个最小本体模型', category: 'Tutorial-Lessons', icon: '🧩', description: '将对象、过程、角色、状态和关系无冗余整合为最小拓扑' },
+  { id: 'lesson-0009', name: '第 09 课：用问题检验模型', category: 'Tutorial-Lessons', icon: '❓', description: '提出业务反向追溯问题，在图谱路径中校验自洽性与完备度' },
+  { id: 'lesson-0010', name: '第 10 课：把模型用到新案例', category: 'Tutorial-Lessons', icon: '🚀', description: '将通用模式迁移泛化到异构新业务场景中进行适配' },
+  { id: 'lesson-0011', name: '第 11 课：独立完成可验证模型', category: 'Tutorial-Lessons', icon: '🎯', description: '端到端手操构建金融信贷风控申请与审批完整拓扑闭环' },
+  { id: 'lesson-0012', name: '第 12 课：用新事实更新模型', category: 'Tutorial-Lessons', icon: '📈', description: '面对业务增量新材料，平滑扩展增量子图，绝不推翻重做' },
+  { id: 'lesson-0013', name: '第 13 课：处理相互冲突的材料', category: 'Tutorial-Lessons', icon: '⚖️', description: '通过双信源节点与置信度解耦多来源矛盾事实' },
+  { id: 'lesson-0014', name: '第 14 课：让模型结论回到证据', category: 'Tutorial-Lessons', icon: '📜', description: '为交付的业务结论绑定有效原文证据，实现端到端可追溯' }
 ];
 
 // ============================================================
@@ -161,8 +206,8 @@ export type InitState = 'loading' | 'no-tables' | 'need-seed' | 'ready';
 /** 三视图：图谱 / 数据 / 画布 */
 export type ViewTab = 'graph' | 'data' | 'canvas';
 
-/** 左侧抽屉 Tab：模板 / CRUD / 洞察 */
-export type DrawerTab = 'templates' | 'crud' | 'insights' | 'mapping';
+/** 左侧抽屉 Tab：模板 / CRUD / 洞察 / 映射 / 推演 */
+export type DrawerTab = 'templates' | 'crud' | 'insights' | 'mapping' | 'deduction';
 
 /** Imperative command accepted by OntologyPanel (e.g. from CommandPalette) */
 export type OntologyCommand =
@@ -416,7 +461,7 @@ function reducer(state: OntologyStoreState, action: OntologyAction): OntologySto
 const initState: OntologyStoreState = {
   initState: 'loading',
   initting: false,
-  activeTemplateId: 'ontology-lv1',
+  activeTemplateId: 'lesson-0001',
   patterns: [],
   patternsLoading: false,
   objectTypes: [],
@@ -510,16 +555,34 @@ function useOntologyStoreInternal() {
 
     try {
       for (const [nodeIdStr, pos] of Object.entries(positionsToWrite)) {
-        const nodeId = Number(nodeIdStr);
+        let nodeId: number | null = null;
+        if (/^\d+$/.test(nodeIdStr)) {
+          nodeId = Number(nodeIdStr);
+        } else if (nodeIdStr.startsWith('obj::')) {
+          const parsed = Number(nodeIdStr.slice(5));
+          if (Number.isFinite(parsed)) nodeId = parsed;
+        } else if (nodeIdStr.startsWith('object_')) {
+          const parsed = Number(nodeIdStr.slice(7));
+          if (Number.isFinite(parsed)) nodeId = parsed;
+        }
+
+        // Skip non-numeric or invalid node IDs (e.g. 'type::1', 'action::1', 'object_NaN')
+        if (nodeId === null || !Number.isFinite(nodeId) || Number.isNaN(nodeId)) {
+          continue;
+        }
+
         const isLocked = stateRef.current.canvasLockedNodeIds.has(nodeId);
+        const posX = Number.isFinite(pos?.x) ? pos.x : 0;
+        const posY = Number.isFinite(pos?.y) ? pos.y : 0;
+
         await duckDBService.saveOntologyCanvasState(
           `object_${nodeId}`,
           null,
           nodeId,
           `object_${nodeId}`,
           '',
-          pos.x,
-          pos.y,
+          posX,
+          posY,
           0,
           0,
           'object',
@@ -709,10 +772,13 @@ function useOntologyStoreInternal() {
         const layoutRows = await duckDBService.query("SELECT * FROM life_canvas_state WHERE node_type = 'object'");
         if (layoutRows && Array.isArray(layoutRows)) {
           layoutRows.forEach((r: any) => {
-            canvasPositions[Number(r.object_id)] = { x: Number(r.x), y: Number(r.y) };
-            const meta = typeof r.metadata === 'string' ? JSON.parse(r.metadata || '{}') : (r.metadata || {});
-            if (meta.is_locked || meta.is_locked === 'true' || meta.is_locked === 1) {
-              canvasLockedNodeIds.add(Number(r.object_id));
+            const objId = Number(r.object_id);
+            if (Number.isFinite(objId) && !Number.isNaN(objId)) {
+              canvasPositions[objId] = { x: Number(r.x) || 0, y: Number(r.y) || 0 };
+              const meta = typeof r.metadata === 'string' ? JSON.parse(r.metadata || '{}') : (r.metadata || {});
+              if (meta.is_locked || meta.is_locked === 'true' || meta.is_locked === 1) {
+                canvasLockedNodeIds.add(objId);
+              }
             }
           });
         }
@@ -743,8 +809,16 @@ function useOntologyStoreInternal() {
     dispatchAction({ type: 'SET_INITTING', value: true });
     try {
       await duckDBService.ontologyInit();
-      try { await duckDBService.ontologySeed(); } catch {}
+      const seed = ONTOLOGY_SEEDS['lesson-0001'] || ONTOLOGY_SEEDS['ontology-lv1'];
+      if (seed) {
+        await duckDBService.loadOntologyTemplate(seed);
+      } else {
+        try { await duckDBService.ontologySeed(); } catch {}
+      }
+      dispatchAction({ type: 'SET_ACTIVE_TEMPLATE', templateId: 'lesson-0001' });
+      dispatchAction({ type: 'SET_SEARCH', term: '' });
       await loadData();
+      dispatchAction({ type: 'SET_ACTIVE_TAB', tab: 'graph' });
     } catch (e: any) {
       dispatchAction({ type: 'SET_ERROR', error: e.message });
     } finally {
@@ -756,8 +830,16 @@ function useOntologyStoreInternal() {
   const reseedOntology = useCallback(async () => {
     dispatchAction({ type: 'SET_INITTING', value: true });
     try {
-      await duckDBService.ontologySeed();
+      const seed = ONTOLOGY_SEEDS['lesson-0001'] || ONTOLOGY_SEEDS['ontology-lv1'];
+      if (seed) {
+        await duckDBService.loadOntologyTemplate(seed);
+      } else {
+        await duckDBService.ontologySeed();
+      }
+      dispatchAction({ type: 'SET_ACTIVE_TEMPLATE', templateId: 'lesson-0001' });
+      dispatchAction({ type: 'SET_SEARCH', term: '' });
       await loadData();
+      dispatchAction({ type: 'SET_ACTIVE_TAB', tab: 'graph' });
     } catch (e: any) {
       dispatchAction({ type: 'SET_ERROR', error: e.message });
     } finally {
@@ -768,7 +850,12 @@ function useOntologyStoreInternal() {
   // ── Switch template dynamically ──
   const switchTemplate = useCallback(async (templateId: string) => {
     const seed = ONTOLOGY_SEEDS[templateId];
-    if (!seed) return;
+    if (!seed) {
+      const errMsg = `未找到 ID 为 [${templateId}] 的本体课程模板数据`;
+      console.error('[useOntologyStore] switchTemplate failed:', errMsg);
+      dispatchAction({ type: 'SET_ERROR', error: errMsg });
+      throw new Error(errMsg);
+    }
     dispatchAction({ type: 'SET_INITTING', value: true });
     try {
       await duckDBService.loadOntologyTemplate(seed);
@@ -779,6 +866,7 @@ function useOntologyStoreInternal() {
     } catch (e: any) {
       console.error('Switch template failed:', e);
       dispatchAction({ type: 'SET_ERROR', error: e.message });
+      throw e;
     } finally {
       dispatchAction({ type: 'SET_INITTING', value: false });
     }
@@ -1428,16 +1516,38 @@ function useOntologyStoreInternal() {
     canvasPositions: state.canvasPositions,
     canvasLockedNodeIds: state.canvasLockedNodeIds,
     updateCanvasPosition: useCallback(async (nodeId: number, x: number, y: number) => {
-      const nextPositions = { ...stateRef.current.canvasPositions, [nodeId]: { x, y } };
+      if (!Number.isFinite(nodeId) || Number.isNaN(nodeId)) return;
+      const posX = Number.isFinite(x) ? x : 0;
+      const posY = Number.isFinite(y) ? y : 0;
+      const nextPositions = { ...stateRef.current.canvasPositions, [nodeId]: { x: posX, y: posY } };
       dispatch({ type: 'SET_CANVAS_POSITIONS', positions: nextPositions });
-      queuePositionsForDb({ [nodeId]: { x, y } });
+      queuePositionsForDb({ [nodeId]: { x: posX, y: posY } });
     }, [queuePositionsForDb]),
     updateCanvasPositions: useCallback(async (positions: SavedPositions) => {
-      const nextPositions = { ...stateRef.current.canvasPositions, ...positions };
+      const cleanPositions: SavedPositions = {};
+      for (const [key, pos] of Object.entries(positions)) {
+        let id: number | null = null;
+        if (/^\d+$/.test(key)) {
+          id = Number(key);
+        } else if (key.startsWith('obj::')) {
+          const parsed = Number(key.slice(5));
+          if (Number.isFinite(parsed)) id = parsed;
+        } else if (key.startsWith('object_')) {
+          const parsed = Number(key.slice(7));
+          if (Number.isFinite(parsed)) id = parsed;
+        }
+        if (id !== null && Number.isFinite(id) && !Number.isNaN(id) && pos && Number.isFinite(pos.x) && Number.isFinite(pos.y)) {
+          cleanPositions[id] = { x: pos.x, y: pos.y };
+        }
+      }
+      if (Object.keys(cleanPositions).length === 0) return;
+
+      const nextPositions = { ...stateRef.current.canvasPositions, ...cleanPositions };
       dispatch({ type: 'SET_CANVAS_POSITIONS', positions: nextPositions });
-      queuePositionsForDb(positions);
+      queuePositionsForDb(cleanPositions);
     }, [queuePositionsForDb]),
     toggleLockNode: useCallback(async (nodeId: number) => {
+      if (!Number.isFinite(nodeId) || Number.isNaN(nodeId)) return;
       const nextLocked = new Set(stateRef.current.canvasLockedNodeIds);
       if (nextLocked.has(nodeId)) {
         nextLocked.delete(nodeId);
@@ -1449,14 +1559,16 @@ function useOntologyStoreInternal() {
       const pos = stateRef.current.canvasPositions[nodeId];
       if (pos) {
         try {
+          const posX = Number.isFinite(pos.x) ? pos.x : 0;
+          const posY = Number.isFinite(pos.y) ? pos.y : 0;
           await duckDBService.saveOntologyCanvasState(
             `object_${nodeId}`,
             null,
             nodeId,
             `object_${nodeId}`,
             '',
-            pos.x,
-            pos.y,
+            posX,
+            posY,
             0,
             0,
             'object',
