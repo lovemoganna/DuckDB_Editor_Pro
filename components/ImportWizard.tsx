@@ -83,6 +83,13 @@ const PRESETS = [
     desc: '餐饮行业消费分析，含账单总额、小费比例、性别与吸烟标记',
     url: 'https://raw.githubusercontent.com/mwaskom/seaborn-data/master/tips.csv',
   },
+  {
+    name: 'funds_flow',
+    label: 'Google Sheets 资金流向多表数据集',
+    tag: 'Excel · 8 表',
+    desc: 'Google Sheets 远程 Excel 工作簿 (含用户、法币与加密交易数据)',
+    url: 'https://docs.google.com/spreadsheets/d/1YRLbfW3qCs2PjSjt87-gqWevgkNRGdRqB-21ngGDWSs/export?format=xlsx',
+  },
 ];
 
 const FORMAT_OPTIONS: ImportFileFormat[] = ['CSV', 'TSV', 'JSON', 'Parquet', 'Excel'];
@@ -607,6 +614,21 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
     void runSniff('local', selected, url, text, nextOpts);
   };
 
+  const handleUrlChange = (newUrl: string) => {
+    setUrl(newUrl);
+    if (newUrl.trim()) {
+      const detectedFmt = detectFormatFromName(newUrl);
+      setParseOptions(prev => {
+        if (prev.format === detectedFmt) return prev;
+        return {
+          ...prev,
+          format: detectedFmt,
+          delimiter: detectedFmt === 'TSV' ? '\t' : prev.delimiter === '\t' ? ',' : prev.delimiter,
+        };
+      });
+    }
+  };
+
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       handleFileChange(e.target.files[0]);
@@ -713,9 +735,9 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
           const item = batchItems[i];
           const sMeta = nonBlankSelected.find(s => s.name === item?.sheetName);
           recentImportsService.addImport({
-            name: `${file?.name || 'excel_workbook'} [${item?.sheetName || tblName}]`,
+            name: `${file?.name || metadata?.fileName || 'excel_workbook'} [${item?.sheetName || tblName}]`,
             size: sMeta?.rowCount ? `${sMeta.rowCount.toLocaleString()} 行` : '—',
-            sizeBytes: file?.size,
+            sizeBytes: file?.size || metadata?.fileSizeBytes,
             importedAt: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
             status: 'success',
             tableName: tblName,
@@ -753,7 +775,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
     let rawSqlSource = metadata?.rawSqlSource;
     let targetCols = columns;
 
-    if (!rawSqlSource && file) {
+    if (!rawSqlSource && (file || (mode === 'url' && url.trim()) || (mode === 'paste' && text.trim()))) {
       const res = await dataImportService.sniffSource(mode, file, url, text, parseOptions);
       rawSqlSource = res.rawSqlSource;
       targetCols = res.columns;
@@ -776,11 +798,11 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
         targetCols
       );
 
-      const srcName = file?.name || (mode === 'url' ? url.split('/').pop() || 'remote_data' : 'pasted_data.txt');
+      const srcName = file?.name || metadata?.fileName || (mode === 'url' ? url.split('/').pop()?.split('?')[0] || 'remote_data' : 'pasted_data.txt');
       recentImportsService.addImport({
         name: srcName,
         size: metadata?.formattedSize || (file ? formatBytes(file.size) : `${result.rowCount} 行`),
-        sizeBytes: file?.size,
+        sizeBytes: file?.size || metadata?.fileSizeBytes,
         importedAt: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
         status: 'success',
         tableName: result.tableName,
@@ -1203,14 +1225,14 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
                   <input
                     type="text"
                     value={url}
-                    onChange={e => setUrl(e.target.value)}
-                    placeholder="https://.../dataset.csv 或 .parquet"
+                    onChange={e => handleUrlChange(e.target.value)}
+                    placeholder="https://.../data.xlsx, .csv, .parquet 或 Google Sheets 导出链接"
                     className="w-full h-8 pl-8 pr-7 rounded bg-monokai-bg border border-monokai-border focus:border-[#e6db74] text-meta font-mono text-monokai-fg placeholder-[#75715e] outline-none transition-all"
                   />
                   {url && (
                     <button
                       type="button"
-                      onClick={() => setUrl('')}
+                      onClick={() => handleUrlChange('')}
                       className="absolute right-2 text-monokai-comment hover:text-monokai-fg p-0.5 rounded cursor-pointer"
                       title="清空 URL"
                     >
@@ -1230,7 +1252,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
                         key={p.name}
                         type="button"
                         onClick={() => {
-                          setUrl(p.url);
+                          handleUrlChange(p.url);
                           setTableName(p.name);
                         }}
                         className="p-2 rounded bg-monokai-surface border border-monokai-border hover:border-[#e6db74]/60 text-left transition-all cursor-pointer flex items-center justify-between group"
@@ -2105,9 +2127,42 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
             {/* 表格容器 */}
             <div className="flex-1 border border-monokai-border rounded overflow-auto custom-scrollbar bg-monokai-bg">
               {displayPreviewRows.length === 0 ? (
-                <div className="h-full min-h-[140px] flex items-center justify-center text-meta text-monokai-comment font-mono">
-                  暂无数据预览，请先在左侧选择文件或解析数据源
-                </div>
+                lifecycleState === 'PARSE_ERROR' ? (
+                  <div className="h-full min-h-[160px] p-6 flex flex-col items-center justify-center text-center space-y-3">
+                    <div className="w-10 h-10 rounded-full bg-[#f92672]/15 border border-[#f92672]/30 flex items-center justify-center text-monokai-pink shrink-0">
+                      <AlertCircle className="w-5 h-5" />
+                    </div>
+                    <div className="space-y-1.5 max-w-lg">
+                      <p className="text-xs font-bold text-monokai-pink">数据源解析失败</p>
+                      <p className="text-meta text-monokai-comment leading-relaxed break-words whitespace-pre-wrap font-mono">
+                        {statusMessage.replace(/^解析错误:\s*/, '')}
+                      </p>
+                    </div>
+                    {mode === 'url' && url.trim() && (
+                      <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => window.open(url, '_blank')}
+                          className="px-3 py-1 rounded bg-monokai-surface hover:bg-monokai-elevated border border-monokai-border text-meta text-monokai-cyan hover:text-monokai-fg flex items-center gap-1.5 transition-colors cursor-pointer"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          <span>在浏览器中直接下载此文件</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setMode('local')}
+                          className="px-3 py-1 rounded bg-monokai-surface hover:bg-monokai-elevated border border-monokai-border text-meta text-[#d8d7cc] hover:text-monokai-fg transition-colors cursor-pointer"
+                        >
+                          切换到本地文件上传
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="h-full min-h-[140px] flex items-center justify-center text-meta text-monokai-comment font-mono">
+                    暂无数据预览，请先在左侧选择文件或解析数据源
+                  </div>
+                )
               ) : (
                 <table className="w-full text-left font-mono text-meta border-collapse">
                   <thead className="bg-monokai-surface text-monokai-comment border-b border-monokai-border sticky top-0 select-none text-2xs z-10">

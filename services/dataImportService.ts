@@ -1,5 +1,5 @@
 import { duckDBService } from './duckdbService';
-import { workbookIO } from './workbookIO';
+import { workbookIO, WorkbookFile } from './workbookIO';
 
 export type ImportSourceMode = 'local' | 'url' | 'paste';
 export type ImportFileFormat = 'CSV' | 'TSV' | 'JSON' | 'Parquet' | 'Excel';
@@ -107,12 +107,201 @@ export function formatBytes(bytes: number): string {
 }
 
 export function detectFormatFromName(name: string): ImportFileFormat {
-  const lower = name.toLowerCase();
-  if (lower.endsWith('.parquet')) return 'Parquet';
-  if (lower.endsWith('.json') || lower.endsWith('.jsonl')) return 'JSON';
-  if (lower.endsWith('.tsv') || lower.endsWith('.tab')) return 'TSV';
-  if (lower.endsWith('.xlsx') || lower.endsWith('.xls')) return 'Excel';
+  if (!name) return 'CSV';
+  const trimmed = name.trim();
+
+  try {
+    const isUrl = /^https?:\/\//i.test(trimmed) || (trimmed.includes('/') && trimmed.includes('?'));
+    if (isUrl) {
+      const fullUrl = /^https?:\/\//i.test(trimmed) ? trimmed : `http://${trimmed}`;
+      const parsed = new URL(fullUrl);
+
+      const formatParam = (
+        parsed.searchParams.get('format') ||
+        parsed.searchParams.get('exportFormat') ||
+        parsed.searchParams.get('output') ||
+        ''
+      ).toLowerCase();
+
+      if (formatParam === 'xlsx' || formatParam === 'xls') return 'Excel';
+      if (formatParam === 'parquet') return 'Parquet';
+      if (formatParam === 'json' || formatParam === 'jsonl') return 'JSON';
+      if (formatParam === 'tsv' || formatParam === 'tab') return 'TSV';
+      if (formatParam === 'csv') return 'CSV';
+
+      if (parsed.hostname.includes('docs.google.com') && parsed.pathname.includes('/spreadsheets')) {
+        return 'Excel';
+      }
+
+      const pathname = parsed.pathname.toLowerCase();
+      if (pathname.endsWith('.xlsx') || pathname.endsWith('.xls')) return 'Excel';
+      if (pathname.endsWith('.parquet')) return 'Parquet';
+      if (pathname.endsWith('.json') || pathname.endsWith('.jsonl')) return 'JSON';
+      if (pathname.endsWith('.tsv') || pathname.endsWith('.tab')) return 'TSV';
+      if (pathname.endsWith('.csv')) return 'CSV';
+    }
+  } catch {
+    // fallback to path/file extension check
+  }
+
+  const cleanName = trimmed.split('?')[0].split('#')[0].toLowerCase();
+  if (cleanName.endsWith('.parquet')) return 'Parquet';
+  if (cleanName.endsWith('.json') || cleanName.endsWith('.jsonl')) return 'JSON';
+  if (cleanName.endsWith('.tsv') || cleanName.endsWith('.tab')) return 'TSV';
+  if (cleanName.endsWith('.xlsx') || cleanName.endsWith('.xls')) return 'Excel';
+
+  if (trimmed.includes('?')) {
+    const queryPart = trimmed.split('?')[1].toLowerCase();
+    if (queryPart.includes('format=xlsx') || queryPart.includes('format=xls')) return 'Excel';
+    if (queryPart.includes('format=parquet')) return 'Parquet';
+    if (queryPart.includes('format=json')) return 'JSON';
+    if (queryPart.includes('format=tsv')) return 'TSV';
+  }
+
   return 'CSV';
+}
+
+export interface FetchedRemoteFile {
+  blob: Blob;
+  buffer: ArrayBuffer;
+  fileName: string;
+  size: number;
+  contentType: string;
+}
+
+export function parseFilenameFromContentDisposition(header: string | null): string | null {
+  if (!header) return null;
+  const utf8Match = /filename\*=(?:UTF-8''|utf-8'')?([^;]+)/i.exec(header);
+  if (utf8Match && utf8Match[1]) {
+    try {
+      const decoded = decodeURIComponent(utf8Match[1].trim().replace(/^["']|["']$/g, ''));
+      if (decoded) return decoded;
+    } catch {}
+  }
+  const filenameMatch = /filename=["']?([^"';]+)["']?/i.exec(header);
+  if (filenameMatch && filenameMatch[1]) {
+    const raw = filenameMatch[1].trim().replace(/^["']|["']$/g, '');
+    if (raw) return raw;
+  }
+  return null;
+}
+
+export function normalizeRemoteUrl(url: string, format?: ImportFileFormat): string {
+  const trimmed = url.trim();
+  if (!trimmed) return '';
+
+  const gsMatch = trimmed.match(/^https:\/\/docs\.google\.com\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/i);
+  if (gsMatch) {
+    const docId = gsMatch[1];
+    const exportFormat = format === 'CSV' ? 'csv' : format === 'TSV' ? 'tsv' : 'xlsx';
+    if (!trimmed.includes('/export')) {
+      return `https://docs.google.com/spreadsheets/d/${docId}/export?format=${exportFormat}`;
+    } else if (!trimmed.includes('format=')) {
+      const sep = trimmed.includes('?') ? '&' : '?';
+      return `${trimmed}${sep}format=${exportFormat}`;
+    }
+  }
+
+  return trimmed;
+}
+
+export async function fetchRemoteFile(url: string, format?: ImportFileFormat): Promise<FetchedRemoteFile> {
+  const normalizedUrl = normalizeRemoteUrl(url, format);
+  let res: Response | null = null;
+  let lastError: any = null;
+
+  // 1. 本地开发服务器代理 /api/proxy (若在 Vite 开发环境中，可避免一切跨域与网络问题)
+  try {
+    const devProxyUrl = `/api/proxy?url=${encodeURIComponent(normalizedUrl)}`;
+    const devRes = await fetch(devProxyUrl);
+    if (devRes.ok) {
+      res = devRes;
+    }
+  } catch {
+    // 忽略代理错误，继续尝试直接 fetch
+  }
+
+  // 2. 尝试直接 fetch
+  if (!res) {
+    try {
+      const directRes = await fetch(normalizedUrl, {
+        method: 'GET',
+        headers: {
+          Accept: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/octet-stream, */*',
+        },
+      });
+      if (directRes.ok) {
+        res = directRes;
+      } else {
+        lastError = new Error(`HTTP ${directRes.status}: ${directRes.statusText}`);
+      }
+    } catch (directErr: any) {
+      lastError = directErr;
+    }
+  }
+
+  // 3. 尝试公共 CORS 代理备选
+  if (!res) {
+    try {
+      const publicCorsUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(normalizedUrl)}`;
+      const corsRes = await fetch(publicCorsUrl);
+      if (corsRes.ok) {
+        res = corsRes;
+      }
+    } catch {
+      // 忽略公共代理错误
+    }
+  }
+
+  if (!res || !res.ok) {
+    const detailMsg = lastError?.message || '网络连接或跨域策略受阻';
+    throw new Error(
+      `无法下载远程文件 (${detailMsg})。\n` +
+      `排查建议：\n` +
+      `1. 请检查文件链接是否允许公开访问（如 Google 表格需设为“知道链接的任何人可查看”）；\n` +
+      `2. 若受浏览器跨域安全策略 (CORS) 限制，可直接在浏览器新标签页中打开链接下载文件，并切换至【本地文件】选项卡上传。`
+    );
+  }
+
+  const contentType = (res.headers.get('content-type') || '').toLowerCase();
+  if (contentType.includes('text/html')) {
+    throw new Error(
+      '远程地址返回了 HTML 网页内容，而非 Excel 二进制数据文件。' +
+      '若使用 Google Sheets，请确保链接包含导出参数（/export?format=xlsx）且共享权限设为“知道链接的任何人可查看”。'
+    );
+  }
+
+  const buffer = await res.arrayBuffer();
+  if (!buffer || buffer.byteLength === 0) {
+    throw new Error('下载的远程文件内容为空 (0 字节)');
+  }
+
+  let fileName = '';
+  const contentDisp = res.headers.get('content-disposition');
+  const headerFilename = parseFilenameFromContentDisposition(contentDisp);
+  if (headerFilename) {
+    fileName = headerFilename;
+  } else {
+    const gsMatch = normalizedUrl.match(/docs\.google\.com\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/i);
+    if (gsMatch) {
+      fileName = `google_sheet_${gsMatch[1].slice(0, 10)}.xlsx`;
+    } else {
+      const pathPart = normalizedUrl.split('?')[0].split('#')[0].split('/').pop() || 'remote_data';
+      fileName = pathPart;
+    }
+  }
+
+  if (!fileName.toLowerCase().endsWith('.xlsx') && !fileName.toLowerCase().endsWith('.xls')) {
+    fileName += '.xlsx';
+  }
+
+  return {
+    blob: new Blob([buffer]),
+    buffer,
+    fileName,
+    size: buffer.byteLength,
+    contentType,
+  };
 }
 
 class DataImportService {
@@ -126,6 +315,115 @@ class DataImportService {
       await duckDBService.dropFile(name);
     }
     this.activeVirtualFiles.clear();
+  }
+
+  /**
+   * 处理 Excel 工作簿，将各个工作表转为 DuckDB 虚拟 CSV 表并推断 Schema 与构建元数据
+   */
+  async processExcelSheets(
+    file: WorkbookFile,
+    fileName: string,
+    filePath: string,
+    fileSizeBytes: number,
+    lastModified: string,
+    options: ParseOptions
+  ): Promise<FileMetadataResult> {
+    const parsedSheets = await workbookIO.readAllSheets(file);
+    if (parsedSheets.length === 0) {
+      throw new Error('Excel 文件中未发现工作表');
+    }
+
+    const sheetsMeta: ExcelSheetMetadata[] = [];
+    const baseCleanName = fileName.split('.')[0].replace(/[^a-zA-Z0-9_\u4e00-\u9fa5]/g, '_').replace(/^_+/, '') || 'imported';
+
+    for (let i = 0; i < parsedSheets.length; i++) {
+      const sheet = parsedSheets[i];
+      const cleanSheetName = sheet.name.replace(/[^a-zA-Z0-9_\u4e00-\u9fa5]/g, '_').replace(/^_+/, '') || `sheet_${i + 1}`;
+      const sheetTargetName = parsedSheets.length === 1 ? `${baseCleanName}_imported` : `${baseCleanName}_${cleanSheetName}`;
+
+      if (sheet.isEmpty || !sheet.csvText.trim() || sheet.rowCount === 0) {
+        sheetsMeta.push({
+          name: sheet.name,
+          targetTableName: sheetTargetName,
+          rowCount: 0,
+          columnCount: sheet.columnCount || 0,
+          columns: [],
+          previewRows: [],
+          rawSqlSource: '',
+          isEmpty: true,
+          isHidden: sheet.isHidden,
+          selected: false,
+        });
+        continue;
+      }
+
+      const sheetVFile = `excel_temp_${Date.now()}_${i}_${cleanSheetName}.csv`;
+      await duckDBService.registerFileText(sheetVFile, sheet.csvText);
+      this.activeVirtualFiles.add(sheetVFile);
+
+      const sheetSqlSource = `read_csv_auto('${sheetVFile}')`;
+
+      let sheetCols: ColumnMappingItem[] = [];
+      let sheetPreview: Record<string, any>[] = [];
+      try {
+        const describeRows = await duckDBService.query(`DESCRIBE SELECT * FROM ${sheetSqlSource};`);
+        sheetPreview = await duckDBService.query(`SELECT * FROM ${sheetSqlSource} LIMIT 100;`);
+        const firstR = sheetPreview[0] || {};
+        sheetCols = (describeRows || []).map((col: any, colIdx: number) => {
+          const colName = String(col.column_name ?? `col_${colIdx + 1}`);
+          const rawType = String(col.column_type ?? 'VARCHAR').toUpperCase();
+          const isNull = col.null === 'YES' || col.null === true || col.null === 'true';
+          const sample = firstR[colName] !== undefined && firstR[colName] !== null
+            ? (typeof firstR[colName] === 'object' ? JSON.stringify(firstR[colName]) : String(firstR[colName]))
+            : '-';
+          return {
+            index: colIdx + 1,
+            sourceName: colName,
+            targetName: colName,
+            inferredType: rawType,
+            overrideType: rawType,
+            nullable: isNull,
+            sampleValue: sample,
+          };
+        });
+      } catch (e) {
+        console.warn(`Failed to describe sheet ${sheet.name}:`, e);
+      }
+
+      sheetsMeta.push({
+        name: sheet.name,
+        targetTableName: sheetTargetName,
+        rowCount: sheet.rowCount,
+        columnCount: sheetCols.length,
+        columns: sheetCols,
+        previewRows: sheetPreview,
+        rawSqlSource: sheetSqlSource,
+        isEmpty: false,
+        isHidden: sheet.isHidden,
+        selected: true,
+      });
+    }
+
+    const activeSheet = sheetsMeta.find(s => !s.isEmpty) || sheetsMeta[0];
+    const totalRowCount = sheetsMeta.reduce((acc, s) => acc + s.rowCount, 0);
+
+    return {
+      fileName,
+      filePath,
+      fileSizeBytes,
+      formattedSize: formatBytes(fileSizeBytes),
+      rowCount: totalRowCount,
+      columnCount: activeSheet?.columnCount || 0,
+      encoding: options.encoding || 'UTF-8',
+      hasHeader: options.header,
+      format: 'Excel',
+      lastModified,
+      columns: activeSheet?.columns || [],
+      previewRows: activeSheet?.previewRows || [],
+      rawSqlSource: activeSheet?.rawSqlSource || '',
+      sheets: sheetsMeta,
+      activeSheetName: activeSheet?.name,
+    };
   }
 
   /**
@@ -159,102 +457,7 @@ class DataImportService {
       }
 
       if (format === 'Excel') {
-        const parsedSheets = await workbookIO.readAllSheets(file);
-        if (parsedSheets.length === 0) {
-          throw new Error('Excel 文件中未发现工作表');
-        }
-
-        const sheetsMeta: ExcelSheetMetadata[] = [];
-        const baseCleanName = file.name.split('.')[0].replace(/[^a-zA-Z0-9_\u4e00-\u9fa5]/g, '_').replace(/^_+/, '') || 'imported';
-
-        for (let i = 0; i < parsedSheets.length; i++) {
-          const sheet = parsedSheets[i];
-          const cleanSheetName = sheet.name.replace(/[^a-zA-Z0-9_\u4e00-\u9fa5]/g, '_').replace(/^_+/, '') || `sheet_${i + 1}`;
-          const sheetTargetName = parsedSheets.length === 1 ? `${baseCleanName}_imported` : `${baseCleanName}_${cleanSheetName}`;
-
-          if (sheet.isEmpty || !sheet.csvText.trim() || sheet.rowCount === 0) {
-            sheetsMeta.push({
-              name: sheet.name,
-              targetTableName: sheetTargetName,
-              rowCount: 0,
-              columnCount: sheet.columnCount || 0,
-              columns: [],
-              previewRows: [],
-              rawSqlSource: '',
-              isEmpty: true,
-              isHidden: sheet.isHidden,
-              selected: false,
-            });
-            continue;
-          }
-
-          const sheetVFile = `excel_temp_${Date.now()}_${i}_${cleanSheetName}.csv`;
-          await duckDBService.registerFileText(sheetVFile, sheet.csvText);
-          this.activeVirtualFiles.add(sheetVFile);
-
-          const sheetSqlSource = `read_csv_auto('${sheetVFile}')`;
-
-          let sheetCols: ColumnMappingItem[] = [];
-          let sheetPreview: Record<string, any>[] = [];
-          try {
-            const describeRows = await duckDBService.query(`DESCRIBE SELECT * FROM ${sheetSqlSource};`);
-            sheetPreview = await duckDBService.query(`SELECT * FROM ${sheetSqlSource} LIMIT 100;`);
-            const firstR = sheetPreview[0] || {};
-            sheetCols = (describeRows || []).map((col: any, colIdx: number) => {
-              const colName = String(col.column_name ?? `col_${colIdx + 1}`);
-              const rawType = String(col.column_type ?? 'VARCHAR').toUpperCase();
-              const isNull = col.null === 'YES' || col.null === true || col.null === 'true';
-              const sample = firstR[colName] !== undefined && firstR[colName] !== null
-                ? (typeof firstR[colName] === 'object' ? JSON.stringify(firstR[colName]) : String(firstR[colName]))
-                : '-';
-              return {
-                index: colIdx + 1,
-                sourceName: colName,
-                targetName: colName,
-                inferredType: rawType,
-                overrideType: rawType,
-                nullable: isNull,
-                sampleValue: sample,
-              };
-            });
-          } catch (e) {
-            console.warn(`Failed to describe sheet ${sheet.name}:`, e);
-          }
-
-          sheetsMeta.push({
-            name: sheet.name,
-            targetTableName: sheetTargetName,
-            rowCount: sheet.rowCount,
-            columnCount: sheetCols.length,
-            columns: sheetCols,
-            previewRows: sheetPreview,
-            rawSqlSource: sheetSqlSource,
-            isEmpty: false,
-            isHidden: sheet.isHidden,
-            selected: true,
-          });
-        }
-
-        const activeSheet = sheetsMeta.find(s => !s.isEmpty) || sheetsMeta[0];
-        const totalRowCount = sheetsMeta.reduce((acc, s) => acc + s.rowCount, 0);
-
-        return {
-          fileName,
-          filePath,
-          fileSizeBytes,
-          formattedSize: formatBytes(fileSizeBytes),
-          rowCount: totalRowCount,
-          columnCount: activeSheet?.columnCount || 0,
-          encoding: options.encoding || 'UTF-8',
-          hasHeader: options.header,
-          format,
-          lastModified,
-          columns: activeSheet?.columns || [],
-          previewRows: activeSheet?.previewRows || [],
-          rawSqlSource: activeSheet?.rawSqlSource || '',
-          sheets: sheetsMeta,
-          activeSheetName: activeSheet?.name,
-        };
+        return await this.processExcelSheets(file, fileName, filePath, fileSizeBytes, lastModified, options);
       } else {
         virtualFileName = `local_${Date.now()}_${file.name}`;
         await duckDBService.registerFileHandle(virtualFileName, file);
@@ -275,22 +478,52 @@ class DataImportService {
     } else {
       // URL Mode
       if (!url.trim()) throw new Error('远程 URL 不能为空');
-      fileName = url.split('/').pop()?.split('?')[0] || 'remote_data';
-      filePath = url;
-      lastModified = '远程资源 (Remote)';
+      const normalizedUrl = normalizeRemoteUrl(url, format);
+      const detectedFmt = detectFormatFromName(normalizedUrl);
+      const effectiveFormat = format === 'Excel' || detectedFmt === 'Excel' ? 'Excel' : format;
 
-      // Check if URL is parquet or CSV
-      const isParquet = url.toLowerCase().includes('.parquet');
-      if (isParquet) {
-        rawSqlSource = `read_parquet('${url}')`;
+      if (effectiveFormat === 'Excel') {
+        const fetched = await fetchRemoteFile(normalizedUrl, 'Excel');
+        fileName = fetched.fileName;
+        fileSizeBytes = fetched.size;
+        filePath = normalizedUrl;
+        lastModified = '远程资源 (Remote)';
+
+        const workbookFile: WorkbookFile = {
+          name: fetched.fileName,
+          size: fetched.size,
+          arrayBuffer: async () => fetched.buffer,
+        };
+
+        return await this.processExcelSheets(
+          workbookFile,
+          fileName,
+          filePath,
+          fileSizeBytes,
+          lastModified,
+          options
+        );
       } else {
-        const opts: string[] = [];
-        if (options.header !== undefined) opts.push(`header=${options.header ? 'true' : 'false'}`);
-        const delim = options.delimiter === '\t' ? '\\t' : options.delimiter;
-        if (delim) opts.push(`delim='${delim}'`);
-        if (options.quote) opts.push(`quote='${options.quote}'`);
-        const optsStr = opts.length > 0 ? `, ${opts.join(', ')}` : '';
-        rawSqlSource = `read_csv_auto('${url}'${optsStr})`;
+        fileName = normalizedUrl.split('?')[0].split('#')[0].split('/').pop() || 'remote_data';
+        filePath = normalizedUrl;
+        lastModified = '远程资源 (Remote)';
+
+        const isParquet = effectiveFormat === 'Parquet' || normalizedUrl.toLowerCase().includes('.parquet');
+        const isJson = effectiveFormat === 'JSON' || normalizedUrl.toLowerCase().includes('.json');
+
+        if (isParquet) {
+          rawSqlSource = `read_parquet('${normalizedUrl}')`;
+        } else if (isJson) {
+          rawSqlSource = `read_json_auto('${normalizedUrl}')`;
+        } else {
+          const opts: string[] = [];
+          if (options.header !== undefined) opts.push(`header=${options.header ? 'true' : 'false'}`);
+          const delim = options.delimiter === '\t' || effectiveFormat === 'TSV' ? '\\t' : options.delimiter;
+          if (delim) opts.push(`delim='${delim}'`);
+          if (options.quote) opts.push(`quote='${options.quote}'`);
+          const optsStr = opts.length > 0 ? `, ${opts.join(', ')}` : '';
+          rawSqlSource = `read_csv_auto('${normalizedUrl}'${optsStr})`;
+        }
       }
     }
 

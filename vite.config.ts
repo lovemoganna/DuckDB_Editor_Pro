@@ -10,8 +10,50 @@ function snippetFsPlugin(): Plugin {
       server.middlewares.use(async (req, res, next) => {
         const rawUrl = req.url || '';
         const url = new URL(rawUrl, `http://${req.headers.host || 'localhost'}`);
-        if (!url.pathname.includes('/api/snippets') && !url.pathname.includes('/api/docs')) {
+        if (!url.pathname.includes('/api/snippets') && !url.pathname.includes('/api/docs') && !url.pathname.includes('/api/proxy')) {
           return next();
+        }
+
+        if (url.pathname.includes('/api/proxy')) {
+          const targetUrl = url.searchParams.get('url');
+          if (!targetUrl) {
+            res.statusCode = 400;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ error: 'Missing url query param' }));
+            return;
+          }
+          try {
+            let fetchOptions: any = { redirect: 'follow' };
+            const proxyEnv = process.env.https_proxy || process.env.http_proxy || process.env.ALL_PROXY || 'http://127.0.0.1:18890';
+            if (proxyEnv) {
+              try {
+                const { ProxyAgent } = await import('undici');
+                fetchOptions.dispatcher = new ProxyAgent(proxyEnv);
+              } catch {}
+            }
+            let targetRes: Response;
+            try {
+              targetRes = await fetch(targetUrl, fetchOptions);
+            } catch {
+              targetRes = await fetch(targetUrl, { redirect: 'follow' });
+            }
+
+            res.statusCode = targetRes.status;
+            res.setHeader('Access-Control-Allow-Origin', '*');
+            res.setHeader('Access-Control-Expose-Headers', '*');
+            const ct = targetRes.headers.get('content-type');
+            if (ct) res.setHeader('Content-Type', ct);
+            const cd = targetRes.headers.get('content-disposition');
+            if (cd) res.setHeader('Content-Disposition', cd);
+
+            const buffer = Buffer.from(await targetRes.arrayBuffer());
+            res.end(buffer);
+          } catch (err: any) {
+            res.statusCode = 502;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ error: err.message || 'Proxy fetch failed' }));
+          }
+          return;
         }
 
         if (url.pathname.includes('/api/docs')) {

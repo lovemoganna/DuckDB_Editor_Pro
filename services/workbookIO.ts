@@ -52,7 +52,12 @@ const MAX_WORKBOOK_BYTES = 25 * 1024 * 1024;
 const MAX_WORKBOOK_CELLS = 1_000_000;
 
 function extensionOf(name: string): string {
-  return name.split('.').pop()?.toLowerCase() ?? '';
+  const clean = name.split('?')[0].split('#')[0];
+  const ext = clean.split('.').pop()?.toLowerCase() ?? '';
+  if (ext === 'xlsx' || ext === 'xls') return ext;
+  if (name.toLowerCase().includes('format=xlsx')) return 'xlsx';
+  if (name.toLowerCase().includes('format=xls')) return 'xls';
+  return ext;
 }
 
 function decodeXmlEntities(str: string): string {
@@ -129,12 +134,6 @@ export class WorkbookIO {
         'Legacy .xls files are not parsed in the browser. Save the file as .xlsx or CSV, then import it again.',
       );
     }
-    if (extension !== 'xlsx') {
-      throw new WorkbookImportError(
-        'UNSUPPORTED_WORKBOOK',
-        `Expected an .xlsx workbook, received .${extension || 'unknown'}.`,
-      );
-    }
     if (file.size > MAX_WORKBOOK_BYTES) {
       throw new WorkbookImportError(
         'WORKBOOK_TOO_LARGE',
@@ -143,6 +142,15 @@ export class WorkbookIO {
     }
 
     const buffer = await file.arrayBuffer();
+    const firstBytes = new Uint8Array(buffer.slice(0, 4));
+    const isZip = firstBytes[0] === 0x50 && firstBytes[1] === 0x4b && firstBytes[2] === 0x03 && firstBytes[3] === 0x04;
+
+    if (extension !== 'xlsx' && !isZip) {
+      throw new WorkbookImportError(
+        'UNSUPPORTED_WORKBOOK',
+        `Expected an .xlsx workbook, received .${extension || 'unknown'}.`,
+      );
+    }
 
     // 探测隐藏工作表 (OpenXML xl/workbook.xml state="hidden"|"veryHidden")
     const hiddenSheetNames = new Set<string>();

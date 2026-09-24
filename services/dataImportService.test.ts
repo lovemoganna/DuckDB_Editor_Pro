@@ -74,6 +74,167 @@ describe('dataImportService unit & logic tests', () => {
     expect(detectFormatFromName('DATA.PARQUET')).toBe('Parquet');
   });
 
+  it('detectFormatFromName correctly identifies remote URLs including Google Sheets and queries', () => {
+    // Google Sheets export link (as reported by user)
+    expect(
+      detectFormatFromName(
+        'https://docs.google.com/spreadsheets/d/1YRLbfW3qCs2PjSjt87-gqWevgkNRGdRqB-21ngGDWSs/export?format=xlsx'
+      )
+    ).toBe('Excel');
+
+    // Google Sheets browser edit link
+    expect(
+      detectFormatFromName(
+        'https://docs.google.com/spreadsheets/d/1YRLbfW3qCs2PjSjt87-gqWevgkNRGdRqB-21ngGDWSs/edit#gid=0'
+      )
+    ).toBe('Excel');
+
+    // Remote file with auth tokens
+    expect(detectFormatFromName('https://example.com/data.xlsx?token=abc')).toBe('Excel');
+    expect(detectFormatFromName('https://example.com/data.XLSX?auth=1')).toBe('Excel');
+    expect(detectFormatFromName('export?format=xlsx')).toBe('Excel');
+
+    // Other formats via query params or URLs
+    expect(detectFormatFromName('https://example.com/api/export?format=csv')).toBe('CSV');
+    expect(detectFormatFromName('https://example.com/api/export?format=tsv')).toBe('TSV');
+    expect(detectFormatFromName('https://example.com/api/export?format=parquet')).toBe('Parquet');
+    expect(detectFormatFromName('https://example.com/api/export?format=json')).toBe('JSON');
+  });
+
+  it('normalizeRemoteUrl normalizes Google Sheets links into export links', async () => {
+    const { normalizeRemoteUrl } = await import('./dataImportService');
+
+    // Google Sheets edit link
+    expect(
+      normalizeRemoteUrl(
+        'https://docs.google.com/spreadsheets/d/1YRLbfW3qCs2PjSjt87-gqWevgkNRGdRqB-21ngGDWSs/edit#gid=0'
+      )
+    ).toBe(
+      'https://docs.google.com/spreadsheets/d/1YRLbfW3qCs2PjSjt87-gqWevgkNRGdRqB-21ngGDWSs/export?format=xlsx'
+    );
+
+    // Google Sheets link with CSV format specified
+    expect(
+      normalizeRemoteUrl(
+        'https://docs.google.com/spreadsheets/d/1YRLbfW3qCs2PjSjt87-gqWevgkNRGdRqB-21ngGDWSs/edit',
+        'CSV'
+      )
+    ).toBe(
+      'https://docs.google.com/spreadsheets/d/1YRLbfW3qCs2PjSjt87-gqWevgkNRGdRqB-21ngGDWSs/export?format=csv'
+    );
+
+    // Existing export link is preserved
+    const exportUrl =
+      'https://docs.google.com/spreadsheets/d/1YRLbfW3qCs2PjSjt87-gqWevgkNRGdRqB-21ngGDWSs/export?format=xlsx';
+    expect(normalizeRemoteUrl(exportUrl)).toBe(exportUrl);
+  });
+
+  it('parseFilenameFromContentDisposition correctly parses attachment filenames', async () => {
+    const { parseFilenameFromContentDisposition } = await import('./dataImportService');
+
+    expect(
+      parseFilenameFromContentDisposition(
+        'attachment; filename="exchange_funds_flow_dataset.xlsx"; filename*=UTF-8\'\'exchange_funds_flow_dataset.xlsx'
+      )
+    ).toBe('exchange_funds_flow_dataset.xlsx');
+
+    expect(
+      parseFilenameFromContentDisposition('attachment; filename="orders_2026.xlsx"')
+    ).toBe('orders_2026.xlsx');
+
+    expect(
+      parseFilenameFromContentDisposition("attachment; filename*=UTF-8''%E8%B4%A2%E5%8A%A1%E6%8A%A5%E8%A1%A8.xlsx")
+    ).toBe('财务报表.xlsx');
+
+    expect(parseFilenameFromContentDisposition(null)).toBeNull();
+  });
+
+  it('sniffSource successfully downloads and parses remote Excel URLs with multiple sheets', async () => {
+    const { workbookIO } = await import('./workbookIO');
+
+    // Create a real Excel buffer with 2 sheets
+    const excelBuffer = await workbookIO.createWorkbookBuffer([
+      {
+        name: 'users',
+        headers: ['user_id', 'username', 'balance'],
+        rows: [
+          [1, 'Alice', 100],
+          [2, 'Bob', 250.5],
+        ],
+      },
+      {
+        name: 'transactions',
+        headers: ['tx_id', 'amount', 'currency'],
+        rows: [
+          ['tx_001', 50.0, 'USD'],
+          ['tx_002', 120.0, 'EUR'],
+        ],
+      },
+    ]);
+
+    // Mock fetch
+    const mockHeaders = new Headers();
+    mockHeaders.set(
+      'content-disposition',
+      'attachment; filename="exchange_funds_flow_dataset.xlsx"'
+    );
+    mockHeaders.set(
+      'content-type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    );
+
+    const mockResponse = {
+      ok: true,
+      status: 200,
+      headers: mockHeaders,
+      blob: async () => new Blob([excelBuffer]),
+      arrayBuffer: async () => excelBuffer,
+    };
+
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(mockResponse as any);
+
+    // Mock duckDBService query for describe and preview
+    vi.spyOn(duckDBService, 'registerFileText').mockResolvedValue(undefined);
+    vi.spyOn(duckDBService, 'query').mockImplementation(async (sql: string) => {
+      if (sql.includes('DESCRIBE')) {
+        return [
+          { column_name: 'col_a', column_type: 'VARCHAR', null: 'NO' },
+          { column_name: 'col_b', column_type: 'DOUBLE', null: 'YES' },
+        ];
+      }
+      if (sql.includes('LIMIT 100')) {
+        return [{ col_a: 'test_val', col_b: 42 }];
+      }
+      if (sql.includes('count(*)')) {
+        return [{ cnt: 2 }];
+      }
+      return [];
+    });
+
+    const targetUrl =
+      'https://docs.google.com/spreadsheets/d/1YRLbfW3qCs2PjSjt87-gqWevgkNRGdRqB-21ngGDWSs/export?format=xlsx';
+
+    const result = await dataImportService.sniffSource('url', null, targetUrl, '', {
+      format: 'Excel',
+      delimiter: ',',
+      quote: '"',
+      header: true,
+      encoding: 'UTF-8',
+    });
+
+    expect(result.format).toBe('Excel');
+    expect(result.fileName).toBe('exchange_funds_flow_dataset.xlsx');
+    expect(result.sheets).toHaveLength(2);
+    expect(result.sheets![0].name).toBe('users');
+    expect(result.sheets![1].name).toBe('transactions');
+    expect(result.sheets![0].targetTableName).toBe('exchange_funds_flow_dataset_users');
+    expect(result.sheets![1].targetTableName).toBe('exchange_funds_flow_dataset_transactions');
+    expect(result.columns).toHaveLength(2);
+    expect(result.previewRows).toHaveLength(1);
+
+    fetchSpy.mockRestore();
+  });
+
   it('executeBatchImport imports multiple sheets and detects duplicates', async () => {
     vi.spyOn(dataImportService, 'executeImport').mockImplementation(async (rawSql, schema, tableName) => {
       return {
