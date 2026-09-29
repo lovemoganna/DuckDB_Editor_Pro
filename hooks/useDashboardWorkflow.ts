@@ -19,6 +19,12 @@ export interface TableItemDetail {
   type?: 'table' | 'view' | 'macro' | 'temp' | 'other';
   columnCount?: number;
   hasPrimaryKey?: boolean;
+  columns?: Array<{
+    name: string;
+    type?: string;
+    isPrimaryKey?: boolean;
+    nullable?: boolean;
+  }>;
 }
 
 export interface RecentQueryDisplayItem {
@@ -365,6 +371,12 @@ export function useDashboardWorkflow(
           type: isView ? 'view' : 'table',
           columnCount: colCount,
           hasPrimaryKey: hasPk,
+          columns: columns.map((c: any) => ({
+            name: String(c.name || ''),
+            type: String(c.type || ''),
+            isPrimaryKey: Boolean(c.pk),
+            nullable: !c.notnull,
+          })),
         });
       }
 

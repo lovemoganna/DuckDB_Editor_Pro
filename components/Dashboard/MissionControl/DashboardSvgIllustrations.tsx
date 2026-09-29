@@ -186,7 +186,7 @@ export const HeroDeepSpaceIllustration: React.FC<{ className?: string }> = ({ cl
  * KPI 卡片半透明浮雕矢量水印 (Watermark)
  */
 export const KpiWatermark: React.FC<{
-  type: 'tables' | 'rows' | 'queries' | 'latency' | 'engine' | 'memory';
+  type: 'tables' | 'rows' | 'queries' | 'latency' | 'engine' | 'memory' | 'quality' | 'throughput';
   className?: string;
 }> = ({ type, className = '' }) => {
   return (
