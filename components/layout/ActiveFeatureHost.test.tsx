@@ -39,8 +39,8 @@ describe('ActiveFeatureHost', () => {
     expect(screen.getByRole('alert').textContent).toContain('历史 is unavailable');
   });
 
-  it('renders data and schema tabs full-bleed without the context sidebar', () => {
-    for (const tab of [Tab.DATA, Tab.STRUCTURE]) {
+  it('renders data, schema, metrics, and analysis hub tabs full-bleed without the context sidebar', () => {
+    for (const tab of [Tab.DATA, Tab.STRUCTURE, Tab.METRICS, Tab.ANALYSIS_HUB]) {
       const renderer = vi.fn(() => <div data-testid={`content-${tab}`}>Feature content</div>);
       const { unmount } = render(
         <ActiveFeatureHost

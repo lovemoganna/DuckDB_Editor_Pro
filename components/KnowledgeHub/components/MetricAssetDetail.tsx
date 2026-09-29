@@ -49,6 +49,15 @@ export const MetricAssetDetail: React.FC<MetricAssetDetailProps> = ({
     URL.revokeObjectURL(url);
   };
 
+  // 监听外部「全部运行」指令
+  React.useEffect(() => {
+    const handleTrigger = () => {
+      window.dispatchEvent(new CustomEvent('duckdb_run_all_sql_blocks', { detail: { assetId: asset.id } }));
+    };
+    window.addEventListener('duckdb_trigger_run_all', handleTrigger);
+    return () => window.removeEventListener('duckdb_trigger_run_all', handleTrigger);
+  }, [asset.id]);
+
   return (
     <div className="flex-1 flex flex-col h-full overflow-y-auto custom-scrollbar p-4 md:p-6">
       <div className="w-[95%] max-w-[95%] mx-auto space-y-5 pb-12">

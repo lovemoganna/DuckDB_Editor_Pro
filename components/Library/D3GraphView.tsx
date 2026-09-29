@@ -61,6 +61,7 @@ import {
   ICON_HEXAGON,
   ICON_BOX,
   ICON_BOLT,
+  ICON_TAG,
   TYPE_COLORS_WARM,
   TYPE_COLORS_COOL,
   TYPE_COLORS,
@@ -246,7 +247,11 @@ const D3GraphView: React.FC<{
   renderMode?: KnowledgeGraphRenderMode;
   /** 渲染模式切换回调：通知 OntologyPanel 切换 activeTab */
   onRenderModeChange?: (mode: KnowledgeGraphRenderMode) => void;
-}> = ({ onRefreshRef, ontologyState, isActive, onInspect, onLayoutChange, renderMode = 'graph', onRenderModeChange }) => {
+  /** 外部控制的显示跳数：'1' | '2' | '3' | 'all'，默认 '2' */
+  hopLimit?: '1' | '2' | '3' | 'all';
+  /** 跳数切换回调 */
+  onHopLimitChange?: (hops: '1' | '2' | '3' | 'all') => void;
+}> = ({ onRefreshRef, ontologyState, isActive, onInspect, onLayoutChange, renderMode = 'graph', onRenderModeChange, hopLimit, onHopLimitChange }) => {
   const store = useOntologyStore();
   const state = ontologyState ?? store.state;
   const mapping = state.mapping;
@@ -437,8 +442,23 @@ const D3GraphView: React.FC<{
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; node: GraphNode } | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
-  const [scopeMode, setScopeMode] = useState<ScopeMode>('all');
   const [clickToFocus, setClickToFocus] = useState(true);
+  const [scopeMode, setScopeMode] = useState<ScopeMode>(() => {
+    if (hopLimit === '1') return '1-hop';
+    if (hopLimit === '3') return '3-hop';
+    if (hopLimit === 'all') return 'all';
+    return '2-hop'; // 默认显示二跳
+  });
+
+  useEffect(() => {
+    if (hopLimit) {
+      const target: ScopeMode =
+        hopLimit === '1' ? '1-hop' :
+        hopLimit === '3' ? '3-hop' :
+        hopLimit === 'all' ? 'all' : '2-hop';
+      setScopeMode(target);
+    }
+  }, [hopLimit]);
   const [isFixedDrag, setIsFixedDrag] = useState(false);
   const isFixedDragRef = useRef(false);
   useEffect(() => { isFixedDragRef.current = isFixedDrag; }, [isFixedDrag]);
@@ -1640,6 +1660,11 @@ const D3GraphView: React.FC<{
     // - Middle click (button 1): drag to pan canvas (CAD / Figma standard)
     // - Right click (button 2): filtered out (reserved for context menu)
     const zoom = d3.zoom<SVGSVGElement, unknown>()
+      .extent(function () {
+        const cw = (this && this.clientWidth) || containerRef.current?.clientWidth || 800;
+        const ch = (this && this.clientHeight) || containerRef.current?.clientHeight || 600;
+        return [[0, 0], [cw, ch]];
+      })
       .scaleExtent([0.05, 20])
       .wheelDelta((event: WheelEvent) => {
         // High-precision smooth wheel delta (zoom centered at mouse cursor)
@@ -2333,12 +2358,14 @@ const D3GraphView: React.FC<{
       const multiplier = level === 0 ? 1.85 : level === 1 ? 1.15 : level === 2 ? 0.92 : 0.82;
       if (node.group === 'typeHub') return (node.size || 28) * (level === 0 ? 1.25 : 1);
       if (node.group === 'action') return Math.max(7, (node.size || 10) * multiplier);
+      if (node.group === 'property') return Math.max(7, (node.size || 9) * multiplier);
       return Math.max(8, (node.size || 11) * multiplier);
     };
 
     const getNodeIconPath = (d: GraphNode) => {
       if (d.group === 'typeHub') return ICON_HEXAGON;
       if (d.group === 'action') return ICON_BOLT;
+      if (d.group === 'property') return ICON_TAG;
       const typeName = (d._typeName || '').toLowerCase();
       const label = (d.label || '').toLowerCase();
       
@@ -2369,6 +2396,7 @@ const D3GraphView: React.FC<{
       
       if (d.group === 'typeHub') return d.color || '#66d9ef';
       if (d.group === 'action') return '#3b82f6';
+      if (d.group === 'property') return d.color || '#38bdf8';
       
       // Host / Device
       if (typeName.includes('host') || typeName.includes('主机') || label.includes('host') || label.includes('192.168.')) {
@@ -2818,9 +2846,11 @@ const D3GraphView: React.FC<{
       .attr('class', (d: GraphLink) => {
         const typeClass = d._isActionLink
           ? 'nv-link-action'
-          : d._isTypeInstLink
-            ? 'nv-link-typeinst'
-            : 'nv-link-instance';
+          : d._isPropLink
+            ? 'nv-link-prop'
+            : d._isTypeInstLink
+              ? 'nv-link-typeinst'
+              : 'nv-link-instance';
         const key = String((d as any).id || `${typeof d.source === 'object' ? d.source.id : d.source}-${typeof d.target === 'object' ? d.target.id : d.target}`);
         const isSelected = selectedLinkIdRef.current === key;
         return `nv-link-main ${typeClass}${isSelected ? ' nv-link-selected' : ''}`;
@@ -2828,17 +2858,18 @@ const D3GraphView: React.FC<{
       .style('fill', 'none')
       .style('stroke', (d: GraphLink) => {
         if (d._isTypeInstLink) return 'rgba(148, 163, 184, 0.35)';
+        if (d._isPropLink) return 'rgba(56, 189, 248, 0.55)';
         if (d._isActionLink) return '#bd93f9';
         if (d._gradientId) return `url(#${d._gradientId})`;
         if (d.color) return d.color;
         return 'rgba(148, 163, 184, 0.75)';
       })
-      .style('stroke-dasharray', (d: GraphLink) => d._isTypeInstLink ? '4,4' : null)
-      .style('opacity', (d: GraphLink) => d._isTypeInstLink ? '0.45' : '0.9')
+      .style('stroke-dasharray', (d: GraphLink) => d._isPropLink ? '2,3' : d._isTypeInstLink ? '4,4' : null)
+      .style('opacity', (d: GraphLink) => d._isPropLink ? '0.70' : d._isTypeInstLink ? '0.45' : '0.9')
       .style('stroke-width', (d: GraphLink) => {
         // 动态线宽：根据关系权重调整，高权重关系更粗；分类归属线轻量化
-        const baseWidth = d._isTypeInstLink ? 1.0 : d._isActionLink ? 1.4 : 1.6;
-        const weightBonus = d._isTypeInstLink ? 0 : Math.min(2.0, (d.weight || 0.5) * 1.5);
+        const baseWidth = d._isPropLink ? 1.1 : d._isTypeInstLink ? 1.0 : d._isActionLink ? 1.4 : 1.6;
+        const weightBonus = (d._isTypeInstLink || d._isPropLink) ? 0 : Math.min(2.0, (d.weight || 0.5) * 1.5);
         return `${baseWidth + weightBonus}px`;
       })
       .style('display', (d: GraphLink) => {
@@ -2849,7 +2880,7 @@ const D3GraphView: React.FC<{
       .style('cursor', 'pointer')
       // 箭头标记（精确指向目标节点）
       .attr('marker-end', (d: GraphLink) => {
-        if (d._isTypeInstLink) return null;
+        if (d._isTypeInstLink || d._isPropLink) return null;
         if (d._isActionLink) return 'url(#arrow-amethyst)';
         if (d._linkTypeId !== undefined) return `url(#arrow-linktype-${d._linkTypeId})`;
         return 'url(#arrow-highlight)';
@@ -2962,6 +2993,7 @@ const D3GraphView: React.FC<{
     const nodeContainer = g.append('g').attr('class', 'nv-nodes');
     const instanceNodes = nodes.filter(d => d.group === 'instance');
     const actionNodes = nodes.filter(d => d.group === 'action');
+    const propertyNodes = nodes.filter(d => d.group === 'property');
 
     // Group Dragging Offsets
     let groupDragOffsets: Map<string, { dx: number; dy: number }> | null = null;
@@ -3193,6 +3225,30 @@ const D3GraphView: React.FC<{
       .style('fill', (d: GraphNode) => d.color)
       .style('stroke', 'rgba(255,255,255,0.6)').style('stroke-width', 1)
       .style('pointer-events', 'none');
+
+    // Property leaf nodes (Level 3): Distinct Jewel Tag Capsule
+    const propertyG = nodeContainer.selectAll<SVGGElement, GraphNode>('.nv-property')
+      .data(propertyNodes)
+      .enter().append('g')
+      .attr('class', 'nv-property nv-node')
+      .style('cursor', 'pointer')
+      .call(d3.drag<SVGGElement, GraphNode>().on('start', dragstarted).on('drag', dragged).on('end', dragended));
+    // Invisible expanded hit area
+    propertyG.append('circle').attr('class', 'nv-node-hit-area')
+      .attr('r', (d: GraphNode) => getVisualRadius(d) + 6)
+      .style('fill', 'transparent').style('stroke', 'transparent')
+      .style('pointer-events', 'all');
+    // Dark outer base
+    propertyG.append('circle').attr('r', (d: GraphNode) => getVisualRadius(d))
+      .style('fill', '#090d16')
+      .style('stroke', (d: GraphNode) => d.color || '#38bdf8')
+      .style('stroke-width', 1.8)
+      .style('pointer-events', 'none');
+    // Glowing inner core
+    propertyG.append('circle').attr('r', (d: GraphNode) => getVisualRadius(d) * 0.62)
+      .style('fill', (d: GraphNode) => d.color || '#38bdf8')
+      .style('pointer-events', 'none');
+
     // Start/End Path Badges for All Nodes
     const appendPathBadges = (selection: d3.Selection<SVGGElement, GraphNode, any, any>) => {
       selection.each(function(d: GraphNode) {
@@ -3222,6 +3278,7 @@ const D3GraphView: React.FC<{
     appendPathBadges(typeHubG as any);
     appendPathBadges(instanceG as any);
     appendPathBadges(actionG as any);
+    appendPathBadges(propertyG as any);
 
     // Labels (typeHub shows description as label; other nodes show name)
     const LABEL_MAX = 18;
@@ -3238,6 +3295,8 @@ const D3GraphView: React.FC<{
       .enter().append('text')
       .attr('class', (d: GraphNode) => d.group === 'typeHub'
         ? 'nv-node-label nv-typehub-label'
+        : d.group === 'property'
+        ? 'nv-node-label nv-property-label'
         : 'nv-node-label')
       .text((d: GraphNode) => {
         // Always show name (label) on the node; description is for tooltip/hover only
@@ -3246,13 +3305,14 @@ const D3GraphView: React.FC<{
         if (d.group === 'typeHub') {
           title = stripEnglishInParens(title);
         }
-        return title.length > LABEL_MAX ? title.slice(0, LABEL_MAX) + '…' : title;
+        const maxLen = d.group === 'property' ? 30 : LABEL_MAX;
+        return title.length > maxLen ? title.slice(0, maxLen) + '…' : title;
       })
       .style('font-size', (d: GraphNode) => `${getNodeLabelBaseFontSize(d)}px`)
-      .style('fill', 'white')
-      .style('font-weight', 'bold')
-      .style('stroke', '#0c0d12')
-      .style('stroke-width', '2px')
+      .style('fill', (d: GraphNode) => d.group === 'property' ? '#7dd3fc' : 'white')
+      .style('font-weight', (d: GraphNode) => d.group === 'property' ? '600' : 'bold')
+      .style('stroke', '#090d16')
+      .style('stroke-width', '2.5px')
       .style('paint-order', 'stroke fill')
       .attr('text-anchor', 'middle')
       .style('cursor', 'pointer')
@@ -3739,6 +3799,7 @@ const D3GraphView: React.FC<{
       actionG
         .style('display', (d: GraphNode) => hideActions ? 'none' : null)
         .attr('transform', (d: GraphNode) => `translate(${d.x || 0},${d.y || 0})`);
+      propertyG.attr('transform', (d: GraphNode) => `translate(${d.x || 0},${d.y || 0})`);
       updateNodeLabelsForZoom(k);
 
       linkBadgeG
@@ -3915,19 +3976,23 @@ const D3GraphView: React.FC<{
     applyHighlightStyles(activeHighlightId, selectedLinkIdRef.current);
 
     // ResizeObserver
-    const ro = new ResizeObserver(() => {
-      if (!containerRef.current || !simulationRef.current) return;
-      const w = containerRef.current.clientWidth, h = containerRef.current.clientHeight;
-      svg.attr('width', w).attr('height', h);
-      const { visualCenterX, visualCenterY } = getVisualCenter(w, h);
-      simulationRef.current.force('center', d3.forceCenter(visualCenterX, visualCenterY));
-      simulationRef.current.alpha(0.08).restart();
-      (window as any).__d3FitAll?.(300);
-    });
-    ro.observe(containerRef.current);
+    const ro = typeof ResizeObserver !== 'undefined'
+      ? new ResizeObserver(() => {
+          if (!containerRef.current || !simulationRef.current) return;
+          const w = containerRef.current.clientWidth, h = containerRef.current.clientHeight;
+          svg.attr('width', w).attr('height', h);
+          const { visualCenterX, visualCenterY } = getVisualCenter(w, h);
+          simulationRef.current.force('center', d3.forceCenter(visualCenterX, visualCenterY));
+          simulationRef.current.alpha(0.08).restart();
+          (window as any).__d3FitAll?.(300);
+        })
+      : null;
+    if (ro && containerRef.current) {
+      ro.observe(containerRef.current);
+    }
 
     return () => {
-      ro.disconnect();
+      ro?.disconnect();
       simulationRef.current?.stop();
       if (rafId !== null) cancelAnimationFrame(rafId);
       const el = document.getElementById(styleId);
@@ -4728,6 +4793,7 @@ const D3GraphView: React.FC<{
         backgroundImage: 'radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px)',
         backgroundSize: '24px 24px',
         position: 'relative', overflow: 'hidden',
+        isolation: 'isolate',
       }}
     >
       {/* Canvas 2D 极速渲染层 */}
@@ -4889,7 +4955,7 @@ const D3GraphView: React.FC<{
                 background: '#FFD166',
                 boxShadow: '0 0 6px #FFD166',
               }} />
-              核心节点与关系筛选面板 (悬浮展开)
+              核心节点与关系筛选 ({scopeMode === '1-hop' || scopeMode === 'focus' ? '1跳' : scopeMode === '3-hop' ? '3跳' : scopeMode === 'all' ? '全图' : '2跳·默认'} · 悬浮展开)
             </div>
           ) : (
             <>
@@ -4912,30 +4978,39 @@ const D3GraphView: React.FC<{
             </div>
             <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
               {[
-                { id: 'focus' as ScopeMode, label: '一跳' },
-                { id: 'two-hop' as ScopeMode, label: '二跳' },
+                { id: '1-hop' as ScopeMode, label: '1跳' },
+                { id: '2-hop' as ScopeMode, label: '2跳' },
+                { id: '3-hop' as ScopeMode, label: '3跳' },
                 { id: 'all' as ScopeMode, label: '全图' },
-              ].map(item => (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    if (item.id === 'all') {
-                      setFocusedNodeId(null);
-                    } else if (!focusedNodeId && fullGraphData) {
-                      setFocusedNodeId(pickDefaultFocusNode(fullGraphData));
-                    }
-                    setScopeMode(item.id);
-                  }}
-                  style={{
-                    ...btnStyle,
-                    borderColor: scopeMode === item.id ? '#FFD166' : 'rgba(245,239,224,0.12)',
-                    color: scopeMode === item.id ? '#FFD166' : '#f8f8f2',
-                    background: scopeMode === item.id ? 'rgba(255,209,102,0.12)' : btnStyle.background,
-                  }}
-                >
-                  {item.label}
-                </button>
-              ))}
+              ].map(item => {
+                const isActive = scopeMode === item.id || 
+                  (item.id === '2-hop' && scopeMode === 'two-hop') || 
+                  (item.id === '1-hop' && scopeMode === 'focus');
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      if (item.id === 'all') {
+                        setFocusedNodeId(null);
+                      }
+                      setScopeMode(item.id);
+                      if (onHopLimitChange) {
+                        const h = item.id === '1-hop' ? '1' : item.id === '3-hop' ? '3' : item.id === 'all' ? 'all' : '2';
+                        onHopLimitChange(h);
+                      }
+                    }}
+                    style={{
+                      ...btnStyle,
+                      borderColor: isActive ? '#FFD166' : 'rgba(245,239,224,0.12)',
+                      color: isActive ? '#FFD166' : '#f8f8f2',
+                      background: isActive ? 'rgba(255,209,102,0.12)' : btnStyle.background,
+                      fontWeight: isActive ? 600 : 400,
+                    }}
+                  >
+                    {item.label}
+                  </button>
+                );
+              })}
               <button
                 onClick={() => setShowWeakLinks(v => !v)}
                 style={{

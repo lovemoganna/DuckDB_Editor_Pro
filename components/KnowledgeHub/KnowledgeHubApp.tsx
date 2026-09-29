@@ -15,7 +15,8 @@ import {
   importKnowledgeAssetsFromJson, 
   importKnowledgeAssetsFromMarkdownFiles,
   importDocsTutorials,
-  resetKnowledgeAssetsToSeeds 
+  resetKnowledgeAssetsToSeeds,
+  isDeletedKnowledgeAsset
 } from './services/knowledgeAssetStorage';
 import { 
   getStoredDirectoryHandle, 
@@ -34,12 +35,14 @@ export interface KnowledgeHubAppProps {
   onTryCode?: (sql: string) => void;
   onOpenTable?: (tableName: string) => void;
   onNavigateToMetrics?: (metricName: string) => void;
+  onNavigateToOntology?: (conceptId: string) => void;
 }
 
 export const KnowledgeHubApp: React.FC<KnowledgeHubAppProps> = ({
   onTryCode,
   onOpenTable,
   onNavigateToMetrics,
+  onNavigateToOntology,
 }) => {
   const { confirm } = useConfirmDialog();
   const [assets, setAssets] = useState<KnowledgeAsset[]>([]);
@@ -82,7 +85,14 @@ export const KnowledgeHubApp: React.FC<KnowledgeHubAppProps> = ({
       const data = await getAllKnowledgeAssets();
       setAssets(data);
       if (data.length > 0) {
-        setSelectedAssetId((prev) => prev || data[0].id);
+        setSelectedAssetId((prev) => {
+          if (!prev || !data.some((d) => d.id === prev)) {
+            return data[0].id;
+          }
+          return prev;
+        });
+      } else {
+        setSelectedAssetId(null);
       }
     } catch (err: any) {
       console.error('[KnowledgeHub] Failed to load assets:', err);
@@ -97,6 +107,14 @@ export const KnowledgeHubApp: React.FC<KnowledgeHubAppProps> = ({
         setBoundDirectoryName(handle.name);
       }
     });
+
+    const handleJumpEvent = (e: any) => {
+      if (e?.detail?.assetId) {
+        setSelectedAssetId(e.detail.assetId);
+      }
+    };
+    window.addEventListener('duckdb_jump_to_knowledge_asset', handleJumpEvent);
+    return () => window.removeEventListener('duckdb_jump_to_knowledge_asset', handleJumpEvent);
   }, [loadAssets]);
 
   // 支持快捷键 Ctrl+B / Cmd+B 切换侧边栏折叠
@@ -132,6 +150,9 @@ export const KnowledgeHubApp: React.FC<KnowledgeHubAppProps> = ({
   // 过滤资产列表
   const filteredAssets = useMemo(() => {
     return assets.filter((asset) => {
+      // 0. 排除已废弃/已删除的资产
+      if (isDeletedKnowledgeAsset(asset)) return false;
+
       // 1. 分类过滤
       if (selectedCategory === 'favorites') {
         if (!asset.isFavorite) return false;
@@ -421,6 +442,7 @@ export const KnowledgeHubApp: React.FC<KnowledgeHubAppProps> = ({
         onToggleSidebar={handleToggleSidebar}
         onTryCode={onTryCode}
         onNavigateToMetrics={onNavigateToMetrics}
+        onNavigateToOntology={onNavigateToOntology}
         onToggleFavorite={handleToggleFavorite}
         onEditAsset={handleOpenEditModal}
         onDeleteAsset={handleDeleteAsset}

@@ -5,6 +5,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Tab } from '../../types';
 import { AppTopBar } from './AppTopBar';
+import { useCopilotStore } from '../../hooks/store/useCopilotStore';
 
 afterEach(cleanup);
 
@@ -278,6 +279,42 @@ describe('AppTopBar Domain Cluster Navigation Tabs', () => {
 
     // Clear Cache button is present
     expect(screen.getByText('清理工作区缓存 (IndexedDB)')).toBeTruthy();
+  });
+
+  it('renders AI Copilot tool button and toggles store state on click', () => {
+    useCopilotStore.setState({ isOpen: false });
+
+    render(
+      <AppTopBar
+        activeTab={Tab.DASHBOARD}
+        currentTable={null}
+        tables={[]}
+        setActiveTab={vi.fn()}
+        handleTableSelect={vi.fn()}
+        handleCreateDemo={vi.fn()}
+        setShowCreateModal={vi.fn()}
+        setShowImportModal={vi.fn()}
+        setShowExportModal={vi.fn()}
+        setShowSettingsModal={vi.fn()}
+        fetchTableData={vi.fn()}
+        refreshAudit={vi.fn()}
+        runtimeInfo={{
+          version: '1.0.0',
+          storageMode: 'memory',
+          persistent: false,
+          ready: true,
+        }}
+      />,
+    );
+
+    const copilotBtn = screen.getByTitle(/AI 助手 \(Ctrl\+I\)/);
+    expect(copilotBtn).toBeTruthy();
+
+    fireEvent.click(copilotBtn);
+    expect(useCopilotStore.getState().isOpen).toBe(true);
+
+    fireEvent.click(copilotBtn);
+    expect(useCopilotStore.getState().isOpen).toBe(false);
   });
 });
 

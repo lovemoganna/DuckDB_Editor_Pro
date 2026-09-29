@@ -27,6 +27,18 @@ export interface DuckDBRuntimeInfo {
 
 const DUCKDB_VERSION = '1.33.1';
 
+export const DEMO_VIRTUAL_TABLES = new Set([
+  'orders', 'raw_log', 'logs', 'cities', 'sales', 'monthly_sales',
+  'user_events', 'dim_product_category', 'fact_order_payments',
+  'dim_user_registered', 'fact_user_activity', 'fact_app_launches',
+  'fact_billing', 'customers', 'crypto_transactions', 'networks', 'stores',
+  't_summary', 'duck_knowledge_graph', 'orders_sample'
+]);
+
+export const DEMO_VIRTUAL_VIEWS = new Set([
+  'orders.parquet', 'raw_log.parquet', 'orders_sample.parquet'
+]);
+
 async function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<never>((_, reject) => {
@@ -87,9 +99,24 @@ class DuckDBService {
   private schemaChangeTimeout: any = null;
   private cacheSaveTimeout: any = null;
   private isRestoringFromCache = false;
+  private isVirtualBootstrapping = false;
+  private isBatchExecuting = false;
   private queryQueue: Promise<any> = Promise.resolve();
   private inTransaction = false;
   private registeredFiles = new Map<string, any>();
+
+  setVirtualBootstrapping(val: boolean): void {
+    this.isVirtualBootstrapping = val;
+  }
+
+  setBatchExecuting(val: boolean): void {
+    this.isBatchExecuting = val;
+    this.isVirtualBootstrapping = val;
+  }
+
+  isBatchRunning(): boolean {
+    return this.isBatchExecuting || this.isVirtualBootstrapping;
+  }
 
   getRuntimeInfo = (): DuckDBRuntimeInfo => {
     return {
@@ -126,19 +153,23 @@ class DuckDBService {
   }
 
   private async runInQueue<T>(fn: () => Promise<T>): Promise<T> {
-    const next = this.queryQueue.then(fn);
+    const wrappedFn = () => withTimeout(fn(), 25000, 'DuckDB 查询队列执行超时 (25s)');
+    const next = this.queryQueue.then(wrappedFn);
     this.queryQueue = next.then(() => {}).catch(() => {});
     return next;
   }
 
-  private dispatchSchemaChanged() {
+  dispatchSchemaChanged(force: boolean = false) {
+    if (!force && (this.isBatchExecuting || this.isVirtualBootstrapping)) {
+      return;
+    }
     if (this.schemaChangeTimeout) {
       clearTimeout(this.schemaChangeTimeout);
     }
     this.schemaChangeTimeout = setTimeout(() => {
       window.dispatchEvent(new CustomEvent('duckdb-schema-changed'));
       this.schemaChangeTimeout = null;
-    }, 100);
+    }, 200);
   }
 
 
@@ -382,8 +413,9 @@ class DuckDBService {
   /**
    * Schedule debounced saving of workspace snapshot to IndexedDB
    */
-  scheduleCacheSave(delayMs: number = 400): void {
+  scheduleCacheSave(delayMs: number = 400, force: boolean = false): void {
     if (!this.isPersistent || this.isRestoringFromCache) return;
+    if (!force && (this.isVirtualBootstrapping || this.isBatchExecuting)) return;
     if (this.cacheSaveTimeout) {
       clearTimeout(this.cacheSaveTimeout);
     }
@@ -397,17 +429,27 @@ class DuckDBService {
    * Collects current database state and saves it into IndexedDB
    */
   async saveToIndexedDB(): Promise<void> {
-    if (!this.conn || !this.isInitialized || this.isRestoringFromCache) return;
+    if (!this.conn || !this.isInitialized || this.isRestoringFromCache || this.isVirtualBootstrapping || this.isBatchExecuting) return;
 
     try {
       const baseTables = await this.getBaseTables();
       const tableSnapshots: DuckDBTableSnapshot[] = [];
 
       for (const t of baseTables) {
-        if (t.startsWith('_sys_')) continue;
+        const lower = t.toLowerCase();
+        if (
+          lower.startsWith('_sys_') ||
+          lower.startsWith('temp_') ||
+          lower.startsWith('tmp_') ||
+          lower.startsWith('t_') ||
+          DEMO_VIRTUAL_TABLES.has(lower)
+        ) {
+          continue;
+        }
         try {
           const def = await this.getTableOrViewDefinition(t);
-          const rows = await this.query(`SELECT * FROM "${t.replace(/"/g, '""')}"`);
+          const rawRes = await (this.readConn || this.conn).query(`SELECT * FROM "${t.replace(/"/g, '""')}"`);
+          const rows = this.cleanDuckDBResult(rawRes);
           tableSnapshots.push({
             name: t,
             ddl: def.ddl,
@@ -421,6 +463,8 @@ class DuckDBService {
       const views = await this.getViews();
       const viewSnapshots: DuckDBViewSnapshot[] = [];
       for (const v of views) {
+        const lower = v.toLowerCase();
+        if (DEMO_VIRTUAL_VIEWS.has(lower) || lower.startsWith('_sys_')) continue;
         try {
           const def = await this.getTableOrViewDefinition(v);
           viewSnapshots.push({
@@ -523,7 +567,9 @@ class DuckDBService {
         if (!stmt.trim()) continue;
         const result = await this.conn.query(stmt);
         if (/^\s*(CREATE|DROP|ALTER|COPY|IMPORT|INSERT\s+INTO|UPDATE|DELETE)/i.test(stmt)) {
-          schemaChanged = true;
+          if (!stmt.includes('_sys_') && !stmt.includes('information_schema') && !stmt.includes('pg_catalog')) {
+            schemaChanged = true;
+          }
         }
         try {
           lastResult = result.toArray().map((row) => {
@@ -2564,6 +2610,55 @@ class DuckDBService {
     `);
   }
 
+  async saveOntologyPatterns(patterns: any[]): Promise<void> {
+    if (!this.conn || !Array.isArray(patterns) || patterns.length === 0) return;
+    const esc = (val: any) => this.escapeLiteral(val ?? '').slice(1, -1);
+    const valueClauses = patterns.map((pattern) => {
+      const seedIdsJson = JSON.stringify(pattern.seedIds || pattern.seed_ids || []);
+      const coreNodesJson = JSON.stringify(pattern.coreNodes || pattern.core_nodes || []);
+      const principlesJson = JSON.stringify(pattern.principles || []);
+      const bestPracticesJson = JSON.stringify(pattern.bestPractices || pattern.best_practices || []);
+      const antiPatternsJson = JSON.stringify(pattern.antiPatterns || pattern.anti_patterns || []);
+      return `(
+        '${esc(pattern.id)}',
+        '${esc(pattern.categoryId || pattern.category_id)}',
+        '${esc(pattern.categoryTitle || pattern.category_title)}',
+        '${esc(pattern.title)}',
+        '${esc(pattern.iconName || pattern.icon_name || 'BookOpen')}',
+        '${esc(pattern.brief)}',
+        '${esc(pattern.description)}',
+        '${esc(pattern.layer)}',
+        '${esc(seedIdsJson)}',
+        '${esc(coreNodesJson)}',
+        '${esc(principlesJson)}',
+        '${esc(bestPracticesJson)}',
+        '${esc(antiPatternsJson)}',
+        '${esc(pattern.mermaid || '')}'
+      )`;
+    });
+
+    const sql = `
+      INSERT INTO _sys_ontology_pattern_library (
+        id, category_id, category_title, title, icon_name, brief, description, layer, seed_ids, core_nodes, principles, best_practices, anti_patterns, mermaid
+      ) VALUES ${valueClauses.join(',\n')}
+      ON CONFLICT (id) DO UPDATE SET
+        category_id = EXCLUDED.category_id,
+        category_title = EXCLUDED.category_title,
+        title = EXCLUDED.title,
+        icon_name = EXCLUDED.icon_name,
+        brief = EXCLUDED.brief,
+        description = EXCLUDED.description,
+        layer = EXCLUDED.layer,
+        seed_ids = EXCLUDED.seed_ids,
+        core_nodes = EXCLUDED.core_nodes,
+        principles = EXCLUDED.principles,
+        best_practices = EXCLUDED.best_practices,
+        anti_patterns = EXCLUDED.anti_patterns,
+        mermaid = EXCLUDED.mermaid
+    `;
+    await this.conn.query(sql);
+  }
+
   async deleteOntologyPattern(id: string): Promise<void> {
     await this.query(`DELETE FROM _sys_ontology_pattern_library WHERE id = ${this.escapeLiteral(id)}`);
   }
@@ -3037,11 +3132,27 @@ class DuckDBService {
     }
   }
 
-  async getExplainPlan(sql: string, detail?: boolean): Promise<{ planText: string }> {
+  async getExplainPlan(sql: string, detail?: boolean): Promise<{ planText: string; physicalPlanText?: string }> {
     try {
-      const res = await this.query(detail ? `EXPLAIN ANALYZE ${sql}` : `EXPLAIN ${sql}`);
-      const planText = res.map((r: any) => r.explain_value ?? r.explore_value ?? Object.values(r)[1] ?? Object.values(r)[0]).join('\n');
-      return { planText };
+      // Normalize so we never emit "EXPLAIN EXPLAIN ..." or explain a trailing semicolon-only stump
+      let normalized = (sql || '').trim().replace(/;+\s*$/g, '').trim();
+      while (/^EXPLAIN\s+/i.test(normalized)) {
+        normalized = normalized.replace(/^EXPLAIN\s+(?:ANALYZE\s+)?/i, '').trim();
+      }
+      if (!normalized) {
+        return { planText: 'Error explaining query: SQL 为空，无法生成执行计划' };
+      }
+      const res = await this.query(detail ? `EXPLAIN ANALYZE ${normalized}` : `EXPLAIN ${normalized}`);
+      let physicalPlanText: string | undefined;
+      for (const r of res) {
+        const key = String(r.explain_key || '').toLowerCase();
+        const val = String(r.explain_value ?? r.explore_value ?? Object.values(r)[1] ?? Object.values(r)[0] ?? '');
+        if (key.includes('physical')) {
+          physicalPlanText = val;
+        }
+      }
+      const planText = physicalPlanText || res.map((r: any) => r.explain_value ?? r.explore_value ?? Object.values(r)[1] ?? Object.values(r)[0]).join('\n');
+      return { planText, physicalPlanText };
     } catch (e: any) {
       return { planText: `Error explaining query: ${e.message}` };
     }

@@ -47,6 +47,57 @@ const openDB = (): Promise<IDBDatabase> => {
   });
 };
 
+export const DELETED_ASSET_IDS = new Set([
+  'sql-learning-path',
+  'code-parquet-inspect',
+  'code-retention-cohort',
+  'code-duckdb-pivot',
+  'note-duckdb-wasm-limits',
+  'note-duckdb-pivot-tips',
+  'note-duckdb-tz-pitfalls',
+  'note-duckdb-memory-tuning',
+  'metric-gmv-net',
+  'metric-retention-d7',
+  'metric-arpu',
+]);
+
+export const DELETED_ASSET_TITLES = new Set([
+  'SQL 学习路径：基于领导建议的系统化方案',
+  'Parquet 极速元数据与数据分布抽样',
+  '用户留存队列分析 (Cohort Retention Model)',
+  'DuckDB 原生 PIVOT 动态透视与多维度汇总',
+  'DuckDB WASM 浏览器端内存上限与大文件读取避坑指南',
+  'DuckDB 高效数据探索：动态 PIVOT 与 UNPIVOT 技巧总结',
+  'DuckDB 时间戳时区解析陷阱：TIMESTAMP 与 TIMESTAMPTZ 的本质区别',
+  'DuckDB 生产级内存配额调优与 OOM 防御指南',
+  'GMV (净成交交易总额)',
+  '7日活跃留存率 (Day 7 Retention Rate)',
+  'ARPU (每活跃用户平均收入)',
+]);
+
+export function isDeletedKnowledgeAsset(asset: { id?: string; title?: string; name?: string }): boolean {
+  if (asset.id && DELETED_ASSET_IDS.has(asset.id)) return true;
+  const title = (asset.title || asset.name || '').trim();
+  if (!title) return false;
+  if (DELETED_ASSET_TITLES.has(title)) return true;
+  if (
+    title.includes('基于领导建议的系统化方案') ||
+    title.includes('极速元数据与数据分布抽样') ||
+    title.includes('Cohort Retention Model') ||
+    title.includes('动态透视与多维度汇总') ||
+    title.includes('浏览器端内存上限与大文件读取避坑指南') ||
+    title.includes('动态 PIVOT 与 UNPIVOT 技巧总结') ||
+    title.includes('TIMESTAMP 与 TIMESTAMPTZ 的本质区别') ||
+    title.includes('生产级内存配额调优') ||
+    title.includes('净成交交易总额') ||
+    title.includes('Day 7 Retention Rate') ||
+    title.includes('每活跃用户平均收入')
+  ) {
+    return true;
+  }
+  return false;
+}
+
 /**
  * 获取全部资产（同步加载磁盘指定目录下的 .md 片段文件与 IndexedDB 资产）
  */
@@ -60,6 +111,27 @@ export const getAllKnowledgeAssets = async (): Promise<KnowledgeAsset[]> => {
       req.onsuccess = () => resolve(req.result || []);
       req.onerror = () => reject(req.error);
     });
+
+    // 自动检测并物理清理 IndexedDB 历史缓存中已删除的 9 项课程/资产
+    const toDeleteIds: string[] = [];
+    const validIndexedDbAssets: KnowledgeAsset[] = [];
+    for (const a of assets) {
+      if (isDeletedKnowledgeAsset(a)) {
+        toDeleteIds.push(a.id);
+      } else {
+        validIndexedDbAssets.push(a);
+      }
+    }
+
+    if (toDeleteIds.length > 0) {
+      try {
+        const delTx = db.transaction(STORE_NAME, 'readwrite');
+        const delStore = delTx.objectStore(STORE_NAME);
+        toDeleteIds.forEach((id) => delStore.delete(id));
+      } catch (e) {
+        console.warn('[KnowledgeAssetStorage] Auto-purging deprecated assets error:', e);
+      }
+    }
 
     // 1. 同步加载本地磁盘中的 snippets/*.md 文件
     let diskSnippets: KnowledgeAsset[] | null = null;
@@ -90,13 +162,18 @@ export const getAllKnowledgeAssets = async (): Promise<KnowledgeAsset[]> => {
     // 合并磁盘中的 .md 片段到当前资产列表
     const assetMap = new Map<string, KnowledgeAsset>();
 
-    // 先填入 IndexedDB 或 SEED 数据
-    const baseList = assets.length === 0 ? SEED_KNOWLEDGE_ASSETS : assets;
-    baseList.forEach((a) => assetMap.set(a.id, a));
+    // 先填入有效 IndexedDB 或 SEED 数据
+    const baseList = validIndexedDbAssets.length === 0 ? SEED_KNOWLEDGE_ASSETS : validIndexedDbAssets;
+    baseList.forEach((a) => {
+      if (!isDeletedKnowledgeAsset(a)) {
+        assetMap.set(a.id, a);
+      }
+    });
 
     // 用磁盘 .md 文件覆盖或新增
     if (diskSnippets && diskSnippets.length > 0) {
       diskSnippets.forEach((snippet) => {
+        if (isDeletedKnowledgeAsset(snippet)) return;
         const existing = assetMap.get(snippet.id);
         if (existing) {
           assetMap.set(snippet.id, {
@@ -110,9 +187,9 @@ export const getAllKnowledgeAssets = async (): Promise<KnowledgeAsset[]> => {
       });
     }
 
-    const merged = Array.from(assetMap.values());
+    const merged = Array.from(assetMap.values()).filter((a) => !isDeletedKnowledgeAsset(a));
 
-    if (assets.length === 0) {
+    if (validIndexedDbAssets.length === 0) {
       await saveMultipleAssets(merged);
     }
 
@@ -120,7 +197,7 @@ export const getAllKnowledgeAssets = async (): Promise<KnowledgeAsset[]> => {
     return merged.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
   } catch (err) {
     console.warn('[KnowledgeAssetStorage] Error loading assets, falling back to seed data:', err);
-    return SEED_KNOWLEDGE_ASSETS;
+    return SEED_KNOWLEDGE_ASSETS.filter((a) => !isDeletedKnowledgeAsset(a));
   }
 };
 
@@ -355,7 +432,7 @@ export const resetKnowledgeAssetsToSeeds = async (): Promise<void> => {
     const tx = db.transaction(STORE_NAME, 'readwrite');
     const store = tx.objectStore(STORE_NAME);
     store.clear();
-    SEED_KNOWLEDGE_ASSETS.forEach((item) => store.put(item));
+    SEED_KNOWLEDGE_ASSETS.filter((a) => !isDeletedKnowledgeAsset(a)).forEach((item) => store.put(item));
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });

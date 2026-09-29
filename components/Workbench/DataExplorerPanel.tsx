@@ -61,6 +61,7 @@ export interface DataExplorerPanelProps {
   onDeleteFile?: (fileName: string) => void;
   onClearWorkspace?: () => void;
   onAddToDataFlow?: (tableName: string) => void;
+  onInsertTableName?: (tableName: string) => void;
 }
 
 export function formatRowCount(count: number | null | undefined): string {
@@ -96,6 +97,7 @@ export const DataExplorerPanel: React.FC<DataExplorerPanelProps> = ({
   onDeleteView,
   onDeleteFile,
   onAddToDataFlow,
+  onInsertTableName,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
@@ -726,6 +728,7 @@ export const DataExplorerPanel: React.FC<DataExplorerPanelProps> = ({
                                 onClick={() => handleTableClick(tableName)}
                                 onDoubleClick={() => handleTableDoubleClick(tableName)}
                                 onContextMenu={e => handleContextMenu(e, tableName, 'table')}
+                                title="单击查看列画像 · 双击查询前 100 行"
                                 className={`group flex h-[28px] items-center justify-between px-2 rounded-md cursor-pointer transition-colors ${
                                   isSelected
                                     ? 'bg-monokai-elevated text-monokai-fg font-medium'
@@ -740,6 +743,39 @@ export const DataExplorerPanel: React.FC<DataExplorerPanelProps> = ({
                                   <span className={`text-[10px] font-mono tabular-nums ${isSelected ? 'text-monokai-fg' : 'text-monokai-comment group-hover:text-monokai-fg-muted'}`}>
                                     {formatted}
                                   </span>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (onQueryTable) {
+                                        onQueryTable(tableName);
+                                      } else if (onDoubleClickTable) {
+                                        onDoubleClickTable(tableName);
+                                      }
+                                    }}
+                                    className="opacity-0 group-hover:opacity-100 flex items-center justify-center w-5 h-5 rounded text-monokai-comment hover:text-monokai-green hover:bg-monokai-green/15 transition-all cursor-pointer shrink-0 ml-0.5"
+                                    title={`快速查询表数据 (SELECT * FROM ${tableName} LIMIT 100)`}
+                                    aria-label={`快速查询表 ${tableName}`}
+                                  >
+                                    <Play className="w-3 h-3 fill-current" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (onInsertTableName) {
+                                        onInsertTableName(tableName);
+                                      } else {
+                                        window.dispatchEvent(new CustomEvent('insert_sql_text', { detail: { text: `"${tableName}" ` } }));
+                                        toastService.info(`已插入表名 "${tableName}" 到编辑器`);
+                                      }
+                                    }}
+                                    className="opacity-0 group-hover:opacity-100 flex items-center justify-center w-5 h-5 rounded text-monokai-comment hover:text-monokai-cyan hover:bg-monokai-cyan/15 transition-all cursor-pointer shrink-0 ml-0.5"
+                                    title={`插入表名 "${tableName}" 到当前 SQL 编辑器`}
+                                    aria-label={`插入表名 ${tableName}`}
+                                  >
+                                    <Plus className="w-3 h-3" />
+                                  </button>
                                   <button
                                     type="button"
                                     onClick={(e) => {
@@ -824,6 +860,39 @@ export const DataExplorerPanel: React.FC<DataExplorerPanelProps> = ({
                                   <span className="truncate">{viewName}</span>
                                 </div>
                                 <div className="flex items-center gap-1 shrink-0">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (onQueryTable) {
+                                        onQueryTable(viewName);
+                                      } else if (onDoubleClickTable) {
+                                        onDoubleClickTable(viewName);
+                                      }
+                                    }}
+                                    className="opacity-0 group-hover:opacity-100 flex items-center justify-center w-5 h-5 rounded text-monokai-comment hover:text-monokai-green hover:bg-monokai-green/15 transition-all cursor-pointer shrink-0 ml-0.5"
+                                    title={`快速查询视图 (SELECT * FROM ${viewName} LIMIT 100)`}
+                                    aria-label={`快速查询视图 ${viewName}`}
+                                  >
+                                    <Play className="w-3 h-3 fill-current" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (onInsertTableName) {
+                                        onInsertTableName(viewName);
+                                      } else {
+                                        window.dispatchEvent(new CustomEvent('insert_sql_text', { detail: { text: `"${viewName}" ` } }));
+                                        toastService.info(`已插入视图名 "${viewName}" 到编辑器`);
+                                      }
+                                    }}
+                                    className="opacity-0 group-hover:opacity-100 flex items-center justify-center w-5 h-5 rounded text-monokai-comment hover:text-monokai-cyan hover:bg-monokai-cyan/15 transition-all cursor-pointer shrink-0 ml-0.5"
+                                    title={`插入视图名 "${viewName}" 到当前 SQL 编辑器`}
+                                    aria-label={`插入视图名 ${viewName}`}
+                                  >
+                                    <Plus className="w-3 h-3" />
+                                  </button>
                                   <button
                                     type="button"
                                     onClick={(e) => {
@@ -1050,7 +1119,18 @@ export const DataExplorerPanel: React.FC<DataExplorerPanelProps> = ({
               {filteredRecentItems.map(item => (
                 <div
                   key={item}
-                  onClick={() => onQueryTable?.(`SELECT * FROM orders LIMIT 100;`)}
+                  onClick={() => {
+                    if (onQueryTable) {
+                      const trimmed = item.trim();
+                      if (trimmed.toUpperCase().startsWith('SELECT') || trimmed.toUpperCase().startsWith('WITH') || trimmed.toUpperCase().startsWith('DESCRIBE')) {
+                        onQueryTable(trimmed);
+                      } else if (trimmed.endsWith('.sql')) {
+                        onQueryTable(`SELECT * FROM '${trimmed}' LIMIT 100;`);
+                      } else {
+                        onQueryTable(`SELECT * FROM "${trimmed}" LIMIT 100;`);
+                      }
+                    }
+                  }}
                   className="group flex h-[28px] items-center justify-between px-2 rounded hover:bg-monokai-surface text-monokai-fg-muted hover:text-monokai-fg cursor-pointer"
                 >
                   <div className="flex items-center gap-2 min-w-0 flex-1">

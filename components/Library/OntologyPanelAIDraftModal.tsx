@@ -38,7 +38,7 @@ const AIDraftModal: React.FC<AIDraftModalProps> = ({ payload, jsonStr, onCommit,
 
   return (
     <>
-      <div className="fixed inset-0 z-[500] flex items-center justify-center bg-black/70 backdrop-blur-sm">
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm">
         <div className="w-[720px] max-w-[calc(100vw-16px)] max-h-[85vh] bg-monokai-bg border border-monokai-border rounded-2xl shadow-2xl flex flex-col">
           <div className="flex items-center justify-between px-6 py-5 border-b border-monokai-accent/10">
             <div className="flex items-center gap-4">

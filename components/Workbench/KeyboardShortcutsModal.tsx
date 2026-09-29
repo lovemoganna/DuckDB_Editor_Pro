@@ -30,6 +30,7 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
       { keys: ['Ctrl', 'Shift', 'Enter'], description: '仅运行选中语句', hint: '仅执行高亮选中的 SQL 代码段' },
       { keys: ['Ctrl', 'E'], description: '生成执行计划', hint: '查看物理算子拓扑图与预期开销' },
       { keys: ['Ctrl', 'Shift', 'A'], description: '深度剖析', hint: '真实运行并量化各节点耗时' },
+      { keys: ['Ctrl', 'Shift', 'E'], description: '导出查询结果', hint: '打开结果导出（Parquet/CSV/JSON）' },
     ],
   },
   {

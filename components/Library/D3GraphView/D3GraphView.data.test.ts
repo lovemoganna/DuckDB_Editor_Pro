@@ -102,7 +102,11 @@ describe('buildGraphDataFromState', () => {
     }, mapping);
 
     expect(graph).not.toBeNull();
-    expect(graph!.nodes).toHaveLength(4);
+    // 1 typeHub + 2 instances + 1 action + 1 property node (Work has priority=1, Reading has no props)
+    expect(graph!.nodes.filter(n => n.group === 'typeHub')).toHaveLength(1);
+    expect(graph!.nodes.filter(n => n.group === 'instance')).toHaveLength(2);
+    expect(graph!.nodes.filter(n => n.group === 'action')).toHaveLength(1);
+    expect(graph!.nodes.filter(n => n.group === 'property')).toHaveLength(1);
     expect(graph!.nodes.some(node => node.id.startsWith('linktype::') || node.group === 'linkType')).toBe(false);
 
     const semanticLink = graph!.links.find(link => link._linkTypeId === 1);
@@ -119,8 +123,11 @@ describe('buildGraphDataFromState', () => {
     const graph = buildGraphDataFromState(defaultSeedState, mapping);
 
     expect(graph).not.toBeNull();
-    expect(graph!.nodes).toHaveLength(18);
-    expect(graph!.links).toHaveLength(28);
+    // 3 typeHub + 12 instances + 3 actions + 12 property nodes (one per instance, each has 1 prop field)
+    expect(graph!.nodes.filter(n => n.group === 'typeHub')).toHaveLength(3);
+    expect(graph!.nodes.filter(n => n.group === 'instance')).toHaveLength(12);
+    expect(graph!.nodes.filter(n => n.group === 'action')).toHaveLength(3);
+    expect(graph!.nodes.filter(n => n.group === 'property')).toHaveLength(12);
     expect(graph!.nodes.some(node => node.group === 'linkType')).toBe(false);
 
     const instanceNodes = graph!.nodes.filter(node => node.group === 'instance');

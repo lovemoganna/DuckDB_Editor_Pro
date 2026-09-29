@@ -1,7 +1,16 @@
 // @vitest-environment jsdom
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { aiService } from './aiService';
+import { aiService, preferIpv4Loopback } from './aiService';
+
+describe('preferIpv4Loopback', () => {
+  it('rewrites localhost to 127.0.0.1 for loopback AI endpoints', () => {
+    expect(preferIpv4Loopback('http://localhost:1234/v1')).toBe('http://127.0.0.1:1234/v1');
+    expect(preferIpv4Loopback('http://LOCALHOST:11434')).toBe('http://127.0.0.1:11434');
+    expect(preferIpv4Loopback('http://127.0.0.1:1234/v1')).toBe('http://127.0.0.1:1234/v1');
+    expect(preferIpv4Loopback('https://api.openai.com/v1')).toBe('https://api.openai.com/v1');
+  });
+});
 
 describe('aiService LM Studio provider', () => {
   const originalFetch = global.fetch;
@@ -36,7 +45,8 @@ describe('aiService LM Studio provider', () => {
       { id: 'deepseek-r1-distill-qwen-7b', name: 'deepseek-r1-distill-qwen-7b' },
     ]);
     expect(result.message).toContain('已连接本地 LM Studio');
-    expect(global.fetch).toHaveBeenCalledWith('http://localhost:1234/v1/models', expect.any(Object));
+    // localhost is rewritten to 127.0.0.1 so browsers do not hit IPv6 ::1
+    expect(global.fetch).toHaveBeenCalledWith('http://127.0.0.1:1234/v1/models', expect.any(Object));
   });
 
   it('returns service_not_running error when LM Studio cannot be reached', async () => {
@@ -44,7 +54,7 @@ describe('aiService LM Studio provider', () => {
 
     const result = await aiService.diagnoseConnection({
       provider: 'lmstudio',
-      baseUrl: 'http://localhost:1234/v1',
+      baseUrl: 'http://127.0.0.1:1234/v1',
     });
 
     expect(result.success).toBe(false);
@@ -70,6 +80,7 @@ describe('aiService LM Studio provider', () => {
     expect(models).toEqual([
       { id: 'qwen2.5-coder-7b-instruct', name: 'qwen2.5-coder-7b-instruct (已加载)' },
     ]);
+    expect(global.fetch).toHaveBeenCalledWith('http://127.0.0.1:1234/v1/models', expect.any(Object));
   });
 
   it('omits response_format: json_object for LM Studio provider calls', async () => {
@@ -94,7 +105,7 @@ describe('aiService LM Studio provider', () => {
     expect(result.recommendedIntent).toBe('exploration');
 
     expect(global.fetch).toHaveBeenCalledWith(
-      'http://localhost:1234/v1/chat/completions',
+      'http://127.0.0.1:1234/v1/chat/completions',
       expect.objectContaining({
         method: 'POST',
         body: expect.not.stringContaining('"response_format":{"type":"json_object"}'),

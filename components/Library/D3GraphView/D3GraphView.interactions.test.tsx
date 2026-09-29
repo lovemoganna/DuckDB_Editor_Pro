@@ -185,7 +185,7 @@ describe('D3GraphView blank-canvas reset', () => {
       ],
     };
 
-    const view = render(<D3GraphView ontologyState={ontologyWithAction} isActive />);
+    const view = render(<D3GraphView ontologyState={ontologyWithAction} isActive hopLimit="all" />);
     await waitFor(() => {
       // 5 original nodes (2 typeHub, 3 instance) + 1 action node = 6
       expect(view.container.querySelectorAll('.nv-node')).toHaveLength(6);
@@ -209,7 +209,7 @@ describe('D3GraphView blank-canvas reset', () => {
     await waitFor(() => {
       expect(view.container.querySelector('[aria-label="连线属性检查器"]')).not.toBeNull();
       expect(view.getByText('关系详情检查器 (Edge Inspector)')).toBeTruthy();
-      expect(linkEl?.classList.contains('nv-link-selected')).toBe(true);
+      expect(view.container.querySelector('.nv-link-selected')).not.toBeNull();
     });
 
     // Close the Edge Inspector via close button

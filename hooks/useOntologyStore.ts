@@ -472,7 +472,7 @@ const initState: OntologyStoreState = {
   introspections: [],
   insights: [],
   activeTab: 'graph',
-  drawerOpen: true,
+  drawerOpen: false,
   drawerTab: 'templates',
   insightsOpen: false,
   search: '',
@@ -640,9 +640,7 @@ function useOntologyStoreInternal() {
           if (!seedingPromise) {
             seedingPromise = (async () => {
               console.log('[Store] Pattern library is empty, seeding default patterns...');
-              for (const p of DEFAULT_PATTERNS) {
-                await duckDBService.saveOntologyPattern(p);
-              }
+              await duckDBService.saveOntologyPatterns(DEFAULT_PATTERNS);
             })();
           }
           await seedingPromise;
@@ -1043,25 +1041,41 @@ function useOntologyStoreInternal() {
     objects: Array<{ name: string; objectType: string; properties?: Record<string, any>; annotations?: string }>;
     linkTypes: Array<{ name: string; description?: string }>;
     links: Array<{ from: string; to: string; linkType: string; weight?: number }>;
-  }) => {
+    actions?: Array<{ name: string; objectName?: string; description?: string; status?: string }>;
+  }, options?: { replace?: boolean }) => {
+    if (options?.replace) {
+      try {
+        await duckDBService.query(`DELETE FROM ${state.mapping.actionTable}`);
+        await duckDBService.query(`DELETE FROM ${state.mapping.linkTable}`);
+        await duckDBService.query(`DELETE FROM ${state.mapping.linkTypeTable}`);
+        await duckDBService.query(`DELETE FROM ${state.mapping.objectTable}`);
+        await duckDBService.query(`DELETE FROM ${state.mapping.objectTypeTable}`);
+        await refresh();
+      } catch (err) {
+        console.warn('Failed to clear tables before import:', err);
+      }
+    }
+
+    const currentState = getState();
+
     // Build type name -> id map from current state
     const typeNameMap: Record<string, number> = {};
-    for (const ot of state.objectTypes) typeNameMap[ot.name] = ot.id;
-    for (const lt of state.linkTypes) typeNameMap[lt.name] = lt.id;
+    for (const ot of currentState.objectTypes) typeNameMap[ot.name] = ot.id;
+    for (const lt of currentState.linkTypes) typeNameMap[lt.name] = lt.id;
 
     // Build object name -> id map from current state
     const objectNameMap: Record<string, number> = {};
-    for (const o of state.objects) objectNameMap[o.name] = o.id;
+    for (const o of currentState.objects) objectNameMap[o.name] = o.id;
 
     // Compute starting IDs so new items don't clash
-    const startTypeId = state.objectTypes.length > 0
-      ? Math.max(...state.objectTypes.map(o => o.id)) + 1 : 1;
-    const startObjectId = state.objects.length > 0
-      ? Math.max(...state.objects.map(o => o.id)) + 1 : 1;
-    const startLinkTypeId = state.linkTypes.length > 0
-      ? Math.max(...state.linkTypes.map(l => l.id)) + 1 : 1;
-    const startLinkId = state.links.length > 0
-      ? Math.max(...state.links.map(l => l.id)) + 1 : 1;
+    const startTypeId = currentState.objectTypes.length > 0
+      ? Math.max(...currentState.objectTypes.map(o => o.id)) + 1 : 1;
+    const startObjectId = currentState.objects.length > 0
+      ? Math.max(...currentState.objects.map(o => o.id)) + 1 : 1;
+    const startLinkTypeId = currentState.linkTypes.length > 0
+      ? Math.max(...currentState.linkTypes.map(l => l.id)) + 1 : 1;
+    const startLinkId = currentState.links.length > 0
+      ? Math.max(...currentState.links.map(l => l.id)) + 1 : 1;
 
     // Bulk-insert object types
     const otRows = result.objectTypes.map((ot, i) => ({
@@ -1069,7 +1083,9 @@ function useOntologyStoreInternal() {
       name: ot.name,
       description: ot.description || '',
     }));
-    await bulkInsert(state.mapping.objectTypeTable, ['id', 'name', 'description'], otRows);
+    if (otRows.length > 0) {
+      await bulkInsert(state.mapping.objectTypeTable, ['id', 'name', 'description'], otRows);
+    }
 
     // Refresh to get newly created IDs
     await refresh();
@@ -1091,8 +1107,10 @@ function useOntologyStoreInternal() {
         annotations: obj.annotations || '',
       });
     }
-    await bulkInsert(state.mapping.objectTable,
-      ['id', 'object_type_id', 'name', 'properties', 'annotations'], objRows);
+    if (objRows.length > 0) {
+      await bulkInsert(state.mapping.objectTable,
+        ['id', 'object_type_id', 'name', 'properties', 'annotations'], objRows);
+    }
 
     // Refresh again to get object IDs
     await refresh();
@@ -1105,7 +1123,9 @@ function useOntologyStoreInternal() {
       name: lt.name,
       description: lt.description || '',
     }));
-    await bulkInsert(state.mapping.linkTypeTable, ['id', 'name', 'description'], ltRows);
+    if (ltRows.length > 0) {
+      await bulkInsert(state.mapping.linkTypeTable, ['id', 'name', 'description'], ltRows);
+    }
 
     // Refresh to get link type IDs
     const s3 = getState();
@@ -1128,12 +1148,35 @@ function useOntologyStoreInternal() {
         weight: link.weight ?? 0.5,
       });
     }
-    await bulkInsert(state.mapping.linkTable,
-      ['id', 'link_type_id', 'source_object_id', 'target_object_id', 'weight'], linkRows);
+    if (linkRows.length > 0) {
+      await bulkInsert(state.mapping.linkTable,
+        ['id', 'link_type_id', 'source_object_id', 'target_object_id', 'weight'], linkRows);
+    }
+
+    // Bulk-insert actions
+    if (result.actions && result.actions.length > 0) {
+      const startActionId = s3.actions.length > 0
+        ? Math.max(...s3.actions.map(a => a.id)) + 1 : 1;
+      const actionRows: Record<string, any>[] = [];
+      for (const act of result.actions) {
+        const objId = (act.objectName && objectNameMap[act.objectName]) || s2.objects[0]?.id || 1;
+        actionRows.push({
+          id: startActionId + actionRows.length,
+          object_id: objId,
+          name: act.name,
+          description: act.description || '',
+          status: act.status || 'pending',
+        });
+      }
+      if (actionRows.length > 0) {
+        await bulkInsert(state.mapping.actionTable,
+          ['id', 'object_id', 'name', 'description', 'status'], actionRows);
+      }
+    }
 
     // Single final refresh
     await refresh();
-  }, [state.objectTypes, state.objects, state.linkTypes, refresh, getState, state.mapping]);
+  }, [state.objectTypes, state.objects, state.linkTypes, state.actions, refresh, getState, state.mapping]);
 
   // ── Execute SQL (template panel) ──
   const executeSQL = useCallback(async (sql: string, refreshTables?: boolean) => {

@@ -2,12 +2,14 @@
 id: "duckdb-sql-lesson-1"
 type: "note"
 isFavorite: false
-createdAt: "2026-09-22T00:57:29.610Z"
-updatedAt: "2026-09-22T00:57:29.610Z"
+createdAt: "2026-09-27T14:40:54.265Z"
+updatedAt: "2026-09-27T14:40:54.265Z"
 tags:
-  - "入门"
+  - "本体建模"
+  - "Ontology"
+  - "哲学本体"
   - "DuckDB"
-  - "教程"
+  - "入门"
 title: "Lesson 1 · DuckDB SQL 入门"
 topic: "best_practice"
 summary: "建立“哲学概念本体”的**最小可运行宇宙**，为后续所有 DML / JOIN / 事务 / 递归查询提供唯一数据根基。"

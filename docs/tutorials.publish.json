@@ -11,29 +11,29 @@
     {
       "file": "002 内嵌DuckDB教程_简单.md",
       "id": "duckdb-sql-lesson-1",
-      "category": "入门",
+      "category": "本体建模",
       "difficulty": "Beginner",
       "order": 2
+    },
+    {
+      "file": "005 DuckDB电商供应链本体建模_L2.md",
+      "id": "duckdb-sql-lesson-2",
+      "category": "本体建模",
+      "difficulty": "Beginner",
+      "order": 3
     },
     {
       "file": "003 DuckDB教程_自定义上传.md",
       "id": "ontology-duckdb-complete",
       "category": "本体建模",
       "difficulty": "Intermediate",
-      "order": 3
+      "order": 4
     },
     {
       "file": "004 DuckDB教程_自定义上传.md",
       "id": "ontology-duckdb-runnable",
       "category": "本体建模",
       "difficulty": "Intermediate",
-      "order": 4
-    },
-    {
-      "file": "Quick_Tutorial.md",
-      "id": "sql-learning-path",
-      "category": "学习路径",
-      "difficulty": "Beginner",
       "order": 5
     }
   ]

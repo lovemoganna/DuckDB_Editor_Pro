@@ -9,6 +9,7 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { FileImportState } from './types';
+import { EmptyCockpitIllustration } from './MissionControl/DashboardSvgIllustrations';
 
 interface EmptyStateCockpitProps {
   isDraggingOver: boolean;
@@ -66,9 +67,7 @@ export const EmptyStateCockpit: React.FC<EmptyStateCockpitProps> = ({
           </div>
         ) : (
           <>
-            <div className="flex h-12 w-12 items-center justify-center rounded-md border border-monokai-border bg-monokai-elevated text-monokai-comment group-hover:text-monokai-fg mb-3 group-hover:scale-105 transition-all shadow-xs">
-              <UploadCloud className="h-6 w-6" />
-            </div>
+            <EmptyCockpitIllustration className="mb-2" />
             <h3 className="text-sm font-bold text-monokai-fg">
               {isDraggingOver ? '释放文件以立即挂载' : '拖入数据文件挂载 或 点击选择本地文件'}
             </h3>

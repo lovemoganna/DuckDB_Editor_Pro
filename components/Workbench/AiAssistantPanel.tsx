@@ -92,6 +92,9 @@ export interface AiAssistantPanelProps {
    * 缺省时面板会从 queryResult.columnTypeMap 中推断。
    */
   columnTypeMap?: Record<string, string>;
+  /** Operator / plan snippet from ExplainPlanView — shown as focus context for analyze. */
+  planFocus?: string | null;
+  onDismissPlanFocus?: () => void;
 }
 
 export const AiAssistantPanel: React.FC<AiAssistantPanelProps> = ({
@@ -107,6 +110,8 @@ export const AiAssistantPanel: React.FC<AiAssistantPanelProps> = ({
   onClose,
   selectedColumnName = null,
   columnTypeMap,
+  planFocus = null,
+  onDismissPlanFocus,
 }) => {
   // 三态 Tab：解释 / 分析 / 列画像 (FR-Q3 — 列画像真正接入 AI)
   const [currentTab, setCurrentTab] = useState<'explain' | 'analyze' | 'profile'>('explain');
@@ -195,7 +200,11 @@ export const AiAssistantPanel: React.FC<AiAssistantPanelProps> = ({
         if (!trimmed) {
           throw new Error('当前编辑器为空 SQL，请先编写查询语句');
         }
-        const result = await aiService.analyzeSql(trimmed, { queryResult });
+        // Inject plan-operator focus as SQL comments so analyze sees the hotspot without API churn
+        const sqlForAnalyze = planFocus?.trim()
+          ? `-- [执行计划关注算子]\n-- ${planFocus.trim().replace(/\n/g, '\n-- ')}\n\n${trimmed}`
+          : trimmed;
+        const result = await aiService.analyzeSql(sqlForAnalyze, { queryResult });
         if (callId !== analyzeCallIdRef.current) return;
         setAnalyzeData(result);
         if (reason === 'manual') toastService.success('已基于最新 SQL 重新生成 AI 分析');
@@ -207,8 +216,25 @@ export const AiAssistantPanel: React.FC<AiAssistantPanelProps> = ({
         if (callId === analyzeCallIdRef.current) setIsLoadingAnalyze(false);
       }
     },
-    [queryResult]
+    [queryResult, planFocus]
   );
+
+  // When operator focus arrives from ExplainPlanView, re-run analyze with that context
+  const lastPlanFocusRef = useRef<string | null>(null);
+  useEffect(() => {
+    const focus = planFocus?.trim() || null;
+    if (!focus) {
+      lastPlanFocusRef.current = null;
+      return;
+    }
+    if (focus === lastPlanFocusRef.current) return;
+    lastPlanFocusRef.current = focus;
+    setCurrentTab('analyze');
+    onChangeActiveTab?.('analyze');
+    const trimmed = (activeSql || '').trim();
+    if (!trimmed || !aiService.isConfigured()) return;
+    void runAnalyze(trimmed, 'manual');
+  }, [planFocus, activeSql, runAnalyze, onChangeActiveTab]);
 
   /**
    * Build a synthetic QuerySnapshot-like object for the local columnProfiler so we
@@ -509,6 +535,30 @@ export const AiAssistantPanel: React.FC<AiAssistantPanelProps> = ({
           )}
         </div>
       </div>
+
+      {/* Plan-operator focus from ExplainPlanView */}
+      {planFocus?.trim() && (
+        <div className="shrink-0 flex items-start gap-2 px-3 py-2 border-b border-monokai-border bg-monokai-surface/60 text-[11px]">
+          <Zap className="w-3.5 h-3.5 text-monokai-orange shrink-0 mt-0.5" />
+          <div className="min-w-0 flex-1">
+            <div className="text-monokai-comment mb-0.5">来自执行计划的关注算子</div>
+            <div className="font-mono text-monokai-fg break-all leading-relaxed line-clamp-3" title={planFocus}>
+              {planFocus.trim()}
+            </div>
+          </div>
+          {onDismissPlanFocus && (
+            <button
+              type="button"
+              onClick={onDismissPlanFocus}
+              className="p-0.5 rounded text-monokai-comment hover:text-monokai-fg cursor-pointer shrink-0"
+              aria-label="清除算子关注"
+              title="清除关注"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+      )}
 
       {/* 2. Header Row 2: Model & Query Context Strip (h-9: 36px) */}
       <div className="flex h-9 shrink-0 items-center justify-between px-3 border-b border-monokai-border bg-monokai-sidebar text-meta font-mono">

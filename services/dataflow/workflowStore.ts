@@ -25,6 +25,8 @@ import type {
   WorkflowRunLog,
   WorkflowNodeType,
   WorkflowNodeStatus,
+  PipelineStepperState,
+  SqlPitfallPreset,
 } from './workflowTypes';
 import {
   getInitialEcommerceNodes,
@@ -42,6 +44,10 @@ import {
   compileWorkflowToFullSql,
   calculateDagLayout,
   updateSqlCteDefinition,
+  locateBugInWorkflow,
+  detectLogicalAnomalies,
+  parseSqlToExecutionSteps,
+  SQL_PITFALL_PRESETS,
 } from './sqlToWorkflowParser';
 import {
   getNodeViewName,
@@ -49,8 +55,19 @@ import {
   resolveNodeInputs,
   sortWorkflowTopologically,
 } from './workflowCompiler';
+import {
+  buildRealExecutionWorkflow,
+  traceUpstreamLineage,
+  locateAndDecorateErrorNode,
+} from './sqlExecutionPlanParser';
+import {
+  dispatchDataflowTraceFault,
+  dispatchFocusSqlEditor,
+} from './dataflowEvents';
 
 const STORAGE_KEY = 'duckdb_workflow_state_v3';
+
+export type WorkflowSyncStatus = 'idle' | 'syncing' | 'error' | 'ready';
 
 /**
  * 拓扑无环性检测：检测如果添加一条从 source 到 target 的有向边，是否会导致图中产生闭环 (Cycle)
@@ -99,6 +116,9 @@ interface WorkflowState {
   activeTabTitle: string;
   activeSqlRange: { startLine: number; endLine: number; cteName?: string } | null;
   liveSyncWithSql: boolean;
+  /** SQL → 流图同步生命周期，供画布空/错/加载态展示 */
+  syncStatus: WorkflowSyncStatus;
+  lastSyncError: string | null;
 
   // React Flow Handlers
   onNodesChange: (changes: NodeChange[]) => void;
@@ -107,6 +127,8 @@ interface WorkflowState {
 
   // Actions
   selectNode: (nodeId: string | null) => void;
+  /** 选中异常节点、写入 sqlRange，并派发相机/Inspector/SQL 聚焦事件 */
+  focusFaultyNode: (nodeId?: string | null) => string | null;
   updateNodeData: (nodeId: string, patch: Partial<DataFlowNode['data']>) => void;
   updateNodeConfig: (nodeId: string, configPatch: any) => void;
   addNode: (type: WorkflowNodeType, position?: { x: number; y: number }) => void;
@@ -138,6 +160,23 @@ interface WorkflowState {
   toggleBottomDrawer: () => void;
   setViewport: (vp: { x: number; y: number; zoom: number }) => void;
   clearLogs: () => void;
+  traceBugNode: () => string | null;
+  toggleNodeExpanded: (nodeId: string) => void;
+
+  // ── 单步仿真推演步进器与避坑演练 ──
+  stepperState: PipelineStepperState;
+  startStepping: () => void;
+  stopStepping: () => void;
+  stepNext: () => void;
+  stepPrev: () => void;
+  setStepIndex: (index: number) => void;
+  togglePlayStepping: () => void;
+  loadPitfallPreset: (presetId: string) => { buggySql: string; preset: SqlPitfallPreset } | null;
+
+  // ── 结果反向溯源 (Lineage Traceback) ──
+  isReverseTracing: boolean;
+  traceReverseLineage: (targetNodeId?: string) => void;
+  clearLineageTrace: () => void;
 
   // Persistence
   saveWorkflow: () => void;
@@ -316,6 +355,8 @@ async function enrichNodesWithDuckDB(
   return nodes.map(n => nodeMap.get(n.id) || n);
 }
 
+let stepperTimer: any = null;
+
 export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   nodes: [],
   edges: [],
@@ -330,11 +371,24 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   viewport: { x: 0, y: 0, zoom: 1 },
   lastSavedAt: null,
 
+  // 单步推演仿真器状态
+  stepperState: {
+    isActive: false,
+    currentStepIndex: 1,
+    totalSteps: 1,
+    isPlaying: false,
+    activeNodeId: null,
+    playbackSpeedMs: 1600,
+  },
+
   dataFlowMode: 'sql',
   activeSql: '',
   activeTabTitle: 'SQL 查询',
   activeSqlRange: null,
   liveSyncWithSql: true,
+  syncStatus: 'idle',
+  lastSyncError: null,
+  isReverseTracing: false,
 
   onNodesChange: (changes: NodeChange[]) => {
     const removedNodeIds = changes
@@ -594,6 +648,33 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
     });
   },
 
+  focusFaultyNode: (nodeId?: string | null) => {
+    const { nodes } = get();
+    const target =
+      (nodeId ? nodes.find(n => n.id === nodeId) : undefined) ||
+      nodes.find(n => n.data.bugInfo?.hasBug || n.data.status === 'error' || n.data.hasAnomaly);
+
+    if (!target) return null;
+
+    get().selectNode(target.id);
+    set({
+      activeSqlRange: target.data.sqlRange || null,
+      inspectorTab: 'config',
+    });
+
+    dispatchDataflowTraceFault({
+      nodeId: target.id,
+      openInspector: true,
+      focusSql: true,
+    });
+
+    if (target.data.sqlRange) {
+      dispatchFocusSqlEditor({ sqlRange: target.data.sqlRange });
+    }
+
+    return target.id;
+  },
+
   autoLayout: () => {
     const { nodes, edges } = get();
     if (nodes.length === 0) return;
@@ -701,6 +782,14 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
           ? { joinType: 'INNER', conditions: [] }
           : type === 'sql_transform'
           ? { sql: 'SELECT * FROM {{input}}' }
+          : type === 'result'
+          ? { limit: 100 }
+          : type === 'export'
+          ? { format: 'parquet', filePath: 'export/result.parquet' }
+          : type === 'source'
+          ? { fileName: '', fileType: 'table', fileSize: '', filePath: '', tableName: '' }
+          : type === 'schema'
+          ? { checkType: 'inspect' }
           : {},
       },
     };
@@ -852,54 +941,112 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
    * 从 SQL 工作台的当前 SQL 语句实时解析并生成 DAG
    */
   syncFromSql: async (sql: string, tabTitle?: string, isManual: boolean = false) => {
-    if (!sql || !sql.trim()) return;
+    if (!sql || !sql.trim()) {
+      set({
+        activeSql: '',
+        activeTabTitle: tabTitle || get().activeTabTitle,
+        nodes: [],
+        edges: [],
+        selectedNodeId: null,
+        activeSqlRange: null,
+        syncStatus: 'idle',
+        lastSyncError: null,
+      });
+      return;
+    }
 
     set({
       activeSql: sql,
       activeTabTitle: tabTitle || get().activeTabTitle,
+      syncStatus: 'syncing',
+      lastSyncError: null,
     });
 
     try {
-      const parsed = parseSqlToWorkflow(sql, { tabTitle, existingNodes: get().nodes });
-      if (parsed.nodes.length === 0) return;
+      // 优先从真实 DuckDB 读取 EXPLAIN 物理执行计划
+      let planText = '';
+      let executionError: string | undefined;
+      try {
+        const planRes = await duckDBService.getExplainPlan(sql, false);
+        if (planRes.planText?.startsWith('Error explaining query:')) {
+          executionError = planRes.planText.replace(/^Error explaining query:\s*/, '');
+        } else {
+          planText = planRes.physicalPlanText || planRes.planText || '';
+        }
+      } catch (err: any) {
+        executionError = err?.message || String(err);
+      }
 
-      // 填充真实 DuckDB 指标与采样
-      const enrichedNodes = await enrichNodesWithDuckDB(parsed.nodes, parsed.edges);
+      const res = buildRealExecutionWorkflow({
+        sql,
+        planText: planText && planText.trim() ? planText : undefined,
+        executionError,
+        tabTitle: tabTitle || get().activeTabTitle,
+      });
 
-      // 保持当前选中的节点（若依然存在于新 DAG 中），杜绝打字防抖导致用户焦点被强制跳走
+      const realNodes = res.nodes;
+      const realEdges = res.edges;
+      const faultyNodeId = res.faultyNodeId;
+
+      if (realNodes.length === 0) {
+        set({
+          nodes: [],
+          edges: [],
+          selectedNodeId: null,
+          activeSqlRange: null,
+          syncStatus: 'error',
+          lastSyncError: executionError || '未能从当前 SQL 生成执行路径，请检查语法后重试',
+        });
+        return;
+      }
+
       const currentSelectedId = get().selectedNodeId;
-      const stillExists = currentSelectedId ? enrichedNodes.some(n => n.id === currentSelectedId) : false;
-      const targetSelectedId = stillExists
+      const targetSelectedId = faultyNodeId
+        ? faultyNodeId
+        : currentSelectedId && realNodes.some(n => n.id === currentSelectedId)
         ? currentSelectedId
-        : enrichedNodes.length > 0
-        ? enrichedNodes[enrichedNodes.length - 1].id
-        : null;
+        : realNodes[realNodes.length - 1].id;
+
+      const faultyNode = faultyNodeId ? realNodes.find(n => n.id === faultyNodeId) : undefined;
 
       const newLog: WorkflowRunLog = {
         id: generateWorkflowLogId(),
         timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
         runId: `run_${Date.now().toString(36)}`,
         nodeId: targetSelectedId || 'global',
-        nodeName: tabTitle || 'SQL 流图同步',
-        nodeType: 'SQL 工作流',
-        status: 'success',
-        rows: enrichedNodes[enrichedNodes.length - 1]?.data.rowCount || 0,
-        duration: '0.02s',
-        message: `成功从 SQL 工作台解析 ${enrichedNodes.length} 个流水线节点与 ${parsed.edges.length} 条数据流依赖`,
+        nodeName: tabTitle || 'SQL 执行路径构建',
+        nodeType: 'DuckDB 物理计划',
+        status: faultyNodeId ? 'error' : 'success',
+        rows: realNodes[realNodes.length - 1]?.data.rowCount || 0,
+        duration: '0.01s',
+        message: `已基于真实 DuckDB 执行计划生成 ${realNodes.length} 个执行步骤与 ${realEdges.length} 条数据流连线`,
       };
 
       set(state => ({
         dataFlowMode: 'sql',
-        nodes: enrichedNodes,
-        edges: parsed.edges,
+        nodes: realNodes,
+        edges: realEdges,
         selectedNodeId: targetSelectedId,
-        // 仅在手动点击同步或初次加载日志为空时写入日志，避免用户打字过程中刷屏
+        activeSqlRange: faultyNode?.data.sqlRange || state.activeSqlRange,
+        syncStatus: 'ready',
+        lastSyncError: null,
         runLogs: isManual || state.runLogs.length === 0
           ? [newLog, ...state.runLogs]
           : state.runLogs,
       }));
+
+      if (faultyNodeId && isManual) {
+        queueMicrotask(() => {
+          get().focusFaultyNode(faultyNodeId);
+        });
+      }
     } catch (err: any) {
+      const message = err?.message || String(err);
       console.error('[syncFromSql] parse failed:', err);
+      set({
+        syncStatus: 'error',
+        lastSyncError: message,
+      });
     }
   },
 
@@ -915,6 +1062,12 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
     });
     if (matchedNode && matchedNode.id !== selectedNodeId) {
       get().selectNode(matchedNode.id);
+      dispatchDataflowTraceFault({
+        nodeId: matchedNode.id,
+        openInspector: false,
+        focusSql: false,
+        centerOnly: true,
+      });
     }
   },
 
@@ -1030,119 +1183,215 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
    */
   syncExecutionResult: async (tabTitle: string, result: any, executedSql?: string) => {
     if (!result) return;
-    const { nodes, edges } = get();
+    const currentSql = executedSql || get().activeSql;
 
-    // 1. 若执行失败报错，精准更新结果节点状态与错误日志
-    if (result.error) {
-      const targetNode = nodes.find(n => n.data.type === 'result') || nodes[nodes.length - 1];
-      if (targetNode) {
-        get().updateNodeData(targetNode.id, {
-          status: 'error',
-          executionResult: {
-            status: 'error',
-            executionTimeSec: Number(((result.executionTime || 0) / 1000).toFixed(2)),
-            rowCount: 0,
-            columnCount: 0,
-            columns: [],
-            rows: [],
-            outputRelation: targetNode.id,
-            errorMessage: result.error,
-          },
-        });
+    // 0. 立即同步更新当前画布节点状态（确保非 await 调用能即时同步获得最新输出行数、列数与状态）
+    const currNodes = get().nodes;
+    const currEdges = get().edges;
+    if (currNodes.length > 0) {
+      const rowCount = result.rows ? result.rows.length : (result.totalRowCount ?? 0);
+      const colCount = result.columns ? result.columns.length : (result.columnTypes ? result.columnTypes.length : 0);
+      const resultNode = currNodes.find(n => n.data.type === 'result') || currNodes[currNodes.length - 1];
 
-        const errorLog: WorkflowRunLog = {
-          id: generateWorkflowLogId(),
-          timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
-          runId: `run_${Date.now().toString(36)}`,
-          nodeId: targetNode.id,
-          nodeName: targetNode.data.title,
-          nodeType: targetNode.data.type,
-          status: 'error',
-          rows: 0,
-          duration: `${((result.executionTime || 0) / 1000).toFixed(2)}s`,
-          message: `SQL 执行报错: ${result.error}`,
-          error: result.error,
+      if (result.error) {
+        locateAndDecorateErrorNode(currNodes, currEdges, result.error, currentSql);
+        set({ nodes: [...currNodes], edges: [...currEdges] });
+      } else if (resultNode) {
+        resultNode.data.rowCount = rowCount;
+        resultNode.data.columnCount = colCount;
+        resultNode.data.status = 'success';
+        resultNode.data.executionResult = {
+          status: 'success',
+          executionTimeSec: Number(((result.executionTime || 0) / 1000).toFixed(4)),
+          rowCount,
+          columnCount: colCount,
+          columns: (result.columns || []).map((c: any) => typeof c === 'string' ? { name: c, type: 'VARCHAR' } : c),
+          rows: result.rows || [],
+          outputRelation: 'query_result',
         };
-        set(state => ({ runLogs: [errorLog, ...state.runLogs] }));
+        set({ nodes: [...currNodes], edges: [...currEdges] });
+      }
+    }
+
+    // 1. 若执行失败报错，精准定位 Bug 发生步骤并进行溯源
+    if (result.error) {
+      const { nodes: bugNodes, edges: bugEdges, faultyNodeId } = buildRealExecutionWorkflow({
+        sql: currentSql,
+        executionError: result.error,
+        tabTitle: tabTitle || get().activeTabTitle,
+      });
+
+      const targetId = faultyNodeId || (bugNodes.find(n => n.data.type === 'result') || bugNodes[bugNodes.length - 1])?.id;
+      const targetNode = bugNodes.find(n => n.id === targetId);
+
+      const errorLog: WorkflowRunLog = {
+        id: generateWorkflowLogId(),
+        timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
+        runId: `run_${Date.now().toString(36)}`,
+        nodeId: targetId || 'error_step',
+        nodeName: targetNode?.data.title || 'SQL 异常节点',
+        nodeType: targetNode?.data.type || 'error',
+        status: 'error',
+        rows: 0,
+        duration: `${((result.executionTime || 0) / 1000).toFixed(2)}s`,
+        message: `[异常点位已锁定] ${targetNode?.data.bugInfo?.title || result.error}`,
+        error: result.error,
+      };
+
+      set(state => ({
+        nodes: bugNodes,
+        edges: bugEdges,
+        selectedNodeId: targetId,
+        activeSqlRange: targetNode?.data.sqlRange || null,
+        syncStatus: 'ready',
+        lastSyncError: null,
+        runLogs: [errorLog, ...state.runLogs],
+      }));
+
+      toastService.error(`已高亮最可能出现问题的节点「${targetNode?.data.title || '执行步骤'}」: ${targetNode?.data.bugInfo?.title || result.error}`);
+
+      if (targetId) {
+        queueMicrotask(() => {
+          get().focusFaultyNode(targetId);
+        });
       }
       return;
     }
 
-    // 2. 执行成功：优先构建主查询最终结果
-    const rowCount = result.rows?.length || result.totalRowCount || 0;
-    const columnCount = result.columns?.length || 0;
-    const columns = (result.columns || []).map((colName: string) => ({
-      name: colName,
-      type: result.columnTypeMap?.[colName] || 'VARCHAR',
-      nullable: true,
+    // 2. 执行成功：若获取到 DuckDB EXPLAIN ANALYZE 物理计划，异步升级为真实执行拓扑
+    try {
+      let planText = '';
+      try {
+        const planRes = await duckDBService.getExplainPlan(currentSql, true);
+        planText = planRes.physicalPlanText || planRes.planText || '';
+      } catch (err) {
+        // EXPLAIN 异常时优雅降级
+      }
+
+      if (planText && planText.trim()) {
+        const { nodes: realNodes, edges: realEdges, resultNodeId } = buildRealExecutionWorkflow({
+          sql: currentSql,
+          planText,
+          queryResult: result,
+          tabTitle: tabTitle || get().activeTabTitle,
+        });
+
+        const rowCount = result.rows?.length || result.totalRowCount || 0;
+        const currentSelectedId = get().selectedNodeId;
+        const targetSelectedId = (currentSelectedId && realNodes.some(n => n.id === currentSelectedId))
+          ? currentSelectedId
+          : resultNodeId || realNodes[realNodes.length - 1]?.id || null;
+
+        const successLog: WorkflowRunLog = {
+          id: generateWorkflowLogId(),
+          timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
+          runId: `run_${Date.now().toString(36)}`,
+          nodeId: targetSelectedId || 'all',
+          nodeName: tabTitle || '查询执行',
+          nodeType: 'SQL 真实执行链路',
+          status: 'success',
+          rows: rowCount,
+          duration: `${((result.executionTime || 0) / 1000).toFixed(2)}s`,
+          message: `DuckDB 物理执行完成，返回 ${rowCount} 行，已同步完整执行路径与真实算子画像`,
+        };
+
+        set(state => ({
+          nodes: realNodes,
+          edges: realEdges,
+          selectedNodeId: targetSelectedId,
+          runLogs: [successLog, ...state.runLogs],
+        }));
+      } else {
+        const rowCount = result.rows?.length || result.totalRowCount || 0;
+        const currentSelectedId = get().selectedNodeId;
+        const successLog: WorkflowRunLog = {
+          id: generateWorkflowLogId(),
+          timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
+          runId: `run_${Date.now().toString(36)}`,
+          nodeId: currentSelectedId || 'all',
+          nodeName: tabTitle || '查询执行',
+          nodeType: 'SQL 执行',
+          status: 'success',
+          rows: rowCount,
+          duration: `${((result.executionTime || 0) / 1000).toFixed(2)}s`,
+          message: `执行完成，返回 ${rowCount} 行`,
+        };
+        set(state => ({
+          runLogs: [successLog, ...state.runLogs],
+        }));
+      }
+    } catch (err) {
+      console.warn('[syncExecutionResult] error:', err);
+    }
+  },
+
+  /**
+   * 结果反向溯源：从指定节点（默认最终结果）溯源至底层所有数据源
+   */
+  traceReverseLineage: (targetNodeId?: string) => {
+    const { nodes, edges } = get();
+    const resultNode = targetNodeId
+      ? nodes.find(n => n.id === targetNodeId)
+      : nodes.find(n => n.data.type === 'result') || nodes[nodes.length - 1];
+
+    if (!resultNode) {
+      toastService.warning('未找到可追溯的目标节点');
+      return;
+    }
+
+    const { ancestorNodeIds, ancestorEdgeIds } = traceUpstreamLineage(nodes, edges, resultNode.id);
+
+    const updatedNodes = nodes.map(n => ({
+      ...n,
+      data: {
+        ...n.data,
+        highlightState: ancestorNodeIds.has(n.id) ? ('ancestor' as const) : ('dimmed' as const),
+      },
     }));
 
-    const targetNode = nodes.find(n => n.data.type === 'result') || nodes[nodes.length - 1];
-    if (targetNode) {
-      get().updateNodeData(targetNode.id, {
-        rowCount,
-        columnCount,
-        status: 'success',
-        executionTimeSec: Number(((result.executionTime || 50) / 1000).toFixed(2)),
-        executionResult: {
-          status: 'success',
-          executionTimeSec: Number(((result.executionTime || 50) / 1000).toFixed(2)),
-          rowCount,
-          columnCount,
-          columns,
-          rows: (result.rows || []).slice(0, 50),
-          outputRelation: targetNode.id,
-        },
-      });
-    }
+    const updatedEdges = edges.map(e => ({
+      ...e,
+      animated: ancestorEdgeIds.has(e.id),
+      data: {
+        ...e.data,
+        highlightState: ancestorEdgeIds.has(e.id) ? ('ancestor' as const) : ('dimmed' as const),
+      },
+    }));
 
-    // 3. 真实采样链路上的所有中间节点（CTE 与数据源）
-    try {
-      const enriched = await enrichNodesWithDuckDB(get().nodes, edges);
-      const finalNodes = enriched.map(n => {
-        if (targetNode && n.id === targetNode.id) {
-          return {
-            ...n,
-            data: {
-              ...n.data,
-              rowCount,
-              columnCount,
-              status: 'success' as WorkflowNodeStatus,
-              executionResult: {
-                status: 'success' as WorkflowNodeStatus,
-                executionTimeSec: Number(((result.executionTime || 50) / 1000).toFixed(2)),
-                rowCount,
-                columnCount,
-                columns,
-                rows: (result.rows || []).slice(0, 50),
-                outputRelation: targetNode.id,
-              },
-            },
-          };
-        }
-        return n;
-      });
+    set({
+      nodes: updatedNodes,
+      edges: updatedEdges,
+      isReverseTracing: true,
+      selectedNodeId: resultNode.id,
+    });
 
-      const successLog: WorkflowRunLog = {
-        id: generateWorkflowLogId(),
-        timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
-        runId: `run_${Date.now().toString(36)}`,
-        nodeId: targetNode?.id || 'all',
-        nodeName: tabTitle || '查询执行',
-        nodeType: 'SQL 工作流',
-        status: 'success',
-        rows: rowCount,
-        duration: `${((result.executionTime || 50) / 1000).toFixed(2)}s`,
-        message: `DuckDB 执行成功，返回 ${rowCount} 行真实数据，已同步全链路节点数据画像与采样`,
-      };
+    toastService.info(`已高亮从「${resultNode.data.title}」至底层数据源的完整反向追溯路径`);
+  },
 
-      set(state => ({
-        nodes: finalNodes,
-        runLogs: [successLog, ...state.runLogs],
-      }));
-    } catch (err) {
-      console.warn('[syncExecutionResult] intermediate enrich error:', err);
-    }
+  /**
+   * 清除反向溯源高亮模式
+   */
+  clearLineageTrace: () => {
+    const { nodes, edges } = get();
+    const updatedNodes = nodes.map(n => ({
+      ...n,
+      data: {
+        ...n.data,
+        highlightState: 'none' as const,
+      },
+    }));
+    const updatedEdges = edges.map(e => ({
+      ...e,
+      data: {
+        ...e.data,
+        highlightState: 'none' as const,
+      },
+    }));
+    set({
+      nodes: updatedNodes,
+      edges: updatedEdges,
+      isReverseTracing: false,
+    });
   },
 
   /**
@@ -1242,6 +1491,18 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   setViewport: viewport => set({ viewport }),
   clearLogs: () => set({ runLogs: [] }),
 
+  traceBugNode: () => {
+    return get().focusFaultyNode(null);
+  },
+
+  toggleNodeExpanded: (nodeId: string) => {
+    set(state => ({
+      nodes: state.nodes.map(n =>
+        n.id === nodeId ? { ...n, data: { ...n.data, isExpanded: !n.data.isExpanded } } : n
+      ),
+    }));
+  },
+
   saveWorkflow: () => {
     const { nodes, edges, viewport, dataFlowMode } = get();
     const data = {
@@ -1295,14 +1556,16 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
       console.warn('[loadWorkflow] restore saved workflow failed:', e);
     }
 
-    // 优先 3：检查 DuckDB 中是否有表，若有且没有活动 SQL，生成全库真实血缘
-    const tables = await duckDBService.getTables();
-    if (tables.length > 0) {
-      await get().syncFromCatalog();
-      return;
+    // 优先 3：仅当用户明确切换至全库 catalog 模式且没有活动 SQL 时，才同步全库表血缘
+    if (get().dataFlowMode === 'catalog') {
+      const tables = await duckDBService.getTables();
+      if (tables.length > 0) {
+        await get().syncFromCatalog();
+        return;
+      }
     }
 
-    // 若无表且无输入，置为就绪空白画布
+    // 默认保持就绪空白画布，避免加载无关表
     set({
       nodes: [],
       edges: [],
@@ -1311,6 +1574,171 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
       runLogs: [],
       dataFlowMode: 'sql',
     });
+  },
+
+  // ── 单步仿真推演步进器实现 ──
+  startStepping: () => {
+    const { nodes } = get();
+    if (nodes.length === 0) return;
+    const sorted = [...nodes].sort((a, b) => (a.data.stepIndex || 0) - (b.data.stepIndex || 0));
+    const firstStep = sorted[0]?.data.stepIndex || 1;
+    const maxStep = sorted[sorted.length - 1]?.data.stepIndex || sorted.length;
+    get().setStepIndex(firstStep);
+    set(state => ({
+      stepperState: {
+        ...state.stepperState,
+        isActive: true,
+        currentStepIndex: firstStep,
+        totalSteps: maxStep,
+        isPlaying: false,
+      },
+    }));
+    toastService.info('已开启 SQL 执行单步推演仿真器');
+  },
+
+  stopStepping: () => {
+    if (stepperTimer) {
+      clearInterval(stepperTimer);
+      stepperTimer = null;
+    }
+    const { nodes, edges } = get();
+    const resetNodes = nodes.map(n => ({
+      ...n,
+      data: {
+        ...n.data,
+        isStepActive: false,
+        isStepCompleted: false,
+      },
+    }));
+    const resetEdges = edges.map(e => ({
+      ...e,
+      data: {
+        ...e.data,
+        isStepActive: false,
+      },
+    }));
+    set(state => ({
+      nodes: resetNodes,
+      edges: resetEdges,
+      stepperState: {
+        ...state.stepperState,
+        isActive: false,
+        isPlaying: false,
+      },
+    }));
+    toastService.info('已退出单步推演仿真器');
+  },
+
+  setStepIndex: (stepIndex: number) => {
+    const { nodes, edges } = get();
+    const sorted = [...nodes].sort((a, b) => (a.data.stepIndex || 0) - (b.data.stepIndex || 0));
+    const maxStep = sorted[sorted.length - 1]?.data.stepIndex || sorted.length;
+    const clampedStep = Math.max(1, Math.min(stepIndex, maxStep));
+    const activeNode = sorted.find(n => n.data.stepIndex === clampedStep) || sorted[clampedStep - 1];
+
+    const updatedNodes = nodes.map(n => {
+      const idx = n.data.stepIndex || 0;
+      const isActive = n.id === activeNode?.id || idx === clampedStep;
+      const isCompleted = idx < clampedStep;
+      return {
+        ...n,
+        data: {
+          ...n.data,
+          isStepActive: isActive,
+          isStepCompleted: isCompleted,
+          status: (isCompleted ? 'success' : isActive ? (n.data.bugInfo?.hasBug ? 'error' : 'running') : 'idle') as WorkflowNodeStatus,
+        },
+      };
+    });
+
+    const activeNodeId = activeNode?.id || null;
+    const completedNodeIds = new Set(updatedNodes.filter(n => n.data.isStepCompleted).map(n => n.id));
+    if (activeNodeId) completedNodeIds.add(activeNodeId);
+
+    const updatedEdges = edges.map(e => ({
+      ...e,
+      data: {
+        ...e.data,
+        isStepActive: completedNodeIds.has(e.source) && (e.target === activeNodeId || completedNodeIds.has(e.target)),
+      },
+    }));
+
+    set(state => ({
+      nodes: updatedNodes,
+      edges: updatedEdges,
+      selectedNodeId: activeNodeId,
+      stepperState: {
+        ...state.stepperState,
+        isActive: true,
+        currentStepIndex: clampedStep,
+        totalSteps: maxStep,
+        activeNodeId,
+      },
+    }));
+
+    if (activeNode) {
+      if (activeNode.data.bugInfo?.hasBug) {
+        toastService.error(`🚨 单步仿真触达 Bug 点位：「${activeNode.data.title}」: ${activeNode.data.bugInfo.title}`);
+        if (stepperTimer) {
+          clearInterval(stepperTimer);
+          stepperTimer = null;
+          set(state => ({ stepperState: { ...state.stepperState, isPlaying: false } }));
+        }
+      } else {
+        toastService.info(`推演进度 STEP 0${clampedStep}: ${activeNode.data.title}`);
+      }
+    }
+  },
+
+  stepNext: () => {
+    const { stepperState, setStepIndex } = get();
+    if (stepperState.currentStepIndex < stepperState.totalSteps) {
+      setStepIndex(stepperState.currentStepIndex + 1);
+    } else {
+      toastService.success('SQL 全流程单步推演已执行完毕');
+    }
+  },
+
+  stepPrev: () => {
+    const { stepperState, setStepIndex } = get();
+    if (stepperState.currentStepIndex > 1) {
+      setStepIndex(stepperState.currentStepIndex - 1);
+    }
+  },
+
+  togglePlayStepping: () => {
+    const { stepperState } = get();
+    if (stepperState.isPlaying) {
+      if (stepperTimer) {
+        clearInterval(stepperTimer);
+        stepperTimer = null;
+      }
+      set(state => ({ stepperState: { ...state.stepperState, isPlaying: false } }));
+    } else {
+      set(state => ({ stepperState: { ...state.stepperState, isPlaying: true } }));
+      if (stepperTimer) clearInterval(stepperTimer);
+      stepperTimer = setInterval(() => {
+        const curr = get().stepperState;
+        if (curr.currentStepIndex < curr.totalSteps) {
+          get().stepNext();
+        } else {
+          if (stepperTimer) {
+            clearInterval(stepperTimer);
+            stepperTimer = null;
+          }
+          set(state => ({ stepperState: { ...state.stepperState, isPlaying: false } }));
+          toastService.success('SQL 执行全流程自动演示完成');
+        }
+      }, stepperState.playbackSpeedMs || 1600);
+    }
+  },
+
+  loadPitfallPreset: (presetId: string) => {
+    const preset = SQL_PITFALL_PRESETS.find(p => p.id === presetId);
+    if (!preset) return null;
+    void get().syncFromSql(preset.buggySql, preset.name, true);
+    toastService.info(`已加载演练场景：「${preset.name}」`);
+    return { buggySql: preset.buggySql, preset };
   },
 
   resetToDefaultDemo: async () => {

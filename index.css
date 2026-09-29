@@ -766,6 +766,62 @@ input[type="radio"] {
   background-color: transparent !important;
 }
 
+/* ============================================================
+   SQL RESULT TABLE DATA TYPE BADGES
+   Light pastel colored badges for technical data type metadata
+   ============================================================ */
+.sql-type-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  line-height: 12px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border-width: 1px;
+  border-style: solid;
+  transition: all 0.15s ease;
+  user-select: none;
+  font-weight: 500;
+}
+.sql-type-badge-numeric {
+  background-color: rgba(166, 226, 46, 0.14) !important;
+  color: #a6e22e !important;
+  border-color: rgba(166, 226, 46, 0.35) !important;
+}
+.sql-type-badge-text {
+  background-color: rgba(102, 217, 239, 0.14) !important;
+  color: #66d9ef !important;
+  border-color: rgba(102, 217, 239, 0.35) !important;
+}
+.sql-type-badge-temporal {
+  background-color: rgba(174, 129, 255, 0.14) !important;
+  color: #ae81ff !important;
+  border-color: rgba(174, 129, 255, 0.35) !important;
+}
+.sql-type-badge-boolean {
+  background-color: rgba(249, 38, 114, 0.14) !important;
+  color: #f92672 !important;
+  border-color: rgba(249, 38, 114, 0.35) !important;
+}
+.sql-type-badge-complex {
+  background-color: rgba(253, 151, 31, 0.14) !important;
+  color: #fd971f !important;
+  border-color: rgba(253, 151, 31, 0.35) !important;
+}
+.sql-type-badge-other {
+  background-color: rgba(230, 219, 116, 0.14) !important;
+  color: #e6db74 !important;
+  border-color: rgba(230, 219, 116, 0.35) !important;
+}
+
 /* Data tab grid: beat global .overflow-auto table { width:100% } + td { text-align:left } */
 .overflow-auto .data-tab-grid table {
   margin: 0 !important;
@@ -1086,6 +1142,245 @@ button:hover, .btn:hover {
 .card, .panel, .rounded-xl, .rounded-lg, .rounded-md, .rounded-2xl {
     background-color: #1e1f1c !important;
     border-color: #49483e !important;
+}
+
+/*
+ * Copilot 关注表下拉 — 覆盖上方全局 button / rounded-* / shadow !important，
+ * 统一 elevated 表面，避免黑坑搜索框与分段条带。
+ */
+.copilot-table-menu .rounded-xl,
+.copilot-table-menu .rounded-lg,
+.copilot-table-menu .rounded-md,
+.copilot-table-menu .rounded-2xl {
+  /* 先把全局 .rounded-* 的 #1e1f1c 清掉；真正背景由下方更具体的类决定 */
+  background-color: transparent !important;
+  border-color: transparent !important;
+}
+.copilot-table-menu.copilot-table-menu {
+  background-color: #2d2e29 !important;
+  border-color: #55574f !important;
+  color: #f8f8f2;
+  box-shadow:
+    0 0 0 1px rgba(85, 87, 79, 0.55),
+    0 18px 42px rgba(0, 0, 0, 0.62) !important;
+}
+.copilot-table-menu .copilot-table-menu-section,
+.copilot-table-menu .copilot-table-menu-chips,
+.copilot-table-menu .copilot-table-menu-footer {
+  background-color: transparent !important;
+  border-color: rgba(58, 59, 54, 0.85) !important;
+}
+.copilot-table-menu .copilot-table-menu-search {
+  background-color: #252623 !important;
+  border: 1px solid #3a3b36 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+.copilot-table-menu .copilot-table-menu-search input {
+  background-color: transparent !important;
+  border-color: transparent !important;
+  color: #f8f8f2 !important;
+  box-shadow: none !important;
+}
+.copilot-table-menu .copilot-table-menu-search input:focus,
+.copilot-table-menu .copilot-table-menu-search input:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+.copilot-table-menu button {
+  background-color: transparent !important;
+  border-color: transparent !important;
+  color: #cfcfc2 !important;
+  box-shadow: none !important;
+}
+.copilot-table-menu button:hover,
+.copilot-table-menu button:focus,
+.copilot-table-menu button:focus-visible {
+  background-color: #34352f !important;
+  color: #f8f8f2 !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+.copilot-table-menu button[aria-selected='true'] {
+  background-color: rgba(166, 226, 46, 0.1) !important;
+  color: #f8f8f2 !important;
+}
+.copilot-table-menu button[aria-selected='true']:hover {
+  background-color: rgba(166, 226, 46, 0.16) !important;
+}
+.copilot-table-menu .copilot-table-menu-action {
+  color: #75715e !important;
+}
+.copilot-table-menu .copilot-table-menu-action:hover,
+.copilot-table-menu .copilot-table-menu-action:focus,
+.copilot-table-menu .copilot-table-menu-action:focus-visible {
+  background-color: #34352f !important;
+  color: #f8f8f2 !important;
+}
+.copilot-table-menu .copilot-table-menu-action-accent {
+  color: #a6e22e !important;
+}
+.copilot-table-menu .copilot-table-menu-action-accent:hover,
+.copilot-table-menu .copilot-table-menu-action-accent:focus,
+.copilot-table-menu .copilot-table-menu-action-accent:focus-visible {
+  background-color: rgba(166, 226, 46, 0.12) !important;
+  color: #a6e22e !important;
+}
+.copilot-table-menu .copilot-table-menu-chip {
+  background-color: rgba(166, 226, 46, 0.12) !important;
+  border: 1px solid rgba(166, 226, 46, 0.28) !important;
+  color: #a6e22e !important;
+}
+.copilot-table-menu .copilot-table-menu-chip:hover,
+.copilot-table-menu .copilot-table-menu-chip:focus,
+.copilot-table-menu .copilot-table-menu-chip:focus-visible {
+  background-color: rgba(249, 38, 114, 0.14) !important;
+  border-color: rgba(249, 38, 114, 0.4) !important;
+  color: #f92672 !important;
+}
+.copilot-table-menu .copilot-table-menu-check {
+  background-color: #252623 !important;
+  border: 1px solid #55574f !important;
+  color: transparent !important;
+}
+.copilot-table-menu button[aria-selected='true'] .copilot-table-menu-check {
+  background-color: #a6e22e !important;
+  border-color: #a6e22e !important;
+  color: #1e1f1c !important;
+}
+.copilot-table-menu .copilot-table-menu-footer {
+  color: #75715e !important;
+}
+
+/*
+ * Copilot 会话历史面板 — 覆盖全局 button / rounded-* !important，
+ * 使用 elevated 表面 + 清晰当前态，避免灰块/黑坑。
+ */
+.copilot-session-history.copilot-session-history {
+  background-color: #252623 !important;
+  border-bottom: 1px solid #3a3b36 !important;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.55) !important;
+  color: #f8f8f2;
+}
+.copilot-session-history .rounded-xl,
+.copilot-session-history .rounded-lg,
+.copilot-session-history .rounded-md,
+.copilot-session-history .rounded-2xl {
+  background-color: transparent !important;
+  border-color: transparent !important;
+}
+.copilot-session-history-header {
+  background-color: #2d2e29 !important;
+  border-bottom: 1px solid #3a3b36 !important;
+}
+.copilot-session-history-list {
+  background-color: #252623 !important;
+}
+.copilot-session-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  height: 1.15rem;
+  padding: 0 0.35rem;
+  border-radius: 0.25rem;
+  background-color: #1e1f1c !important;
+  border: 1px solid #3a3b36 !important;
+  color: #75715e !important;
+  font-size: 10px;
+}
+.copilot-session-history button {
+  background-color: transparent !important;
+  border-color: transparent !important;
+  color: #cfcfc2 !important;
+  box-shadow: none !important;
+  text-align: left !important;
+}
+.copilot-session-history button:hover,
+.copilot-session-history button:focus,
+.copilot-session-history button:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+.copilot-session-action-accent {
+  color: #a6e22e !important;
+}
+.copilot-session-action-accent:hover,
+.copilot-session-action-accent:focus,
+.copilot-session-action-accent:focus-visible {
+  background-color: rgba(166, 226, 46, 0.12) !important;
+  color: #a6e22e !important;
+}
+.copilot-session-icon-btn {
+  color: #75715e !important;
+}
+.copilot-session-icon-btn:hover,
+.copilot-session-icon-btn:focus,
+.copilot-session-icon-btn:focus-visible {
+  background-color: #34352f !important;
+  color: #f8f8f2 !important;
+}
+.copilot-session-icon-btn--danger:hover,
+.copilot-session-icon-btn--danger:focus,
+.copilot-session-icon-btn--danger:focus-visible {
+  background-color: rgba(249, 38, 114, 0.14) !important;
+  color: #f92672 !important;
+}
+.copilot-session-icon-btn--ok {
+  color: #a6e22e !important;
+}
+.copilot-session-icon-btn--ok:hover {
+  background-color: rgba(166, 226, 46, 0.12) !important;
+  color: #a6e22e !important;
+}
+.copilot-session-row {
+  background-color: transparent !important;
+  border: 1px solid transparent !important;
+}
+.copilot-session-row:hover {
+  background-color: #2d2e29 !important;
+  border-color: #3a3b36 !important;
+}
+.copilot-session-row--active,
+.copilot-session-row--active:hover {
+  background-color: rgba(166, 226, 46, 0.08) !important;
+  border-color: rgba(166, 226, 46, 0.28) !important;
+}
+.copilot-session-row-main {
+  cursor: pointer;
+}
+.copilot-session-row-main:disabled {
+  cursor: default;
+}
+.copilot-session-row-icon {
+  background-color: #1e1f1c !important;
+  color: #75715e !important;
+  border: 1px solid #3a3b36 !important;
+}
+.copilot-session-row-icon.is-active {
+  background-color: rgba(166, 226, 46, 0.16) !important;
+  border-color: rgba(166, 226, 46, 0.35) !important;
+  color: #a6e22e !important;
+}
+.copilot-session-row-title {
+  color: #d8d7cc !important;
+}
+.copilot-session-row--active .copilot-session-row-title {
+  color: #f8f8f2 !important;
+}
+.copilot-session-row-badge {
+  border-radius: 0.25rem;
+  padding: 0.1rem 0.35rem;
+  background-color: rgba(166, 226, 46, 0.14) !important;
+  color: #a6e22e !important;
+  border: 1px solid rgba(166, 226, 46, 0.28) !important;
+}
+.copilot-session-row-preview {
+  color: #75715e !important;
+}
+.copilot-session-rename-input {
+  background-color: #1e1f1c !important;
+  border: 1px solid rgba(166, 226, 46, 0.45) !important;
+  color: #f8f8f2 !important;
 }
 
 /* Override specific element styles */

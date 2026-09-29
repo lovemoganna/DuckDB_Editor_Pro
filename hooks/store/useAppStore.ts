@@ -32,6 +32,9 @@ interface AppState {
   setPendingSql: (sql: string) => void;
   pendingChartConfig: any;
   setPendingChartConfig: (config: any) => void;
+  /** Open Workbench AI panel after navigating to SQL (e.g. from Dashboard). */
+  pendingAiPanel: 'explain' | 'analyze' | null;
+  setPendingAiPanel: (panel: 'explain' | 'analyze' | null) => void;
   clearPending: () => void;
 
   // Modals
@@ -83,9 +86,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   // Cross-Tab
   pendingSql: '',
   pendingChartConfig: null,
+  pendingAiPanel: null,
   setPendingSql: (sql) => set({ pendingSql: sql }),
   setPendingChartConfig: (config) => set({ pendingChartConfig: config }),
-  clearPending: () => set({ pendingSql: '', pendingChartConfig: null }),
+  setPendingAiPanel: (panel) => set({ pendingAiPanel: panel }),
+  clearPending: () => set({ pendingSql: '', pendingChartConfig: null, pendingAiPanel: null }),
 
   // Modals
   showCreateModal: false,

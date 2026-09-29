@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { ColumnInfo } from '../types';
 import { getTypeIcon } from '../utils';
-import { formatCellValue } from '../utils/typeFormatter';
+import { formatCellValue, getTypeBadgeStyle } from '../utils/typeFormatter';
 import { useSqlEditorStore } from '../hooks/store/useSqlEditorStore';
 import {
     PageShell,
@@ -1551,17 +1551,6 @@ export const DataTab: React.FC<DataTabProps> = ({
                                         const isSticky = idx === 0 && pkColumn?.name === col;
                                         const colSort = sortConfig.find(s => s.key === col);
                                         const sortIndex = sortConfig.findIndex(s => s.key === col);
-                                        const tUpper = (colInfo?.type || '').toUpperCase();
-                                        let typeTone = 'text-monokai-cyan/80';
-                                        if (['INT', 'DECIMAL', 'FLOAT', 'DOUBLE', 'NUMERIC', 'REAL', 'BIGINT', 'HUGEINT', 'TINYINT', 'SMALLINT'].some(k => tUpper.includes(k))) {
-                                            typeTone = 'text-monokai-green/85';
-                                        } else if (tUpper.includes('DATE') || tUpper.includes('TIME')) {
-                                            typeTone = 'text-monokai-amethyst/85';
-                                        } else if (tUpper.includes('BOOL')) {
-                                            typeTone = 'text-monokai-pink/85';
-                                        } else if (tUpper.includes('JSON') || tUpper.includes('STRUCT') || tUpper.includes('LIST') || tUpper.includes('MAP')) {
-                                            typeTone = 'text-monokai-orange/85';
-                                        }
 
                                         return (
                                             <th
@@ -1589,7 +1578,7 @@ export const DataTab: React.FC<DataTabProps> = ({
                                                     </div>
                                                     {colInfo && (
                                                         <span
-                                                            className={`text-[9px] uppercase tracking-[0.05em] font-semibold max-w-full truncate ${typeTone}`}
+                                                            className={getTypeBadgeStyle(colInfo.type)}
                                                             title={colInfo.type}
                                                         >
                                                             {colInfo.type}

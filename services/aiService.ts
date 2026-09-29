@@ -14,6 +14,14 @@ export interface AIConfig {
     model: string;
 }
 
+/**
+ * Browsers often resolve `localhost` to IPv6 (::1) first.
+ * LM Studio / many local AI servers only bind IPv4 (127.0.0.1), so fetch fails with "Failed to fetch".
+ */
+export function preferIpv4Loopback(url: string): string {
+    return String(url || '').replace(/:\/\/localhost(?=[:/]|$)/gi, '://127.0.0.1');
+}
+
 async function extractErrorMessage(response: Response, defaultPrefix: string): Promise<string> {
     let errorDetails = response.statusText;
     try {
@@ -112,7 +120,8 @@ class AIService {
         const storedProvider = (localStorage.getItem('duckdb_ai_provider') as AIProvider) || 'google';
         const provider: AIProvider = ['google', 'groq', 'openai', 'claude', 'ollama', 'lmstudio'].includes(storedProvider) ? storedProvider : 'google';
         const apiKey = localStorage.getItem('duckdb_ai_api_key') || import.meta.env.VITE_API_KEY || (provider === 'ollama' ? 'ollama' : provider === 'lmstudio' ? 'lm-studio' : '');
-        const baseUrl = localStorage.getItem('duckdb_ai_base_url') || (provider === 'ollama' ? 'http://localhost:11434' : provider === 'lmstudio' ? 'http://localhost:1234/v1' : '');
+        const rawBaseUrl = localStorage.getItem('duckdb_ai_base_url') || (provider === 'ollama' ? 'http://127.0.0.1:11434' : provider === 'lmstudio' ? 'http://127.0.0.1:1234/v1' : '');
+        const baseUrl = (provider === 'ollama' || provider === 'lmstudio') ? preferIpv4Loopback(rawBaseUrl) : rawBaseUrl;
         const defaultModel = provider === 'google' ? 'gemini-2.0-flash-exp'
             : provider === 'claude' ? 'claude-sonnet-4-20250514'
             : provider === 'openai' ? 'gpt-4o'
@@ -145,99 +154,113 @@ class AIService {
 
         if (!config.apiKey && config.provider !== 'ollama' && config.provider !== 'lmstudio') throw new Error("AI API Key not configured");
 
-        const modelToUse = modelOverride || config.model;
-        let fullText = "";
+        this.activeAbortController = new AbortController();
+        const signal = this.activeAbortController.signal;
 
-        if (config.provider === 'google') {
-            const ai = new GoogleGenAI({ apiKey: config.apiKey });
+        try {
+            const modelToUse = modelOverride || config.model;
+            let fullText = "";
 
-            if (onChunk) {
-                const result = await ai.models.generateContentStream({
-                    model: modelToUse,
-                    contents: prompt,
-                    config: {
-                        systemInstruction: systemInstruction,
-                        responseMimeType: isJSON ? "application/json" : undefined
+            if (config.provider === 'google') {
+                const ai = new GoogleGenAI({ apiKey: config.apiKey });
+
+                if (onChunk) {
+                    const result = await ai.models.generateContentStream({
+                        model: modelToUse,
+                        contents: prompt,
+                        config: {
+                            systemInstruction: systemInstruction,
+                            responseMimeType: isJSON ? "application/json" : undefined
+                        }
+                    });
+                    for await (const chunk of result) {
+                        if (signal.aborted) {
+                            throw new DOMException('The user aborted a request.', 'AbortError');
+                        }
+                        const chunkText = chunk.text;
+                        fullText += chunkText;
+                        onChunk(chunkText);
                     }
-                });
-                for await (const chunk of result) {
-                    const chunkText = chunk.text;
-                    fullText += chunkText;
-                    onChunk(chunkText);
+                    return fullText;
+                } else {
+                    const response = await ai.models.generateContent({
+                        model: modelToUse,
+                        contents: prompt,
+                        config: {
+                            systemInstruction: systemInstruction,
+                            responseMimeType: isJSON ? "application/json" : undefined
+                        }
+                    });
+                    return response.text || "";
                 }
-                return fullText;
-            } else {
-                const response = await ai.models.generateContent({
+            } else if (config.provider === 'claude') {
+                // Anthropic Claude API
+                const url = config.baseUrl || 'https://api.anthropic.com/v1/messages';
+                const headers: Record<string, string> = {
+                    'x-api-key': config.apiKey,
+                    'anthropic-version': '2023-06-01',
+                    'content-type': 'application/json',
+                };
+                const body: Record<string, any> = {
                     model: modelToUse,
-                    contents: prompt,
-                    config: {
-                        systemInstruction: systemInstruction,
-                        responseMimeType: isJSON ? "application/json" : undefined
-                    }
-                });
-                return response.text || "";
-            }
-        } else if (config.provider === 'claude') {
-            // Anthropic Claude API
-            const url = config.baseUrl || 'https://api.anthropic.com/v1/messages';
-            const headers: Record<string, string> = {
-                'x-api-key': config.apiKey,
-                'anthropic-version': '2023-06-01',
-                'content-type': 'application/json',
-            };
-            const body: Record<string, any> = {
-                model: modelToUse,
-                max_tokens: 4096,
-                messages: [],
-            };
-            if (systemInstruction) {
-                body.system = systemInstruction;
-            }
-            body.messages.push({ role: 'user', content: prompt });
-
-            const response = await fetch(url, {
-                method: 'POST',
-                headers,
-                body: JSON.stringify(body)
-            });
-
-            if (!response.ok) {
-                throw new Error(await extractErrorMessage(response, 'Claude API Error'));
-            }
-
-            if (onChunk && response.body) {
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder();
-                let buffer = "";
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-                    buffer += decoder.decode(value, { stream: true });
-                    const lines = buffer.split("\n");
-                    buffer = lines.pop() || "";
-                    for (const line of lines) {
-                        const cleanLine = line.trim();
-                        if (!cleanLine || !cleanLine.startsWith("data: ")) continue;
-                        const data = cleanLine.slice(6);
-                        if (data === "[DONE]") break;
-                        try {
-                            const json = JSON.parse(data);
-                            const text = json.choices?.[0]?.delta?.content || json.content?.[0]?.text || "";
-                            if (text) {
-                                fullText += text;
-                                onChunk(text);
-                            }
-                        } catch (_) { /* ignore */ }
-                    }
+                    max_tokens: 4096,
+                    messages: [],
+                };
+                if (systemInstruction) {
+                    body.system = systemInstruction;
                 }
-                return fullText;
+                body.messages.push({ role: 'user', content: prompt });
+
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify(body),
+                    signal,
+                });
+
+                if (!response.ok) {
+                    throw new Error(await extractErrorMessage(response, 'Claude API Error'));
+                }
+
+                if (onChunk && response.body) {
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder();
+                    let buffer = "";
+                    while (true) {
+                        if (signal.aborted) {
+                            throw new DOMException('The user aborted a request.', 'AbortError');
+                        }
+                        const { done, value } = await reader.read();
+                        if (done) break;
+                        buffer += decoder.decode(value, { stream: true });
+                        const lines = buffer.split("\n");
+                        buffer = lines.pop() || "";
+                        for (const line of lines) {
+                            const cleanLine = line.trim();
+                            if (!cleanLine || !cleanLine.startsWith("data: ")) continue;
+                            const data = cleanLine.slice(6);
+                            if (data === "[DONE]") break;
+                            try {
+                                const json = JSON.parse(data);
+                                const text = json.choices?.[0]?.delta?.content || json.content?.[0]?.text || "";
+                                if (text) {
+                                    fullText += text;
+                                    onChunk(text);
+                                }
+                            } catch (_) { /* ignore */ }
+                        }
+                    }
+                    return fullText;
+                } else {
+                    const data = await response.json();
+                    return data.content?.[0]?.text || "";
+                }
             } else {
-                const data = await response.json();
-                return data.content?.[0]?.text || "";
-            }
-        } else {
             // Groq / OpenAI / Ollama / LM Studio REST API
-            let url = config.baseUrl || (config.provider === 'groq' ? 'https://api.groq.com/openai/v1' : config.provider === 'ollama' ? 'http://localhost:11434/v1' : config.provider === 'lmstudio' ? 'http://localhost:1234/v1' : 'https://api.openai.com/v1');
+            let url = config.baseUrl || (config.provider === 'groq' ? 'https://api.groq.com/openai/v1' : config.provider === 'ollama' ? 'http://127.0.0.1:11434/v1' : config.provider === 'lmstudio' ? 'http://127.0.0.1:1234/v1' : 'https://api.openai.com/v1');
+            if (config.provider === 'ollama' || config.provider === 'lmstudio') {
+                url = preferIpv4Loopback(url);
+            }
             url = url.replace(/\/+$/, '');
             if (!url.endsWith('/chat/completions')) {
                 if ((config.provider === 'ollama' || config.provider === 'lmstudio') && !url.endsWith('/v1')) {
@@ -275,7 +298,8 @@ class AIService {
                     response_format: responseFormat,
                     temperature: 0.1,
                     stream: !!onChunk
-                })
+                }),
+                signal,
             });
 
             // Resilient fallback: if the endpoint returns 400 when response_format was sent, retry once without it
@@ -291,7 +315,8 @@ class AIService {
                         messages,
                         temperature: 0.1,
                         stream: !!onChunk
-                    })
+                    }),
+                    signal,
                 });
             }
 
@@ -305,6 +330,9 @@ class AIService {
                 let buffer = "";
 
                 while (true) {
+                    if (signal.aborted) {
+                        throw new DOMException('The user aborted a request.', 'AbortError');
+                    }
                     const { done, value } = await reader.read();
                     if (done) break;
 
@@ -336,6 +364,9 @@ class AIService {
                 const data = await response.json();
                 return data.choices?.[0]?.message?.content || "";
             }
+        }
+        } finally {
+            this.activeAbortController = null;
         }
     }
 
@@ -464,6 +495,51 @@ class AIService {
                 throw error;
             }
             return `-- Error generating SQL: ${error.message}`;
+        }
+    }
+
+    /**
+     * sendChatMessage — 通用自然语言对话接口
+     *
+     * 与 generateSql 不同：不强制返回纯 SQL，支持真正的多轮对话。
+     * AI 可以用自然语言回答，必要时在回复中包含 ```sql 代码块。
+     *
+     * @param userMessage 用户本轮输入
+     * @param systemPrompt 系统提示词（可选，默认使用通用数据分析助手角色）
+     * @param onChunk streaming 回调（逐 chunk 返回，不支持流式时为 undefined）
+     */
+    async sendChatMessage(
+        userMessage: string,
+        systemPrompt?: string,
+        onChunk?: (chunk: string) => void
+    ): Promise<string> {
+        if (!this.isConfigured()) {
+            throw new Error('尚未配置 AI API Key，请在设置中配置');
+        }
+        const system = systemPrompt || `你是一位精通 DuckDB 的资深中文数据分析与工程助手。
+
+【回答准则与格式要求】
+1. 输出语言：所有面向用户的解答、解释、洞察、建议，默认全部使用自然、地道、简洁的简体中文。严禁大面积输出英文段落，除 SQL 关键字、代码、表名、字段名、函数名等必要技术标识外，禁止混杂无谓的英文。
+2. Markdown 规范输出：
+   - 结构层次必须清晰，合理使用二级标题（##）、三级标题（###）、要点列表与加粗重点。
+   - 包含多字段、多参数或数据分布对比时，优先使用规整的 Markdown 表格输出。
+   - 注意事项或重点警示使用引用块（> 说明：...）。
+   - 严禁将未闭合或损坏的 Markdown 源码裸露，确保输出的 Markdown 语法标准合规。
+3. DuckDB SQL 代码规范：
+   - 当需要生成或优化 SQL 时，必须使用 \`\`\`sql ... \`\`\` 代码块包裹，并在关键计算逻辑处附带简明中文注释。
+   - 充分发挥 DuckDB 的分析优势（如窗口函数、分位数、正则表达式、SUMMARIZE、PIVOT 等）。
+4. 风格偏好：简洁干练、直切主题，不做机械直译与冗长铺垫。`;
+        try {
+            const response = await this.callProvider(userMessage, system, false, undefined, onChunk);
+            return response.trim() || '（AI 暂无回复内容）';
+        } catch (error: any) {
+            if (error?.name === 'AbortError' || error?.message?.includes('aborted')) {
+                const abortErr = new Error('生成已被用户停止');
+                abortErr.name = 'AbortError';
+                throw abortErr;
+            }
+            console.error('AIService sendChatMessage error:', error);
+            throw error;
         }
     }
 
@@ -950,7 +1026,7 @@ class AIService {
         const startTime = Date.now();
 
         if (config.provider === 'ollama') {
-            const rawBaseUrl = (config.baseUrl || 'http://localhost:11434').replace(/\/+$/, '');
+            const rawBaseUrl = preferIpv4Loopback(config.baseUrl || 'http://127.0.0.1:11434').replace(/\/+$/, '');
             const rootUrl = rawBaseUrl.replace(/\/v1\/?$/, '');
 
             try {
@@ -1018,7 +1094,7 @@ class AIService {
                 };
             }
         } else if (config.provider === 'lmstudio') {
-            const rawBaseUrl = (config.baseUrl || 'http://localhost:1234/v1').replace(/\/+$/, '');
+            const rawBaseUrl = preferIpv4Loopback(config.baseUrl || 'http://127.0.0.1:1234/v1').replace(/\/+$/, '');
             const rootUrl = rawBaseUrl.replace(/\/v1\/?$/, '');
 
             try {
@@ -1086,12 +1162,15 @@ class AIService {
                         errorCategory: 'timeout',
                     };
                 }
+                const usedLocalhost = /localhost/i.test(config.baseUrl || '');
                 return {
                     success: false,
                     latencyMs,
                     modelCount: 0,
                     models: [],
-                    message: `LM Studio 本地服务未启动或无法访问 (${rootUrl})`,
+                    message: usedLocalhost
+                        ? `LM Studio 本地服务无法访问：浏览器中 localhost 可能解析为 IPv6。请改用 ${rootUrl}（已自动尝试 IPv4）`
+                        : `LM Studio 本地服务未启动或无法访问 (${rootUrl})`,
                     errorCategory: 'service_not_running',
                 };
             }
@@ -1153,7 +1232,7 @@ class AIService {
                 }
                 return models.length > 0 ? models : this.getDefaultModels(config.provider);
             } else if (config.provider === 'ollama') {
-                const rawBaseUrl = (config.baseUrl || 'http://localhost:11434').replace(/\/+$/, '');
+                const rawBaseUrl = preferIpv4Loopback(config.baseUrl || 'http://127.0.0.1:11434').replace(/\/+$/, '');
                 const rootUrl = rawBaseUrl.replace(/\/v1\/?$/, '');
 
                 // 1. First attempt: Standard Ollama /api/tags endpoint listing currently downloaded/installed models
@@ -1190,7 +1269,7 @@ class AIService {
 
                 return this.getDefaultModels(config.provider);
             } else if (config.provider === 'lmstudio') {
-                const rawBaseUrl = (config.baseUrl || 'http://localhost:1234/v1').replace(/\/+$/, '');
+                const rawBaseUrl = preferIpv4Loopback(config.baseUrl || 'http://127.0.0.1:1234/v1').replace(/\/+$/, '');
                 const rootUrl = rawBaseUrl.replace(/\/v1\/?$/, '');
 
                 try {

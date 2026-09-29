@@ -18,8 +18,8 @@ import { Link2, Filter, Sigma, Layers, ArrowRight, X } from 'lucide-react';
 import type { DataFlowEdgeData } from '../../../services/dataflow/workflowTypes';
 import { useWorkflowStore } from '../../../services/dataflow/workflowStore';
 
-/** 节点固定宽度 — 与 DataFlowNode / Canvas 映射保持一致 */
-const NODE_WIDTH = 208;
+/** 节点固定宽度 — 与 DataFlowNode DATAFLOW_NODE_CARD_WIDTH / Canvas 映射保持一致 */
+const NODE_WIDTH = 224;
 
 export const DataFlowCustomEdge: React.FC<EdgeProps<DataFlowEdgeData>> = memo(({
   id,
@@ -48,11 +48,14 @@ export const DataFlowCustomEdge: React.FC<EdgeProps<DataFlowEdgeData>> = memo(({
   });
 
   const highlightState = data?.highlightState || 'none';
+  const isErrorPath = !!data?.isErrorPath;
+  const isStepActive = !!data?.isStepActive;
   const isAncestor = highlightState === 'ancestor';
   const isDescendant = highlightState === 'descendant';
   const isDimmed = highlightState === 'dimmed';
-  const isHighlighted = selected || isAncestor || isDescendant;
+  const isHighlighted = selected || isAncestor || isDescendant || isErrorPath || isStepActive;
   const deleteEdge = useWorkflowStore(s => s.deleteEdge);
+  const dataFlowMode = useWorkflowStore(s => s.dataFlowMode);
 
   let strokeColor = 'var(--monokai-edge-idle)';
   let strokeWidth = 2.5;
@@ -60,7 +63,19 @@ export const DataFlowCustomEdge: React.FC<EdgeProps<DataFlowEdgeData>> = memo(({
   let isAnimated = false;
   let markerType = 'default';
 
-  if (selected) {
+  if (isErrorPath) {
+    strokeColor = 'var(--monokai-pink)';
+    strokeWidth = 3;
+    filterEffect = 'drop-shadow(0 0 10px rgba(249, 38, 114, 0.9))';
+    isAnimated = true;
+    markerType = 'pink';
+  } else if (isStepActive) {
+    strokeColor = 'var(--monokai-yellow)';
+    strokeWidth = 3;
+    filterEffect = 'drop-shadow(0 0 10px rgba(230, 219, 116, 0.9))';
+    isAnimated = true;
+    markerType = 'yellow';
+  } else if (selected) {
     strokeColor = 'var(--monokai-accent)';
     strokeWidth = 2.75;
     filterEffect = 'drop-shadow(0 0 6px rgba(166, 226, 46, 0.75))';
@@ -175,8 +190,14 @@ export const DataFlowCustomEdge: React.FC<EdgeProps<DataFlowEdgeData>> = memo(({
         <path
           d={edgePath}
           style={{
-            stroke: isAncestor || selected ? 'var(--monokai-accent)' : 'var(--monokai-cyan)',
-            strokeWidth: 2,
+            stroke: isErrorPath
+              ? 'var(--monokai-pink)'
+              : isStepActive
+              ? 'var(--monokai-yellow)'
+              : isAncestor || selected
+              ? 'var(--monokai-accent)'
+              : 'var(--monokai-cyan)',
+            strokeWidth: isErrorPath || isStepActive ? 2.5 : 2,
             strokeLinecap: 'round',
             fill: 'none',
             pointerEvents: 'none',
@@ -203,7 +224,11 @@ export const DataFlowCustomEdge: React.FC<EdgeProps<DataFlowEdgeData>> = memo(({
               zIndex: isHighlighted ? 15 : 2,
             }}
             className={`group/edge-badge flex items-center gap-1 px-1.5 py-0.5 rounded text-[9.5px] font-mono border shadow-md transition-all select-none cursor-pointer ${
-              selected || isAncestor
+              isErrorPath
+                ? 'bg-monokai-surface text-monokai-pink border-monokai-pink/80 shadow-[0_0_10px_rgba(249,38,114,0.5)]'
+                : isStepActive
+                ? 'bg-monokai-surface text-monokai-yellow border-monokai-yellow/80 shadow-[0_0_10px_rgba(230,219,116,0.5)]'
+                : selected || isAncestor
                 ? 'bg-monokai-surface text-monokai-accent border-monokai-accent/60 shadow-[0_0_8px_rgba(166,226,46,0.35)]'
                 : isDescendant
                 ? 'bg-monokai-surface text-monokai-cyan border-monokai-cyan/60 shadow-[0_0_8px_rgba(102,217,239,0.35)]'
@@ -225,19 +250,21 @@ export const DataFlowCustomEdge: React.FC<EdgeProps<DataFlowEdgeData>> = memo(({
             <span className={`truncate font-medium leading-none ${isShortEdge ? 'max-w-[48px]' : 'max-w-[140px]'}`}>
               {badgeLabel}
             </span>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                deleteEdge(id);
-              }}
-              className={`p-0.5 rounded-full hover:bg-white/20 text-monokai-comment hover:text-monokai-pink transition-colors cursor-pointer ${
-                isShortEdge ? 'opacity-0 group-hover/edge-badge:opacity-100' : ''
-              }`}
-              title="断开此连线"
-            >
-              <X className="w-2.5 h-2.5" />
-            </button>
+            {dataFlowMode === 'custom' && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  deleteEdge(id);
+                }}
+                className={`p-0.5 rounded-full hover:bg-white/20 text-monokai-comment hover:text-monokai-pink transition-colors cursor-pointer ${
+                  isShortEdge ? 'opacity-0 group-hover/edge-badge:opacity-100' : ''
+                }`}
+                title="断开此连线"
+              >
+                <X className="w-2.5 h-2.5" />
+              </button>
+            )}
           </div>
         </EdgeLabelRenderer>
       )}

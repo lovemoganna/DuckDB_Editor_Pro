@@ -144,15 +144,15 @@ export function compileNodeSql(
   node: DataFlowNode,
   inputs: NodeInputs
 ): { sql: string; error?: string } {
-  const config = node.data.config;
+  const config = node.data.config || {};
 
   switch (node.data.type) {
     case 'source': {
       const src = config as SourceNodeConfig;
-      if (src.tableName) {
+      if (src?.tableName) {
         return { sql: `SELECT * FROM "${src.tableName}"` };
       }
-      if (src.filePath) {
+      if (src?.filePath) {
         if (src.fileType === 'parquet' || src.filePath.endsWith('.parquet')) {
           return { sql: `SELECT * FROM read_parquet('${src.filePath}')` };
         }

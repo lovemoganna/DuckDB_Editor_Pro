@@ -2,7 +2,7 @@ export type OntologyDrawerMode = 'inline' | 'overlay';
 
 /** Only very narrow viewports overlay the drawer; workbench widths keep inline push layout so the graph stays visible. */
 export const ONTOLOGY_DRAWER_BREAKPOINT = 720;
-export const ONTOLOGY_DRAWER_PREFERENCE_KEY = 'duckdb-manager:ontology-drawer-open';
+export const ONTOLOGY_DRAWER_PREFERENCE_KEY = 'duckdb-manager:ontology-drawer-open-v2';
 
 /** 最小可读缩放阈值 - 确保节点名称清晰可见 */
 export const MIN_READABLE_ZOOM = 0.3;

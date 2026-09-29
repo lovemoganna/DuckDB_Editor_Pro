@@ -787,7 +787,7 @@ const SchemaGenerator: React.FC<SchemaGeneratorProps> = ({ onExecuteSql, onRefre
                             localStorage.setItem('duckdb_ai_base_url', 'http://localhost:11434/v1');
                           } else if (provider === 'lmstudio') {
                             localStorage.setItem('duckdb_ai_model', 'qwen2.5-coder-7b-instruct');
-                            localStorage.setItem('duckdb_ai_base_url', 'http://localhost:1234/v1');
+                            localStorage.setItem('duckdb_ai_base_url', 'http://127.0.0.1:1234/v1');
                           }
                           toastService.success(`AI 供应商已切换为 ${provider.toUpperCase()}`);
                         }}

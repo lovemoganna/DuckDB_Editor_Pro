@@ -22,11 +22,13 @@ import {
   AlertCircle, 
   CheckCircle2, 
   Table as TableIcon,
+  RotateCcw,
   X
 } from 'lucide-react';
 import { format } from 'sql-formatter';
 import { duckDBService } from '../../services/duckdbService';
 import { toastService } from '../../services/toastService';
+import { bootstrapDuckDBVirtualEnv } from '../../services/ontology/ontologySynthesisEngine';
 
 export type SupportedLanguage =
   | 'sql'
@@ -184,6 +186,13 @@ const CodeHighlightBlockInner: React.FC<CodeHighlightBlockProps> = ({
     return () => observer.disconnect();
   }, []);
 
+  const [editableCode, setEditableCode] = useState(code);
+  React.useEffect(() => {
+    setEditableCode(code);
+  }, [code]);
+
+  const isUserModified = editableCode !== code;
+
   const normalizedLang = useMemo(() => {
     const l = (language || '').toLowerCase().trim();
     if (['sql', 'duckdb', 'postgresql', 'postgres'].includes(l)) return 'sql';
@@ -196,27 +205,27 @@ const CodeHighlightBlockInner: React.FC<CodeHighlightBlockProps> = ({
   }, [language]);
 
   const formattedCode = useMemo(() => {
-    if (!isFormatted) return code;
+    if (!isFormatted) return editableCode;
     if (normalizedLang === 'sql') {
       try {
-        return format(code, { language: 'duckdb', tabWidth: 2, keywordCase: 'upper' });
+        return format(editableCode, { language: 'duckdb', tabWidth: 2, keywordCase: 'upper' });
       } catch {
         try {
-          return format(code, { language: 'sql', tabWidth: 2, keywordCase: 'upper' });
+          return format(editableCode, { language: 'sql', tabWidth: 2, keywordCase: 'upper' });
         } catch {
-          return code;
+          return editableCode;
         }
       }
     }
     if (normalizedLang === 'json') {
       try {
-        return JSON.stringify(JSON.parse(code), null, 2);
+        return JSON.stringify(JSON.parse(editableCode), null, 2);
       } catch {
-        return code;
+        return editableCode;
       }
     }
-    return code;
-  }, [code, isFormatted, normalizedLang]);
+    return editableCode;
+  }, [editableCode, isFormatted, normalizedLang]);
 
   const extensions = useMemo(() => {
     const langExt = getLangExtension(normalizedLang);
@@ -240,17 +249,60 @@ const CodeHighlightBlockInner: React.FC<CodeHighlightBlockProps> = ({
 
   // 监听外部「一键全部运行」全局广播通知
   React.useEffect(() => {
-    const handleBatchRun = () => {
-      if (isSql && enableExecute) {
-        setIsCollapsed(false);
-        void handleExecuteSql();
+    const handleBatchRun = (e: any) => {
+      if (!isSql || !enableExecute) return;
+
+      setIsCollapsed(false);
+
+      const report = e?.detail?.report;
+      if (report && Array.isArray(report.results)) {
+        // 尝试从预计算的报告中直接匹配此代码块的执行结果，避免重复并发发起 DuckDB 查询导致连接争抢
+        const normCode = formattedCode.replace(/\s+/g, ' ').trim();
+        const rawCode = code.replace(/\s+/g, ' ').trim();
+
+        const matched = report.results.find((r: any) => {
+          const rSql = (r.sql || '').replace(/\s+/g, ' ').trim();
+          return (
+            rSql === normCode ||
+            rSql === rawCode ||
+            rSql.includes(normCode.slice(0, 35)) ||
+            normCode.includes(rSql.slice(0, 35)) ||
+            rSql.includes(rawCode.slice(0, 35)) ||
+            rawCode.includes(rSql.slice(0, 35))
+          );
+        });
+
+        setIsExecuting(false);
+        if (matched) {
+          setExecDuration(matched.durationMs);
+          if (matched.success) {
+            setExecError(null);
+            setExecResult(matched.rows || []);
+          } else {
+            setExecError(matched.error || '执行出错');
+            setExecResult(null);
+          }
+          setIsResultOpen(true);
+        }
+        // 关键：当有全局报告分发时，不再回退到单块并发执行，防止 DuckDB 队列锁死
+        return;
       }
+
+      // 未命中预执行报告时，安全单块执行
+      void handleExecuteSql();
     };
+
+    const handleBatchComplete = () => {
+      setIsExecuting(false);
+    };
+
     window.addEventListener('duckdb_run_all_sql_blocks', handleBatchRun);
+    window.addEventListener('duckdb_run_all_completed', handleBatchComplete);
     return () => {
       window.removeEventListener('duckdb_run_all_sql_blocks', handleBatchRun);
+      window.removeEventListener('duckdb_run_all_completed', handleBatchComplete);
     };
-  }, [isSql, enableExecute, formattedCode]);
+  }, [isSql, enableExecute, formattedCode, code]);
 
   const handleSendToEditor = () => {
     if (onSendToEditor) {
@@ -281,16 +333,39 @@ const CodeHighlightBlockInner: React.FC<CodeHighlightBlockProps> = ({
     setIsResultOpen(true);
     const start = performance.now();
     try {
-      const rawStatements = formattedCode
+      // 确保基础测试数据与表结构在 DuckDB WASM 中已初始化（带8秒防死锁保护）
+      let bootstrapTimeout: any;
+      const timeoutPromise = new Promise<void>((resolve) => {
+        bootstrapTimeout = setTimeout(resolve, 8000);
+      });
+      await Promise.race([bootstrapDuckDBVirtualEnv(), timeoutPromise]).finally(() => {
+        if (bootstrapTimeout) clearTimeout(bootstrapTimeout);
+      });
+
+      const cleanSql = formattedCode
+        .replace(/--.*$/gm, '')
+        .replace(/\/\*[\s\S]*?\*\//g, '');
+      const rawStatements = cleanSql
         .split(';')
         .map((s) => s.trim())
         .filter((s) => s.length > 0);
 
       let lastRows: any[] = [];
-      for (const stmt of rawStatements) {
-        const cleanStmt = stmt.replace(/--.*$/gm, '').trim();
-        if (!cleanStmt) continue;
-        const res = await duckDBService.query(cleanStmt.endsWith(';') ? cleanStmt : `${cleanStmt};`);
+      for (const cleanStmt of rawStatements) {
+        let timeoutHandle: any;
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          timeoutHandle = setTimeout(() => {
+            reject(new Error(`SQL 执行超时 (超过 15000ms)`));
+          }, 15000);
+        });
+        let executableStmt = cleanStmt;
+        if (/^\s*CREATE\s+TABLE\s+(?!IF\s+NOT\s+EXISTS|AS\b)/i.test(executableStmt)) {
+          executableStmt = executableStmt.replace(/^\s*CREATE\s+TABLE\s+/i, 'CREATE OR REPLACE TABLE ');
+        }
+        const queryPromise = duckDBService.query(executableStmt.endsWith(';') ? executableStmt : `${executableStmt};`);
+        const res = await Promise.race([queryPromise, timeoutPromise]).finally(() => {
+          if (timeoutHandle) clearTimeout(timeoutHandle);
+        });
         if (res && Array.isArray(res)) {
           lastRows = res;
         }
@@ -298,6 +373,19 @@ const CodeHighlightBlockInner: React.FC<CodeHighlightBlockProps> = ({
       const duration = Math.round(performance.now() - start);
       setExecResult(lastRows);
       setExecDuration(duration);
+      // 广播单块 SQL 执行结果，驱动知识资产本体图谱实时同步
+      window.dispatchEvent(
+        new CustomEvent('duckdb_sql_block_executed', {
+          detail: {
+            sql: formattedCode,
+            rows: lastRows,
+            columns: lastRows && lastRows.length > 0 ? Object.keys(lastRows[0]) : [],
+            rowCount: lastRows ? lastRows.length : 0,
+            durationMs: duration,
+            success: true,
+          },
+        })
+      );
       // 结果出来后滚入视口，避免长 SQL 下方结果被挡住
       requestAnimationFrame(() => {
         resultPanelRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
@@ -306,6 +394,16 @@ const CodeHighlightBlockInner: React.FC<CodeHighlightBlockProps> = ({
       const duration = Math.round(performance.now() - start);
       setExecDuration(duration);
       setExecError(err?.message || String(err));
+      window.dispatchEvent(
+        new CustomEvent('duckdb_sql_block_executed', {
+          detail: {
+            sql: formattedCode,
+            durationMs: duration,
+            success: false,
+            error: err?.message || String(err),
+          },
+        })
+      );
       requestAnimationFrame(() => {
         resultPanelRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
       });
@@ -320,7 +418,9 @@ const CodeHighlightBlockInner: React.FC<CodeHighlightBlockProps> = ({
   return (
     <div
       ref={containerRef}
-      className={`rounded-xl border border-[#22331c] bg-[#0c0f0d] overflow-hidden font-sans shadow-xs my-2.5 ${className}`}
+      data-code-block="true"
+      data-sql-snippet={formattedCode.slice(0, 100)}
+      className={`code-highlight-block-container rounded-xl border border-[#22331c] bg-[#0c0f0d] overflow-hidden font-sans shadow-xs my-2.5 transition-all duration-300 ${className}`}
       style={
         // 结果面板展开时禁用 content-visibility，否则浏览器可能按 containIntrinsicSize
         // 把结果区裁切/跳过绘制，表现为「执行了但看不到结果」
@@ -399,8 +499,9 @@ const CodeHighlightBlockInner: React.FC<CodeHighlightBlockProps> = ({
               <button
                 type="button"
                 onClick={handleSendToEditor}
+                aria-label={sendSuccess ? '已发送到 SQL 编辑器' : '在编辑器中运行 (发送到 SQL 编辑器)'}
                 className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium text-sky-400 bg-sky-950/40 hover:bg-sky-900/60 border border-sky-800/50 hover:border-sky-700 transition-colors cursor-pointer"
-                title="将 SQL 自动带入 SQL 编辑器继续编辑执行"
+                title="在编辑器中运行，将 SQL 自动带入 SQL 编辑器继续编辑执行"
               >
                 {sendSuccess ? (
                   <>
@@ -433,6 +534,22 @@ const CodeHighlightBlockInner: React.FC<CodeHighlightBlockProps> = ({
               </button>
             )}
 
+            {/* 已修改状态提示与重置 */}
+            {isUserModified && (
+              <button
+                type="button"
+                onClick={() => {
+                  setEditableCode(code);
+                  toastService.info('已重置为原教程代码');
+                }}
+                className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] text-amber-400 bg-amber-950/40 hover:bg-amber-900/60 border border-amber-800/50 transition-colors cursor-pointer"
+                title="已修改代码，点击恢复为教程初始代码"
+              >
+                <RotateCcw className="w-2.5 h-2.5" />
+                <span>已修改 · 重置</span>
+              </button>
+            )}
+
             {/* 复制 */}
             <button
               type="button"
@@ -457,19 +574,20 @@ const CodeHighlightBlockInner: React.FC<CodeHighlightBlockProps> = ({
         </div>
       )}
 
-      {/* Code Area: 折叠状态时不渲染内部编辑器，保持极致紧凑与极速渲染 */}
+      {/* Code Area: 折叠状态时不渲染内部编辑器，支持原地编辑实时驱动右侧本体 */}
       {!isCollapsed && (
         <div className="relative min-h-[44px]">
           {isVisible ? (
             <CodeMirror
               value={formattedCode}
+              onChange={(val) => setEditableCode(val)}
               extensions={extensions}
               theme={monokai}
-              editable={false}
+              editable={!isExecuting}
               basicSetup={{
                 lineNumbers: showLineNumbers,
                 foldGutter: false,
-                highlightActiveLine: false,
+                highlightActiveLine: true,
               }}
               className="text-[11px] custom-scrollbar selection:bg-[#a3e635]/20"
             />

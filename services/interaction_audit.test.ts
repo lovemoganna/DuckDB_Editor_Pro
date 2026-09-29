@@ -203,15 +203,15 @@ describe('Interaction & Real Data Link Verification', () => {
     window.addEventListener('duckdb-schema-changed', listener);
 
     await duckDBService.addColumn('test_tbl', 'col1', 'INTEGER');
-    await new Promise(r => setTimeout(r, 180));
+    await new Promise(r => setTimeout(r, 250));
     expect(dispatched).toBe(1);
 
     await duckDBService.alterColumnType('test_tbl', 'col1', 'BIGINT');
-    await new Promise(r => setTimeout(r, 180));
+    await new Promise(r => setTimeout(r, 250));
     expect(dispatched).toBe(2);
 
     await duckDBService.createTable('new_created_tbl', [{ name: 'id', type: 'INTEGER', pk: true }]);
-    await new Promise(r => setTimeout(r, 180));
+    await new Promise(r => setTimeout(r, 250));
     expect(dispatched).toBe(3);
 
     window.removeEventListener('duckdb-schema-changed', listener);

@@ -32,6 +32,8 @@ const FULL_BLEED_TABS = new Set<Tab>([
   Tab.DATA,
   Tab.STRUCTURE,
   Tab.SQL,
+  Tab.METRICS,
+  Tab.ANALYSIS_HUB,
   Tab.ONTOLOGY,
   Tab.AI_SKILLS,
   Tab.AI_CAPABILITIES,

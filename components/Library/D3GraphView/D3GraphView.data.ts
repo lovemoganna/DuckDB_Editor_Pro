@@ -38,6 +38,19 @@ export function parseProps(raw: any): { count: number; raw: string } {
 
 // ── Build from Store State ─────────────────────────────────────────────────
 
+const PROP_SKIP_KEYS = new Set([
+  '_displayName', '_domainType', '_canonicalId', '_primaryKey',
+  'sourceBlockIndex', 'status', 'annotations', '_entityType',
+  '_activeEntitiesCount', '_activeRelationsCount', '_instancesCount',
+]);
+
+const isSkippedPropKey = (k: string) =>
+  k.startsWith('_') ||
+  PROP_SKIP_KEYS.has(k) ||
+  k === 'id' ||
+  k.endsWith('_id') ||
+  k === 'email'; // skip PII-like fields
+
 /**
  * Build graph data from store state (avoids DuckDB query lag / empty results after inserts).
  * This is the primary data source after schema import completes.
@@ -60,10 +73,16 @@ export function buildGraphDataFromState(state: any, mapping: any, selectedTables
 
   const filteredObjectIds = new Set(filteredObjects.map((o: any) => o.id));
 
+  const typeIdSet = new Set(objectTypes.map((t: any) => t.id));
   const filteredLinks = links
-    ? links.filter((l: any) =>
-        filteredObjectIds.has(Number(l.source_object_id)) && filteredObjectIds.has(Number(l.target_object_id))
-      )
+    ? links.filter((l: any) => {
+        const isObjLink = filteredObjectIds.has(Number(l.source_object_id)) && filteredObjectIds.has(Number(l.target_object_id));
+        const isTypeLink = (
+          (typeIdSet.has(Number(l.source_object_id)) || String(l.source_object_id).startsWith('type::')) &&
+          (typeIdSet.has(Number(l.target_object_id)) || String(l.target_object_id).startsWith('type::'))
+        );
+        return isObjLink || isTypeLink;
+      })
     : [];
 
   const typeMap: Record<number, LifeObjectType> = {};
@@ -91,6 +110,7 @@ export function buildGraphDataFromState(state: any, mapping: any, selectedTables
     });
   });
 
+  // -- Level 2: Instance Nodes --
   filteredObjects.forEach((obj: any) => {
     const type = typeMap[obj.object_type_id];
     const idx = (obj.object_type_id - 1) % TYPE_COLORS_WARM.length;
@@ -98,22 +118,97 @@ export function buildGraphDataFromState(state: any, mapping: any, selectedTables
     const instanceColor = type ? TYPE_COLORS_INSTANCE[idx] : '#a070d0';
     const { count: propCount, raw: propRaw } = parseProps(obj.properties);
     nodes.push({
-      id: `obj::${obj.id}`, label: obj.name, group: 'instance', color: instanceColor, size: 11,
+      id: `obj::${obj.id}` , label: obj.name, group: 'instance', color: instanceColor, size: 11,
       description: propRaw, _objId: obj.id, _typeId: obj.object_type_id,
       _typeColor: typeColor, _instanceColor: instanceColor,
       _propsCount: propCount, _propsRaw: propRaw,
       _typeName: type?.name || '',
     });
-
     if (type) {
-      graphLinks.push({ source: `obj::${obj.id}`, target: `type::${obj.object_type_id}`, color: typeColor, weight: 0.15, _isTypeInstLink: true });
+      graphLinks.push({ source: `obj::${obj.id}` , target: `type::${obj.object_type_id}` , color: typeColor, weight: 0.15, _isTypeInstLink: true });
     }
+  });
+
+  // ── Level 3: Property Nodes ────────────────────────────────────────────────
+  // Generate leaf property nodes from instance properties.
+  // Rules:
+  //   • Skip internal/metadata fields (_xxx, id, pk, status, sourceBlockIndex, annotations)
+  //   • Skip pure FK reference columns (*_id suffix)
+  //   • Skip empty, null, or very long string values (> 60 chars)
+  //   • Select top 3 most meaningful fields (prefer text > number > boolean)
+  //   • Only generate property nodes when instance count per type ≤ 12
+  //     (prevents graph explosion for large datasets)
+
+  const propNodeColor = '#38bdf8'; // vibrant high-contrast sky blue for property leaves
+
+  filteredObjects.forEach((obj: any) => {
+    const typeInstCount = (objectsByType[obj.object_type_id] || []).length;
+    // Don't generate property nodes for very large clusters (performance guard)
+    if (typeInstCount > 15) return;
+
+    let parsedProps: Record<string, any> = {};
+    try {
+      parsedProps = JSON.parse(obj.properties || '{}');
+    } catch { return; }
+
+    // Collect candidate property entries, sorted: strings first, then numbers
+    const candidates: Array<[string, any]> = Object.entries(parsedProps)
+      .filter(([k, v]) => {
+        if (isSkippedPropKey(k)) return false;
+        if (v == null || v === '') return false;
+        const s = String(v);
+        if (s.length > 60) return false;
+        return true;
+      })
+      .sort(([, a], [, b]) => {
+        const aStr = typeof a === 'string' ? 0 : 1;
+        const bStr = typeof b === 'string' ? 0 : 1;
+        return aStr - bStr;
+      })
+      .slice(0, 3); // at most 3 property nodes per instance
+
+    candidates.forEach(([key, val], propIdx) => {
+      const propNodeId = `prop::${obj.id}::${propIdx}`;
+      const displayKey = key.replace(/_/g, ' ');
+      const displayVal = String(val);
+      const label = `${displayKey}: ${displayVal}`;
+      nodes.push({
+        id: propNodeId,
+        label,
+        group: 'property',
+        color: propNodeColor,
+        size: 9, // distinct and legible size
+        description: `${key} = ${displayVal}`,
+        _objId: obj.id,
+        _typeId: obj.object_type_id,
+        _propKey: key,
+        _propVal: displayVal,
+      });
+      graphLinks.push({
+        source: `obj::${obj.id}`,
+        target: propNodeId,
+        color: 'rgba(56, 189, 248, 0.55)',
+        weight: 0.5, // keep above weak link threshold
+        _isTypeInstLink: false,
+        _isPropLink: true,
+      });
+    });
   });
 
   filteredLinks.forEach((link: any) => {
     const ltColor = LINKTYPE_COLORS[(link.link_type_id - 1) % LINKTYPE_COLORS.length];
+    const srcIdStr = String(link.source_object_id);
+    const tgtIdStr = String(link.target_object_id);
+
+    const src = srcIdStr.startsWith('type::')
+      ? srcIdStr
+      : (filteredObjectIds.has(Number(link.source_object_id)) ? `obj::${link.source_object_id}` : `type::${link.source_object_id}`);
+    const tgt = tgtIdStr.startsWith('type::')
+      ? tgtIdStr
+      : (filteredObjectIds.has(Number(link.target_object_id)) ? `obj::${link.target_object_id}` : `type::${link.target_object_id}`);
+
     graphLinks.push({
-      source: `obj::${link.source_object_id}`, target: `obj::${link.target_object_id}`,
+      source: src, target: tgt,
       color: ltColor, weight: Number(link.weight) || 0.5,
       _linkTypeId: link.link_type_id, _linkTypeName: linkTypeMap[link.link_type_id]?.name,
     });
@@ -126,7 +221,7 @@ export function buildGraphDataFromState(state: any, mapping: any, selectedTables
       id: `action::${act.id}`, label: act.name, group: 'action', color: statusColor, size: 10,
       description: act.description || '', _objId: Number(act.object_id),
     });
-    graphLinks.push({ source: `obj::${act.object_id}`, target: `action::${act.id}`, color: '#ff5a8a', weight: 0.2 });
+    graphLinks.push({ source: `obj::${act.object_id}`, target: `action::${act.id}`, color: '#ff5a8a', weight: 0.2, _isActionLink: true });
   });
 
   const typeNames = objectTypes.map((t: any) => t.name);
@@ -138,6 +233,7 @@ export function buildGraphDataFromState(state: any, mapping: any, selectedTables
 
   return { nodes, links: graphLinks, typeMap, linkTypeMap, typeNames, _rawLinks: filteredLinks };
 }
+
 
 // ── Load from DuckDB ────────────────────────────────────────────────────────
 
@@ -248,7 +344,61 @@ export async function loadDynamicGraphData(mapping: any, selectedTables?: string
         id: `action::${actId}`, label: act.name, group: 'action', color: statusColor, size: 10,
         description: act.description || '', _objId: objId,
       });
-      links.push({ source: `obj::${objId}`, target: `action::${actId}`, color: '#ff5a8a', weight: 0.2 });
+      links.push({ source: `obj::${objId}`, target: `action::${actId}`, color: '#ff5a8a', weight: 0.2, _isActionLink: true });
+    });
+
+    // ── Level 3: Property Nodes for loadDynamicGraphData ──
+    const propNodeColor = '#38bdf8';
+    filteredObjects.forEach((obj: any) => {
+      const typeInstCount = (objectsByType[Number(obj.object_type_id)] || []).length;
+      if (typeInstCount > 15) return;
+
+      let parsedProps: Record<string, any> = {};
+      try {
+        parsedProps = typeof obj.properties === 'string' ? JSON.parse(obj.properties || '{}') : (obj.properties || {});
+      } catch { return; }
+
+      const candidates = Object.entries(parsedProps)
+        .filter(([k, v]) => {
+          if (isSkippedPropKey(k)) return false;
+          if (v == null || v === '') return false;
+          const s = String(v);
+          if (s.length > 60) return false;
+          return true;
+        })
+        .sort(([, a], [, b]) => {
+          const aStr = typeof a === 'string' ? 0 : 1;
+          const bStr = typeof b === 'string' ? 0 : 1;
+          return aStr - bStr;
+        })
+        .slice(0, 3);
+
+      candidates.forEach(([key, val], propIdx) => {
+        const propNodeId = `prop::${obj.id}::${propIdx}`;
+        const displayKey = key.replace(/_/g, ' ');
+        const displayVal = String(val);
+        const label = `${displayKey}: ${displayVal}`;
+        nodes.push({
+          id: propNodeId,
+          label,
+          group: 'property',
+          color: propNodeColor,
+          size: 9,
+          description: `${key} = ${displayVal}`,
+          _objId: Number(obj.id),
+          _typeId: Number(obj.object_type_id),
+          _propKey: key,
+          _propVal: displayVal,
+        });
+        links.push({
+          source: `obj::${obj.id}`,
+          target: propNodeId,
+          color: 'rgba(56, 189, 248, 0.55)',
+          weight: 0.5,
+          _isTypeInstLink: false,
+          _isPropLink: true,
+        });
+      });
     });
 
     const typeNames = objectTypes.map((t: any) => t.name);

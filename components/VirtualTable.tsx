@@ -2,7 +2,7 @@ import React, { useRef } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { ArrowUp, ArrowDown } from 'lucide-react';
 import { toastService } from '../services/toastService';
-import { formatCellValue } from '../utils/typeFormatter';
+import { formatCellValue, getTypeBadgeStyle } from '../utils/typeFormatter';
 
 interface VirtualTableProps {
   columns: string[];
@@ -122,7 +122,10 @@ export const VirtualTable: React.FC<VirtualTableProps> = ({
                 <div className="flex flex-col min-w-0 justify-center leading-tight">
                   <span className="truncate text-white font-medium">{colName}</span>
                   {colType && (
-                    <span className="text-[10px] text-monokai-comment font-normal tracking-wide uppercase">
+                    <span
+                      className={`inline-flex items-center self-start px-1.5 py-[1px] mt-0.5 rounded border text-3xs font-mono tracking-wider uppercase max-w-full truncate transition-colors ${getTypeBadgeStyle(colType)}`}
+                      title={`列类型: ${colType}`}
+                    >
                       {colType}
                     </span>
                   )}

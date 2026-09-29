@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   BookMarked, 
   Copy, 
@@ -26,6 +26,14 @@ import { serializeAssetToMarkdown, extractSqlBlocksFromMarkdown } from '../servi
 import { TableOfContents } from './TableOfContents';
 import { duckDBService } from '../../../services/duckdbService';
 import { toastService } from '../../../services/toastService';
+import { 
+  executeAllSqlBlocks, 
+  synthesizeOntologyFromExecution,
+  synthesizeBaselineOntology,
+  synthesizeOntologyFromSingleBlock,
+  type SqlBlockExecutionResult,
+  type DynamicSynthesizedOntology
+} from '../../../services/ontology/ontologySynthesisEngine';
 
 interface NoteAssetDetailProps {
   asset: NoteAsset;
@@ -53,6 +61,8 @@ const NoteAssetDetailInner: React.FC<NoteAssetDetailProps> = ({
 
   const sqlBlocks = useMemo(() => extractSqlBlocksFromMarkdown(asset.content), [asset.content]);
 
+  const lastSynthesizedOntologyRef = useRef<DynamicSynthesizedOntology | null>(null);
+
   useEffect(() => {
     setEditContent(asset.content);
     setIsEditing(false);
@@ -60,7 +70,88 @@ const NoteAssetDetailInner: React.FC<NoteAssetDetailProps> = ({
     setIsBatchRunning(false);
     setBatchProgress(null);
     setBatchSummary(null);
+
+    // 为当前教程初始化预合成基线图谱
+    const baseline = synthesizeBaselineOntology(asset);
+    lastSynthesizedOntologyRef.current = baseline;
+    window.dispatchEvent(
+      new CustomEvent('duckdb_ontology_synthesized', {
+        detail: { dynamicOntology: baseline, assetId: asset.id },
+      })
+    );
   }, [asset.id, asset.content]);
+
+  // 监听来自本体图谱的反向定位指令
+  useEffect(() => {
+    const handleLocate = (e: any) => {
+      const detail = e?.detail;
+      if (!detail) return;
+      const { sourceBlockIndex, snippet, keyword } = detail;
+      const container = document.getElementById('note-reading-container');
+      if (!container) return;
+
+      let targetEl: HTMLElement | null = null;
+      const codeBlocks = Array.from(container.querySelectorAll('.code-highlight-block-container')) as HTMLElement[];
+      if (typeof sourceBlockIndex === 'number' && sourceBlockIndex > 0 && sourceBlockIndex <= codeBlocks.length) {
+        targetEl = codeBlocks[sourceBlockIndex - 1];
+      } else if (snippet) {
+        const cleanSnippet = snippet.trim().slice(0, 30);
+        targetEl = codeBlocks.find(b => b.dataset.sqlSnippet && b.dataset.sqlSnippet.includes(cleanSnippet)) || null;
+      }
+
+      if (!targetEl && keyword) {
+        const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+        let node: Node | null;
+        while ((node = walker.nextNode())) {
+          if (node.textContent && node.textContent.includes(keyword)) {
+            targetEl = node.parentElement;
+            break;
+          }
+        }
+      }
+
+      if (targetEl) {
+        targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        targetEl.classList.add('ring-2', 'ring-monokai-cyan', 'shadow-[0_0_25px_rgba(102,217,239,0.4)]');
+        setTimeout(() => {
+          targetEl?.classList.remove('ring-2', 'ring-monokai-cyan', 'shadow-[0_0_25px_rgba(102,217,239,0.4)]');
+        }, 2500);
+      }
+    };
+
+    window.addEventListener('duckdb_locate_tutorial_code', handleLocate);
+    return () => window.removeEventListener('duckdb_locate_tutorial_code', handleLocate);
+  }, []);
+
+  // 监听单块 SQL 执行完成，增量驱动右侧图谱更新
+  useEffect(() => {
+    const handleSingleBlockExecuted = (e: any) => {
+      const { sql, rows, columns, rowCount, durationMs, success, error } = e.detail || {};
+      if (!sql) return;
+      const blkIndex = sqlBlocks.findIndex(s => s.trim().slice(0, 40) === sql.trim().slice(0, 40));
+      const singleResult: SqlBlockExecutionResult = {
+        index: blkIndex >= 0 ? blkIndex + 1 : 1,
+        sql,
+        durationMs: durationMs || 10,
+        success: success !== false,
+        rows,
+        columns,
+        rowCount,
+        error,
+      };
+
+      const updated = synthesizeOntologyFromSingleBlock(asset, lastSynthesizedOntologyRef.current, singleResult);
+      lastSynthesizedOntologyRef.current = updated;
+      window.dispatchEvent(
+        new CustomEvent('duckdb_ontology_synthesized', {
+          detail: { dynamicOntology: updated, assetId: asset.id },
+        })
+      );
+    };
+
+    window.addEventListener('duckdb_sql_block_executed', handleSingleBlockExecuted);
+    return () => window.removeEventListener('duckdb_sql_block_executed', handleSingleBlockExecuted);
+  }, [asset, sqlBlocks]);
 
   const handleCopy = async () => {
     try {
@@ -97,28 +188,73 @@ const NoteAssetDetailInner: React.FC<NoteAssetDetailProps> = ({
     setAllCollapsed((prev) => !prev);
   };
 
-  const handleRunAll = () => {
-    if (isBatchRunning || sqlBlocks.length === 0) return;
+  const handleRunAll = async () => {
+    if (isBatchRunning) return;
+    if (sqlBlocks.length === 0) {
+      toastService.info('当前教程正文中未包含可执行的 SQL 代码块');
+      return;
+    }
     setIsBatchRunning(true);
     setBatchSummary(null);
     setAllCollapsed(false); // 展开代码块供用户直观观察
 
     const total = sqlBlocks.length;
-    const startTime = performance.now();
+    toastService.info(`开始真实执行正文中全部 ${total} 个 SQL 片段并动态合成对应本体...`);
 
-    toastService.info(`开始一键运行文档中全部 ${total} 个 SQL 片段...`);
+    try {
+      const report = await executeAllSqlBlocks(sqlBlocks, (current, totalCount) => {
+        setBatchProgress({ current, total: totalCount });
+      });
 
-    // 触发全局广播通知各个代码块展开并就地展示运行结果
-  window.dispatchEvent(new CustomEvent('duckdb_run_all_sql_blocks', { detail: { assetId: asset.id } }));
+      setBatchSummary({
+        total: report.total,
+        duration: report.totalDurationMs,
+        failedCount: report.failedCount,
+      });
 
-    setTimeout(() => {
-      const duration = Math.round(performance.now() - startTime);
+      // 核心：基于代码与执行结果动态合成专属本体图谱
+      const dynamicOntology = synthesizeOntologyFromExecution(asset, report);
+
+      // 全局广播通知各个代码块与本体建模透镜
+      window.dispatchEvent(
+        new CustomEvent('duckdb_ontology_synthesized', {
+          detail: { dynamicOntology, assetId: asset.id },
+        })
+      );
+      window.dispatchEvent(
+        new CustomEvent('duckdb_run_all_sql_blocks', { detail: { assetId: asset.id, report } })
+      );
+
+      if (report.failedCount === 0) {
+        toastService.success(
+          `全部 ${report.total} 个 SQL 片段执行完成 (${report.totalDurationMs}ms)，已动态生成对应本体图谱！`
+        );
+      } else {
+        toastService.warning(
+          `执行完成：${report.successCount} 个成功，${report.failedCount} 个失败 (${report.totalDurationMs}ms)，本体图谱已同步生成。`
+        );
+      }
+    } catch (err: any) {
+      toastService.error(`执行 SQL 失败: ${err?.message || '未知错误'}`);
+    } finally {
       setIsBatchRunning(false);
       setBatchProgress(null);
-      setBatchSummary({ total, duration, failedCount: 0 });
-      toastService.success(`全部 ${total} 个 SQL 片段执行完成 (耗时 ${duration}ms)`);
-    }, 300);
+      window.dispatchEvent(
+        new CustomEvent('duckdb_run_all_completed', { detail: { assetId: asset.id } })
+      );
+    }
   };
+
+  const handleRunAllRef = useRef(handleRunAll);
+  handleRunAllRef.current = handleRunAll;
+
+  useEffect(() => {
+    const handleTrigger = () => {
+      handleRunAllRef.current();
+    };
+    window.addEventListener('duckdb_trigger_run_all', handleTrigger);
+    return () => window.removeEventListener('duckdb_trigger_run_all', handleTrigger);
+  }, []);
 
   const getTopicMeta = (topic: string) => {
     switch (topic) {

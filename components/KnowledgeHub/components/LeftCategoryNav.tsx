@@ -50,8 +50,8 @@ export function getAssetTopic(asset: KnowledgeAsset): string {
   const tags = (asset.tags || []).map((t) => t.toLowerCase());
 
   if (
-    tags.includes('ontology') ||
-    tags.includes('本体') ||
+    asset.id === 'duckdb-sql-lesson-1' ||
+    tags.some((t) => t.includes('ontology') || t.includes('本体')) ||
     title.includes('本体') ||
     title.includes('ontology')
   ) {

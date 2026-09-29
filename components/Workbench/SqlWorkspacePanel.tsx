@@ -94,12 +94,15 @@ interface SqlWorkspacePanelProps {
   onExportJson?: () => void;
   onCopyClipboard?: () => void;
   onViewPreviousResult?: () => void;
+  isViewingPrevious?: boolean;
+  onReturnToLatestResult?: () => void;
   onUseQualifiedName?: (qualifiedName: string) => void;
   onApplyFilterToSql?: (filterSqlClause: string) => void;
   onApplyAggregateToSql?: (aggregateSql: string, tabTitle?: string, autoRun?: boolean) => void;
   aiMode?: 'explain' | 'analyze' | null;
   onTriggerAiExplain?: () => void;
   onTriggerAiAnalyze?: () => void;
+  onCursorChange?: (cursor: { line: number; col: number; selectedChars?: number }) => void;
   isDataFlowActive?: boolean;
   onSelectDataFlow?: () => void;
   onToggleDataFlow?: (active: boolean) => void;
@@ -132,12 +135,15 @@ export const SqlWorkspacePanel: React.FC<SqlWorkspacePanelProps> = ({
   onExportJson,
   onCopyClipboard,
   onViewPreviousResult,
+  isViewingPrevious = false,
+  onReturnToLatestResult,
   onUseQualifiedName,
   onApplyFilterToSql,
   onApplyAggregateToSql,
   aiMode = 'explain',
   onTriggerAiExplain,
   onTriggerAiAnalyze,
+  onCursorChange,
 }) => {
   const { confirm } = useConfirmDialog();
   const editorRef = useRef<ReactCodeMirrorRef>(null);
@@ -397,6 +403,16 @@ export const SqlWorkspacePanel: React.FC<SqlWorkspacePanelProps> = ({
         e.preventDefault();
         handleFormatSql();
       }
+      // Ctrl+E → Explain plan (export is Ctrl+Shift+E in ResultSection)
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'e') {
+        e.preventDefault();
+        void onExecuteQuery(activeTab?.sql || '', true, false);
+      }
+      // Ctrl+Shift+A → EXPLAIN ANALYZE (深度剖析)
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'a') {
+        e.preventDefault();
+        void onExecuteQuery(activeTab?.sql || '', true, true);
+      }
       // Alt+D or Ctrl+Alt+D: toggle flowchart
       if (e.altKey && e.key.toLowerCase() === 'd') {
         e.preventDefault();
@@ -410,7 +426,7 @@ export const SqlWorkspacePanel: React.FC<SqlWorkspacePanelProps> = ({
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [activeTab, isDataFlowActive]);
+  }, [activeTab, isDataFlowActive, onExecuteQuery, onUpdateTabSql]);
 
   const handleFormatSql = () => {
     if (!activeTab?.sql) return;
@@ -540,6 +556,39 @@ export const SqlWorkspacePanel: React.FC<SqlWorkspacePanelProps> = ({
     };
   }, [isDraggingDataFlowDivider]);
 
+  // Listen for 'focus_sql_editor' dispatched from DataFlowCanvas / DataFlowInspector
+  useEffect(() => {
+    const handleFocusSqlEditor = (e: Event) => {
+      const customEvent = e as CustomEvent<{
+        sqlRange?: { startLine: number; endLine: number };
+        replaceSql?: string;
+      }>;
+      const { sqlRange, replaceSql } = customEvent.detail || {};
+
+      if (replaceSql && activeTab?.id) {
+        onUpdateTabSql(activeTab.id, replaceSql);
+      }
+
+      const view = cmRef.current?.view;
+      if (view && sqlRange?.startLine) {
+        const lineNo = Math.min(Math.max(1, sqlRange.startLine), view.state.doc.lines);
+        const line = view.state.doc.line(lineNo);
+        view.dispatch({
+          selection: { anchor: line.from, head: line.to },
+          scrollIntoView: true,
+        });
+        view.focus();
+      } else if (view) {
+        view.focus();
+      }
+    };
+
+    window.addEventListener('focus_sql_editor', handleFocusSqlEditor);
+    return () => {
+      window.removeEventListener('focus_sql_editor', handleFocusSqlEditor);
+    };
+  }, [activeTab?.id, onUpdateTabSql]);
+
   const recentSnapshots = [...querySnapshotManager.getAllSnapshots()].sort((a, b) =>
     String(b.executedAt || '').localeCompare(String(a.executedAt || ''))
   );
@@ -561,10 +610,17 @@ export const SqlWorkspacePanel: React.FC<SqlWorkspacePanelProps> = ({
             extensions={editorExtensions}
             onChange={(val) => onUpdateTabSql(activeTab.id, val)}
             onUpdate={(viewUpdate) => {
-              if (viewUpdate.selectionSet && isDataFlowActive) {
+              if (viewUpdate.selectionSet) {
                 const head = viewUpdate.state.selection.main.head;
-                const line = viewUpdate.state.doc.lineAt(head).number;
-                useWorkflowStore.getState().syncCursorLine(line);
+                const lineObj = viewUpdate.state.doc.lineAt(head);
+                const line = lineObj.number;
+                const col = head - lineObj.from + 1;
+                const sel = viewUpdate.state.selection.main;
+                const selectedChars = sel.empty ? 0 : Math.abs(sel.to - sel.from);
+                onCursorChange?.({ line, col, selectedChars });
+                if (isDataFlowActive) {
+                  useWorkflowStore.getState().syncCursorLine(line);
+                }
               }
             }}
             onKeyDown={(e) => {
@@ -737,9 +793,12 @@ export const SqlWorkspacePanel: React.FC<SqlWorkspacePanelProps> = ({
           onExportJson={onExportJson}
           onCopyClipboard={onCopyClipboard}
           onViewPreviousResult={onViewPreviousResult}
+          isViewingPrevious={isViewingPrevious}
+          onReturnToLatestResult={onReturnToLatestResult}
           onUseQualifiedName={onUseQualifiedName}
           onApplyFilterToSql={onApplyFilterToSql}
           onApplyAggregateToSql={onApplyAggregateToSql}
+          onToggleDataFlow={handleToggleDataFlow}
         />
       </div>
     </div>

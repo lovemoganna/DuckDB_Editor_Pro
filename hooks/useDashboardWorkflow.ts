@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { duckDBService, type DuckDBRuntimeInfo } from '../services/duckdbService';
 import { recentImportsService, type RecentImportItem } from '../services/recentImportsService';
+export type { RecentImportItem } from '../services/recentImportsService';
 import { useAppStore } from './store/useAppStore';
 import { useSqlEditorStore } from './store/useSqlEditorStore';
 import { Tab, QueryHistoryItem } from '../types';
@@ -245,20 +246,21 @@ export function useDashboardWorkflow(
       });
       return;
     }
+    if (duckDBService.isBatchRunning?.()) return;
     setLoadingDetails(true);
     try {
       // 1. Check current database and attached databases
       try {
-        const curDbRes = await duckDBService.query(`SELECT current_database() AS cur_db;`);
+        const curDbRes = await duckDBService.readQuery(`SELECT current_database() AS cur_db;`);
         const curDb = curDbRes?.[0]?.cur_db;
         if (curDb && curDb !== 'memory') {
           setDatabaseName(curDb);
         } else {
-          const dbs = await duckDBService.query(`SELECT database_name FROM duckdb_databases() WHERE NOT internal`);
+          const dbs = await duckDBService.readQuery(`SELECT database_name FROM duckdb_databases() WHERE NOT internal`);
           const mainDb = dbs?.find((d: any) => d.database_name === 'main' || d.database_name === curDb);
           setDatabaseName(mainDb?.database_name || dbs?.[0]?.database_name || curDb || 'main');
         }
-        const allDbs = await duckDBService.query(`SELECT database_name FROM duckdb_databases()`);
+        const allDbs = await duckDBService.readQuery(`SELECT database_name FROM duckdb_databases()`);
         setDatabaseCount(allDbs?.length || 1);
       } catch {
         setDatabaseCount(1);
@@ -268,13 +270,13 @@ export function useDashboardWorkflow(
       // 2. Check views (using standard schema_name with fallback to information_schema)
       let foundViews: string[] = [];
       try {
-        const viewsRes = await duckDBService.query(
+        const viewsRes = await duckDBService.readQuery(
           `SELECT view_name FROM duckdb_views() WHERE schema_name NOT IN ('information_schema', 'pg_catalog')`
         );
         foundViews = (viewsRes || []).map((v: any) => String(v.view_name || ''));
       } catch {
         try {
-          const altViews = await duckDBService.query(
+          const altViews = await duckDBService.readQuery(
             `SELECT table_name FROM information_schema.tables WHERE table_type = 'VIEW' AND table_schema NOT IN ('information_schema', 'pg_catalog')`
           );
           foundViews = (altViews || []).map((v: any) => String(v.table_name || ''));
@@ -286,7 +288,7 @@ export function useDashboardWorkflow(
 
       // 3. Pragma database size for real memory / storage
       try {
-        const sizeRes = await duckDBService.query(`CALL pragma_database_size()`);
+        const sizeRes = await duckDBService.readQuery(`CALL pragma_database_size()`);
         if (sizeRes && sizeRes.length > 0) {
           const mem = sizeRes[0].memory_usage || sizeRes[0].memory_limit || '0 B';
           setRawPragmaMemory(String(mem));
@@ -301,10 +303,11 @@ export function useDashboardWorkflow(
       let nullAnomalies: Array<{ table: string; column: string; nullCount: number; nullRate: number }> = [];
 
       for (const t of tables) {
+        if (duckDBService.isBatchRunning?.()) break;
         const isView = foundViews.includes(t);
         let count = 0;
         try {
-          const res = await duckDBService.query(`SELECT COUNT(*) as cnt FROM "${t}"`);
+          const res = await duckDBService.readQuery(`SELECT COUNT(*) as cnt FROM "${t}"`);
           count = Number(res[0]?.cnt || 0);
         } catch {
           count = 0;
@@ -328,7 +331,7 @@ export function useDashboardWorkflow(
           try {
             const checkCols = columns.slice(0, 3).map((c: any) => c.name);
             for (const colName of checkCols) {
-              const nullRes = await duckDBService.query(
+              const nullRes = await duckDBService.readQuery(
                 `SELECT COUNT(*) - COUNT("${colName}") as null_cnt FROM "${t}"`
               );
               const nullCnt = Number(nullRes[0]?.null_cnt || 0);
@@ -434,11 +437,21 @@ export function useDashboardWorkflow(
 
   // Sync Schema Changed Listener
   useEffect(() => {
+    let debounceTimer: any = null;
     const handleSchemaChanged = () => {
-      refreshTableDetails();
+      if (duckDBService.isBatchRunning?.()) return;
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        if (!duckDBService.isBatchRunning?.()) {
+          refreshTableDetails();
+        }
+      }, 350);
     };
     window.addEventListener('duckdb-schema-changed', handleSchemaChanged);
-    return () => window.removeEventListener('duckdb-schema-changed', handleSchemaChanged);
+    return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      window.removeEventListener('duckdb-schema-changed', handleSchemaChanged);
+    };
   }, [refreshTableDetails]);
 
   const storeHistory = useSqlEditorStore(state => state.history);
@@ -463,10 +476,29 @@ export function useDashboardWorkflow(
       const items: RecentQueryDisplayItem[] = sourceItems.slice(0, 50).map((q: QueryHistoryItem) => {
         const dateObj = q.timestamp ? new Date(q.timestamp) : new Date();
         const timeFormatted = `${String(dateObj.getHours()).padStart(2, '0')}:${String(dateObj.getMinutes()).padStart(2, '0')}`;
-        const duration = q.executionTime != null ? `${q.executionTime} ms` : '—';
+        
+        // Clean float precision: e.g. 12.699999988079071 ms -> 12.7 ms or 13 ms
+        let duration = '—';
+        if (typeof q.executionTime === 'number' && !isNaN(q.executionTime)) {
+          if (q.executionTime < 1) {
+            duration = `${Math.round(q.executionTime * 1000)} μs`;
+          } else if (q.executionTime < 10) {
+            duration = `${q.executionTime.toFixed(1)} ms`;
+          } else if (q.executionTime < 1000) {
+            duration = `${Math.round(q.executionTime)} ms`;
+          } else {
+            duration = `${(q.executionTime / 1000).toFixed(2)} s`;
+          }
+        }
+
+        // Clean SQL snippet: strip leading single-line or multi-line comments to show real query
+        let cleanSql = (q.sql || '').trim();
+        cleanSql = cleanSql.replace(/^(\s*(--[^\n]*\n|\/\*[\s\S]*?\*\/))+/g, '').trim();
+        if (!cleanSql) cleanSql = (q.sql || '').trim();
+
         return {
           id: q.id,
-          sql: q.sql,
+          sql: cleanSql,
           timestamp: timeFormatted,
           duration,
           status: q.status === 'error' ? 'error' : 'success',
@@ -704,14 +736,19 @@ export function useDashboardWorkflow(
     } else if (latencyFilter === 'slow') {
       filtered = filtered.filter(q => (q.executionTime ?? 0) > 200);
     }
-    return filtered.slice(0, 10).map((q, idx) => ({
-      date: `#${idx + 1}`,
-      avgMs: q.executionTime ?? 0,
-      p95Ms: q.executionTime ? Math.round(q.executionTime * 1.3) : 0,
-      sql: q.sql,
-      status: q.status === 'error' ? 'error' : 'success',
-      timestamp: String(q.timestamp),
-    }));
+    return filtered.slice(0, 10).map((q, idx) => {
+      const rawMs = q.executionTime ?? 0;
+      const cleanAvg = rawMs >= 10 ? Math.round(rawMs) : Math.round(rawMs * 10) / 10;
+      const cleanP95 = cleanAvg > 0 ? (cleanAvg >= 10 ? Math.round(cleanAvg * 1.3) : Math.round(cleanAvg * 1.3 * 10) / 10) : 0;
+      return {
+        date: `#${idx + 1}`,
+        avgMs: cleanAvg,
+        p95Ms: cleanP95,
+        sql: q.sql,
+        status: q.status === 'error' ? 'error' : 'success',
+        timestamp: String(q.timestamp),
+      };
+    });
   }, [allHistoryItems, latencyFilter]);
 
   // Handlers
@@ -981,6 +1018,7 @@ export function useDashboardWorkflow(
     previewRows,
     previewLoading,
     recentImports,
+    allHistoryItems,
     recentQueries,
     displayQueries,
     growthTrendData,

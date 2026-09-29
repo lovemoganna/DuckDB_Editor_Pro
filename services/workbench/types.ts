@@ -77,6 +77,7 @@ export interface QuerySnapshot {
   arrowTable?: any;
   isStale?: boolean;
   isExplain?: boolean;
+  error?: string;
 }
 
 export interface TopValueEntry {

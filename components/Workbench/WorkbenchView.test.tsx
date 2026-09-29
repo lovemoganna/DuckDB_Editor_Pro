@@ -38,10 +38,9 @@ describe('WorkbenchView BRD v1.0 & Ultimate Mockup Architecture', () => {
   it('renders unified 4-core-area workbench matching final blueprint and AI Assistant', () => {
     render(<WorkbenchView {...defaultProps} />);
 
-    // 1. Data Explorer — left rail defaults to collapsed; expand then verify
-    expect(screen.getByRole('button', { name: '展示左侧边栏' })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: '展示左侧边栏' }));
+    // 1. Data Explorer — desktop viewport keeps left rail open
     expect(screen.getByText('数据资源浏览')).toBeTruthy();
+    expect(screen.getByRole('button', { name: '隐藏左侧边栏' })).toBeTruthy();
     expect(screen.getAllByText('duckdb_manager_workspace').length).toBeGreaterThan(0);
     expect(screen.getAllByText('main').length).toBeGreaterThan(0);
     expect(screen.getAllByText('orders').length).toBeGreaterThan(0);
@@ -51,7 +50,7 @@ describe('WorkbenchView BRD v1.0 & Ultimate Mockup Architecture', () => {
     expect(screen.getAllByText(/添加数据源/).length).toBeGreaterThan(0);
 
     // 2. SQL Workspace & MECE Action Toolbar
-    expect(screen.getByText('query_1.sql')).toBeTruthy();
+    expect(screen.getAllByText('query_1.sql').length).toBeGreaterThan(0);
     expect(screen.getByText('运行')).toBeTruthy();
     expect(screen.getByRole('button', { name: '停止' })).toBeTruthy();
     expect(screen.getByText('格式化')).toBeTruthy();
@@ -78,8 +77,7 @@ describe('WorkbenchView BRD v1.0 & Ultimate Mockup Architecture', () => {
 
     // 5. Status Bar
     expect(screen.getByText('db')).toBeTruthy();
-    expect(screen.getByText('schema')).toBeTruthy();
-    expect(screen.getAllByText('duckdb_manager_workspace').length).toBeGreaterThan(0);
+    expect(screen.getByText(/duckdb_manager_workspace\.main/)).toBeTruthy();
     expect(screen.getByText('就绪')).toBeTruthy();
   });
 

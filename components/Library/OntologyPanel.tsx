@@ -568,6 +568,7 @@ const OntologyPanelContent: React.FC<{
   const [modelingWizardOpen, setModelingWizardOpen] = useState(false);
   const [reasoningCatalogOpen, setReasoningCatalogOpen] = useState(false);
   const [deductionWorkbenchOpen, setDeductionWorkbenchOpen] = useState(false);
+  const [hopLimit, setHopLimit] = useState<'1' | '2' | '3' | 'all'>('2');
   const [reseedMessage, setReseedMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [viewportWidth, setViewportWidth] = useState(() =>
     typeof window === 'undefined' ? 1440 : window.innerWidth,
@@ -582,8 +583,13 @@ const OntologyPanelContent: React.FC<{
   }, []);
 
   useEffect(() => {
-    const preferredOpen = window.localStorage.getItem(ONTOLOGY_DRAWER_PREFERENCE_KEY) === 'true';
-    if (preferredOpen && !state.drawerOpen) dispatch(ontologyActions.toggleDrawer());
+    const rawPref = window.localStorage.getItem(ONTOLOGY_DRAWER_PREFERENCE_KEY);
+    const preferredOpen = rawPref === 'true';
+    if (preferredOpen && !state.drawerOpen) {
+      dispatch(ontologyActions.toggleDrawer());
+    } else if (rawPref === 'false' && state.drawerOpen) {
+      dispatch(ontologyActions.toggleDrawer());
+    }
     drawerPreferenceReady.current = true;
   }, []);
 
@@ -654,11 +660,11 @@ const OntologyPanelContent: React.FC<{
     }
   }, [reseedOntology, refresh]);
 
-  const handleModelingImport = useCallback(async (result: any) => {
+  const handleModelingImport = useCallback(async (result: any, options?: { replace?: boolean }) => {
     if (result.graphLayout) {
       (window as any).__ontologyGraphLayout = result.graphLayout;
     }
-    await batchImportModelingResult(result);
+    await batchImportModelingResult(result, options);
   }, [batchImportModelingResult]);
 
   const handleGraphSaved = useCallback(() => {
@@ -821,8 +827,39 @@ const OntologyPanelContent: React.FC<{
             </>
           )}
         </div>
-        {/* Right side: refresh + reseed */}
+        {/* Right side: hop regulator (when in graph tab) + refresh + reseed */}
         <div className="flex items-center gap-3">
+          {activeTab === 'graph' && (
+            <div className="flex items-center bg-monokai-bg/90 border border-monokai-border/80 rounded-md p-0.5 shadow-xs">
+              <span className="text-[10px] text-monokai-comment px-1.5 flex items-center gap-1 select-none font-medium">
+                <Layers className="w-3 h-3 text-monokai-cyan" />
+                跳数
+              </span>
+              {(['1', '2', '3', 'all'] as const).map(hop => (
+                <button
+                  key={hop}
+                  type="button"
+                  onClick={() => setHopLimit(hop)}
+                  title={
+                    hop === '1'
+                      ? '1跳：仅展示一级领域实体类型 (TypeHub)'
+                      : hop === '2'
+                      ? '2跳（默认）：展示一级领域实体类型 + 二级业务实例'
+                      : hop === '3'
+                      ? '3跳：展示一级类型 + 二级实例 + 三级属性与行为'
+                      : '全图：完整网状拓扑无截断'
+                  }
+                  className={`px-1.5 py-0.5 text-[10px] font-medium rounded transition-all cursor-pointer ${
+                    hopLimit === hop
+                      ? 'bg-monokai-cyan text-monokai-bg font-bold shadow-xs'
+                      : 'text-monokai-fg-muted hover:text-white hover:bg-monokai-hover'
+                  }`}
+                >
+                  {hop === 'all' ? '全图' : `${hop}跳`}
+                </button>
+              ))}
+            </div>
+          )}
           <button onClick={() => refresh()} title="刷新图谱数据" aria-label="刷新图谱数据"
             className="p-1.5 rounded-lg text-monokai-comment hover:text-monokai-cyan hover:bg-monokai-surface transition-colors cursor-pointer">
             <RefreshCw className="w-3.5 h-3.5" />
@@ -988,7 +1025,7 @@ const OntologyPanelContent: React.FC<{
               )}
 
               {/* CENTER CANVAS */}
-              <div className="flex-1 h-full min-h-0 relative overflow-hidden bg-monokai-bg">
+              <div className="flex-1 h-full min-h-0 relative overflow-hidden bg-monokai-bg isolate">
                 {activeTab === 'graph' && (
                   <D3GraphView 
                     onRefreshRef={fn => d3GraphRefreshRef.current = fn} 
@@ -996,6 +1033,8 @@ const OntologyPanelContent: React.FC<{
                     isActive={isActive} 
                     onInspect={openInspector}
                     onLayoutChange={handleLayoutChange}
+                    hopLimit={hopLimit}
+                    onHopLimitChange={setHopLimit}
                   />
                 )}
                 {activeTab === 'data' && <OntologyDataView ontologyState={state} />}
@@ -1073,7 +1112,7 @@ const OntologyPanelContent: React.FC<{
         <OntologyReasoningCatalogEditor source={{ ...state, activeTemplateId }} onClose={() => setReasoningCatalogOpen(false)} />
       )}
       {deductionWorkbenchOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 p-6 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[9999] bg-black/80 p-6 backdrop-blur-sm">
           <DeductionWorkbench isOpen onClose={() => setDeductionWorkbenchOpen(false)} />
         </div>
       )}

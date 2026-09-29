@@ -44,7 +44,7 @@ describe('SettingsModal Ollama configuration', () => {
 
     expect(onSetAiProvider).toHaveBeenCalledWith('ollama');
     expect(onSetAiModel).toHaveBeenCalledWith('llama3.2');
-    expect(onSetAiBaseUrl).toHaveBeenCalledWith('http://localhost:11434');
+    expect(onSetAiBaseUrl).toHaveBeenCalledWith('http://127.0.0.1:11434');
   });
 
   it('allows refreshing models for Ollama without an API key', async () => {
@@ -210,7 +210,7 @@ describe('SettingsModal Ollama configuration', () => {
 
     expect(onSetAiProvider).toHaveBeenCalledWith('lmstudio');
     expect(onSetAiModel).toHaveBeenCalledWith('qwen2.5-coder-7b-instruct');
-    expect(onSetAiBaseUrl).toHaveBeenCalledWith('http://localhost:1234/v1');
+    expect(onSetAiBaseUrl).toHaveBeenCalledWith('http://127.0.0.1:1234/v1');
   });
 
   it('allows connection diagnosis and refreshing models for LM Studio without an API key', async () => {
@@ -240,7 +240,7 @@ describe('SettingsModal Ollama configuration', () => {
         onClose={vi.fn()}
         aiProvider="lmstudio"
         aiApiKey=""
-        aiBaseUrl="http://localhost:1234/v1"
+        aiBaseUrl="http://127.0.0.1:1234/v1"
         aiModel="qwen2.5-coder-7b-instruct"
         availableModels={[]}
         loadingModels={false}

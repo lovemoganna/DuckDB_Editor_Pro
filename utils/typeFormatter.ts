@@ -401,3 +401,34 @@ export function formatCellValue(
   }
 }
 
+/**
+ * Resolves lightweight pastel colored badge styles for DuckDB SQL data types.
+ * Provides subtle visual distinction between data type families without overpowering primary field names.
+ */
+export function getTypeBadgeStyle(rawType?: string | null): string {
+  const t = (rawType || '').trim().toUpperCase();
+
+  // Numeric: INT, BIGINT, FLOAT, DOUBLE, DECIMAL, etc. -> soft light green
+  if (['INT', 'DECIMAL', 'FLOAT', 'DOUBLE', 'NUMERIC', 'REAL', 'BIGINT', 'HUGEINT', 'TINYINT', 'SMALLINT', 'UBIGINT', 'UINTEGER', 'USMALLINT', 'UTINYINT', 'UHUGEINT'].some(k => t.includes(k))) {
+    return 'sql-type-badge sql-type-badge-numeric bg-monokai-green/10 text-monokai-green/90 border-monokai-green/25';
+  }
+  // Temporal: DATE, TIME, TIMESTAMP, INTERVAL -> soft light purple
+  if (t.includes('DATE') || t.includes('TIME') || t.includes('TIMESTAMP') || t.includes('INTERVAL')) {
+    return 'sql-type-badge sql-type-badge-temporal bg-monokai-purple/10 text-monokai-purple/90 border-monokai-purple/25';
+  }
+  // Boolean: BOOL, BOOLEAN -> soft light pink
+  if (t.includes('BOOL')) {
+    return 'sql-type-badge sql-type-badge-boolean bg-monokai-pink/10 text-monokai-pink/90 border-monokai-pink/25';
+  }
+  // Text / Strings: VARCHAR, TEXT, CHAR, STRING, UUID -> soft light cyan
+  if (t.includes('VARCHAR') || t.includes('TEXT') || t.includes('CHAR') || t.includes('STRING') || t.includes('UUID')) {
+    return 'sql-type-badge sql-type-badge-text bg-monokai-cyan/10 text-monokai-cyan/90 border-monokai-cyan/25';
+  }
+  // Complex / Nested / Binary: JSON, STRUCT, LIST, MAP, BLOB -> soft light orange
+  if (t.includes('JSON') || t.includes('STRUCT') || t.includes('LIST') || t.includes('MAP') || t.includes('BLOB') || t.includes('[]')) {
+    return 'sql-type-badge sql-type-badge-complex bg-monokai-orange/10 text-monokai-orange/90 border-monokai-orange/25';
+  }
+  // Fallback / Other -> soft light yellow
+  return 'sql-type-badge sql-type-badge-other bg-monokai-yellow/10 text-monokai-yellow/90 border-monokai-yellow/25';
+}
+

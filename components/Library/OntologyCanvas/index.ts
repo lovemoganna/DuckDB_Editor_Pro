@@ -59,6 +59,12 @@ export type { OntologyLayoutMode, CanvasPositionMap, EnsureCanvasLayoutInput } f
 export * from './OntologyRouting';
 
 // ============================================================
+// 排版微调控制面板
+// ============================================================
+export { OntologyLayoutPanel } from './OntologyLayoutPanel';
+export type { OntologyLayoutPanelProps, OntologyPanelTab } from './OntologyLayoutPanel';
+
+// ============================================================
 // 导出与编译
 // ============================================================
 export { downloadOntologyGraph, buildOntologyExportSvg } from './OntologyExport';

@@ -8,6 +8,10 @@ import {
   compileWorkflowToFullSql,
   calculateDagLayout,
   updateSqlCteDefinition,
+  getSqlParadigm,
+  parseSqlToExecutionSteps,
+  locateBugInWorkflow,
+  detectLogicalAnomalies,
 } from './sqlToWorkflowParser';
 
 describe('sqlToWorkflowParser - SQL to DAG Engine Tests', () => {
@@ -347,6 +351,114 @@ describe('sqlToWorkflowParser - SQL to DAG Engine Tests', () => {
       // Left table must be orders, right table must be customers
       expect(fullSql).toMatch(/orders\s+l[\s\S]*customers\s+r/);
       expect(fullSql).toContain('l."customer_id" = r."id"');
+    });
+  });
+
+  describe('SQL Step-by-Step Execution, Paradigm & Bug Tracing Tests', () => {
+    it('returns complete SQL execution paradigm metadata for each stage', () => {
+      const fromMeta = getSqlParadigm('from');
+      expect(fromMeta.stageName).toContain('FROM');
+      expect(fromMeta.executionOrder).toBe(1);
+
+      const whereMeta = getSqlParadigm('where');
+      expect(whereMeta.executionOrder).toBe(3);
+      expect(whereMeta.pitfallWarning).toContain('别名');
+    });
+
+    it('faithfully decomposes SQL query into step-by-step execution pipeline (FROM -> JOIN -> WHERE -> GROUP BY -> HAVING -> LIMIT)', () => {
+      const sql = `
+        SELECT c.country, SUM(s.sales_amount) as total
+        FROM demo_sales s
+        JOIN demo_customers c ON s.customer_id = c.id
+        WHERE s.status = 'completed' AND s.sales_amount > 50
+        GROUP BY c.country
+        HAVING total > 1000
+        LIMIT 20;
+      `;
+
+      const { nodes, edges } = parseSqlToExecutionSteps(sql);
+
+      // Verify node types and execution stages
+      const fromNodes = nodes.filter(n => n.data.sqlStage === 'from');
+      const joinNode = nodes.find(n => n.data.sqlStage === 'join');
+      const whereNode = nodes.find(n => n.data.sqlStage === 'where');
+      const groupNode = nodes.find(n => n.data.sqlStage === 'groupby');
+      const havingNode = nodes.find(n => n.data.sqlStage === 'having');
+      const limitNode = nodes.find(n => n.data.sqlStage === 'limit');
+
+      expect(fromNodes.length).toBe(2);
+      expect(joinNode).toBeDefined();
+      expect(whereNode).toBeDefined();
+      expect(whereNode?.data.stepIndex).toBeGreaterThan(joinNode!.data.stepIndex!);
+      expect(whereNode?.data.clauseSnippet).toContain("status = 'completed'");
+      expect(whereNode?.data.paradigm?.stageName).toContain('WHERE');
+
+      expect(groupNode).toBeDefined();
+      expect(groupNode?.data.stepIndex).toBeGreaterThan(whereNode!.data.stepIndex!);
+
+      expect(havingNode).toBeDefined();
+      expect(havingNode?.data.stepIndex).toBeGreaterThan(groupNode!.data.stepIndex!);
+
+      expect(limitNode).toBeDefined();
+      expect(limitNode?.data.stepIndex).toBeGreaterThan(havingNode!.data.stepIndex!);
+    });
+
+    it('identifies SELECT alias misusage in WHERE clause and flags the WHERE node as the root cause bug', () => {
+      const sql = `
+        SELECT country, SUM(sales_amount) AS total_revenue
+        FROM sales
+        WHERE total_revenue > 1000
+        GROUP BY country;
+      `;
+      const { nodes, edges } = parseSqlToExecutionSteps(sql);
+      const errorMsg = 'Binder Error: Referenced column "total_revenue" not found in FROM clause';
+
+      const { nodes: bugNodes, edges: bugEdges, bugNodeId, bugReport } = locateBugInWorkflow(errorMsg, sql, nodes, edges);
+
+      expect(bugNodeId).toBe('node_filter_step');
+      expect(bugReport?.title).toContain('WHERE 阶段引用未就绪别名');
+      expect(bugReport?.suggestion).toContain('FROM(1) -> WHERE(2) -> GROUP BY(3) -> SELECT(4)');
+
+      const whereNode = bugNodes.find(n => n.id === 'node_filter_step');
+      expect(whereNode?.data.status).toBe('error');
+      expect(whereNode?.data.isExpanded).toBe(true);
+
+      // Downstream nodes (GROUP BY, LIMIT) must be marked blocked
+      const downstreamNodes = bugNodes.filter(n => n.data.sqlStage === 'groupby' || n.data.sqlStage === 'limit');
+      expect(downstreamNodes.every(n => n.data.status === 'blocked')).toBe(true);
+
+      // Upstream edges must be marked with isErrorPath: true
+      const upstreamEdge = bugEdges.find(e => e.target === 'node_filter_step');
+      expect(upstreamEdge?.data?.isErrorPath).toBe(true);
+    });
+
+    it('detects 0-row drop and Cartesian explosion logical anomalies', () => {
+      const nodes: any[] = [
+        {
+          id: 'n_filter',
+          data: {
+            title: 'WHERE 筛选',
+            inputRowCount: 5000,
+            rowCount: 0,
+          },
+        },
+        {
+          id: 'n_join',
+          data: {
+            type: 'join',
+            title: 'JOIN 关联',
+            inputRowCount: 100,
+            rowCount: 10000,
+          },
+        },
+      ];
+
+      const enriched = detectLogicalAnomalies(nodes, []);
+      expect(enriched[0].data.hasAnomaly).toBe(true);
+      expect(enriched[0].data.bugInfo?.title).toContain('0 行截断');
+
+      expect(enriched[1].data.hasAnomaly).toBe(true);
+      expect(enriched[1].data.bugInfo?.title).toContain('笛卡尔积膨胀');
     });
   });
 });

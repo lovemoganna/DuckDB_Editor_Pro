@@ -109,7 +109,8 @@ export class CanvasGraphRenderer {
     // ── 1. RENDER LINKS ──────────────────────────────────────────────────────────
     for (let i = 0; i < links.length; i++) {
       const l = links[i];
-      if (!showWeakLinks && l.weight !== undefined && l.weight < weightThreshold) {
+      // Weak link check only applies to semantic relations with _linkTypeId, not structural hierarchy links
+      if (!showWeakLinks && l._linkTypeId !== undefined && l.weight !== undefined && l.weight < weightThreshold) {
         continue;
       }
 
@@ -136,9 +137,10 @@ export class CanvasGraphRenderer {
       }
 
       const isConnected = targetNodeId ? (sNode.id === targetNodeId || tNode.id === targetNodeId) : false;
+      const isPropLink = Boolean(l._isPropLink || tNode.group === 'property' || sNode.group === 'property');
       const alpha = hasHighlight ? (isConnected ? 1.0 : 0.12) : 0.75;
-      const strokeColor = isConnected ? '#38bdf8' : (l.color || '#94a3b8');
-      const baseWidth = isConnected ? 2.5 : (l._isTypeInstLink ? 1.2 : 1.5);
+      const strokeColor = isConnected ? '#38bdf8' : (isPropLink ? 'rgba(56, 189, 248, 0.55)' : (l.color || '#94a3b8'));
+      const baseWidth = isConnected ? 2.5 : (isPropLink ? 1.1 : (l._isTypeInstLink ? 1.2 : 1.5));
 
       ctx.save();
       ctx.beginPath();
@@ -148,6 +150,8 @@ export class CanvasGraphRenderer {
 
       if (l._isActionLink) {
         ctx.setLineDash([4, 4]);
+      } else if (isPropLink) {
+        ctx.setLineDash([2, 3]);
       } else if (l._isTypeInstLink) {
         ctx.setLineDash([3, 3]);
       } else {
@@ -249,18 +253,47 @@ export class CanvasGraphRenderer {
       ctx.lineWidth = isTarget ? 2.5 : 1.5;
 
       if (n.group === 'typeHub') {
-        // Hexagon
+        // Hexagon — Type category
         this.drawHexagon(ctx, nx, ny, r);
         ctx.fill();
         ctx.stroke();
       } else if (n.group === 'action') {
-        // Circle with bolt icon
+        // Circle with bolt / action pulse
         ctx.beginPath();
         ctx.arc(nx, ny, r, 0, Math.PI * 2);
         ctx.fill();
+        ctx.strokeStyle = isTarget ? '#ffffff' : 'rgba(255, 255, 255, 0.85)';
+        ctx.lineWidth = isTarget ? 2.5 : 1.5;
         ctx.stroke();
+      } else if (n.group === 'property') {
+        // Property leaf node (L3): Crisp Jewel Tag Capsule with high-contrast core
+        const pr = Math.max(5.5, r * 0.95);
+        ctx.save();
+        // Outer dark base
+        ctx.beginPath();
+        ctx.arc(nx, ny, pr, 0, Math.PI * 2);
+        ctx.fillStyle = '#090d16';
+        ctx.fill();
+
+        // Inner glowing core
+        ctx.beginPath();
+        ctx.arc(nx, ny, pr * 0.65, 0, Math.PI * 2);
+        ctx.fillStyle = n.color || '#38bdf8';
+        ctx.fill();
+
+        // High contrast border with subtle glow on focus
+        ctx.beginPath();
+        ctx.arc(nx, ny, pr, 0, Math.PI * 2);
+        ctx.strokeStyle = isTarget ? '#ffffff' : (n.color || '#38bdf8');
+        ctx.lineWidth = isTarget ? 2.5 : 1.6;
+        if (isTarget) {
+          ctx.shadowColor = '#38bdf8';
+          ctx.shadowBlur = 8;
+        }
+        ctx.stroke();
+        ctx.restore();
       } else {
-        // Instance: Rounded rectangle
+        // Instance: Rounded rectangle (L2)
         const side = r * 1.7;
         this.drawRoundRect(ctx, nx - side / 2, ny - side / 2, side, side, 4);
         ctx.fill();
@@ -289,27 +322,53 @@ export class CanvasGraphRenderer {
       }
 
       // 2.5 Node Label
-      const shouldDrawLabel = isTarget || showAllLabels || (showKeyLabels && (n.group === 'typeHub' || isConn));
+      const isPropNode = n.group === 'property';
+      const shouldDrawLabel = isTarget || showAllLabels || isPropNode
+        || (showKeyLabels && (n.group === 'typeHub' || isConn));
       if (shouldDrawLabel && n.label) {
-        const fontSize = n.group === 'typeHub' ? 11 : 9.5;
+        const fontSize = n.group === 'typeHub' ? 11 : isPropNode ? 9.5 : 9.5;
         ctx.font = `${n.group === 'typeHub' ? 'bold ' : ''}${fontSize}px sans-serif`;
 
-        const displayLabel = n.label.length > 20 ? n.label.slice(0, 19) + '…' : n.label;
+        // Truncate differently: property labels can be up to 32 chars
+        const maxLen = isPropNode ? 32 : 20;
+        const displayLabel = n.label.length > maxLen ? n.label.slice(0, maxLen - 1) + '…' : n.label;
         const textMetrics = ctx.measureText(displayLabel);
         const textW = textMetrics.width;
-        const textH = fontSize + 4;
-        const textX = nx + r + 6;
+        const textH = fontSize + 6;
+        const textX = nx + r + 5;
         const textY = ny;
 
-        // Label pill background for maximum legibility
-        ctx.fillStyle = 'rgba(15, 20, 26, 0.82)';
-        this.drawRoundRect(ctx, textX - 3, textY - textH / 2, textW + 6, textH, 3);
+        // Label pill background for maximum legibility and contrast
+        ctx.fillStyle = isPropNode ? 'rgba(15, 23, 42, 0.94)' : 'rgba(15, 20, 26, 0.82)';
+        this.drawRoundRect(ctx, textX - 4, textY - textH / 2, textW + 8, textH, 4);
         ctx.fill();
+        ctx.strokeStyle = isPropNode ? 'rgba(56, 189, 248, 0.55)' : 'rgba(255, 255, 255, 0.12)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
 
-        ctx.fillStyle = isSel ? '#FFD166' : (isHov ? '#66d9ef' : '#f8f8f2');
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(displayLabel, textX, textY);
+        // If property node has key: value, render key and value in distinct contrasting colors
+        if (isPropNode && displayLabel.includes(': ')) {
+          const colonIdx = displayLabel.indexOf(': ');
+          const keyPart = displayLabel.slice(0, colonIdx + 2);
+          const valPart = displayLabel.slice(colonIdx + 2);
+
+          ctx.textAlign = 'left';
+          ctx.textBaseline = 'middle';
+
+          // Key in subtle cyan/silver
+          ctx.fillStyle = isSel ? '#FFD166' : (isHov ? '#66d9ef' : '#94a3b8');
+          ctx.fillText(keyPart, textX, textY);
+
+          // Value in crisp bright white/gold
+          const keyW = ctx.measureText(keyPart).width;
+          ctx.fillStyle = isSel ? '#FFD166' : (isHov ? '#ffffff' : '#f8fafc');
+          ctx.fillText(valPart, textX + keyW, textY);
+        } else {
+          ctx.fillStyle = isSel ? '#FFD166' : (isHov ? '#66d9ef' : (isPropNode ? '#38bdf8' : '#f8f8f2'));
+          ctx.textAlign = 'left';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(displayLabel, textX, textY);
+        }
       }
 
       ctx.restore();

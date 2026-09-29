@@ -51,11 +51,13 @@ import {
   Replace,
   Database,
   FileWarning,
+  Workflow,
+  Loader2,
   type LucideIcon,
 } from 'lucide-react';
 import type { QueryResult } from '../../types';
 import { duckDBService } from '../../services/duckdbService';
-import { formatCellValue, formatDate, formatTimestamp } from '../../utils/typeFormatter';
+import { formatCellValue, formatDate, formatTimestamp, getTypeBadgeStyle } from '../../utils/typeFormatter';
 import CodeMirror from '@uiw/react-codemirror';
 import { sql } from '@codemirror/lang-sql';
 import { monokai } from '@uiw/codemirror-theme-monokai';
@@ -76,6 +78,7 @@ import {
 } from 'chart.js';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
 import { toastService } from '../../services/toastService';
+import { dispatchDataflowTraceFault } from '../../services/dataflow/dataflowEvents';
 import { SegmentedTabs, ModalShell, ActionButton, FormInput } from '../ui/Workbench';
 import { ExplainPlanView } from './ExplainPlanView';
 
@@ -449,9 +452,12 @@ interface ResultSectionProps {
   onExportJson?: () => void;
   onCopyClipboard?: () => void;
   onViewPreviousResult?: () => void;
+  isViewingPrevious?: boolean;
+  onReturnToLatestResult?: () => void;
   onUseQualifiedName?: (qualifiedName: string) => void;
   onApplyFilterToSql?: (filterSqlClause: string) => void;
   onApplyAggregateToSql?: (aggregateSql: string, tabTitle?: string, autoRun?: boolean) => void;
+  onToggleDataFlow?: (active: boolean) => void;
 }
 
 export const ResultSection: React.FC<ResultSectionProps> = ({
@@ -468,11 +474,14 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
   onExportJson,
   onCopyClipboard,
   onViewPreviousResult,
+  isViewingPrevious = false,
+  onReturnToLatestResult,
   onUseQualifiedName,
   onApplyFilterToSql,
   onApplyAggregateToSql,
+  onToggleDataFlow,
 }) => {
-  const [activeSubTab, setActiveSubTab] = useState<'data' | 'chart' | 'pivot' | 'explain' | 'ai'>('data');
+  const [activeSubTab, setActiveSubTab] = useState<'data' | 'chart' | 'pivot' | 'explain'>('data');
   const [pageSize, setPageSize] = useState<number>(100);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [jumpPage, setJumpPage] = useState<string>('1');
@@ -482,7 +491,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
   // Modals & Popovers
   const [showExportModal, setShowExportModal] = useState<boolean>(false);
   const [exportFormat, setExportFormat] = useState<'parquet' | 'csv' | 'json' | 'arrow'>('parquet');
-  const [exportFileName, setExportFileName] = useState<string>('customer_analysis_2024-12-31.parquet');
+  const [exportFileName, setExportFileName] = useState<string>('query_result.parquet');
   const [includeTypes, setIncludeTypes] = useState<boolean>(true);
   const [compression, setCompression] = useState<string>('ZSTD');
   const [exportScope, setExportScope] = useState<'all' | 'selection'>('all');
@@ -492,11 +501,9 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
   const [showStreamingModal, setShowStreamingModal] = useState<boolean>(false);
   const [isStreamingActive, setIsStreamingActive] = useState<boolean>(false);
 
-  // Group & Aggregate configuration
-  const [groupByCols, setGroupByCols] = useState<string[]>(['region', 'category']);
-  const [aggMetrics, setAggMetrics] = useState<MetricRule[]>([
-    { column: 'amount', aggregator: 'SUM', alias: 'total_amount' },
-  ]);
+  // Group & Aggregate configuration — empty until user chooses real columns
+  const [groupByCols, setGroupByCols] = useState<string[]>([]);
+  const [aggMetrics, setAggMetrics] = useState<MetricRule[]>([]);
 
   // Filter configuration (enhanced with AND/OR logic)
   const [filterRules, setFilterRules] = useState<FilterRule[]>(() => [
@@ -563,8 +570,8 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
         return;
       }
 
-      // Ctrl/Cmd + E: Open Export Modal
-      if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+      // Ctrl/Cmd + Shift + E: Open Export Modal (Ctrl+E reserved for Explain)
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'e') {
         e.preventDefault();
         setShowExportModal(true);
         return;
@@ -574,10 +581,24 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isFullscreen, showSortPanel, setShowSortPanel, setShowFilterModal, setShowGroupModal, setActiveSubTab, setShowExportModal]);
 
-  // Explain visualization subtab
-  const [explainViewMode, setExplainViewMode] = useState<'graph' | 'text' | 'analyze' | 'json'>('graph');
+  // Explain visualization subtab — always tied to current editor SQL (live DuckDB)
+  const [explainAnalyzeMode, setExplainAnalyzeMode] = useState(false);
   const [liveExplainPlan, setLiveExplainPlan] = useState<string>('');
+  /** SQL that the current liveExplainPlan was fetched for (normalized). */
+  const [planSourceSql, setPlanSourceSql] = useState<string>('');
+  const [planFetchedAt, setPlanFetchedAt] = useState<number | null>(null);
+  const [explainPlanMs, setExplainPlanMs] = useState<number | null>(null);
   const [loadingExplain, setLoadingExplain] = useState<boolean>(false);
+  const explainFetchGenRef = useRef(0);
+  const planMetaRef = useRef<{ sql: string; analyze: boolean }>({ sql: '', analyze: false });
+
+  const normalizeSqlForExplain = (sql?: string): string => {
+    let s = (sql || '').trim().replace(/;+\s*$/g, '').trim();
+    while (/^EXPLAIN\s+/i.test(s)) {
+      s = s.replace(/^EXPLAIN\s+(?:ANALYZE\s+)?/i, '').trim();
+    }
+    return s;
+  };
   const [expandedExplainRow, setExpandedExplainRow] = useState<boolean>(false);
   const [expandedCells, setExpandedCells] = useState<Record<string, boolean>>({});
 
@@ -614,6 +635,17 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
   const [pivotColCol, setPivotColCol] = useState<string>('');
   const [pivotValCol, setPivotValCol] = useState<string>('');
   const [pivotAgg, setPivotAgg] = useState<PivotAgg>('sum');
+
+  // Keep export filename aligned with the active query tab + format
+  useEffect(() => {
+    const base = (activeTabTitle || 'query_result')
+      .replace(/\.sql$/i, '')
+      .replace(/[^\w\u4e00-\u9fff.-]+/g, '_')
+      .replace(/^_+|_+$/g, '') || 'query_result';
+    const ext =
+      exportFormat === 'csv' ? 'csv' : exportFormat === 'json' ? 'json' : exportFormat === 'arrow' ? 'arrow' : 'parquet';
+    setExportFileName(`${base}.${ext}`);
+  }, [activeTabTitle, exportFormat]);
 
   // Cell Context Menu
   const [cellMenu, setCellMenu] = useState<{
@@ -840,62 +872,130 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
   // Global event listener to switch result subtab (e.g. from Inspector or toolbar)
   useEffect(() => {
     const handleSwitchSubTab = (e: Event) => {
-      const customEvent = e as CustomEvent<{ subTab: 'data' | 'chart' | 'ai' | 'explain' }>;
-      if (customEvent.detail?.subTab) {
-        setActiveSubTab(customEvent.detail.subTab);
+      const customEvent = e as CustomEvent<{
+        subTab?: 'data' | 'chart' | 'pivot' | 'explain' | 'ai';
+        subtab?: 'data' | 'chart' | 'pivot' | 'explain' | 'ai';
+      }>;
+      // Accept both camelCase and legacy lowercase key
+      const sub = customEvent.detail?.subTab ?? customEvent.detail?.subtab;
+      if (!sub) return;
+      // AI lives in the right sidebar — redirect legacy 'ai' subtab requests there
+      if (sub === 'ai') {
+        window.dispatchEvent(new CustomEvent('workbench_switch_ai_panel', { detail: { tab: 'analyze' } }));
+        return;
       }
+      setActiveSubTab(sub);
     };
     window.addEventListener('duckdb_switch_subtab', handleSwitchSubTab);
     return () => window.removeEventListener('duckdb_switch_subtab', handleSwitchSubTab);
   }, []);
 
-  // Auto-switch to explain subtab if query result is an EXPLAIN statement
+  const extractPlanTextFromResult = (rows: any[] | undefined): string => {
+    if (!rows || rows.length === 0) return '';
+    // Prefer physical_plan only — joining all explain_* rows produces unreadable mixed dumps
+    let physical = '';
+    const fallbackParts: string[] = [];
+    for (const r of rows) {
+      const key = String(r.explain_key ?? r.explore_key ?? Object.values(r)[0] ?? '').toLowerCase();
+      const val = String(r.explain_value ?? r.explore_value ?? Object.values(r)[1] ?? Object.values(r)[0] ?? '');
+      if (!val.trim()) continue;
+      if (key.includes('physical')) {
+        physical = val;
+        break;
+      }
+      fallbackParts.push(val);
+    }
+    return physical || fallbackParts.join('\n');
+  };
+
+  // Auto-switch to explain subtab if query result is an EXPLAIN statement.
+  // Seed UI immediately from physical_plan rows; do NOT mark cache hit — live fetch must still run.
   useEffect(() => {
     if (result) {
       const hasExplainCols = result.columns?.some(c => c.toLowerCase().includes('explain_'));
       if (result.isExplain || hasExplainCols) {
         setActiveSubTab('explain');
-        if (result.rows && result.rows.length > 0) {
-          const textFromRows = result.rows.map((r: any) => r.explain_value ?? r.explore_value ?? Object.values(r)[1] ?? Object.values(r)[0]).join('\n');
-          if (textFromRows && textFromRows.trim()) {
-            setLiveExplainPlan(textFromRows);
-          }
+        const textFromRows = extractPlanTextFromResult(result.rows);
+        if (textFromRows && textFromRows.trim()) {
+          setLiveExplainPlan(textFromRows);
+          setExplainAnalyzeMode(false);
+          setExplainPlanMs(typeof result.executionTime === 'number' ? result.executionTime : null);
+          setPlanFetchedAt(Date.now());
+          // Tentative source for UI only — clear meta so live fetch always re-queries DuckDB
+          const tentative =
+            normalizeSqlForExplain((result as { sql?: string }).sql) ||
+            normalizeSqlForExplain(activeTabSql);
+          if (tentative) setPlanSourceSql(tentative);
+          planMetaRef.current = { sql: '', analyze: false };
         }
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- seed only when result identity changes
   }, [result?.resultId, result?.isExplain, result?.columns]);
 
-  // Fetch real Explain Plan from DuckDB on demand
+  // Always fetch a LIVE plan for the current editor SQL while the explain tab is open.
+  // Previous bug: once result.isExplain was true, we never re-queried DuckDB → frozen/dead plan.
   useEffect(() => {
-    if (activeSubTab === 'explain') {
-      const hasExplainResult = Boolean(result?.isExplain || result?.columns?.some(c => c.toLowerCase().includes('explain_')));
-      if (hasExplainResult) {
-        return;
-      }
-      if (!activeTabSql || !activeTabSql.trim()) {
-        setLiveExplainPlan('');
-        setLoadingExplain(false);
-        return;
-      }
-      let isMounted = true;
+    if (activeSubTab !== 'explain') return;
+
+    const sql = normalizeSqlForExplain(activeTabSql);
+    if (!sql) {
+      // No editor SQL: keep any seeded EXPLAIN result; do not wipe it to empty.
+      setLoadingExplain(false);
+      return;
+    }
+
+    // Already have a live plan for this exact SQL + mode — do not refetch
+    if (
+      planMetaRef.current.sql === sql &&
+      planMetaRef.current.analyze === explainAnalyzeMode
+    ) {
+      return;
+    }
+
+    const gen = ++explainFetchGenRef.current;
+    let cancelled = false;
+    // Debounce while typing in the editor so we don't hammer DuckDB every keystroke
+    const timer = window.setTimeout(() => {
+      const startedAt = performance.now();
       setLoadingExplain(true);
-      duckDBService.getExplainPlan(activeTabSql, explainViewMode === 'analyze')
+      duckDBService
+        .getExplainPlan(sql, explainAnalyzeMode)
         .then(res => {
-          if (isMounted) {
-            setLiveExplainPlan(res.planText || '');
-          }
+          if (cancelled || gen !== explainFetchGenRef.current) return;
+          const text = res.planText || '';
+          setLiveExplainPlan(text);
+          setPlanSourceSql(sql);
+          setPlanFetchedAt(Date.now());
+          setExplainPlanMs(performance.now() - startedAt);
+          // Only cache successful non-empty plans — empty/error must allow retry
+          const ok =
+            Boolean(text.trim()) &&
+            !text.startsWith('Error explaining') &&
+            !text.startsWith('执行计划解析异常');
+          planMetaRef.current = ok ? { sql, analyze: explainAnalyzeMode } : { sql: '', analyze: false };
         })
         .catch(err => {
-          if (isMounted) {
-            setLiveExplainPlan(`执行计划解析异常: ${err?.message || err}`);
-          }
+          if (cancelled || gen !== explainFetchGenRef.current) return;
+          setLiveExplainPlan(`执行计划解析异常: ${err?.message || err}`);
+          setPlanSourceSql(sql);
+          setPlanFetchedAt(Date.now());
+          setExplainPlanMs(null);
+          // Allow retry on next effect
+          planMetaRef.current = { sql: '', analyze: false };
         })
         .finally(() => {
-          if (isMounted) setLoadingExplain(false);
+          if (!cancelled && gen === explainFetchGenRef.current) {
+            setLoadingExplain(false);
+          }
         });
-      return () => { isMounted = false; };
-    }
-  }, [activeSubTab, activeTabSql, explainViewMode]);
+    }, 320);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [activeSubTab, activeTabSql, explainAnalyzeMode]);
 
   // Dynamic Chart Data — supports series split + absolute/% value mode
   const dynamicChartData = useMemo(() => {
@@ -1856,13 +1956,13 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
 
         {/* Left: View Mode Subtabs (Clean Segmented Pill) */}
         <div className="flex items-center gap-2.5 min-w-0">
-          <SegmentedTabs<'data' | 'chart' | 'ai' | 'explain'>
+          <SegmentedTabs<'data' | 'chart' | 'pivot' | 'explain'>
             aria-label="查询结果视图切换"
-            value={activeSubTab as any}
+            value={activeSubTab}
             items={[
               { value: 'data', label: '数据', icon: TableIcon, badge: rawRows.length > 0 ? rawRows.length : undefined },
               { value: 'chart', label: '图表', icon: BarChart2 },
-              { value: 'ai', label: 'AI 分析', icon: Sparkles },
+              { value: 'pivot', label: '透视', icon: TableProperties },
               { value: 'explain', label: '执行计划', icon: Activity },
             ]}
             onChange={val => setActiveSubTab(val)}
@@ -1901,19 +2001,8 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
 
         {/* Right: Focused Data Actions + Status & Metrics */}
         <div className="flex items-center gap-2.5 shrink-0">
-          {/* MECE Action Pills Group — 四大功能分类：无重复、无遗漏 */}
-          {/*
-           * MECE 分类结构：
-           * ┌─────────────┬─────────────┬─────────────┬─────────────┐
-           * │  A. 变换    │  B. 聚合    │  C. 可视化  │  D. 导出    │
-           * │  筛选 排序 │ 分组 透视表 │   图表     │   导出     │
-           * └─────────────┴─────────────┴─────────────┴─────────────┘
-           */}
+          {/* MECE Action Pills — transform / aggregate / export (views live in SegmentedTabs) */}
           <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-gradient-to-b from-monokai-bg/75 to-monokai-bg/45 border border-monokai-border/75 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),inset_0_-1px_0_rgba(0,0,0,0.18),0_1px_2px_-1px_rgba(0,0,0,0.2)]">
-            
-            {/* ═══════════════════════════════════════════════════════════════ */}
-            {/* A. 数据变换组 — 不改变数据粒度：筛选 + 排序 */}
-            {/* ═══════════════════════════════════════════════════════════════ */}
             
             {/* Filter Button — 条件筛选 */}
             <button
@@ -1953,18 +2042,34 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
               )}
             </button>
 
-            {/* 分隔符 A-B */}
             <span className="w-px h-3.5 bg-monokai-border/45 mx-0.5" aria-hidden />
 
-            {/* ═══════════════════════════════════════════════════════════════ */}
-            {/* B. 数据聚合组 — 改变数据粒度：分组聚合 + 透视表 */}
-            {/* ═══════════════════════════════════════════════════════════════ */}
-            
             {/* Group + Aggregate Button — 分组聚合 */}
             <button
-              onClick={() => setShowGroupModal(true)}
+              onClick={() => {
+                const preferGroup =
+                  columns.find(c => /region|category|status|type|name|date/i.test(c)) || columns[0];
+                if (groupByCols.length === 0 && columns.length > 0) {
+                  setGroupByCols([preferGroup]);
+                }
+                if (aggMetrics.length === 0 && columns.length > 0) {
+                  const preferMetric =
+                    columns.find(c => /amount|price|total|qty|quantity|sum|val|cost|revenue/i.test(c)) ||
+                    columns.find(c => c !== preferGroup) ||
+                    columns[0];
+                  const useSum = /amount|price|total|qty|quantity|sum|val|cost|revenue/i.test(preferMetric);
+                  setAggMetrics([
+                    {
+                      column: preferMetric,
+                      aggregator: useSum ? 'SUM' : 'COUNT',
+                      alias: useSum ? `total_${preferMetric}` : `cnt_${preferMetric}`,
+                    },
+                  ]);
+                }
+                setShowGroupModal(true);
+              }}
               className={`group flex items-center gap-1.5 h-7 px-2.5 rounded-md transition-all duration-200 cursor-pointer text-meta font-semibold tracking-tight ${
-                showGroupModal || groupByCols.length > 0
+                showGroupModal
                   ? 'bg-gradient-to-b from-monokai-green/22 to-monokai-green/10 text-monokai-green border border-monokai-green/45 shadow-[inset_0_0_0_1px_rgba(166,226,46,0.12)]'
                   : 'text-monokai-comment/85 hover:bg-gradient-to-b hover:from-monokai-elevated/80 hover:to-monokai-elevated/50 hover:text-monokai-green border border-transparent hover:border-monokai-green/35 hover:shadow-[0_0_0_1px_rgba(166,226,46,0.10)]'
               }`}
@@ -1974,53 +2079,13 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
               <span>分组</span>
             </button>
 
-            {/* Pivot Table Button — 透视表 (始终可见，优化尺寸) */}
-            <button
-              onClick={() => setActiveSubTab('pivot')}
-              className={`group flex items-center gap-1 h-7 px-2 rounded-md transition-all duration-200 cursor-pointer text-meta font-semibold tracking-tight ${
-                activeSubTab === 'pivot'
-                  ? 'bg-gradient-to-b from-monokai-green/22 to-monokai-green/10 text-monokai-green border border-monokai-green/45 shadow-[inset_0_0_0_1px_rgba(166,226,46,0.12)]'
-                  : 'text-monokai-comment/85 hover:bg-gradient-to-b hover:from-monokai-elevated/80 hover:to-monokai-elevated/50 hover:text-monokai-green border border-transparent hover:border-monokai-green/35 hover:shadow-[0_0_0_1px_rgba(166,226,46,0.10)]'
-              }`}
-              title="透视表 — 交叉表即时预览 (Ctrl+Shift+P)"
-            >
-              <TableProperties className="w-3 h-3 transition-transform group-hover:scale-110" />
-              <span>透视</span>
-            </button>
-
-            {/* 分隔符 B-C */}
             <span className="w-px h-3.5 bg-monokai-border/45 mx-0.5" aria-hidden />
 
-            {/* ═══════════════════════════════════════════════════════════════ */}
-            {/* C. 可视化组 — 图表展示 */}
-            {/* ═══════════════════════════════════════════════════════════════ */}
-            
-            {/* Chart/Visualize Button — 图表可视化 */}
-            <button
-              onClick={() => setActiveSubTab('chart')}
-              className={`group flex items-center gap-1.5 h-7 px-2.5 rounded-md transition-all duration-200 cursor-pointer text-meta font-semibold tracking-tight ${
-                activeSubTab === 'chart'
-                  ? 'bg-gradient-to-b from-monokai-orange/22 to-monokai-orange/10 text-monokai-orange border border-monokai-orange/45 shadow-[inset_0_0_0_1px_rgba(253,151,31,0.12)]'
-                  : 'text-monokai-comment/85 hover:bg-gradient-to-b hover:from-monokai-elevated/80 hover:to-monokai-elevated/50 hover:text-monokai-orange border border-transparent hover:border-monokai-orange/35 hover:shadow-[0_0_0_1px_rgba(253,151,31,0.10)]'
-              }`}
-              title="图表 — 将结果快速生成柱状/折线/饼图等可视化 (Ctrl+Shift+C)"
-            >
-              <BarChart2 className="w-3 h-3 transition-transform group-hover:scale-110" />
-              <span>图表</span>
-            </button>
-
-            {/* 分隔符 C-D */}
-            <span className="w-px h-3.5 bg-monokai-border/45 mx-0.5" aria-hidden />
-
-            {/* ═══════════════════════════════════════════════════════════════ */}
-            {/* D. 导出组 — 数据持久化 */}
-            {/* ═══════════════════════════════════════════════════════════════ */}
-            
             {/* Export Button — 导出数据 */}
             <button
               onClick={() => setShowExportModal(true)}
               className="group flex items-center gap-1.5 h-7 px-2.5 rounded-md text-monokai-comment/85 hover:bg-gradient-to-b hover:from-monokai-elevated/80 hover:to-monokai-elevated/50 hover:text-monokai-orange border border-transparent hover:border-monokai-orange/35 hover:shadow-[0_0_0_1px_rgba(253,151,31,0.10)] transition-all duration-200 cursor-pointer text-meta font-semibold tracking-tight"
-              title="导出 — 下载为 Parquet/CSV/JSON/Arrow 格式 (Ctrl+E)"
+              title="导出 — 下载为 Parquet/CSV/JSON/Arrow 格式 (Ctrl+Shift+E)"
             >
               <Download className="w-3 h-3 transition-transform group-hover:scale-110" />
               <span>导出</span>
@@ -2029,7 +2094,17 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
           </div>
 
           {/* Execution Metric Chips - Refined Badge Design */}
-          {activeDataset ? (
+          {loading ? (
+            <div className="hidden sm:flex items-center gap-1.5 pl-2.5 border-l border-monokai-border/70 text-xs font-mono">
+              <span
+                data-testid="execution-status-badge"
+                className="flex items-center gap-1.5 text-monokai-cyan font-semibold px-2.5 py-1 rounded-md bg-gradient-to-b from-monokai-cyan/18 to-monokai-cyan/8 border border-monokai-cyan/45"
+              >
+                <Loader2 className="w-3 h-3 animate-spin" />
+                <span className="tracking-tight text-2xs">执行中</span>
+              </span>
+            </div>
+          ) : activeDataset ? (
             <div className="hidden sm:flex items-center gap-1.5 pl-2.5 border-l border-monokai-border/70 text-xs font-mono">
               {result?.error ? (
                 <span className="group flex items-center gap-1.5 text-monokai-pink font-semibold px-2.5 py-1 rounded-md bg-gradient-to-b from-monokai-pink/15 to-monokai-pink/8 border border-monokai-pink/40 hover:from-monokai-pink/22 hover:to-monokai-pink/12 transition-all duration-200 shadow-[inset_0_0_0_1px_rgba(249,38,114,0.08),0_1px_2px_-1px_rgba(249,38,114,0.18)]">
@@ -2038,6 +2113,11 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                     <span className="absolute inset-0 blur-[3px] bg-monokai-pink/55 animate-pulse rounded-full" />
                   </span>
                   <span className="tracking-tight text-2xs">执行出错</span>
+                </span>
+              ) : isViewingPrevious ? (
+                <span className="flex items-center gap-1.5 text-monokai-yellow font-semibold px-2.5 py-1 rounded-md bg-gradient-to-b from-monokai-yellow/15 to-monokai-yellow/8 border border-monokai-yellow/40">
+                  <RotateCcw className="w-3 h-3" />
+                  <span className="tracking-tight text-2xs">历史结果</span>
                 </span>
               ) : isStale ? (
                 <span className="flex items-center gap-1.5 text-monokai-yellow font-semibold px-2.5 py-1 rounded-md bg-gradient-to-b from-monokai-yellow/15 to-monokai-yellow/8 border border-monokai-yellow/40 shadow-[inset_0_0_0_1px_rgba(230,219,116,0.06),0_1px_2px_-1px_rgba(230,219,116,0.15)]">
@@ -2148,7 +2228,40 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
       </div>
 
       {/* 3. Main Result Content Area based on Active Subtab */}
-      <div className="flex-1 overflow-auto relative custom-scrollbar">
+      <div
+        className={`flex-1 relative custom-scrollbar min-h-0 ${
+          activeSubTab === 'explain' ? 'overflow-hidden flex flex-col' : 'overflow-auto'
+        }`}
+        data-testid="result-content-area"
+      >
+        {loading && (
+          <div
+            className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-monokai-bg/70 backdrop-blur-[2px] font-sans"
+            data-testid="result-loading-overlay"
+            role="status"
+            aria-live="polite"
+          >
+            <Loader2 className="h-6 w-6 animate-spin text-monokai-cyan" />
+            <div className="text-center space-y-1">
+              <p className="text-xs font-semibold text-monokai-fg">正在执行查询…</p>
+              <p className="text-meta text-monokai-comment">结果区会在完成后自动刷新</p>
+            </div>
+          </div>
+        )}
+
+        {isViewingPrevious && !result?.error && onReturnToLatestResult && (
+          <div className="sticky top-0 z-10 m-2 flex items-center justify-between gap-3 rounded-md border border-monokai-yellow/40 bg-monokai-yellow/10 px-3 py-2 text-xs font-sans">
+            <span className="text-monokai-yellow font-semibold">正在查看上次成功结果</span>
+            <button
+              type="button"
+              onClick={onReturnToLatestResult}
+              className="rounded-md border border-monokai-border bg-monokai-surface px-2.5 py-1 text-monokai-fg hover:border-monokai-cyan/50 hover:text-monokai-cyan cursor-pointer font-semibold"
+            >
+              返回当前结果
+            </button>
+          </div>
+        )}
+
         {/* Dedicated Error View when query errors — Premium tier with hero visual */}
         {result?.error ? (
           <div className="p-6 max-w-4xl mx-auto space-y-4 font-mono select-text animate-in fade-in slide-in-from-bottom-2 duration-300">
@@ -2203,15 +2316,37 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                 <button
                   type="button"
                   onClick={() => {
-                    setActiveSubTab('ai');
-                    toastService.info('已开启 AI 诊断分析');
+                    window.dispatchEvent(new CustomEvent('workbench_switch_ai_panel', { detail: { tab: 'analyze' } }));
                   }}
                   className="group flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-gradient-to-b from-monokai-amethyst/22 to-monokai-amethyst/12 hover:from-monokai-amethyst/32 hover:to-monokai-amethyst/18 border border-monokai-amethyst/45 text-monokai-amethyst text-xs font-bold transition-all duration-200 cursor-pointer shadow-[inset_0_0_0_1px_rgba(174,129,255,0.08),0_2px_6px_-2px_rgba(174,129,255,0.25)] hover:shadow-[inset_0_0_0_1px_rgba(174,129,255,0.14),0_4px_10px_-2px_rgba(174,129,255,0.35)] tracking-tight"
-                  title="使用 AI 助手一键诊断该错误并生成修正 SQL"
+                  title="打开右侧 AI 助手诊断该错误并生成修正 SQL"
                 >
                   <Sparkles className="w-3.5 h-3.5 text-monokai-amethyst group-hover:scale-110 transition-transform" />
                   <span>AI 智能修复建议</span>
                 </button>
+
+                {onToggleDataFlow && (
+                  <button
+                    type="button"
+                    data-testid="result-dataflow-trace-cta"
+                    onClick={() => {
+                      onToggleDataFlow(true);
+                      // 等分屏 Canvas 挂载后再溯源
+                      window.setTimeout(() => {
+                        dispatchDataflowTraceFault({
+                          openInspector: true,
+                          focusSql: true,
+                        });
+                      }, 80);
+                      toastService.info('已在流程图中高亮异常算子并打开诊断详情 (Alt+D)');
+                    }}
+                    className="group flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-gradient-to-b from-monokai-pink/22 to-monokai-pink/12 hover:from-monokai-pink/32 hover:to-monokai-pink/18 border border-monokai-pink/45 text-monokai-pink text-xs font-bold transition-all duration-200 cursor-pointer shadow-[inset_0_0_0_1px_rgba(249,38,114,0.08),0_2px_6px_-2px_rgba(249,38,114,0.25)] hover:shadow-[inset_0_0_0_1px_rgba(249,38,114,0.14),0_4px_10px_-2px_rgba(249,38,114,0.35)] tracking-tight"
+                    title="在流程图与执行路径中定位异常算子并查看诊断原因 (Alt+D)"
+                  >
+                    <Workflow className="w-3.5 h-3.5 text-monokai-pink group-hover:scale-110 transition-transform" />
+                    <span>在执行路径中定位异常算子</span>
+                  </button>
+                )}
 
                 {previousResult && (
                   <button
@@ -2238,12 +2373,20 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
           <div className="flex h-full min-h-[220px] flex-col items-center justify-center px-6 py-8 text-center font-sans">
             <div className="w-full max-w-md rounded-lg border border-dashed border-monokai-border/70 bg-monokai-surface/25 px-6 py-8">
               <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-xl border border-monokai-border/60 bg-monokai-elevated text-monokai-comment">
-                <TableIcon className="h-5 w-5" strokeWidth={1.75} />
+                {loading ? (
+                  <Loader2 className="h-5 w-5 animate-spin text-monokai-cyan" />
+                ) : (
+                  <TableIcon className="h-5 w-5" strokeWidth={1.75} />
+                )}
               </div>
 
-              <p className="mb-1 text-xs font-semibold text-monokai-fg-muted">等待执行查询</p>
+              <p className="mb-1 text-xs font-semibold text-monokai-fg-muted">
+                {loading ? '正在执行查询…' : '等待执行查询'}
+              </p>
               <p className="mx-auto max-w-sm text-meta leading-relaxed text-monokai-comment">
-                运行 SQL 后结果会显示在此。可在上方切换数据、图表、AI 分析与执行计划。
+                {loading
+                  ? '完成后结果会显示在此，期间可继续编辑 SQL。'
+                  : '按 Ctrl+Enter 运行 SQL。结果可在上方切换数据、图表、透视与执行计划。'}
               </p>
             </div>
           </div>
@@ -2302,20 +2445,6 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                     const type = result?.columnTypeMap?.[col] || (result?.columnTypes ? result.columnTypes[colIdx] : undefined) || 'VARCHAR';
                     const isSelected = selectedColumn === col;
                     const isSorted = sortColumn === col;
-                    const tUpper = (type || '').toUpperCase();
-                    const isNumeric = ['INT', 'DECIMAL', 'FLOAT', 'DOUBLE', 'NUMERIC', 'REAL', 'BIGINT', 'HUGEINT', 'TINYINT', 'SMALLINT'].some(k => tUpper.includes(k));
-                    const isTemporal = tUpper.includes('DATE') || tUpper.includes('TIME');
-                    const isBoolean = tUpper.includes('BOOL');
-
-                    let typeTone = 'text-monokai-cyan/80';
-                    if (isNumeric) typeTone = 'text-monokai-green/85';
-                    else if (isTemporal) typeTone = 'text-monokai-amethyst/85';
-                    else if (isBoolean) typeTone = 'text-monokai-pink/85';
-                    else if (tUpper.includes('VARCHAR') || tUpper.includes('TEXT') || tUpper.includes('CHAR')) {
-                      typeTone = 'text-monokai-cyan/80';
-                    } else if (tUpper.includes('JSON') || tUpper.includes('STRUCT') || tUpper.includes('LIST') || tUpper.includes('MAP')) {
-                      typeTone = 'text-monokai-orange/85';
-                    }
 
                     return (
                       <th
@@ -2350,7 +2479,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                             )}
                           </div>
                           <span
-                            className={`text-3xs font-sans uppercase tracking-[0.05em] font-semibold transition-colors max-w-full truncate ${typeTone}`}
+                            className={`inline-flex items-center px-1.5 py-[1px] rounded border text-3xs font-mono tracking-wider uppercase max-w-full truncate transition-colors ${getTypeBadgeStyle(type)}`}
                             title={`列类型: ${type}`}
                           >
                             {type}
@@ -3336,82 +3465,71 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
           </div>
         )}
 
-        {/* Dynamic Modern Explain View from DuckDB Plan */}
+        {/* Explain plan — must fill remaining height (parent is flex column + overflow hidden) */}
         {activeSubTab === 'explain' && (
-          <div className="h-full w-full overflow-hidden">
+          <div className="flex-1 min-h-0 w-full overflow-hidden flex flex-col">
             <ExplainPlanView
               planText={liveExplainPlan}
               loading={loadingExplain}
               totalRows={rawRows.length}
-              executionTime={result?.executionTime || 0}
+              executionTime={explainPlanMs ?? 0}
               activeSql={activeTabSql}
+              planSourceSql={planSourceSql}
+              planFetchedAt={planFetchedAt}
+              analyzeMode={explainAnalyzeMode}
+              onAnalyzeModeChange={(analyze) => {
+                // Force refetch for the other mode
+                planMetaRef.current = { sql: '', analyze: false };
+                setExplainAnalyzeMode(analyze);
+              }}
               onSendToAi={(context) => {
-                setActiveSubTab('ai');
-                toastService.info(`已提取算子特征并载入 AI 分析引擎: ${context.slice(0, 32)}...`);
+                window.dispatchEvent(
+                  new CustomEvent('workbench_switch_ai_panel', {
+                    detail: { tab: 'analyze', planFocus: context },
+                  })
+                );
               }}
               onRefreshExplain={() => {
-                if (!activeTabSql || !activeTabSql.trim()) {
+                const sql = normalizeSqlForExplain(activeTabSql);
+                if (!sql) {
                   toastService.warning('当前无待分析的 SQL 查询');
                   return;
                 }
+                planMetaRef.current = { sql: '', analyze: false };
+                const gen = ++explainFetchGenRef.current;
+                const startedAt = performance.now();
                 setLoadingExplain(true);
-                duckDBService.getExplainPlan(activeTabSql, explainViewMode === 'analyze')
-                  .then(res => setLiveExplainPlan(res.planText || ''))
+                duckDBService.getExplainPlan(sql, explainAnalyzeMode)
+                  .then(res => {
+                    if (gen !== explainFetchGenRef.current) return;
+                    const text = res.planText || '';
+                    setLiveExplainPlan(text);
+                    setPlanSourceSql(sql);
+                    setPlanFetchedAt(Date.now());
+                    setExplainPlanMs(performance.now() - startedAt);
+                    const ok =
+                      Boolean(text.trim()) &&
+                      !text.startsWith('Error explaining') &&
+                      !text.startsWith('执行计划解析异常');
+                    planMetaRef.current = ok ? { sql, analyze: explainAnalyzeMode } : { sql: '', analyze: false };
+                    if (!ok) {
+                      toastService.error(text || '执行计划为空');
+                    } else {
+                      toastService.success('已重新从 DuckDB 拉取执行计划');
+                    }
+                  })
                   .catch(e => toastService.error(`刷新执行计划失败: ${e.message}`))
-                  .finally(() => setLoadingExplain(false));
+                  .finally(() => {
+                    if (gen === explainFetchGenRef.current) setLoadingExplain(false);
+                  });
               }}
             />
           </div>
         )}
-
-        {/* Dynamic AI Analysis View */}
-        {activeSubTab === 'ai' && (
-          <div className="p-6 h-full flex flex-col items-center justify-start overflow-auto font-sans custom-scrollbar">
-            <div className="w-full max-w-4xl bg-gradient-to-b from-monokai-elevated via-monokai-elevated to-monokai-surface/40 border border-monokai-border rounded-xl p-6 space-y-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.025),0_4px_12px_-4px_rgba(0,0,0,0.4)] relative overflow-hidden">
-              {/* Subtle background gradient */}
-              <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_top_right,rgba(230,219,116,0.08)_0%,transparent_50%)]" />
-
-              <div className="flex items-center justify-between border-b border-monokai-border pb-3 relative">
-                <div className="flex items-center gap-2">
-                  <div className="relative">
-                    <div className="absolute inset-0 blur-md bg-monokai-yellow/30 rounded-full animate-pulse" />
-                    <Sparkles className="relative w-4 h-4 text-monokai-yellow" />
-                  </div>
-                  <span className="font-bold text-sm text-monokai-fg tracking-tight">查询结果 AI 智能剖析</span>
-                </div>
-                <span className="text-xs text-monokai-comment font-mono px-2 py-0.5 rounded bg-monokai-surface border border-monokai-border">{rawRows.length} 行数据样本</span>
-              </div>
-
-              <div className="p-4 rounded-lg bg-gradient-to-br from-monokai-yellow/8 via-monokai-surface to-monokai-surface border border-monokai-yellow/30 text-xs text-monokai-fg leading-relaxed space-y-2 shadow-[inset_0_1px_0_rgba(230,219,116,0.06)] relative">
-                <p className="font-semibold text-monokai-yellow flex items-center gap-1.5">
-                  <Lightbulb className="w-3.5 h-3.5" />
-                  关键洞察
-                </p>
-                <p className="text-monokai-fg-muted leading-relaxed">
-                  当前结果集返回了 <b className="text-monokai-fg-mono font-bold tabular-nums">{rawRows.length}</b> 行记录。数据分布呈现良好的聚合特征，无明显离群值。建议利用透视表或图表进一步对比趋势。
-                </p>
-              </div>
-
-              {/* Open Right Panel AI Button - 跨组件集成 */}
-              <button
-                onClick={() => {
-                  window.dispatchEvent(new CustomEvent('workbench_switch_ai_panel', { detail: { tab: 'analyze' } }));
-                  toastService.info('已切换到右侧 AI 智能助手进行深度诊断');
-                }}
-                className="group w-full flex items-center justify-between p-3 rounded-lg bg-gradient-to-r from-monokai-yellow/10 via-monokai-yellow/5 to-transparent border border-monokai-yellow/35 hover:border-monokai-yellow/55 hover:from-monokai-yellow/15 transition-all duration-200 cursor-pointer"
-              >
-                <div className="flex items-center gap-2 text-monokai-yellow">
-                  <Sparkles className="w-4 h-4 transition-transform group-hover:scale-110" />
-                  <span className="text-xs font-semibold">打开右侧 AI 助手进行深度逻辑与性能诊断</span>
-                </div>
-                <ArrowRight className="w-4 h-4 text-monokai-yellow transition-transform group-hover:translate-x-0.5" />
-              </button>
-            </div>
-          </div>
-        )}
       </div>
 
-      {/* 4. Bottom Pagination bar - Refined typography & semantic color cues */}
+      {/* 4. Bottom Pagination — data/chart/pivot only (irrelevant on explain) */}
+      {activeSubTab !== 'explain' && (
       <div className="h-8 shrink-0 border-t border-monokai-border bg-gradient-to-b from-monokai-sidebar/95 via-monokai-sidebar to-monokai-bg/40 px-3 flex items-center justify-between text-xs font-mono text-monokai-comment relative">
         {/* Subtle hairline for depth */}
         <span className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-monokai-fg/8 to-transparent" />
@@ -3495,6 +3613,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
           </button>
         </div>
       </div>
+      )}
 
       {/* 5. Sort Panel — Floating panel for managing multi-column sort rules (MECE: 数据变换组) */}
       {showSortPanel && (

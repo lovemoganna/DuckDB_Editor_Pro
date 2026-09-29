@@ -412,7 +412,7 @@ const OntologyNodeInner: React.FC<OntologyNodeProps> = ({ id, data, selected }) 
 
   // 缩放模式判断：物理尺寸保持稳定确定性，避免滚轮缩放导致 DOM 盒模型剧烈变动与连线脱节
   const isCompact = (data as any).isCompact ?? false;
-  const isExpanded = storeIsExpanded || isPropertiesExpanded;
+  const isExpanded = storeIsExpanded !== undefined ? storeIsExpanded : isPropertiesExpanded;
 
   // 解析属性
   const parsedProperties = useMemo(() => {

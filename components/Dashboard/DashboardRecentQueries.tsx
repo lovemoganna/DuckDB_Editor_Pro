@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { ArrowRight, Terminal, Search, Copy, Check, Trash2, X, Play, History } from 'lucide-react';
+import { ArrowRight, Terminal, Search, Copy, Check, Trash2, X, Play, History, Sparkles } from 'lucide-react';
 import { Tab } from '../../types';
 import { type RecentQueryDisplayItem } from '../../hooks/useDashboardWorkflow';
 import { toastService } from '../../services/toastService';
+import { useAppStore } from '../../hooks/store/useAppStore';
 import { DB } from './dashboardUi';
 
 interface DashboardRecentQueriesProps {
@@ -36,6 +37,7 @@ export const DashboardRecentQueries: React.FC<DashboardRecentQueriesProps> = ({
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const displayedQueries = showAll ? queries : queries.slice(0, 8);
+  const setPendingAiPanel = useAppStore((s) => s.setPendingAiPanel);
 
   const handleCopySql = (id: string, sql: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -43,6 +45,14 @@ export const DashboardRecentQueries: React.FC<DashboardRecentQueriesProps> = ({
     setCopiedId(id);
     toastService.success('已复制 SQL 到剪贴板');
     setTimeout(() => setCopiedId(null), 1500);
+  };
+
+  const handleAiExplain = (sql: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setPendingAiPanel('explain');
+    onSelectQuery(sql);
+    onNavigate(Tab.SQL);
+    toastService.info('正在打开 AI 解释面板…');
   };
 
   const getSqlPreview = (sql: string) => {
@@ -270,6 +280,18 @@ export const DashboardRecentQueries: React.FC<DashboardRecentQueriesProps> = ({
                       EXPLAIN
                     </button>
                   )}
+                  <button
+                    type="button"
+                    onClick={e => handleAiExplain(q.sql, e)}
+                    title="AI 解释：与 SQL 编辑器「解释」一致"
+                    className={`p-1 rounded transition-colors cursor-pointer ${
+                      q.status === 'error'
+                        ? 'text-monokai-purple hover:bg-monokai-purple/20'
+                        : 'text-monokai-comment hover:bg-monokai-border/50 hover:text-monokai-purple'
+                    }`}
+                  >
+                    <Sparkles className="w-3 h-3" />
+                  </button>
                   <button
                     type="button"
                     onClick={e => {

@@ -72,6 +72,8 @@ const AnalysisHubPanel = React.lazy(() =>
 const DataFlowCanvas = React.lazy(() =>
   import('./components/DataFlow/DataFlowCanvas').then(module => ({ default: module.DataFlowCanvas })),
 );
+import { CopilotSidebar } from './components/Copilot/CopilotSidebar';
+import { useCopilotStore } from './hooks/store/useCopilotStore';
 
 const AppContent: React.FC = () => {
   const { toasts, removeToast, clearAllToasts } = useToastManager();
@@ -165,6 +167,27 @@ const AppContent: React.FC = () => {
     } catch {}
     return 'tab-1';
   });
+
+  // ── AI Copilot 跨 Tab 上下文同步与全局快捷键 (Ctrl+I) ──
+  useEffect(() => {
+    const { contextPinned, setContext } = useCopilotStore.getState();
+    if (contextPinned) {
+      setContext({ tab: activeTab });
+    } else {
+      setContext({ tab: activeTab, table: currentTable, pin: false });
+    }
+  }, [activeTab, currentTable]);
+
+  useEffect(() => {
+    const handleCopilotHotkey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'i') {
+        e.preventDefault();
+        useCopilotStore.getState().toggleOpen();
+      }
+    };
+    window.addEventListener('keydown', handleCopilotHotkey);
+    return () => window.removeEventListener('keydown', handleCopilotHotkey);
+  }, []);
 
   useEffect(() => {
     const refreshDataflowTabs = () => {
@@ -280,6 +303,22 @@ const AppContent: React.FC = () => {
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
+
+  // ── 知识学习 × 本体建模 双向跳转导航监听 ──
+  useEffect(() => {
+    const handleJumpToOntology = () => {
+      setActiveTab(Tab.ONTOLOGY);
+    };
+    const handleJumpToKnowledge = () => {
+      setActiveTab(Tab.LIBRARY);
+    };
+    window.addEventListener('duckdb_jump_to_ontology_node', handleJumpToOntology);
+    window.addEventListener('duckdb_jump_to_knowledge_asset', handleJumpToKnowledge);
+    return () => {
+      window.removeEventListener('duckdb_jump_to_ontology_node', handleJumpToOntology);
+      window.removeEventListener('duckdb_jump_to_knowledge_asset', handleJumpToKnowledge);
+    };
+  }, [setActiveTab]);
 
   // Safeguard: warn before refresh/close if running in ephemeral in-memory mode with data
   useEffect(() => {
@@ -883,11 +922,13 @@ const AppContent: React.FC = () => {
             </div>
           )}
 
-          {/* Tab Content */}
-          <div className="flex-1 overflow-hidden p-0 relative flex flex-col">
-            <React.Suspense
-              fallback={<WorkbenchLoadingState label={activeFeature.label} />}
-            >
+          {/* Main Workspace + Copilot Right Sidebar Parallel Container */}
+          <div className="flex-1 flex flex-row overflow-hidden relative">
+            {/* Central Work Canvas */}
+            <div className="flex-1 min-w-0 overflow-hidden p-0 relative flex flex-col">
+              <React.Suspense
+                fallback={<WorkbenchLoadingState label={activeFeature.label} />}
+              >
               <ActiveFeatureHost
                 activeTab={activeTab}
                 onNavigate={setActiveTab}
@@ -1075,9 +1116,12 @@ const AppContent: React.FC = () => {
                   <ErrorBoundary section="KnowledgeHub">
                     <div className="w-full h-full flex flex-col overflow-hidden bg-monokai-bg">
                       <KnowledgeHubApp
-                        onTryCode={(code) => { setPendingSql(code); setActiveTab(Tab.SQL); }}
+                        isOpen={true}
+                        onClose={() => setActiveTab(Tab.DASHBOARD)}
+                        onTryCode={(sql) => { setPendingSql(sql); setActiveTab(Tab.SQL); }}
                         onOpenTable={(tableName) => { handleTableSelect(tableName); setActiveTab(Tab.DATA); }}
                         onNavigateToMetrics={() => setActiveTab(Tab.METRICS)}
+                        onNavigateToOntology={() => setActiveTab(Tab.ONTOLOGY)}
                       />
                     </div>
                   </ErrorBoundary>
@@ -1144,6 +1188,7 @@ const AppContent: React.FC = () => {
                         onTryCode={(sql) => { setPendingSql(sql); setActiveTab(Tab.SQL); }}
                         onOpenTable={(tableName) => { handleTableSelect(tableName); setActiveTab(Tab.DATA); }}
                         onNavigateToMetrics={() => setActiveTab(Tab.METRICS)}
+                        onNavigateToOntology={() => setActiveTab(Tab.ONTOLOGY)}
                       />
                     </div>
                   </ErrorBoundary>
@@ -1191,6 +1236,14 @@ const AppContent: React.FC = () => {
                 }}
               />
             </React.Suspense>
+          </div>
+
+          {/* Right: Dedicated Persistent AI Copilot Sidebar */}
+          <CopilotSidebar
+            tables={tables}
+            currentTable={currentTable}
+            onNavigate={setActiveTab}
+          />
         </div>
       </main>
 

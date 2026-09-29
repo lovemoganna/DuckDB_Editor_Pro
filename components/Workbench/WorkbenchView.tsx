@@ -72,8 +72,18 @@ export const WorkbenchView: React.FC<WorkbenchViewProps> = ({
   // Panel dimensions and collapse state — left sidebar sized so table names (e.g. life_introspection) stay readable
   const [leftWidth, setLeftWidth] = useState<number>(320);
   const [rightWidth, setRightWidth] = useState<number>(500);
-  const [isLeftCollapsed, setIsLeftCollapsed] = useState(true);
+  const [isLeftCollapsed, setIsLeftCollapsed] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth < 1024;
+    }
+    return false;
+  });
   const [isRightCollapsed, setIsRightCollapsed] = useState(true);
+  const [editorCursor, setEditorCursor] = useState<{ line: number; col: number; selectedChars?: number }>({
+    line: 1,
+    col: 1,
+    selectedChars: 0,
+  });
 
   // Dragging state
   const [isDraggingLeft, setIsDraggingLeft] = useState<boolean>(false);
@@ -86,10 +96,10 @@ export const WorkbenchView: React.FC<WorkbenchViewProps> = ({
   // Preserve the three-column desktop workflow while keeping the editor usable on narrow screens.
   useEffect(() => {
     const collapseForViewport = () => {
-      if (window.innerWidth < 768) {
+      if (window.innerWidth < 1024) {
         setIsLeftCollapsed(true);
-        setIsRightCollapsed(true);
-      } else if (window.innerWidth < 1200) {
+      }
+      if (window.innerWidth < 1200) {
         setIsRightCollapsed(true);
       }
     };
@@ -101,10 +111,14 @@ export const WorkbenchView: React.FC<WorkbenchViewProps> = ({
   // Right panel mode: Column Inspector (default) or AI Assistant ('explain' | 'analyze')
   const [rightPanelMode, setRightPanelMode] = useState<'ai' | 'inspector'>('inspector');
   const [aiSubTab, setAiSubTab] = useState<'explain' | 'analyze'>('explain');
+  /** Operator / plan snippet sent from ExplainPlanView → AI analyze focus. */
+  const [aiPlanFocus, setAiPlanFocus] = useState<string | null>(null);
 
   // Global Store integration
   const pendingSql = useAppStore(s => s.pendingSql);
   const setPendingSql = useAppStore(s => s.setPendingSql);
+  const pendingAiPanel = useAppStore(s => s.pendingAiPanel);
+  const setPendingAiPanel = useAppStore(s => s.setPendingAiPanel);
 
   // Inspector Mode & Selection Sync
   const [selectedColumnName, setSelectedColumnName] = useState<string | null>(null);
@@ -175,9 +189,15 @@ export const WorkbenchView: React.FC<WorkbenchViewProps> = ({
   const [isRunning, setIsRunning] = useState<boolean>(false);
   const [queryResults, setQueryResults] = useState<Record<string, QueryResult>>({});
   const [previousResults, setPreviousResults] = useState<Record<string, QueryResult>>({});
+  const [viewingPreviousByTab, setViewingPreviousByTab] = useState<Record<string, boolean>>({});
 
   const activeQueryResult = queryResults[activeTabId] || null;
   const activePreviousResult = previousResults[activeTabId] || null;
+  const isViewingPrevious = Boolean(viewingPreviousByTab[activeTabId]);
+  const displayedQueryResult =
+    isViewingPrevious && activePreviousResult && !activePreviousResult.error
+      ? activePreviousResult
+      : activeQueryResult;
 
   const [selectedObjectRef, setSelectedObjectRef] = useState<ObjectRef | null>(null);
 
@@ -345,6 +365,7 @@ export const WorkbenchView: React.FC<WorkbenchViewProps> = ({
     if (!sqlToRun.trim()) return;
     const tabId = targetTabId || activeTabId;
     setIsRunning(true);
+    setViewingPreviousByTab(prev => ({ ...prev, [tabId]: false }));
     const currentTabObj = tabs.find(t => t.id === tabId);
     const title = customTitle || currentTabObj?.title || '查询结果';
 
@@ -352,7 +373,10 @@ export const WorkbenchView: React.FC<WorkbenchViewProps> = ({
       const { snapshot, task } = await queryExecutionService.executeQuery(tabId, sqlToRun, title, { explain, isProfile });
       if (snapshot) {
         setQueryResults(prev => ({ ...prev, [tabId]: snapshot }));
-        setPreviousResults(prev => ({ ...prev, [tabId]: snapshot }));
+        // Keep last successful snapshot for error recovery ("view previous")
+        if (!snapshot.error) {
+          setPreviousResults(prev => ({ ...prev, [tabId]: snapshot }));
+        }
         setTabs(prev =>
           prev.map(t => (t.id === tabId ? { ...t, isDirty: false, result: snapshot } : t))
         );
@@ -473,14 +497,28 @@ export const WorkbenchView: React.FC<WorkbenchViewProps> = ({
     }
   }, [tabs.length, handleExecuteQuery]);
 
-  // Sync and consume pendingSql from other tabs/navigation
+  // Sync and consume pendingSql from other tabs/navigation.
+  // When paired with pendingAiPanel (Dashboard → AI 解释), load SQL without auto-run
+  // so the user can read the explanation without a noisy re-execution (esp. failed queries).
   useEffect(() => {
     if (pendingSql && pendingSql.trim()) {
       const sqlToInject = pendingSql;
+      const openForAi = Boolean(useAppStore.getState().pendingAiPanel);
       setPendingSql('');
-      handleAddTab(sqlToInject, '注入查询', true);
+      handleAddTab(sqlToInject, openForAi ? '待解释查询' : '注入查询', !openForAi);
     }
   }, [pendingSql, setPendingSql, handleAddTab]);
+
+  // Consume pending AI panel intent from Dashboard / other surfaces
+  useEffect(() => {
+    if (!pendingAiPanel) return;
+    const panel = pendingAiPanel;
+    setIsRightCollapsed(false);
+    setRightPanelMode('ai');
+    setAiSubTab(panel);
+    setPendingAiPanel(null);
+    toastService.info(panel === 'explain' ? '已打开 AI 解释面板' : '已打开 AI 分析面板');
+  }, [pendingAiPanel, setPendingAiPanel]);
 
   // Global cross-tab event listeners (duckdb_execute_sql, duckdb_execute_capability, duckdb-schema-changed, workbench_switch_ai_panel)
   useEffect(() => {
@@ -521,13 +559,18 @@ export const WorkbenchView: React.FC<WorkbenchViewProps> = ({
 
     // Cross-component AI panel switch event from ResultSection → WorkbenchView → AiAssistantPanel
     const handleSwitchAiPanel = (e: Event) => {
-      const customEvent = e as CustomEvent<{ tab: 'explain' | 'analyze' }>;
+      const customEvent = e as CustomEvent<{ tab: 'explain' | 'analyze'; planFocus?: string }>;
       setIsRightCollapsed(false);
       setRightPanelMode('ai');
       if (customEvent.detail?.tab) {
         setAiSubTab(customEvent.detail.tab);
       }
-      toastService.info('已切换到 AI 智能助手');
+      if (typeof customEvent.detail?.planFocus === 'string' && customEvent.detail.planFocus.trim()) {
+        setAiPlanFocus(customEvent.detail.planFocus.trim());
+        toastService.info('已打开 AI 分析，并附带所选算子上下文');
+      } else {
+        toastService.info('已切换到 AI 智能助手');
+      }
     };
 
     // DataFlow 双向回写同步：当在数据流画布中修改算子时，实时更新 SQL 工作台对应标签页的 SQL 内容
@@ -687,15 +730,20 @@ export const WorkbenchView: React.FC<WorkbenchViewProps> = ({
     void handleExecuteQuery(sql);
   };
 
+  const handleInsertTableName = useCallback((tableName: string) => {
+    window.dispatchEvent(new CustomEvent('insert_sql_text', { detail: { text: `"${tableName}" ` } }));
+    toastService.info(`已插入名称 "${tableName}" 到编辑器`);
+  }, []);
+
   const handleExportCsv = () => {
-    if (!activeQueryResult?.rows?.length) return;
-    const blob = exportCsv(activeQueryResult);
+    if (!displayedQueryResult?.rows?.length) return;
+    const blob = exportCsv(displayedQueryResult);
     downloadBlob(blob, `duckdb_export_${Date.now()}.csv`);
   };
 
   const handleExportJson = () => {
-    if (!activeQueryResult?.rows?.length) return;
-    const blob = exportJson(activeQueryResult);
+    if (!displayedQueryResult?.rows?.length) return;
+    const blob = exportJson(displayedQueryResult);
     downloadBlob(blob, `duckdb_export_${Date.now()}.json`);
   };
 
@@ -717,8 +765,8 @@ export const WorkbenchView: React.FC<WorkbenchViewProps> = ({
   };
 
   const handleCopyClipboard = () => {
-    if (!activeQueryResult?.rows?.length) return;
-    const text = JSON.stringify(activeQueryResult.rows, null, 2);
+    if (!displayedQueryResult?.rows?.length) return;
+    const text = JSON.stringify(displayedQueryResult.rows, null, 2);
     navigator.clipboard.writeText(text);
     toastService.success('已复制结果数据到剪贴板');
   };
@@ -884,6 +932,7 @@ export const WorkbenchView: React.FC<WorkbenchViewProps> = ({
               onDeleteTable={handleDeleteTable}
               onDeleteView={handleDeleteView}
               onAddToDataFlow={handleAddToDataFlow}
+              onInsertTableName={handleInsertTableName}
               onCreateTable={() => window.dispatchEvent(new CustomEvent('open-create-table-modal'))}
               onCreateView={() => window.dispatchEvent(new CustomEvent('open-create-view-modal'))}
               onUploadFile={() => window.dispatchEvent(new CustomEvent('open-import-modal'))}
@@ -946,19 +995,33 @@ export const WorkbenchView: React.FC<WorkbenchViewProps> = ({
             onExecuteSelection={handleExecuteSelection}
             onStopQuery={handleStopQuery}
             isRunning={isRunning}
-            activeQueryResult={activeQueryResult}
+            activeQueryResult={displayedQueryResult}
             previousResult={activePreviousResult}
             selectedColumn={selectedColumnName}
             onSelectColumn={(colName) => {
               setSelectedColumnName(colName);
               setRightPanelMode('inspector');
+              setIsRightCollapsed(false);
             }}
             onExportCsv={handleExportCsv}
             onExportParquet={handleExportParquet}
             onExportJson={handleExportJson}
             onCopyClipboard={handleCopyClipboard}
+            onViewPreviousResult={() => {
+              if (!activePreviousResult || activePreviousResult.error) {
+                toastService.info('暂无上次成功结果可查看');
+                return;
+              }
+              setViewingPreviousByTab(prev => ({ ...prev, [activeTabId]: true }));
+              toastService.info('已切换到上次成功查询结果');
+            }}
+            isViewingPrevious={isViewingPrevious}
+            onReturnToLatestResult={() => {
+              setViewingPreviousByTab(prev => ({ ...prev, [activeTabId]: false }));
+            }}
             onApplyAggregateToSql={(sql, title, autoRun) => handleAddTab(sql, title, autoRun)}
             aiMode={rightPanelMode === 'ai' ? aiSubTab : null}
+            onCursorChange={setEditorCursor}
             onTriggerAiExplain={() => {
               setIsRightCollapsed(false);
               setRightPanelMode('ai');
@@ -990,9 +1053,11 @@ export const WorkbenchView: React.FC<WorkbenchViewProps> = ({
               <AiAssistantPanel
                 activeTabTitle={tabs.find(t => t.id === activeTabId)?.title || 'query.sql'}
                 activeSql={tabs.find(t => t.id === activeTabId)?.sql || ''}
-                queryResult={activeQueryResult}
+                queryResult={displayedQueryResult}
                 activeTab={aiSubTab}
                 onChangeActiveTab={setAiSubTab}
+                planFocus={aiPlanFocus}
+                onDismissPlanFocus={() => setAiPlanFocus(null)}
                 onSwitchToInspector={() => {
                   setRightPanelMode('inspector');
                 }}
@@ -1006,12 +1071,12 @@ export const WorkbenchView: React.FC<WorkbenchViewProps> = ({
                 onRunDeepProfile={() => handleExecuteQuery(tabs.find(t => t.id === activeTabId)?.sql || '', false, true)}
                 onClose={() => setIsRightCollapsed(true)}
                 selectedColumnName={selectedColumnName}
-                columnTypeMap={activeQueryResult?.columnTypeMap}
+                columnTypeMap={displayedQueryResult?.columnTypeMap}
               />
             ) : (
               <InspectorPanel
                 currentTable={currentTable || (tables.length > 0 ? tables[0] : '')}
-                queryResult={activeQueryResult}
+                queryResult={displayedQueryResult}
                 tableProfile={activeTableProfile}
                 selectedColumn={selectedColumnName}
                 columnAiProfile={columnAiProfiles.get(selectedColumnName || '') ?? null}
@@ -1067,8 +1132,19 @@ export const WorkbenchView: React.FC<WorkbenchViewProps> = ({
         runtimeInfo={runtimeInfo}
         activeDatabase={catalogContext.catalog}
         activeSchema={catalogContext.schema}
+        cursorLine={editorCursor.line}
+        cursorCol={editorCursor.col}
+        selectedChars={editorCursor.selectedChars}
+        activeTabTitle={tabs.find(t => t.id === activeTabId)?.title}
+        activeTabIsDirty={tabs.find(t => t.id === activeTabId)?.isDirty}
+        tableCount={tables.length}
+        isRunning={isRunning}
+        executionTime={activeQueryResult?.executionTime}
         onOpenRuntimeCenter={() => setShowRuntimeCenterModal(true)}
         onOpenFeedback={() => setShowFeedbackModal(true)}
+        onFocusEditor={() => {
+          window.dispatchEvent(new CustomEvent('focus_sql_editor', {}));
+        }}
       />
 
       {/* Linear Feedback & Issue Tracking Modal */}

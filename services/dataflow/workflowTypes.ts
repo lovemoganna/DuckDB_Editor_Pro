@@ -132,6 +132,7 @@ export interface DataFlowNodeData {
   filePath?: string;
   fileSize?: string;
   format?: string;
+  tableName?: string;
   config: any;
   executionResult?: NodeExecutionResult;
   sqlRange?: {
@@ -147,6 +148,81 @@ export interface DataFlowNodeData {
   sqlSnippet?: string;
   isRealDuckDB?: boolean;
   highlightState?: 'ancestor' | 'descendant' | 'dimmed' | 'none';
+  /** SQL 执行时序与套路元数据 */
+  stepIndex?: number;
+  sqlStage?: SqlExecutionStage;
+  paradigm?: SqlParadigmMeta;
+  bugInfo?: BugTraceInfo;
+  isExpanded?: boolean;
+  clauseSnippet?: string;
+  outputRowCount?: number;
+  hasAnomaly?: boolean;
+  /** 单步推演与仿真执行状态 */
+  isStepActive?: boolean;
+  isStepCompleted?: boolean;
+  /** 阶段字段演变（输入列 vs 产出列，展示别名诞生与字段注销过程） */
+  schemaEvolution?: SchemaEvolution;
+}
+
+export interface SchemaEvolution {
+  inputColumns: string[];
+  outputColumns: string[];
+  newColumns?: string[];
+  droppedColumns?: string[];
+}
+
+export type SqlExecutionStage =
+  | 'from'
+  | 'join'
+  | 'where'
+  | 'groupby'
+  | 'having'
+  | 'select'
+  | 'orderby'
+  | 'limit'
+  | 'cte';
+
+export interface SqlParadigmMeta {
+  stage: SqlExecutionStage;
+  stageName: string;
+  executionOrder: number;
+  roleDesc: string;
+  mentalModel: string;
+  pitfallWarning: string;
+}
+
+export interface BugTraceInfo {
+  hasBug: boolean;
+  isRootCause?: boolean;
+  severity: 'error' | 'warning' | 'info';
+  title: string;
+  detail: string;
+  suggestion: string;
+  culpritClause?: string;
+  culpritToken?: string;
+  errorLine?: number;
+  /** 一键修复替换 SQL */
+  fixedSql?: string;
+}
+
+export interface PipelineStepperState {
+  isActive: boolean;
+  currentStepIndex: number;
+  totalSteps: number;
+  isPlaying: boolean;
+  activeNodeId: string | null;
+  playbackSpeedMs: number;
+}
+
+export interface SqlPitfallPreset {
+  id: string;
+  name: string;
+  category: 'binder_error' | 'groupby_violation' | 'join_degradation' | 'cartesian_blowup' | 'perfect_pipeline';
+  summary: string;
+  bugDescription: string;
+  pitfallRationale: string;
+  buggySql: string;
+  fixedSql: string;
 }
 
 export interface DataFlowEdgeData {
@@ -162,6 +238,10 @@ export interface DataFlowEdgeData {
   filterRatio?: number;
   relationType?: 'data' | 'schema' | 'join' | 'filter' | 'aggregate';
   highlightState?: 'ancestor' | 'descendant' | 'dimmed' | 'none';
+  /** 是否为错误溯源链路 */
+  isErrorPath?: boolean;
+  /** 单步仿真推进边（显示粒子流动光斑） */
+  isStepActive?: boolean;
 }
 
 export type DataFlowNode = Node<DataFlowNodeData>;

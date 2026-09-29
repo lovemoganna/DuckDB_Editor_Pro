@@ -21,6 +21,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('../services/duckdbService', () => ({
   duckDBService: {
     query: mocks.query,
+    readQuery: mocks.query,
     getTables: mocks.getTables,
     getTableSchema: mocks.getTableSchema,
     importFile: mocks.importFile,
@@ -376,7 +377,9 @@ describe('DuckDB Studio Refactored Executive Dashboard', () => {
     // Should render VIEW badge for v_summary
     const viewItem = await screen.findByTestId('recent-table-v_summary');
     expect(viewItem).toBeInTheDocument();
-    expect(viewItem).toHaveTextContent('VIEW');
+    await waitFor(() => {
+      expect(viewItem).toHaveTextContent('VIEW');
+    });
   });
 
   it('renders expand button when table list exceeds 8 items', async () => {

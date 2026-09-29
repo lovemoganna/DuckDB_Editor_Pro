@@ -8,6 +8,7 @@ import {
   formatBytes,
 } from '../../hooks/useDashboardWorkflow';
 import { DB } from './dashboardUi';
+import { KpiPortalTooltip, type KpiTooltipData } from './KpiDynamicMiniCharts';
 
 interface DashboardChartsRowProps {
   growthData: GrowthTrendItem[];
@@ -55,6 +56,7 @@ export const DashboardChartsRow: React.FC<DashboardChartsRowProps> = ({
   const [hoveredGrowthIndex, setHoveredGrowthIndex] = useState<number | null>(null);
   const [hoveredLatencyIndex, setHoveredLatencyIndex] = useState<number | null>(null);
   const [showQualityDetails, setShowQualityDetails] = useState<'pk' | 'null' | null>(null);
+  const [tooltip, setTooltip] = useState<KpiTooltipData | null>(null);
 
   // Dynamic max value from real data
   const maxRowVal = Math.max(
@@ -99,7 +101,9 @@ export const DashboardChartsRow: React.FC<DashboardChartsRowProps> = ({
   };
 
   return (
-    <div className="grid w-full min-w-0 grid-cols-1 gap-3 lg:grid-cols-3">
+    <>
+      <KpiPortalTooltip tooltip={tooltip} />
+      <div className="grid w-full min-w-0 grid-cols-1 gap-3 lg:grid-cols-3">
       {/* 1. 数据增长趋势 (各表规模分布) */}
       <div className={`${DB.panel} min-w-0 overflow-hidden`}>
         <div className="mb-2 flex items-center justify-between">
@@ -195,23 +199,44 @@ export const DashboardChartsRow: React.FC<DashboardChartsRowProps> = ({
                     <div
                       key={item.date}
                       onClick={() => onSelectTable && onSelectTable(item.date)}
-                      onMouseEnter={() => setHoveredGrowthIndex(idx)}
-                      onMouseLeave={() => setHoveredGrowthIndex(null)}
+                      onMouseEnter={(e) => {
+                        setHoveredGrowthIndex(idx);
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setTooltip({
+                          x: rect.left + rect.width / 2,
+                          y: rect.top - 8,
+                          title: item.date,
+                          badge: {
+                            label: growthMetric === 'size' ? '数据体积' : '数据行数',
+                            tone: 'info',
+                          },
+                          items: [
+                            {
+                              label: growthMetric === 'size' ? '存储体积' : '物理行数',
+                              value:
+                                growthMetric === 'size' && item.formattedSize
+                                  ? item.formattedSize
+                                  : item.importRows.toLocaleString(),
+                              color: 'text-amber-300',
+                            },
+                            { label: '字段列数', value: `${item.columnCount ?? '—'} 列` },
+                            ...(item.queryCount
+                              ? [{ label: '查询热度', value: `${item.queryCount} 次` }]
+                              : []),
+                            ...(item.formattedSize && growthMetric !== 'size'
+                              ? [{ label: '预估存储', value: item.formattedSize }]
+                              : []),
+                          ],
+                          footer: '点击进入数据表格浏览表',
+                        });
+                      }}
+                      onMouseLeave={() => {
+                        setHoveredGrowthIndex(null);
+                        setTooltip(null);
+                      }}
                       title={`点击进入数据表格浏览表 "${item.date}"`}
                       className="group relative flex flex-col items-center cursor-pointer flex-1 min-w-[32px] px-0.5"
                     >
-                      {isHovered && (
-                        <div className="absolute -top-16 z-30 px-2.5 py-1.5 bg-monokai-elevated border border-monokai-border text-2xs font-mono rounded-md shadow-xl text-monokai-fg pointer-events-none whitespace-nowrap">
-                          <div className="font-bold text-monokai-fg mb-0.5">{item.date}</div>
-                          <div>
-                            {growthMetric === 'size' ? '体积' : '行数'}:{' '}
-                            {growthMetric === 'size' && item.formattedSize ? item.formattedSize : item.importRows.toLocaleString()}
-                          </div>
-                          <div>字段列数: {item.columnCount ?? '—'} 个</div>
-                          {(item.queryCount || 0) > 0 && <div>查询热度: {item.queryCount} 次</div>}
-                          {item.formattedSize && growthMetric !== 'size' && <div>预估存储: {item.formattedSize}</div>}
-                        </div>
-                      )}
 
                       <div className="flex items-end gap-1">
                         <div
@@ -367,20 +392,38 @@ export const DashboardChartsRow: React.FC<DashboardChartsRowProps> = ({
                 return (
                   <div
                     key={idx}
-                    onMouseEnter={() => setHoveredLatencyIndex(idx)}
-                    onMouseLeave={() => setHoveredLatencyIndex(null)}
+                    onMouseEnter={(e) => {
+                      setHoveredLatencyIndex(idx);
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const avgNum = typeof d.avgMs === 'number' ? (d.avgMs >= 10 ? Math.round(d.avgMs) : Math.round(d.avgMs * 10) / 10) : d.avgMs;
+                      const p95Num = typeof d.p95Ms === 'number' ? (d.p95Ms >= 10 ? Math.round(d.p95Ms) : Math.round(d.p95Ms * 10) / 10) : d.p95Ms;
+                      setTooltip({
+                        x: rect.left + rect.width / 2,
+                        y: rect.top - 8,
+                        title: d.sql ? d.sql.slice(0, 36) + '...' : 'SQL 查询执行',
+                        badge: {
+                          label: `${avgNum} ms`,
+                          tone: d.status === 'error' ? 'danger' : d.avgMs > 200 ? 'warn' : 'ok',
+                        },
+                        items: [
+                          { label: '平均耗时', value: `${avgNum} ms`, color: 'text-cyan-300' },
+                          { label: 'P95 延时', value: `${p95Num} ms`, color: 'text-purple-300' },
+                          { label: '采样日期', value: d.date },
+                          { label: '执行状态', value: d.status === 'error' ? '报错中断' : '成功完成' },
+                        ],
+                        footer: '点击在 SQL 工作台中重放该查询',
+                      });
+                    }}
+                    onMouseLeave={() => {
+                      setHoveredLatencyIndex(null);
+                      setTooltip(null);
+                    }}
                     onClick={() => d.sql && onInspectIssue && onInspectIssue(d.sql)}
                     title="点击在 SQL 工作台中重放该查询"
                     className="group relative flex flex-col items-center flex-1 min-w-0 cursor-pointer"
                   >
-                    {isHovered && (
-                      <div className="absolute -top-16 left-1/2 -translate-x-1/2 z-30 px-2.5 py-1.5 bg-monokai-elevated border border-monokai-border text-2xs font-mono rounded-md shadow-xl text-monokai-fg pointer-events-none whitespace-nowrap">
-                        <div className="font-bold text-monokai-fg">均值: {d.avgMs} ms · P95: {d.p95Ms} ms</div>
-                        <div className="text-monokai-cyan max-w-[160px] truncate">{d.sql || 'SQL 查询'}</div>
-                      </div>
-                    )}
                     <span className="text-3xs sm:text-2xs font-mono text-monokai-comment mb-1 w-full text-center truncate tabular-nums leading-none">
-                      {d.avgMs}
+                      {typeof d.avgMs === 'number' ? (d.avgMs >= 10 ? Math.round(d.avgMs) : Math.round(d.avgMs * 10) / 10) : d.avgMs}
                       <span className="hidden sm:inline">ms</span>
                     </span>
                     <div className="relative w-full max-w-[28px] mx-auto flex items-end justify-center">
@@ -465,10 +508,27 @@ export const DashboardChartsRow: React.FC<DashboardChartsRowProps> = ({
                       strokeLinecap="round"
                       opacity={tableTypeFilter === 'all' || isSelected ? 1 : 0.35}
                       className="transition-all duration-300 cursor-pointer hover:opacity-80"
+                      onMouseEnter={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setTooltip({
+                          x: rect.left + rect.width / 2,
+                          y: rect.top - 8,
+                          title: t.label,
+                          badge: {
+                            label: `${t.pct}% 占比`,
+                            tone: 'info',
+                          },
+                          items: [
+                            { label: '对象数量', value: `${t.count} 个`, color: t.color },
+                            { label: '实体总数', value: `${totalTables} 个` },
+                            { label: '联动状态', value: isSelected ? '已激活过滤' : '未过滤' },
+                          ],
+                          footer: '点击联动过滤下方数据表列表',
+                        });
+                      }}
+                      onMouseLeave={() => setTooltip(null)}
                       onClick={() => onTableTypeFilterChange && onTableTypeFilterChange(tableTypeFilter === t.type ? 'all' : t.type)}
-                    >
-                      <title>{`点击联动筛选${t.label}`}</title>
-                    </circle>
+                    />
                   );
                 })}
             </svg>
@@ -487,6 +547,25 @@ export const DashboardChartsRow: React.FC<DashboardChartsRowProps> = ({
                   key={t.label}
                   role="button"
                   tabIndex={0}
+                  onMouseEnter={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setTooltip({
+                      x: rect.left + rect.width / 2,
+                      y: rect.top - 8,
+                      title: t.label,
+                      badge: {
+                        label: `${t.pct}% 占比`,
+                        tone: 'info',
+                      },
+                      items: [
+                        { label: '对象数量', value: `${t.count} 个`, color: t.color },
+                        { label: '实体总数', value: `${totalTables} 个` },
+                        { label: '联动状态', value: isSelected ? '已激活过滤' : '未过滤' },
+                      ],
+                      footer: '点击联动过滤下方数据表列表',
+                    });
+                  }}
+                  onMouseLeave={() => setTooltip(null)}
                   onClick={() => onTableTypeFilterChange && onTableTypeFilterChange(tableTypeFilter === t.type ? 'all' : t.type)}
                   onKeyDown={e => {
                     if (e.key === 'Enter' || e.key === ' ') {
@@ -629,5 +708,6 @@ export const DashboardChartsRow: React.FC<DashboardChartsRowProps> = ({
         )}
       </div>
     </div>
-  );
+  </>
+);
 };

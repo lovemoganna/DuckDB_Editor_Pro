@@ -31,6 +31,9 @@ import {
   ExternalLink,
   Zap,
   Trash2,
+  AlertCircle,
+  Compass,
+  Clock,
 } from 'lucide-react';
 import { useWorkflowStore } from '../../../services/dataflow/workflowStore';
 import {
@@ -42,23 +45,35 @@ import { duckDBService } from '../../../services/duckdbService';
 import { toastService } from '../../../services/toastService';
 import { useConfirmDialog } from '../../ui/ConfirmDialog';
 import {
+  dfBtnDanger,
   dfBtnPrimary,
+  dfBtnSecondary,
   dfEmpty,
   dfEmptyHint,
   dfEmptyTitle,
+  dfInput,
+  dfLabel,
+  dfSelect,
   dfTabActive,
   dfTabBase,
   dfTabIdle,
   dfTabUnderline,
+  dfTextarea,
 } from '../dataflowUi';
 import type {
   AggregationField,
   AggregationFunction,
   AggregateNodeConfig,
+  ExportNodeConfig,
   JoinNodeConfig,
+  ResultNodeConfig,
   SqlTransformNodeConfig,
   SourceNodeConfig,
 } from '../../../services/dataflow/workflowTypes';
+import {
+  dispatchDataflowCenterNode,
+  dispatchFocusSqlEditor,
+} from '../../../services/dataflow/dataflowEvents';
 
 export interface DataFlowInspectorProps {
   onOpenInSqlEditor?: (sql: string, title?: string) => void;
@@ -83,6 +98,7 @@ export const DataFlowInspector: React.FC<DataFlowInspectorProps> = ({
     runLogs,
     availableTables,
     refreshAvailableTables,
+    dataFlowMode,
   } = useWorkflowStore();
 
   const [copied, setCopied] = useState(false);
@@ -127,34 +143,48 @@ export const DataFlowInspector: React.FC<DataFlowInspectorProps> = ({
 
   // 当切换到数据预览且暂无采样数据时，自动从 DuckDB 视图或物理表实时拉取前 50 行
   useEffect(() => {
-    if (inspectorTab === 'preview' && selectedNode && (!selectedNode.data?.executionResult?.rows || selectedNode.data.executionResult.rows.length === 0)) {
-      const isSourceTable = selectedNode.data.type === 'source' && selectedNode.data.config?.tableName;
-      const targetRelation = isSourceTable ? selectedNode.data.config.tableName : getNodeViewName(selectedNode.id);
-      
-      duckDBService.query(`SELECT * FROM "${targetRelation}" LIMIT 50`).then(rows => {
-        if (rows && rows.length > 0) {
-          const columns = Object.keys(rows[0]).map(k => ({
-            name: k,
-            type: typeof rows[0][k] === 'number' ? 'DOUBLE' : 'VARCHAR',
-            nullable: true,
-          }));
-          updateNodeData(selectedNode.id, {
+    if (inspectorTab !== 'preview' || !selectedNode) return;
+    if (selectedNode.data?.executionResult?.rows && selectedNode.data.executionResult.rows.length > 0) return;
+
+    const isSourceTable = selectedNode.data.type === 'source' && selectedNode.data.config?.tableName;
+    const targetRelation = isSourceTable
+      ? selectedNode.data.config.tableName
+      : getNodeViewName(selectedNode.id);
+    let cancelled = false;
+
+    duckDBService
+      .query(`SELECT * FROM "${targetRelation}" LIMIT 50`)
+      .then(rows => {
+        if (cancelled || !rows || rows.length === 0) return;
+        const columns = Object.keys(rows[0]).map(k => ({
+          name: k,
+          type: typeof rows[0][k] === 'number' ? 'DOUBLE' : 'VARCHAR',
+          nullable: true,
+        }));
+        updateNodeData(selectedNode.id, {
+          rowCount: selectedNode.data.rowCount || rows.length,
+          columnCount: columns.length,
+          status: 'success',
+          executionResult: {
+            status: 'success',
+            executionTimeSec: 0.05,
             rowCount: selectedNode.data.rowCount || rows.length,
             columnCount: columns.length,
-            status: 'success',
-            executionResult: {
-              status: 'success',
-              executionTimeSec: 0.05,
-              rowCount: selectedNode.data.rowCount || rows.length,
-              columnCount: columns.length,
-              columns,
-              rows,
-              outputRelation: targetRelation,
-            },
-          });
-        }
-      }).catch(() => {});
-    }
+            columns,
+            rows,
+            outputRelation: targetRelation,
+          },
+        });
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        const msg = err instanceof Error ? err.message : '预览查询失败';
+        toastService.info(`暂无法自动预览：${msg}。可点击「运行节点」生成采样。`);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [inspectorTab, selectedNode?.id, updateNodeData]);
 
   if (!selectedNode) {
@@ -275,7 +305,7 @@ export const DataFlowInspector: React.FC<DataFlowInspectorProps> = ({
   };
 
   return (
-    <div className="flex h-full w-full flex-col bg-monokai-surface text-monokai-fg font-sans select-none border-l border-monokai-border">
+    <div className="flex h-full w-full flex-col bg-monokai-surface text-monokai-fg font-sans select-none">
       {/* ── 顶部选项卡 ── */}
       <div className="flex h-9 shrink-0 border-b border-monokai-border px-3 gap-5">
         <button
@@ -342,8 +372,10 @@ export const DataFlowInspector: React.FC<DataFlowInspectorProps> = ({
                 </table>
               </div>
             ) : (
-              <div className="rounded border border-dashed border-monokai-border p-6 text-center text-xs text-monokai-comment">
-                暂无采样数据。请先点击「运行节点」触发真实查询。
+              <div className={dfEmpty}>
+                <Table className="h-8 w-8 stroke-[1.2] text-monokai-border-strong mb-1" />
+                <p className={dfEmptyTitle}>暂无采样数据</p>
+                <p className={dfEmptyHint}>切换到此页会尝试自动拉取；若关系尚未创建，请先点击底部「运行节点」。</p>
               </div>
             )}
           </div>
@@ -352,26 +384,34 @@ export const DataFlowInspector: React.FC<DataFlowInspectorProps> = ({
           <div className="space-y-3">
             <div className="text-xs font-semibold text-monokai-fg">节点历史执行记录</div>
             <div className="space-y-2">
-              {runLogs
-                .filter(l => l.nodeId === selectedNode.id)
-                .map(log => (
-                  <div
-                    key={log.id}
-                    className="rounded border border-monokai-border bg-monokai-bg p-2.5 text-xs font-mono"
-                  >
-                    <div className="flex items-center justify-between text-monokai-comment text-2xs">
-                      <span>{log.timestamp}</span>
-                      <span className={log.status === 'success' ? 'text-monokai-accent' : 'text-monokai-pink'}>
-                        {log.status === 'success' ? '✔ 成功' : '✖ 失败'}
-                      </span>
+              {runLogs.filter(l => l.nodeId === selectedNode.id).length === 0 ? (
+                <div className={dfEmpty}>
+                  <Clock className="h-8 w-8 stroke-[1.2] text-monokai-border-strong mb-1" />
+                  <p className={dfEmptyTitle}>尚无执行记录</p>
+                  <p className={dfEmptyHint}>点击底部「运行节点」后，耗时与行数将出现在此。</p>
+                </div>
+              ) : (
+                runLogs
+                  .filter(l => l.nodeId === selectedNode.id)
+                  .map(log => (
+                    <div
+                      key={log.id}
+                      className="rounded border border-monokai-border bg-monokai-bg p-2.5 text-xs font-mono"
+                    >
+                      <div className="flex items-center justify-between text-monokai-comment text-2xs">
+                        <span>{log.timestamp}</span>
+                        <span className={log.status === 'success' ? 'text-monokai-accent' : 'text-monokai-pink'}>
+                          {log.status === 'success' ? '✔ 成功' : '✖ 失败'}
+                        </span>
+                      </div>
+                      <div className="mt-1 flex items-center justify-between text-monokai-fg">
+                        <span>耗时: {log.duration}</span>
+                        <span>输出: {log.rows.toLocaleString()} 行</span>
+                      </div>
+                      <div className="mt-1 text-meta text-monokai-fg-muted">{log.message}</div>
                     </div>
-                    <div className="mt-1 flex items-center justify-between text-monokai-fg">
-                      <span>耗时: {log.duration}</span>
-                      <span>输出: {log.rows.toLocaleString()} 行</span>
-                    </div>
-                    <div className="mt-1 text-meta text-monokai-fg-muted">{log.message}</div>
-                  </div>
-                ))}
+                  ))
+              )}
             </div>
           </div>
         ) : (
@@ -404,32 +444,267 @@ export const DataFlowInspector: React.FC<DataFlowInspectorProps> = ({
               </div>
             </div>
 
-            {/* 节点名称 */}
-            <div>
-              <label className="block text-meta font-medium text-monokai-comment mb-1">
-                节点名称
-              </label>
-              <input
-                type="text"
-                value={data.title}
-                onChange={e => updateNodeData(selectedNode.id, { title: e.target.value })}
-                className="w-full rounded-md border border-monokai-border bg-monokai-bg px-2 py-1 text-meta text-monokai-fg outline-none focus:border-monokai-accent"
-              />
+            {/* 1. 若存在 Bug 或逻辑异常，展示醒目 Bug 溯源诊断卡片 */}
+            {data.bugInfo && (
+              <div className={`p-3 rounded-lg border space-y-2 ${
+                data.bugInfo.hasBug || data.status === 'error'
+                  ? 'bg-monokai-pink/10 border-monokai-pink/40 text-monokai-pink'
+                  : 'bg-monokai-orange/10 border-monokai-orange/40 text-monokai-orange'
+              }`}>
+                <div className="flex items-center justify-between font-mono font-semibold text-xs">
+                  <div className="flex items-center gap-1.5">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    <span>{data.bugInfo.title}</span>
+                  </div>
+                  {data.bugInfo.suggestion && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(data.bugInfo!.suggestion);
+                        toastService.success('已复制修复建议');
+                      }}
+                      className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-white/10 hover:bg-white/20 transition-colors cursor-pointer text-monokai-fg"
+                      title="复制修复建议"
+                    >
+                      <Copy className="w-2.5 h-2.5" />
+                      <span>复制建议</span>
+                    </button>
+                  )}
+                </div>
+                <p className="text-[11px] leading-relaxed text-monokai-fg/90">
+                  {data.bugInfo.detail}
+                </p>
+                {data.bugInfo.suggestion && (
+                  <div className="p-2 rounded bg-monokai-bg/80 border border-monokai-border text-[10.5px] font-mono text-monokai-accent leading-relaxed">
+                    {data.bugInfo.suggestion}
+                  </div>
+                )}
+                {data.sqlRange && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      useWorkflowStore.setState({ activeSqlRange: data.sqlRange });
+                      dispatchFocusSqlEditor({ sqlRange: data.sqlRange });
+                      toastService.info(`已定位并高亮 SQL 编辑器中对应错误行 (第 ${data.sqlRange!.startLine} 行)`);
+                    }}
+                    className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded bg-monokai-pink/20 hover:bg-monokai-pink/30 border border-monokai-pink/50 text-xs font-bold text-monokai-pink transition-colors cursor-pointer"
+                  >
+                    <Code className="w-3.5 h-3.5" />
+                    <span>返回 SQL 错误行修正 (第 {data.sqlRange.startLine} 行)</span>
+                  </button>
+                )}
+                {data.bugInfo.fixedSql && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      useWorkflowStore.getState().syncFromSql(data.bugInfo!.fixedSql!, '修复后的 SQL', true);
+                      dispatchFocusSqlEditor({
+                        replaceSql: data.bugInfo!.fixedSql!,
+                        sqlRange: data.sqlRange,
+                      });
+                      if (onOpenInSqlEditor) onOpenInSqlEditor(data.bugInfo!.fixedSql!, '修复后的 SQL');
+                      toastService.success('已自动应用一键修复至当前 SQL 工作台');
+                    }}
+                    className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded bg-monokai-accent/15 hover:bg-monokai-accent/25 border border-monokai-accent/40 text-xs font-semibold text-monokai-accent transition-colors cursor-pointer"
+                  >
+                    <Zap className="w-3.5 h-3.5 fill-current" />
+                    <span>一键应用修复至当前 SQL</span>
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* 1.2 物理执行计划真实上下文剖析 (Real Execution Plan Context) */}
+            <div className="p-3 rounded-lg bg-monokai-bg/70 border border-monokai-border space-y-2 text-xs font-sans">
+              <div className="flex items-center justify-between text-monokai-fg font-semibold border-b border-monokai-border/60 pb-1.5">
+                <div className="flex items-center gap-1.5">
+                  <Zap className="w-3.5 h-3.5 text-monokai-yellow" />
+                  <span>真实物理执行上下文</span>
+                </div>
+                <span className="font-mono text-[10.5px] px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-monokai-cyan">
+                  {data.config?.operatorName || data.subtitle || data.type?.toUpperCase() || ''}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 text-[11px] font-mono">
+                {data.tableName && (
+                  <div className="col-span-2 flex items-center justify-between p-1.5 rounded bg-monokai-surface/60 border border-white/5">
+                    <span className="text-monokai-comment font-sans">输入数据源:</span>
+                    <span className="text-monokai-blue font-bold truncate">{data.tableName}</span>
+                  </div>
+                )}
+
+                <div className="flex flex-col p-1.5 rounded bg-monokai-surface/60 border border-white/5">
+                  <span className="text-[10px] text-monokai-comment font-sans">数据吞吐变化</span>
+                  <span className="text-monokai-fg font-bold mt-0.5">
+                    {data.inputRowCount !== undefined ? `${data.inputRowCount.toLocaleString()} ➔ ` : ''}
+                    {data.rowCount !== undefined ? `${data.rowCount.toLocaleString()} 行` : '—'}
+                  </span>
+                  {data.filterRatio !== undefined && (
+                    <span className={`text-[9.5px] font-bold ${data.filterRatio >= 0 ? 'text-monokai-accent' : 'text-monokai-pink'}`}>
+                      {data.filterRatio >= 0 ? `初筛削减 ↓${data.filterRatio}%` : `数据膨胀 ↑${Math.abs(data.filterRatio)}%`}
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex flex-col p-1.5 rounded bg-monokai-surface/60 border border-white/5">
+                  <span className="text-[10px] text-monokai-comment font-sans">物理耗时 / 占比</span>
+                  <span className="text-monokai-fg font-bold mt-0.5">
+                    {data.executionTimeSec !== undefined ? `${(data.executionTimeSec * 1000).toFixed(1)} ms` : '—'}
+                  </span>
+                  {data.config?.costPercent !== undefined && (
+                    <span className={`text-[9.5px] font-bold ${data.config.isBottleneck ? 'text-monokai-pink animate-pulse' : 'text-monokai-yellow'}`}>
+                      {data.config.isBottleneck ? '🔥 耗时瓶颈 ' : '开销占比 '}{data.config.costPercent}%
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* 条件与谓词 */}
+              {(data.predicate || data.joinSummary || data.groupBySummary) && (
+                <div className="space-y-1 pt-1 border-t border-monokai-border/40 text-[10.5px] font-mono">
+                  {data.predicate && (
+                    <div className="p-1.5 rounded bg-monokai-orange/10 border border-monokai-orange/20 text-monokai-orange break-all">
+                      <span className="font-bold mr-1">[下推初筛]</span>
+                      {data.predicate}
+                    </div>
+                  )}
+                  {data.joinSummary && (
+                    <div className="p-1.5 rounded bg-monokai-pink/10 border border-monokai-pink/20 text-monokai-pink break-all">
+                      <span className="font-bold mr-1">[连接条件]</span>
+                      {data.joinSummary}
+                    </div>
+                  )}
+                  {data.groupBySummary && (
+                    <div className="p-1.5 rounded bg-monokai-yellow/10 border border-monokai-yellow/20 text-monokai-yellow break-all">
+                      <span className="font-bold mr-1">[聚合分组]</span>
+                      {data.groupBySummary}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* 代码定位与一键跳转 */}
+              {data.sqlRange && (
+                <div className="pt-1 flex items-center justify-between">
+                  <span className="text-monokai-comment text-[10px] font-mono">
+                    对应代码: 第 {data.sqlRange.startLine} ~ {data.sqlRange.endLine} 行
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      useWorkflowStore.setState({ activeSqlRange: data.sqlRange });
+                      window.dispatchEvent(new CustomEvent('focus_sql_editor', { detail: { sqlRange: data.sqlRange } }));
+                      toastService.info(`已高亮定位至 SQL 第 ${data.sqlRange!.startLine} 行`);
+                    }}
+                    className="flex items-center gap-1 px-2 py-0.5 rounded bg-monokai-cyan/15 hover:bg-monokai-cyan/25 border border-monokai-cyan/40 text-monokai-cyan text-[10.5px] font-semibold transition-colors cursor-pointer"
+                    title="在 SQL 编辑器中高亮聚焦此步骤代码"
+                  >
+                    <Code className="w-3 h-3" />
+                    <span>在编辑器高亮</span>
+                  </button>
+                </div>
+              )}
+
+              {/* 反向追溯数据流源头 */}
+              <div className="pt-1.5 border-t border-monokai-border/40">
+                <button
+                  type="button"
+                  onClick={() => {
+                    useWorkflowStore.getState().traceReverseLineage(selectedNode.id);
+                  }}
+                  className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded bg-monokai-accent/15 hover:bg-monokai-accent/25 border border-monokai-accent/40 text-xs font-semibold text-monokai-accent transition-colors cursor-pointer"
+                  title="以当前算子为终点，反向高亮其所有依赖的底层数据源与流转路径"
+                >
+                  <Compass className="w-3.5 h-3.5" />
+                  <span>反向追溯此步骤的全部上游数据源</span>
+                </button>
+              </div>
             </div>
 
-            {/* 描述结构 */}
-            <div>
-              <label className="block text-meta font-medium text-monokai-comment mb-1">
-                描述结构
-              </label>
-              <input
-                type="text"
-                value={data.subtitle || ''}
-                placeholder="按国家和品类汇总销售额、订单量和客户数"
-                onChange={e => updateNodeData(selectedNode.id, { subtitle: e.target.value })}
-                className="w-full rounded-md border border-monokai-border bg-monokai-bg px-2 py-1 text-meta text-monokai-fg outline-none focus:border-monokai-accent"
-              />
-            </div>
+            {/* 1.5 阶段字段演变透镜卡片 */}
+            {data.schemaEvolution && (
+              <div className="p-3 rounded-lg bg-monokai-bg/60 border border-white/5 space-y-2 font-mono">
+                <div className="flex items-center justify-between text-xs text-monokai-comment">
+                  <span className="font-semibold text-monokai-cyan flex items-center gap-1">
+                    <Layers className="w-3.5 h-3.5" />
+                    <span>阶段字段集演变透镜</span>
+                  </span>
+                  <span className="text-[10.5px] text-monokai-fg font-bold">
+                    {data.schemaEvolution.inputColumns.length} 进 ➔ {data.schemaEvolution.outputColumns.length} 出
+                  </span>
+                </div>
+                <div className="space-y-1.5 text-[11px]">
+                  <div className="flex items-start gap-1 text-monokai-comment">
+                    <span className="shrink-0 text-monokai-fg-muted font-semibold">输入字段:</span>
+                    <span className="text-monokai-fg truncate">{data.schemaEvolution.inputColumns.join(', ')}</span>
+                  </div>
+                  <div className="flex items-start gap-1 text-monokai-comment">
+                    <span className="shrink-0 text-monokai-accent font-semibold">产出字段:</span>
+                    <span className="text-monokai-fg truncate">{data.schemaEvolution.outputColumns.join(', ')}</span>
+                  </div>
+                  {data.schemaEvolution.droppedColumns && data.schemaEvolution.droppedColumns.length > 0 && (
+                    <div className="flex items-start gap-1 text-[10px] text-monokai-pink bg-monokai-pink/10 p-1.5 rounded">
+                      <span className="shrink-0 font-semibold">注销字段:</span>
+                      <span>{data.schemaEvolution.droppedColumns.join(', ')}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* 2. SQL 运行套路与避坑指南卡片 */}
+            {data.paradigm && (
+              <div className="p-3 rounded-lg bg-monokai-surface border border-monokai-yellow/30 space-y-2">
+                <div className="flex items-center justify-between text-xs font-semibold text-monokai-yellow font-mono">
+                  <div className="flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 shrink-0" />
+                    <span>SQL 运行套路法则</span>
+                  </div>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-monokai-yellow/15 border border-monokai-yellow/30 font-normal">
+                    时序: Step {data.paradigm.executionOrder} / 7
+                  </span>
+                </div>
+                <div className="text-[11px] text-monokai-fg/90 leading-relaxed">
+                  <span className="font-semibold text-monokai-accent">【运行机制】</span>
+                  {data.paradigm.mentalModel}
+                </div>
+                <div className="text-[11px] text-monokai-orange leading-relaxed bg-monokai-orange/10 p-2 rounded border border-monokai-orange/20">
+                  <span className="font-semibold text-monokai-orange">【避坑实践】</span>
+                  {data.paradigm.pitfallWarning}
+                </div>
+              </div>
+            )}
+
+            {/* 自由编排模式专属：节点名称与描述编辑 */}
+            {dataFlowMode === 'custom' && (
+              <>
+                <div>
+                  <label className="block text-meta font-medium text-monokai-comment mb-1">
+                    节点名称
+                  </label>
+                  <input
+                    type="text"
+                    value={data.title}
+                    onChange={e => updateNodeData(selectedNode.id, { title: e.target.value })}
+                    className="w-full rounded-md border border-monokai-border bg-monokai-bg px-2 py-1 text-meta text-monokai-fg outline-none focus:border-monokai-accent"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-meta font-medium text-monokai-comment mb-1">
+                    描述结构
+                  </label>
+                  <input
+                    type="text"
+                    value={data.subtitle || ''}
+                    placeholder="按国家和品类汇总销售额、订单量和客户数"
+                    onChange={e => updateNodeData(selectedNode.id, { subtitle: e.target.value })}
+                    className="w-full rounded-md border border-monokai-border bg-monokai-bg px-2 py-1 text-meta text-monokai-fg outline-none focus:border-monokai-accent"
+                  />
+                </div>
+              </>
+            )}
 
             {/* ── 双向血缘关系卡片 (上游来源 + 下游去向) ── */}
             <div className="space-y-2">
@@ -518,8 +793,11 @@ export const DataFlowInspector: React.FC<DataFlowInspectorProps> = ({
               </div>
             </div>
 
-            {/* ── 数据源节点专用配置 (深度绑定真实 DuckDB 工作区) ── */}
-            {data.type === 'source' && (
+            {/* ── 自由编排模式专属配置表单 (数据源选择 / 聚合增删 / 连接规则 / SQL 转换) ── */}
+            {dataFlowMode === 'custom' && (
+              <>
+                {/* ── 数据源节点专用配置 (深度绑定真实 DuckDB 工作区) ── */}
+                {data.type === 'source' && (
               <div className="space-y-3">
                 <div>
                   <div className="flex items-center justify-between mb-1">
@@ -863,6 +1141,8 @@ export const DataFlowInspector: React.FC<DataFlowInspectorProps> = ({
                 </div>
               </div>
             )}
+          </>
+        )}
 
             {/* ── SQL 预览模块 (双向打通 SQL 工作台与 EXPLAIN) ── */}
             <div>
@@ -965,50 +1245,52 @@ export const DataFlowInspector: React.FC<DataFlowInspectorProps> = ({
           <span>{isExecuting ? '执行中...' : '运行节点'}</span>
         </button>
 
-        {/* 重置 & 删除 */}
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              if (selectedNode) {
-                // 重置为该节点类型的初始配置（清除 rawSql、聚合字段等）
-                updateNodeConfig(selectedNode.id, {
-                  groupBy: [],
-                  aggregations: [],
-                  filter: '',
-                  rawSql: undefined,
-                  conditions: [],
-                });
-                toastService.info(`节点 "${selectedNode.data.title}" 配置已重置`);
-              }
-            }}
-            className="flex-1 flex items-center justify-center gap-1 rounded border border-monokai-border bg-monokai-elevated px-3 py-1.5 text-xs text-monokai-fg-muted hover:bg-monokai-border hover:text-monokai-fg transition-colors cursor-pointer"
-          >
-            <RotateCcw className="h-3 w-3" />
-            <span>重置配置</span>
-          </button>
-          <button
-            type="button"
-            onClick={async () => {
-              if (selectedNode) {
-                const confirmed = await confirm({
-                  title: '删除节点',
-                  message: `确认删除节点「${selectedNode.data.title}」？\n相关连线也将一并移除。`,
-                  variant: 'danger',
-                });
-                if (confirmed) {
-                  deleteNode(selectedNode.id);
-                  toastService.info(`节点 "${selectedNode.data.title}" 已删除`);
+        {/* 重置 & 删除 (仅自由编排模式提供，真实 SQL 执行路径不暴露破坏性重置与删除) */}
+        {dataFlowMode === 'custom' && (
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                if (selectedNode) {
+                  // 重置为该节点类型的初始配置（清除 rawSql、聚合字段等）
+                  updateNodeConfig(selectedNode.id, {
+                    groupBy: [],
+                    aggregations: [],
+                    filter: '',
+                    rawSql: undefined,
+                    conditions: [],
+                  });
+                  toastService.info(`节点 "${selectedNode.data.title}" 配置已重置`);
                 }
-              }
-            }}
-            className="flex items-center justify-center gap-1 rounded border border-monokai-pink/40 bg-monokai-pink/10 px-3 py-1.5 text-xs text-monokai-pink hover:bg-monokai-pink/20 hover:border-monokai-pink/70 transition-colors cursor-pointer"
-            title="从画布中删除此节点及相关连线"
-          >
-            <Trash2 className="h-3 w-3" />
-            <span>删除节点</span>
-          </button>
-        </div>
+              }}
+              className="flex-1 flex items-center justify-center gap-1 rounded border border-monokai-border bg-monokai-elevated px-3 py-1.5 text-xs text-monokai-fg-muted hover:bg-monokai-border hover:text-monokai-fg transition-colors cursor-pointer"
+            >
+              <RotateCcw className="h-3 w-3" />
+              <span>重置配置</span>
+            </button>
+            <button
+              type="button"
+              onClick={async () => {
+                if (selectedNode) {
+                  const confirmed = await confirm({
+                    title: '删除节点',
+                    message: `确认删除节点「${selectedNode.data.title}」？\n相关连线也将一并移除。`,
+                    variant: 'danger',
+                  });
+                  if (confirmed) {
+                    deleteNode(selectedNode.id);
+                    toastService.info(`节点 "${selectedNode.data.title}" 已删除`);
+                  }
+                }
+              }}
+              className="flex items-center justify-center gap-1 rounded border border-monokai-pink/40 bg-monokai-pink/10 px-3 py-1.5 text-xs text-monokai-pink hover:bg-monokai-pink/20 hover:border-monokai-pink/70 transition-colors cursor-pointer"
+              title="从画布中删除此节点及相关连线"
+            >
+              <Trash2 className="h-3 w-3" />
+              <span>删除节点</span>
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

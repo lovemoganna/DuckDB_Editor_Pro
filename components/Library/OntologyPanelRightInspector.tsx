@@ -6,6 +6,7 @@ import { normalizeDateToString } from './OntologyPanel.types';
 import { ToastNotification } from '../ui/ToastNotification';
 import { ontologyAiService } from '../../services/ontologyAiService';
 import { ActionButton, IconButton } from '../ui/Workbench';
+import { OntologyReverseTutorialCard } from './OntologyReverseTutorialCard';
 
 interface RightInspectorProps {
   mode: EditMode;
@@ -505,6 +506,21 @@ const RightInspector: React.FC<RightInspectorProps> = ({ mode, target, onClose, 
             )}
           </div>
         )}
+
+        {/* 关联知识与教程反查卡片 */}
+        <div className="pt-2">
+          <OntologyReverseTutorialCard
+            target={target}
+            mode={mode}
+            onNavigateToAsset={(assetId) => {
+              window.dispatchEvent(
+                new CustomEvent('duckdb_jump_to_knowledge_asset', {
+                  detail: { assetId },
+                })
+              );
+            }}
+          />
+        </div>
       </div>
 
       <div className="p-4 flex gap-2 justify-end border-t border-monokai-border bg-monokai-sidebar">

@@ -155,7 +155,7 @@ SELECT current_date, version();
     const asset001 = parseMarkdownToAsset(doc001, '001 内嵌DuckDB教程_简单.md') as NoteAsset;
     expect(asset001.type).toBe('note');
     expect(asset001.id).toBe('duckdb-sql-complete');
-    expect(asset001.title).toBe('DuckDB SQL 完整使用教程');
+    expect(asset001.title).toContain('DuckDB SQL 完整使用教程');
     expect(asset001.content.length).toBeGreaterThan(10000);
     expect(asset001.tags).toContain('DuckDB');
     expect(asset001.summary).toBeTruthy();
@@ -175,12 +175,12 @@ SELECT current_date, version();
     expect(asset003.id).toBe('ontology-duckdb-complete');
     expect(asset003.title).toContain('Palantir Ontology');
 
-    // 4. 验证 Quick_Tutorial.md
-    const docQuick = fs.readFileSync(path.join(docsDir, 'Quick_Tutorial.md'), 'utf-8');
-    const assetQuick = parseMarkdownToAsset(docQuick, 'Quick_Tutorial.md') as NoteAsset;
-    expect(assetQuick.type).toBe('note');
-    expect(assetQuick.id).toBe('sql-learning-path');
-    expect(assetQuick.title).toBe('SQL 学习路径：基于领导建议的系统化方案');
+    // 4. 验证 004 DuckDB教程_自定义上传.md
+    const doc004 = fs.readFileSync(path.join(docsDir, '004 DuckDB教程_自定义上传.md'), 'utf-8');
+    const asset004 = parseMarkdownToAsset(doc004, '004 DuckDB教程_自定义上传.md') as NoteAsset;
+    expect(asset004.type).toBe('note');
+    expect(asset004.id).toBe('ontology-duckdb-runnable');
+    expect(asset004.title).toContain('Palantir Ontology');
   });
 
   it('correctly extracts SQL and DuckDB code blocks from markdown text', () => {

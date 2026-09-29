@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { aiService } from '../services/aiService';
+import { aiService, preferIpv4Loopback } from '../services/aiService';
 import { duckDBService } from '../services/duckdbService';
 import { ModalShell, ActionButton } from './ui/Workbench';
 import { useConfirmDialog } from './ui/ConfirmDialog';
@@ -88,7 +88,7 @@ const PROVIDERS: ProviderMeta[] = [
     tagline: '本地私有引擎 · 免API Key · 隐私物理隔离',
     description: '无需联网，在本地机器直接运行开源大模型，适合敏感数据分析与离线环境。',
     icon: Terminal,
-    defaultBaseUrl: 'http://localhost:11434',
+    defaultBaseUrl: 'http://127.0.0.1:11434',
     defaultModel: 'llama3.2',
     popularModels: [
       { id: 'llama3.2', label: 'Llama 3.2', badge: '轻快推荐' },
@@ -96,7 +96,7 @@ const PROVIDERS: ProviderMeta[] = [
       { id: 'deepseek-r1:8b', label: 'DeepSeek R1 8B', badge: '深度推理' },
       { id: 'mistral', label: 'Mistral 7B' },
     ],
-    tips: '提示: 本地需先启动 ollama serve。在浏览器端调用需设置环境变量 OLLAMA_ORIGINS="*" 以允许跨域请求。',
+    tips: '提示: 本地需先启动 ollama serve。Endpoint 建议使用 http://127.0.0.1:11434（勿用 localhost）。浏览器端调用需设置 OLLAMA_ORIGINS="*" 以允许跨域。',
   },
   {
     id: 'lmstudio',
@@ -108,7 +108,7 @@ const PROVIDERS: ProviderMeta[] = [
     tagline: '本地模型工作站 · OpenAI 兼容接口 · 私密离线推理',
     description: '通过 LM Studio 运行本地 GGUF 开源大模型，支持一键加载各类社区模型，数据 100% 留在本地。',
     icon: Server,
-    defaultBaseUrl: 'http://localhost:1234/v1',
+    defaultBaseUrl: 'http://127.0.0.1:1234/v1',
     defaultModel: 'qwen2.5-coder-7b-instruct',
     popularModels: [
       { id: 'qwen2.5-coder-7b-instruct', label: 'Qwen 2.5 Coder', badge: 'SQL 代码专精' },
@@ -116,7 +116,7 @@ const PROVIDERS: ProviderMeta[] = [
       { id: 'llama-3.2-3b-instruct', label: 'Llama 3.2 3B', badge: '轻快推荐' },
       { id: 'mistral-nemo-instruct-2407', label: 'Mistral Nemo', badge: '通识分析' },
     ],
-    tips: '提示: 请先在 LM Studio 中启动本地服务器 (Local Server: http://localhost:1234)，并开启 CORS 跨域支持。',
+    tips: '提示: 请先在 LM Studio 中启动本地服务器，Endpoint 请使用 http://127.0.0.1:1234/v1（勿用 localhost，浏览器可能走 IPv6 导致连不上），并开启 CORS 跨域支持。',
   },
   {
     id: 'google',
@@ -254,10 +254,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const handleTestConnection = async () => {
     setDiagnosis({ running: true, tested: false, success: false, message: '正在诊断连接...' });
     try {
+      // Prefer 127.0.0.1 for local providers — browsers may resolve localhost to IPv6 (::1).
+      const endpoint = isLocal ? preferIpv4Loopback(aiBaseUrl) : aiBaseUrl;
+      if (isLocal && endpoint !== aiBaseUrl) {
+        onSetAiBaseUrl(endpoint);
+      }
+
       const res = await aiService.diagnoseConnection({
         provider: aiProvider as any,
         apiKey: isLocalOllama ? 'ollama' : isLocalLmStudio ? (aiApiKey || 'lm-studio') : aiApiKey,
-        baseUrl: aiBaseUrl,
+        baseUrl: endpoint,
         model: aiModel,
       });
 
@@ -526,7 +532,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     type="text"
                     value={aiBaseUrl}
                     onChange={e => onSetAiBaseUrl(e.target.value)}
-                    placeholder={currentProvider.defaultBaseUrl || (isLocalOllama ? 'http://localhost:11434' : isLocalLmStudio ? 'http://localhost:1234/v1' : 'https://api.openai.com/v1')}
+                    placeholder={currentProvider.defaultBaseUrl || (isLocalOllama ? 'http://127.0.0.1:11434' : isLocalLmStudio ? 'http://127.0.0.1:1234/v1' : 'https://api.openai.com/v1')}
                     className="w-full px-3 py-2 bg-monokai-surface border border-monokai-border rounded-lg text-xs font-mono text-monokai-fg placeholder-monokai-comment/50 focus:outline-none focus:border-monokai-accent transition-colors"
                   />
                 </div>
@@ -749,6 +755,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         ) : isLocalLmStudio ? (
                           <ul className="list-disc list-inside space-y-0.5 pl-1">
                             <li>确认 LM Studio 的 Local Server 处于运行状态（默认端口 1234）</li>
+                            <li>Endpoint 使用 <code className="text-monokai-fg">http://127.0.0.1:1234/v1</code>（不要用 localhost，浏览器可能解析到 IPv6）</li>
                             <li>确认在 LM Studio 中已下载并加载模型（或开启 JIT 自动加载）</li>
                             <li>在 LM Studio 服务器设置中确认已勾选 "Enable CORS" 允许跨域</li>
                             <li>确认 1234 端口未被其他服务占用</li>

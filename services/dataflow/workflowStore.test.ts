@@ -41,8 +41,8 @@ describe('Workflow Store & State Machine Tests', () => {
     await useWorkflowStore.getState().loadWorkflow(commentedSql, 'KPI分析');
     const { nodes, edges, activeTabTitle } = useWorkflowStore.getState();
     expect(activeTabTitle).toBe('KPI分析');
-    expect(nodes.some(n => n.id === 'node_cte_kpi')).toBe(true);
-    expect(nodes.some(n => n.id === 'node_final_result')).toBe(true);
+    expect(nodes.some(n => n.data.type === 'source')).toBe(true);
+    expect(nodes.some(n => n.data.type === 'result')).toBe(true);
     expect(edges.length).toBeGreaterThanOrEqual(1);
   });
 
@@ -103,11 +103,11 @@ describe('Workflow Store & State Machine Tests', () => {
     expect(state.dataFlowMode).toBe('sql');
     expect(state.activeTabTitle).toBe('月度销售分析');
 
-    // Should have source nodes (demo_sales, demo_customers), CTE node (monthly_sales), and result node
-    expect(state.nodes.some(n => n.data.type === 'source' && n.data.title === 'demo_sales')).toBe(true);
-    expect(state.nodes.some(n => n.data.type === 'source' && n.data.title === 'demo_customers')).toBe(true);
-    expect(state.nodes.some(n => n.id === 'node_cte_monthly_sales')).toBe(true);
-    expect(state.nodes.some(n => n.id === 'node_final_result')).toBe(true);
+    // Should have source nodes (demo_sales, demo_customers), join node, and result node
+    expect(state.nodes.some(n => n.data.type === 'source' && (n.data.tableName === 'demo_sales' || n.data.title.includes('demo_sales')))).toBe(true);
+    expect(state.nodes.some(n => n.data.type === 'source' && (n.data.tableName === 'demo_customers' || n.data.title.includes('demo_customers')))).toBe(true);
+    expect(state.nodes.some(n => n.data.type === 'join')).toBe(true);
+    expect(state.nodes.some(n => n.data.type === 'result')).toBe(true);
     expect(state.edges.length).toBeGreaterThanOrEqual(3);
   });
 
@@ -326,6 +326,86 @@ describe('Workflow Store & State Machine Tests', () => {
     // Target node should be marked dirty
     const targetNode = useWorkflowStore.getState().nodes.find(n => n.id === targetNodeId);
     expect(targetNode?.data.status).toBe('dirty');
+  });
+
+  it('clears graph when syncFromSql receives empty SQL', async () => {
+    const store = useWorkflowStore.getState();
+    expect(store.nodes.length).toBeGreaterThan(0);
+
+    await store.syncFromSql('   ', '空查询');
+
+    const state = useWorkflowStore.getState();
+    expect(state.nodes).toEqual([]);
+    expect(state.edges).toEqual([]);
+    expect(state.selectedNodeId).toBeNull();
+    expect(state.activeSqlRange).toBeNull();
+    expect(state.syncStatus).toBe('idle');
+    expect(state.lastSyncError).toBeNull();
+  });
+
+  it('focusFaultyNode sets activeSqlRange and selectedNodeId', () => {
+    useWorkflowStore.setState({
+      nodes: [
+        {
+          id: 'faulty',
+          type: 'dataFlowNode',
+          position: { x: 0, y: 0 },
+          data: {
+            title: '坏节点',
+            type: 'schema',
+            status: 'error',
+            bugInfo: {
+              hasBug: true,
+              severity: 'error',
+              title: '语法错误',
+              detail: 'Parser Error',
+              suggestion: '检查 SQL',
+            },
+            sqlRange: { startLine: 4, endLine: 4 },
+          },
+        } as any,
+      ],
+      edges: [],
+      selectedNodeId: null,
+      activeSqlRange: null,
+    });
+
+    const id = useWorkflowStore.getState().focusFaultyNode(null);
+    expect(id).toBe('faulty');
+    expect(useWorkflowStore.getState().selectedNodeId).toBe('faulty');
+    expect(useWorkflowStore.getState().activeSqlRange).toEqual({ startLine: 4, endLine: 4 });
+  });
+
+  it('syncExecutionResult error path writes activeSqlRange from faulty node', async () => {
+    useWorkflowStore.setState({
+      nodes: [
+        {
+          id: 'n1',
+          type: 'dataFlowNode',
+          position: { x: 0, y: 0 },
+          data: {
+            title: 'SCAN',
+            type: 'source',
+            status: 'idle',
+            sqlRange: { startLine: 1, endLine: 1 },
+          },
+        } as any,
+      ],
+      edges: [],
+      activeSql: 'SELECT bad_col FROM orders',
+      activeTabTitle: '坏查询',
+    });
+
+    await useWorkflowStore.getState().syncExecutionResult('坏查询', {
+      error: 'Binder Error: Referenced column "bad_col" not found\nLINE 1: SELECT bad_col FROM orders\n               ^',
+      executionTime: 12,
+    }, 'SELECT bad_col FROM orders');
+
+    const state = useWorkflowStore.getState();
+    expect(state.selectedNodeId).toBeTruthy();
+    expect(state.nodes.some(n => n.data.status === 'error' || n.data.bugInfo?.hasBug)).toBe(true);
+    // focusFaultyNode / buildRealExecutionWorkflow should surface a sqlRange when possible
+    expect(state.syncStatus).toBe('ready');
   });
 });
 

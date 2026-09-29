@@ -22,9 +22,9 @@ describe('knowledgeAssetStorage', () => {
   it('initializes with seed knowledge assets when store is initialized', async () => {
     const assets = await getAllKnowledgeAssets();
     expect(assets.length).toBeGreaterThanOrEqual(SEED_KNOWLEDGE_ASSETS.length);
-    const parquetSeed = assets.find((a) => a.id === 'code-parquet-inspect');
-    expect(parquetSeed).toBeDefined();
-    expect(parquetSeed?.type).toBe('code');
+    const lesson1 = assets.find((a) => a.id === 'duckdb-sql-lesson-1');
+    expect(lesson1).toBeDefined();
+    expect(lesson1?.type).toBe('note');
   });
 
   it('saves a new asset and retrieves it by id', async () => {
@@ -49,7 +49,7 @@ describe('knowledgeAssetStorage', () => {
   });
 
   it('toggles favorite status correctly', async () => {
-    const assetId = 'code-parquet-inspect';
+    const assetId = 'duckdb-sql-lesson-1';
     const before = await getKnowledgeAssetById(assetId);
     const initialFav = Boolean(before?.isFavorite);
 
@@ -61,7 +61,7 @@ describe('knowledgeAssetStorage', () => {
   });
 
   it('deletes an asset successfully', async () => {
-    const testId = 'code-retention-cohort';
+    const testId = 'duckdb-sql-lesson-2';
     const before = await getKnowledgeAssetById(testId);
     expect(before).toBeDefined();
 
@@ -104,5 +104,44 @@ describe('knowledgeAssetStorage', () => {
     const imported = await getKnowledgeAssetById('imported-test-1');
     expect(imported).toBeDefined();
     expect(imported?.title).toBe('外部导入的 SQL');
+  });
+
+  it('automatically purges deprecated assets from IndexedDB on load', async () => {
+    // 模拟旧版本 IndexedDB 中遗留了已删除的资产
+    await saveKnowledgeAsset({
+      id: 'code-parquet-inspect',
+      type: 'code',
+      title: 'Parquet 极速元数据与数据分布抽样',
+      category: 'template',
+      description: '旧版资产',
+      sql: 'SELECT 1;',
+      tags: ['DuckDB'],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    await saveKnowledgeAsset({
+      id: 'metric-gmv-net',
+      type: 'metric',
+      name: 'GMV (净成交交易总额)',
+      businessMeaning: '旧指标',
+      calculationFormula: 'SUM(amount)',
+      sourceTables: ['orders'],
+      dimensions: [],
+      owner: 'test',
+      tags: ['GMV'],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    const assets = await getAllKnowledgeAssets();
+    expect(assets.some((a) => a.id === 'code-parquet-inspect')).toBe(false);
+    expect(assets.some((a) => a.id === 'metric-gmv-net')).toBe(false);
+
+    // 验证 IndexedDB 数据库中也被物理清理
+    const afterParquet = await getKnowledgeAssetById('code-parquet-inspect');
+    const afterGmv = await getKnowledgeAssetById('metric-gmv-net');
+    expect(afterParquet).toBeNull();
+    expect(afterGmv).toBeNull();
   });
 });

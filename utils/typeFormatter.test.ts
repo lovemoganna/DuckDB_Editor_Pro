@@ -9,6 +9,7 @@ import {
   formatInteger,
   formatDecimal,
   formatBoolean,
+  getTypeBadgeStyle,
 } from './typeFormatter';
 
 describe('typeFormatter', () => {
@@ -96,6 +97,16 @@ describe('typeFormatter', () => {
       // 1788015989808000000n (nanoseconds bigint)
       const formattedNano = formatCellValue(1788015989808000000n, 'TIMESTAMP');
       expect(formattedNano).toContain('2026-08-29');
+    });
+
+    it('returns appropriate light pastel badge styles for data types', () => {
+      expect(getTypeBadgeStyle('BIGINT')).toContain('monokai-green');
+      expect(getTypeBadgeStyle('DOUBLE')).toContain('monokai-green');
+      expect(getTypeBadgeStyle('VARCHAR')).toContain('monokai-cyan');
+      expect(getTypeBadgeStyle('TIMESTAMP')).toContain('monokai-purple');
+      expect(getTypeBadgeStyle('BOOLEAN')).toContain('monokai-pink');
+      expect(getTypeBadgeStyle('JSON')).toContain('monokai-orange');
+      expect(getTypeBadgeStyle('UNKNOWN')).toContain('monokai-yellow');
     });
   });
 });

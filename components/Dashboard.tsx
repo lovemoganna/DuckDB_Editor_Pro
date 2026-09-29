@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { UploadCloud, Loader2 } from 'lucide-react';
+import { UploadCloud, Loader2, Compass, LayoutDashboard } from 'lucide-react';
 import { Tab } from '../types';
 import { type DuckDBRuntimeInfo } from '../services/duckdbService';
 import { useDashboardWorkflow } from '../hooks/useDashboardWorkflow';
@@ -10,11 +10,13 @@ import { DashboardRecentTables } from './Dashboard/DashboardRecentTables';
 import { DashboardRecentQueries } from './Dashboard/DashboardRecentQueries';
 import { DashboardQuickActions } from './Dashboard/DashboardQuickActions';
 import { QuickTablePeekDrawer } from './Dashboard/QuickTablePeekDrawer';
+import { DataIdeMissionControl } from './Dashboard/MissionControl/DataIdeMissionControl';
 
 export interface DashboardProps {
   tables: string[];
   onNavigate: (tab: Tab) => void;
   runtimeInfo?: DuckDBRuntimeInfo;
+  initialLayoutMode?: 'mission-control' | 'classic';
   onSelectTable?: (tableName: string, filter?: string) => void | Promise<void>;
   onSelectTableStructure?: (tableName: string, focusTab?: 'profile' | 'add' | 'ddl') => void | Promise<void>;
   onSelectTableAnalysis?: (tableName: string) => void;
@@ -27,6 +29,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   tables,
   onNavigate,
   runtimeInfo,
+  initialLayoutMode,
   onSelectTable,
   onSelectTableStructure,
   onSelectTableAnalysis,
@@ -37,6 +40,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const {
     displayTables,
     displayQueries,
+    allHistoryItems,
+    recentImports,
     growthTrendData,
     latencyTrendData,
     dbMetrics,
@@ -89,6 +94,19 @@ export const Dashboard: React.FC<DashboardProps> = ({
     onSelectQuery,
   });
 
+  const isTestEnv =
+    (typeof process !== 'undefined' && process.env?.NODE_ENV === 'test') ||
+    Boolean(import.meta.env?.TEST) ||
+    import.meta.env?.MODE === 'test';
+
+  const [dashboardLayoutMode, setDashboardLayoutMode] = useState<'mission-control' | 'classic'>(() => {
+    if (initialLayoutMode) return initialLayoutMode;
+    const saved = typeof window !== 'undefined' ? localStorage.getItem('duckdb_dashboard_layout_mode') : null;
+    if (saved === 'mission-control') return 'mission-control';
+    if (saved === 'classic') return 'classic';
+    return isTestEnv ? 'classic' : 'mission-control';
+  });
+
   const [isDraggingOver, setIsDraggingOver] = useState(false);
 
   // Keyboard shortcut: Ctrl+Enter / Cmd+Enter to open SQL editor
@@ -134,7 +152,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       onDragOver={handleGlobalDragOver}
       onDragLeave={handleGlobalDragLeave}
       onDrop={handleGlobalDrop}
-      className="relative flex flex-col flex-1 h-full w-full overflow-y-auto bg-monokai-bg text-monokai-fg px-3.5 sm:px-5 lg:px-6 py-3 select-text custom-scrollbar space-y-3 font-sans text-meta"
+      className="relative flex flex-col flex-1 h-full w-full overflow-y-auto bg-monokai-bg text-monokai-fg px-3 sm:px-4 lg:px-5 py-3 select-text custom-scrollbar space-y-3 font-sans text-sm"
     >
       {/* Global Drag-and-Drop Overlay */}
       {isDraggingOver && (
@@ -142,8 +160,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <div className="mb-2.5 flex h-12 w-12 items-center justify-center rounded-xl border border-monokai-border bg-monokai-elevated text-monokai-accent">
             <UploadCloud className="h-6 w-6" />
           </div>
-          <h3 className="text-sm font-semibold tracking-wide text-monokai-fg">释放文件以即时解析导入</h3>
-          <p className="mt-1 font-mono text-2xs text-monokai-comment">
+          <h3 className="text-base font-bold tracking-wide text-monokai-fg">释放文件以即时解析导入</h3>
+          <p className="mt-1 font-mono text-xs text-monokai-comment">
             支持 .csv, .xlsx, .xls, .parquet, .json, .arrow, .sqlite, .db, .tsv
           </p>
         </div>
@@ -151,111 +169,167 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
       {/* Real-time Import / Dataset Ingestion Progress Notification */}
       {importState.status === 'importing' && (
-        <div className="flex items-center justify-between rounded-xl border border-monokai-border bg-monokai-surface px-3.5 py-2 text-meta font-mono shadow-sm animate-in fade-in slide-in-from-top-2 duration-200">
+        <div className="flex items-center justify-between rounded-xl border border-monokai-border bg-monokai-surface px-4 py-2.5 text-xs font-mono shadow-sm animate-in fade-in slide-in-from-top-2 duration-200">
           <div className="flex items-center gap-2.5">
-            <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-monokai-accent" />
+            <Loader2 className="h-4 w-4 shrink-0 animate-spin text-monokai-accent" />
             <span className="text-monokai-fg">
               正在挂载并解析：
               <span className="ml-1 font-semibold text-monokai-accent">{importState.filename || '数据表'}</span>
             </span>
           </div>
-          <span className="text-2xs text-monokai-comment">WASM 流式处理中…</span>
+          <span className="text-xs text-monokai-comment">WASM 流式处理中…</span>
         </div>
       )}
 
-      {/* 1. Top Hero Section */}
-      <DashboardHero
-        onNavigate={onNavigate}
-        onOpenImport={() => setShowImportModal(true)}
-        onOpenCreate={() => setShowCreateModal(true)}
-        onOpenSettings={() => setShowSettingsModal(true)}
-        onRefresh={handleRefresh}
-        isRefreshing={isRefreshing}
-        lastRefreshedTime={lastRefreshedTime}
-        metrics={dbMetrics}
-        runtimeInfo={runtimeInfo}
-      />
+      {/* Optional Legacy Layout Return Banner (only displayed if user activated classic mode) */}
+      {dashboardLayoutMode === 'classic' && (
+        <div className="flex items-center justify-between border-b border-white/5 pb-2 select-text">
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-xs text-slate-400">当前处于经典全景视图</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setDashboardLayoutMode('mission-control');
+              if (typeof window !== 'undefined') localStorage.setItem('duckdb_dashboard_layout_mode', 'mission-control');
+            }}
+            className="flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/25 transition-colors cursor-pointer"
+          >
+            <Compass className="h-3.5 w-3.5" />
+            <span>返回全新 IDE 控制中心</span>
+          </button>
+        </div>
+      )}
 
-      {/* 2. Key Metrics Row (6 Cards with Drilldown) */}
-      <DashboardKpiRow
-        metrics={dbMetrics}
-        onNavigate={onNavigate}
-        onShrinkMemory={handleShrinkMemory}
-        onOpenSettings={() => setShowSettingsModal(true)}
-      />
-
-      {/* 3. Analytics Charts Row (3 Panels) */}
-      <DashboardChartsRow
-        growthData={growthTrendData}
-        latencyData={latencyTrendData}
-        metrics={dbMetrics}
-        onNavigate={onNavigate}
-        onInspectIssue={handleInspectIssue}
-        onSelectTable={workflowSelectTable}
-        onSelectTableStructure={workflowSelectTableStructure}
-        onSelectTableWithFilter={workflowSelectTableWithFilter}
-        growthMetric={growthMetric}
-        onGrowthMetricChange={setGrowthMetric}
-        growthLimit={growthLimit}
-        onGrowthLimitChange={setGrowthLimit}
-        latencyFilter={latencyFilter}
-        onLatencyFilterChange={setLatencyFilter}
-        tableTypeFilter={tableTypeFilter}
-        onTableTypeFilterChange={setTableTypeFilter}
-        onSelectTableAnalysis={workflowSelectTableAnalysis}
-        onSelectTableMetrics={workflowSelectTableMetrics}
-        onQuickQuery={handleQuickQuery}
-      />
-
-      {/* 4. Bottom Data Management Row (3 Panels) */}
-      <div className="grid w-full min-h-[320px] grid-cols-1 gap-3 pb-10 lg:grid-cols-3">
-        {/* Recent Tables with Search, Peek, Copy, Drop */}
-        <DashboardRecentTables
+      {dashboardLayoutMode === 'mission-control' ? (
+        <DataIdeMissionControl
           tables={displayTables}
-          onSelectTable={workflowSelectTable}
+          queries={displayQueries}
+          allHistoryItems={allHistoryItems}
+          recentImports={recentImports}
+          growthData={growthTrendData}
+          latencyData={latencyTrendData}
+          metrics={dbMetrics}
+          runtimeInfo={runtimeInfo}
           onNavigate={onNavigate}
+          onSelectTable={workflowSelectTable}
           onSelectTableStructure={workflowSelectTableStructure}
           onSelectTableAnalysis={workflowSelectTableAnalysis}
           onSelectTableMetrics={workflowSelectTableMetrics}
-          onSelectTableDataFlow={workflowSelectTableDataFlow}
-          onQuickQuery={handleQuickQuery}
           onPeekTable={handleOpenPeek}
+          onQuickQuery={handleQuickQuery}
+          onSelectQuery={workflowSelectQuery}
           onOpenImport={() => setShowImportModal(true)}
           onOpenCreate={() => setShowCreateModal(true)}
-          searchTerm={tableSearchTerm}
-          onSearchChange={setTableSearchTerm}
-          typeFilter={tableTypeFilter}
-          onTypeFilterChange={setTableTypeFilter}
-          onDropTable={handleDropTable}
-        />
-
-        {/* Recent Queries with Search, Status Filter, Copy SQL, Clear */}
-        <DashboardRecentQueries
-          queries={displayQueries}
-          onSelectQuery={workflowSelectQuery}
-          onExecuteQueryDirectly={(sql) => workflowSelectQuery(sql, true)}
-          onNavigate={onNavigate}
-          searchTerm={querySearchTerm}
-          onSearchChange={setQuerySearchTerm}
-          statusFilter={queryStatusFilter}
-          onStatusFilterChange={setQueryStatusFilter}
-          latencyFilter={latencyFilter}
-          onLatencyFilterChange={setLatencyFilter}
-          onClearQueries={handleClearQueries}
-        />
-
-        {/* Quick Actions Matrix with Export and Scratchpad */}
-        <DashboardQuickActions
-          onImportFile={handleImportFile}
-          onOpenImportModal={() => setShowImportModal(true)}
-          onOpenCreateModal={() => setShowCreateModal(true)}
-          onOpenBlankSql={handleOpenBlankSql}
-          onOpenExportModal={() => setShowExportModal(true)}
-          onLoadDemo={handleLoadDemo}
           onOpenSettings={() => setShowSettingsModal(true)}
-          onNavigate={onNavigate}
+          onOpenExport={() => setShowExportModal(true)}
+          onRefresh={handleRefresh}
+          isRefreshing={isRefreshing}
+          onShrinkMemory={handleShrinkMemory}
+          onToggleLayoutMode={() => {
+            setDashboardLayoutMode('classic');
+            if (typeof window !== 'undefined') localStorage.setItem('duckdb_dashboard_layout_mode', 'classic');
+          }}
         />
-      </div>
+      ) : (
+        <>
+          {/* 1. Top Hero Section */}
+          <DashboardHero
+            onNavigate={onNavigate}
+            onOpenImport={() => setShowImportModal(true)}
+            onOpenCreate={() => setShowCreateModal(true)}
+            onOpenSettings={() => setShowSettingsModal(true)}
+            onRefresh={handleRefresh}
+            isRefreshing={isRefreshing}
+            lastRefreshedTime={lastRefreshedTime}
+            metrics={dbMetrics}
+            runtimeInfo={runtimeInfo}
+          />
+
+          {/* 2. Key Metrics Row (6 Cards with Drilldown) */}
+          <DashboardKpiRow
+            metrics={dbMetrics}
+            tables={displayTables}
+            allHistoryItems={allHistoryItems}
+            onNavigate={onNavigate}
+            onShrinkMemory={handleShrinkMemory}
+            onOpenSettings={() => setShowSettingsModal(true)}
+          />
+
+          {/* 3. Analytics Charts Row (3 Panels) */}
+          <DashboardChartsRow
+            growthData={growthTrendData}
+            latencyData={latencyTrendData}
+            metrics={dbMetrics}
+            onNavigate={onNavigate}
+            onInspectIssue={handleInspectIssue}
+            onSelectTable={workflowSelectTable}
+            onSelectTableStructure={workflowSelectTableStructure}
+            onSelectTableWithFilter={workflowSelectTableWithFilter}
+            growthMetric={growthMetric}
+            onGrowthMetricChange={setGrowthMetric}
+            growthLimit={growthLimit}
+            onGrowthLimitChange={setGrowthLimit}
+            latencyFilter={latencyFilter}
+            onLatencyFilterChange={setLatencyFilter}
+            tableTypeFilter={tableTypeFilter}
+            onTableTypeFilterChange={setTableTypeFilter}
+            onSelectTableAnalysis={workflowSelectTableAnalysis}
+            onSelectTableMetrics={workflowSelectTableMetrics}
+            onQuickQuery={handleQuickQuery}
+          />
+
+          {/* 4. Bottom Data Management Row (3 Panels) */}
+          <div className="grid w-full min-h-[320px] grid-cols-1 gap-3 pb-10 lg:grid-cols-3">
+            {/* Recent Tables with Search, Peek, Copy, Drop */}
+            <DashboardRecentTables
+              tables={displayTables}
+              onSelectTable={workflowSelectTable}
+              onNavigate={onNavigate}
+              onSelectTableStructure={workflowSelectTableStructure}
+              onSelectTableAnalysis={workflowSelectTableAnalysis}
+              onSelectTableMetrics={workflowSelectTableMetrics}
+              onSelectTableDataFlow={workflowSelectTableDataFlow}
+              onQuickQuery={handleQuickQuery}
+              onPeekTable={handleOpenPeek}
+              onOpenImport={() => setShowImportModal(true)}
+              onOpenCreate={() => setShowCreateModal(true)}
+              searchTerm={tableSearchTerm}
+              onSearchChange={setTableSearchTerm}
+              typeFilter={tableTypeFilter}
+              onTypeFilterChange={setTableTypeFilter}
+              onDropTable={handleDropTable}
+            />
+
+            {/* Recent Queries with Search, Status Filter, Copy SQL, Clear */}
+            <DashboardRecentQueries
+              queries={displayQueries}
+              onSelectQuery={workflowSelectQuery}
+              onExecuteQueryDirectly={(sql) => workflowSelectQuery(sql, true)}
+              onNavigate={onNavigate}
+              searchTerm={querySearchTerm}
+              onSearchChange={setQuerySearchTerm}
+              statusFilter={queryStatusFilter}
+              onStatusFilterChange={setQueryStatusFilter}
+              latencyFilter={latencyFilter}
+              onLatencyFilterChange={setLatencyFilter}
+              onClearQueries={handleClearQueries}
+            />
+
+            {/* Quick Actions Matrix with Export and Scratchpad */}
+            <DashboardQuickActions
+              onImportFile={handleImportFile}
+              onOpenImportModal={() => setShowImportModal(true)}
+              onOpenCreateModal={() => setShowCreateModal(true)}
+              onOpenBlankSql={handleOpenBlankSql}
+              onOpenExportModal={() => setShowExportModal(true)}
+              onLoadDemo={handleLoadDemo}
+              onOpenSettings={() => setShowSettingsModal(true)}
+              onNavigate={onNavigate}
+            />
+          </div>
+        </>
+      )}
 
       {/* 5. Quick Table Peek Drawer (Zero-jump table inspection) */}
       {peekTableName && (

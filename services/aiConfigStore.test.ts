@@ -99,17 +99,17 @@ describe('AIConfigStore', () => {
     const store = new AIConfigStore(storage);
     store.setConfig({
       provider: 'lmstudio',
-      baseUrl: 'http://localhost:1234/v1',
+      baseUrl: 'http://127.0.0.1:1234/v1',
     });
 
     expect(store.getConfig()).toEqual({
       provider: 'lmstudio',
       apiKey: '',
-      baseUrl: 'http://localhost:1234/v1',
+      baseUrl: 'http://127.0.0.1:1234/v1',
       model: 'qwen2.5-coder-7b-instruct',
     });
     expect(storage.getItem('duckdb_ai_provider')).toBe('lmstudio');
-    expect(storage.getItem('duckdb_ai_base_url')).toBe('http://localhost:1234/v1');
+    expect(storage.getItem('duckdb_ai_base_url')).toBe('http://127.0.0.1:1234/v1');
     expect(storage.getItem('duckdb_ai_model')).toBe('qwen2.5-coder-7b-instruct');
   });
 });

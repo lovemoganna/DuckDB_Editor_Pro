@@ -35,6 +35,7 @@ import {
 import { Tab } from '../../types';
 import { duckDBService, type DuckDBRuntimeInfo } from '../../services/duckdbService';
 import { toastService } from '../../services/toastService';
+import { useCopilotStore } from '../../hooks/store/useCopilotStore';
 
 // ============================================
 // Domain chrome — Monokai accents only (values from index.css)
@@ -442,6 +443,10 @@ export const AppTopBar: React.FC<AppTopBarProps> = ({
   const [showDbDropdown, setShowDbDropdown] = useState(false);
   const [showHelpDropdown, setShowHelpDropdown] = useState(false);
 
+  // AI Copilot state
+  const isCopilotOpen = useCopilotStore((s) => s.isOpen);
+  const toggleCopilot = useCopilotStore((s) => s.toggleOpen);
+
   // Refs
   const topBarRef = useRef<HTMLElement>(null);
   const dbDropdownRef = useRef<HTMLDivElement>(null);
@@ -746,6 +751,15 @@ export const AppTopBar: React.FC<AppTopBarProps> = ({
 
         {/* Separator */}
         <div className="w-px h-5 bg-white/10 mx-1" />
+
+        {/* AI Copilot Toggle Button */}
+        <ToolButton
+          icon={<SparklePhosphor size={15} weight={isCopilotOpen ? 'fill' : 'regular'} style={{ color: isCopilotOpen ? 'var(--monokai-pink)' : undefined }} />}
+          label="AI 助手"
+          shortcut="Ctrl+I"
+          onClick={toggleCopilot}
+          variant={isCopilotOpen ? 'filled' : 'default'}
+        />
 
         {/* Search Button */}
         <ToolButton

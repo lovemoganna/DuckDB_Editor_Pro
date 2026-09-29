@@ -1,935 +1,457 @@
-# 用 DuckDB 建模 Palantir Ontology 元结构：一篇可运行的完整教程
+---
+id: "ontology-duckdb-runnable"
+type: "note"
+isFavorite: false
+createdAt: "2026-09-27T08:00:00.000Z"
+updatedAt: "2026-09-27T08:00:00.000Z"
+tags:
+  - "本体建模"
+  - "DuckDB"
+  - "Palantir"
+  - "航空调度"
+  - "递归图算法"
+  - "Ontology"
+  - "进阶教程"
+title: "用 DuckDB 建模 Palantir Ontology 元结构：智能航空航线与机队调度动态图谱"
+topic: "best_practice"
+summary: "以 Palantir 标杆 Skywise 航空协作网络为真实业务宇宙，将 Object（机场/机队/航班/旅客/预订）、Link（航线网络拓扑）、State（航班时序状态机）、Action（调度与航延干预）融为一体，开箱即跑，驱动本体图谱与递归图算法实时展现。"
+---
 
-## 0. 为什么写这篇教程
+# 用 DuckDB 建模 Palantir Ontology 元结构 · 智能航空航线与机队调度动态图谱
 
-Palantir Foundry 的 Ontology 层有四个元概念——**Object Type、Link Type、State、Action Type**——它们构成了任何业务场景的骨架。但大多数教程上来就用"航班""患者"等具体例子，读者看完仍然不清楚这四个概念**本身**的结构与约束。
+## 航空调度业务本体 · Skywise 航线网络与状态机闭环
 
-本文反其道行之：**把 Ontology 自身当作被建模的业务领域**。你会在 DuckDB 里建出一套"描述 Ontology 的 Ontology（meta-ontology）"，通过运行 SQL 理解每个概念是什么、彼此如何协作，并在此过程中**穷尽 DuckDB 支持的各类操作**。
-
-> **运行环境**：DuckDB ≥ 0.10（CLI / Python / WASM 均可）。所有 SQL 可从头到尾依次粘贴执行。
+**难度等级**：L2 - L3（从航网拓扑关系到复杂图递归遍历与动态调度）  
+**前置依赖**：无（完整内嵌国际机场、机队、航班与预订种子数据，独立闭环，开箱即跑）  
+**核心教学原则**：
+> **先让用户用真实数据跑通、看到结果、理解为什么，再解释概念。**  
+> 以 Palantir Foundry 全球最著名的工业标杆——**空中客车 Skywise 航空大数据本体**为原型，构建真实的机场枢纽、飞机机队、动态航班、旅客预订与调度动作。右侧本体图谱将实时生成立体的航线拓扑网络与状态流转图。
 
 ---
 
-## 1. 概念速览：四块积木
+## 一、学习目标与领域定位
 
-| 元概念 | 一句话 | 类比 |
-|--------|--------|------|
-| **Object Type** | 对世界中某类实体的抽象，包含属性列表 | 类 / 表 |
-| **Link Type** | 两个 Object Type 之间的有向关系 | 外键 / 边 |
-| **State** | Object 在某一时刻的属性快照 + 生命周期阶段 | 行版本 / 状态机节点 |
-| **Action Type** | 对 Object 执行的原子操作，驱动 State 转移 | 存储过程 / 事件 |
+完成本实战教程后，你将能够：
 
-它们的协作闭环：
-
-```
-Action 作用于 Object → 产生新 State → State 变化可触发下游 Action → …
-Link 连接不同 Object，使 Action 可以跨对象传播
-```
+1. **掌握航空工业级本体模型的数据库实现**：
+   * **Object**：以关系表定义全球机场枢纽、飞机机架、航班航次、旅客画像与机票预订（`airports`, `aircrafts`, `flights`, `passengers`, `bookings`）；
+   * **Link**：构建由起点/终点空港构成的有向航网拓扑、机架执飞关联以及旅客订座归属；
+   * **State**：以时序状态机跟踪航班生命演化（`SCHEDULED` → `BOARDING` → `DEPARTED` → `IN_AIR` → `LANDED` / `DELAYED`）；
+   * **Action**：以调度日志（`flight_dispatches`）记录空管指令、航延处置与机型轮转。
+2. **掌握 DuckDB 递归 CTE（Recursive CTE）实现图路径搜索**：在多跳航线拓扑中，自动寻找两地之间的联程转机航班方案并累加飞行时长。
+3. **掌握航延风控与机队周转瓶颈排查**：计算起飞延误时长，分析故障机架引发的串联延误蝴蝶效应。
+4. **掌握机场枢纽吞吐量度量**：基于进出港流量统计枢纽连接度与航线客座率（Load Factor）。
 
 ---
 
-## 2. 建库建模（DDL 全集）
+## 二、领域概念说明（本体论锚定）
 
-### 2.1 创建数据库与 Schema
+### 1. Palantir Ontology 四元组映射表
 
-```sql
--- DuckDB 支持 ATTACH 多库；这里创建一个专用库
--- 如果在内存模式下运行，可跳过 ATTACH，直接建 SCHEMA
-ATTACH ':memory:' AS ontology_db;
-USE ontology_db;
+| Palantir 元概念 | 本质定义 | 本教程数据库落地表 | 业务现实对应 |
+| :--- | :--- | :--- | :--- |
+| **Object** | 承载业务属性的实体类型与实例 | `airports`, `aircrafts`, `flights`, `passengers`, `bookings` | 机场、客机机队、航班航次、旅客、机票预订 |
+| **Link** | 跨对象实体间的有向语义关系 | 外键约束与关联网 | 航班从始发港起飞、执飞客机、旅客订购指定航班 |
+| **State** | 实体对象生命周期中的状态节点 | `status` 状态枚举与时序列 | 航班处于计划、登机、起飞、空中巡航、降落状态 |
+| **Action** | 改变实体属性或状态的调度干预操作 | `flight_dispatches` 调度记录表 | 气象延误指令、机组轮换、备降申请、取消放行 |
 
-CREATE SCHEMA IF NOT EXISTS meta;   -- 元模型 schema
-SET search_path = 'meta';
-```
+### 2. 核心实体（Entities）
 
-### 2.2 ENUM 类型 —— 约束有限取值
+| 实体 | 业务含义 | 数据库角色 / 主键 | 核心业务属性 |
+| :--- | :--- | :--- | :--- |
+| **机场枢纽（Airports）** | 航线网络的物理拓扑节点 | 维度表 (`airport_id` VARCHAR PK) | 三字代码（IATA）、机场全称、所在城市、经纬度坐标 |
+| **飞机机队（Aircrafts）** | 承载客运运输的物理航空器 | 实体表 (`tail_number` VARCHAR PK) | 机尾号、客机型号、制造商、载客客容量、服役状态 |
+| **航班航次（Flights）** | 在特定时刻执行的时序运输事件 | 实体表 (`flight_id` VARCHAR PK) | 航班号、起飞/降落机场、计划与实际起降时间、当前状态 |
+| **旅客画像（Passengers）** | 航空公司的会员与乘机客户 | 实体表 (`passenger_id` VARCHAR PK) | 姓名、会员层级（白金/金卡/普卡）、国籍 |
+| **机票预订（Bookings）** | 旅客发起的座位预留凭据 | 事实表 (`booking_id` VARCHAR PK) | 关联合班、关联旅客、座位号、舱位等级、票价（元） |
+| **调度记录（Flight Dispatches）**| 空管与签派中心的调度指令 Action | 事实表 (`dispatch_id` VARCHAR PK) | 作用航班、调度指令、延误分钟数、延误归因、调度时间 |
 
-```sql
--- DuckDB 原生支持 ENUM
-CREATE TYPE meta.property_dtype AS ENUM (
-    'STRING', 'INTEGER', 'DOUBLE', 'BOOLEAN',
-    'DATE', 'TIMESTAMP', 'ARRAY', 'STRUCT', 'MAP', 'JSON'
-);
+### 3. 核心语义关联（Semantic Relations）
 
-CREATE TYPE meta.cardinality AS ENUM (
-    'ONE_TO_ONE', 'ONE_TO_MANY', 'MANY_TO_ONE', 'MANY_TO_MANY'
-);
-
-CREATE TYPE meta.lifecycle_phase AS ENUM (
-    'DRAFT', 'ACTIVE', 'SUSPENDED', 'ARCHIVED', 'DELETED'
-);
-
-CREATE TYPE meta.action_category AS ENUM (
-    'CREATE', 'UPDATE', 'DELETE', 'TRANSITION', 'LINK', 'UNLINK', 'COMPOSITE'
-);
-```
-
-### 2.3 核心表 —— SEQUENCE + 各种列约束
-
-```sql
--- ── Object Type ──────────────────────────────────
-CREATE SEQUENCE meta.seq_object_type START 1;
-
-CREATE TABLE meta.object_type (
-    ot_id        INTEGER   DEFAULT nextval('meta.seq_object_type') PRIMARY KEY,
-    api_name     VARCHAR   NOT NULL UNIQUE,          -- 机器名
-    display_name VARCHAR   NOT NULL,                 -- 人类名
-    description  VARCHAR,
-    icon         VARCHAR   DEFAULT '📦',
-    created_at   TIMESTAMP DEFAULT current_timestamp,
-    updated_at   TIMESTAMP DEFAULT current_timestamp,
-    is_abstract  BOOLEAN   DEFAULT false,            -- 可作为"基类"
-    tags         VARCHAR[]                            -- DuckDB 原生数组
-);
-
--- ── Property（Object Type 的属性列表）────────────
-CREATE SEQUENCE meta.seq_property START 1;
-
-CREATE TABLE meta.property (
-    prop_id      INTEGER            DEFAULT nextval('meta.seq_property') PRIMARY KEY,
-    ot_id        INTEGER            NOT NULL REFERENCES meta.object_type(ot_id),
-    api_name     VARCHAR            NOT NULL,
-    display_name VARCHAR            NOT NULL,
-    dtype        meta.property_dtype NOT NULL,
-    is_primary   BOOLEAN            DEFAULT false,   -- 标记主键属性
-    is_required  BOOLEAN            DEFAULT true,
-    is_indexed   BOOLEAN            DEFAULT false,
-    default_val  VARCHAR,                             -- 以 JSON 字符串存
-    constraints  JSON,                                -- DuckDB JSON 列：{"min":0,"max":100}
-    UNIQUE (ot_id, api_name)
-);
-
--- ── Link Type ────────────────────────────────────
-CREATE SEQUENCE meta.seq_link_type START 1;
-
-CREATE TABLE meta.link_type (
-    lt_id         INTEGER          DEFAULT nextval('meta.seq_link_type') PRIMARY KEY,
-    api_name      VARCHAR          NOT NULL UNIQUE,
-    display_name  VARCHAR          NOT NULL,
-    from_ot_id    INTEGER          NOT NULL REFERENCES meta.object_type(ot_id),
-    to_ot_id      INTEGER          NOT NULL REFERENCES meta.object_type(ot_id),
-    cardinality   meta.cardinality NOT NULL,
-    is_directed   BOOLEAN          DEFAULT true,
-    description   VARCHAR,
-    metadata      MAP(VARCHAR, VARCHAR)    -- DuckDB MAP 类型
-);
-
--- ── State ────────────────────────────────────────
-CREATE SEQUENCE meta.seq_state START 1;
-
-CREATE TABLE meta.state (
-    state_id       INTEGER              DEFAULT nextval('meta.seq_state') PRIMARY KEY,
-    ot_id          INTEGER              NOT NULL REFERENCES meta.object_type(ot_id),
-    phase          meta.lifecycle_phase NOT NULL,
-    entered_at     TIMESTAMP            DEFAULT current_timestamp,
-    snapshot       JSON,                             -- 完整属性快照
-    changed_by     VARCHAR,                          -- 记录操作者
-    change_reason  VARCHAR,
-    checksum       VARCHAR,                          -- 快照校验和
-    UNIQUE (ot_id, phase, entered_at)                -- 复合唯一
-);
-
--- ── Action Type ──────────────────────────────────
-CREATE SEQUENCE meta.seq_action_type START 1;
-
-CREATE TABLE meta.action_type (
-    at_id          INTEGER              DEFAULT nextval('meta.seq_action_type') PRIMARY KEY,
-    api_name       VARCHAR              NOT NULL UNIQUE,
-    display_name   VARCHAR              NOT NULL,
-    category       meta.action_category NOT NULL,
-    target_ot_id   INTEGER              NOT NULL REFERENCES meta.object_type(ot_id),
-    description    VARCHAR,
-    parameters     JSON,                -- 入参定义 [{"name":"reason","type":"STRING","required":true}]
-    preconditions  JSON,                -- 前置条件
-    side_effects   VARCHAR[],           -- 可能触发的下游 Action api_name
-    created_at     TIMESTAMP            DEFAULT current_timestamp
-);
-
--- ── Action→State 桥表：一个 Action 引起的状态跃迁 ──
-CREATE TABLE meta.action_state_transition (
-    at_id         INTEGER              NOT NULL REFERENCES meta.action_type(at_id),
-    from_phase    meta.lifecycle_phase NOT NULL,
-    to_phase      meta.lifecycle_phase NOT NULL,
-    PRIMARY KEY (at_id, from_phase)
-);
-```
-
-### 2.4 索引
-
-```sql
--- DuckDB 支持 ART 索引（自动为 PK/UNIQUE 创建），也可显式建
-CREATE INDEX idx_prop_ot   ON meta.property(ot_id);
-CREATE INDEX idx_state_ot  ON meta.state(ot_id);
-CREATE INDEX idx_action_ot ON meta.action_type(target_ot_id);
-```
-
-### 2.5 VIEW：把元模型"拍平"
-
-```sql
-CREATE OR REPLACE VIEW meta.v_full_ontology AS
-SELECT
-    ot.api_name     AS object_type,
-    p.api_name      AS property,
-    p.dtype,
-    p.is_primary,
-    lt.api_name     AS link,
-    lt.cardinality,
-    at2.api_name    AS action,
-    at2.category
-FROM meta.object_type ot
-LEFT JOIN meta.property    p   ON p.ot_id = ot.ot_id
-LEFT JOIN meta.link_type   lt  ON lt.from_ot_id = ot.ot_id
-LEFT JOIN meta.action_type at2 ON at2.target_ot_id = ot.ot_id;
-```
+| 关系连线 | 语义解释 | 外键关联字段 |
+| :--- | :--- | :--- |
+| `flights → aircrafts` | 航班由指定机架客机实际执飞 | `flights.aircraft_tail = aircrafts.tail_number` |
+| `flights → airports (origin)` | 航班从指定的始发机场起飞离港 | `flights.origin_airport_id = airports.airport_id` |
+| `flights → airports (dest)` | 航班在指定的目的机场进港降落 | `flights.dest_airport_id = airports.airport_id` |
+| `bookings → flights` | 订座凭据锁定指定航班航次 | `bookings.flight_id = flights.flight_id` |
+| `bookings → passengers` | 订座凭据由指定旅客持有 | `bookings.passenger_id = passengers.passenger_id` |
+| `flight_dispatches → flights` | 调度与延误处置动作作用于指定航班 | `flight_dispatches.flight_id = flights.flight_id` |
 
 ---
 
-## 3. 灌入元数据（DML 全集）
+## 三、步骤一：读取（Read & Ingest）· 数据定义与入库
 
-### 3.1 INSERT —— 定义 4 个 Object Type（描述 Ontology 自身）
+在 DuckDB 中建立标准的 6 张业务表，并装载真实自洽的国际航网种子数据。
+
+### 1️⃣ DDL：建表定义
 
 ```sql
-INSERT INTO meta.object_type (api_name, display_name, description, icon, tags) VALUES
-    ('ObjectType',  'Object Type',  'Describes a class of real-world entities',   '📦', ARRAY['core','meta']),
-    ('LinkType',    'Link Type',    'Describes a directed relationship',           '🔗', ARRAY['core','meta']),
-    ('State',       'State',        'A snapshot of an object at a point in time',  '📸', ARRAY['core','meta']),
-    ('ActionType',  'Action Type',  'An atomic operation that drives state change','⚡', ARRAY['core','meta']);
+CREATE TABLE airports (
+    airport_id VARCHAR PRIMARY KEY,
+    iata_code VARCHAR(3) NOT NULL UNIQUE,
+    name VARCHAR NOT NULL,
+    city VARCHAR NOT NULL,
+    country VARCHAR(2) NOT NULL,
+    latitude DECIMAL(9, 6) NOT NULL,
+    longitude DECIMAL(9, 6) NOT NULL
+);
+
+CREATE TABLE aircrafts (
+    tail_number VARCHAR PRIMARY KEY,
+    model VARCHAR NOT NULL,
+    manufacturer VARCHAR NOT NULL,
+    capacity INTEGER NOT NULL,
+    status VARCHAR NOT NULL DEFAULT 'ACTIVE',
+    manufacture_year INTEGER NOT NULL
+);
+
+CREATE TABLE flights (
+    flight_id VARCHAR PRIMARY KEY,
+    flight_no VARCHAR NOT NULL,
+    aircraft_tail VARCHAR NOT NULL,
+    origin_airport_id VARCHAR NOT NULL,
+    dest_airport_id VARCHAR NOT NULL,
+    scheduled_departure TIMESTAMP NOT NULL,
+    scheduled_arrival TIMESTAMP NOT NULL,
+    actual_departure TIMESTAMP,
+    actual_arrival TIMESTAMP,
+    status VARCHAR NOT NULL DEFAULT 'SCHEDULED',
+    FOREIGN KEY (aircraft_tail) REFERENCES aircrafts(tail_number),
+    FOREIGN KEY (origin_airport_id) REFERENCES airports(airport_id),
+    FOREIGN KEY (dest_airport_id) REFERENCES airports(airport_id)
+);
+
+CREATE TABLE passengers (
+    passenger_id VARCHAR PRIMARY KEY,
+    name VARCHAR NOT NULL,
+    tier VARCHAR NOT NULL DEFAULT 'REGULAR',
+    nationality VARCHAR(2) NOT NULL
+);
+
+CREATE TABLE bookings (
+    booking_id VARCHAR PRIMARY KEY,
+    flight_id VARCHAR NOT NULL,
+    passenger_id VARCHAR NOT NULL,
+    seat_no VARCHAR NOT NULL,
+    class VARCHAR NOT NULL DEFAULT 'ECONOMY',
+    fare DECIMAL(10, 2) NOT NULL,
+    status VARCHAR NOT NULL DEFAULT 'CONFIRMED',
+    booking_time TIMESTAMP NOT NULL,
+    FOREIGN KEY (flight_id) REFERENCES flights(flight_id),
+    FOREIGN KEY (passenger_id) REFERENCES passengers(passenger_id)
+);
+
+CREATE TABLE flight_dispatches (
+    dispatch_id VARCHAR PRIMARY KEY,
+    flight_id VARCHAR NOT NULL,
+    action_type VARCHAR NOT NULL,
+    reason VARCHAR,
+    delay_minutes INTEGER NOT NULL DEFAULT 0,
+    dispatch_time TIMESTAMP NOT NULL,
+    FOREIGN KEY (flight_id) REFERENCES flights(flight_id)
+);
 ```
 
-### 3.2 INSERT —— 为每个 Object Type 定义属性
+### 2️⃣ DML：真实种子数据装载
 
 ```sql
--- ObjectType 的属性
-INSERT INTO meta.property (ot_id, api_name, display_name, dtype, is_primary, is_required, constraints) VALUES
-    (1, 'ot_id',        'ID',           'INTEGER', true,  true,  '{"auto":true}'),
-    (1, 'api_name',     'API Name',     'STRING',  false, true,  '{"maxLength":128}'),
-    (1, 'display_name', 'Display Name', 'STRING',  false, true,  NULL),
-    (1, 'is_abstract',  'Is Abstract',  'BOOLEAN', false, false, NULL);
+-- 1. 枢纽机场 (5座核心枢纽)
+INSERT INTO airports VALUES
+('APT_PEK', 'PEK', '北京首都国际机场', 'Beijing',   'CN', 40.080111, 116.584556),
+('APT_SHA', 'SHA', '上海虹桥国际机场', 'Shanghai',  'CN', 31.197875, 121.336319),
+('APT_SZX', 'SZX', '深圳宝安国际机场', 'Shenzhen',  'CN', 22.639258, 113.810664),
+('APT_SIN', 'SIN', '新加坡樟宜国际机场', 'Singapore', 'SG',  1.350189, 103.994433),
+('APT_HND', 'HND', '东京羽田国际机场', 'Tokyo',     'JP', 35.552258, 139.779694);
 
--- LinkType 的属性
-INSERT INTO meta.property (ot_id, api_name, display_name, dtype, is_primary, is_required, constraints) VALUES
-    (2, 'lt_id',       'ID',          'INTEGER', true,  true,  '{"auto":true}'),
-    (2, 'api_name',    'API Name',    'STRING',  false, true,  NULL),
-    (2, 'from_ot_id',  'From Object', 'INTEGER', false, true,  NULL),
-    (2, 'to_ot_id',    'To Object',   'INTEGER', false, true,  NULL),
-    (2, 'cardinality', 'Cardinality', 'STRING',  false, true,  NULL);
+-- 2. 机队机架 (3架主流宽体/窄体客机)
+INSERT INTO aircrafts VALUES
+('B-7890', 'Boeing 787-9',      'Boeing', 290, 'ACTIVE', 2021),
+('B-3501', 'Airbus A350-900',   'Airbus', 315, 'ACTIVE', 2022),
+('B-3205', 'Airbus A320neo',    'Airbus', 180, 'ACTIVE', 2020);
 
--- State 的属性
-INSERT INTO meta.property (ot_id, api_name, display_name, dtype, is_primary, is_required, constraints) VALUES
-    (3, 'state_id',   'ID',        'INTEGER',   true,  true,  NULL),
-    (3, 'phase',      'Phase',     'STRING',    false, true,  NULL),
-    (3, 'snapshot',   'Snapshot',  'JSON',      false, false, NULL),
-    (3, 'entered_at', 'Entered',   'TIMESTAMP', false, true,  NULL);
+-- 3. 航班航次数据 (涵盖直飞与中转连通航线)
+INSERT INTO flights VALUES
+('FL_101', 'CA1831', 'B-3205', 'APT_PEK', 'APT_SHA', '2026-03-27 08:00:00', '2026-03-27 10:15:00', '2026-03-27 08:05:00', '2026-03-27 10:10:00', 'LANDED'),
+('FL_102', 'MU5105', 'B-7890', 'APT_SHA', 'APT_SIN', '2026-03-27 12:30:00', '2026-03-27 18:00:00', '2026-03-27 13:15:00', NULL,                  'IN_AIR'),
+('FL_103', 'CZ3155', 'B-3501', 'APT_PEK', 'APT_SZX', '2026-03-27 09:30:00', '2026-03-27 13:00:00', '2026-03-27 10:45:00', NULL,                  'IN_AIR'),
+('FL_104', 'SQ805',  'B-7890', 'APT_SZX', 'APT_SIN', '2026-03-27 15:00:00', '2026-03-27 19:15:00', NULL,                  NULL,                  'SCHEDULED'),
+('FL_105', 'JL086',  'B-3501', 'APT_PEK', 'APT_HND', '2026-03-27 14:00:00', '2026-03-27 18:20:00', NULL,                  NULL,                  'SCHEDULED');
 
--- ActionType 的属性
-INSERT INTO meta.property (ot_id, api_name, display_name, dtype, is_primary, is_required, constraints) VALUES
-    (4, 'at_id',       'ID',         'INTEGER', true,  true,  NULL),
-    (4, 'api_name',    'API Name',   'STRING',  false, true,  NULL),
-    (4, 'category',    'Category',   'STRING',  false, true,  NULL),
-    (4, 'parameters',  'Parameters', 'JSON',    false, false, NULL);
+-- 4. 旅客画像 (5位不同会籍旅客)
+INSERT INTO passengers VALUES
+('PA_001', 'Li Wei',       'PLATINUM', 'CN'),
+('PA_002', 'Sarah Connor', 'GOLD',     'US'),
+('PA_003', 'Kenji Sato',   'REGULAR',  'JP'),
+('PA_004', 'Maria Santos', 'SILVER',   'BR'),
+('PA_005', 'Zhang Min',    'PLATINUM', 'CN');
+
+-- 5. 订座流水 (6笔预订)
+INSERT INTO bookings VALUES
+('BK_901', 'FL_101', 'PA_001', '02A', 'BUSINESS', 3200.00, 'CONFIRMED', '2026-03-20 10:15:00'),
+('BK_902', 'FL_102', 'PA_001', '01K', 'BUSINESS', 8500.00, 'CONFIRMED', '2026-03-20 10:20:00'),
+('BK_903', 'FL_101', 'PA_002', '15F', 'ECONOMY',   980.00, 'CONFIRMED', '2026-03-22 14:30:00'),
+('BK_904', 'FL_103', 'PA_003', '21C', 'ECONOMY',  1450.00, 'CONFIRMED', '2026-03-24 09:00:00'),
+('BK_905', 'FL_104', 'PA_004', '18A', 'ECONOMY',  2800.00, 'CONFIRMED', '2026-03-25 11:45:00'),
+('BK_906', 'FL_105', 'PA_005', '03D', 'BUSINESS', 6200.00, 'CONFIRMED', '2026-03-26 16:10:00');
+
+-- 6. 调度干预记录 (Dispatches)
+INSERT INTO flight_dispatches VALUES
+('DSP_01', 'FL_102', 'DEPARTURE_DELAY', '机务前序过站检查耗时增加', 45, '2026-03-27 12:00:00'),
+('DSP_02', 'FL_103', 'AIR_TRAFFIC_HOLD', '华北空域流量动态管制',   75, '2026-03-27 09:10:00');
 ```
 
-### 3.3 INSERT —— 定义 Link Types（元概念间的关系）
+### 3️⃣ 校验读取结果
 
 ```sql
-INSERT INTO meta.link_type (api_name, display_name, from_ot_id, to_ot_id, cardinality, description, metadata) VALUES
-    ('hasProperty',    'has Property',     1, 1, 'ONE_TO_MANY',  'ObjectType owns Properties',
-        MAP {'inverse': 'belongsTo'}),
-    ('linksFrom',      'links From',       2, 1, 'MANY_TO_ONE',  'LinkType starts at an ObjectType',
-        MAP {'role': 'source'}),
-    ('linksTo',        'links To',         2, 1, 'MANY_TO_ONE',  'LinkType ends at an ObjectType',
-        MAP {'role': 'target'}),
-    ('stateOf',        'state Of',         3, 1, 'MANY_TO_ONE',  'State belongs to an ObjectType',
-        MAP {}),
-    ('targetsObject',  'targets Object',   4, 1, 'MANY_TO_ONE',  'ActionType targets an ObjectType',
-        MAP {}),
-    ('causesTransition','causes Transition',4, 3, 'ONE_TO_MANY', 'Action drives state change',
-        MAP {'semantic': 'causal'});
-```
-
-### 3.4 INSERT —— 定义 Action Types
-
-```sql
-INSERT INTO meta.action_type
-    (api_name, display_name, category, target_ot_id, description, parameters, preconditions, side_effects) VALUES
-    ('RegisterObjectType',  'Register Object Type',  'CREATE',     1,
-        'Create a new Object Type in the ontology',
-        '[{"name":"api_name","type":"STRING","required":true},
-          {"name":"display_name","type":"STRING","required":true}]',
-        '{"current_phase":null}',
-        ARRAY['LogAudit']),
-
-    ('AddProperty',         'Add Property',          'UPDATE',     1,
-        'Add a property definition to an Object Type',
-        '[{"name":"prop_api_name","type":"STRING","required":true},
-          {"name":"dtype","type":"STRING","required":true}]',
-        '{"current_phase":"ACTIVE"}',
-        NULL),
-
-    ('CreateLink',          'Create Link',           'LINK',       2,
-        'Establish a link type between two Object Types',
-        '[{"name":"from_ot","type":"INTEGER","required":true},
-          {"name":"to_ot","type":"INTEGER","required":true}]',
-        NULL,
-        NULL),
-
-    ('ActivateObject',      'Activate Object',       'TRANSITION', 1,
-        'Move Object Type from DRAFT to ACTIVE',
-        '[{"name":"reason","type":"STRING","required":false}]',
-        '{"current_phase":"DRAFT"}',
-        ARRAY['NotifySubscribers']),
-
-    ('ArchiveObject',       'Archive Object',        'TRANSITION', 1,
-        'Move Object Type to ARCHIVED',
-        '[]',
-        '{"current_phase":"ACTIVE"}',
-        ARRAY['CascadeArchiveLinks']),
-
-    ('DeleteObjectType',    'Delete Object Type',    'DELETE',     1,
-        'Soft-delete an Object Type',
-        '[]',
-        '{"current_phase":"ARCHIVED"}',
-        ARRAY['CascadeDeleteLinks','LogAudit']);
-```
-
-### 3.5 INSERT —— 状态跃迁规则
-
-```sql
-INSERT INTO meta.action_state_transition (at_id, from_phase, to_phase) VALUES
-    (1, 'DRAFT',    'DRAFT'),     -- Register 创建即进入 DRAFT
-    (4, 'DRAFT',    'ACTIVE'),    -- Activate
-    (5, 'ACTIVE',   'ARCHIVED'),  -- Archive
-    (6, 'ARCHIVED', 'DELETED');   -- Delete
-```
-
-### 3.6 INSERT —— 模拟生命周期（State 快照）
-
-```sql
-INSERT INTO meta.state (ot_id, phase, snapshot, changed_by, change_reason, checksum) VALUES
-    (1, 'DRAFT',    '{"api_name":"ObjectType","property_count":0}',
-        'admin', 'Initial registration', md5('{"api_name":"ObjectType","property_count":0}')),
-    (1, 'ACTIVE',   '{"api_name":"ObjectType","property_count":4}',
-        'admin', 'Properties defined, ready to use', md5('{"api_name":"ObjectType","property_count":4}')),
-    (2, 'DRAFT',    '{"api_name":"LinkType","property_count":0}',
-        'admin', 'Initial registration', md5('{"api_name":"LinkType","property_count":0}')),
-    (2, 'ACTIVE',   '{"api_name":"LinkType","property_count":5}',
-        'admin', 'All properties added', md5('{"api_name":"LinkType","property_count":5}')),
-    (3, 'ACTIVE',   '{"api_name":"State","property_count":4}',
-        'admin', 'Direct activation', md5('{"api_name":"State","property_count":4}')),
-    (4, 'ACTIVE',   '{"api_name":"ActionType","property_count":4}',
-        'admin', 'Direct activation', md5('{"api_name":"ActionType","property_count":4}'));
-```
-
-### 3.7 UPDATE / DELETE 演示
-
-```sql
--- UPDATE：为 ObjectType 增加一个 tag
-UPDATE meta.object_type
-SET    tags = array_append(tags, 'foundational'),
-       updated_at = current_timestamp
-WHERE  api_name = 'ObjectType';
-
--- DELETE：删除一条测试用的假数据（先插后删）
-INSERT INTO meta.property (ot_id, api_name, display_name, dtype) VALUES (1, '_tmp', 'Temp', 'STRING');
-DELETE FROM meta.property WHERE api_name = '_tmp';
-```
-
----
-
-## 4. 查询全景（SELECT 操作大全）
-
-### 4.1 基础查询 + 过滤 + 排序 + LIMIT
-
-```sql
-SELECT ot_id, api_name, display_name, tags
-FROM   meta.object_type
-WHERE  'core' = ANY(tags)      -- 数组元素过滤
-ORDER  BY api_name
-LIMIT  10;
-```
-
-### 4.2 聚合 + GROUP BY + HAVING
-
-```sql
--- 每个 Object Type 有多少属性？哪些超过 3 个？
-SELECT ot.api_name,
-       count(p.prop_id) AS prop_count,
-       count(*) FILTER (WHERE p.is_primary)  AS pk_count   -- FILTER 子句
-FROM   meta.object_type ot
-JOIN   meta.property p USING (ot_id)
-GROUP  BY ot.api_name
-HAVING count(p.prop_id) > 3;
-```
-
-### 4.3 多表 JOIN（INNER / LEFT / CROSS / SEMI / ANTI）
-
-```sql
--- INNER JOIN：Object Type ↔ 它拥有的 Actions
-SELECT ot.display_name AS object, at2.display_name AS action, at2.category
-FROM   meta.object_type ot
-INNER  JOIN meta.action_type at2 ON at2.target_ot_id = ot.ot_id;
-
--- LEFT JOIN：所有 Object Type 及其（可能为空的）最新 State
-SELECT ot.api_name, s.phase, s.entered_at
-FROM   meta.object_type ot
-LEFT   JOIN meta.state s ON s.ot_id = ot.ot_id;
-
--- SEMI JOIN：只返回「至少有一个 Action」的 Object Type
-SELECT ot.*
-FROM   meta.object_type ot
-WHERE  EXISTS (SELECT 1 FROM meta.action_type at2 WHERE at2.target_ot_id = ot.ot_id);
-
--- ANTI JOIN：找出「没有任何 State 记录」的 Object Type（应为 0 行）
-SELECT ot.api_name
-FROM   meta.object_type ot
-WHERE  NOT EXISTS (SELECT 1 FROM meta.state s WHERE s.ot_id = ot.ot_id);
-
--- CROSS JOIN：所有可能的 Link 方向组合
-SELECT a.api_name AS "from", b.api_name AS "to"
-FROM   meta.object_type a
-CROSS  JOIN meta.object_type b
-WHERE  a.ot_id <> b.ot_id;
-```
-
-### 4.4 子查询 / CTE / 递归 CTE
-
-```sql
--- CTE：每个 Object Type 的属性与 Action 数量合并
-WITH prop_counts AS (
-    SELECT ot_id, count(*) AS n_props FROM meta.property GROUP BY ot_id
-), action_counts AS (
-    SELECT target_ot_id AS ot_id, count(*) AS n_actions FROM meta.action_type GROUP BY target_ot_id
-)
-SELECT ot.api_name,
-       coalesce(pc.n_props, 0)   AS properties,
-       coalesce(ac.n_actions, 0) AS actions
-FROM   meta.object_type ot
-LEFT   JOIN prop_counts   pc USING (ot_id)
-LEFT   JOIN action_counts ac USING (ot_id);
-
--- 递归 CTE：沿 Action 的 side_effects 链展开（模拟级联触发）
-WITH RECURSIVE cascade AS (
-    -- 种子：ArchiveObject
-    SELECT api_name, side_effects, 0 AS depth
-    FROM   meta.action_type
-    WHERE  api_name = 'ArchiveObject'
-
-    UNION ALL
-
-    -- 展开 side_effects 数组里的每个名称
-    SELECT at2.api_name, at2.side_effects, c.depth + 1
-    FROM   cascade c,
-           unnest(c.side_effects) AS t(effect_name)
-    JOIN   meta.action_type at2 ON at2.api_name = t.effect_name
-    WHERE  c.depth < 5   -- 防无限递归
-)
-SELECT * FROM cascade;
-```
-
-### 4.5 窗口函数
-
-```sql
--- State 变化时间线：每个 Object Type 按时间排序，算出停留时长
-SELECT
-    ot.api_name,
-    s.phase,
-    s.entered_at,
-    LEAD(s.entered_at) OVER w  AS next_entered,
-    LEAD(s.entered_at) OVER w - s.entered_at AS duration,
-    ROW_NUMBER()  OVER w AS seq,
-    DENSE_RANK()  OVER (ORDER BY ot.api_name) AS type_rank,
-    count(*) OVER (PARTITION BY ot.api_name)  AS total_states
-FROM   meta.state s
-JOIN   meta.object_type ot USING (ot_id)
-WINDOW w AS (PARTITION BY s.ot_id ORDER BY s.entered_at)
-ORDER  BY ot.api_name, s.entered_at;
-```
-
-### 4.6 集合操作 UNION / INTERSECT / EXCEPT
-
-```sql
--- 哪些 api_name 同时出现在 Object Type 和 Action 中（语义检查）
-SELECT api_name FROM meta.object_type
-INTERSECT
-SELECT api_name FROM meta.action_type;     -- 应为空
-
--- 所有"名称"汇总
-SELECT api_name, 'ObjectType' AS source FROM meta.object_type
+SELECT 'airports' AS entity, count(*) AS count FROM airports
 UNION ALL
-SELECT api_name, 'LinkType'   FROM meta.link_type
+SELECT 'aircrafts', count(*) FROM aircrafts
 UNION ALL
-SELECT api_name, 'ActionType' FROM meta.action_type
-ORDER BY source, api_name;
+SELECT 'flights', count(*) FROM flights
+UNION ALL
+SELECT 'passengers', count(*) FROM passengers
+UNION ALL
+SELECT 'bookings', count(*) FROM bookings
+UNION ALL
+SELECT 'flight_dispatches', count(*) FROM flight_dispatches;
 ```
 
-### 4.7 JSON / STRUCT / MAP / ARRAY 操作
-
-```sql
--- 提取 Action 参数 JSON 数组的第一个元素名称
-SELECT api_name,
-       json_array_length(parameters)                       AS param_count,
-       parameters->0->>'name'                              AS first_param,
-       json_extract_string(parameters, '$[0].type')        AS first_type
-FROM   meta.action_type
-WHERE  parameters IS NOT NULL;
-
--- MAP 操作
-SELECT api_name,
-       metadata,
-       map_keys(metadata)    AS keys,
-       element_at(metadata, 'inverse')  AS inverse_link
-FROM   meta.link_type;
-
--- STRUCT 构造
-SELECT ot.api_name,
-       {'prop_count': count(p.prop_id),
-        'has_pk': bool_or(p.is_primary)} AS summary_struct
-FROM   meta.object_type ot
-JOIN   meta.property p USING (ot_id)
-GROUP  BY ot.api_name;
-
--- ARRAY 聚合
-SELECT ot.api_name,
-       list(p.api_name ORDER BY p.api_name) AS all_properties   -- list() = array_agg()
-FROM   meta.object_type ot
-JOIN   meta.property p USING (ot_id)
-GROUP  BY ot.api_name;
-
--- UNNEST 展开数组
-SELECT ot.api_name, unnest(tags) AS tag
-FROM   meta.object_type ot;
-```
-
-### 4.8 字符串 / 正则 / 日期
-
-```sql
--- 字符串
-SELECT api_name,
-       upper(api_name)                  AS upper_name,
-       length(api_name)                 AS name_len,
-       regexp_extract(api_name, '([A-Z][a-z]+)', 1)  AS first_word,
-       string_split(api_name, 'Type')   AS split_result
-FROM   meta.object_type;
-
--- 日期
-SELECT api_name,
-       created_at,
-       date_part('hour', created_at)    AS hour,
-       strftime(created_at, '%Y-%m-%d') AS formatted,
-       current_timestamp - created_at   AS age
-FROM   meta.object_type;
-```
-
-### 4.9 PIVOT / UNPIVOT（DuckDB 特色）
-
-```sql
--- PIVOT：属性数量按 dtype 展开为列
-PIVOT (
-    SELECT ot.api_name AS object_type, p.dtype, count(*) AS cnt
-    FROM   meta.property p
-    JOIN   meta.object_type ot USING (ot_id)
-    GROUP  BY ALL
-)
-ON dtype
-USING sum(cnt)
-GROUP BY object_type;
-
--- UNPIVOT：把 object_type 宽表的几个字段竖着看
-UNPIVOT meta.object_type
-ON api_name, display_name, description
-INTO NAME attribute VALUE val;
-```
-
-### 4.10 CASE / COALESCE / NULLIF / CAST
-
-```sql
-SELECT api_name,
-       CASE category
-           WHEN 'CREATE'     THEN '🆕 New'
-           WHEN 'TRANSITION' THEN '🔄 Move'
-           WHEN 'DELETE'     THEN '🗑️ Remove'
-           ELSE '🔧 Other'
-       END                                         AS emoji_cat,
-       coalesce(description, '(no description)')   AS desc_safe,
-       nullif(description, '')                      AS desc_null_if_empty,
-       CAST(at_id AS VARCHAR) || '-' || api_name    AS composite_key
-FROM   meta.action_type;
-```
+#### 预期结果与理解为什么：
+* 5 座枢纽、3 架客机、5 个代表性航班、5 位旅客、6 张客票预订、2 笔调度动作。
+* **本体图谱动态生成**：右侧图谱自动解析出以 `Airports`、`Aircrafts`、`Flights`、`Passengers`、`Bookings` 为核心的对象类型，并自动生成了机场起降与机队执飞的语义连接拓扑。
 
 ---
 
-## 5. 高级 DuckDB 特性演练
+## 四、步骤二：查询（Query & Projection）· 航线运行拓扑透视
 
-### 5.1 MACRO（参数化 SQL 片段）
+先跑代码，查看今天所有航班的起降机场与实际执行客机信息：
+
+### 查询 1：今日航班执行全景拓扑
 
 ```sql
--- 标量宏
-CREATE OR REPLACE MACRO meta.ontology_label(kind, name) AS
-    kind || '::' || name;
-
-SELECT meta.ontology_label('ObjectType', api_name) AS label
-FROM   meta.object_type;
-
--- 表宏
-CREATE OR REPLACE MACRO meta.props_of(target_api_name) AS TABLE
-    SELECT p.*
-    FROM   meta.property p
-    JOIN   meta.object_type ot USING (ot_id)
-    WHERE  ot.api_name = target_api_name;
-
-SELECT * FROM meta.props_of('State');
+SELECT 
+    f.flight_no,
+    orig.name AS origin_airport,
+    dest.name AS dest_airport,
+    a.model AS aircraft_model,
+    a.tail_number,
+    f.status AS flight_status,
+    f.scheduled_departure,
+    f.actual_departure
+FROM flights f
+JOIN airports orig ON f.origin_airport_id = orig.airport_id
+JOIN airports dest ON f.dest_airport_id = dest.airport_id
+JOIN aircrafts a ON f.aircraft_tail = a.tail_number
+ORDER BY f.scheduled_departure;
 ```
 
-### 5.2 LAMBDA + list_transform / list_filter
+#### 预期结果与为什么：
+* 清楚呈现 5 个航班的航线起落：
+  * CA1831: 北京首都 → 上海虹桥 (A320neo / B-3205)，状态 `LANDED`；
+  * MU5105: 上海虹桥 → 新加坡樟宜 (B787-9 / B-7890)，状态 `IN_AIR`；
+  * CZ3155: 北京首都 → 深圳宝安 (A350-900 / B-3501)，状态 `IN_AIR`。
+* **业务价值**：打通了始发港、目的港与执飞机型的立体关联，构建起最基础的航线网络。
+
+---
+
+## 五、步骤三：筛选（Filter & Predicates）· 航班延误风控排查
+
+在航空运营中，重点关注起飞延误超过 30 分钟的异常航班，以便及时向联程旅客触发改签建议。
+
+### 查询 2：排查实际发生严重延误的离港航班
 
 ```sql
-SELECT api_name,
-       tags,
-       list_transform(tags, x -> upper(x))                AS upper_tags,
-       list_filter(tags, x -> len(x) > 4)                 AS long_tags,
-       list_reduce(tags, (a, b) -> a || '+' || b)         AS joined
-FROM   meta.object_type;
+SELECT 
+    f.flight_no,
+    orig.iata_code AS origin,
+    dest.iata_code AS destination,
+    f.scheduled_departure,
+    f.actual_departure,
+    date_diff('minute', f.scheduled_departure, f.actual_departure) AS delay_minutes,
+    f.status
+FROM flights f
+JOIN airports orig ON f.origin_airport_id = orig.airport_id
+JOIN airports dest ON f.dest_airport_id = dest.airport_id
+WHERE f.actual_departure IS NOT NULL
+  AND date_diff('minute', f.scheduled_departure, f.actual_departure) >= 30
+ORDER BY delay_minutes DESC;
 ```
 
-### 5.3 生成列（Generated Column）
+#### 预期结果与为什么：
+* 精确捕捉到 2 个延误航班：
+  * `CZ3155` (PEK → SZX)：计划 09:30，实际 10:45，延误 **75 分钟**；
+  * `MU5105` (SHA → SIN)：计划 12:30，实际 13:15，延误 **45 分钟**。
+* **业务价值**：系统可自动将这两笔异常数据推向航变处置工作台，提前安排地面保障。
+
+---
+
+## 六、步骤四：聚合（Aggregate & Grouping）· 机场枢纽吞吐量度量
+
+### 查询 3：计算各大机场的进出港航班量与连接度
 
 ```sql
--- 用 ALTER TABLE 添加一个虚拟生成列
-ALTER TABLE meta.object_type ADD COLUMN IF NOT EXISTS
-    tag_count INTEGER GENERATED ALWAYS AS (array_length(tags));
-
-SELECT api_name, tags, tag_count FROM meta.object_type;
-```
-
-### 5.4 SAMPLE / TABLESAMPLE
-
-```sql
--- 随机取 2 条属性
-SELECT * FROM meta.property USING SAMPLE 2;
-```
-
-### 5.5 EXPLAIN / EXPLAIN ANALYZE
-
-```sql
-EXPLAIN ANALYZE
-SELECT ot.api_name, count(*)
-FROM   meta.object_type ot
-JOIN   meta.property p USING (ot_id)
-GROUP  BY ot.api_name;
-```
-
-### 5.6 EXPORT / COPY —— 读写外部文件
-
-```sql
--- 导出到 Parquet（DuckDB 王牌格式）
-COPY meta.object_type TO '/tmp/object_type.parquet' (FORMAT PARQUET);
-
--- 导出到 CSV
-COPY meta.property   TO '/tmp/property.csv'   (HEADER, DELIMITER ',');
-
--- 导出到 JSON
-COPY meta.link_type  TO '/tmp/link_type.json' (FORMAT JSON, ARRAY true);
-
--- 从 Parquet 读回来（演示 read_parquet）
-SELECT * FROM read_parquet('/tmp/object_type.parquet');
-
--- 直接查询远程 CSV（如果联网，可换成真实 URL）
--- SELECT * FROM read_csv_auto('https://example.com/data.csv');
-```
-
-### 5.7 TEMP TABLE + INSERT ... SELECT + CREATE TABLE AS
-
-```sql
--- CTAS
-CREATE TEMP TABLE action_summary AS
-    SELECT category, count(*) AS n, list(api_name) AS actions
-    FROM   meta.action_type
-    GROUP  BY category;
-
-SELECT * FROM action_summary;
-
--- INSERT INTO ... SELECT
-CREATE TEMP TABLE all_names (kind VARCHAR, name VARCHAR);
-INSERT INTO all_names
-    SELECT 'Object', api_name FROM meta.object_type
+WITH airport_traffic AS (
+    SELECT origin_airport_id AS airport_id, 1 AS is_outbound, 0 AS is_inbound FROM flights
     UNION ALL
-    SELECT 'Link',   api_name FROM meta.link_type
-    UNION ALL
-    SELECT 'Action', api_name FROM meta.action_type;
-
-SELECT * FROM all_names ORDER BY kind, name;
-```
-
-### 5.8 事务控制
-
-```sql
-BEGIN TRANSACTION;
-
-INSERT INTO meta.state (ot_id, phase, snapshot, changed_by, change_reason)
-VALUES (1, 'SUSPENDED', '{"api_name":"ObjectType","note":"maintenance"}', 'dba', 'Planned maintenance');
-
--- 查看插入结果
-SELECT * FROM meta.state WHERE phase = 'SUSPENDED';
-
--- 决定回滚
-ROLLBACK;
-
--- 确认已回滚
-SELECT * FROM meta.state WHERE phase = 'SUSPENDED';  -- 0 行
-```
-
-### 5.9 QUALIFY（窗口函数后置过滤）
-
-```sql
--- 每个 Object Type 只保留最新 State
-SELECT ot.api_name, s.phase, s.entered_at
-FROM   meta.state s
-JOIN   meta.object_type ot USING (ot_id)
-QUALIFY ROW_NUMBER() OVER (PARTITION BY s.ot_id ORDER BY s.entered_at DESC) = 1;
-```
-
-### 5.10 GROUPING SETS / CUBE / ROLLUP
-
-```sql
-SELECT
-    ot.api_name                      AS object_type,
-    p.dtype::VARCHAR                 AS data_type,
-    GROUPING(ot.api_name)            AS grp_ot,
-    GROUPING(p.dtype)                AS grp_dtype,
-    count(*)                         AS cnt
-FROM   meta.property p
-JOIN   meta.object_type ot USING (ot_id)
-GROUP  BY CUBE (ot.api_name, p.dtype)
-ORDER  BY grp_ot, grp_dtype, object_type, data_type;
-```
-
-### 5.11 LATERAL JOIN
-
-```sql
--- 每个 Object Type 取其最早 2 条 State
-SELECT ot.api_name, sub.*
-FROM   meta.object_type ot,
-       LATERAL (
-           SELECT phase, entered_at
-           FROM   meta.state s
-           WHERE  s.ot_id = ot.ot_id
-           ORDER  BY entered_at
-           LIMIT 2
-       ) sub;
-```
-
-### 5.12 VALUES 列表 + 内联表
-
-```sql
--- 快速对照表（不建表也能用）
-SELECT v.code, v.meaning
-FROM   (VALUES ('ONE_TO_ONE',  '1:1'),
-               ('ONE_TO_MANY', '1:N'),
-               ('MANY_TO_ONE', 'N:1'),
-               ('MANY_TO_MANY','M:N')) AS v(code, meaning);
-```
-
-### 5.13 信息查询（元数据之元数据）
-
-```sql
--- 列出 meta schema 下所有表
-SELECT table_name, column_count, estimated_size
-FROM   duckdb_tables()
-WHERE  schema_name = 'meta';
-
--- 列出列
-SELECT table_name, column_name, data_type, is_nullable
-FROM   information_schema.columns
-WHERE  table_schema = 'meta'
-ORDER  BY table_name, ordinal_position;
-
--- 列出约束
-SELECT * FROM duckdb_constraints() WHERE schema_name = 'meta';
-```
-
----
-
-## 6. 验证元模型完整性（Data Quality Checks）
-
-```sql
--- CHECK 1：每个 Object Type 至少有 1 个 is_primary 属性
-SELECT ot.api_name, count(*) FILTER (WHERE p.is_primary) AS pk_count
-FROM   meta.object_type ot
-LEFT   JOIN meta.property p USING (ot_id)
-GROUP  BY ot.api_name
-HAVING count(*) FILTER (WHERE p.is_primary) = 0;
--- 期望 0 行
-
--- CHECK 2：Link 不能自环（from = to 且 api_name 不含 "self"）
-SELECT *
-FROM   meta.link_type
-WHERE  from_ot_id = to_ot_id
-  AND  api_name NOT ILIKE '%self%'
-  AND  api_name NOT ILIKE '%has%';      -- hasProperty 是 OT→OT 关系，合法
-
--- CHECK 3：状态跃迁图中不存在不可达的终态
-WITH reachable AS (
-    SELECT DISTINCT to_phase AS phase FROM meta.action_state_transition
-    UNION
-    SELECT DISTINCT from_phase FROM meta.action_state_transition
+    SELECT dest_airport_id AS airport_id, 0 AS is_outbound, 1 AS is_inbound FROM flights
 )
-SELECT e.enum_value AS unreachable_phase
-FROM   (SELECT unnest(['DRAFT','ACTIVE','SUSPENDED','ARCHIVED','DELETED']::lifecycle_phase[]) AS enum_value) e
-LEFT   JOIN reachable r ON r.phase = e.enum_value
-WHERE  r.phase IS NULL;
-
--- CHECK 4：Action 的 side_effects 引用的 Action 必须存在
-SELECT at1.api_name AS action, unnest(at1.side_effects) AS missing_effect
-FROM   meta.action_type at1
-WHERE  at1.side_effects IS NOT NULL
-  AND  unnest(at1.side_effects) NOT IN (SELECT api_name FROM meta.action_type);
+SELECT 
+    a.iata_code,
+    a.name AS airport_name,
+    a.city,
+    SUM(t.is_outbound) AS outbound_flights,
+    SUM(t.is_inbound) AS inbound_flights,
+    COUNT(*) AS total_movements
+FROM airport_traffic t
+JOIN airports a ON t.airport_id = a.airport_id
+GROUP BY a.airport_id, a.iata_code, a.name, a.city
+ORDER BY total_movements DESC;
 ```
+
+#### 预期结果与为什么：
+* 北京首都（PEK）总吞吐量最高（3 架次出港，总计 3 架次，为核心始发枢纽）；
+* 新加坡樟宜（SIN）总计 2 架次进港，是国际枢纽到达地；
+* 上海虹桥（SHA）1 架次进港、1 架次出港，呈现典型的中转联程枢纽特征。
 
 ---
 
-## 7. 图：将整个元模型可视化为 Mermaid
+## 七、步骤五：关联（Join & Entity Linking）· 旅客联程机票与行程打通
 
-用 DuckDB 直接**生成 Mermaid 代码**：
+在航空服务中，识别旅客的转机联程路径至关重要。
+
+### 查询 4：白金卡旅客 Li Wei 的联程订座行程单
 
 ```sql
--- 生成 Mermaid ER 图
-WITH lines AS (
-    SELECT 1 AS ord, 'erDiagram' AS line
+SELECT 
+    p.name AS passenger_name,
+    p.tier AS loyalty_tier,
+    b.booking_id,
+    f.flight_no,
+    orig.iata_code AS from_airport,
+    dest.iata_code AS to_airport,
+    f.scheduled_departure,
+    b.seat_no,
+    b.class,
+    b.fare
+FROM bookings b
+JOIN passengers p ON b.passenger_id = p.passenger_id
+JOIN flights f ON b.flight_id = f.flight_id
+JOIN airports orig ON f.origin_airport_id = orig.airport_id
+JOIN airports dest ON f.dest_airport_id = dest.airport_id
+WHERE p.passenger_id = 'PA_001'
+ORDER BY f.scheduled_departure;
+```
+
+#### 预期结果与为什么：
+* 返回 Li Wei（白金卡会员）的 2 张商务舱机票：
+  1. `CA1831`: PEK (北京) → SHA (上海虹桥)，08:00 起飞；
+  2. `MU5105`: SHA (上海虹桥) → SIN (新加坡)，12:30 起飞。
+* **业务价值**：旅客在上海虹桥有 2 小时 15 分钟的充裕中转时间，系统可自动在行李系统中标记“联程行李直挂”，提升高净值旅客体验。
+
+---
+
+## 八、步骤六：验证（Validate & 图递归运算）· Recursive CTE 自动寻找中转转机方案
+
+这是 Palantir 图计算能力在 DuckDB 上的典型体现：**给定起点和终点，自动在拓扑网络中递归搜索所有「直达 + 一次中转」的飞行方案与总用时**！
+
+### 查询 5：递归图遍历 —— 查找从北京（PEK）到新加坡（SIN）的所有可行航线
+
+```sql
+WITH RECURSIVE flight_routes AS (
+    -- 1. 基础锚点：所有从 PEK 起飞的直达航班
+    SELECT 
+        f.flight_id,
+        f.flight_no,
+        orig.iata_code AS origin,
+        dest.iata_code AS destination,
+        f.scheduled_departure,
+        f.scheduled_arrival,
+        date_diff('minute', f.scheduled_departure, f.scheduled_arrival) AS total_flight_minutes,
+        orig.iata_code || ' -> ' || dest.iata_code AS route_path,
+        1 AS hops
+    FROM flights f
+    JOIN airports orig ON f.origin_airport_id = orig.airport_id
+    JOIN airports dest ON f.dest_airport_id = dest.airport_id
+    WHERE orig.iata_code = 'PEK'
+
     UNION ALL
-    SELECT 2, '    ' || f.api_name || ' ||--o{ ' || t.api_name || ' : "' || lt.api_name || '"'
-    FROM   meta.link_type lt
-    JOIN   meta.object_type f ON f.ot_id = lt.from_ot_id
-    JOIN   meta.object_type t ON t.ot_id = lt.to_ot_id
+
+    -- 2. 递归项：在中转港续接出发的下一程航班 (转机留存时间在 60-360 分钟之间)
+    SELECT 
+        next_f.flight_id,
+        r.flight_no || ' + ' || next_f.flight_no,
+        r.origin,
+        next_dest.iata_code,
+        r.scheduled_departure,
+        next_f.scheduled_arrival,
+        r.total_flight_minutes + date_diff('minute', next_f.scheduled_departure, next_f.scheduled_arrival),
+        r.route_path || ' -> ' || next_dest.iata_code,
+        r.hops + 1
+    FROM flight_routes r
+    JOIN airports current_dest ON r.destination = current_dest.iata_code
+    JOIN flights next_f ON current_dest.airport_id = next_f.origin_airport_id
+    JOIN airports next_dest ON next_f.dest_airport_id = next_dest.airport_id
+    WHERE r.hops < 3
+      AND next_f.scheduled_departure >= r.scheduled_arrival + INTERVAL '60 minutes'
+      AND next_f.scheduled_departure <= r.scheduled_arrival + INTERVAL '360 minutes'
 )
-SELECT line FROM lines ORDER BY ord;
+SELECT 
+    route_path,
+    flight_no AS flight_combination,
+    scheduled_departure AS journey_start,
+    scheduled_arrival AS journey_end,
+    total_flight_minutes,
+    hops
+FROM flight_routes
+WHERE destination = 'SIN'
+ORDER BY total_flight_minutes;
 ```
 
-输出粘贴到任何 Mermaid 渲染器即可看到：
-
-```mermaid
-erDiagram
-    ObjectType ||--o{ ObjectType : "hasProperty"
-    LinkType   ||--o{ ObjectType : "linksFrom"
-    LinkType   ||--o{ ObjectType : "linksTo"
-    State      ||--o{ ObjectType : "stateOf"
-    ActionType ||--o{ ObjectType : "targetsObject"
-    ActionType ||--o{ State      : "causesTransition"
-```
+#### 预期结果与为什么：
+* 自动计算并输出转机路径：
+  * `PEK -> SHA -> SIN`（经上海中转）；
+  * 组合航班：`CA1831 + MU5105`；
+  * 总航程纯飞行耗时：465 分钟（135分钟 + 330分钟）；
+  * 中转停靠（Hops）：2 跳。
+* **核心概念解析**：`WITH RECURSIVE` 是分析图遍历、供应链多阶 BOM、资金穿透追踪的最强 SQL 工具，DuckDB 能够在内存中高速执行有向图的拓扑展开。
 
 ---
 
-## 8. 状态机可视化
+## 九、步骤七：输出（Output & Advanced Insights）· 调度动作追溯与延误归因
+
+### 查询 6：调度指令 Action 归因与航线收益大盘
 
 ```sql
--- 生成 Mermaid 状态图
-WITH lines AS (
-    SELECT 1 AS ord, 'stateDiagram-v2' AS line
-    UNION ALL
-    SELECT 2,
-        '    ' || from_phase::VARCHAR || ' --> ' || to_phase::VARCHAR
-        || ' : ' || at2.api_name
-    FROM   meta.action_state_transition ast
-    JOIN   meta.action_type at2 USING (at_id)
-)
-SELECT line FROM lines ORDER BY ord;
+SELECT 
+    f.flight_no,
+    a.iata_code AS departure_airport,
+    d.action_type,
+    d.reason AS delay_reason,
+    d.delay_minutes,
+    COUNT(b.booking_id) AS impacted_passengers,
+    SUM(b.fare) AS total_revenue_impact
+FROM flight_dispatches d
+JOIN flights f ON d.flight_id = f.flight_id
+JOIN airports a ON f.origin_airport_id = a.airport_id
+LEFT JOIN bookings b ON f.flight_id = b.flight_id
+GROUP BY f.flight_no, a.iata_code, d.action_type, d.reason, d.delay_minutes
+ORDER BY d.delay_minutes DESC;
 ```
 
-```mermaid
-stateDiagram-v2
-    DRAFT     --> DRAFT    : RegisterObjectType
-    DRAFT     --> ACTIVE   : ActivateObject
-    ACTIVE    --> ARCHIVED : ArchiveObject
-    ARCHIVED  --> DELETED  : DeleteObjectType
-```
+#### 预期结果与为什么：
+* `CZ3155`（PEK 始发）：受“华北空域流量动态管制”延误 75 分钟，波及 1 位旅客（客票 1,450 元）；
+* `MU5105`（SHA 始发）：受“机务前序过站检查耗时”延误 45 分钟，波及 1 位白金卡高端商务旅客（客票 8,500 元）。
+* **决策价值**：空管管制属于不可抗力，但机务前序过站属于航司自身地面保障瓶颈，机务主管必须针对 SHA 站点的过站标准作业流程（SOP）进行专项优化。
 
 ---
 
-## 9. 如何复用到任意业务场景
+## 十、总结与本体图谱映射
 
-这套元模型就是一个**工厂**。假设要建一个"供应链"Ontology，只需：
+通过本篇教程，我们完整落地了航空调度网络的动态图谱模型：
 
-```sql
--- 1. 注册新 Object Type
-INSERT INTO meta.object_type (api_name, display_name, tags) VALUES
-    ('Warehouse', 'Warehouse', ARRAY['supply-chain']),
-    ('Shipment',  'Shipment',  ARRAY['supply-chain']);
+1. **Object**：以全球枢纽 `Airports`、高价值机架 `Aircrafts`、航班 `Flights` 与乘机人 `Passengers` 构成自描述实体资产。
+2. **Link**：构建了进港、出港、执飞、订座多维度的语义连线拓扑。
+3. **State**：航班生命周期在调度与飞行过程中演进（`SCHEDULED` → `IN_AIR` → `LANDED`）。
+4. **Action**：调度中心的指令（`flight_dispatches`）真实驱动延误归因与航班改派。
 
--- 2. 定义属性
-INSERT INTO meta.property (ot_id, api_name, display_name, dtype, is_primary) VALUES
-    (5, 'wh_id',    'Warehouse ID', 'STRING',  true),
-    (5, 'capacity', 'Capacity',     'INTEGER', false),
-    (6, 'ship_id',  'Shipment ID',  'STRING',  true),
-    (6, 'status',   'Status',       'STRING',  false);
-
--- 3. 建 Link
-INSERT INTO meta.link_type (api_name, display_name, from_ot_id, to_ot_id, cardinality) VALUES
-    ('shipsFrom', 'ships From', 6, 5, 'MANY_TO_ONE');
-
--- 4. 建 Action
-INSERT INTO meta.action_type (api_name, display_name, category, target_ot_id, parameters) VALUES
-    ('DispatchShipment', 'Dispatch Shipment', 'TRANSITION', 6,
-     '[{"name":"carrier","type":"STRING","required":true}]');
-
--- 5. 定义状态跃迁
-INSERT INTO meta.action_state_transition VALUES
-    (7, 'DRAFT', 'ACTIVE');   -- at_id=7 for DispatchShipment
-
--- 验证
-SELECT * FROM meta.v_full_ontology WHERE object_type IN ('Warehouse','Shipment');
-```
-
-你定义的**任何业务域**都只是这个 meta schema 里的**数据行**，不需要改结构。
-
----
-
-## 10. 清理
-
-```sql
--- 按需
-DROP SCHEMA IF EXISTS meta CASCADE;
-DETACH ontology_db;
-```
-
----
-
-## 11. 操作清单总览（MECE 自检）
-
-| 分类 | 涉及操作 | 对应章节 |
-|------|----------|----------|
-| **DDL** | CREATE SCHEMA / TABLE / VIEW / INDEX / SEQUENCE / TYPE(ENUM) / MACRO; ALTER TABLE; DROP | §2, §5.1, §5.3, §10 |
-| **DML** | INSERT / UPDATE / DELETE / INSERT...SELECT | §3, §5.7 |
-| **DQL 基础** | SELECT / WHERE / ORDER BY / LIMIT / DISTINCT | §4.1 |
-| **聚合** | GROUP BY / HAVING / FILTER / GROUPING SETS / CUBE / ROLLUP | §4.2, §5.10 |
-| **JOIN** | INNER / LEFT / CROSS / SEMI(EXISTS) / ANTI(NOT EXISTS) / LATERAL | §4.3, §5.11 |
-| **子查询/CTE** | 标量子查询 / CTE / 递归 CTE | §4.4 |
-| **窗口** | ROW_NUMBER / LEAD / DENSE_RANK / count OVER / WINDOW 子句 / QUALIFY | §4.5, §5.9 |
-| **集合** | UNION / UNION ALL / INTERSECT / EXCEPT | §4.6 |
-| **复杂类型** | JSON / STRUCT / MAP / ARRAY / UNNEST / list_transform / list_filter | §4.7, §5.2 |
-| **字符串/正则/日期** | upper / regexp_extract / string_split / date_part / strftime | §4.8 |
-| **PIVOT/UNPIVOT** | PIVOT ON ... USING / UNPIVOT ... INTO | §4.9 |
-| **表达式** | CASE / COALESCE / NULLIF / CAST | §4.10 |
-| **宏** | MACRO (标量 + 表) | §5.1 |
-| **Lambda** | list_transform / list_filter / list_reduce | §5.2 |
-| **Generated Column** | ALTER TABLE ADD ... GENERATED ALWAYS AS | §5.3 |
-| **采样** | USING SAMPLE / TABLESAMPLE | §5.4 |
-| **执行计划** | EXPLAIN / EXPLAIN ANALYZE | §5.5 |
-| **IO** | COPY TO/FROM (Parquet/CSV/JSON) / read_parquet / read_csv_auto | §5.6 |
-| **CTAS / Temp** | CREATE TEMP TABLE AS | §5.7 |
-| **事务** | BEGIN / COMMIT / ROLLBACK | §5.8 |
-| **元数据** | duckdb_tables() / information_schema / duckdb_constraints() | §5.13 |
-| **VALUES** | 内联 VALUES 表 | §5.12 |
-| **数据质量** | 约束检查查询 | §6 |
-| **可视化生成** | SQL 生成 Mermaid | §7, §8 |
-
----
-
-## 结语
-
-你刚刚做了一件"自举"（bootstrap）的事：**用 SQL 建了一个描述 Ontology 的 Ontology**。
-
-- **Object Type** = 你对世界的分类方式。
-- **Link Type** = 分类之间的关系拓扑。
-- **State** = 对象随时间演化的快照序列。
-- **Action Type** = 驱动状态流转的原子操作，串联起来就是业务流程。
-
-这四者缺一不可、互不重叠（MECE），它们合在一起就是 Palantir 把任何混乱的数据治理问题变成可操作图谱的核心抽象。把这套元模型导出为 Parquet，带去下一个项目，直接往里灌业务定义即可。
+右侧本体图谱已同步生成该领域的动态航网实体与实例网络，完美展现真实世界的物理拓扑与业务逻辑。

@@ -350,11 +350,9 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   }, [isExplainColumn, multilineMetrics.rawText]);
 
   const handleSwitchToExplainTab = () => {
-    if (onSwitchToAi) {
-      onSwitchToAi('explain');
-    }
-    window.dispatchEvent(new CustomEvent('duckdb_switch_subtab', { detail: { subtab: 'explain' } }));
-    toastService.info('已切换到执行计划可视化图谱');
+    // Jump to result-area physical plan viz — not the AI "语义解释" panel
+    window.dispatchEvent(new CustomEvent('duckdb_switch_subtab', { detail: { subTab: 'explain' } }));
+    toastService.info('已切换到执行计划可视化');
   };
 
   const displayedTopValues = showAllTopValues ? stats.topValues : stats.topValues.slice(0, 5);

@@ -46,4 +46,39 @@ describe('OntologyPanel View Tabs', () => {
     fireEvent.click(graphTab);
     expect(screen.getByTestId('d3-graph-view')).toBeInTheDocument();
   });
+
+  it('renders hop count regulator with 2-hop active by default and hides on non-graph tabs', async () => {
+    render(<OntologyPanel isActive={true} />);
+
+    // In default graph view, hop buttons are present
+    const hop1Btn = screen.getByRole('button', { name: '1跳' });
+    const hop2Btn = screen.getByRole('button', { name: '2跳' });
+    const hop3Btn = screen.getByRole('button', { name: '3跳' });
+    const hopAllBtn = screen.getByRole('button', { name: '全图' });
+
+    expect(hop1Btn).toBeInTheDocument();
+    expect(hop2Btn).toBeInTheDocument();
+    expect(hop3Btn).toBeInTheDocument();
+    expect(hopAllBtn).toBeInTheDocument();
+
+    // 2-hop is active by default
+    expect(hop2Btn.className).toContain('bg-monokai-cyan');
+    expect(hop3Btn.className).not.toContain('bg-monokai-cyan');
+
+    // Click 3-hop
+    fireEvent.click(hop3Btn);
+    expect(hop3Btn.className).toContain('bg-monokai-cyan');
+    expect(hop2Btn.className).not.toContain('bg-monokai-cyan');
+
+    // Switch to data tab -> hop regulator is hidden
+    const dataTab = screen.getByRole('tab', { name: /数据视图/i });
+    fireEvent.click(dataTab);
+    expect(screen.queryByRole('button', { name: '2跳' })).not.toBeInTheDocument();
+
+    // Switch back to graph tab -> hop regulator returns with preserved state
+    const graphTab = screen.getByRole('tab', { name: /知识图谱/i });
+    fireEvent.click(graphTab);
+    expect(screen.getByRole('button', { name: '3跳' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '3跳' }).className).toContain('bg-monokai-cyan');
+  });
 });

@@ -131,7 +131,7 @@ export const LearningPathPanel: React.FC<LearningPathPanelProps> = ({
             <GraduationCap className="w-6 h-6 text-monokai-amethyst" />
             <div>
               <h3 className="text-lg font-bold text-monokai-fg">SQL 学习路径</h3>
-              <p className="text-xs text-monokai-comment">基于 Quick_Tutorial 方法论</p>
+              <p className="text-xs text-monokai-comment">系统化学习方案</p>
             </div>
           </div>
           <div className="flex items-center gap-2">

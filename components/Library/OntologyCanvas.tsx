@@ -63,6 +63,7 @@ import { EdgePropertyDialog, type EdgeProperties, type EdgePropertyUpdates } fro
 import { HistoryPanel, type HistoryEntry } from './OntologyCanvas/HistoryPanel';
 import { resolveReadableCanvasZoom } from './ontologyViewportPolicy';
 import { ShortcutsHelpDialog } from './OntologyCanvas/ShortcutsHelpDialog';
+import { OntologyLayoutPanel } from './OntologyCanvas/OntologyLayoutPanel';
 
 /**
  * Graph keys that already received a forced first-entry layout this page session.
@@ -179,7 +180,17 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
   const lockedNodeIds = canvasLockedNodeIds;
 
 
-  const [expandedNodeIds, setExpandedNodeIds] = useState<Set<number>>(new Set());
+  // 实体属性折叠状态（默认全部展开，仅记录用户主动折叠的实体ID）
+  const [collapsedNodeIds, setCollapsedNodeIds] = useState<Set<number>>(new Set());
+
+  // 展开的实体ID集合（动态计算，默认全部展开）
+  const expandedNodeIds = useMemo<Set<number>>(() => {
+    return new Set<number>(
+      objects
+        .map((o: any) => Number(o.id))
+        .filter((id: number) => !collapsedNodeIds.has(id))
+    );
+  }, [objects, collapsedNodeIds]);
   const [isFocusMode, setIsFocusMode] = useState<boolean>(false);
 
   useEffect(() => {
@@ -595,11 +606,11 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
     setSelectedNodeId(Number(edgeId)); // 复用selectedNodeId来触发路径高亮
   }, []);
 
-  /** 展开/折叠节点 */
-  const handleToggleExpand = useCallback((nodeId: string) => {
-    setExpandedNodeIds(prev => {
+  /** 展开/折叠节点属性 */
+  const handleToggleExpand = useCallback((nodeId: string | number) => {
+    const id = Number(nodeId);
+    setCollapsedNodeIds(prev => {
       const next = new Set(prev);
-      const id = Number(nodeId);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
@@ -1134,10 +1145,11 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
           onEditOpen: handleOpenEditNode,
           onDelete: handleDeleteNode,
           onExpandToggle: (nodeId: number) => {
-            setExpandedNodeIds(prev => {
+            const id = Number(nodeId);
+            setCollapsedNodeIds(prev => {
               const next = new Set(prev);
-              if (next.has(nodeId)) next.delete(nodeId);
-              else next.add(nodeId);
+              if (next.has(id)) next.delete(id);
+              else next.add(id);
               return next;
             });
           },
@@ -1892,294 +1904,75 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
           <Controls showInteractive={false} style={{ left: 10, bottom: 10 }} />
         </ReactFlow>
 
-        {/* Dynamic Spacing Control Panel */}
-        <div className="absolute left-3 top-3 z-10 flex flex-col items-start gap-2">
-          <button
-            onClick={() => setShowSpacingPanel(!showSpacingPanel)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded border text-xs font-semibold shadow-lg backdrop-blur-md transition-all select-none ${
-              showSpacingPanel
-                ? 'bg-monokai-surface border-monokai-accent text-monokai-fg'
-                : 'bg-monokai-sidebar border-monokai-border text-monokai-comment hover:text-monokai-fg-muted hover:border-monokai-border-strong'
-            }`}
-            title="手动调整画布排版设置"
-          >
-            <Settings className="w-3.5 h-3.5" />
-            <span>排版微调</span>
-          </button>
-
-          {showSpacingPanel && (
-            <div className="flex flex-col gap-3.5 p-4 rounded bg-monokai-bg/95 border border-monokai-border shadow-2xl backdrop-blur-md w-72 animate-in fade-in slide-in-from-top-2 duration-200">
-              <div className="flex items-center justify-between border-b border-monokai-border-subtle pb-2">
-                <span className="text-xs font-bold text-monokai-fg flex items-center gap-1.5">
-                  <Settings className="w-3.5 h-3.5 text-monokai-accent" />
-                  排版微调面板
-                </span>
-                <span
-                  onClick={() => {
-                    setNodesep(100);
-                    setRanksep(200);
-                    setLayoutMode('orthogonal');
-                    setParallelOffset(40);
-                    setSnapToGrid(true);
-                    setShowGrid(true);
-                    setShowMiniMap(true);
-                    setAnimateEdges(true);
-                    setIsFocusMode(false);
-                    setEnableDbClickCreate(true);
-                    setEdgeRoutingMode('orthogonal');
-                    setIsReadOnly(false);
-                    handleAutoAlign(100, 200, 'orthogonal');
-                  }}
-                  className="text-[10px] text-monokai-comment hover:text-monokai-fg-muted cursor-pointer transition-all"
-                >
-                  恢复默认
-                </span>
-              </div>
-
-              {/* Layout algorithms */}
-              <div className="flex flex-col gap-1.5">
-                <span className="text-xs text-monokai-comment">布局方式</span>
-                <div className="grid grid-cols-2 gap-2 text-[10px]">
-                  {ONTOLOGY_LAYOUTS.map((layout) => (
-                    <button
-                      key={layout.id}
-                      type="button"
-                      data-testid={`ontology-layout-${layout.id}`}
-                      title={layout.description}
-                      onClick={() => handleAutoAlign(nodesep, ranksep, layout.id)}
-                      className={`py-1.5 px-2 rounded border transition-all text-left ${
-                        layoutMode === layout.id
-                          ? 'bg-monokai-surface border-monokai-accent text-monokai-fg font-bold'
-                          : 'bg-monokai-sidebar/40 border-monokai-border text-monokai-comment hover:text-monokai-fg-muted'
-                      }`}
-                    >
-                      <span className="block">{layout.label}布局</span>
-                      <span className="block mt-0.5 text-[8px] font-normal opacity-70 truncate">{layout.description}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Horizontal Spacing */}
-              <div className="flex flex-col gap-1.5">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-monokai-comment">层级间距</span>
-                  <span className="text-monokai-blue font-mono font-bold">{ranksep}px</span>
-                </div>
-                <input
-                  type="range"
-                  min="100"
-                  max="500"
-                  step="20"
-                  value={ranksep}
-                  onChange={(e) => {
-                    const val = Number(e.target.value);
-                    setRanksep(val);
-                    handleAutoAlign(nodesep, val);
-                  }}
-                  className="w-full h-1 bg-monokai-surface rounded-lg appearance-none cursor-pointer accent-monokai-blue focus:outline-none"
-                />
-              </div>
-
-              {/* Vertical Spacing */}
-              <div className="flex flex-col gap-1.5">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-monokai-comment">同层节点间距</span>
-                  <span className="text-monokai-green font-mono font-bold">{nodesep}px</span>
-                </div>
-                <input
-                  type="range"
-                  min="60"
-                  max="300"
-                  step="10"
-                  value={nodesep}
-                  onChange={(e) => {
-                    const val = Number(e.target.value);
-                    setNodesep(val);
-                    handleAutoAlign(val, ranksep);
-                  }}
-                  className="w-full h-1 bg-monokai-surface rounded-lg appearance-none cursor-pointer accent-monokai-green focus:outline-none"
-                />
-              </div>
-
-              {/* Parallel orthogonal lane offset */}
-              <div className="flex flex-col gap-1.5">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-monokai-comment">并行线间距</span>
-                  <span className="text-monokai-orange font-mono font-bold">{parallelOffset}px</span>
-                </div>
-                <input
-                  type="range"
-                  min="15"
-                  max="70"
-                  step="5"
-                  value={parallelOffset}
-                  onChange={(e) => {
-                    setParallelOffset(Number(e.target.value));
-                  }}
-                  className="w-full h-1 bg-monokai-surface rounded-lg appearance-none cursor-pointer accent-monokai-orange focus:outline-none"
-                />
-              </div>
-
-              {/* Edge Routing Style */}
-              <div className="flex flex-col gap-1.5 border-t border-monokai-border-subtle pt-2">
-                <span className="text-xs text-monokai-comment">连线风格 (Reactor 直线 / 正交 / 贝塞尔)</span>
-                <div className="grid grid-cols-3 gap-1.5 text-[11px]">
-                  <button
-                    type="button"
-                    onClick={() => setEdgeRoutingMode('straight')}
-                    className={`py-1.5 px-2 rounded border transition-all text-center ${
-                      edgeRoutingMode === 'straight'
-                        ? 'bg-monokai-surface border-monokai-cyan text-monokai-cyan font-bold shadow-sm'
-                        : 'bg-monokai-sidebar/40 border-monokai-border text-monokai-comment hover:text-monokai-fg-muted'
-                    }`}
-                  >
-                    极简直线
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setEdgeRoutingMode('orthogonal')}
-                    className={`py-1.5 px-2 rounded border transition-all text-center ${
-                      edgeRoutingMode === 'orthogonal'
-                        ? 'bg-monokai-surface border-monokai-green text-monokai-green font-bold shadow-sm'
-                        : 'bg-monokai-sidebar/40 border-monokai-border text-monokai-comment hover:text-monokai-fg-muted'
-                    }`}
-                  >
-                    圆角正交
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setEdgeRoutingMode('bezier')}
-                    className={`py-1.5 px-2 rounded border transition-all text-center ${
-                      edgeRoutingMode === 'bezier'
-                        ? 'bg-monokai-surface border-monokai-yellow text-monokai-yellow font-bold shadow-sm'
-                        : 'bg-monokai-sidebar/40 border-monokai-border text-monokai-comment hover:text-monokai-fg-muted'
-                    }`}
-                  >
-                    平滑贝塞尔
-                  </button>
-                </div>
-              </div>
-
-              {/* Interactive Toggles Header */}
-              <div className="text-[10px] font-bold text-monokai-comment border-t border-monokai-border-subtle pt-2.5 mb-0.5 uppercase tracking-wider">
-                画布交互与状态
-              </div>
-
-              {/* Focus Mode */}
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-monokai-comment" title="开启后仅显示选中节点及其关联的前后代节点">聚焦模式 (Focus)</span>
-                <label className="relative inline-flex items-center cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={isFocusMode}
-                    onChange={(e) => setIsFocusMode(e.target.checked)}
-                    className="sr-only peer"
-                  />
-                  <div className="w-7 h-4 bg-monokai-surface peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-monokai-comment after:border-monokai-border-strong after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-monokai-green peer-checked:after:bg-monokai-sidebar peer-checked:after:border-transparent"></div>
-                </label>
-              </div>
-
-              {/* Grid Snapping */}
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-monokai-comment">网格吸附对齐</span>
-                <label className="relative inline-flex items-center cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={snapToGrid}
-                    onChange={(e) => setSnapToGrid(e.target.checked)}
-                    className="sr-only peer"
-                  />
-                  <div className="w-7 h-4 bg-monokai-surface peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-monokai-comment after:border-monokai-border-strong after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-monokai-green peer-checked:after:bg-monokai-sidebar peer-checked:after:border-transparent"></div>
-                </label>
-              </div>
-
-              {/* Background dots grid */}
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-monokai-comment">背景网格点阵</span>
-                <label className="relative inline-flex items-center cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={showGrid}
-                    onChange={(e) => setShowGrid(e.target.checked)}
-                    className="sr-only peer"
-                  />
-                  <div className="w-7 h-4 bg-monokai-surface peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-monokai-comment after:border-monokai-border-strong after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-monokai-green peer-checked:after:bg-monokai-sidebar peer-checked:after:border-transparent"></div>
-                </label>
-              </div>
-
-              {/* MiniMap toggle */}
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-monokai-comment">鹰眼小地图</span>
-                <label className="relative inline-flex items-center cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={showMiniMap}
-                    onChange={(e) => setShowMiniMap(e.target.checked)}
-                    className="sr-only peer"
-                  />
-                  <div className="w-7 h-4 bg-monokai-surface peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-monokai-comment after:border-monokai-border-strong after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-monokai-green peer-checked:after:bg-monokai-sidebar peer-checked:after:border-transparent"></div>
-                </label>
-              </div>
-
-              {/* Edge animations toggle */}
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-monokai-comment">连线流向动画</span>
-                <label className="relative inline-flex items-center cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={animateEdges}
-                    onChange={(e) => setAnimateEdges(e.target.checked)}
-                    className="sr-only peer"
-                  />
-                  <div className="w-7 h-4 bg-monokai-surface peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-monokai-comment after:border-monokai-border-strong after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-monokai-green peer-checked:after:bg-monokai-sidebar peer-checked:after:border-transparent"></div>
-                </label>
-              </div>
-
-              {/* Double-Click Create Node */}
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-monokai-comment">双击新建节点</span>
-                <label className="relative inline-flex items-center cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={enableDbClickCreate}
-                    onChange={(e) => setEnableDbClickCreate(e.target.checked)}
-                    className="sr-only peer"
-                  />
-                  <div className="w-7 h-4 bg-monokai-surface peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-monokai-comment after:border-monokai-border-strong after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-monokai-green peer-checked:after:bg-monokai-sidebar peer-checked:after:border-transparent"></div>
-                </label>
-              </div>
-
-              {/* Read Only toggle */}
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-monokai-comment font-semibold text-amber-500">只读画布模式</span>
-                <label className="relative inline-flex items-center cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={isReadOnly}
-                    onChange={(e) => setIsReadOnly(e.target.checked)}
-                    className="sr-only peer"
-                  />
-                  <div className="w-7 h-4 bg-monokai-surface peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-monokai-comment after:border-monokai-border-strong after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-monokai-orange peer-checked:after:bg-monokai-sidebar peer-checked:after:border-transparent"></div>
-                </label>
-              </div>
-
-              {/* Force Reset Layout button */}
-              <button
-                disabled={isReadOnly}
-                onClick={handleForceResetLayout}
-                className="mt-1 w-full py-1.5 rounded bg-monokai-surface border border-monokai-border text-amber-400 hover:bg-amber-500/10 active:scale-98 disabled:opacity-30 disabled:pointer-events-none transition-all text-xs font-medium flex items-center justify-center gap-1.5"
-                title="清除所有拖拽的偏移坐标，重新计算Dagre自动布局"
-              >
-                <span>重置全局网格排版</span>
-              </button>
-
-              <div className="text-[9px] text-monokai-comment border-t border-monokai-border-subtle pt-2 leading-relaxed">
-                * 拖动滑块或切换参数将实时响应重算排版，不影响手动锁定的节点。
-              </div>
-            </div>
-          )}
-        </div>
+        {/* Dynamic Spacing Control Panel / 排版微调控制中心 */}
+        <OntologyLayoutPanel
+          isOpen={showSpacingPanel}
+          onToggle={() => setShowSpacingPanel(!showSpacingPanel)}
+          onClose={() => setShowSpacingPanel(false)}
+          layoutMode={layoutMode}
+          onLayoutModeChange={(mode) => setLayoutMode(mode)}
+          nodesep={nodesep}
+          onNodesepChange={setNodesep}
+          ranksep={ranksep}
+          onRanksepChange={setRanksep}
+          parallelOffset={parallelOffset}
+          onParallelOffsetChange={setParallelOffset}
+          edgeRoutingMode={edgeRoutingMode}
+          onEdgeRoutingModeChange={setEdgeRoutingMode}
+          isFocusMode={isFocusMode}
+          onFocusModeChange={setIsFocusMode}
+          snapToGrid={snapToGrid}
+          onSnapToGridChange={setSnapToGrid}
+          showGrid={showGrid}
+          onShowGridChange={setShowGrid}
+          showMiniMap={showMiniMap}
+          onShowMiniMapChange={setShowMiniMap}
+          animateEdges={animateEdges}
+          onAnimateEdgesChange={setAnimateEdges}
+          enableDbClickCreate={enableDbClickCreate}
+          onEnableDbClickCreateChange={setEnableDbClickCreate}
+          isReadOnly={isReadOnly}
+          onIsReadOnlyChange={setIsReadOnly}
+          isDefaultExpanded={collapsedNodeIds.size === 0}
+          onToggleExpandAll={(expand) => {
+            if (expand) {
+              setCollapsedNodeIds(new Set());
+            } else {
+              setCollapsedNodeIds(new Set(objects.map((o: any) => Number(o.id))));
+            }
+          }}
+          onAutoAlign={handleAutoAlign}
+          onForceResetLayout={handleForceResetLayout}
+          onFitView={handleFitView}
+          onResetZoom={handleResetZoom}
+          onResetDefaults={() => {
+            setNodesep(100);
+            setRanksep(200);
+            setLayoutMode('orthogonal');
+            setParallelOffset(40);
+            setSnapToGrid(true);
+            setShowGrid(true);
+            setShowMiniMap(true);
+            setAnimateEdges(true);
+            setIsFocusMode(false);
+            setEnableDbClickCreate(true);
+            setEdgeRoutingMode('orthogonal');
+            setIsReadOnly(false);
+            setCollapsedNodeIds(new Set());
+            handleAutoAlign(100, 200, 'orthogonal');
+          }}
+          onLockAll={handleLockAll}
+          onUnlockAll={handleUnlockAll}
+          lockedCount={lockedNodeIds.size}
+          onUndo={handleUndo}
+          onRedo={handleRedo}
+          canUndo={undoStackRef.current.length > 0}
+          canRedo={redoStackRef.current.length > 0}
+          nodeCount={objects.length}
+          edgeCount={links.length}
+          nodes={objects}
+          edges={links}
+        />
       </div>
 
       {/* Local Right Details Panel */}

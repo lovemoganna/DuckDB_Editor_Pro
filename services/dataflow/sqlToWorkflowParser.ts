@@ -18,6 +18,11 @@ import type {
   JoinNodeConfig,
   AggregateNodeConfig,
   ResultNodeConfig,
+  SqlExecutionStage,
+  SqlParadigmMeta,
+  BugTraceInfo,
+  SqlPitfallPreset,
+  SchemaEvolution,
 } from './workflowTypes';
 
 export interface ParsedCte {
@@ -27,6 +32,240 @@ export interface ParsedCte {
   startLine?: number;
   endLine?: number;
 }
+
+/**
+ * 获取 SQL 逻辑执行阶段的标准运行套路与避坑元数据
+ */
+export function getSqlParadigm(stage: SqlExecutionStage): SqlParadigmMeta {
+  switch (stage) {
+    case 'from':
+      return {
+        stage: 'from',
+        stageName: 'FROM · 数据源装载',
+        executionOrder: 1,
+        roleDesc: '底层物理表与数据文件寻址扫描',
+        mentalModel: '【逻辑第 1 步】SQL 引擎最先寻址并打开数据源表。确定原始数据行数基数，决定后续所有步骤的输入规模。DuckDB 会在此处进行列式投影与过滤下推优化。',
+        pitfallWarning: '【避坑指南】杜绝 SELECT * 引发宽表全量扫描；若数据表不存在将在此阶段直接抛出 Catalog Error。',
+      };
+    case 'join':
+      return {
+        stage: 'join',
+        stageName: 'JOIN · 多表行级关联',
+        executionOrder: 2,
+        roleDesc: '基于 ON 条件进行多表笛卡尔积或哈希关联',
+        mentalModel: '【逻辑第 2 步】根据关联键匹配左右两表。LEFT JOIN 保留左表全量行；INNER JOIN 仅保留双边匹配行。DuckDB 会基于小表在内存中建立哈希表以探测大表。',
+        pitfallWarning: '【高频 Bug】务必指定明确唯一的关联键，防止 1:N 导致行数剧增的笛卡尔积爆炸；关联键含 NULL 将无法通过等值关联匹配！',
+      };
+    case 'where':
+      return {
+        stage: 'where',
+        stageName: 'WHERE · 行级条件初筛',
+        executionOrder: 3,
+        roleDesc: '在数据聚合前尽早剔除无关数据行',
+        mentalModel: '【核心套路】逐行评估布尔过滤断言，尽早淘汰无效行，最大程度降低后续 GROUP BY 维度的内存占用与哈希基数。',
+        pitfallWarning: '【最常见 Bug】SELECT 中定义的别名在此处绝对不可用！因为执行顺序中 WHERE 发生于 SELECT 之前。NULL 比较须用 IS NULL 而非 = NULL。',
+      };
+    case 'groupby':
+      return {
+        stage: 'groupby',
+        stageName: 'GROUP BY · 维度分组聚合',
+        executionOrder: 4,
+        roleDesc: '按维度键分桶折叠，计算指标汇总值',
+        mentalModel: '【逻辑第 4 步】将细粒度的行按照分组键折叠为粗粒度指标行。输出行数收敛为分组去重基数，并在内部累加 SUM/COUNT/AVG 等聚合函数。',
+        pitfallWarning: '【高频报错】SELECT 中除了聚合函数包裹的指标，所有普通列都必须显式列入 GROUP BY 列表！高基数字段分组易导致内存暴涨。',
+      };
+    case 'having':
+      return {
+        stage: 'having',
+        stageName: 'HAVING · 聚合指标后验过滤',
+        executionOrder: 5,
+        roleDesc: '针对分组聚合后的指标值进行二次条件筛选',
+        mentalModel: '【逻辑第 5 步】在 GROUP BY 汇总计算完成后，对聚合出的统计值（如 SUM(amt) > 1000）执行过滤断言。',
+        pitfallWarning: '【避坑指南】普通行级过滤绝不要写在 HAVING 中！应前移至 WHERE，否则会浪费算力去聚合那些注定被过滤的行。',
+      };
+    case 'select':
+      return {
+        stage: 'select',
+        stageName: 'SELECT · 字段计算投影与开窗',
+        executionOrder: 6,
+        roleDesc: '字段提取、标量计算、类型转换与窗口函数',
+        mentalModel: '【逻辑第 6 步】对前面过滤与聚合后保留的最终行，执行标量数学运算、字符串拼接、CAST 类型转换及 OVER() 窗口排名。列别名在此阶段正式生效。',
+        pitfallWarning: '【高频崩溃】警惕类型转换报错 (Conversion Error) 与除以零 (Zero Division)；同层 SELECT 别名不能在同层并列计算中直接引用。',
+      };
+    case 'orderby':
+      return {
+        stage: 'orderby',
+        stageName: 'ORDER BY · 结果全序排布',
+        executionOrder: 7,
+        roleDesc: '根据指定列对最终结果集进行全序重排',
+        mentalModel: '【逻辑第 7 步】在完成所有计算与投影后对最终数据进行全量或局部 Top-N 排序。',
+        pitfallWarning: '【避坑指南】海量数据 ORDER BY 若无 LIMIT 会触发全量内存排序，耗尽资源；建议结合 LIMIT 使用以利用 DuckDB Top-N 堆优化。',
+      };
+    case 'limit':
+      return {
+        stage: 'limit',
+        stageName: 'LIMIT · 分页截断与最终产出',
+        executionOrder: 8,
+        roleDesc: '分页截取指定行数并返回给客户端',
+        mentalModel: '【最终步】引擎执行的最后一步，截断指定数量行返回结果集。',
+        pitfallWarning: '【避坑指南】LIMIT 需配合明确的 ORDER BY 才能保证多次查询返回顺序的一致性。',
+      };
+    case 'cte':
+    default:
+      return {
+        stage: 'cte',
+        stageName: 'CTE · 公用表表达式物化步骤',
+        executionOrder: 2,
+        roleDesc: '模块化中间数据集物化与传递',
+        mentalModel: '【模块化套路】将复杂多层嵌套查询拆解为可读、可复用的链式中间结果集，帮助逐步调试与验证业务逻辑。',
+        pitfallWarning: '【避坑指南】检查 CTE 间是否产生循环引用；DuckDB 会自动内联或物化 CTE。',
+      };
+  }
+}
+
+/**
+ * 经典高频 SQL 避坑与运行套路预设场景库
+ * 用于帮助用户直观体验 Bug 发生点位与逻辑时序机制
+ */
+export const SQL_PITFALL_PRESETS: SqlPitfallPreset[] = [
+  {
+    id: 'where_alias_violation',
+    name: '别名在 WHERE 中提前使用 (Binder Error)',
+    category: 'binder_error',
+    summary: 'WHERE 过滤发生于 SELECT 之前，此时 final_price 别名尚未诞生',
+    bugDescription: 'Binder Error: Referenced column "final_price" not found in table "products"',
+    pitfallRationale: '【核心套路法则】：SQL 逻辑生命周期遵循严格时序：FROM(1) ➔ WHERE(2) ➔ GROUP BY(3) ➔ SELECT(4)。WHERE 评估每行布尔谓词时，SELECT 计算尚未开始，别名在此时不存在！',
+    buggySql: `SELECT 
+  product_id, 
+  category, 
+  price * (1 - discount_rate) AS final_price 
+FROM products 
+WHERE final_price > 100
+ORDER BY final_price DESC;`,
+    fixedSql: `SELECT 
+  product_id, 
+  category, 
+  price * (1 - discount_rate) AS final_price 
+FROM products 
+WHERE price * (1 - discount_rate) > 100
+ORDER BY final_price DESC;`,
+  },
+  {
+    id: 'groupby_missing_column',
+    name: 'GROUP BY 遗漏普通非聚合列 (语法规范越界)',
+    category: 'groupby_violation',
+    summary: '分组折叠后普通非聚合列无法确定唯一代表值',
+    bugDescription: 'Binder Error: column "employee_name" must appear in the GROUP BY clause or be used in an aggregate function',
+    pitfallRationale: '【核心套路法则】：GROUP BY 将细粒度行坍缩为按 department_id 分组的指标行。SELECT 列表中除分组键外，普通列必须通过 SUM/COUNT/AVG 等聚合函数收敛，或使用开窗函数保留原粒度。',
+    buggySql: `SELECT 
+  department_id, 
+  employee_name, 
+  AVG(salary) AS avg_salary 
+FROM employees 
+GROUP BY department_id;`,
+    fixedSql: `SELECT 
+  department_id, 
+  employee_name, 
+  AVG(salary) OVER(PARTITION BY department_id) AS avg_salary 
+FROM employees;`,
+  },
+  {
+    id: 'left_join_where_degradation',
+    name: 'LEFT JOIN 被 WHERE 过滤导致左连接退化 (静默数据丢失)',
+    category: 'join_degradation',
+    summary: 'WHERE 过滤条件过滤掉了 NULL 行，使 LEFT JOIN 退化为 INNER JOIN',
+    bugDescription: '⚠️ 潜在 Bug: 0 行截断或主表用户数骤降（未成单用户全被丢弃）',
+    pitfallRationale: '【核心套路法则】：LEFT JOIN 保留左表全量行（右表未匹配填 NULL）。紧随其后的 WHERE 会评估每一行，NULL = "completed" 计算为 UNKNOWN/FALSE，导致左表未匹配用户全被丢弃！修复方式是将右表过滤移入 ON 子句。',
+    buggySql: `SELECT 
+  u.user_id, 
+  u.user_name, 
+  o.order_id, 
+  o.order_status 
+FROM users u 
+LEFT JOIN orders o ON u.user_id = o.user_id 
+WHERE o.order_status = 'completed';`,
+    fixedSql: `SELECT 
+  u.user_id, 
+  u.user_name, 
+  o.order_id, 
+  o.order_status 
+FROM users u 
+LEFT JOIN orders o ON u.user_id = o.user_id AND o.order_status = 'completed';`,
+  },
+  {
+    id: 'cartesian_blowup',
+    name: '关联条件缺失导致笛卡尔积膨胀 (内存爆炸风险)',
+    category: 'cartesian_blowup',
+    summary: '缺少等值关联键，输出行数产生 N × M 阶乘级剧增',
+    bugDescription: '⚠️ 潜在 Bug: 笛卡尔积膨胀（关联后行数激增数百倍）',
+    pitfallRationale: '【核心套路法则】：JOIN 阶段如果没有指定等值关联键（或 1=1），引擎必须对两表做全量笛卡尔积，不仅消耗巨大 WASM 内存，还会破坏后续所有聚合统计基数。',
+    buggySql: `SELECT 
+  c.customer_name, 
+  o.order_amount 
+FROM customers c 
+JOIN orders o ON 1 = 1 
+WHERE c.city = 'Beijing';`,
+    fixedSql: `SELECT 
+  c.customer_name, 
+  o.order_amount 
+FROM customers c 
+JOIN orders o ON c.customer_id = o.customer_id 
+WHERE c.city = 'Beijing';`,
+  },
+  {
+    id: 'enterprise_cte_pipeline',
+    name: '工业级现代多层 CTE 流水线 (最佳架构范式)',
+    category: 'perfect_pipeline',
+    summary: '模块化分解：初筛 ➔ 维度聚合 ➔ 实体关联 ➔ 排序截断',
+    bugDescription: '✅ 逻辑完美：各阶段职责单一，可读性与执行性能极佳',
+    pitfallRationale: '【最佳实践范式】：先用 filtered_orders 在底层剔除无效单据，再通过 user_aggregates 计算指标并用 HAVING 二筛，最后主表关联呈现，避免大宽表全量聚合导致的算力浪费。',
+    buggySql: `WITH filtered_orders AS (
+  SELECT order_id, user_id, amount, status 
+  FROM orders 
+  WHERE status = 'completed' AND amount > 0
+),
+user_aggregates AS (
+  SELECT 
+    user_id, 
+    COUNT(order_id) AS total_orders, 
+    SUM(amount) AS total_spent 
+  FROM filtered_orders 
+  GROUP BY user_id 
+  HAVING COUNT(order_id) >= 2
+)
+SELECT 
+  u.user_name, 
+  ua.total_orders, 
+  ua.total_spent 
+FROM user_aggregates ua 
+JOIN users u ON ua.user_id = u.user_id 
+ORDER BY ua.total_spent DESC 
+LIMIT 20;`,
+    fixedSql: `WITH filtered_orders AS (
+  SELECT order_id, user_id, amount, status 
+  FROM orders 
+  WHERE status = 'completed' AND amount > 0
+),
+user_aggregates AS (
+  SELECT 
+    user_id, 
+    COUNT(order_id) AS total_orders, 
+    SUM(amount) AS total_spent 
+  FROM filtered_orders 
+  GROUP BY user_id 
+  HAVING COUNT(order_id) >= 2
+)
+SELECT 
+  u.user_name, 
+  ua.total_orders, 
+  ua.total_spent 
+FROM user_aggregates ua 
+JOIN users u ON ua.user_id = u.user_id 
+ORDER BY ua.total_spent DESC 
+LIMIT 20;`,
+  },
+];
+
 
 /**
  * 规范化标识符（移除双引号、反引号及首尾空格）
@@ -905,6 +1144,10 @@ function buildWorkflowFromCtes(
         subtitle: isFile ? '文件数据源' : 'DuckDB 物理表',
         format: isFile ? (tableName.split('.').pop()?.toUpperCase() || 'File') : 'Table',
         status: 'configured',
+        stepIndex: 1,
+        sqlStage: 'from',
+        paradigm: getSqlParadigm('from'),
+        clauseSnippet: `FROM "${tableName}"`,
         config: {
           tableName: isFile ? undefined : tableName,
           filePath: isFile ? tableName : undefined,
@@ -916,8 +1159,9 @@ function buildWorkflowFromCtes(
   });
 
   // 3. 为每个 CTE 创建相应处理节点
-  ctes.forEach(cte => {
+  ctes.forEach((cte, idx) => {
     const { type, title, subtitle, config, predicate, joinSummary, groupBySummary, sqlSnippet } = detectNodeTypeAndConfig(cte.query, cte.name);
+    const stage: SqlExecutionStage = type === 'aggregate' ? 'groupby' : type === 'join' ? 'join' : predicate ? 'where' : 'cte';
     const cteNode: DataFlowNode = {
       id: `node_cte_${cte.name}`,
       type: 'dataFlowNode',
@@ -928,6 +1172,10 @@ function buildWorkflowFromCtes(
         title,
         subtitle: `CTE: ${subtitle}`,
         status: 'configured',
+        stepIndex: idx + 2,
+        sqlStage: stage,
+        paradigm: getSqlParadigm(stage),
+        clauseSnippet: cte.query.trim().slice(0, 160),
         config,
         predicate,
         joinSummary,
@@ -1107,6 +1355,18 @@ function buildWorkflowFromSingleSelect(
   }
 
   // 2. 创建源节点
+  const selectMatch = sql.match(/\bSELECT\s+([\s\S]+?)\s+\bFROM\b/i);
+  const selectColNames: string[] = [];
+  if (selectMatch) {
+    const rawList = selectMatch[1].split(/,(?![^(]*\))/);
+    for (const item of rawList) {
+      const trimmed = item.trim();
+      const asMatch = trimmed.match(/\s+(?:AS\s+)?([a-zA-Z_][\w$]*)$/i);
+      const colName = asMatch ? asMatch[1] : trimmed.split('.').pop() || trimmed;
+      if (colName && colName !== '*') selectColNames.push(cleanIdentifier(colName));
+    }
+  }
+
   const sourceNodes: DataFlowNode[] = referencedTables.map((tbl, idx) => {
     const isFile = tbl.endsWith('.parquet') || tbl.endsWith('.csv') || tbl.endsWith('.json');
     return {
@@ -1120,6 +1380,14 @@ function buildWorkflowFromSingleSelect(
         subtitle: isFile ? '文件源' : 'DuckDB 物理表',
         format: isFile ? (tbl.split('.').pop()?.toUpperCase() || 'File') : 'Table',
         status: 'configured',
+        stepIndex: 1,
+        sqlStage: 'from',
+        paradigm: getSqlParadigm('from'),
+        clauseSnippet: `FROM "${tbl}"`,
+        schemaEvolution: {
+          inputColumns: ['磁盘物理/虚拟表数据文件'],
+          outputColumns: ['物理全量字段集 (RAW)'],
+        },
         config: {
           tableName: isFile ? undefined : tbl,
           filePath: isFile ? tbl : undefined,
@@ -1130,13 +1398,17 @@ function buildWorkflowFromSingleSelect(
   });
   nodes.push(...sourceNodes);
 
-  // 3. 分析中间处理逻辑 (Join, Aggregate, Transform)
+  // 3. 分析中间处理逻辑 (Join, Where Filter, Aggregate, Having, Transform)
   const isJoin = /\b(?:INNER|LEFT|RIGHT|FULL|CROSS)?\s*JOIN\b/i.test(sql);
   const isAgg = /GROUP\s+BY/i.test(sql) || /\b(?:SUM|COUNT|AVG|MIN|MAX)\s*\(/i.test(sql);
+  const havingMatch = sql.match(/\bHAVING\s+([\s\S]+?)(?:\b(?:ORDER\s+BY|LIMIT|WINDOW)\b|$)/i);
+  const havingPredicate = havingMatch ? havingMatch[1].trim() : undefined;
 
   let currentTargetId = '';
+  let currentStepIdx = 1;
 
   if (isJoin && sourceNodes.length >= 2) {
+    currentStepIdx++;
     const joinInfo = detectNodeTypeAndConfig(sql, '多表连接');
     const joinNode: DataFlowNode = {
       id: 'node_join_step',
@@ -1148,10 +1420,19 @@ function buildWorkflowFromSingleSelect(
         title: '表连接',
         subtitle: `${(joinInfo.config as JoinNodeConfig).joinType} 关联`,
         status: 'configured',
+        stepIndex: currentStepIdx,
+        sqlStage: 'join',
+        paradigm: getSqlParadigm('join'),
+        clauseSnippet: joinInfo.joinSummary || `${(joinInfo.config as JoinNodeConfig).joinType} JOIN`,
         predicate: joinInfo.predicate,
         joinSummary: joinInfo.joinSummary,
         groupBySummary: joinInfo.groupBySummary,
         sqlSnippet: joinInfo.sqlSnippet,
+        schemaEvolution: {
+          inputColumns: ['左表字段集', '右表字段集'],
+          outputColumns: ['多表横向拼接宽表字段集'],
+          newColumns: ['右表关联字段'],
+        },
         config: joinInfo.config,
       },
     };
@@ -1198,8 +1479,61 @@ function buildWorkflowFromSingleSelect(
     currentTargetId = sourceNodes[0].id;
   }
 
-  // 聚合算子
+  // 3.5 行级初筛 (WHERE 过滤算子 - SQL 经典逻辑执行第 3 步)
+  const finalTitle = formatResultNodeTitle(tabTitle);
+  const finalInfo = detectNodeTypeAndConfig(sql, finalTitle);
+
+  if (finalInfo.predicate) {
+    currentStepIdx++;
+    const filterNode: DataFlowNode = {
+      id: 'node_filter_step',
+      type: 'dataFlowNode',
+      position: { x: 0, y: 0 },
+      data: {
+        id: 'node_filter_step',
+        type: 'sql_transform',
+        title: 'WHERE 行级初筛',
+        subtitle: `过滤: ${finalInfo.predicate.slice(0, 32)}${finalInfo.predicate.length > 32 ? '...' : ''}`,
+        status: 'configured',
+        stepIndex: currentStepIdx,
+        sqlStage: 'where',
+        paradigm: getSqlParadigm('where'),
+        clauseSnippet: `WHERE ${finalInfo.predicate}`,
+        predicate: finalInfo.predicate,
+        schemaEvolution: {
+          inputColumns: ['上游全部可用列'],
+          outputColumns: ['行数初筛后留存列 (字段集不变)'],
+          newColumns: [],
+          droppedColumns: [],
+        },
+        config: {
+          sql: `SELECT * FROM {{input}} WHERE ${finalInfo.predicate}`,
+        } as SqlTransformNodeConfig,
+      },
+    };
+    nodes.push(filterNode);
+
+    edges.push({
+      id: `edge_${currentTargetId}_node_filter_step`,
+      source: currentTargetId,
+      sourceHandle: 'output',
+      target: 'node_filter_step',
+      targetHandle: 'input',
+      type: 'dataFlowEdge',
+      data: {
+        sourceHandle: 'output',
+        targetHandle: 'input',
+        label: '行级初筛过滤',
+        relationType: 'filter',
+      },
+    });
+
+    currentTargetId = 'node_filter_step';
+  }
+
+  // 4. 聚合算子 (GROUP BY - SQL 经典逻辑执行第 4 步)
   if (isAgg) {
+    currentStepIdx++;
     const aggInfo = detectNodeTypeAndConfig(sql, '聚合汇总');
     const aggNode: DataFlowNode = {
       id: 'node_agg_step',
@@ -1211,10 +1545,20 @@ function buildWorkflowFromSingleSelect(
         title: '聚合统计',
         subtitle: aggInfo.subtitle,
         status: 'configured',
+        stepIndex: currentStepIdx,
+        sqlStage: 'groupby',
+        paradigm: getSqlParadigm('groupby'),
+        clauseSnippet: aggInfo.groupBySummary || 'GROUP BY 聚合',
         predicate: aggInfo.predicate,
         joinSummary: aggInfo.joinSummary,
         groupBySummary: aggInfo.groupBySummary,
         sqlSnippet: aggInfo.sqlSnippet,
+        schemaEvolution: {
+          inputColumns: ['初筛后的细粒度明细行'],
+          outputColumns: [...(aggInfo.config?.groupBy || []), ...(aggInfo.config?.aggregations || []).map((a: any) => a.alias)],
+          newColumns: (aggInfo.config?.aggregations || []).map((a: any) => a.alias),
+          droppedColumns: ['未列入 GROUP BY 的普通列 (已折叠注销)'],
+        },
         config: aggInfo.config,
       },
     };
@@ -1238,9 +1582,58 @@ function buildWorkflowFromSingleSelect(
     currentTargetId = 'node_agg_step';
   }
 
-  // 最终结果节点
-  const finalTitle = formatResultNodeTitle(tabTitle);
-  const finalInfo = detectNodeTypeAndConfig(sql, finalTitle);
+  // 4.5 HAVING 过滤算子 (SQL 逻辑执行第 5 步)
+  if (havingPredicate) {
+    currentStepIdx++;
+    const havingNode: DataFlowNode = {
+      id: 'node_having_step',
+      type: 'dataFlowNode',
+      position: { x: 0, y: 0 },
+      data: {
+        id: 'node_having_step',
+        type: 'sql_transform',
+        title: 'HAVING 聚合后过滤',
+        subtitle: `指标过滤: ${havingPredicate.slice(0, 28)}${havingPredicate.length > 28 ? '...' : ''}`,
+        status: 'configured',
+        stepIndex: currentStepIdx,
+        sqlStage: 'having',
+        paradigm: getSqlParadigm('having'),
+        clauseSnippet: `HAVING ${havingPredicate}`,
+        predicate: havingPredicate,
+        schemaEvolution: {
+          inputColumns: ['已计算的分组指标与维度'],
+          outputColumns: ['指标合规分组 (组级二筛)'],
+          newColumns: [],
+          droppedColumns: [],
+        },
+        config: {
+          sql: `SELECT * FROM {{input}} HAVING ${havingPredicate}`,
+        } as SqlTransformNodeConfig,
+      },
+    };
+    nodes.push(havingNode);
+
+    edges.push({
+      id: `edge_${currentTargetId}_node_having_step`,
+      source: currentTargetId,
+      sourceHandle: 'output',
+      target: 'node_having_step',
+      targetHandle: 'input',
+      type: 'dataFlowEdge',
+      data: {
+        sourceHandle: 'output',
+        targetHandle: 'input',
+        label: 'HAVING 过滤',
+        relationType: 'filter',
+      },
+    });
+
+    currentTargetId = 'node_having_step';
+  }
+
+  // 5. 最终结果节点 (LIMIT / 输出 - SQL 最终执行步骤)
+  currentStepIdx++;
+  const limitMatch = sql.match(/\bLIMIT\s+(\d+)/i);
   const resultNode: DataFlowNode = {
     id: 'node_final_result',
     type: 'dataFlowNode',
@@ -1249,12 +1642,21 @@ function buildWorkflowFromSingleSelect(
       id: 'node_final_result',
       type: 'result',
       title: finalTitle,
-      subtitle: '最终数据集',
+      subtitle: limitMatch ? `最终数据集 · LIMIT ${limitMatch[1]}` : '最终数据集',
       status: 'configured',
+      stepIndex: currentStepIdx,
+      sqlStage: 'limit',
+      paradigm: getSqlParadigm('limit'),
+      clauseSnippet: finalInfo.sqlSnippet || 'SELECT 结果输出',
       predicate: finalInfo.predicate,
       joinSummary: finalInfo.joinSummary,
       groupBySummary: finalInfo.groupBySummary,
       sqlSnippet: finalInfo.sqlSnippet,
+      schemaEvolution: {
+        inputColumns: ['前序各阶段交付数据列'],
+        outputColumns: selectColNames.length > 0 ? selectColNames : ['最终计算投影列'],
+        newColumns: selectColNames.filter(c => !referencedTables.includes(c)),
+      },
       config: { limit: 1000, sql } as ResultNodeConfig,
     },
   };
@@ -1646,4 +2048,349 @@ export function compileWorkflowToFullSql(
 
   return `WITH\n${cteBlocks.join(',\n\n')}\n${finalCte.sql};`;
 }
+
+/**
+ * 还原 SQL 执行的每一步：将 SQL 查询拆解为标准逻辑执行流水线
+ * 遵循严格时序：FROM -> JOIN -> WHERE -> GROUP BY -> HAVING -> SELECT -> LIMIT
+ */
+export function parseSqlToExecutionSteps(
+  sql: string,
+  options?: { tabTitle?: string; existingNodes?: DataFlowNode[] }
+): { nodes: DataFlowNode[]; edges: DataFlowEdge[] } {
+  return buildWorkflowFromSingleSelect(sql, options?.tabTitle, options?.existingNodes);
+}
+
+/**
+ * 智能 Bug 溯源与点位定位器
+ * 核心机制：
+ * 1. 深度解析 DuckDB 运行时报错文本（Binder Error / Catalog Error / Parser Error / 算术除零 / 聚合规范等）
+ * 2. 结合 SQL 逻辑执行套路与各步骤 AST 片段，将 Bug 精确锚定到具体执行步骤节点
+ * 3. 沿有向无环图进行上游原因溯源（祖先高亮 + 错误光流连线）与下游阻断分析
+ */
+export function locateBugInWorkflow(
+  errorMessage: string,
+  sql: string,
+  nodes: DataFlowNode[],
+  edges: DataFlowEdge[]
+): {
+  nodes: DataFlowNode[];
+  edges: DataFlowEdge[];
+  bugNodeId: string | null;
+  bugReport?: BugTraceInfo;
+} {
+  if (!errorMessage || nodes.length === 0) {
+    return { nodes, edges, bugNodeId: null };
+  }
+
+  const errClean = errorMessage.trim();
+  let culpritNode: DataFlowNode | undefined;
+  let bugInfo: BugTraceInfo | undefined;
+
+  // 1. 匹配 Binder Error: Referenced column "xxx" not found
+  const colMatch =
+    errClean.match(/Referenced column ["']?([^"'\s]+)["']? not found/i) ||
+    errClean.match(/Column with name ["']?([^"'\s]+)["']? does not exist/i) ||
+    errClean.match(/column ["']?([^"'\s]+)["']? does not exist/i);
+
+  if (colMatch) {
+    const colName = colMatch[1];
+    // 检查是否将 SELECT 别名误用在 WHERE 中（经典 SQL 执行套路违背）
+    const isSelectAliasInWhere = /WHERE\b/i.test(sql) && new RegExp(`AS\\s+["']?${colName}["']?\\b`, 'i').test(sql);
+    const whereNode = nodes.find(n => n.data.sqlStage === 'where' || n.id.includes('filter'));
+
+    if (isSelectAliasInWhere && whereNode) {
+      culpritNode = whereNode;
+      // 提取该别名对应的 SELECT 原始计算表达式并生成一键修复 SQL
+      let fixedSql: string | undefined;
+      const aliasDefMatch = sql.match(new RegExp(`([\\w\\s*+\\-\\.\\(\\)\\/]+?)\\s+AS\\s+["']?${colName}["']?`, 'i'));
+      if (aliasDefMatch) {
+        const rawExpr = aliasDefMatch[1].trim();
+        fixedSql = sql.replace(new RegExp(`\\bWHERE\\b([\\s\\S]+?)\\b${colName}\\b`, 'i'), (m) => {
+          return m.replace(new RegExp(`\\b${colName}\\b`, 'g'), rawExpr);
+        });
+      }
+
+      bugInfo = {
+        hasBug: true,
+        isRootCause: true,
+        severity: 'error',
+        title: 'WHERE 阶段引用未就绪别名 (执行套路越界)',
+        detail: `在 WHERE 谓词中引用了尚未生成的列别名 "${colName}"。`,
+        suggestion: `【套路溯源】SQL 引擎执行顺序为 FROM(1) -> WHERE(2) -> GROUP BY(3) -> SELECT(4)。WHERE 初筛时，SELECT 阶段尚未开始，别名 "${colName}" 还未被物化！请将原表达式直接写在 WHERE 中，或使用 CTE/子查询封装。`,
+        culpritToken: colName,
+        culpritClause: whereNode.data.clauseSnippet || 'WHERE 子句',
+        fixedSql,
+      };
+    } else {
+      // 查找哪个节点最先引用了该列
+      const candidate = nodes.find(n => {
+        const text = `${n.data.clauseSnippet || ''} ${n.data.predicate || ''} ${n.data.groupBySummary || ''} ${n.data.joinSummary || ''}`;
+        return new RegExp(`\\b${colName}\\b`, 'i').test(text);
+      }) || nodes.find(n => n.data.sqlStage === 'where') || nodes.find(n => n.data.type === 'source');
+
+      culpritNode = candidate || nodes[nodes.length - 1];
+      bugInfo = {
+        hasBug: true,
+        isRootCause: true,
+        severity: 'error',
+        title: `列 "${colName}" 不存在 (Binder Error)`,
+        detail: `无法在上下文数据表中找到列 "${colName}"。`,
+        suggestion: `【排查指南】请检查字段拼写，或在上游数据源节点中确认该表实际包含的列名。若为多表关联，需注意是否需增加表别名前缀 (如 t.${colName})。`,
+        culpritToken: colName,
+      };
+    }
+  }
+
+  // 2. 匹配 GROUP BY 缺失列错误
+  if (!culpritNode && /must appear in the GROUP BY clause or be used in an aggregate function/i.test(errClean)) {
+    const colGroupMatch = errClean.match(/column ["']?([^"'\s]+)["']? must appear in the GROUP BY/i);
+    const missingCol = colGroupMatch ? colGroupMatch[1] : '';
+    culpritNode =
+      nodes.find(n => n.data.sqlStage === 'groupby' || n.data.type === 'aggregate') ||
+      nodes.find(n => n.data.type === 'result') ||
+      nodes[nodes.length - 1];
+
+    let fixedSql: string | undefined;
+    if (missingCol && /GROUP\s+BY\s+([^;\n]+)/i.test(sql)) {
+      fixedSql = sql.replace(/GROUP\s+BY\s+([^;\n]+)/i, (_, grp) => `GROUP BY ${grp.trim()}, ${missingCol}`);
+    }
+
+    bugInfo = {
+      hasBug: true,
+      isRootCause: true,
+      severity: 'error',
+      title: '非聚合列未列入 GROUP BY (聚合语法规范)',
+      detail: missingCol ? `列 "${missingCol}" 在 SELECT 中既非分组键，也未被聚合函数包裹。` : '存在未被聚合包裹的普通列未声明在 GROUP BY 中。',
+      suggestion: `【套路溯源】GROUP BY 阶段将细粒度行折叠为指标行。除分组键外，所有字段必须使用 SUM()/COUNT()/AVG()/MAX()/MIN() 等聚合函数收敛，或显式追加至 GROUP BY 列表中。`,
+      culpritToken: missingCol,
+      fixedSql,
+    };
+  }
+
+  // 3. 匹配 Catalog Error (表或文件不存在)
+  if (!culpritNode) {
+    const tableMatch =
+      errClean.match(/Table with name ["']?([^"'\s]+)["']? does not exist/i) ||
+      errClean.match(/table ["']?([^"'\s]+)["']? does not exist/i) ||
+      errClean.match(/No files found that match the pattern ["']?([^"'\s]+)["']?/i);
+
+    if (tableMatch) {
+      const tblName = tableMatch[1];
+      culpritNode =
+        nodes.find(n => n.data.type === 'source' && (n.data.title.toLowerCase().includes(tblName.toLowerCase()) || tblName.toLowerCase().includes(n.data.title.toLowerCase()))) ||
+        nodes.find(n => n.data.type === 'source') ||
+        nodes[0];
+
+      bugInfo = {
+        hasBug: true,
+        isRootCause: true,
+        severity: 'error',
+        title: `数据源未找到 (Catalog Error)`,
+        detail: `DuckDB 无法在当前目录中定位到数据表或文件 "${tblName}"。`,
+        suggestion: `【套路溯源】SQL 引擎在第 1 步 FROM 寻址装载时失败。请检查表名拼写，或先执行建表与文件导入语句。`,
+        culpritToken: tblName,
+      };
+    }
+  }
+
+  // 4. 匹配语法错误 Parser Error
+  if (!culpritNode && /syntax error/i.test(errClean)) {
+    const syntaxMatch = errClean.match(/syntax error at or near ["']?([^"'\s\n]+)["']?/i);
+    const syntaxToken = syntaxMatch ? syntaxMatch[1] : '';
+    culpritNode =
+      nodes.find(n => syntaxToken && (n.data.clauseSnippet || '').includes(syntaxToken)) ||
+      nodes[nodes.length - 1];
+
+    bugInfo = {
+      hasBug: true,
+      isRootCause: true,
+      severity: 'error',
+      title: 'SQL 语法解析错误 (Parser Error)',
+      detail: syntaxToken ? `语法分析器在 "${syntaxToken}" 附近中断，无法正确解析。` : errClean,
+      suggestion: `【排查指南】请检查关键字拼写、引号闭合、逗号及括号匹配。`,
+      culpritToken: syntaxToken,
+    };
+  }
+
+  // 5. 匹配类型转换异常
+  if (!culpritNode && /Conversion Error|Could not convert/i.test(errClean)) {
+    culpritNode =
+      nodes.find(n => n.data.sqlStage === 'where' || n.data.sqlStage === 'select') ||
+      nodes[nodes.length - 1];
+
+    bugInfo = {
+      hasBug: true,
+      isRootCause: true,
+      severity: 'error',
+      title: '数据类型转换失败 (Conversion Error)',
+      detail: errClean,
+      suggestion: `【排查指南】字段中可能包含脏值或格式不符合预期的数据。建议在转换前使用 TRY_CAST() 增强容错，或在 WHERE 中过滤掉异常值。`,
+    };
+  }
+
+  // 6. 匹配除以零异常
+  if (!culpritNode && /divide by zero|division by zero/i.test(errClean)) {
+    culpritNode = nodes.find(n => n.data.sqlStage === 'select') || nodes[nodes.length - 1];
+    bugInfo = {
+      hasBug: true,
+      isRootCause: true,
+      severity: 'error',
+      title: '算术运算除以零崩溃',
+      detail: '表达式计算中分母为 0，引发运行时异常。',
+      suggestion: `【防崩套路】建议使用 NULLIF(分母, 0) 防范分母为 0 时崩溃，避免阻断整个查询流水线。`,
+    };
+  }
+
+  // 默认兜底
+  if (!culpritNode) {
+    culpritNode = nodes.find(n => n.data.type === 'result') || nodes[nodes.length - 1];
+    bugInfo = {
+      hasBug: true,
+      isRootCause: true,
+      severity: 'error',
+      title: 'SQL 执行报错',
+      detail: errClean,
+      suggestion: `请结合报错信息检查当前 SQL 语句的逻辑结构与参数配置。`,
+    };
+  }
+
+  const bugId = culpritNode.id;
+
+  // 溯源拓扑分析：找到所有指向 culpritNode 的上游节点（祖先溯源）
+  const ancestorNodeIds = new Set<string>();
+  const errorEdgeIds = new Set<string>();
+  const queue = [bugId];
+
+  while (queue.length > 0) {
+    const curr = queue.shift()!;
+    edges.forEach(e => {
+      if (e.target === curr) {
+        errorEdgeIds.add(e.id);
+        if (!ancestorNodeIds.has(e.source)) {
+          ancestorNodeIds.add(e.source);
+          queue.push(e.source);
+        }
+      }
+    });
+  }
+
+  // 下游阻断拓扑分析：找到所有受 culpritNode 影响的下游节点
+  const downstreamNodeIds = new Set<string>();
+  const downQueue = [bugId];
+  while (downQueue.length > 0) {
+    const curr = downQueue.shift()!;
+    edges.forEach(e => {
+      if (e.source === curr) {
+        if (!downstreamNodeIds.has(e.target)) {
+          downstreamNodeIds.add(e.target);
+          downQueue.push(e.target);
+        }
+      }
+    });
+  }
+
+  // 更新节点状态
+  const updatedNodes = nodes.map(n => {
+    if (n.id === bugId) {
+      return {
+        ...n,
+        data: {
+          ...n.data,
+          status: 'error' as const,
+          bugInfo,
+          highlightState: 'ancestor' as const,
+          isExpanded: true, // 自动展开方便用户即刻诊断
+        },
+      };
+    }
+    if (ancestorNodeIds.has(n.id)) {
+      return {
+        ...n,
+        data: {
+          ...n.data,
+          highlightState: 'ancestor' as const,
+        },
+      };
+    }
+    if (downstreamNodeIds.has(n.id)) {
+      return {
+        ...n,
+        data: {
+          ...n.data,
+          status: 'blocked' as const,
+          subtitle: '受上游 Step 报错阻断',
+          highlightState: 'dimmed' as const,
+        },
+      };
+    }
+    return n;
+  });
+
+  // 更新连线高亮状态
+  const updatedEdges = edges.map(e => {
+    if (errorEdgeIds.has(e.id)) {
+      return {
+        ...e,
+        data: {
+          ...e.data,
+          isErrorPath: true,
+          highlightState: 'ancestor' as const,
+        },
+      };
+    }
+    return e;
+  });
+
+  return { nodes: updatedNodes, edges: updatedEdges, bugNodeId: bugId, bugReport: bugInfo };
+}
+
+/**
+ * 逻辑异常与静默 Bug 嗅探器
+ * 检测 0 行截断、笛卡尔积行数膨胀等逻辑隐患
+ */
+export function detectLogicalAnomalies(nodes: DataFlowNode[], edges: DataFlowEdge[]): DataFlowNode[] {
+  return nodes.map(node => {
+    const inCount = node.data.inputRowCount;
+    const outCount = node.data.rowCount;
+
+    // 1. 0 行截断异常 (Zero-row drop)
+    if (inCount !== undefined && inCount > 0 && outCount === 0) {
+      return {
+        ...node,
+        data: {
+          ...node.data,
+          hasAnomaly: true,
+          bugInfo: {
+            hasBug: false,
+            severity: 'warning',
+            title: '⚠️ 潜在 Bug: 0 行截断 (全部过滤)',
+            detail: `上游流入 ${inCount.toLocaleString()} 行，但在本步骤过滤计算后行数直接变为 0。`,
+            suggestion: '【套路排查】业务中最常见的静默 Bug！请重点检查 WHERE 过滤条件中的数值区间、日期格式匹配、字符串大小写、或 NULL 比较（避免使用 = NULL）。',
+          },
+        },
+      };
+    }
+
+    // 2. 笛卡尔积行数剧增膨胀
+    if (node.data.type === 'join' && inCount !== undefined && inCount > 0 && outCount !== undefined && outCount > inCount * 3) {
+      return {
+        ...node,
+        data: {
+          ...node.data,
+          hasAnomaly: true,
+          bugInfo: {
+            hasBug: false,
+            severity: 'warning',
+            title: '⚠️ 潜在 Bug: 笛卡尔积膨胀',
+            detail: `关联后行数激增至 ${outCount.toLocaleString()} 行 (膨胀率 ${(outCount / inCount * 100).toFixed(0)}%)。`,
+            suggestion: '【套路排查】请检查 JOIN ON 条件是否缺失或关联键在右表中存在 1:N 重复，防止产生巨大笛卡尔积耗尽内存。',
+          },
+        },
+      };
+    }
+
+    return node;
+  });
+}
+
 

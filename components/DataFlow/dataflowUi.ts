@@ -2,7 +2,8 @@
  * DataFlow UI 共享规范（MECE）
  *
  * 仅收敛本板块内已分裂的 class 写法，不引入新设计体系。
- * 字号策略：正文字号略收紧（meta/2xs），提高信息密度。
+ * 字号策略：正文字号略收紧（meta/2xs/3xs），提高信息密度。
+ * 交互：统一 focus ring、按钮高度 28px、面板头 36px。
  */
 
 /** 面板壳 */
@@ -46,7 +47,7 @@ export const dfInput =
   `w-full rounded-md border border-monokai-border bg-monokai-bg px-2 py-1 text-meta font-mono text-monokai-fg outline-none placeholder:text-monokai-comment focus:border-monokai-accent/70 transition-colors ${dfFocus}`;
 
 export const dfSelect =
-  `h-6 rounded-md border border-monokai-border bg-monokai-surface px-1.5 text-meta font-mono text-monokai-fg outline-none cursor-pointer focus:border-monokai-accent/70 ${dfFocus}`;
+  `h-7 w-full rounded-md border border-monokai-border bg-monokai-surface px-1.5 text-meta font-mono text-monokai-fg outline-none cursor-pointer focus:border-monokai-accent/70 ${dfFocus}`;
 
 export const dfTextarea =
   `w-full rounded-md border border-monokai-border bg-monokai-bg px-2 py-1.5 text-meta font-mono text-monokai-fg outline-none placeholder:text-monokai-comment focus:border-monokai-accent/70 resize-y min-h-[72px] ${dfFocus}`;
@@ -56,13 +57,23 @@ export const dfBtnPrimary =
   `inline-flex items-center justify-center gap-1.5 h-7 rounded-md bg-monokai-accent px-2.5 text-xs font-semibold text-monokai-bg hover:bg-monokai-accent-hover active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-all shadow-sm ${dfFocus}`;
 
 export const dfBtnSecondary =
-  `inline-flex items-center justify-center gap-1 h-7 rounded-md border border-monokai-border bg-monokai-surface px-2 text-xs text-monokai-fg hover:bg-monokai-elevated cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${dfFocus}`;
+  `inline-flex items-center justify-center gap-1 h-7 rounded-md border border-monokai-border bg-monokai-surface/70 px-2 text-xs text-monokai-fg hover:bg-monokai-elevated cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${dfFocus}`;
 
 export const dfBtnGhost =
   `inline-flex items-center gap-1 h-7 px-2 rounded-md text-xs text-monokai-comment hover:text-monokai-fg hover:bg-monokai-elevated cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${dfFocus}`;
 
 export const dfBtnDanger =
   `inline-flex items-center justify-center gap-1 h-7 rounded-md border border-monokai-pink/40 bg-monokai-pink/10 px-2 text-xs text-monokai-pink hover:bg-monokai-pink/20 cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${dfFocus}`;
+
+export const dfBtnWarn =
+  `inline-flex items-center justify-center gap-1.5 h-7 rounded-md border border-monokai-pink/60 bg-monokai-pink/20 px-2.5 text-xs font-semibold text-monokai-pink hover:bg-monokai-pink/30 cursor-pointer transition-colors shadow-[0_0_12px_color-mix(in_srgb,var(--monokai-pink)_25%,transparent)] ${dfFocus}`;
+
+/** 下拉菜单项 */
+export const dfMenuPanel =
+  'absolute z-50 mt-1.5 flex flex-col gap-0.5 rounded-md border border-monokai-border bg-monokai-surface/98 p-1 shadow-2xl backdrop-blur-md animate-in fade-in zoom-in-95 duration-100 font-sans text-xs';
+
+export const dfMenuItem =
+  `flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-monokai-fg hover:bg-monokai-elevated transition-colors cursor-pointer ${dfFocus}`;
 
 /** 分区 / 卡片 */
 export const dfSection = 'space-y-2';
@@ -75,12 +86,30 @@ export const dfCard =
 export const dfChip =
   'inline-flex items-center gap-0.5 rounded border px-1 py-0.5 text-2xs font-mono';
 
+/** 状态微点 */
+export const dfStatusDot =
+  'inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-monokai-accent shadow-[0_0_5px_color-mix(in_srgb,var(--monokai-accent)_60%,transparent)]';
+
+export const dfStatusDotIdle =
+  'inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-monokai-comment/50';
+
 /** 空态 */
 export const dfEmpty =
   'flex flex-col items-center justify-center h-full py-6 px-4 text-center gap-1.5 text-monokai-comment';
 
 export const dfEmptyTitle = 'text-xs font-sans text-monokai-fg';
 export const dfEmptyHint = 'text-2xs text-monokai-comment/80 font-sans max-w-sm leading-relaxed';
+
+/** 画布顶部异常条（分屏 Inspector 未开时仍可完成「回 SQL」） */
+export const dfFaultBanner =
+  'absolute top-2 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-md border border-monokai-pink/45 bg-monokai-surface/95 px-2.5 py-1.5 shadow-lg backdrop-blur-md font-mono text-2xs max-w-[min(92%,420px)]';
+
+/** 同步中顶栏进度 */
+export const dfSyncBar =
+  'absolute top-0 left-0 right-0 z-30 h-0.5 overflow-hidden bg-monokai-border/40';
+
+export const dfSyncBarFill =
+  'h-full w-1/3 animate-pulse bg-monokai-accent/80';
 
 /** 表格 */
 export const dfTable =
@@ -94,10 +123,10 @@ export const dfTableRow =
 
 /** 模式胶囊 */
 export const dfModePillGroup =
-  'flex items-center rounded-md bg-monokai-bg border border-monokai-border p-0.5 font-mono text-2xs';
+  'flex items-center rounded-md bg-monokai-surface/60 border border-monokai-border/80 p-0.5 font-mono text-2xs';
 
 export const dfModePillActive =
-  'flex items-center gap-1 px-2 py-0.5 rounded bg-monokai-accent/20 text-monokai-accent font-semibold shadow-xs cursor-pointer';
+  'flex items-center gap-1 px-2 py-0.5 rounded bg-monokai-elevated text-monokai-accent font-semibold shadow-xs cursor-pointer';
 
 export const dfModePillIdle =
   'flex items-center gap-1 px-2 py-0.5 rounded text-monokai-comment hover:text-monokai-fg cursor-pointer transition-colors';

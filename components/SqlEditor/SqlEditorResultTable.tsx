@@ -4,7 +4,7 @@ import type { QueryResult } from '../../types';
 import { VirtualTable } from '../VirtualTable';
 import { exportCsv, exportJson, exportMarkdown, exportExcel, copyAsTsv, copyAsMarkdown, copyAsHtml, downloadBlob } from '../../utils/sqlExporter';
 import { toastService } from '../../services/toastService';
-import { formatCellValue } from '../../utils/typeFormatter';
+import { formatCellValue, getTypeBadgeStyle } from '../../utils/typeFormatter';
 
 export interface SqlEditorResultTableProps {
   result: QueryResult;
@@ -283,9 +283,12 @@ export const SqlEditorResultTable: React.FC<SqlEditorResultTableProps> = ({
                       >
                         <div className="flex items-center justify-between gap-1.5">
                           <div className="flex flex-col min-w-0 leading-tight">
-                            <span className="font-semibold text-monokai-fg">{c}</span>
+                            <span className="font-semibold text-monokai-fg truncate">{c}</span>
                             {colType && (
-                              <span className="text-[10px] text-monokai-comment font-normal uppercase mt-0.5">
+                              <span
+                                className={`inline-flex items-center self-start px-1.5 py-[1px] mt-0.5 rounded border text-3xs font-mono tracking-wider uppercase max-w-full truncate transition-colors ${getTypeBadgeStyle(colType)}`}
+                                title={`列类型: ${colType}`}
+                              >
                                 {colType}
                               </span>
                             )}

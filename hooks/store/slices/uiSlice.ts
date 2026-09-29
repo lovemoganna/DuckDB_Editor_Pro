@@ -14,6 +14,8 @@ export interface UISlice {
   setPendingSql: (sql: string) => void;
   pendingChartConfig: any;
   setPendingChartConfig: (config: any) => void;
+  pendingAiPanel: 'explain' | 'analyze' | null;
+  setPendingAiPanel: (panel: 'explain' | 'analyze' | null) => void;
   clearPending: () => void;
 
   // Modals
@@ -42,7 +44,9 @@ export const createUISlice = (set: (partial: Partial<UISlice> | ((state: UISlice
   setPendingSql: (sql) => set({ pendingSql: sql }),
   pendingChartConfig: null,
   setPendingChartConfig: (config) => set({ pendingChartConfig: config }),
-  clearPending: () => set({ pendingSql: '', pendingChartConfig: null }),
+  pendingAiPanel: null,
+  setPendingAiPanel: (panel) => set({ pendingAiPanel: panel }),
+  clearPending: () => set({ pendingSql: '', pendingChartConfig: null, pendingAiPanel: null }),
 
   // Modals
   showCreateModal: false,

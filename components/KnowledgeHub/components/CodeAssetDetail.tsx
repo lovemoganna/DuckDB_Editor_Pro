@@ -22,6 +22,10 @@ import { duckDBService } from '../../../services/duckdbService';
 import { serializeSnippetToMarkdown } from '../services/snippetMarkdownParser';
 import { MarkdownPreview } from '../../MarkdownPreview';
 import { CodeHighlightBlock } from '../../ui/CodeHighlightBlock';
+import { 
+  synthesizeOntologyFromExecution, 
+  bootstrapDuckDBVirtualEnv 
+} from '../../../services/ontology/ontologySynthesisEngine';
 
 interface CodeAssetDetailProps {
   asset: CodeAsset;
@@ -124,18 +128,35 @@ export const CodeAssetDetail: React.FC<CodeAssetDetailProps> = ({ asset, onTryCo
     const start = performance.now();
 
     try {
+      let bootstrapTimeout: any;
+      const timeoutPromise = new Promise<void>((resolve) => {
+        bootstrapTimeout = setTimeout(resolve, 8000);
+      });
+      await Promise.race([bootstrapDuckDBVirtualEnv(), timeoutPromise]).finally(() => {
+        if (bootstrapTimeout) clearTimeout(bootstrapTimeout);
+      });
+
       // 拆分多条 SQL 语句逐条执行并保留最终查询集
-      const rawStatements = compiledSql
+      const cleanSql = compiledSql
+        .replace(/--.*$/gm, '')
+        .replace(/\/\*[\s\S]*?\*\//g, '');
+      const rawStatements = cleanSql
         .split(';')
         .map((s) => s.trim())
         .filter((s) => s.length > 0);
 
       let lastRows: any[] = [];
-      for (const stmt of rawStatements) {
-        const cleanStmt = stmt.replace(/--.*$/gm, '').trim();
-        if (!cleanStmt) continue;
-
-        const res = await duckDBService.query(cleanStmt.endsWith(';') ? cleanStmt : `${cleanStmt};`);
+      for (const cleanStmt of rawStatements) {
+        let timeoutHandle: any;
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          timeoutHandle = setTimeout(() => {
+            reject(new Error(`SQL 执行超时 (超过 15000ms)`));
+          }, 15000);
+        });
+        const queryPromise = duckDBService.query(cleanStmt.endsWith(';') ? cleanStmt : `${cleanStmt};`);
+        const res = await Promise.race([queryPromise, timeoutPromise]).finally(() => {
+          if (timeoutHandle) clearTimeout(timeoutHandle);
+        });
         if (res && Array.isArray(res)) {
           lastRows = res;
         }
@@ -144,6 +165,31 @@ export const CodeAssetDetail: React.FC<CodeAssetDetailProps> = ({ asset, onTryCo
       const duration = Math.round(performance.now() - start);
       setQueryResult(lastRows);
       setExecutionDuration(duration);
+
+      // 执行成功驱动右侧图谱更新
+      const report = {
+        total: 1,
+        successCount: 1,
+        failedCount: 0,
+        totalDurationMs: duration,
+        results: [{
+          index: 1,
+          sql: compiledSql,
+          durationMs: duration,
+          success: true,
+          rows: lastRows,
+          columns: lastRows.length > 0 ? Object.keys(lastRows[0]) : [],
+          rowCount: lastRows.length,
+        }],
+        synthesizedAt: new Date().toISOString(),
+      };
+      const dynamicOntology = synthesizeOntologyFromExecution(asset, report);
+      window.dispatchEvent(
+        new CustomEvent('duckdb_ontology_synthesized', {
+          detail: { dynamicOntology, assetId: asset.id },
+        })
+      );
+
       requestAnimationFrame(() => {
         resultPanelRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
       });
@@ -163,8 +209,36 @@ export const CodeAssetDetail: React.FC<CodeAssetDetailProps> = ({ asset, onTryCo
       });
     } finally {
       setIsRunning(false);
+      window.dispatchEvent(
+        new CustomEvent('duckdb_run_all_completed', { detail: { assetId: asset.id } })
+      );
     }
   };
+
+  // 监听触发全部运行
+  useEffect(() => {
+    const handleTrigger = () => {
+      handleRunQuery();
+    };
+    window.addEventListener('duckdb_trigger_run_all', handleTrigger);
+    return () => window.removeEventListener('duckdb_trigger_run_all', handleTrigger);
+  }, [compiledSql]);
+
+  // 监听反向定位
+  useEffect(() => {
+    const handleLocate = () => {
+      const el = document.getElementById('code-asset-editor-container');
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('ring-2', 'ring-monokai-cyan', 'shadow-[0_0_25px_rgba(102,217,239,0.4)]');
+        setTimeout(() => {
+          el?.classList.remove('ring-2', 'ring-monokai-cyan', 'shadow-[0_0_25px_rgba(102,217,239,0.4)]');
+        }, 2500);
+      }
+    };
+    window.addEventListener('duckdb_locate_tutorial_code', handleLocate);
+    return () => window.removeEventListener('duckdb_locate_tutorial_code', handleLocate);
+  }, []);
 
   const columns = useMemo(() => {
     if (!queryResult || queryResult.length === 0) return [];
@@ -274,7 +348,7 @@ export const CodeAssetDetail: React.FC<CodeAssetDetailProps> = ({ asset, onTryCo
       )}
 
       {/* SQL 代码展示与快捷操作区 */}
-      <div className="rounded-xl border border-monokai-border bg-monokai-bg overflow-hidden shadow-xs">
+      <div id="code-asset-editor-container" className="rounded-xl border border-monokai-border bg-monokai-bg overflow-hidden shadow-xs transition-all duration-300">
         {/* 代码顶栏工具栏*/}
         <div className="px-4 py-2 bg-monokai-surface border-b border-monokai-border flex items-center justify-between">
           <div className="flex items-center gap-2 text-xs text-monokai-comment font-mono">

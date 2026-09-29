@@ -14,6 +14,12 @@ export const ICON_BOX = `M -7,-4 L 0,-8 L 7,-4 L 7,4 L 0,8 L -7,4 Z`;
 /** Lightning bolt — represents an ACTION node */
 export const ICON_BOLT = `M 2,-9 L -5,1 L -1,1 L -2,9 L 5,-1 L 1,-1 Z`;
 
+/** Tag / Capsule Diamond — represents a PROPERTY / ATTRIBUTE leaf node */
+export const ICON_TAG = `M -6,0 L 0,-6 L 6,0 L 0,6 Z`;
+
+/** Property leaf node default accent color */
+export const PROPERTY_NODE_COLOR = '#38bdf8';
+
 /** Type palette: WARM colors for TypeHub (parent) */
 export const TYPE_COLORS_WARM = [
   '#FF6B35', '#F7C59F', '#E63946', '#F4A261', '#D62828',

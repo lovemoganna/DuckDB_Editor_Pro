@@ -38,6 +38,8 @@
     "docs",
     "public",
     "scratch",
+    "backup-2026-05-06",
+    "tmp",
     "**/*.test.ts",
     "**/*.test.tsx"
   ]

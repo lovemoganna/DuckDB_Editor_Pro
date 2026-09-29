@@ -112,13 +112,12 @@ export function serializeSnippetToMarkdown(asset: CodeAsset): string {
   return serializeAssetToMarkdown(asset);
 }
 
-// 已知 docs 目录核心讲义规范元数据映射表
 const KNOWN_DOC_MANIFEST: Record<string, { id: string; category: string; difficulty: string }> = {
   '001 内嵌DuckDB教程_简单': { id: 'duckdb-sql-complete', category: '入门', difficulty: 'Beginner' },
-  '002 内嵌DuckDB教程_简单': { id: 'duckdb-sql-lesson-1', category: '入门', difficulty: 'Beginner' },
+  '002 内嵌DuckDB教程_简单': { id: 'duckdb-sql-lesson-1', category: '本体建模', difficulty: 'Beginner' },
+  '005 DuckDB电商供应链本体建模_L2': { id: 'duckdb-sql-lesson-2', category: '本体建模', difficulty: 'Beginner' },
   '003 DuckDB教程_自定义上传': { id: 'ontology-duckdb-complete', category: '本体建模', difficulty: 'Intermediate' },
   '004 DuckDB教程_自定义上传': { id: 'ontology-duckdb-runnable', category: '本体建模', difficulty: 'Intermediate' },
-  'Quick_Tutorial': { id: 'sql-learning-path', category: '学习路径', difficulty: 'Beginner' },
 };
 
 function startsWithSqlKeywords(text: string): boolean {

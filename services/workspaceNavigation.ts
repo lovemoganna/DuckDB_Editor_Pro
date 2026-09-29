@@ -30,7 +30,7 @@ export const WORKSPACE_FEATURES: readonly WorkspaceFeature[] = [
   { tab: Tab.AUDIT, label: '审计日志', icon: 'logs', aliases: ['logs', 'audit', 'audit-log'], section: 'analytics', lifecycle: 'active-only' },
   { tab: Tab.LIBRARY, label: '知识资产', icon: 'library', aliases: ['library', 'knowledge', 'assets', 'knowledge-hub', '知识资产'], section: 'knowledge', lifecycle: 'active-only' },
   { tab: Tab.EXTENSIONS, label: '插件', icon: 'plugins', aliases: ['plugins'], section: 'knowledge', lifecycle: 'active-only' },
-  { tab: Tab.TUTORIALS, label: '知识资产', icon: 'library', aliases: ['learn', 'tutorials'], section: 'knowledge', lifecycle: 'active-only' },
+  { tab: Tab.TUTORIALS, label: '知识 × 本体联动', icon: 'learn', aliases: ['learn', 'tutorials', 'bridge', 'co-learning', '知识联动', '学习联动', '知识学习', '本体联动'], section: 'knowledge', lifecycle: 'active-only' },
   { tab: Tab.AI_CAPABILITIES, label: 'AI 能力库', icon: 'ai', aliases: ['ai', 'ai-cognition', 'ai_cognition', 'ai-capabilities', 'capability-hub', 'capabilities', '能力库'], section: 'capability', lifecycle: 'active-only' },
   { tab: Tab.AI_SKILLS, label: 'AI 技能', icon: 'skills', aliases: ['skills', 'ai-skills', 'ai-skill', '技能'], section: 'capability', lifecycle: 'active-only' },
   { tab: Tab.ONTOLOGY, label: '本体图谱', icon: 'ontology', aliases: ['ontology', 'knowledge-graph', 'knowledge_graph', 'graph', '本体图谱', '图谱'], section: 'capability', lifecycle: 'active-only' },

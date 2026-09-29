@@ -11,6 +11,29 @@ import { format } from 'sql-formatter';
 import { KnowledgeAsset, AssetType, CodeAsset, MetricAsset, NoteAsset, CodeCategory, NoteTopic } from '../types';
 import { ModalShell } from '../../ui/Workbench';
 
+interface OntologyDraft {
+  type: string;
+  title: string;
+  summaryOrDesc: string;
+  contentOrSql: string;
+  tags: string[];
+}
+
+const OntologyPrecipitationImpact: React.FC<{ draft: OntologyDraft }> = ({ draft }) => {
+  if (!draft.title && !draft.contentOrSql) return null;
+  return (
+    <div className="p-3 bg-monokai-bg/60 border border-monokai-accent/30 rounded-lg flex items-start gap-2.5">
+      <Sparkles className="w-4 h-4 text-monokai-accent shrink-0 mt-0.5" />
+      <div className="text-xs space-y-1">
+        <div className="font-semibold text-monokai-accent">本体自动同步预测</div>
+        <div className="text-monokai-comment">
+          保存后，系统将自动解析当前资产中的 SQL 代码与实体定义，右侧本体图谱将实时生成并同步最新关联。
+        </div>
+      </div>
+    </div>
+  );
+};
+
 interface AssetEditorModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -503,6 +526,17 @@ export const AssetEditorModal: React.FC<AssetEditorModalProps> = ({
               className="w-full bg-monokai-bg border border-monokai-border rounded-lg px-3 py-1.5 text-xs text-monokai-fg-muted focus:outline-none focus:border-monokai-accent"
             />
           </div>
+
+          {/* 知识沉淀与本体建模联动推演卡片 */}
+          <OntologyPrecipitationImpact
+            draft={{
+              type: assetType,
+              title: assetType === 'code' ? codeTitle : assetType === 'metric' ? metricName : noteTitle,
+              summaryOrDesc: assetType === 'code' ? codeDesc : assetType === 'metric' ? metricMeaning : noteSummary,
+              contentOrSql: assetType === 'code' ? codeSql : assetType === 'metric' ? metricSql : noteContent,
+              tags: tagsStr.split(/[,，]/).map(t => t.trim()).filter(Boolean),
+            }}
+          />
 
           {/* 操作按钮 */}
           <div className="pt-2 border-t border-monokai-border flex items-center justify-end gap-2">

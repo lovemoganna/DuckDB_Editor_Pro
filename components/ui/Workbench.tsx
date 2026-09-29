@@ -585,6 +585,7 @@ export interface ModalShellProps {
   badge?: string;
   icon?: LucideIcon;
   iconColor?: string;
+  zIndex?: string;
 }
 
 const modalSizeClasses: Record<NonNullable<ModalShellProps['size']>, string> = {
@@ -609,6 +610,7 @@ export const ModalShell: React.FC<ModalShellProps> = ({
   badge,
   icon: Icon,
   iconColor = 'text-monokai-accent',
+  zIndex = 'z-[9999]',
 }) => {
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
@@ -666,7 +668,7 @@ export const ModalShell: React.FC<ModalShellProps> = ({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/65 p-4" onMouseDown={event => {
+    <div className={`fixed inset-0 ${zIndex} flex items-center justify-center bg-black/65 p-4`} onMouseDown={event => {
       if (event.target === event.currentTarget) onClose();
     }}>
       <div
@@ -931,7 +933,7 @@ export const DrawerShell: React.FC<DrawerShellProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-[200] flex bg-black/65"
+      className="fixed inset-0 z-[9999] flex bg-black/65"
       onMouseDown={event => {
         if (event.target === event.currentTarget) onClose();
       }}

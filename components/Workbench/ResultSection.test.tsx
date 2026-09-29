@@ -11,7 +11,18 @@ vi.mock('react-chartjs-2', () => ({
   Line: () => <div data-testid="mock-line-chart" />,
 }));
 
+import { duckDBService } from '../../services/duckdbService';
+
 afterEach(cleanup);
+
+beforeEach(() => {
+  vi.spyOn(duckDBService, 'getExplainPlan').mockImplementation(async (sql: string) => ({
+    planText: /join|users|orders/i.test(sql)
+      ? 'PROJECTION [id, name]\nHASH_JOIN (INNER)\nSEQ_SCAN users'
+      : '',
+    physicalPlanText: undefined,
+  }));
+});
 
 const mockResult: QueryResult = {
   resultId: 'res_test_1',
@@ -37,8 +48,9 @@ describe('ResultSection (BRD index8.md & Target Mockup Flow)', () => {
     // Subtabs
     expect(screen.getAllByText('数据').length).toBeGreaterThan(0);
     expect(screen.getAllByText('图表').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('AI 分析').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('透视').length).toBeGreaterThan(0);
     expect(screen.getAllByText('执行计划').length).toBeGreaterThan(0);
+    expect(screen.queryByText('AI 分析')).toBeNull();
 
     // Status line
     expect(screen.getByText('执行成功')).toBeTruthy();
@@ -49,12 +61,27 @@ describe('ResultSection (BRD index8.md & Target Mockup Flow)', () => {
     expect(screen.getByText('筛选')).toBeTruthy();
     expect(screen.getByText('排序')).toBeTruthy();
     expect(screen.getByText('分组')).toBeTruthy();
-    expect(screen.getByText('透视')).toBeTruthy();
+    expect(screen.getByText('透视')).toBeTruthy(); // promoted into SegmentedTabs
 
     // Table headers
     expect(screen.getByText('order_id')).toBeTruthy();
     expect(screen.getByText('amount')).toBeTruthy();
     expect(screen.getByText('region')).toBeTruthy();
+  });
+
+  it('shows an in-result loading overlay while a query is running', () => {
+    render(
+      <ResultSection
+        result={null}
+        loading={true}
+        activeTabSql="SELECT 1;"
+        activeTabTitle="query_1.sql"
+      />
+    );
+
+    expect(screen.getByTestId('result-loading-overlay')).toBeTruthy();
+    expect(screen.getByTestId('result-loading-overlay').textContent).toMatch(/正在执行查询/);
+    expect(screen.getByTestId('execution-status-badge').textContent).toMatch(/执行中/);
   });
 
   it('opens Filter Modal (结果分析 → 生成 SQL) and generates derived SQL', () => {
@@ -132,7 +159,7 @@ describe('ResultSection (BRD index8.md & Target Mockup Flow)', () => {
     fireEvent.click(screen.getByText('执行计划'));
 
     expect(screen.getByText('图形')).toBeTruthy();
-    expect(screen.getByText('暂无物理执行计划')).toBeTruthy();
+    expect(screen.getByText(/还没有执行步骤|暂无物理执行计划/)).toBeTruthy();
   });
 
   it('switches to Explain Analyze subtab and displays graphical plan tree when plan is available', () => {
@@ -150,15 +177,16 @@ describe('ResultSection (BRD index8.md & Target Mockup Flow)', () => {
       <ResultSection
         result={explainResult}
         loading={false}
+        activeTabSql="SELECT id, name FROM users JOIN orders ON users.id = orders.user_id"
       />
     );
 
     fireEvent.click(screen.getByText('执行计划'));
 
     expect(screen.getByText('图形')).toBeTruthy();
-    expect(screen.getAllByText('PROJECTION').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('HASH_JOIN').length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/SEQ_SCAN/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/整理要输出的列|整理输出列/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/连接两路数据|内连接/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/读取「users」/).length).toBeGreaterThan(0);
   });
 
   it('renders 0 rows without bulky empty state when query returns empty rows', () => {
@@ -313,6 +341,41 @@ describe('ResultSection (BRD index8.md & Target Mockup Flow)', () => {
     // Click toggle to switch to Fill mode
     fireEvent.click(toggleBtn);
     expect(screen.getByText('铺满全宽')).toBeTruthy();
+  });
+
+  it('renders in-path troubleshooting button on error and triggers onToggleDataFlow', async () => {
+    vi.useFakeTimers();
+    const errorResult: QueryResult = {
+      resultId: 'res_err_1',
+      columns: [],
+      rows: [],
+      executionTime: 5,
+      error: 'Catalog Error: Table with name "missing_table" does not exist!',
+    };
+
+    const onToggleDataFlowMock = vi.fn();
+    const traceSpy = vi.fn();
+    window.addEventListener('dataflow_trace_fault', traceSpy as EventListener);
+
+    render(
+      <ResultSection
+        result={errorResult}
+        loading={false}
+        activeTabSql="SELECT * FROM missing_table;"
+        onToggleDataFlow={onToggleDataFlowMock}
+      />
+    );
+
+    const btn = screen.getByTestId('result-dataflow-trace-cta');
+    expect(btn).toBeInTheDocument();
+    fireEvent.click(btn);
+    expect(onToggleDataFlowMock).toHaveBeenCalledWith(true);
+
+    await vi.advanceTimersByTimeAsync(100);
+    expect(traceSpy).toHaveBeenCalled();
+
+    window.removeEventListener('dataflow_trace_fault', traceSpy as EventListener);
+    vi.useRealTimers();
   });
 });
 
