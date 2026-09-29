@@ -139,6 +139,25 @@ export const DataIdeMissionControl: React.FC<DataIdeMissionControlProps> = ({
           onOpenSettings={onOpenSettings}
         />
 
+        {/* 2.5 数据流导管与计算架构脉络图示 (SVG 渲染美化链路：数据源接入 → DuckDB 向量执行 → OLAP 洞察) */}
+        <div className="hidden lg:flex items-center justify-between rounded-xl border border-monokai-border bg-gradient-to-r from-monokai-surface/90 via-monokai-surface/60 to-monokai-surface/90 px-4 py-2 backdrop-blur-xs shadow-xs">
+          <div className="flex items-center gap-2.5 text-xs font-mono text-monokai-fg-muted shrink-0">
+            <span className="flex h-2 w-2 rounded-full bg-monokai-accent animate-pulse" />
+            <span className="font-bold text-monokai-fg">数据流水线态势</span>
+            <span className="rounded bg-monokai-elevated px-1.5 py-0.5 text-[10px] text-monokai-cyan border border-monokai-border">
+              零网络开销 · 内存即席执行
+            </span>
+          </div>
+          <div className="flex-1 max-w-[480px] h-8 mx-4">
+            <DataPipelineStreamIllustration className="w-full h-full" />
+          </div>
+          <div className="flex items-center gap-3 text-[11px] font-mono text-monokai-comment shrink-0">
+            <span className="text-monokai-accent font-semibold">DuckDB WASM 列式计算</span>
+            <span className="text-monokai-border">|</span>
+            <span className="text-monokai-yellow">向量化流水线</span>
+          </div>
+        </div>
+
         {/* 3. 主作业区分栏：数据资产 (5 Cols) + 查询脉搏 (4 Cols) + 行动发射台 (3 Cols) */}
         <div className="grid w-full grid-cols-1 gap-3.5 xl:grid-cols-12 items-stretch">
           {/* 数据资产核心视图 */}
