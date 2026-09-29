@@ -189,7 +189,7 @@ export const MissionControlTopStrip: React.FC<MissionControlTopStripProps> = ({
           {/* Left Column: Heading + CTAs + Diagnostics */}
           <div className="lg:col-span-8 space-y-2">
             <div>
-              <h1 className="text-base sm:text-lg font-bold tracking-tight text-monokai-fg flex items-center gap-2">
+              <h1 className="text-lg sm:text-xl font-bold tracking-tight text-white flex items-center gap-2">
                 <span>
                   {activeSqlTab?.code?.trim()
                     ? '继续上次的查询分析'
@@ -211,7 +211,7 @@ export const MissionControlTopStrip: React.FC<MissionControlTopStripProps> = ({
                 type="button"
                 onClick={handleResumeWork}
                 title={primaryCtaTitle}
-                className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-monokai-accent to-emerald-400 hover:from-monokai-accent-hover hover:to-emerald-300 text-monokai-bg font-bold px-3 py-1.5 text-xs transition-all cursor-pointer shadow-[0_0_12px_rgba(166,226,46,0.3)] hover:shadow-[0_0_16px_rgba(166,226,46,0.45)] active:scale-[0.98]"
+                className="flex items-center gap-1.5 rounded-lg bg-monokai-accent text-monokai-bg font-bold px-3.5 py-1.5 text-xs hover:bg-monokai-accent/90 transition-all cursor-pointer shadow-xs active:scale-[0.98]"
               >
                 <Play className="h-3.5 w-3.5 fill-current" />
                 <span>{primaryCtaLabel}</span>

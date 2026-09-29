@@ -167,48 +167,96 @@ export const ActionLaunchpad: React.FC<ActionLaunchpadProps> = ({
   ];
 
   return (
-    <div className="relative flex flex-col flex-1 min-h-[480px] rounded-xl border border-monokai-border bg-gradient-to-b from-monokai-surface to-monokai-surface/95 p-4 shadow-sm select-text justify-between hover:border-monokai-purple/40 transition-colors backdrop-blur-xs">
+    <div className="relative flex flex-col w-full rounded-xl border border-monokai-border bg-gradient-to-b from-monokai-surface to-monokai-surface/95 p-3 sm:p-4 shadow-xs select-text justify-between hover:border-monokai-purple/40 transition-colors backdrop-blur-xs gap-2.5">
       {/* Header */}
-      <div className="flex flex-col gap-2 border-b border-monokai-border pb-2.5 shrink-0 relative z-10">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="flex h-7 w-7 items-center justify-center rounded-md bg-monokai-purple/15 text-monokai-purple border border-monokai-purple/30">
-              <Command className="h-4 w-4" />
-            </span>
-            <h2 className="text-sm sm:text-base font-bold text-monokai-fg tracking-tight font-sans">快捷操作</h2>
-            <span className="rounded bg-monokai-elevated px-2 py-0.5 font-mono text-xs text-monokai-purple border border-monokai-border">
-              {actions.filter((a) => !a.disabled).length}/{actions.length}
-            </span>
-          </div>
-          <span className="text-xs font-mono text-monokai-comment">一键直达</span>
-        </div>
-
-        <div className="flex items-center justify-between gap-2">
-          <span className="inline-flex items-center gap-1.5 text-xs font-mono text-monokai-fg-muted">
-            <span className="h-1.5 w-1.5 rounded-full bg-monokai-accent animate-pulse" />
-            常用工作流
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-monokai-border pb-2 shrink-0 relative z-10">
+        <div className="flex items-center gap-2">
+          <span className="flex h-6 w-6 items-center justify-center rounded-md bg-monokai-purple/15 text-monokai-purple border border-monokai-purple/30">
+            <Command className="h-3.5 w-3.5" />
           </span>
-          <span className="text-xs font-mono text-monokai-comment">点击即执行</span>
+          <h2 className="text-sm font-bold text-monokai-fg tracking-tight font-sans">快捷操作</h2>
+          <span className="rounded bg-monokai-elevated px-1.5 py-0.5 font-mono text-[11px] text-monokai-purple border border-monokai-border">
+            {actions.filter((a) => !a.disabled).length}/{actions.length}
+          </span>
+          <span className="text-xs font-mono text-monokai-comment hidden sm:inline-block">· 点击即执行</span>
         </div>
 
-        {errorCount > 0 && lastFailedSql && (
-          <button
-            type="button"
-            onClick={handleExplainLastFailure}
-            className="flex w-full items-center justify-between gap-2 rounded-md border border-monokai-purple/40 bg-monokai-purple/10 px-2.5 py-1.5 text-left transition-colors hover:bg-monokai-purple/20 cursor-pointer"
-            title="用 SQL 编辑器同款 AI 解释，理清最近一次失败查询"
-          >
-            <span className="flex items-center gap-1.5 min-w-0 text-xs font-semibold text-monokai-purple">
-              <Sparkles className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">AI 解释最近失败查询（{errorCount}）</span>
-            </span>
-            <span className="shrink-0 text-[10px] font-mono text-monokai-comment">一键直达 →</span>
-          </button>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          {errorCount > 0 && lastFailedSql && (
+            <button
+              type="button"
+              onClick={handleExplainLastFailure}
+              className="flex items-center gap-1.5 rounded-md border border-monokai-purple/40 bg-monokai-purple/10 px-2 py-0.5 text-left transition-colors hover:bg-monokai-purple/20 cursor-pointer"
+              title="用 SQL 编辑器同款 AI 解释，理清最近一次失败查询"
+            >
+              <Sparkles className="h-3 w-3 text-monokai-purple shrink-0" />
+              <span className="text-xs font-semibold text-monokai-purple">AI 解释最近失败（{errorCount}）</span>
+            </button>
+          )}
+
+          {tables.length > 0 && activeTable && (
+            <div className="flex items-center gap-1.5 rounded-md border border-monokai-border bg-monokai-elevated/40 px-2 py-0.5">
+              <span className="text-monokai-accent text-[11px] font-mono font-bold">对表</span>
+              {tables.length === 1 ? (
+                <span className="truncate text-monokai-fg text-[11px] font-mono max-w-[90px]">{activeTable.name}</span>
+              ) : (
+                <select
+                  aria-label="选择探索表"
+                  value={activeTable.name}
+                  onChange={(e) => {
+                    const idx = tables.findIndex((t) => t.name === e.target.value);
+                    if (idx >= 0) setSelectedTableIndex(idx);
+                  }}
+                  className="bg-monokai-surface border border-monokai-border text-monokai-cyan rounded px-1 py-0.5 text-[10px] font-mono font-bold cursor-pointer hover:border-monokai-cyan focus:outline-none max-w-[90px] truncate"
+                >
+                  {tables.map((t) => (
+                    <option key={t.name} value={t.name} className="bg-monokai-elevated text-monokai-fg">
+                      {t.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  const sql = `SELECT * FROM "${activeTable.name}" LIMIT 20;`;
+                  if (onSelectQuery) {
+                    onSelectQuery(sql, false);
+                  } else {
+                    createSqlTab(sql);
+                  }
+                  onNavigate(Tab.SQL);
+                }}
+                className="flex items-center gap-1 rounded border border-monokai-border bg-monokai-surface px-1.5 py-0.5 text-[10px] font-mono text-monokai-cyan hover:border-monokai-cyan transition-colors cursor-pointer"
+                title={`在 SQL 编辑器中查看 ${activeTable.name} 前 20 条`}
+              >
+                <Play className="h-2 w-2 shrink-0 fill-current" />
+                <span>抽样 20 条</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const sql = `SELECT count(*) AS total_rows FROM "${activeTable.name}";`;
+                  if (onSelectQuery) {
+                    onSelectQuery(sql, false);
+                  } else {
+                    createSqlTab(sql);
+                  }
+                  onNavigate(Tab.SQL);
+                }}
+                className="flex items-center gap-1 rounded border border-monokai-border bg-monokai-surface px-1.5 py-0.5 text-[10px] font-mono text-monokai-accent hover:border-monokai-accent transition-colors cursor-pointer"
+                title={`在 SQL 编辑器中统计 ${activeTable.name} 记录数`}
+              >
+                <Play className="h-2 w-2 shrink-0 fill-current" />
+                <span>行数</span>
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Grid of 6 Tiles: sleek, compact, NO TRUNCATION */}
-      <div className="relative z-10 grid grid-cols-2 gap-1.5 shrink-0">
+      {/* Grid of 6 Tiles: 6 columns on lg, 3 on sm, 2 on xs */}
+      <div className="relative z-10 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 shrink-0">
         {actions.map((act) => {
           const Icon = act.icon;
           return (
@@ -218,7 +266,7 @@ export const ActionLaunchpad: React.FC<ActionLaunchpadProps> = ({
               onClick={act.onClick}
               disabled={act.disabled}
               title={act.disabled ? act.description : undefined}
-              className={`group/btn flex items-center gap-2 rounded-md border border-monokai-border bg-monokai-elevated/40 p-2 text-left transition-all cursor-pointer ${
+              className={`group/btn flex items-center gap-2 rounded-lg border border-monokai-border bg-monokai-elevated/40 p-2 text-left transition-all cursor-pointer ${
                 act.disabled
                   ? 'opacity-45 cursor-not-allowed'
                   : 'hover:bg-monokai-hover/60 hover:border-monokai-border-strong'
@@ -239,86 +287,6 @@ export const ActionLaunchpad: React.FC<ActionLaunchpadProps> = ({
           );
         })}
       </div>
-
-      {/* 1-Click Analytical Preset row when tables exist */}
-      {tables.length > 0 && activeTable && (
-        <div className="relative z-10 flex items-center justify-between gap-1.5 rounded-md border border-monokai-border bg-monokai-elevated/40 px-2 py-1 shrink-0">
-          <div className="flex items-center gap-1 min-w-0 text-[11px] font-mono text-monokai-fg-muted font-bold">
-            <span className="text-monokai-accent shrink-0">对表</span>
-            {tables.length === 1 ? (
-              <span className="truncate text-monokai-fg max-w-[85px]">{activeTable.name}</span>
-            ) : (
-              <select
-                aria-label="选择探索表"
-                value={activeTable.name}
-                onChange={(e) => {
-                  const idx = tables.findIndex((t) => t.name === e.target.value);
-                  if (idx >= 0) setSelectedTableIndex(idx);
-                }}
-                className="bg-monokai-surface border border-monokai-border text-monokai-cyan rounded px-1 py-0.5 text-[10px] font-mono font-bold cursor-pointer hover:border-monokai-cyan focus:outline-none max-w-[85px] truncate"
-              >
-                {tables.map((t) => (
-                  <option key={t.name} value={t.name} className="bg-monokai-elevated text-monokai-fg">
-                    {t.name}
-                  </option>
-                ))}
-              </select>
-            )}
-          </div>
-          <div className="flex items-center gap-1 shrink-0">
-            <button
-              type="button"
-              onClick={() => {
-                const sql = `SELECT * FROM "${activeTable.name}" LIMIT 20;`;
-                if (onSelectQuery) {
-                  onSelectQuery(sql, false);
-                } else {
-                  createSqlTab(sql);
-                }
-                onNavigate(Tab.SQL);
-              }}
-              className="flex items-center gap-1 rounded border border-monokai-border bg-monokai-surface px-1.5 py-0.5 text-[10px] font-mono text-monokai-cyan hover:border-monokai-cyan transition-colors cursor-pointer"
-              title={`在 SQL 编辑器中查看 ${activeTable.name} 前 20 条`}
-            >
-              <Play className="h-2 w-2 shrink-0 fill-current" />
-              <span>抽样 20 条</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                const sql = `SELECT count(*) AS total_rows FROM "${activeTable.name}";`;
-                if (onSelectQuery) {
-                  onSelectQuery(sql, false);
-                } else {
-                  createSqlTab(sql);
-                }
-                onNavigate(Tab.SQL);
-              }}
-              className="flex items-center gap-1 rounded border border-monokai-border bg-monokai-surface px-1.5 py-0.5 text-[10px] font-mono text-monokai-accent hover:border-monokai-accent transition-colors cursor-pointer"
-              title={`在 SQL 编辑器中统计 ${activeTable.name} 记录数`}
-            >
-              <Play className="h-2 w-2 shrink-0 fill-current" />
-              <span>统计行数</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                const sql = `DESCRIBE "${activeTable.name}";`;
-                if (onSelectQuery) {
-                  onSelectQuery(sql, false);
-                } else {
-                  createSqlTab(sql);
-                }
-                onNavigate(Tab.SQL);
-              }}
-              className="hidden sm:flex items-center gap-1 rounded border border-monokai-border bg-monokai-surface px-1.5 py-0.5 text-[10px] font-mono text-monokai-yellow hover:border-monokai-yellow transition-colors cursor-pointer"
-              title={`在 SQL 编辑器中查看 ${activeTable.name} 字段结构`}
-            >
-              <span>画像</span>
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Integrated Telemetry Dock */}
       {metrics && (

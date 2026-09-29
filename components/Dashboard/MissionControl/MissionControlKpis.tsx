@@ -75,7 +75,7 @@ export const MissionControlKpis: React.FC<MissionControlKpisProps> = ({
         {/* 1. 数据表 (Tables) */}
         <div
           onClick={() => onNavigate?.(Tab.DATA)}
-          className="group relative flex flex-col justify-between rounded-xl border border-monokai-border bg-gradient-to-b from-monokai-surface to-monokai-surface/90 p-3 sm:p-3.5 shadow-sm hover:border-monokai-cyan/60 hover:shadow-[0_0_18px_rgba(102,217,239,0.12)] hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden backdrop-blur-xs"
+          className="group relative flex flex-col justify-between rounded-xl border border-monokai-border bg-gradient-to-b from-monokai-surface to-monokai-surface/90 p-3 sm:p-3.5 shadow-xs hover:border-monokai-cyan/60 transition-colors cursor-pointer overflow-hidden backdrop-blur-xs"
         >
           {/* Subtle Cyber SVG Watermark */}
           <KpiWatermark type="tables" className="text-monokai-cyan" />
@@ -100,7 +100,7 @@ export const MissionControlKpis: React.FC<MissionControlKpisProps> = ({
 
           <div className="relative z-10 mt-3 flex items-end justify-between">
             <div>
-              <div className="font-mono text-2xl font-bold tracking-tight text-monokai-fg">
+              <div className="font-mono text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
                 {metrics.tableCount}
               </div>
               <div className="mt-0.5 font-mono text-[11px] text-monokai-comment flex items-center gap-1">
@@ -116,7 +116,7 @@ export const MissionControlKpis: React.FC<MissionControlKpisProps> = ({
         {/* 2. 总行数 (Total Rows) */}
         <div
           onClick={() => onNavigate?.(Tab.DATA)}
-          className="group relative flex flex-col justify-between rounded-xl border border-monokai-border bg-gradient-to-b from-monokai-surface to-monokai-surface/90 p-3 sm:p-3.5 shadow-sm hover:border-monokai-accent/60 hover:shadow-[0_0_18px_rgba(166,226,46,0.12)] hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden backdrop-blur-xs"
+          className="group relative flex flex-col justify-between rounded-xl border border-monokai-border bg-gradient-to-b from-monokai-surface to-monokai-surface/90 p-3 sm:p-3.5 shadow-xs hover:border-monokai-accent/60 transition-colors cursor-pointer overflow-hidden backdrop-blur-xs"
         >
           {/* Subtle Cyber SVG Watermark */}
           <KpiWatermark type="rows" className="text-monokai-accent" />
@@ -135,7 +135,7 @@ export const MissionControlKpis: React.FC<MissionControlKpisProps> = ({
 
           <div className="relative z-10 mt-3 flex items-end justify-between">
             <div>
-              <div className="font-mono text-2xl font-bold tracking-tight text-monokai-fg">
+              <div className="font-mono text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
                 {metrics.formattedTotalRows || '0'}
               </div>
               <div className="mt-0.5 font-mono text-[11px] text-monokai-comment flex items-center gap-1">
@@ -157,7 +157,7 @@ export const MissionControlKpis: React.FC<MissionControlKpisProps> = ({
         {/* 3. 查询次数 (Queries Count) */}
         <div
           onClick={() => onNavigate?.(Tab.SQL)}
-          className="group relative flex flex-col justify-between rounded-xl border border-monokai-border bg-gradient-to-b from-monokai-surface to-monokai-surface/90 p-3 sm:p-3.5 shadow-sm hover:border-monokai-yellow/60 hover:shadow-[0_0_18px_rgba(230,219,116,0.12)] hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden backdrop-blur-xs"
+          className="group relative flex flex-col justify-between rounded-xl border border-monokai-border bg-gradient-to-b from-monokai-surface to-monokai-surface/90 p-3 sm:p-3.5 shadow-xs hover:border-monokai-yellow/60 transition-colors cursor-pointer overflow-hidden backdrop-blur-xs"
         >
           {/* Subtle Cyber SVG Watermark */}
           <KpiWatermark type="queries" className="text-monokai-yellow" />
@@ -182,7 +182,7 @@ export const MissionControlKpis: React.FC<MissionControlKpisProps> = ({
 
           <div className="relative z-10 mt-3 flex items-end justify-between">
             <div>
-              <div className="font-mono text-2xl font-bold tracking-tight text-monokai-fg">
+              <div className="font-mono text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
                 {metrics.totalQueries}
               </div>
               <div className="mt-0.5 font-mono text-[11px] text-monokai-yellow flex items-center gap-1">
@@ -203,7 +203,7 @@ export const MissionControlKpis: React.FC<MissionControlKpisProps> = ({
         {/* 4. 平均查询时间 (Avg Latency) */}
         <div
           onClick={() => onNavigate?.(Tab.SQL)}
-          className="group relative flex flex-col justify-between rounded-xl border border-monokai-border bg-gradient-to-b from-monokai-surface to-monokai-surface/90 p-3 sm:p-3.5 shadow-sm hover:border-monokai-cyan/60 hover:shadow-[0_0_18px_rgba(102,217,239,0.12)] hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden backdrop-blur-xs"
+          className="group relative flex flex-col justify-between rounded-xl border border-monokai-border bg-gradient-to-b from-monokai-surface to-monokai-surface/90 p-3 sm:p-3.5 shadow-xs hover:border-monokai-cyan/60 transition-colors cursor-pointer overflow-hidden backdrop-blur-xs"
         >
           {/* Subtle Cyber SVG Watermark */}
           <KpiWatermark type="latency" className="text-monokai-cyan" />
@@ -228,7 +228,7 @@ export const MissionControlKpis: React.FC<MissionControlKpisProps> = ({
 
           <div className="relative z-10 mt-3 flex items-end justify-between">
             <div>
-              <div className="font-mono text-2xl font-bold tracking-tight text-monokai-fg">
+              <div className="font-mono text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
                 {metrics.formattedAvgLatency || '—'}
               </div>
               <div className="mt-0.5 font-mono text-[11px] text-monokai-comment flex items-center gap-0.5">
@@ -256,7 +256,7 @@ export const MissionControlKpis: React.FC<MissionControlKpisProps> = ({
         {/* 5. 活跃会话 (Active Sessions) */}
         <div
           onClick={onOpenSettings}
-          className="group relative flex flex-col justify-between rounded-xl border border-monokai-border bg-gradient-to-b from-monokai-surface to-monokai-surface/90 p-3 sm:p-3.5 shadow-sm hover:border-monokai-purple/60 hover:shadow-[0_0_18px_rgba(174,129,255,0.12)] hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden backdrop-blur-xs"
+          className="group relative flex flex-col justify-between rounded-xl border border-monokai-border bg-gradient-to-b from-monokai-surface to-monokai-surface/90 p-3 sm:p-3.5 shadow-xs hover:border-monokai-purple/60 transition-colors cursor-pointer overflow-hidden backdrop-blur-xs"
         >
           {/* Subtle Cyber SVG Watermark */}
           <KpiWatermark type="engine" className="text-monokai-purple" />
@@ -275,7 +275,7 @@ export const MissionControlKpis: React.FC<MissionControlKpisProps> = ({
 
           <div className="relative z-10 mt-3 flex items-end justify-between">
             <div>
-              <div className="font-mono text-2xl font-bold tracking-tight text-monokai-fg">
+              <div className="font-mono text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
                 {metrics.activeSessions || 1}
               </div>
               <div className="mt-0.5 font-mono text-[11px] text-monokai-purple flex items-center gap-1">
@@ -294,10 +294,10 @@ export const MissionControlKpis: React.FC<MissionControlKpisProps> = ({
         {/* 6. 内存使用 (Memory Usage) */}
         <div
           onClick={handleShrink}
-          className={`group relative flex flex-col justify-between rounded-xl border bg-gradient-to-b from-monokai-surface to-monokai-surface/90 p-3 sm:p-3.5 shadow-sm hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden backdrop-blur-xs ${
+          className={`group relative flex flex-col justify-between rounded-xl border bg-gradient-to-b from-monokai-surface to-monokai-surface/90 p-3 sm:p-3.5 shadow-xs transition-colors cursor-pointer overflow-hidden backdrop-blur-xs ${
             memoryPct >= 75
-              ? 'border-monokai-pink/50 hover:border-monokai-pink hover:shadow-[0_0_18px_rgba(249,38,114,0.2)]'
-              : 'border-monokai-border hover:border-monokai-accent/60 hover:shadow-[0_0_18px_rgba(166,226,46,0.12)]'
+              ? 'border-monokai-pink/50 hover:border-monokai-pink'
+              : 'border-monokai-border hover:border-monokai-accent/60'
           }`}
           title="点击执行 PRAGMA shrink_memory 释放内存"
         >
@@ -330,7 +330,7 @@ export const MissionControlKpis: React.FC<MissionControlKpisProps> = ({
 
           <div className="relative z-10 mt-3 flex items-end justify-between">
             <div>
-              <div className="font-mono text-2xl font-bold tracking-tight text-monokai-fg">
+              <div className="font-mono text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
                 {metrics.memoryUsageFormatted || '0 MiB'}
               </div>
               <div className="mt-0.5 font-mono text-[11px] text-monokai-comment flex items-center gap-1 group-hover:text-monokai-accent transition-colors">

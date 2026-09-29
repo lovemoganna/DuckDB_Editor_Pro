@@ -14,6 +14,7 @@ import { MissionControlKpis } from './MissionControlKpis';
 import { DataAssetTopologyView } from './DataAssetTopologyView';
 import { LiveQueryStream } from './LiveQueryStream';
 import { ActionLaunchpad } from './ActionLaunchpad';
+import { DashboardHealthAnomalyBanner } from './DashboardHealthAnomalyBanner';
 import { PerformanceTrendStrip } from './PerformanceTrendStrip';
 import { useCopilotStore } from '../../../hooks/store/useCopilotStore';
 import { CyberGridBackground, DataPipelineStreamIllustration } from './DashboardSvgIllustrations';
@@ -139,7 +140,18 @@ export const DataIdeMissionControl: React.FC<DataIdeMissionControlProps> = ({
           onOpenSettings={onOpenSettings}
         />
 
-        {/* 2.5 数据流导管与计算架构脉络图示 (SVG 渲染美化链路：数据源接入 → DuckDB 向量执行 → OLAP 洞察) */}
+        {/* 3. 异常诊断与质量雷达 (Anomaly & Health Triage Strip) */}
+        <DashboardHealthAnomalyBanner
+          metrics={metrics}
+          tables={tables}
+          onNavigate={onNavigate}
+          onFilterSlowQueries={handleFilterSlowQueries}
+          onFilterErrorQueries={handleFilterErrorQueries}
+          onSelectTableStructure={onSelectTableStructure}
+          onShrinkMemory={onShrinkMemory}
+        />
+
+        {/* 3.5 数据流导管与计算架构脉络图示 (SVG 渲染美化链路：数据源接入 → DuckDB 向量执行 → OLAP 洞察) */}
         <div className="hidden lg:flex items-center justify-between rounded-xl border border-monokai-border bg-gradient-to-r from-monokai-surface/90 via-monokai-surface/60 to-monokai-surface/90 px-4 py-2 backdrop-blur-xs shadow-xs">
           <div className="flex items-center gap-2.5 text-xs font-mono text-monokai-fg-muted shrink-0">
             <span className="flex h-2 w-2 rounded-full bg-monokai-accent animate-pulse" />
@@ -158,10 +170,10 @@ export const DataIdeMissionControl: React.FC<DataIdeMissionControlProps> = ({
           </div>
         </div>
 
-        {/* 3. 主作业区分栏：数据资产 (5 Cols) + 查询脉搏 (4 Cols) + 行动发射台 (3 Cols) */}
+        {/* 4 & 5. 核心作业大盘：数据资产全景 (7 Cols) + SQL 脉搏与慢查询分析 (5 Cols) */}
         <div className="grid w-full grid-cols-1 gap-3.5 xl:grid-cols-12 items-stretch">
-          {/* 数据资产核心视图 */}
-          <div className="flex flex-col xl:col-span-5 h-full min-h-[530px]">
+          {/* 4. 数据资产全景大盘 (7 Cols) */}
+          <div className="flex flex-col xl:col-span-7 h-full min-h-[560px]">
             <DataAssetTopologyView
               tables={tables}
               metrics={metrics}
@@ -178,8 +190,8 @@ export const DataIdeMissionControl: React.FC<DataIdeMissionControlProps> = ({
             />
           </div>
 
-          {/* 实时查询流水线 */}
-          <div className="flex flex-col xl:col-span-4 h-full min-h-[530px]">
+          {/* 5. SQL 脉搏与慢查询分析 (5 Cols) */}
+          <div className="flex flex-col xl:col-span-5 h-full min-h-[560px]">
             <LiveQueryStream
               queries={queries}
               controlledFilter={streamStatusFilter}
@@ -190,23 +202,23 @@ export const DataIdeMissionControl: React.FC<DataIdeMissionControlProps> = ({
               onNavigate={onNavigate}
             />
           </div>
+        </div>
 
-          {/* 智能行动发射台 */}
-          <div className="flex flex-col xl:col-span-3 h-full min-h-[530px]">
-            <ActionLaunchpad
-              tables={tables}
-              onNavigate={onNavigate}
-              onOpenImport={onOpenImport}
-              onOpenCreate={onOpenCreate}
-              onOpenExport={onOpenExport}
-              onOpenAiChat={() => useCopilotStore.getState().setIsOpen(true)}
-              onSelectQuery={onSelectQuery}
-              lastFailedSql={queries.find((q) => q.status === 'error')?.sql}
-              metrics={metrics}
-              onRefresh={onRefresh}
-              isRefreshing={isRefreshing}
-            />
-          </div>
+        {/* 6. 快捷操作与工作流直通坞 (12 Cols 统一栅格对齐) */}
+        <div className="w-full">
+          <ActionLaunchpad
+            tables={tables}
+            onNavigate={onNavigate}
+            onOpenImport={onOpenImport}
+            onOpenCreate={onOpenCreate}
+            onOpenExport={onOpenExport}
+            onOpenAiChat={() => useCopilotStore.getState().setIsOpen(true)}
+            onSelectQuery={onSelectQuery}
+            lastFailedSql={queries.find((q) => q.status === 'error')?.sql}
+            metrics={metrics}
+            onRefresh={onRefresh}
+            isRefreshing={isRefreshing}
+          />
         </div>
 
         {/* 4. 底层性能与吞吐遥测条 */}
