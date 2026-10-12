@@ -1,0 +1,42 @@
+name: Lesson 5 functional verification
+
+on:
+  pull_request:
+    paths:
+      - 'components/Learn/UserFiatSliceLab.tsx'
+      - 'components/Library/OntologyApp.tsx'
+      - 'snippets/lesson5-user-fiat-slice.sql'
+      - 'docs/ontology-slicing-lesson5.md'
+      - '.github/workflows/lesson5-verify.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@v4
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.13.0
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Typecheck
+        run: pnpm typecheck
+      - name: Unit and integration tests
+        run: pnpm test:run
+      - name: Build
+        run: pnpm build
+
+# Existing security audit remains an independent, required CI gate.
+# This workflow does not bypass, suppress, or downgrade audit results.
