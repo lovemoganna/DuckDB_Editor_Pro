@@ -30,12 +30,16 @@ jobs:
           node-version: '22'
           cache: 'pnpm'
       - name: Install frozen dependencies
+        id: install
         run: pnpm install --frozen-lockfile
       - name: Typecheck
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: pnpm typecheck
       - name: Unit and integration tests
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: pnpm test:run
       - name: Build
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: pnpm build
 
 # Existing security audit remains an independent, required CI gate.
