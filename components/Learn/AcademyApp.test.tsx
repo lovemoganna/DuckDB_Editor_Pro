@@ -2,10 +2,10 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AcademyApp } from './AcademyApp';
-import { duckDBService } from '../../services/duckDBService';
+import { duckDBService } from '../../services/duckdbService';
 
 // Mock duckDBService
-vi.mock('../../services/duckDBService', () => ({
+vi.mock('../../services/duckdbService', () => ({
   duckDBService: {
     executeAndAuditWithMetadata: vi.fn().mockResolvedValue({
       columns: ['id', 'name', 'score'],
