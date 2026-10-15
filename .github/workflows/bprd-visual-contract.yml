@@ -18,6 +18,8 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: pnpm/action-setup@v4
         with:
           version: 11.13.0
@@ -32,11 +34,12 @@ jobs:
       - name: TypeScript regression delta against frozen baseline
         shell: bash
         run: |
+          set -e
+          git worktree add --detach "$RUNNER_TEMP/bprd-original" f9adcc42ac10693468ca0e0b6dcfaa5855bf222c
+          ln -s "$GITHUB_WORKSPACE/node_modules" "$RUNNER_TEMP/bprd-original/node_modules"
           set +e
           pnpm typecheck > "$RUNNER_TEMP/candidate-ts.txt" 2>&1
           candidate_exit=$?
-          git worktree add --detach "$RUNNER_TEMP/bprd-original" f9adcc42ac10693468ca0e0b6dcfaa5855bf222c
-          ln -s "$GITHUB_WORKSPACE/node_modules" "$RUNNER_TEMP/bprd-original/node_modules"
           (cd "$RUNNER_TEMP/bprd-original" && pnpm typecheck) > "$RUNNER_TEMP/baseline-ts.txt" 2>&1
           baseline_exit=$?
           echo "Baseline typecheck exit: $baseline_exit; candidate: $candidate_exit"
