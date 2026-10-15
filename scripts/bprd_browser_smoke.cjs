@@ -30,7 +30,8 @@ const assert = require('node:assert/strict');
     else await editor.press('Control+Enter');
     await page.getByText('fiat_amount', {exact:true}).first().waitFor({timeout:60000});
     steps.push('duckdb_wasm_sql_result');
-    await page.locator('button[title="可视化图表"]').first().click();
+    // Use the actual visible result switcher, not a title attribute.
+    await page.getByRole('button', { name: '图表', exact: true }).first().click();
     await page.getByRole('button', {name:'新建可视化'}).click();
     await page.getByRole('button', {name:'Save Chart'}).click();
     await page.locator('canvas').first().waitFor({timeout:40000});
