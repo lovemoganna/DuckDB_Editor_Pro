@@ -3,6 +3,12 @@ on:
   push:
     branches:
       - test/bprd-visual-contract-20261015
+    paths:
+      - 'utils/chartUtils.ts'
+      - 'utils/chartUtils.test.ts'
+      - 'components/DashboardWidget.tsx'
+      - 'components/DashboardWidget.visualContract.test.tsx'
+      - '.github/workflows/bprd-visual-contract.yml'
   pull_request:
     paths:
       - 'utils/chartUtils.ts'
