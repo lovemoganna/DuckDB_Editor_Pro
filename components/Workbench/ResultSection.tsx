@@ -472,7 +472,17 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
   onApplyFilterToSql,
   onApplyAggregateToSql,
 }) => {
-  const [activeSubTab, setActiveSubTab] = useState<'data' | 'chart' | 'pivot' | 'explain' | 'ai'>('data');
+  const [activeSubTab, setActiveSubTab] = useState<'data' | 'chart' | 'pivot' | 'explain' | 'ai'>(() => {
+    // Preserve only the selected view during same-session workspace navigation.
+    // Query rows remain in QuerySnapshotManager, not in browser storage.
+    try {
+      const saved = sessionStorage.getItem('workbench-result-subtab');
+      return saved === 'chart' || saved === 'pivot' || saved === 'explain' || saved === 'ai' ? saved : 'data';
+    } catch { return 'data'; }
+  });
+  useEffect(() => {
+    try { sessionStorage.setItem('workbench-result-subtab', activeSubTab); } catch {}
+  }, [activeSubTab]);
   const [pageSize, setPageSize] = useState<number>(100);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [jumpPage, setJumpPage] = useState<string>('1');
