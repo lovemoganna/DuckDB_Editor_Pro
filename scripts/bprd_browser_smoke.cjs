@@ -32,13 +32,19 @@ const assert = require('node:assert/strict');
     steps.push('duckdb_wasm_sql_result');
     // Use the actual visible result switcher, not a title attribute.
     await page.getByRole('button', { name: '图表', exact: true }).first().click();
-    await page.getByRole('button', {name:'新建可视化'}).click();
-    await page.getByRole('button', {name:'Save Chart'}).click();
+    // The current SQL result Chart tab renders a chart automatically.
     await page.locator('canvas').first().waitFor({timeout:40000});
     const box = await page.locator('canvas').first().evaluate(el => ({width:el.width,height:el.height}));
     assert(box.width>0 && box.height>0, 'chart canvas was not rendered');
     steps.push('chartjs_canvas_render');
     await page.screenshot({path:path.join(dir,'chart.png'),fullPage:true});
+    await page.getByText('仪表盘', { exact: true }).first().click();
+    await page.getByTestId('action-new-sql').waitFor({timeout:40000});
+    steps.push('dashboard_reopened_after_sql');
+    await page.screenshot({path:path.join(dir,'dashboard.png'),fullPage:true});
+    await page.getByText('SQL', { exact: true }).first().click();
+    await page.locator('canvas').first().waitFor({timeout:40000});
+    steps.push('chart_restored_after_navigation');
     console.log('BPRD_BROWSER_PASS', JSON.stringify({steps,canvas:box,pageErrors:errors.slice(0,5)}));
   } catch (error) {
     await page.screenshot({path:path.join(dir,'error.png'),fullPage:true}).catch(()=>{});
