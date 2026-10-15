@@ -437,6 +437,7 @@ function isJsonLikeValue(val: unknown): boolean {
 
 interface ResultSectionProps {
   result: QueryResult | null;
+  preserveViewOnNavigation?: boolean;
   previousResult?: QueryResult | null;
   loading: boolean;
   selectedColumn?: string | null;
@@ -458,6 +459,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
   result,
   previousResult,
   loading,
+  preserveViewOnNavigation = false,
   isStale = false,
   selectedColumn = null,
   activeTabSql,
@@ -475,14 +477,16 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
   const [activeSubTab, setActiveSubTab] = useState<'data' | 'chart' | 'pivot' | 'explain' | 'ai'>(() => {
     // Preserve only the selected view during same-session workspace navigation.
     // Query rows remain in QuerySnapshotManager, not in browser storage.
+    if (!preserveViewOnNavigation) return 'data';
     try {
       const saved = sessionStorage.getItem('workbench-result-subtab');
       return saved === 'chart' || saved === 'pivot' || saved === 'explain' || saved === 'ai' ? saved : 'data';
     } catch { return 'data'; }
   });
   useEffect(() => {
+    if (!preserveViewOnNavigation) return;
     try { sessionStorage.setItem('workbench-result-subtab', activeSubTab); } catch {}
-  }, [activeSubTab]);
+  }, [activeSubTab, preserveViewOnNavigation]);
   const [pageSize, setPageSize] = useState<number>(100);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [jumpPage, setJumpPage] = useState<string>('1');
