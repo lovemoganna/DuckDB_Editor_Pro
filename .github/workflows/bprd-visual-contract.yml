@@ -9,6 +9,8 @@ on:
       - 'components/DashboardWidget.tsx'
       - 'components/DashboardWidget.visualContract.test.tsx'
       - '.github/workflows/bprd-visual-contract.yml'
+      - 'components/Workbench/WorkbenchView.tsx'
+      - 'components/Workbench/ResultSection.tsx'
   pull_request:
     paths:
       - 'utils/chartUtils.ts'
