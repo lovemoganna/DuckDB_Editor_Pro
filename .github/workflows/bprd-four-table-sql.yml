@@ -1,0 +1,43 @@
+name: BPRD DuckDB Four-Table SQL Contract
+on:
+  push:
+    branches: [test/bprd-visual-contract-20261015]
+    paths:
+      - scripts/bprd_four_table_fixture_test.py
+      - .github/workflows/bprd-four-table-sql.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  sql-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install pinned DuckDB and workbook builder
+        run: python -m pip install duckdb==1.4.2 openpyxl==3.1.5
+      - name: Real DuckDB SQL on four synthetic sheets (no user data)
+        run: python scripts/bprd_four_table_fixture_test.py
+      - name: Package reproducible DuckDB runtime for isolated QA
+        shell: bash
+        run: |
+          mkdir -p /tmp/bprd-duckdb-runtime
+          python -m pip download --no-deps --dest /tmp/bprd-duckdb-runtime duckdb==1.4.2
+          python - <<'PY'
+          from pathlib import Path
+          import shutil
+          import duckdb
+          db=duckdb.connect(':memory:')
+          entry=db.execute("SELECT install_path FROM duckdb_extensions() WHERE extension_name='excel'").fetchone()
+          assert entry and entry[0] and Path(entry[0]).is_file(), f"excel extension not installed: {entry}"
+          shutil.copy2(entry[0], '/tmp/bprd-duckdb-runtime/excel.duckdb_extension')
+          print('Runtime prepared, no source data included.')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bprd-duckdb-142-offline-runtime
+          path: /tmp/bprd-duckdb-runtime
+          retention-days: 7

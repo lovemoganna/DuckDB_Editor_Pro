@@ -724,6 +724,7 @@ export const SqlWorkspacePanel: React.FC<SqlWorkspacePanelProps> = ({
       {/* Results Section */}
       <div className="flex-1 min-h-0 overflow-hidden relative">
         <ResultSection
+          preserveViewOnNavigation
           result={activeQueryResult}
           previousResult={previousResult}
           loading={isRunning}

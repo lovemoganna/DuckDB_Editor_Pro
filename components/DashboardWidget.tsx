@@ -442,7 +442,7 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
 
   const renderChart = (cfg: ChartConfig, heightClass = 'h-full') => {
     const chartData = transformDataForChart(data, cfg);
-    const options = getChartOptions({ ...cfg, showLegend: true } as ChartConfig);
+    const options = getChartOptions(cfg);
     if (options.plugins?.title) {
       options.plugins.title.display = false;
     }

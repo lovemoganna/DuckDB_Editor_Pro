@@ -1,0 +1,89 @@
+name: BPRD Visualization Contract Test
+on:
+  push:
+    branches:
+      - test/bprd-visual-contract-20261015
+    paths:
+      - 'utils/chartUtils.ts'
+      - 'utils/chartUtils.test.ts'
+      - 'components/DashboardWidget.tsx'
+      - 'components/DashboardWidget.visualContract.test.tsx'
+      - '.github/workflows/bprd-visual-contract.yml'
+      - 'components/Workbench/WorkbenchView.tsx'
+      - 'components/Workbench/ResultSection.tsx'
+  pull_request:
+    paths:
+      - 'utils/chartUtils.ts'
+      - 'utils/chartUtils.test.ts'
+      - 'components/DashboardWidget.tsx'
+      - 'components/DashboardWidget.visualContract.test.tsx'
+      - '.github/workflows/bprd-visual-contract.yml'
+permissions:
+  contents: read
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.13.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Targeted regression (expected RED before patch)
+        run: pnpm exec vitest run utils/chartUtils.test.ts components/DashboardWidget.visualContract.test.tsx --pool=threads --maxWorkers=1 --no-file-parallelism
+      - name: TypeScript regression delta against frozen baseline
+        shell: bash
+        run: |
+          set -e
+          git worktree add --detach "$RUNNER_TEMP/bprd-original" f9adcc42ac10693468ca0e0b6dcfaa5855bf222c
+          ln -s "$GITHUB_WORKSPACE/node_modules" "$RUNNER_TEMP/bprd-original/node_modules"
+          set +e
+          pnpm typecheck > "$RUNNER_TEMP/candidate-ts.txt" 2>&1
+          candidate_exit=$?
+          (cd "$RUNNER_TEMP/bprd-original" && pnpm typecheck) > "$RUNNER_TEMP/baseline-ts.txt" 2>&1
+          baseline_exit=$?
+          echo "Baseline typecheck exit: $baseline_exit; candidate: $candidate_exit"
+          python - <<'PY'
+          import collections
+          import os
+          import re
+          from pathlib import Path
+          folder = Path(os.environ['RUNNER_TEMP'])
+          def diagnostics(path):
+              s = path.read_text(encoding='utf-8')
+              return collections.Counter(
+                  x.strip() for x in s.splitlines() if re.search(r'error TS[0-9]+:', x)
+              )
+          baseline = diagnostics(folder / 'baseline-ts.txt')
+          candidate = diagnostics(folder / 'candidate-ts.txt')
+          added = candidate - baseline
+          removed = baseline - candidate
+          print(f'Baseline diagnostics: {sum(baseline.values())}; candidate: {sum(candidate.values())}')
+          print(f'New TypeScript diagnostics: {sum(added.values())}; resolved: {sum(removed.values())}')
+          for item, count in added.items():
+              print(f'NEW ERROR x{count}: {item}')
+          if added:
+              raise SystemExit(1)
+          print('No new TypeScript diagnostics compared with original remote main.')
+          PY
+      - name: Full test suite
+        if: always()
+        run: pnpm test:run
+      - name: Production build
+        if: always()
+        run: pnpm build
+      - name: Save TypeScript baselines
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bprd-visual-typecheck-differential
+          path: ${{ runner.temp }}/*-ts.txt
+          retention-days: 14

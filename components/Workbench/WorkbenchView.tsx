@@ -176,8 +176,11 @@ export const WorkbenchView: React.FC<WorkbenchViewProps> = ({
   const [queryResults, setQueryResults] = useState<Record<string, QueryResult>>({});
   const [previousResults, setPreviousResults] = useState<Record<string, QueryResult>>({});
 
-  const activeQueryResult = queryResults[activeTabId] || null;
-  const activePreviousResult = previousResults[activeTabId] || null;
+  // QuerySnapshotManager owns query results across Workbench unmount/remount.
+  // Local React state is lost when navigating to Dashboard; recover the in-memory
+  // snapshot instead of requiring a second query execution.
+  const activeQueryResult = queryResults[activeTabId] || querySnapshotManager.getActiveSnapshotForTab(activeTabId) || null;
+  const activePreviousResult = previousResults[activeTabId] || querySnapshotManager.getActiveSnapshotForTab(activeTabId) || null;
 
   const [selectedObjectRef, setSelectedObjectRef] = useState<ObjectRef | null>(null);
 

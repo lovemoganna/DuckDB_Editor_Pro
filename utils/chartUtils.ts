@@ -40,18 +40,31 @@ export const MONOKAI_COLORS = [
     'rgba(230, 219, 116, 0.8)', // Yellow
 ];
 
-const aggregate = (rows: any[], key: string, type?: string) => {
-    if (rows.length === 0) return 0;
-    const values = rows.map(r => Number(r[key]));
+// Keep numeric zero, but do not turn missing or invalid observations into zero.
+const finiteChartNumber = (value: unknown): number | null => {
+    if (value == null || (typeof value === 'string' && value.trim() === '')) return null;
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric : null;
+};
+
+const aggregate = (rows: any[], key: string, type?: string): number | null => {
+    // COUNT is row-based. A missing pivot combination has a count/sum of zero;
+    // an undefined average/minimum/maximum is not a numeric zero.
+    if (rows.length === 0) return type === 'count' || type === 'sum' ? 0 : null;
+    if (type === 'count') return rows.length;
+    if (!type || type === 'none') return finiteChartNumber(rows[0][key]);
+
+    const values = rows
+        .map(row => finiteChartNumber(row[key]))
+        .filter((value): value is number => value !== null);
+    if (values.length === 0) return null;
 
     switch (type) {
-        case 'count': return rows.length;
         case 'sum': return values.reduce((a, b) => a + b, 0);
         case 'avg': return values.reduce((a, b) => a + b, 0) / values.length;
         case 'min': return Math.min(...values);
         case 'max': return Math.max(...values);
-        case 'none':
-        default: return values[0] || 0; // Take first if no agg
+        default: return finiteChartNumber(rows[0][key]);
     }
 };
 
