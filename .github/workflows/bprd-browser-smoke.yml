@@ -1,0 +1,65 @@
+name: BPRD Browser Smoke (DuckDB WASM)
+on:
+  push:
+    branches: [test/bprd-visual-contract-20261015]
+    paths:
+      - scripts/bprd_browser_smoke.cjs
+      - .github/workflows/bprd-browser-smoke.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.13.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install frontend and isolated browser
+        run: |
+          pnpm install --frozen-lockfile
+          npm install --global playwright@1.56.1
+          playwright install --with-deps chromium
+          python -m pip install openpyxl==3.1.5
+      - name: Generate isolated four-sheet XLSX
+        run: |
+          python - <<'PY'
+          from openpyxl import Workbook
+          wb = Workbook()
+          wb.remove(wb.active)
+          for name, rows in {
+            'users': [('uid','country_code'),('U1','US'),('U2','GB')],
+            'fiat_transactions': [('fiat_order_id','uid','currency','amount','status'),('F1','U1','USD',10,'completed'),('F2','U2','GBP',5,'completed')],
+            'crypto_transactions': [('crypto_order_id','uid','asset','amount','status'),('C1','U1','USDT',10,'completed'),('C2','U2','BTC',0.1,'completed')],
+            'exchange_rates': [('asset','quote_currency','rate_to_usdt','effective_date'),('USDT','USDT',1,'2024-09-01'),('BTC','USDT',64500,'2024-09-01')],
+          }.items():
+            sheet=wb.create_sheet(name)
+            for row in rows: sheet.append(row)
+          wb.save('/tmp/bprd_browser_qa.xlsx')
+          PY
+      - name: Real browser, import, SQL, Chart.js
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm dev --host 127.0.0.1 --port 4173 > /tmp/bprd-vite.log 2>&1 &
+          for i in {1..50}; do
+            if curl -fsS http://127.0.0.1:4173/ >/dev/null; then break; fi
+            sleep 2
+          done
+          export NODE_PATH="$(npm root -g)"
+          node scripts/bprd_browser_smoke.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bprd-browser-smoke-screenshots
+          path: /tmp/bprd-browser
+          if-no-files-found: ignore
+          retention-days: 10
