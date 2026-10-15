@@ -24,7 +24,10 @@ const assert = require('node:assert/strict');
     await editor.waitFor({ timeout: 25000 });
     const sql = 'SELECT u.country_code, COUNT(f.fiat_order_id) AS fiat_orders, SUM(f.amount) AS fiat_amount FROM bprd_browser_qa_users u JOIN bprd_browser_qa_fiat_transactions f ON CAST(u.uid AS VARCHAR) = CAST(f.uid AS VARCHAR) WHERE f.status = \'completed\' GROUP BY u.country_code ORDER BY fiat_amount DESC';
     await editor.fill(sql);
-    await page.locator('button[title="运行 SQL (Ctrl+Enter)"]').click();
+    // The actual toolbar has an accessible "运行" button; do not require a title attribute.
+    const run = page.getByRole('button', { name: '运行', exact: true }).first();
+    if (await run.count()) await run.click();
+    else await editor.press('Control+Enter');
     await page.getByText('fiat_amount', {exact:true}).first().waitFor({timeout:60000});
     steps.push('duckdb_wasm_sql_result');
     await page.locator('button[title="可视化图表"]').first().click();
