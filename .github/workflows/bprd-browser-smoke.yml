@@ -7,6 +7,7 @@ on:
       - .github/workflows/bprd-browser-smoke.yml
       - 'components/Workbench/WorkbenchView.tsx'
       - 'components/Workbench/ResultSection.tsx'
+      - 'components/Workbench/SqlWorkspacePanel.tsx'
   workflow_dispatch:
 permissions:
   contents: read
