@@ -4,6 +4,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  read-excel-file@9.3.4: 3f01067893c80d196a7fb0493de80da5f19a7898a3f01b525bcdad631ef41766
+
 importers:
 
   .:
@@ -134,6 +137,9 @@ importers:
       dt-sql-parser:
         specifier: ^4.5.0
         version: 4.5.0(antlr4ng-cli@1.0.7)
+      elkjs:
+        specifier: ^0.12.0
+        version: 0.12.0
       fflate:
         specifier: ^0.8.3
         version: 0.8.3
@@ -178,7 +184,7 @@ importers:
         version: 11.11.4(@types/react@19.2.17)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       read-excel-file:
         specifier: 9.3.4
-        version: 9.3.4
+        version: 9.3.4(patch_hash=3f01067893c80d196a7fb0493de80da5f19a7898a3f01b525bcdad631ef41766)
       recharts:
         specifier: ^2.15.3
         version: 2.15.4(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -228,6 +234,9 @@ importers:
       jsdom:
         specifier: ^29.0.1
         version: 29.1.1
+      playwright:
+        specifier: 1.64.0
+        version: 1.64.0
       postcss:
         specifier: ^8.5.6
         version: 8.5.19
@@ -1835,6 +1844,9 @@ packages:
   electron-to-chromium@1.5.389:
     resolution: {integrity: sha512-cEto7aeOqBfU1D+c5py5pE+ooscKE75JifxLBdFUZsqAxRS6y7kebtxAZvICszSl05gPjYHDTjY+lXpyGvpJbg==}
 
+  elkjs@0.12.0:
+    resolution: {integrity: sha512-YZcKynxVxYoKIOEpywEPwCFdg+BTbxQRNf3pbwdDCvc8O3kQD8bmIwSxKU1eOTVc4Xo+VG9Te+575mlfvOrhEQ==}
+
   enhanced-resolve@5.21.6:
     resolution: {integrity: sha512-aNnGCvbJ/RIyWo1IuhNdVjnNF+EjH9wpzpNHt+ci/m9He9LJvUN8wrCcXjp9cWsGNAuvSpVFTx/vraAFQ8qGjQ==}
     engines: {node: '>=10.13.0'}
@@ -2538,6 +2550,16 @@ packages:
 
   pixi.js@8.20.1:
     resolution: {integrity: sha512-akLVBMLvQbaEViqsmVraK0Njer1q4Q4lm4iNKuzvBiFrV8q+6/+HluJN3sWIwO663IBeQtUUS/CaXFJZs6ffXQ==}
+
+  playwright-core@1.64.0:
+    resolution: {integrity: sha512-T9r+MZkTECl2+oUcZ26YgZzTrYidTsIhYYkJix+6iDOymOb1FB2RLLSOxRGnZGv5DStt+aduIVbt+E8WygXYpg==}
+    engines: {node: '>=20'}
+    hasBin: true
+
+  playwright@1.64.0:
+    resolution: {integrity: sha512-kVzTnYFYEyQ9RGzBjNCd2+yEqWmVbxl3AHPynv3qQ6JTjv4a+kwRcnqQwIpuP3NnrnIrE/Q6wWAIAvMfIE2/Yg==}
+    engines: {node: '>=20'}
+    hasBin: true
 
   points-on-curve@0.2.0:
     resolution: {integrity: sha512-0mYKnYYe9ZcqMCWhUjItv/oHjvgEsfKvnUTg8sAtnHr3GVy7rGkXCb6d5cSyqrWqL4k81b9CPg3urd+T7aop3A==}
@@ -4871,6 +4893,8 @@ snapshots:
 
   electron-to-chromium@1.5.389: {}
 
+  elkjs@0.12.0: {}
+
   enhanced-resolve@5.21.6:
     dependencies:
       graceful-fs: 4.2.11
@@ -5784,6 +5808,12 @@ snapshots:
       parse-svg-path: 0.2.0
       tiny-lru: 11.4.7
 
+  playwright-core@1.64.0: {}
+
+  playwright@1.64.0:
+    dependencies:
+      playwright-core: 1.64.0
+
   points-on-curve@0.2.0: {}
 
   points-on-path@0.2.1:
@@ -5980,7 +6010,7 @@ snapshots:
     dependencies:
       pify: 2.3.0
 
-  read-excel-file@9.3.4:
+  read-excel-file@9.3.4(patch_hash=3f01067893c80d196a7fb0493de80da5f19a7898a3f01b525bcdad631ef41766):
     dependencies:
       fflate: 0.8.3
       saxen: 11.1.0

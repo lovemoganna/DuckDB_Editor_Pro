@@ -1,0 +1,26 @@
+diff --git a/commonjs/xlsx/parseExcelDate.js b/commonjs/xlsx/parseExcelDate.js
+index 03f70fa14cf6e7792f22e3eb7fb0cb50437fee2f..616bffdd213c1c55dc89db8dfe4374a21438d6d5 100644
+--- a/commonjs/xlsx/parseExcelDate.js
++++ b/commonjs/xlsx/parseExcelDate.js
+@@ -38,7 +38,7 @@ function parseExcelDate(excelSerialDate, options) {
+     excelSerialDate += (1904 - 1900) * DAYS_IN_YEAR + JANUARY_0TH_1900_DAY + ERRONEOUS_FEBRUARY_29_1990_DAY;
+   }
+   var daysBeforeUnixEpoch = JANUARY_0TH_1900_DAY + ERRONEOUS_FEBRUARY_29_1990_DAY + (1970 - 1900) * DAYS_IN_YEAR + NUMBER_OF_LEAP_YEARS_BETWEEN_1900_AND_1970;
+-  return new Date(Math.floor((excelSerialDate - daysBeforeUnixEpoch) * DAY));
++  return new Date(Math.round((excelSerialDate - daysBeforeUnixEpoch) * DAY));
+ }
+ 
+ // "Excel serial date" is just a (fractional) count of days passed since `00/01/1900`.
+diff --git a/modules/xlsx/parseExcelDate.js b/modules/xlsx/parseExcelDate.js
+index fbb0a65c830a2d707048dad7670d796d4d74c343..5f870fc99452a15d80ccae4df4ef3e9aec30594b 100644
+--- a/modules/xlsx/parseExcelDate.js
++++ b/modules/xlsx/parseExcelDate.js
+@@ -32,7 +32,7 @@ export default function parseExcelDate(excelSerialDate, options) {
+     excelSerialDate += (1904 - 1900) * DAYS_IN_YEAR + JANUARY_0TH_1900_DAY + ERRONEOUS_FEBRUARY_29_1990_DAY;
+   }
+   var daysBeforeUnixEpoch = JANUARY_0TH_1900_DAY + ERRONEOUS_FEBRUARY_29_1990_DAY + (1970 - 1900) * DAYS_IN_YEAR + NUMBER_OF_LEAP_YEARS_BETWEEN_1900_AND_1970;
+-  return new Date(Math.floor((excelSerialDate - daysBeforeUnixEpoch) * DAY));
++  return new Date(Math.round((excelSerialDate - daysBeforeUnixEpoch) * DAY));
+ }
+ 
+ // "Excel serial date" is just a (fractional) count of days passed since `00/01/1900`.

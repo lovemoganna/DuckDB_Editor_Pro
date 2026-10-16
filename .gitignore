@@ -81,6 +81,7 @@ _patch_*
 *.bak
 *.tmp
 *.patch
+!patches/*.patch
 *.diff
 verification-*.png
 scratch/
@@ -104,9 +105,13 @@ public/duckdb-wasm/
 # ----- DuckDB & SQLite database files -----
 *.db
 *.duckdb
+!public/empty_domain.duckdb
 *.wal
 *.sqlite
 *.sqlite3
+
+# Local source snapshots and resettable CRUD experiments
+/data/crud-lab/
 
 # ----- Certificates / private keys (never commit) -----
 *.pem

@@ -1,0 +1,48 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import {chromium} from 'playwright';
+const output=path.resolve(process.env.FUNDS_OUTPUT || '../audit-20261015/production');
+await fs.mkdir(output,{recursive:true});
+const browser=await chromium.launch({headless:true,args:['--no-proxy-server']});
+const context=await browser.newContext({viewport:{width:1440,height:1000}});
+const page=await context.newPage();page.setDefaultTimeout(20000);
+const errors=[],checks=[];page.on('pageerror',e=>errors.push(e.message));
+await context.tracing.start({screenshots:true,snapshots:true});
+const check=name=>{checks.push(name);console.log('PASS',name);};
+try{
+  await page.goto(process.env.FUNDS_BASE_URL || 'http://127.0.0.1:5192/DuckDB_Editor_Pro/',{waitUntil:'domcontentloaded',timeout:60000});
+  await page.getByRole('button',{name:'导入数据',exact:true}).waitFor({timeout:90000});
+  await page.getByRole('button',{name:'导入数据',exact:true}).click();
+  await page.locator('input[type=file]').setInputFiles('test/fixtures/exchange-funds-four-tables.xlsx');
+  await page.getByRole('button',{name:'批量导入选中的 4 个工作表',exact:true}).click();
+  await page.getByRole('button',{name:'透视分析',exact:true}).waitFor();
+  await page.getByText('2024-01-15 08:30:00',{exact:true}).waitFor();
+  assert.match(await page.locator('body').innerText(),/2024-01-15 08:30:00/);
+  assert.doesNotMatch(await page.locator('body').innerText(),/08:29:59\.999/);check('production bundle imports real Excel without millisecond drift');
+  await page.getByRole('combobox').first().selectOption('fiat_transactions');
+  await page.getByRole('button',{name:'透视分析',exact:true}).click();
+  await page.locator('select:not([aria-label])').nth(0).selectOption('channel');
+  await page.getByLabel('值 1 字段',{exact:true}).selectOption('amount');
+  await page.getByLabel('值 1 聚合方式',{exact:true}).selectOption('sum');
+  await page.getByLabel('分析计量资产',{exact:true}).fill('USD');
+  await page.getByRole('button',{name:'添加筛选',exact:true}).click();
+  await page.getByLabel('筛选 1 字段',{exact:true}).selectOption('status');
+  await page.getByLabel('筛选 1 值',{exact:true}).fill('completed');
+  await page.locator('select:not([aria-label])').nth(1).selectOption('direction');
+  await page.waitForFunction(()=>document.querySelector('.pivot-grid tfoot')?.textContent.includes('104,270'));
+  check('production pivot executes real USD aggregate 104270');
+  await page.getByLabel('分析名称',{exact:true}).fill('生产构建真实透视');
+  await page.getByRole('button',{name:'图表',exact:true}).click();
+  await page.getByRole('button',{name:'保存并加入首页',exact:true}).click();
+  await page.getByText('已保存并加入当前首页视图',{exact:true}).waitFor();
+  await page.getByRole('button',{name:'仪表盘',exact:true}).click();
+  await page.locator('[data-widget-id] canvas').waitFor();
+  await page.setViewportSize({width:390,height:1000});
+  await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
+  assert.ok(await page.locator('[data-widget-id] canvas').evaluate(c=>{const p=c.closest('[aria-label="图表绘图区"]');return c.width>0&&c.getBoundingClientRect().left>=p.getBoundingClientRect().left-1;}));
+  await page.locator('[data-widget-id] canvas').scrollIntoViewIfNeeded();
+  await page.screenshot({path:path.join(output,'home-390.png'),fullPage:true});
+  assert.deepEqual(errors,[]);check('production home renders and scrolls chart without leading-axis clipping');
+}catch(e){await fs.writeFile(path.join(output,'failure.txt'),String(e.stack));await page.screenshot({path:path.join(output,'failure.png'),fullPage:true});console.error(e);process.exitCode=1;}
+finally{await fs.writeFile(path.join(output,'checks.json'),JSON.stringify({checks,errors},null,2));await context.tracing.stop({path:path.join(output,'trace.zip')});await browser.close();}
