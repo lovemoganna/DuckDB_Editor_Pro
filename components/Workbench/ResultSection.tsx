@@ -1351,6 +1351,43 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
     };
   }, [rawPivotSpec, dynamicPivotMatrix, pivotShowAs, pivotDecimals, effectivePivotAgg, pivotValCol, effectivePivotRow, effectivePivotCol, effectivePivotVal]);
 
+  const pivotColWidths = useMemo(() => {
+    if (!dynamicPivotMatrix) {
+      return { corner: 120, cols: {} as Record<string, number>, total: 96, table: 120 };
+    }
+    const { rowKeys, colKeys, matrix, rowTotals, colTotals, grandTotal } = dynamicPivotMatrix;
+    const aggLabel = `${effectivePivotAgg.toUpperCase()}(${pivotValCol || '行数'})`;
+    const cornerLabel = `${pivotRowCol || '全部'} \\ ${pivotColCol || '汇总'} · ${aggLabel}`;
+    const corner = Math.max(
+      120,
+      Math.round(measureSansPx(cornerLabel, 12, 700) + 28),
+      ...rowKeys.map(r => Math.round(measureSansPx(String(r), 12, 600) + 28)),
+    );
+
+    const cols: Record<string, number> = {};
+    for (const cKey of colKeys) {
+      const headerNeed = Math.round(measureSansPx(String(cKey), 12, 600) + 28);
+      let maxContent = Math.round(measureSansPx('—', 12, 400) + 28);
+      for (const rKey of rowKeys) {
+        const val = matrix[rKey]?.[cKey];
+        const text = formatPivotNumber(val ?? null);
+        maxContent = Math.max(maxContent, Math.round(measureSansPx(text, 12, 400) + 28));
+      }
+      maxContent = Math.max(maxContent, Math.round(measureSansPx(formatPivotNumber(colTotals[cKey] ?? null), 12, 700) + 28));
+      cols[cKey] = Math.max(72, Math.min(280, Math.max(headerNeed, maxContent)));
+    }
+
+    const totalHeader = Math.round(measureSansPx('总计', 12, 700) + 28);
+    let totalContent = totalHeader;
+    for (const rKey of rowKeys) {
+      totalContent = Math.max(totalContent, Math.round(measureSansPx(formatPivotNumber(rowTotals[rKey] ?? null), 12, 600) + 28));
+    }
+    totalContent = Math.max(totalContent, Math.round(measureSansPx(formatPivotNumber(grandTotal), 12, 700) + 28));
+    const total = Math.max(88, Math.min(200, totalContent));
+    const table = corner + colKeys.reduce((sum, k) => sum + (cols[k] || 96), 0) + total;
+    return { corner, cols, total, table };
+  }, [dynamicPivotMatrix, pivotRowCol, pivotColCol, pivotValCol, effectivePivotAgg, formatPivotNumber]);
+
   const handleSwapPivotAxes = () => {
     if (!pivotRowCol && !pivotColCol) {
       toastService.info('行与列维度均为空，无需互换');
@@ -3148,8 +3185,112 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                     </div>
                   )}
 
-                  <div className="flex-1 min-h-0 w-full h-full overflow-hidden" style={{ fontFamily: RESULT_TABLE_FONT }}>
-                    <ChartRenderer chartSpec={pivotSpec} hideTitle />
+                  <div className="result-pivot-grid flex-1 min-h-0 overflow-auto custom-scrollbar rounded-lg border border-monokai-border/70 bg-monokai-elevated/40 p-1" style={{ fontFamily: RESULT_TABLE_FONT }}>
+                    <table
+                      className="border-collapse select-text"
+                      style={{
+                        tableLayout: 'fixed',
+                        width: pivotColWidths.table,
+                        fontFamily: RESULT_TABLE_FONT,
+                      }}
+                    >
+                      <colgroup>
+                        <col style={{ width: `${pivotColWidths.corner}px`, minWidth: `${pivotColWidths.corner}px` }} />
+                        {dynamicPivotMatrix.colKeys.map(cKey => (
+                          <col
+                            key={cKey}
+                            style={{
+                              width: `${pivotColWidths.cols[cKey] || 96}px`,
+                              minWidth: `${pivotColWidths.cols[cKey] || 96}px`,
+                            }}
+                          />
+                        ))}
+                        <col style={{ width: `${pivotColWidths.total}px`, minWidth: `${pivotColWidths.total}px` }} />
+                      </colgroup>
+                      <thead className="bg-monokai-surface text-monokai-fg text-xs sticky top-0 z-20 select-none">
+                        <tr className="h-11 border-b border-monokai-border/40">
+                          <th
+                            className="p-2 border border-monokai-border font-bold text-center whitespace-nowrap font-sans"
+                            style={{ textAlign: 'center', fontFamily: RESULT_TABLE_FONT }}
+                          >
+                            <div className="flex flex-col items-center gap-0.5 leading-tight">
+                              <span>{pivotRowCol || '全部'} \ {pivotColCol || '汇总'}</span>
+                              <span className="text-3xs font-semibold text-monokai-green tracking-wide">
+                                {effectivePivotAgg.toUpperCase()}({pivotValCol || '行数'})
+                              </span>
+                            </div>
+                          </th>
+                          {dynamicPivotMatrix.colKeys.map(cKey => (
+                            <th
+                              key={cKey}
+                              className="p-2 border border-monokai-border font-semibold text-center whitespace-nowrap font-sans"
+                              style={{ textAlign: 'center', fontFamily: RESULT_TABLE_FONT }}
+                            >
+                              {cKey}
+                            </th>
+                          ))}
+                          <th
+                            className="p-2 border border-monokai-border text-monokai-green font-bold text-center whitespace-nowrap font-sans"
+                            style={{ textAlign: 'center', fontFamily: RESULT_TABLE_FONT }}
+                          >
+                            总计
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-monokai-border text-monokai-fg-muted font-sans text-xs" style={{ fontFamily: RESULT_TABLE_FONT }}>
+                        {dynamicPivotMatrix.rowKeys.map(rKey => (
+                          <tr key={rKey} className="hover:bg-monokai-surface/60 transition-colors">
+                            <td
+                              className="p-2 border border-monokai-border font-semibold text-monokai-fg text-center whitespace-nowrap"
+                              style={{ textAlign: 'center', fontFamily: RESULT_TABLE_FONT }}
+                            >
+                              {rKey}
+                            </td>
+                            {dynamicPivotMatrix.colKeys.map(cKey => {
+                              const val = dynamicPivotMatrix.matrix[rKey]?.[cKey];
+                              return (
+                                <td
+                                  key={cKey}
+                                  className="p-2 border border-monokai-border text-center tabular-nums whitespace-nowrap font-sans"
+                                  style={{ textAlign: 'center', fontFamily: RESULT_TABLE_FONT }}
+                                >
+                                  {formatPivotNumber(val ?? null)}
+                                </td>
+                              );
+                            })}
+                            <td
+                              className="p-2 border border-monokai-border text-monokai-green font-semibold text-center tabular-nums whitespace-nowrap font-sans"
+                              style={{ textAlign: 'center', fontFamily: RESULT_TABLE_FONT }}
+                            >
+                              {formatPivotNumber(dynamicPivotMatrix.rowTotals[rKey] ?? null)}
+                            </td>
+                          </tr>
+                        ))}
+                        <tr className="bg-monokai-surface font-bold text-monokai-fg">
+                          <td
+                            className="p-2 border border-monokai-border text-center whitespace-nowrap font-sans"
+                            style={{ textAlign: 'center', fontFamily: RESULT_TABLE_FONT }}
+                          >
+                            总计
+                          </td>
+                          {dynamicPivotMatrix.colKeys.map(cKey => (
+                            <td
+                              key={cKey}
+                              className="p-2 border border-monokai-border text-monokai-green text-center tabular-nums whitespace-nowrap font-sans"
+                              style={{ textAlign: 'center', fontFamily: RESULT_TABLE_FONT }}
+                            >
+                              {formatPivotNumber(dynamicPivotMatrix.colTotals[cKey] ?? null)}
+                            </td>
+                          ))}
+                          <td
+                            className="p-2 border border-monokai-border text-monokai-yellow font-bold text-center tabular-nums whitespace-nowrap font-sans"
+                            style={{ textAlign: 'center', fontFamily: RESULT_TABLE_FONT }}
+                          >
+                            {formatPivotNumber(dynamicPivotMatrix.grandTotal)}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               )}
