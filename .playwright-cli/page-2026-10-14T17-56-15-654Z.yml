@@ -1,0 +1,96 @@
+- generic [ref=f5e3]:
+  - banner "全局工作区顶栏" [ref=f5e16]:
+    - generic [ref=f5e17]:
+      - button "🪶 DuckDB Studio PRO" [ref=f5e18] [cursor=pointer]:
+        - generic [ref=f5e19]: 🪶
+        - generic [ref=f5e21]:
+          - generic [ref=f5e22]: DuckDB Studio
+          - generic [ref=f5e23]: PRO
+      - navigation "业务领域大类" [ref=f5e25]:
+        - button "工程核心" [ref=f5e26] [cursor=pointer]
+        - button "分析洞察" [ref=f5e32] [cursor=pointer]
+        - button "知识沉淀" [ref=f5e37] [cursor=pointer]
+        - button "AI 认知" [ref=f5e42] [cursor=pointer]
+      - tablist "工程核心功能标签页" [ref=f5e48]:
+        - tab "仪表盘" [active] [selected] [ref=f5e49] [cursor=pointer]
+        - tab "数据" [ref=f5e55] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f5e1126]: "2"
+        - tab "Schema" [ref=f5e61] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f5e66]: "3"
+        - tab "SQL" [ref=f5e67] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f5e72]: "4"
+        - tab "数据流" [ref=f5e73] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f5e78]: "5"
+    - generic [ref=f5e79]:
+      - button "项目 Ctrl+Shift+D" [ref=f5e80] [cursor=pointer]:
+        - generic [ref=f5e83]: 项目
+        - generic [ref=f5e84]: Ctrl+Shift+D
+      - button "新建表" [ref=f5e85] [cursor=pointer]
+      - button "baseline 已保存到 OPFS" [ref=f5e1029] [cursor=pointer]:
+        - generic [ref=f5e93]: baseline
+        - generic [ref=f5e95]: 已保存到 OPFS
+      - button "AI 助手 Ctrl+I" [ref=f5e99] [cursor=pointer]:
+        - generic [ref=f5e102]: AI 助手
+        - generic [ref=f5e103]: Ctrl+I
+      - button "⌘K" [ref=f5e104] [cursor=pointer]
+      - button "帮助与快捷键" [ref=f5e108] [cursor=pointer]
+      - button "切换为浅色模式" [ref=f5e111] [cursor=pointer]
+      - button "AI 模型设置" [ref=f5e112] [cursor=pointer]
+  - main [ref=f5e115]:
+    - generic [ref=f5e1128]:
+      - generic [ref=f5e1129]:
+        - generic [ref=f5e1130]:
+          - generic [ref=f5e1131]:
+            - heading "分析范围" [level=1] [ref=f5e1132]
+            - generic [ref=f5e1133]: /
+            - button "持久库 · baseline" [ref=f5e1134] [cursor=pointer]
+          - paragraph [ref=f5e1136]: 4 个数据集 · 68 行 · 数据规模未应用筛选
+        - generic [ref=f5e1137]:
+          - button "导入数据" [ref=f5e1138] [cursor=pointer]
+          - button "刷新数据" [ref=f5e1140] [cursor=pointer]
+      - status [ref=f5e1141]: 加载分析…
+      - generic [ref=f5e1142]:
+        - generic [ref=f5e1144]:
+          - generic [ref=f5e1145]:
+            - generic [ref=f5e1146]: 工作台
+            - combobox "工作台视图" [ref=f5e1147]:
+              - option "分析首页" [selected]
+          - button "添加分析" [disabled] [ref=f5e1148]
+          - button "新建查询" [ref=f5e1150] [cursor=pointer]
+          - generic [ref=f5e1152]:
+            - generic [ref=f5e1153]: 数据集
+            - combobox "浏览数据集" [ref=f5e1154]:
+              - option "选择数据集" [selected]
+              - option "baseline.lab_baseline.crypto_transactions"
+              - option "baseline.lab_baseline.exchange_rates"
+              - option "baseline.lab_baseline.fiat_transactions"
+              - option "baseline.lab_baseline.users"
+              - option "baseline.main.crypto_transactions"
+              - option "baseline.main.exchange_rates"
+              - option "baseline.main.fiat_transactions"
+              - option "baseline.main.users"
+          - button "视图设置" [ref=f5e1155] [cursor=pointer]
+        - generic [ref=f5e1157]: 尚未添加分析组件
+        - generic [ref=f5e1159]: 加载看板…
+      - navigation "数据状态与详情" [ref=f5e1161]:
+        - button "管理数据" [ref=f5e1162] [cursor=pointer]
+        - button "查看 Schema" [ref=f5e1163] [cursor=pointer]
+        - button "查看数据检查" [ref=f5e1164] [cursor=pointer]
+  - contentinfo [ref=f5e134]:
+    - generic [ref=f5e135]:
+      - generic [ref=f5e136]: DuckDB 1.33.1
+      - generic [ref=f5e139]: "|"
+      - generic [ref=f5e140]: baseline [OPFS]
+      - generic [ref=f5e142]: "|"
+      - generic [ref=f5e143]: 持久化库
+      - generic [ref=f5e145]: "|"
+      - generic [ref=f5e146]: 4 张表
+      - generic [ref=f5e148]: "|"
+      - generic [ref=f5e149]: 4 个活动表
+      - generic [ref=f5e151]: "|"
+      - generic [ref=f5e152]: "内存: 1.62 MB / 3.1 GiB"
+    - generic [ref=f5e154]:
+      - generic [ref=f5e155]: 引擎就绪
+      - generic [ref=f5e159]: "|"
+      - generic [ref=f5e160]: 10:56
+      - button "刷新运行时状态" [ref=f5e161] [cursor=pointer]

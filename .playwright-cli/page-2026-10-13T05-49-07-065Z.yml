@@ -1,0 +1,337 @@
+- generic [ref=e3]:
+  - banner "全局工作区顶栏" [ref=e16]:
+    - generic [ref=e17]:
+      - button "🪶 DuckDB Studio PRO" [ref=e18] [cursor=pointer]:
+        - generic [ref=e19]: 🪶
+        - generic [ref=e21]:
+          - generic [ref=e22]: DuckDB Studio
+          - generic [ref=e23]: PRO
+      - navigation "业务领域大类" [ref=e25]:
+        - button "工程核心" [ref=e26] [cursor=pointer]
+        - button "分析洞察" [ref=e31] [cursor=pointer]
+        - button "知识沉淀" [ref=e36] [cursor=pointer]
+        - button "AI 认知" [ref=e41] [cursor=pointer]
+      - tablist "工程核心功能标签页" [ref=e635]:
+        - tab "仪表盘" [ref=e636] [cursor=pointer]:
+          - generic [aria-hidden] [ref=e852]: "1"
+        - tab "数据" [ref=e642] [cursor=pointer]:
+          - generic [aria-hidden] [ref=e647]: "2"
+        - tab "Schema" [ref=e648] [cursor=pointer]:
+          - generic [aria-hidden] [ref=e653]: "3"
+        - tab "SQL" [active] [selected] [ref=e654] [cursor=pointer]
+        - tab "数据流" [ref=e660] [cursor=pointer]:
+          - generic [aria-hidden] [ref=e665]: "5"
+    - generic [ref=e70]:
+      - button "项目 Ctrl+Shift+D" [ref=e71] [cursor=pointer]:
+        - generic [ref=e74]: 项目
+        - generic [ref=e75]: Ctrl+Shift+D
+      - button "新建表" [ref=e76] [cursor=pointer]
+      - button "funds_modeling_acceptance 内存临时模式" [ref=e81] [cursor=pointer]:
+        - generic [ref=e84]: funds_modeling_acceptance
+        - generic [ref=e86]: 内存临时模式
+      - button "AI 助手 Ctrl+I" [ref=e90] [cursor=pointer]:
+        - generic [ref=e93]: AI 助手
+        - generic [ref=e94]: Ctrl+I
+      - button "⌘K" [ref=e95] [cursor=pointer]
+      - button "帮助与快捷键" [ref=e99] [cursor=pointer]
+      - button "切换为浅色模式" [ref=e102] [cursor=pointer]
+      - button "AI 模型设置" [ref=e103] [cursor=pointer]
+  - main [ref=e106]:
+    - generic [ref=e854]:
+      - generic [ref=e855]:
+        - generic [ref=e857]:
+          - generic [ref=e858]:
+            - generic [ref=e859]: 数据资源浏览
+            - generic [ref=e861]:
+              - button "刷新元数据" [ref=e862] [cursor=pointer]
+              - button "隐藏左侧边栏" [ref=e863] [cursor=pointer]
+          - textbox "搜索表、视图、文件..." [ref=e866]
+          - generic [ref=e867]:
+            - generic [ref=e868]:
+              - button "新建表" [ref=e869] [cursor=pointer]
+              - button "打开文件" [ref=e871] [cursor=pointer]
+            - generic [ref=e873]:
+              - button "附加数据库" [ref=e874] [cursor=pointer]
+              - button "添加数据源" [ref=e876] [cursor=pointer]
+          - generic [ref=e878]:
+            - generic [ref=e879]:
+              - generic [ref=e880] [cursor=pointer]:
+                - generic [ref=e881]: funds_modeling_acceptance
+                - generic [ref=e882]: (当前)
+              - generic [ref=e884]:
+                - generic [ref=e885] [cursor=pointer]: main
+                - generic [ref=e887]:
+                  - generic [ref=e888]:
+                    - generic [ref=e889]:
+                      - generic [ref=e890] [cursor=pointer]: 表 (14)
+                      - generic [ref=e892]:
+                        - button "新建数据表" [ref=e893] [cursor=pointer]
+                        - button "一键清空所有数据表" [ref=e894] [cursor=pointer]
+                    - generic [ref=e895]:
+                      - generic "单击查看列画像 · 双击查询前 100 行" [ref=e896] [cursor=pointer]:
+                        - generic [ref=e897]: crypto_transactions
+                        - generic [ref=e899]:
+                          - generic "引擎估算行数；精确结果请执行 COUNT(*)" [ref=e900]: 约 25 行
+                          - button "快速查询表 crypto_transactions" [ref=e901]
+                          - button "插入表名 crypto_transactions" [ref=e902]
+                          - button "将表 crypto_transactions 添加到数据流画布" [ref=e903]
+                          - button "删除表 crypto_transactions" [ref=e904]
+                      - generic "单击查看列画像 · 双击查询前 100 行" [ref=e905] [cursor=pointer]:
+                        - generic [ref=e906]: exchange_rates
+                        - generic [ref=e908]:
+                          - generic "引擎估算行数；精确结果请执行 COUNT(*)" [ref=e909]: 约 8 行
+                          - button "快速查询表 exchange_rates" [ref=e910]
+                          - button "插入表名 exchange_rates" [ref=e911]
+                          - button "将表 exchange_rates 添加到数据流画布" [ref=e912]
+                          - button "删除表 exchange_rates" [ref=e913]
+                      - generic "单击查看列画像 · 双击查询前 100 行" [ref=e914] [cursor=pointer]:
+                        - generic [ref=e915]: fiat_transactions
+                        - generic [ref=e917]:
+                          - generic "引擎估算行数；精确结果请执行 COUNT(*)" [ref=e918]: 约 25 行
+                          - button "快速查询表 fiat_transactions" [ref=e919]
+                          - button "插入表名 fiat_transactions" [ref=e920]
+                          - button "将表 fiat_transactions 添加到数据流画布" [ref=e921]
+                          - button "删除表 fiat_transactions" [ref=e922]
+                      - generic "单击查看列画像 · 双击查询前 100 行" [ref=e923] [cursor=pointer]:
+                        - generic [ref=e924]: life_action
+                        - generic [ref=e926]:
+                          - generic "引擎估算行数；精确结果请执行 COUNT(*)" [ref=e927]: 约 0 行
+                          - button "快速查询表 life_action" [ref=e928]
+                          - button "插入表名 life_action" [ref=e929]
+                          - button "将表 life_action 添加到数据流画布" [ref=e930]
+                          - button "删除表 life_action" [ref=e931]
+                      - generic "单击查看列画像 · 双击查询前 100 行" [ref=e932] [cursor=pointer]:
+                        - generic [ref=e933]: life_canvas_edge
+                        - generic [ref=e935]:
+                          - generic "引擎估算行数；精确结果请执行 COUNT(*)" [ref=e936]: 约 0 行
+                          - button "快速查询表 life_canvas_edge" [ref=e937]
+                          - button "插入表名 life_canvas_edge" [ref=e938]
+                          - button "将表 life_canvas_edge 添加到数据流画布" [ref=e939]
+                          - button "删除表 life_canvas_edge" [ref=e940]
+                      - generic "单击查看列画像 · 双击查询前 100 行" [ref=e941] [cursor=pointer]:
+                        - generic [ref=e942]: life_canvas_state
+                        - generic [ref=e944]:
+                          - generic "引擎估算行数；精确结果请执行 COUNT(*)" [ref=e945]: 约 19 行
+                          - button "快速查询表 life_canvas_state" [ref=e946]
+                          - button "插入表名 life_canvas_state" [ref=e947]
+                          - button "将表 life_canvas_state 添加到数据流画布" [ref=e948]
+                          - button "删除表 life_canvas_state" [ref=e949]
+                      - generic "单击查看列画像 · 双击查询前 100 行" [ref=e950] [cursor=pointer]:
+                        - generic [ref=e951]: life_insight
+                        - generic [ref=e953]:
+                          - generic "引擎估算行数；精确结果请执行 COUNT(*)" [ref=e954]: 约 0 行
+                          - button "快速查询表 life_insight" [ref=e955]
+                          - button "插入表名 life_insight" [ref=e956]
+                          - button "将表 life_insight 添加到数据流画布" [ref=e957]
+                          - button "删除表 life_insight" [ref=e958]
+                      - generic "单击查看列画像 · 双击查询前 100 行" [ref=e959] [cursor=pointer]:
+                        - generic [ref=e960]: life_introspection
+                        - generic [ref=e962]:
+                          - generic "引擎估算行数；精确结果请执行 COUNT(*)" [ref=e963]: 约 0 行
+                          - button "快速查询表 life_introspection" [ref=e964]
+                          - button "插入表名 life_introspection" [ref=e965]
+                          - button "将表 life_introspection 添加到数据流画布" [ref=e966]
+                          - button "删除表 life_introspection" [ref=e967]
+                      - generic "单击查看列画像 · 双击查询前 100 行" [ref=e968] [cursor=pointer]:
+                        - generic [ref=e969]: life_link
+                        - generic [ref=e971]:
+                          - generic "引擎估算行数；精确结果请执行 COUNT(*)" [ref=e972]: 约 18 行
+                          - button "快速查询表 life_link" [ref=e973]
+                          - button "插入表名 life_link" [ref=e974]
+                          - button "将表 life_link 添加到数据流画布" [ref=e975]
+                          - button "删除表 life_link" [ref=e976]
+                      - generic "单击查看列画像 · 双击查询前 100 行" [ref=e977] [cursor=pointer]:
+                        - generic [ref=e978]: life_link_type
+                        - generic [ref=e980]:
+                          - generic "引擎估算行数；精确结果请执行 COUNT(*)" [ref=e981]: 约 1 行
+                          - button "快速查询表 life_link_type" [ref=e982]
+                          - button "插入表名 life_link_type" [ref=e983]
+                          - button "将表 life_link_type 添加到数据流画布" [ref=e984]
+                          - button "删除表 life_link_type" [ref=e985]
+                      - generic "单击查看列画像 · 双击查询前 100 行" [ref=e986] [cursor=pointer]:
+                        - generic [ref=e987]: life_object
+                        - generic [ref=e989]:
+                          - generic "引擎估算行数；精确结果请执行 COUNT(*)" [ref=e990]: 约 19 行
+                          - button "快速查询表 life_object" [ref=e991]
+                          - button "插入表名 life_object" [ref=e992]
+                          - button "将表 life_object 添加到数据流画布" [ref=e993]
+                          - button "删除表 life_object" [ref=e994]
+                      - generic "单击查看列画像 · 双击查询前 100 行" [ref=e995] [cursor=pointer]:
+                        - generic [ref=e996]: life_object_type
+                        - generic [ref=e998]:
+                          - generic "引擎估算行数；精确结果请执行 COUNT(*)" [ref=e999]: 约 2 行
+                          - button "快速查询表 life_object_type" [ref=e1000]
+                          - button "插入表名 life_object_type" [ref=e1001]
+                          - button "将表 life_object_type 添加到数据流画布" [ref=e1002]
+                          - button "删除表 life_object_type" [ref=e1003]
+                      - generic "单击查看列画像 · 双击查询前 100 行" [ref=e1004] [cursor=pointer]:
+                        - generic [ref=e1005]: life_object_type__modeling_schema
+                        - generic [ref=e1007]:
+                          - generic "引擎估算行数；精确结果请执行 COUNT(*)" [ref=e1008]: 约 1 行
+                          - button "快速查询表 life_object_type__modeling_schema" [ref=e1009]
+                          - button "插入表名 life_object_type__modeling_schema" [ref=e1010]
+                          - button "将表 life_object_type__modeling_schema 添加到数据流画布" [ref=e1011]
+                          - button "删除表 life_object_type__modeling_schema" [ref=e1012]
+                      - generic "单击查看列画像 · 双击查询前 100 行" [ref=e1013] [cursor=pointer]:
+                        - generic [ref=e1014]: users
+                        - generic [ref=e1016]:
+                          - generic "引擎估算行数；精确结果请执行 COUNT(*)" [ref=e1017]: 约 10 行
+                          - button "快速查询表 users" [ref=e1018]
+                          - button "插入表名 users" [ref=e1019]
+                          - button "将表 users 添加到数据流画布" [ref=e1020]
+                          - button "删除表 users" [ref=e1021]
+                  - generic [ref=e1022]: 视图 (0)
+                  - generic [ref=e1026]: 宏 (Macros) (0)
+            - generic [ref=e1030]: 文件与远程源 (0)
+            - generic [ref=e1034]: 最近打开 (0)
+        - generic [ref=e1040]:
+          - generic "双击空白处新建查询" [ref=e1041]:
+            - tablist "SQL 查询标签页" [ref=e1042]:
+              - tab "query_1.sql 标签选项 关闭标签页" [selected] [ref=e1043] [cursor=pointer]:
+                - generic "query_1.sql • 左键切换 • 双击重命名 • 右键更多选项 (另存为/关闭等) • 中键快速关闭" [ref=e1047]: query_1.sql
+                - generic [ref=e1048]:
+                  - button "标签选项" [ref=e1049]
+                  - button "关闭标签页" [ref=e1050]
+              - button "新建查询标签页" [ref=e1051] [cursor=pointer]
+            - generic [ref=e1052]: 1 个查询
+          - toolbar "SQL 工作区工具栏" [ref=e1054]:
+            - generic [ref=e1055]:
+              - group "执行" [ref=e1056]:
+                - generic [ref=e1058]:
+                  - button "运行" [ref=e1059] [cursor=pointer]
+                  - button "更多执行选项" [ref=e1061] [cursor=pointer]
+                - button "停止" [disabled] [ref=e1062]
+              - group "编辑" [ref=e1064]:
+                - button "格式化" [ref=e1065] [cursor=pointer]
+                - button "复制当前 SQL 代码到剪贴板" [ref=e1068] [cursor=pointer]
+                - generic "编辑器字号 10px" [ref=e1070]:
+                  - button "减小字号" [disabled] [ref=e1071]
+                  - generic [ref=e1072]: "10"
+                  - button "增大字号" [ref=e1073] [cursor=pointer]
+              - group "视图模式与流程图" [ref=e1075]:
+                - generic [ref=e1076]:
+                  - button "流程图" [ref=e1077] [cursor=pointer]
+                  - button "流程图模式选项" [ref=e1079] [cursor=pointer]
+            - generic [ref=e1080]:
+              - group "智能助手" [ref=e1081]:
+                - button "AI 解释" [ref=e1082] [cursor=pointer]:
+                  - generic [ref=e1083]: 解释
+                - button "AI 分析" [ref=e1085] [cursor=pointer]:
+                  - generic [ref=e1086]: 分析
+              - button "历史 0" [ref=e1088] [cursor=pointer]:
+                - generic [ref=e1089]: 历史
+                - generic [ref=e1090]: "0"
+              - generic "当前目录上下文：funds_modeling_acceptance.main" [ref=e1091]:
+                - generic [ref=e1092]: funds_modeling_acceptance
+                - generic [ref=e1093]: .
+                - generic [ref=e1094]: main
+          - generic [ref=e1095]:
+            - generic [ref=e1100]:
+              - generic [ref=e1102]: "1"
+              - textbox [ref=e1106]
+            - separator "拖动调整比例，双击恢复 50/50 分屏" [ref=e1108]:
+              - generic [ref=e1109]:
+                - generic [ref=e1110]: 分隔条
+                - generic [ref=e1113]:
+                  - generic [ref=e1114]:
+                    - generic [ref=e1115]: L
+                    - generic [ref=e1116]: "1"
+                  - generic [ref=e1117]: ·
+                  - generic [ref=e1118]:
+                    - generic [ref=e1119]: C
+                    - generic [ref=e1120]: "0"
+              - generic [ref=e1121]:
+                - button "最大化结果" [ref=e1122] [cursor=pointer]
+                - button "最大化代码" [ref=e1134] [cursor=pointer]
+              - generic [ref=e1136]:
+                - generic [ref=e1137]:
+                  - generic [ref=e1138]: 双击
+                  - generic [ref=e1139]: 重置
+                - generic [ref=e1140]:
+                  - text: "40"
+                  - generic [ref=e1141]: "%"
+            - generic [ref=e1143]:
+              - generic [ref=e1144]:
+                - generic [ref=e1145]:
+                  - tablist "查询结果视图切换" [ref=e1146]:
+                    - tab "数据" [selected] [ref=e1147] [cursor=pointer]
+                    - tab "图表" [ref=e1150] [cursor=pointer]
+                    - tab "透视" [ref=e1152] [cursor=pointer]
+                    - tab "执行计划" [ref=e1154] [cursor=pointer]
+                  - textbox "过滤当前结果..." [ref=e1158]
+                - generic [ref=e1159]:
+                  - generic [ref=e1160]:
+                    - button "筛选" [ref=e1161] [cursor=pointer]
+                    - button "排序" [ref=e1163] [cursor=pointer]
+                    - button "分组" [ref=e1166] [cursor=pointer]
+                    - button "导出" [ref=e1169] [cursor=pointer]
+                  - generic [ref=e1171]: 就绪待命
+                  - button "全屏浏览结果集" [ref=e1176] [cursor=pointer]
+              - generic [ref=e1179]:
+                - paragraph [ref=e1181]: 等待执行查询
+                - paragraph [ref=e1182]: 按 Ctrl+Enter 运行 SQL。结果可在上方切换数据、图表、透视与执行计划。
+              - generic [ref=e1183]:
+                - generic [ref=e1184]:
+                  - button "第一页" [disabled] [ref=e1185]
+                  - button "上一页" [disabled] [ref=e1186]
+                  - generic [ref=e1187]: "1"
+                  - button "下一页" [disabled] [ref=e1189]
+                  - button "最后一页" [disabled] [ref=e1190]
+                  - generic [ref=e1191]: 第 1 页, 共 1 页
+                - generic [ref=e1192]:
+                  - generic [ref=e1193]:
+                    - generic [ref=e1194]: "每页:"
+                    - combobox [ref=e1195] [cursor=pointer]:
+                      - option "25 行"
+                      - option "50 行"
+                      - option "100 行" [selected]
+                      - option "200 行"
+                      - option "500 行"
+                      - option "1000 行"
+                  - generic [ref=e1196]: 0 / 0 行
+                  - button "表格渲染设置" [ref=e1197] [cursor=pointer]
+        - generic [ref=e1198]:
+          - button "展开列画像" [ref=e1199] [cursor=pointer]:
+            - generic [ref=e1200]: 列画像
+          - button "展开 AI 智能助手" [ref=e1201] [cursor=pointer]:
+            - generic [ref=e1202]: AI助手
+      - generic [ref=e1203]:
+        - generic [ref=e1204]:
+          - generic [ref=e1205]:
+            - generic [ref=e1206]: db
+            - generic [ref=e1207]: funds_modeling_acceptance.main
+            - generic [ref=e1208]: (14表)
+          - button "行 1 列 1" [ref=e1209] [cursor=pointer]:
+            - generic [ref=e1210]: 行
+            - generic [ref=e1211]: "1"
+            - generic [ref=e1212]: 列
+            - generic [ref=e1213]: "1"
+          - 'generic "当前查询: query_1.sql" [ref=e1214]': query_1.sql
+          - generic "点击查看运行时状态中心" [ref=e1216] [cursor=pointer]:
+            - generic [ref=e1217]: 内存
+            - generic [ref=e1218]: 未采集
+          - generic "查看运行时状态详情" [ref=e1219] [cursor=pointer]:
+            - generic [ref=e1220]: 运行时
+            - generic [ref=e1221]: 就绪
+        - generic [ref=e1222]:
+          - generic "点击打开运行时状态中心" [ref=e1223] [cursor=pointer]: 就绪
+          - button "控制" [ref=e1228] [cursor=pointer]
+          - button "反馈" [ref=e1230] [cursor=pointer]
+  - contentinfo [ref=e606]:
+    - generic [ref=e607]:
+      - generic [ref=e608]: DuckDB 1.33.1
+      - generic [ref=e611]: "|"
+      - generic [ref=e612]: funds_modeling_acceptance [MEMORY]
+      - generic [ref=e614]: "|"
+      - generic [ref=e615]: 内存库
+      - generic [ref=e617]: "|"
+      - generic [ref=e618]: 14 张表
+      - generic [ref=e620]: "|"
+      - generic [ref=e621]: 14 个活动表
+      - generic [ref=e623]: "|"
+      - generic [ref=e624]: "内存: 13.68 MB / 3.1 GiB"
+    - generic [ref=e626]:
+      - generic [ref=e627]: 引擎就绪
+      - generic [ref=e631]: "|"
+      - generic [ref=e632]: 22:48
+      - button "刷新运行时状态" [ref=e633] [cursor=pointer]

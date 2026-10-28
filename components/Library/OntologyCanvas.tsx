@@ -1722,7 +1722,6 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
         onImportTable={handleOpenImportModal}
         onCompileCTE={handleCompileCTE}
         onReverseInferSchema={handleBatchReverseEngineeringFromDB}
-        onSavePreset={() => addToast('预设保存功能开发中', 'info')}
         onShowShortcuts={() => setShowShortcutsHelp(true)}
         edgeRoutingMode={edgeRoutingMode}
         setEdgeRoutingMode={setEdgeRoutingMode}
@@ -1883,9 +1882,9 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
           maxZoom={4.0}
           fitView
           fitViewOptions={{ padding: 0.3 }}
-          className="bg-[#0c0d12]"
+          className="bg-monokai-bg"
         >
-          {showGrid && <Background color="#27272a" gap={16} size={1} />}
+          {showGrid && <Background color="var(--monokai-border)" gap={16} size={1} />}
           {showMiniMap && (
             <MiniMap
               nodeColor={(node) => {
@@ -2462,7 +2461,6 @@ const OntologyCanvasInner: React.FC<OntologyCanvasInnerProps> = ({ onInsert, ont
           }
         }}
         // Edge actions
-        onEditEdge={(edgeId) => handleOpenEdgePropertyDialog(edgeId)}
         onDeleteEdge={(edgeId) => deleteLink(Number(edgeId))}
         onReverseEdge={handleReverseEdge}
         onHighlightPath={handleHighlightPath}

@@ -1,0 +1,1289 @@
+$ vitest run --pool=threads --maxWorkers=1 --no-file-parallelism "components/DashboardWidget.requests.test.tsx" "components/Dashboard/KpiDynamicMiniCharts.test.tsx" "components/Workbench/ResultSection.test.tsx" "services/analysis/telemetryCharts.test.ts" "services/analysis/chartDisplay.test.ts"
+
+ RUN  v4.1.10 C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor
+
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+ ❯ components/DashboardWidget.requests.test.tsx (5 tests | 4 failed) 4183ms
+   × ignores an older response after a newer refresh completes 1089ms
+   × clears stale results with an explicit failed refresh and retry 1007ms
+   × clears the old result when the component identity changes to a missing query 1007ms
+   × closes the component menu with Escape and opens one configuration dialog 1008ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  components/DashboardWidget.requests.test.tsx > ignores an older response after a newer refresh completes
+TestingLibraryElementError: Unable to find an element with the text: 22. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <div
+      class="relative z-10 flex h-full w-full flex-col bg-monokai-surface/60 rounded-lg overflow-hidden border border-monokai-border hover:border-monokai-border-strong transition-colors"
+    >
+      <div
+        class="drag-handle flex min-h-10 gap-2 select-none items-center justify-between px-4 py-2 text-xs"
+      >
+        <div
+          class="flex min-w-24 flex-1 items-center gap-2"
+        >
+          <svg
+            aria-hidden="true"
+            class="lucide lucide-grip-vertical shrink-0 text-monokai-comment hover:text-monokai-fg transition-colors"
+            fill="none"
+            height="13"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            viewBox="0 0 24 24"
+            width="13"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <circle
+              cx="9"
+              cy="12"
+              r="1"
+            />
+            <circle
+              cx="9"
+              cy="5"
+              r="1"
+            />
+            <circle
+              cx="9"
+              cy="19"
+              r="1"
+            />
+            <circle
+              cx="15"
+              cy="12"
+              r="1"
+            />
+            <circle
+              cx="15"
+              cy="5"
+              r="1"
+            />
+            <circle
+              cx="15"
+              cy="19"
+              r="1"
+            />
+          </svg>
+          <span
+            class="shrink-0"
+          >
+            <svg
+              aria-hidden="true"
+              class="lucide lucide-table2 lucide-table-2 text-monokai-blue"
+              fill="none"
+              height="14"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+              width="14"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18"
+              />
+            </svg>
+          </span>
+          <span
+            class="break-words font-semibold text-monokai-fg"
+            title="amount"
+          >
+            amount
+          </span>
+        </div>
+        <div
+          class="flex max-w-full flex-wrap items-center gap-1 shrink-0"
+        >
+          <div
+            class="relative"
+          >
+            <button
+              aria-expanded="false"
+              aria-label="更多组件选项 amount"
+              class="inline-flex h-8 w-8 items-center justify-center rounded-md text-monokai-fg-muted hover:bg-monokai-elevated hover:text-monokai-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-monokai-accent transition-colors cursor-pointer"
+              title="更多组件选项"
+              type="button"
+            >
+              <svg
+                aria-hidden="true"
+                class="lucide lucide-ellipsis-vertical"
+                fill="none"
+                height="12"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+                width="12"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <circle
+                  cx="12"
+                  cy="12"
+                  r="1"
+                />
+                <circle
+                  cx="12"
+                  cy="5"
+                  r="1"
+                />
+                <circle
+                  cx="12"
+                  cy="19"
+                  r="1"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div
+        class="relative flex-1 min-h-0 overflow-hidden bg-monokai-bg/40"
+      >
+        <button
+          aria-label="测试系列"
+          aria-pressed="true"
+        >
+          系列
+        </button>
+      </div>
+      <div
+        class="flex shrink-0 items-center justify-between border-t border-monokai-border bg-monokai-sidebar/40 px-3 py-1 text-[10px] text-monokai-comment font-mono"
+      >
+        <span>
+          数据表格
+        </span>
+        <span>
+          显示 
+          1
+           / 
+          1
+           行
+        </span>
+      </div>
+    </div>
+  </div>
+</body>
+
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <div
+      class="relative z-10 flex h-full w-full flex-col bg-monokai-surface/60 rounded-lg overflow-hidden border border-monokai-border hover:border-monokai-border-strong transition-colors"
+    >
+      <div
+        class="drag-handle flex min-h-10 gap-2 select-none items-center justify-between px-4 py-2 text-xs"
+      >
+        <div
+          class="flex min-w-24 flex-1 items-center gap-2"
+        >
+          <svg
+            aria-hidden="true"
+            class="lucide lucide-grip-vertical shrink-0 text-monokai-comment hover:text-monokai-fg transition-colors"
+            fill="none"
+            height="13"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            viewBox="0 0 24 24"
+            width="13"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <circle
+              cx="9"
+              cy="12"
+              r="1"
+            />
+            <circle
+              cx="9"
+              cy="5"
+              r="1"
+            />
+            <circle
+              cx="9"
+              cy="19"
+              r="1"
+            />
+            <circle
+              cx="15"
+              cy="12"
+              r="1"
+            />
+            <circle
+              cx="15"
+              cy="5"
+              r="1"
+            />
+            <circle
+              cx="15"
+              cy="19"
+              r="1"
+            />
+          </svg>
+          <span
+            class="shrink-0"
+          >
+            <svg
+              aria-hidden="true"
+              class="lucide lucide-table2 lucide-table-2 text-monokai-blue"
+              fill="none"
+              height="14"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+              width="14"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18"
+              />
+            </svg>
+          </span>
+          <span
+            class="break-words font-semibold text-monokai-fg"
+            title="amount"
+          >
+            amount
+          </span>
+        </div>
+        <div
+          class="flex max-w-full flex-wrap items-center gap-1 shrink-0"
+        >
+          <div
+            class="relative"
+          >
+            <button
+              aria-expanded="false"
+              aria-label="更多组件选项 amount"
+              class="inline-flex h-8 w-8 items-center justify-center rounded-md text-monokai-fg-muted hover:bg-monokai-elevated hover:text-monokai-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-monokai-accent transition-colors cursor-pointer"
+              title="更多组件选项"
+              type="button"
+            >
+              <svg
+                aria-hidden="true"
+                class="lucide lucide-ellipsis-vertical"
+                fill="none"
+                height="12"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+                width="12"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <circle
+                  cx="12"
+                  cy="12"
+                  r="1"
+                />
+                <circle
+                  cx="12"
+                  cy="5"
+                  r="1"
+                />
+                <circle
+                  cx="12"
+                  cy="19"
+                  r="1"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div
+        class="relative flex-1 min-h-0 overflow-hidden bg-monokai-bg/40"
+      >
+        <button
+          aria-label="测试系列"
+          aria-pressed="true"
+        >
+          系列
+        </button>
+      </div>
+      <div
+        class="flex shrink-0 items-center justify-between border-t border-monokai-border bg-monokai-sidebar/40 px-3 py-1 text-[10px] text-monokai-comment font-mono"
+      >
+        <span>
+          数据表格
+        </span>
+        <span>
+          显示 
+          1
+           / 
+          1
+           行
+        </span>
+      </div>
+    </div>
+  </div>
+</body>
+ ❯ waitForWrapper node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ components/DashboardWidget.requests.test.tsx:22:16
+     20|   await waitFor(()=>expect(mocks.execute).toHaveBeenCalledTimes(1));
+     21|   rerender(<DashboardWidget {...props} refreshTrigger={1}/>);
+     22|   await screen.findByText('22');
+       |                ^
+     23|   await act(async()=>release(result(11)));
+     24|   expect(screen.getByText('22')).toBeTruthy();expect(screen.queryByTex…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  components/DashboardWidget.requests.test.tsx > clears stale results with an explicit failed refresh and retry
+TestingLibraryElementError: Unable to find an element with the text: 10. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <div
+      class="relative z-10 flex h-full w-full flex-col bg-monokai-surface/60 rounded-lg overflow-hidden border border-monokai-border hover:border-monokai-border-strong transition-colors"
+    >
+      <div
+        class="drag-handle flex min-h-10 gap-2 select-none items-center justify-between px-4 py-2 text-xs"
+      >
+        <div
+          class="flex min-w-24 flex-1 items-center gap-2"
+        >
+          <svg
+            aria-hidden="true"
+            class="lucide lucide-grip-vertical shrink-0 text-monokai-comment hover:text-monokai-fg transition-colors"
+            fill="none"
+            height="13"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            viewBox="0 0 24 24"
+            width="13"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <circle
+              cx="9"
+              cy="12"
+              r="1"
+            />
+            <circle
+              cx="9"
+              cy="5"
+              r="1"
+            />
+            <circle
+              cx="9"
+              cy="19"
+              r="1"
+            />
+            <circle
+              cx="15"
+              cy="12"
+              r="1"
+            />
+            <circle
+              cx="15"
+              cy="5"
+              r="1"
+            />
+            <circle
+              cx="15"
+              cy="19"
+              r="1"
+            />
+          </svg>
+          <span
+            class="shrink-0"
+          >
+            <svg
+              aria-hidden="true"
+              class="lucide lucide-table2 lucide-table-2 text-monokai-blue"
+              fill="none"
+              height="14"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+              width="14"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18"
+              />
+            </svg>
+          </span>
+          <span
+            class="break-words font-semibold text-monokai-fg"
+            title="amount"
+          >
+            amount
+          </span>
+        </div>
+        <div
+          class="flex max-w-full flex-wrap items-center gap-1 shrink-0"
+        >
+          <div
+            class="relative"
+          >
+            <button
+              aria-expanded="false"
+              aria-label="更多组件选项 amount"
+              class="inline-flex h-8 w-8 items-center justify-center rounded-md text-monokai-fg-muted hover:bg-monokai-elevated hover:text-monokai-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-monokai-accent transition-colors cursor-pointer"
+              title="更多组件选项"
+              type="button"
+            >
+              <svg
+                aria-hidden="true"
+                class="lucide lucide-ellipsis-vertical"
+                fill="none"
+                height="12"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+                width="12"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <circle
+                  cx="12"
+                  cy="12"
+                  r="1"
+                />
+                <circle
+                  cx="12"
+                  cy="5"
+                  r="1"
+                />
+                <circle
+                  cx="12"
+                  cy="19"
+                  r="1"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div
+        class="relative flex-1 min-h-0 overflow-hidden bg-monokai-bg/40"
+      >
+        <button
+          aria-label="测试系列"
+          aria-pressed="true"
+        >
+          系列
+        </button>
+      </div>
+      <div
+        class="flex shrink-0 items-center justify-between border-t border-monokai-border bg-monokai-sidebar/40 px-3 py-1 text-[10px] text-monokai-comment font-mono"
+      >
+        <span>
+          数据表格
+        </span>
+        <span>
+          显示 
+          1
+           / 
+          1
+           行
+        </span>
+      </div>
+    </div>
+  </div>
+</body>
+
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <div
+      class="relative z-10 flex h-full w-full flex-col bg-monokai-surface/60 rounded-lg overflow-hidden border border-monokai-border hover:border-monokai-border-strong transition-colors"
+    >
+      <div
+        class="drag-handle flex min-h-10 gap-2 select-none items-center justify-between px-4 py-2 text-xs"
+      >
+        <div
+          class="flex min-w-24 flex-1 items-center gap-2"
+        >
+          <svg
+            aria-hidden="true"
+            class="lucide lucide-grip-vertical shrink-0 text-monokai-comment hover:text-monokai-fg transition-colors"
+            fill="none"
+            height="13"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            viewBox="0 0 24 24"
+            width="13"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <circle
+              cx="9"
+              cy="12"
+              r="1"
+            />
+            <circle
+              cx="9"
+              cy="5"
+              r="1"
+            />
+            <circle
+              cx="9"
+              cy="19"
+              r="1"
+            />
+            <circle
+              cx="15"
+              cy="12"
+              r="1"
+            />
+            <circle
+              cx="15"
+              cy="5"
+              r="1"
+            />
+            <circle
+              cx="15"
+              cy="19"
+              r="1"
+            />
+          </svg>
+          <span
+            class="shrink-0"
+          >
+            <svg
+              aria-hidden="true"
+              class="lucide lucide-table2 lucide-table-2 text-monokai-blue"
+              fill="none"
+              height="14"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+              width="14"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18"
+              />
+            </svg>
+          </span>
+          <span
+            class="break-words font-semibold text-monokai-fg"
+            title="amount"
+          >
+            amount
+          </span>
+        </div>
+        <div
+          class="flex max-w-full flex-wrap items-center gap-1 shrink-0"
+        >
+          <div
+            class="relative"
+          >
+            <button
+              aria-expanded="false"
+              aria-label="更多组件选项 amount"
+              class="inline-flex h-8 w-8 items-center justify-center rounded-md text-monokai-fg-muted hover:bg-monokai-elevated hover:text-monokai-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-monokai-accent transition-colors cursor-pointer"
+              title="更多组件选项"
+              type="button"
+            >
+              <svg
+                aria-hidden="true"
+                class="lucide lucide-ellipsis-vertical"
+                fill="none"
+                height="12"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+                width="12"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <circle
+                  cx="12"
+                  cy="12"
+                  r="1"
+                />
+                <circle
+                  cx="12"
+                  cy="5"
+                  r="1"
+                />
+                <circle
+                  cx="12"
+                  cy="19"
+                  r="1"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div
+        class="relative flex-1 min-h-0 overflow-hidden bg-monokai-bg/40"
+      >
+        <button
+          aria-label="测试系列"
+          aria-pressed="true"
+        >
+          系列
+        </button>
+      </div>
+      <div
+        class="flex shrink-0 items-center justify-between border-t border-monokai-border bg-monokai-sidebar/40 px-3 py-1 text-[10px] text-monokai-comment font-mono"
+      >
+        <span>
+          数据表格
+        </span>
+        <span>
+          显示 
+          1
+           / 
+          1
+           行
+        </span>
+      </div>
+    </div>
+  </div>
+</body>
+ ❯ waitForWrapper node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ components/DashboardWidget.requests.test.tsx:29:16
+     27|   mocks.execute.mockResolvedValueOnce(result(10)).mockRejectedValueOnc…
+     28|   const {rerender}=render(<DashboardWidget {...props}/>);
+     29|   await screen.findByText('10');
+       |                ^
+     30|   rerender(<DashboardWidget {...props} refreshTrigger={1}/>);
+     31|   await screen.findByText(/来源暂不可用/);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  components/DashboardWidget.requests.test.tsx > clears the old result when the component identity changes to a missing query
+TestingLibraryElementError: Unable to find an element with the text: 10. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <div
+      class="flex h-full w-full flex-col items-center justify-center p-4 text-center text-monokai-pink bg-monokai-sidebar/95 border border-monokai-border rounded-md"
+    >
+      <svg
+        aria-hidden="true"
+        class="lucide lucide-circle-alert mb-2 opacity-90 text-monokai-pink"
+        fill="none"
+        height="24"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        viewBox="0 0 24 24"
+        width="24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <circle
+          cx="12"
+          cy="12"
+          r="10"
+        />
+        <line
+          x1="12"
+          x2="12"
+          y1="8"
+          y2="12"
+        />
+        <line
+          x1="12"
+          x2="12.01"
+          y1="16"
+          y2="16"
+        />
+      </svg>
+      <strong
+        class="text-xs mb-1"
+      >
+        amount
+         · 查询定义已失效
+      </strong>
+      <div
+        class="max-w-[95%] max-h-24 overflow-auto whitespace-pre-wrap break-words font-mono text-xs text-monokai-fg"
+        role="alert"
+        title="来源暂不可用"
+      >
+        来源暂不可用
+      </div>
+      <div
+        class="mt-3.5 flex items-center gap-2"
+      >
+        <button
+          class="rounded border border-monokai-border bg-monokai-bg px-2.5 py-1 text-[11px] text-monokai-fg hover:border-monokai-border-strong transition-colors cursor-pointer"
+          type="button"
+        >
+          重试
+        </button>
+        <button
+          class="rounded border border-monokai-border bg-monokai-surface px-2.5 py-1 text-[11px] text-monokai-pink hover:bg-monokai-pink/10 hover:border-monokai-border-strong transition-colors cursor-pointer"
+          type="button"
+        >
+          移除
+        </button>
+      </div>
+    </div>
+  </div>
+</body>
+
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <div
+      class="flex h-full w-full flex-col items-center justify-center p-4 text-center text-monokai-pink bg-monokai-sidebar/95 border border-monokai-border rounded-md"
+    >
+      <svg
+        aria-hidden="true"
+        class="lucide lucide-circle-alert mb-2 opacity-90 text-monokai-pink"
+        fill="none"
+        height="24"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        viewBox="0 0 24 24"
+        width="24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <circle
+          cx="12"
+          cy="12"
+          r="10"
+        />
+        <line
+          x1="12"
+          x2="12"
+          y1="8"
+          y2="12"
+        />
+        <line
+          x1="12"
+          x2="12.01"
+          y1="16"
+          y2="16"
+        />
+      </svg>
+      <strong
+        class="text-xs mb-1"
+      >
+        amount
+         · 查询定义已失效
+      </strong>
+      <div
+        class="max-w-[95%] max-h-24 overflow-auto whitespace-pre-wrap break-words font-mono text-xs text-monokai-fg"
+        role="alert"
+        title="来源暂不可用"
+      >
+        来源暂不可用
+      </div>
+      <div
+        class="mt-3.5 flex items-center gap-2"
+      >
+        <button
+          class="rounded border border-monokai-border bg-monokai-bg px-2.5 py-1 text-[11px] text-monokai-fg hover:border-monokai-border-strong transition-colors cursor-pointer"
+          type="button"
+        >
+          重试
+        </button>
+        <button
+          class="rounded border border-monokai-border bg-monokai-surface px-2.5 py-1 text-[11px] text-monokai-pink hover:bg-monokai-pink/10 hover:border-monokai-border-strong transition-colors cursor-pointer"
+          type="button"
+        >
+          移除
+        </button>
+      </div>
+    </div>
+  </div>
+</body>
+ ❯ waitForWrapper node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ components/DashboardWidget.requests.test.tsx:37:16
+     35|   mocks.execute.mockResolvedValueOnce(result(10));
+     36|   const {rerender}=render(<DashboardWidget {...props}/>);
+     37|   await screen.findByText('10');
+       |                ^
+     38|   rerender(<DashboardWidget {...props} savedQueryId="missing"/>);
+     39|   await screen.findByText(/未找到已保存的查询组件/);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL  components/DashboardWidget.requests.test.tsx > closes the component menu with Escape and opens one configuration dialog
+TestingLibraryElementError: Unable to find an element with the text: 10. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <div
+      class="relative z-10 flex h-full w-full flex-col bg-monokai-surface/60 rounded-lg overflow-hidden border border-monokai-border hover:border-monokai-border-strong transition-colors"
+    >
+      <div
+        class="drag-handle flex min-h-10 gap-2 select-none items-center justify-between px-4 py-2 text-xs"
+      >
+        <div
+          class="flex min-w-24 flex-1 items-center gap-2"
+        >
+          <svg
+            aria-hidden="true"
+            class="lucide lucide-grip-vertical shrink-0 text-monokai-comment hover:text-monokai-fg transition-colors"
+            fill="none"
+            height="13"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            viewBox="0 0 24 24"
+            width="13"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <circle
+              cx="9"
+              cy="12"
+              r="1"
+            />
+            <circle
+              cx="9"
+              cy="5"
+              r="1"
+            />
+            <circle
+              cx="9"
+              cy="19"
+              r="1"
+            />
+            <circle
+              cx="15"
+              cy="12"
+              r="1"
+            />
+            <circle
+              cx="15"
+              cy="5"
+              r="1"
+            />
+            <circle
+              cx="15"
+              cy="19"
+              r="1"
+            />
+          </svg>
+          <span
+            class="shrink-0"
+          >
+            <svg
+              aria-hidden="true"
+              class="lucide lucide-table2 lucide-table-2 text-monokai-blue"
+              fill="none"
+              height="14"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+              width="14"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18"
+              />
+            </svg>
+          </span>
+          <span
+            class="break-words font-semibold text-monokai-fg"
+            title="amount"
+          >
+            amount
+          </span>
+        </div>
+        <div
+          class="flex max-w-full flex-wrap items-center gap-1 shrink-0"
+        >
+          <div
+            class="relative"
+          >
+            <button
+              aria-expanded="false"
+              aria-label="更多组件选项 amount"
+              class="inline-flex h-8 w-8 items-center justify-center rounded-md text-monokai-fg-muted hover:bg-monokai-elevated hover:text-monokai-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-monokai-accent transition-colors cursor-pointer"
+              title="更多组件选项"
+              type="button"
+            >
+              <svg
+                aria-hidden="true"
+                class="lucide lucide-ellipsis-vertical"
+                fill="none"
+                height="12"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+                width="12"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <circle
+                  cx="12"
+                  cy="12"
+                  r="1"
+                />
+                <circle
+                  cx="12"
+                  cy="5"
+                  r="1"
+                />
+                <circle
+                  cx="12"
+                  cy="19"
+                  r="1"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div
+        class="relative flex-1 min-h-0 overflow-hidden bg-monokai-bg/40"
+      >
+        <button
+          aria-label="测试系列"
+          aria-pressed="true"
+        >
+          系列
+        </button>
+      </div>
+      <div
+        class="flex shrink-0 items-center justify-between border-t border-monokai-border bg-monokai-sidebar/40 px-3 py-1 text-[10px] text-monokai-comment font-mono"
+      >
+        <span>
+          数据表格
+        </span>
+        <span>
+          显示 
+          1
+           / 
+          1
+           行
+        </span>
+      </div>
+    </div>
+  </div>
+</body>
+
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <div
+      class="relative z-10 flex h-full w-full flex-col bg-monokai-surface/60 rounded-lg overflow-hidden border border-monokai-border hover:border-monokai-border-strong transition-colors"
+    >
+      <div
+        class="drag-handle flex min-h-10 gap-2 select-none items-center justify-between px-4 py-2 text-xs"
+      >
+        <div
+          class="flex min-w-24 flex-1 items-center gap-2"
+        >
+          <svg
+            aria-hidden="true"
+            class="lucide lucide-grip-vertical shrink-0 text-monokai-comment hover:text-monokai-fg transition-colors"
+            fill="none"
+            height="13"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            viewBox="0 0 24 24"
+            width="13"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <circle
+              cx="9"
+              cy="12"
+              r="1"
+            />
+            <circle
+              cx="9"
+              cy="5"
+              r="1"
+            />
+            <circle
+              cx="9"
+              cy="19"
+              r="1"
+            />
+            <circle
+              cx="15"
+              cy="12"
+              r="1"
+            />
+            <circle
+              cx="15"
+              cy="5"
+              r="1"
+            />
+            <circle
+              cx="15"
+              cy="19"
+              r="1"
+            />
+          </svg>
+          <span
+            class="shrink-0"
+          >
+            <svg
+              aria-hidden="true"
+              class="lucide lucide-table2 lucide-table-2 text-monokai-blue"
+              fill="none"
+              height="14"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+              width="14"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18"
+              />
+            </svg>
+          </span>
+          <span
+            class="break-words font-semibold text-monokai-fg"
+            title="amount"
+          >
+            amount
+          </span>
+        </div>
+        <div
+          class="flex max-w-full flex-wrap items-center gap-1 shrink-0"
+        >
+          <div
+            class="relative"
+          >
+            <button
+              aria-expanded="false"
+              aria-label="更多组件选项 amount"
+              class="inline-flex h-8 w-8 items-center justify-center rounded-md text-monokai-fg-muted hover:bg-monokai-elevated hover:text-monokai-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-monokai-accent transition-colors cursor-pointer"
+              title="更多组件选项"
+              type="button"
+            >
+              <svg
+                aria-hidden="true"
+                class="lucide lucide-ellipsis-vertical"
+                fill="none"
+                height="12"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+                width="12"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <circle
+                  cx="12"
+                  cy="12"
+                  r="1"
+                />
+                <circle
+                  cx="12"
+                  cy="5"
+                  r="1"
+                />
+                <circle
+                  cx="12"
+                  cy="19"
+                  r="1"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div
+        class="relative flex-1 min-h-0 overflow-hidden bg-monokai-bg/40"
+      >
+        <button
+          aria-label="测试系列"
+          aria-pressed="true"
+        >
+          系列
+        </button>
+      </div>
+      <div
+        class="flex shrink-0 items-center justify-between border-t border-monokai-border bg-monokai-sidebar/40 px-3 py-1 text-[10px] text-monokai-comment font-mono"
+      >
+        <span>
+          数据表格
+        </span>
+        <span>
+          显示 
+          1
+           / 
+          1
+           行
+        </span>
+      </div>
+    </div>
+  </div>
+</body>
+ ❯ waitForWrapper node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ components/DashboardWidget.requests.test.tsx:46:16
+     44|   mocks.execute.mockResolvedValue(result(10));
+     45|   render(<DashboardWidget {...props}/>);
+     46|   await screen.findByText('10');
+       |                ^
+     47|   const menu=screen.getByRole('button',{name:'更多组件选项 amount'});
+     48|   fireEvent.click(menu);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+
+
+ Test Files  1 failed | 4 passed (5)
+      Tests  4 failed | 43 passed (47)
+   Start at  18:03:52
+   Duration  16.72s (transform 3.25s, setup 519ms, import 6.73s, tests 5.02s, environment 3.68s)
+
+[ELIFECYCLE] Command failed with exit code 1.

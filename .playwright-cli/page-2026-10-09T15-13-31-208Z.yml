@@ -1,0 +1,89 @@
+- generic [ref=f1e3]:
+  - banner "全局工作区顶栏" [ref=f1e827]:
+    - generic [ref=f1e828]:
+      - button "🪶 DuckDB Studio PRO" [ref=f1e829] [cursor=pointer]:
+        - generic [ref=f1e830]: 🪶
+        - generic [ref=f1e832]:
+          - generic [ref=f1e833]: DuckDB Studio
+          - generic [ref=f1e834]: PRO
+      - navigation "业务领域大类" [ref=f1e836]:
+        - button "工程核心" [ref=f1e837] [cursor=pointer]
+        - button "分析洞察" [ref=f1e843] [cursor=pointer]
+        - button "知识沉淀" [ref=f1e848] [cursor=pointer]
+        - button "AI 认知" [ref=f1e853] [cursor=pointer]
+      - tablist "工程核心功能标签页" [ref=f1e859]:
+        - tab "仪表盘" [selected] [ref=f1e860] [cursor=pointer]
+        - tab "数据" [ref=f1e866] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f1e871]: "2"
+        - tab "Schema" [ref=f1e872] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f1e877]: "3"
+        - tab "SQL" [ref=f1e878] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f1e883]: "4"
+        - tab "数据流" [ref=f1e884] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f1e889]: "5"
+    - generic [ref=f1e890]:
+      - button "项目" [ref=f1e891] [cursor=pointer]
+      - button "memory 临时分析空间" [ref=f1e896] [cursor=pointer]:
+        - generic [ref=f1e899]: memory
+        - generic [ref=f1e901]: 临时分析空间
+      - button "AI 助手 Ctrl+I" [ref=f1e905] [cursor=pointer]:
+        - generic [ref=f1e908]: AI 助手
+        - generic [ref=f1e909]: Ctrl+I
+      - button "⌘K" [ref=f1e910] [cursor=pointer]
+      - button "帮助与快捷键" [ref=f1e914] [cursor=pointer]
+      - button "切换为浅色模式" [ref=f1e917] [cursor=pointer]
+      - button "AI 模型设置" [ref=f1e918] [cursor=pointer]
+  - main [ref=f1e921]:
+    - generic [ref=f1e922]:
+      - generic [ref=f1e927]:
+        - generic [ref=f1e928]:
+          - generic [ref=f1e929]:
+            - generic [ref=f1e930]:
+              - heading "分析范围" [level=1] [ref=f1e931]
+              - generic [ref=f1e932]: /
+              - button "内存库 · memory（临时）" [ref=f1e933] [cursor=pointer]
+            - paragraph
+          - button "刷新" [ref=f1e936] [cursor=pointer]
+        - status [ref=f1e1003]: 加载分析…
+      - complementary "AI Copilot 侧边栏" [ref=f1e940]:
+        - generic "拖拽调整侧边栏宽度" [ref=f1e941]
+        - generic [ref=f1e942]:
+          - generic [ref=f1e943]:
+            - generic [ref=f1e944]: AI Copilot
+            - button "Gemini 2.0 Flash" [ref=f1e946] [cursor=pointer]
+          - generic [ref=f1e948]:
+            - button "会话历史" [ref=f1e949] [cursor=pointer]:
+              - generic [ref=f1e950]: "2"
+            - button "新建会话" [ref=f1e951] [cursor=pointer]
+            - button "清空会话历史" [ref=f1e952] [cursor=pointer]
+            - button "收起侧边栏" [ref=f1e953] [cursor=pointer]
+        - generic [ref=f1e955]:
+          - generic [ref=f1e956]: 仪表盘
+          - generic [ref=f1e957]: ·
+          - button "选择关注的数据表" [ref=f1e959] [cursor=pointer]:
+            - generic [ref=f1e960]: 所有表
+        - generic [ref=f1e962]:
+          - paragraph [ref=f1e963]: 有什么想查的？
+          - paragraph [ref=f1e964]: 直接提问、生成 SQL，或先选关注表再探索。
+        - button "生成探索问题" [ref=f1e967] [cursor=pointer]
+        - generic [ref=f1e970]:
+          - textbox "提问、生成 SQL 或分析数据…" [ref=f1e971]
+          - button "发送" [disabled] [ref=f1e973]
+  - contentinfo [ref=f1e975]:
+    - generic [ref=f1e976]:
+      - generic [ref=f1e977]: DuckDB 1.33.1
+      - generic [ref=f1e980]: "|"
+      - generic [ref=f1e981]: memory [MEMORY]
+      - generic [ref=f1e983]: "|"
+      - generic [ref=f1e984]: 内存库
+      - generic [ref=f1e986]: "|"
+      - generic [ref=f1e987]: 0 张表
+      - generic [ref=f1e989]: "|"
+      - generic [ref=f1e990]: 暂无表
+      - generic [ref=f1e992]: "|"
+      - generic [ref=f1e993]: "内存: 0.25 MB / 3.1 GiB"
+    - generic [ref=f1e995]:
+      - generic [ref=f1e996]: 引擎就绪
+      - generic [ref=f1e1000]: "|"
+      - generic [ref=f1e1001]: 08:13
+      - button "刷新运行时状态" [ref=f1e1002] [cursor=pointer]

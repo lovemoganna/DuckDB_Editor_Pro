@@ -151,6 +151,8 @@ describe('OntologyModelingWizard — AI Ontology Modeling Workbench', () => {
     // Verify auto-fix button can be clicked
     const autoFixBtn = screen.getByText('一键自动修复防错');
     fireEvent.click(autoFixBtn);
+    // Repair/regeneration suggestions are now explicit; rejecting keeps the edited draft.
+    screen.queryAllByRole('button', { name: /^拒绝 / }).forEach(button => fireEvent.click(button));
 
     // Verify commit in overwrite mode
     const writeBtn = screen.getByTestId('enter-commit-step-btn');
@@ -169,5 +171,49 @@ describe('OntologyModelingWizard — AI Ontology Modeling Workbench', () => {
         { replace: true }
       );
     });
+  });
+});
+
+describe('OntologyModelingWizard — manual and AI shared draft', () => {
+  it('creates schema from a blank canvas, connects nodes, preserves mode switches and commits no fake instances', async () => {
+    const onImport = vi.fn().mockResolvedValue(undefined);
+    render(<OntologyModelingWizard onClose={vi.fn()} onImport={onImport} />);
+    fireEvent.click(screen.getByRole('button', { name: '手动建模' }));
+    expect(screen.getByRole('status')).toHaveTextContent('0 真实实例');
+    fireEvent.doubleClick(screen.getByLabelText('本体类型建模画布'));
+    fireEvent.change(screen.getByLabelText('对象名称'), { target: { value: 'Customer' } });
+    fireEvent.change(screen.getByLabelText('对象标识符'), { target: { value: 'customer' } });
+    fireEvent.click(screen.getByTitle('新增对象类型 (Object Type)'));
+    fireEvent.change(screen.getByLabelText('对象名称'), { target: { value: 'Order' } });
+    fireEvent.mouseDown(screen.getByTestId('modeling-node-Customer'), { shiftKey: true });
+    fireEvent.mouseDown(screen.getByTestId('modeling-node-Order'), { shiftKey: true });
+    expect(screen.getByRole('status')).toHaveTextContent('2 类型');
+    fireEvent.click(screen.getByRole('button', { name: 'AI 辅助建模' }));
+    fireEvent.click(screen.getByRole('button', { name: '手动建模' }));
+    expect(screen.getByTestId('modeling-node-Customer')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('enter-commit-step-btn'));
+    fireEvent.click(screen.getByText('确认写入本体图谱'));
+    await waitFor(() => expect(onImport).toHaveBeenCalled());
+    const result = onImport.mock.calls[0][0];
+    expect(result.objects).toEqual([]); expect(result.links).toEqual([]);
+    expect(result.linkTypes[0]).toMatchObject({ fromType: 'Customer', toType: 'Order' });
+  });
+  it('blocks invalid identifiers and cancels deletion without changing the formal version', async () => {
+    const onImport = vi.fn(), onClose = vi.fn();
+    render(<OntologyModelingWizard onClose={onClose} onImport={onImport} />);
+    fireEvent.click(screen.getByRole('button', { name: '手动建模' }));
+    fireEvent.click(screen.getByTitle('新增对象类型 (Object Type)'));
+    fireEvent.change(screen.getByLabelText('对象标识符'), { target: { value: '' } });
+    fireEvent.click(screen.getByTestId('enter-commit-step-btn'));
+    expect(screen.getByText('校验失败，请在体检诊断中定位并修正错误。')).toBeInTheDocument();
+    expect(onImport).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByText('删除对象类型'));
+    expect(screen.getByRole('alertdialog', { name: '删除影响范围' })).toHaveTextContent('实例');
+    fireEvent.click(screen.getByText('取消删除'));
+    expect(screen.getByTestId('modeling-node-NewEntity')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('取消未保存修改'));
+    expect(onClose).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByText('确认放弃修改'));
+    expect(onClose).toHaveBeenCalled(); expect(onImport).not.toHaveBeenCalled();
   });
 });

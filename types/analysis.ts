@@ -386,4 +386,7 @@ export interface Dashboard {
   items: DashboardItem[];
   createdAt: number;
   updatedAt: number;
+  layoutLocked?: boolean;
+  /** DuckDB catalog this board belongs to */
+  databaseName?: string;
 }

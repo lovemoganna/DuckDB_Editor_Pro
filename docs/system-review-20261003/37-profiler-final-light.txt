@@ -1,0 +1,389 @@
+- banner "全局工作区顶栏":
+  - button "🪶 DuckDB Studio PRO":
+    - generic: 🪶
+    - generic: DuckDB Studio
+    - generic: PRO
+  - navigation "业务领域大类":
+    - button "工程核心":
+      - generic: 工程核心
+    - button "分析洞察":
+      - generic: 分析洞察
+    - button "知识沉淀":
+      - generic: 知识沉淀
+    - button "AI 认知":
+      - generic: AI 认知
+  - tablist "分析洞察功能标签页":
+    - tab "指标":
+      - generic: 指标
+    - tab "可视化":
+      - generic: 可视化
+    - tab "分析" [selected]:
+      - generic: 分析
+    - tab "历史":
+      - generic: 历史
+    - tab "审计":
+      - generic: 审计
+  - button "项目":
+    - generic: 项目
+  - button "sql_funds_flow 已保存到 OPFS":
+    - generic: sql_funds_flow
+    - generic: 已保存到 OPFS
+  - button "AI 助手 Ctrl+I":
+    - generic: AI 助手
+    - generic: Ctrl+I
+  - button "⌘K":
+  - button "帮助与快捷键":
+  - button "切换为深色模式":
+  - button "AI 模型设置":
+- main:
+  - heading "分析中心" [level=1]
+  - paragraph: 多维透视 · 时序走势 · 业务配方 · SQL 模板 · DuckDB 本地内核
+  - button "仪表盘":
+    - generic: 仪表盘
+  - generic: 上下文
+  - combobox "切换分析库或 Schema":
+    - option "内存库 · memory（临时）"
+    - option "持久库 · duckdb_manager_workspace"
+    - option "持久库 · sql_funds_flow" [selected]
+    - option "Schema · sql_funds_flow.__studio"
+  - generic: 分析表
+  - combobox "选择分析表":
+    - option "crypto_transactions" [selected]
+    - option "exchange_rates"
+    - option "fiat_transactions"
+    - option "life_action"
+    - option "life_canvas_edge"
+    - option "life_canvas_state"
+    - option "life_insight"
+    - option "life_introspection"
+    - option "life_link"
+    - option "life_link_type"
+    - option "life_object"
+    - option "life_object_type"
+    - option "users"
+  - button "刷新表列表":
+  - button "数据网格":
+    - generic: 数据网格
+  - button "表结构":
+    - generic: 表结构
+  - tablist "分析工具模式":
+    - tab "关联分析":
+      - generic: 关联分析
+    - tab "数据体检" [active] [selected]:
+      - generic: 数据体检
+    - tab "透视聚合":
+      - generic: 透视聚合
+    - tab "时序分析":
+      - generic: 时序分析
+    - tab "场景配方":
+      - generic: 场景配方
+    - tab "SQL 模板":
+      - generic: SQL 模板
+  - heading "数据体检与字段画像" [level=3]
+  - paragraph: 完备率 · 基数 · 极值 · 缺失告警 · 一键跳转透视/时序
+  - button "刷新体检数据":
+  - textbox "搜索字段":
+    - /placeholder: 搜索字段名或类型…
+  - group "语义类型过滤":
+    - button "全部" [pressed]
+    - button "数值"
+    - button "维度"
+    - button "时间"
+    - button "ID/键"
+  - text: 总记录行数
+  - generic: "25"
+  - generic: ~10 KB
+  - text: 物理字段数
+  - generic: "13"
+  - generic: "主键: crypto_order_id"
+  - text: 数据完备率
+  - generic: 98.5%
+  - text: 健康度评分
+  - generic: 99 / 100
+  - generic: 状态良好
+  - generic: crypto_order_id
+  - generic "当前数据非空且值唯一，仅为主键候选，不代表数据库已声明主键约束": 候选键
+  - generic: VARCHAR
+  - generic: ·
+  - generic: 基数 25 (100%)
+  - generic: 缺失率
+  - generic: 0%
+  - generic: 取值范围
+  - generic "co_20241231_43875092 ~ co_20251231_43875095": "\"co_20241231_43875092\" ~ \"co_20251231_43875095\""
+  - generic: 高频 TOP 3
+  - generic "co_20250110_78423190"
+  - generic: 4%
+  - generic "co_20250222_78423191"
+  - generic: 4%
+  - generic "co_20250605_78423192"
+  - generic: 4%
+  - button "透视":
+    - generic: 透视
+  - button "打开字段探查 SQL":
+  - button "复制字段统计 SQL":
+  - generic: uid
+  - generic: BIGINT
+  - generic: ·
+  - generic: 基数 8 (32%)
+  - generic: 缺失率
+  - generic: 0%
+  - generic: 取值范围
+  - generic "319582046 ~ 903174628": "\"319582046\" ~ \"903174628\""
+  - generic: 高频 TOP 3
+  - generic "692481305"
+  - generic: 20%
+  - generic "438750921"
+  - generic: 16%
+  - generic "528406193"
+  - generic: 12%
+  - button "透视":
+    - generic: 透视
+  - button "打开字段探查 SQL":
+  - button "复制字段统计 SQL":
+  - generic: direction
+  - generic: VARCHAR
+  - generic: ·
+  - generic: 基数 2 (8%)
+  - generic: 缺失率
+  - generic: 0%
+  - generic: 取值范围
+  - generic "deposit ~ withdrawal": "\"deposit\" ~ \"withdrawal\""
+  - generic: 高频 TOP 3
+  - generic "deposit"
+  - generic: 60%
+  - generic "withdrawal"
+  - generic: 40%
+  - button "透视":
+    - generic: 透视
+  - button "打开字段探查 SQL":
+  - button "复制字段统计 SQL":
+  - generic: asset
+  - generic: VARCHAR
+  - generic: ·
+  - generic: 基数 3 (12%)
+  - generic: 缺失率
+  - generic: 0%
+  - generic: 取值范围
+  - generic "BTC ~ USDT": "\"BTC\" ~ \"USDT\""
+  - generic: 高频 TOP 3
+  - generic "USDT"
+  - generic: 72%
+  - generic "BTC"
+  - generic: 16%
+  - generic "ETH"
+  - generic: 12%
+  - button "透视":
+    - generic: 透视
+  - button "打开字段探查 SQL":
+  - button "复制字段统计 SQL":
+  - generic: network
+  - generic: VARCHAR
+  - generic: ·
+  - generic: 基数 5 (20%)
+  - generic: 缺失率
+  - generic: 0%
+  - generic: 取值范围
+  - generic "ARBITRUM ~ TRON": "\"ARBITRUM\" ~ \"TRON\""
+  - generic: 高频 TOP 3
+  - generic "TRON"
+  - generic: 44%
+  - generic "ETHEREUM"
+  - generic: 16%
+  - generic "BITCOIN"
+  - generic: 16%
+  - button "透视":
+    - generic: 透视
+  - button "打开字段探查 SQL":
+  - button "复制字段统计 SQL":
+  - generic: amount
+  - generic: DECIMAL(18,8)
+  - generic: ·
+  - generic: 基数 17 (68%)
+  - generic: 缺失率
+  - generic: 0%
+  - generic: MIN
+  - generic: "0.001"
+  - generic: MAX
+  - generic: "2000"
+  - generic: AVG
+  - generic: "562.03"
+  - generic: MED
+  - generic: "400"
+  - generic: 高频 TOP 3
+  - generic "300.00000000"
+  - generic: 16%
+  - generic "500.00000000"
+  - generic: 12%
+  - generic "600.00000000"
+  - generic: 8%
+  - button "透视":
+    - generic: 透视
+  - button "打开字段探查 SQL":
+  - button "复制字段统计 SQL":
+  - generic: fee
+  - generic: DECIMAL(18,8)
+  - generic: ·
+  - generic: 基数 7 (28%)
+  - generic: 缺失率
+  - generic: 0%
+  - generic: MIN
+  - generic: "0"
+  - generic: MAX
+  - generic: "5"
+  - generic: AVG
+  - generic: "0.44"
+  - generic: MED
+  - generic: "0"
+  - generic: 高频 TOP 3
+  - generic "0.00000000"
+  - generic: 60%
+  - generic "1.00000000"
+  - generic: 16%
+  - generic "0.80000000"
+  - generic: 8%
+  - button "透视":
+    - generic: 透视
+  - button "打开字段探查 SQL":
+  - button "复制字段统计 SQL":
+  - generic: tx_hash
+  - generic: VARCHAR
+  - generic: ·
+  - generic: 基数 23 (92%)
+  - generic: 缺失率
+  - generic: 8%
+  - generic: 取值范围
+  - generic "0e641a560a1d663bc5dbc993d5e46d584a2f72554fb1109d97388c553bb651e2 ~ e48440f70849bf5b39506e732fd1f7a288a1ff4338028b098dc9bb0eb37d9145": "\"0e641a560a1d663bc5dbc993d5e46d584a2f72554fb1109d97388c553bb651e2\" ~ \"e48440f70849bf5b39506e732fd1f7a288a1ff4338028b098dc9bb0eb37d9145\""
+  - generic: 高频 TOP 3
+  - generic "(NULL)"
+  - generic: 8%
+  - generic "0e641a560a1d663bc5dbc993d5e46d584a2f72554fb1109d97388c553bb651e2"
+  - generic: 4%
+  - generic "0x697857752aaa8607d1961ddfecb3ec44d9fd3cc4c45097ad44c9beff38b5f6a2"
+  - generic: 4%
+  - button "透视":
+    - generic: 透视
+  - button "打开字段探查 SQL":
+  - button "复制字段统计 SQL":
+  - generic: address
+  - generic "当前数据非空且值唯一，仅为主键候选，不代表数据库已声明主键约束": 候选键
+  - generic: VARCHAR
+  - generic: ·
+  - generic: 基数 25 (100%)
+  - generic: 缺失率
+  - generic: 0%
+  - generic: 取值范围
+  - generic "0x099c0e97614fd374d7e546dc2fcbdd52df00224a ~ bc1q9d846392019485720192847291048572019283": "\"0x099c0e97614fd374d7e546dc2fcbdd52df00224a\" ~ \"bc1q9d846392019485720192847291048572019283\""
+  - generic: 高频 TOP 3
+  - generic "TZTs2kMxqhLKQUqAiRBqgv1EbiBPk7w2UB"
+  - generic: 4%
+  - generic "TBE1SbTMMmmgvA6RbYPBJxmSf2Ytz1xz9L"
+  - generic: 4%
+  - generic "0xc453f38ebdb4343a3242b060779e7531c69454bc"
+  - generic: 4%
+  - button "透视":
+    - generic: 透视
+  - button "打开字段探查 SQL":
+  - button "复制字段统计 SQL":
+  - generic: status
+  - generic: VARCHAR
+  - generic: ·
+  - generic: 基数 4 (16%)
+  - generic: 缺失率
+  - generic: 0%
+  - generic: 取值范围
+  - generic "completed ~ processing": "\"completed\" ~ \"processing\""
+  - generic: 高频 TOP 3
+  - generic "completed"
+  - generic: 88%
+  - generic "processing"
+  - generic: 4%
+  - generic "confirming"
+  - generic: 4%
+  - button "透视":
+    - generic: 透视
+  - button "打开字段探查 SQL":
+  - button "复制字段统计 SQL":
+  - generic: confirmations
+  - generic: INTEGER
+  - generic: ·
+  - generic: 基数 15 (60%)
+  - generic: 缺失率
+  - generic: 0%
+  - generic: MIN
+  - generic: "0"
+  - generic: MAX
+  - generic: "34"
+  - generic: AVG
+  - generic: "18.96"
+  - generic: MED
+  - generic: "22"
+  - generic: 高频 TOP 3
+  - generic "25"
+  - generic: 16%
+  - generic "26"
+  - generic: 16%
+  - generic "15"
+  - generic: 8%
+  - button "透视":
+    - generic: 透视
+  - button "打开字段探查 SQL":
+  - button "复制字段统计 SQL":
+  - generic: created_at
+  - generic "当前数据非空且值唯一，仅为主键候选，不代表数据库已声明主键约束": 候选键
+  - generic: TIMESTAMP
+  - generic: ·
+  - generic: 基数 25 (100%)
+  - generic: 缺失率
+  - generic: 0%
+  - generic: 取值范围
+  - generic "2024-12-31 23:40:00 ~ 2026-01-01 00:15:00": "\"2024-12-31 23:40:00\" ~ \"2026-01-01 00:15:00\""
+  - generic: 高频 TOP 3
+  - generic "2025-01-10 11:20:00"
+  - generic: 4%
+  - generic "2025-02-22 18:10:00"
+  - generic: 4%
+  - generic "2025-06-05 07:45:00"
+  - generic: 4%
+  - button "透视":
+    - generic: 透视
+  - button "时序":
+    - generic: 时序
+  - button "打开字段探查 SQL":
+  - button "复制字段统计 SQL":
+  - generic: completed_at
+  - generic: TIMESTAMP
+  - generic: ·
+  - generic: 基数 22 (88%)
+  - generic: 缺失率
+  - generic: 12%
+  - generic: 取值范围
+  - generic "2024-12-31 23:55:00 ~ 2026-01-01 00:52:00": "\"2024-12-31 23:55:00\" ~ \"2026-01-01 00:52:00\""
+  - generic: 高频 TOP 3
+  - generic "(NULL)"
+  - generic: 12%
+  - generic "2025-02-22 19:09:00"
+  - generic: 4%
+  - generic "2025-06-05 08:56:00"
+  - generic: 4%
+  - button "透视":
+    - generic: 透视
+  - button "时序":
+    - generic: 时序
+  - button "打开字段探查 SQL":
+  - button "复制字段统计 SQL":
+- contentinfo:
+  - generic: DuckDB 1.33.1
+  - generic: "|"
+  - generic: sql_funds_flow [OPFS]
+  - generic: "|"
+  - generic: 持久化库
+  - generic: "|"
+  - generic: 13 张表
+  - generic: "|"
+  - generic: 13 个活动表
+  - generic: "|"
+  - generic: "内存: 1.75 MB / 3.1 GiB"
+  - generic: 引擎就绪
+  - generic: "|"
+  - generic: 02:30
+  - button "刷新运行时状态":

@@ -10,76 +10,28 @@ export const CyberGridBackground: React.FC<{ className?: string }> = ({ classNam
       aria-hidden="true"
       className={`pointer-events-none absolute inset-0 overflow-hidden select-none z-0 ${className}`}
     >
-      {/* 渐变氛围光斑 (Ambient Multi-Spectrum Glow Spots) */}
-      <div className="absolute -top-32 left-1/4 h-[420px] w-[420px] rounded-full bg-monokai-cyan/12 blur-[130px] will-change-transform" />
-      <div className="absolute top-48 right-10 h-96 w-96 rounded-full bg-monokai-accent/10 blur-[120px] will-change-transform" />
-      <div className="absolute bottom-20 left-10 h-80 w-80 rounded-full bg-monokai-purple/10 blur-[120px] will-change-transform" />
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[500px] w-[700px] rounded-full bg-monokai-orange/5 blur-[160px] will-change-transform" />
+      {/* Subtle calm ambient vignette */}
+      <div className="absolute -top-40 left-1/3 h-[380px] w-[500px] rounded-full bg-monokai-cyan/[0.03] blur-[140px] pointer-events-none" />
 
-      {/* SVG 科技微网格与点阵底纹 (Core Micro Grid) */}
+      {/* Clean, subtle engineering grid */}
       <svg
-        className="absolute inset-0 h-full w-full opacity-60 [mask-image:radial-gradient(ellipse_at_top,white,transparent_85%)]"
+        className="absolute inset-0 h-full w-full opacity-35 [mask-image:radial-gradient(ellipse_at_top,white,transparent_80%)]"
         xmlns="http://www.w3.org/2000/svg"
         width="100%"
         height="100%"
       >
         <defs>
-          <pattern id="cyber-grid-pattern" width="40" height="40" patternUnits="userSpaceOnUse">
+          <pattern id="cyber-grid-pattern" width="32" height="32" patternUnits="userSpaceOnUse">
             <path
-              d="M 40 0 L 0 0 0 40"
+              d="M 32 0 L 0 0 0 32"
               fill="none"
-              stroke="rgba(255, 255, 255, 0.04)"
+              stroke="rgba(255, 255, 255, 0.03)"
               strokeWidth="1"
             />
-            <circle cx="0" cy="0" r="1" fill="rgba(166, 226, 46, 0.28)" />
-            <circle cx="40" cy="40" r="0.75" fill="rgba(102, 217, 239, 0.25)" />
           </pattern>
-
-          <pattern id="cyber-circuit-pattern" width="160" height="160" patternUnits="userSpaceOnUse">
-            {/* 科技大网格边界 */}
-            <path d="M 160 0 L 0 0 0 160" fill="none" stroke="rgba(102, 217, 239, 0.05)" strokeWidth="1.2" />
-            {/* 交叉点十字光标 */}
-            <path d="M 0 5 L 0 -5 M 5 0 L -5 0" stroke="rgba(166, 226, 46, 0.35)" strokeWidth="1" />
-            <path d="M 160 165 L 160 155 M 165 160 L 155 160" stroke="rgba(102, 217, 239, 0.3)" strokeWidth="1" />
-            {/* 电路走线折线 (Circuit Traces) */}
-            <path
-              d="M 40 40 L 60 40 L 80 60 L 120 60"
-              fill="none"
-              stroke="rgba(174, 129, 255, 0.08)"
-              strokeWidth="1"
-              strokeDasharray="2 3"
-            />
-            <circle cx="120" cy="60" r="2" fill="rgba(174, 129, 255, 0.25)" />
-            <path
-              d="M 160 100 L 130 100 L 110 120 L 70 120"
-              fill="none"
-              stroke="rgba(253, 151, 31, 0.07)"
-              strokeWidth="1"
-            />
-            <circle cx="70" cy="120" r="1.5" fill="rgba(253, 151, 31, 0.25)" />
-          </pattern>
-
-          {/* 动态脉冲流动线性渐变 */}
-          <linearGradient id="cyber-stream-accent" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#a6e22e" stopOpacity="0" />
-            <stop offset="50%" stopColor="#a6e22e" stopOpacity="0.4" />
-            <stop offset="100%" stopColor="#66d9ef" stopOpacity="0" />
-          </linearGradient>
         </defs>
 
-        {/* 底层微网格 */}
         <rect width="100%" height="100%" fill="url(#cyber-grid-pattern)" />
-        {/* 上层大电路走线 */}
-        <rect width="100%" height="100%" fill="url(#cyber-circuit-pattern)" />
-
-        {/* 顶部与边缘动态环境发光导线 (Ambient Conduit Lines) */}
-        <path
-          d="M 0 100 Q 300 120 600 80 T 1200 90 T 1800 60"
-          fill="none"
-          stroke="url(#cyber-stream-accent)"
-          strokeWidth="1.5"
-          opacity="0.3"
-        />
       </svg>
     </div>
   );
@@ -288,32 +240,16 @@ export const EmptyCockpitIllustration: React.FC<{ className?: string }> = ({ cla
       aria-hidden="true"
       className={`relative mx-auto flex items-center justify-center select-none ${className}`}
     >
-      <svg width="140" height="110" viewBox="0 0 140 110" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <linearGradient id="empty-glow" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#66d9ef" stopOpacity="0.4" />
-            <stop offset="100%" stopColor="#a6e22e" stopOpacity="0.2" />
-          </linearGradient>
-        </defs>
-
-        {/* 悬浮底台光环 */}
-        <ellipse cx="70" cy="85" rx="55" ry="18" fill="url(#empty-glow)" opacity="0.3" />
-        <ellipse cx="70" cy="85" rx="42" ry="12" stroke="rgba(102, 217, 239, 0.4)" strokeWidth="1.5" strokeDasharray="4 4" />
-
-        {/* 数据立方体投影 */}
-        <g transform="translate(42, 20)">
-          {/* Top Face */}
-          <polygon points="28,0 56,12 28,24 0,12" fill="#3e3d32" stroke="#66d9ef" strokeWidth="1.5" opacity="0.9" />
-          {/* Left Face */}
-          <polygon points="0,12 28,24 28,52 0,40" fill="#272822" stroke="#66d9ef" strokeWidth="1.5" opacity="0.8" />
-          {/* Right Face */}
-          <polygon points="28,24 56,12 56,40 28,52" fill="#1e1f1c" stroke="#a6e22e" strokeWidth="1.5" opacity="0.85" />
-          {/* Center glowing dot */}
-          <circle cx="28" cy="12" r="3" fill="#a6e22e" />
-        </g>
-
-        {/* 向上吸入流光箭头 */}
-        <path d="M 70 8 L 70 20 M 66 12 L 70 8 L 74 12" stroke="#a6e22e" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="8" y="10" width="48" height="44" rx="8" fill="#272822" stroke="rgba(255,255,255,0.08)" strokeWidth="1.5" />
+        <path d="M 8 22 H 56" stroke="rgba(255,255,255,0.08)" strokeWidth="1.5" />
+        <circle cx="16" cy="16" r="2" fill="#66d9ef" />
+        <circle cx="23" cy="16" r="2" fill="#a6e22e" />
+        <circle cx="30" cy="16" r="2" fill="#e6db74" />
+        
+        {/* Table outline inside */}
+        <rect x="16" y="28" width="32" height="18" rx="4" stroke="rgba(102, 217, 239, 0.4)" strokeWidth="1.2" strokeDasharray="3 3" />
+        <path d="M 16 34 H 48 M 28 28 V 46" stroke="rgba(102, 217, 239, 0.25)" strokeWidth="1" />
       </svg>
     </div>
   );

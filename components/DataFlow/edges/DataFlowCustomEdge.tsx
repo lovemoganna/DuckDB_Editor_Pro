@@ -1,8 +1,7 @@
 /**
  * DataFlowCustomEdge - 语义化连线
  *
- * 硬约束：路径始终从上游右侧中点 (Position.Right) 进入下游左侧中点 (Position.Left)，
- * 忽略 props 中可能错误的 sourcePosition/targetPosition，杜绝顶/底出线。
+ * SQL 连线使用布局返回的完整路径；其他模式使用节点端口方向生成路径。
  *
  * 短边策略：水平跨度不足时上移/精简标签，避免徽章盖住终点导致「连线中断」错觉。
  */
@@ -27,6 +26,8 @@ export const DataFlowCustomEdge: React.FC<EdgeProps<DataFlowEdgeData>> = memo(({
   sourceY,
   targetX,
   targetY,
+  sourcePosition = Position.Right,
+  targetPosition = Position.Left,
   style = {},
   markerEnd,
   data,
@@ -35,17 +36,21 @@ export const DataFlowCustomEdge: React.FC<EdgeProps<DataFlowEdgeData>> = memo(({
   const horizontalSpan = Math.abs(targetX - sourceX);
   const isShortEdge = horizontalSpan < 120;
 
-  // 强制右中 → 左中；短边缩小折线 offset，避免路径在节点间打结
-  const [edgePath, labelX, labelY] = getSmoothStepPath({
+  // SQL uses routed geometry; respect actual handles for the fallback as well.
+  const [fallbackPath, fallbackX, fallbackY] = getSmoothStepPath({
     sourceX,
     sourceY,
-    sourcePosition: Position.Right,
+    sourcePosition,
     targetX,
     targetY,
-    targetPosition: Position.Left,
+    targetPosition,
     borderRadius: isShortEdge ? 6 : 12,
     offset: isShortEdge ? 8 : 18,
   });
+  const route = data?.routePoints;
+  const edgePath = route?.length ? route.map((point, index) => `${index ? 'L' : 'M'} ${point.x},${point.y}`).join(' ') : fallbackPath;
+  const center = route?.length ? route[Math.floor(route.length / 2)] : undefined;
+  const labelX = center?.x ?? fallbackX, labelY = center?.y ?? fallbackY;
 
   const highlightState = data?.highlightState || 'none';
   const isErrorPath = !!data?.isErrorPath;
@@ -66,31 +71,31 @@ export const DataFlowCustomEdge: React.FC<EdgeProps<DataFlowEdgeData>> = memo(({
   if (isErrorPath) {
     strokeColor = 'var(--monokai-pink)';
     strokeWidth = 3;
-    filterEffect = 'drop-shadow(0 0 10px rgba(249, 38, 114, 0.9))';
+    filterEffect = 'drop-shadow(0 0 10px color-mix(in srgb, var(--monokai-pink) 90%, transparent))';
     isAnimated = true;
     markerType = 'pink';
   } else if (isStepActive) {
     strokeColor = 'var(--monokai-yellow)';
     strokeWidth = 3;
-    filterEffect = 'drop-shadow(0 0 10px rgba(230, 219, 116, 0.9))';
+    filterEffect = 'drop-shadow(0 0 10px color-mix(in srgb, var(--monokai-yellow) 90%, transparent))';
     isAnimated = true;
     markerType = 'yellow';
   } else if (selected) {
     strokeColor = 'var(--monokai-accent)';
     strokeWidth = 2.75;
-    filterEffect = 'drop-shadow(0 0 6px rgba(166, 226, 46, 0.75))';
+    filterEffect = 'drop-shadow(0 0 6px color-mix(in srgb, var(--monokai-accent) 75%, transparent))';
     isAnimated = true;
     markerType = 'accent';
   } else if (isAncestor) {
     strokeColor = 'var(--monokai-accent)';
     strokeWidth = 2.75;
-    filterEffect = 'drop-shadow(0 0 6px rgba(166, 226, 46, 0.85))';
+    filterEffect = 'drop-shadow(0 0 6px color-mix(in srgb, var(--monokai-accent) 85%, transparent))';
     isAnimated = true;
     markerType = 'accent';
   } else if (isDescendant) {
     strokeColor = 'var(--monokai-cyan)';
     strokeWidth = 2.75;
-    filterEffect = 'drop-shadow(0 0 6px rgba(102, 217, 239, 0.85))';
+    filterEffect = 'drop-shadow(0 0 6px color-mix(in srgb, var(--monokai-cyan) 85%, transparent))';
     isAnimated = true;
     markerType = 'cyan';
   } else if (isDimmed) {
@@ -120,7 +125,9 @@ export const DataFlowCustomEdge: React.FC<EdgeProps<DataFlowEdgeData>> = memo(({
 
   // 短边：仅保留极短语义字，避免大徽章盖住终点
   let badgeLabel: string | null = null;
-  if (isShortEdge) {
+  if (data?.flowKind === 'recursive_back') {
+    badgeLabel = '递归反馈';
+  } else if (isShortEdge) {
     if (data?.relationType === 'join') {
       badgeLabel = data.joinSide === 'right' ? '右' : '左';
     } else if (isHighlighted || selected) {
@@ -173,6 +180,7 @@ export const DataFlowCustomEdge: React.FC<EdgeProps<DataFlowEdgeData>> = memo(({
         style={{
           ...style,
           stroke: strokeColor,
+          strokeDasharray: data?.flowKind && data.flowKind !== 'relation_flow' ? '6 4' : undefined,
           strokeWidth,
           strokeLinecap: 'round',
           strokeLinejoin: 'round',
@@ -225,13 +233,13 @@ export const DataFlowCustomEdge: React.FC<EdgeProps<DataFlowEdgeData>> = memo(({
             }}
             className={`group/edge-badge flex items-center gap-1 px-1.5 py-0.5 rounded text-[9.5px] font-mono border shadow-md transition-all select-none cursor-pointer ${
               isErrorPath
-                ? 'bg-monokai-surface text-monokai-pink border-monokai-pink/80 shadow-[0_0_10px_rgba(249,38,114,0.5)]'
+                ? 'bg-monokai-surface text-monokai-pink border-monokai-pink/80 shadow-[0_0_10px_color-mix(in_srgb,var(--monokai-pink)_50%,transparent)]'
                 : isStepActive
-                ? 'bg-monokai-surface text-monokai-yellow border-monokai-yellow/80 shadow-[0_0_10px_rgba(230,219,116,0.5)]'
+                ? 'bg-monokai-surface text-monokai-yellow border-monokai-yellow/80 shadow-[0_0_10px_color-mix(in_srgb,var(--monokai-yellow)_50%,transparent)]'
                 : selected || isAncestor
-                ? 'bg-monokai-surface text-monokai-accent border-monokai-accent/60 shadow-[0_0_8px_rgba(166,226,46,0.35)]'
+                ? 'bg-monokai-surface text-monokai-accent border-monokai-accent/60 shadow-[0_0_8px_color-mix(in_srgb,var(--monokai-accent)_35%,transparent)]'
                 : isDescendant
-                ? 'bg-monokai-surface text-monokai-cyan border-monokai-cyan/60 shadow-[0_0_8px_rgba(102,217,239,0.35)]'
+                ? 'bg-monokai-surface text-monokai-cyan border-monokai-cyan/60 shadow-[0_0_8px_color-mix(in_srgb,var(--monokai-cyan)_35%,transparent)]'
                 : isDimmed
                 ? 'bg-monokai-bg/85 text-monokai-comment border-monokai-border/60 opacity-70'
                 : 'bg-monokai-surface/95 text-monokai-fg border-monokai-border hover:border-monokai-accent/50'
@@ -257,8 +265,8 @@ export const DataFlowCustomEdge: React.FC<EdgeProps<DataFlowEdgeData>> = memo(({
                   e.stopPropagation();
                   deleteEdge(id);
                 }}
-                className={`p-0.5 rounded-full hover:bg-white/20 text-monokai-comment hover:text-monokai-pink transition-colors cursor-pointer ${
-                  isShortEdge ? 'opacity-0 group-hover/edge-badge:opacity-100' : ''
+                className={`p-0.5 rounded-full hover:bg-monokai-elevated text-monokai-comment hover:text-monokai-pink transition-colors cursor-pointer ${
+                  isShortEdge ? 'opacity-0 group-hover/edge-badge:opacity-100 focus-visible:opacity-100' : ''
                 }`}
                 title="断开此连线"
               >

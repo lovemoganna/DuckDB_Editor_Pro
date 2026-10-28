@@ -1,0 +1,77 @@
+[
+  {
+    "width": 1440,
+    "open": true,
+    "legend": "false",
+    "dimensions": {
+      "canvases": [
+        {
+          "height": 682,
+          "width": 1350
+        }
+      ],
+      "height": 900,
+      "width": 1440
+    }
+  },
+  {
+    "width": 1280,
+    "open": true,
+    "legend": "false",
+    "dimensions": {
+      "canvases": [
+        {
+          "height": 682,
+          "width": 1190
+        }
+      ],
+      "height": 900,
+      "width": 1280
+    }
+  },
+  {
+    "width": 1024,
+    "open": true,
+    "legend": "false",
+    "dimensions": {
+      "canvases": [
+        {
+          "height": 638,
+          "width": 934
+        }
+      ],
+      "height": 900,
+      "width": 1024
+    }
+  },
+  {
+    "width": 768,
+    "open": true,
+    "legend": "false",
+    "dimensions": {
+      "canvases": [
+        {
+          "height": 638,
+          "width": 678
+        }
+      ],
+      "height": 900,
+      "width": 768
+    }
+  },
+  {
+    "width": 390,
+    "open": true,
+    "legend": "false",
+    "dimensions": {
+      "canvases": [
+        {
+          "height": 673,
+          "width": 380
+        }
+      ],
+      "height": 900,
+      "width": 390.3999938964844
+    }
+  }
+]

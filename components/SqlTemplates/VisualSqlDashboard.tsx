@@ -21,8 +21,9 @@ import {
 } from '../../services/sqlTemplatesStorage';
 import { useSqlEditorStore } from '../../hooks/store/useSqlEditorStore';
 import { useAppStore } from '../../hooks/store/useAppStore';
-import { Tab } from '../../types';
 import { toastService } from '../../services/toastService';
+import { ModalShell, ActionButton, FormInput, FormSelect } from '../ui/Workbench';
+import { Tab } from '../../types';
 
 const cleanUiLabel = (label: string) => label.replace(/^[^\p{L}\p{N}]+/u, '');
 
@@ -1025,134 +1026,127 @@ export const VisualSqlDashboard: React.FC<VisualSqlDashboardProps> = ({
       )}
 
       {/* Create / Edit Custom Template Modal */}
-      {showEditModal && (
-        <div className="fixed inset-0 z-[160] flex items-center justify-center bg-black/75 backdrop-blur-xs p-4 animate-in fade-in duration-150">
-        <div className="bg-monokai-surface border border-monokai-border rounded-md shadow-xs max-w-xl w-full p-3.5 text-monokai-fg flex flex-col gap-4 max-h-[90vh] overflow-y-auto custom-scrollbar">
-        <div className="flex items-center justify-between border-b border-monokai-border pb-3">
-        <h3 className="text-base font-semibold flex items-center gap-2">
-        <Sparkles size={18} className="text-monokai-orange" />
-        {editingTemplate.createdAt ? '编辑自定义 SQL 模板' : '新建自定义 SQL 模板'}
-        </h3>
-        <button onClick={() => setShowEditModal(false)} className="text-monokai-comment hover:text-monokai-pink cursor-pointer">
-        <X size={18} />
-        </button>
-        </div>
-
-        <div className="flex flex-col gap-3.5 text-xs">
-        <div className="grid grid-cols-2 gap-3">
-        <div>
-        <label className="block text-monokai-comment mb-1 font-bold">模板标题 (*):</label>
-        <input
-        type="text"
-        value={editingTemplate.title || ''}
-        onChange={(e) => setEditingTemplate({ ...editingTemplate, title: e.target.value })}
-        placeholder="例如: 常用多表 FULL JOIN 比对"
-        className="w-full bg-monokai-bg border border-monokai-border rounded-md px-2 py-1 text-meta text-monokai-fg outline-none focus:border-monokai-accent"
-        />
-        </div>
-
-        <div>
-        <label className="block text-monokai-comment mb-1 font-bold">模板分类 (*):</label>
-        <select
-        value={editingTemplate.category || 'basic_query'}
-        onChange={(e) => setEditingTemplate({ ...editingTemplate, category: e.target.value as any })}
-        className="w-full bg-monokai-bg border border-monokai-border rounded-md px-2 py-1 text-meta text-monokai-fg outline-none focus:border-monokai-accent cursor-pointer"
-        >
-        {QUICK_TEMPLATE_CATEGORIES.map(c => (
-        <option key={c.key} value={c.key}>{cleanUiLabel(c.label)}</option>
-        ))}
-        </select>
-        </div>
-        </div>
-
-        <div>
-        <label className="block text-monokai-comment mb-1 font-bold">解决什么问题 (用途):</label>
-        <input
-        type="text"
-        value={editingTemplate.purpose || ''}
-        onChange={(e) => setEditingTemplate({ ...editingTemplate, purpose: e.target.value })}
-        placeholder="说明该 SQL 模板的核心作用..."
-        className="w-full bg-monokai-bg border border-monokai-border rounded-md px-2 py-1 text-meta text-monokai-fg outline-none focus:border-monokai-accent"
-        />
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-        <div>
-        <label className="block text-monokai-comment mb-1 font-bold">可替换参数 (逗号分隔):</label>
-        <input
-        type="text"
-        value={(editingTemplate.keyParameters || []).join(', ')}
-        onChange={(e) => setEditingTemplate({ ...editingTemplate, keyParameters: e.target.value.split(',').map(p => p.trim()).filter(Boolean) })}
-        placeholder="{table_name}, {column_name}"
-        className="w-full bg-monokai-bg border border-monokai-border rounded-md px-2 py-1 text-meta text-monokai-fg outline-none focus:border-monokai-accent font-mono"
-        />
-        </div>
-
-        <div>
-        <label className="block text-monokai-comment mb-1 font-bold">标签 (逗号分隔):</label>
-        <input
-        type="text"
-        value={(editingTemplate.tags || []).join(', ')}
-        onChange={(e) => setEditingTemplate({ ...editingTemplate, tags: e.target.value.split(',').map(t => t.trim()).filter(Boolean) })}
-        placeholder="自定义, JOIN, 分析"
-        className="w-full bg-monokai-bg border border-monokai-border rounded-md px-2 py-1 text-meta text-monokai-fg outline-none focus:border-monokai-accent"
-        />
-        </div>
-        </div>
-
-        <div>
-        <div className="flex items-center justify-between mb-1">
-        <label className="block text-monokai-comment font-bold">
-        SQL 代码示例 (可包含占位符 {'{table_name}'}, {'{column_name}'}):
-        </label>
-        <button
-        type="button"
-        onClick={() => {
-        if (!editingTemplate.sqlExample) return;
-        const matches = editingTemplate.sqlExample.match(/\{[a-zA-Z0-9_]+\}/g);
-        if (matches) {
-        const uniqueParams = Array.from(new Set(matches));
-        setEditingTemplate({
-        ...editingTemplate,
-        keyParameters: uniqueParams
-        });
-        toastService.success(`已自动提取 ${uniqueParams.length} 个变量参数: ${uniqueParams.join(', ')}`);
-        } else {
-        toastService.info('未在 SQL 中匹配到 {param} 格式参数');
+      <ModalShell
+        open={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        title={editingTemplate.createdAt ? '编辑自定义 SQL 模板' : '新建自定义 SQL 模板'}
+        description="沉淀与维护 Analysis Hub 快速场景分析与参数化模板"
+        icon={Sparkles}
+        iconColor="text-monokai-orange"
+        size="md"
+        footer={
+          <>
+            <ActionButton
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowEditModal(false)}
+            >
+              取消
+            </ActionButton>
+            <ActionButton
+              variant="primary"
+              size="sm"
+              icon={Save}
+              onClick={handleSaveCustomTemplate}
+            >
+              保存模板
+            </ActionButton>
+          </>
         }
-        }}
-        className="text-[10px] text-monokai-orange hover:underline cursor-pointer flex items-center gap-1 font-bold"
-        >
-        <Sparkles size={11} /> 从 SQL 自动提取变量参数
-        </button>
-        </div>
-        <textarea
-        rows={6}
-        value={editingTemplate.sqlExample || ''}
-        onChange={(e) => setEditingTemplate({ ...editingTemplate, sqlExample: e.target.value })}
-        className="w-full bg-monokai-bg border border-monokai-border rounded-md p-3 text-xs font-mono text-monokai-fg outline-none focus:border-monokai-accent custom-scrollbar"
-        />
-        </div>
-        </div>
+      >
+        <div className="flex flex-col gap-3.5 text-xs">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-monokai-comment mb-1 font-bold">模板标题 (*):</label>
+              <FormInput
+                type="text"
+                value={editingTemplate.title || ''}
+                onChange={(e) => setEditingTemplate({ ...editingTemplate, title: e.target.value })}
+                placeholder="例如: 常用多表 FULL JOIN 比对"
+              />
+            </div>
 
-        <div className="flex justify-end gap-2 border-t border-monokai-border pt-3">
-        <button
-        onClick={() => setShowEditModal(false)}
-        className="px-4 py-2 bg-monokai-surface text-monokai-comment hover:text-monokai-fg rounded-md text-xs font-bold cursor-pointer"
-        >
-        取消
-        </button>
-        <button
-        onClick={handleSaveCustomTemplate}
-        className="px-2.5 py-1 bg-monokai-orange text-monokai-bg font-semibold text-meta rounded-md hover:opacity-90 transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
-        >
-        <Save size={14} />
-        <span>保存模板</span>
-        </button>
+            <div>
+              <label className="block text-monokai-comment mb-1 font-bold">模板分类 (*):</label>
+              <FormSelect
+                value={editingTemplate.category || 'basic_query'}
+                onChange={(e) => setEditingTemplate({ ...editingTemplate, category: e.target.value as any })}
+              >
+                {QUICK_TEMPLATE_CATEGORIES.map(c => (
+                  <option key={c.key} value={c.key}>{cleanUiLabel(c.label)}</option>
+                ))}
+              </FormSelect>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-monokai-comment mb-1 font-bold">解决什么问题 (用途):</label>
+            <FormInput
+              type="text"
+              value={editingTemplate.purpose || ''}
+              onChange={(e) => setEditingTemplate({ ...editingTemplate, purpose: e.target.value })}
+              placeholder="说明该 SQL 模板的核心作用..."
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-monokai-comment mb-1 font-bold">可替换参数 (逗号分隔):</label>
+              <FormInput
+                type="text"
+                value={(editingTemplate.keyParameters || []).join(', ')}
+                onChange={(e) => setEditingTemplate({ ...editingTemplate, keyParameters: e.target.value.split(',').map(p => p.trim()).filter(Boolean) })}
+                placeholder="{table_name}, {column_name}"
+                fontVariant="mono"
+              />
+            </div>
+
+            <div>
+              <label className="block text-monokai-comment mb-1 font-bold">标签 (逗号分隔):</label>
+              <FormInput
+                type="text"
+                value={(editingTemplate.tags || []).join(', ')}
+                onChange={(e) => setEditingTemplate({ ...editingTemplate, tags: e.target.value.split(',').map(t => t.trim()).filter(Boolean) })}
+                placeholder="自定义, JOIN, 分析"
+              />
+            </div>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-monokai-comment font-bold">
+                SQL 代码示例 (可包含占位符 {'{table_name}'}, {'{column_name}'}):
+              </label>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!editingTemplate.sqlExample) return;
+                  const matches = editingTemplate.sqlExample.match(/\{[a-zA-Z0-9_]+\}/g);
+                  if (matches) {
+                    const uniqueParams = Array.from(new Set(matches));
+                    setEditingTemplate({
+                      ...editingTemplate,
+                      keyParameters: uniqueParams
+                    });
+                    toastService.success(`已自动提取 ${uniqueParams.length} 个变量参数: ${uniqueParams.join(', ')}`);
+                  } else {
+                    toastService.info('未在 SQL 中匹配到 {param} 格式参数');
+                  }
+                }}
+                className="text-[10px] text-monokai-orange hover:underline cursor-pointer flex items-center gap-1 font-bold"
+              >
+                <Sparkles size={11} /> 从 SQL 自动提取变量参数
+              </button>
+            </div>
+            <textarea
+              rows={6}
+              value={editingTemplate.sqlExample || ''}
+              onChange={(e) => setEditingTemplate({ ...editingTemplate, sqlExample: e.target.value })}
+              className="w-full bg-monokai-bg border border-monokai-border rounded-md p-3 text-xs font-mono text-monokai-fg outline-none focus:border-monokai-accent custom-scrollbar"
+            />
+          </div>
         </div>
-        </div>
-        </div>
-      )}
+      </ModalShell>
     </div>
   );
 };

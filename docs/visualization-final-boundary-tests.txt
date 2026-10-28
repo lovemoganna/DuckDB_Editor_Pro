@@ -1,0 +1,10 @@
+$ vitest run --pool=threads --maxWorkers=1 --no-file-parallelism "components/charts/ChartRenderer.visibility.test.tsx" "services/analysis/telemetryCharts.test.ts"
+
+ RUN  v4.1.10 C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor
+
+
+ Test Files  2 passed (2)
+      Tests  5 passed (5)
+   Start at  18:04:29
+   Duration  2.51s (transform 166ms, setup 204ms, import 399ms, tests 99ms, environment 1.50s)
+

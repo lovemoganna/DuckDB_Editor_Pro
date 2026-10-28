@@ -15,6 +15,7 @@
  */
 
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import { useContainerWidth } from '../ui/useContainerWidth';
 import * as d3 from 'd3';
 import {
   RefreshCw, Sparkles, Loader2, HelpCircle, Trash2, AlertTriangle, Activity,
@@ -25,6 +26,8 @@ import {
   Network, Database,
 } from 'lucide-react';
 import { duckDBService } from '../../services/duckdbService';
+import { prepareSqlProjectionGraph, type SliceResult } from '../../services/ontology/sqlGraphProjection';
+import { ProjectionTrace } from './D3GraphView/SqlProjectionTrace';
 import { ontologyAiService } from '../../services/ontologyAiService';
 import { encodeCSV, downloadExcel } from '../../utils/exportUtils';
 import { PixiGraphRenderer } from '../../services/PixiGraphRenderer';
@@ -32,7 +35,7 @@ import { CanvasGraphRenderer } from './D3GraphView/CanvasGraphRenderer';
 import { ontologyActions, useOntologyStore } from '../../hooks/useOntologyStore';
 import { CanvasHelpPanel } from '../skills/CanvasHelpPanel';
 import { ToastNotification } from '../ui/ToastNotification';
-import { ModalShell } from '../ui/Workbench';
+import { ActionButton, EmptyState, ModalShell } from '../ui/Workbench';
 import {
   aggregateParallelEdges,
   buildGraphDataFromState,
@@ -133,51 +136,8 @@ function shouldFreezeNonActionNodes(mode: D3LayoutMode): boolean {
           'concentric', 'starburst', 'dandelion', 'spoke', 'grid', 'groupedCircular'].includes(mode);
 }
 
-/** 渲染引擎模式：MECE 三选一 —— SVG D3 / HTML5 Canvas / WebGL Pixi */
-export type RenderEngineMode = 'svg' | 'canvas' | 'webgl';
-
-/** 渲染引擎元数据 */
-export const RENDER_ENGINE_META: Record<RenderEngineMode, {
-  label: string;
-  shortLabel: string;
-  icon: React.ReactNode;
-  description: string;
-  hint: string;
-  color: string;
-  bgColor: string;
-  borderColor: string;
-}> = {
-  svg: {
-    label: 'SVG D3 (矢量交互)',
-    shortLabel: 'SVG',
-    icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>,
-    description: 'D3 + SVG 力导向物理仿真，矢量无损缩放，支持细粒度高光与动态流向粒子',
-    hint: '≤500节点推荐',
-    color: '#66d9ef',
-    bgColor: 'rgba(102, 217, 239, 0.12)',
-    borderColor: 'rgba(102, 217, 239, 0.45)',
-  },
-  canvas: {
-    label: 'Canvas 2D (极速绘制)',
-    shortLabel: 'Canvas',
-    icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>,
-    description: 'HTML5 Canvas 2D 硬件批量绘制，60 FPS 极速平移缩放，零 DOM 开销',
-    hint: '500-3000节点推荐',
-    color: '#a6e22e',
-    bgColor: 'rgba(166, 226, 46, 0.12)',
-    borderColor: 'rgba(166, 226, 46, 0.45)',
-  },
-  webgl: {
-    label: 'WebGL Pixi (GPU加速)',
-    shortLabel: 'WebGL',
-    icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>,
-    description: 'PixiJS WebGL 硬件着色器加速，空间视锥剔除与 LOD 动态分级，超大规模首选',
-    hint: '≥3000节点推荐',
-    color: '#fd971f',
-    bgColor: 'rgba(253, 151, 31, 0.12)',
-    borderColor: 'rgba(253, 151, 31, 0.45)',
-  },
-};
+import { RENDER_ENGINE_META, type RenderEngineMode } from './D3GraphView/renderEngineMeta';
+export { RENDER_ENGINE_META, type RenderEngineMode } from './D3GraphView/renderEngineMeta';
 
 /** 自动推荐渲染引擎模式（基于节点数量） */
 export function recommendRenderEngine(nodeCount: number, linkCount: number): RenderEngineMode {
@@ -251,12 +211,19 @@ const D3GraphView: React.FC<{
   hopLimit?: '1' | '2' | '3' | 'all';
   /** 跳数切换回调 */
   onHopLimitChange?: (hops: '1' | '2' | '3' | 'all') => void;
-}> = ({ onRefreshRef, ontologyState, isActive, onInspect, onLayoutChange, renderMode = 'graph', onRenderModeChange, hopLimit, onHopLimitChange }) => {
+  /** undefined uses ontology data; null deliberately clears a pending/failed SQL projection. */
+  projection?: SliceResult | null;
+  onProjectionRefresh?: () => void;
+}> = ({ onRefreshRef, ontologyState, isActive, onInspect, onLayoutChange, renderMode = 'graph', onRenderModeChange, hopLimit, onHopLimitChange, projection, onProjectionRefresh }) => {
   const store = useOntologyStore();
   const state = ontologyState ?? store.state;
   const mapping = state.mapping;
+  const graphLoadRevision = useRef(0);
+  const usedProjectionRef = useRef(false);
   
   const containerRef = useRef<HTMLDivElement>(null);
+  const availableWidth = useContainerWidth(containerRef);
+  const compactTools = availableWidth !== null && availableWidth < (projection !== undefined ? 860 : 560);
   const svgRef = useRef<SVGSVGElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const canvasRendererRef = useRef<CanvasGraphRenderer | null>(null);
@@ -595,6 +562,7 @@ const D3GraphView: React.FC<{
           const owner = nodeMap.get(`obj::${actNode._objId}`);
           return {
             id: selectedLinkId,
+            link: undefined,
             sourceNode: owner,
             targetNode: actNode,
             relName: '行动依附 (has-action)',
@@ -621,6 +589,7 @@ const D3GraphView: React.FC<{
         : 'L1-L1 业务拓扑线';
     return {
       id: selectedLinkId,
+      link,
       sourceNode: src,
       targetNode: tgt,
       relName,
@@ -1106,6 +1075,31 @@ const D3GraphView: React.FC<{
   }, []);
 
   const refreshGraph = useCallback(async () => {
+    const request = ++graphLoadRevision.current;
+    if (projection !== undefined) {
+      usedProjectionRef.current = true;
+      simulationRef.current?.stop();
+      rawLinksRef.current = [];
+      setSelectedNode(null); setSelectedLinkId(null); setFocusedNodeId(null);
+      setHoveredNode(null); setInfoContent(''); setContextMenu(null);
+      setCollapsedNodes(new Set()); setSelectedNodeIds(new Set());
+      setPathTracerSource(null); setPathTracerTarget(null); setPathTraceResult(null);
+      setTimelineStep(100); setIsPlayingTimeline(false); setScopeMode('all');
+      setActiveRelationTypes(new Set());
+      // The engine mutates coordinates/endpoints. Keep the SQL result and its provenance immutable.
+      setFullGraphData(prepareSqlProjectionGraph(projection));
+      setLoading(false); setD3Ready(false);
+      return;
+    }
+    if (usedProjectionRef.current) {
+      usedProjectionRef.current = false;
+      setFullGraphData(prepareSqlProjectionGraph(null));
+      nodesRef.current = [];
+      rawLinksRef.current = [];
+      simulationRef.current?.stop();
+      setSelectedNode(null); setSelectedLinkId(null); setHoveredNode(null); setInfoContent('');
+      setPathTracerSource(null); setPathTracerTarget(null); setPathTraceResult(null);
+    }
     // Always read the latest state directly from stateRef to avoid timing issues
     // and prevent refreshGraph identity from changing on every parent re-render
     const currentState = ontologyState ?? stateRef.current;
@@ -1154,6 +1148,7 @@ const D3GraphView: React.FC<{
           rawLinksRef.current = [];
         }
       }
+      if (request !== graphLoadRevision.current) return;
       setFullGraphData(data);
       setFocusedNodeId(prev => {
         const exists = prev && data.nodes.some(n => n.id === prev);
@@ -1162,9 +1157,9 @@ const D3GraphView: React.FC<{
     } catch (err) {
       console.error('[D3GraphView] Error in refreshGraph:', err);
     } finally {
-      setLoading(false);
+      if (request === graphLoadRevision.current) setLoading(false);
     }
-  }, [isActive, ontologyState]);
+  }, [isActive, ontologyState, projection]);
 
   // Temporal playback auto-increment interval
   useEffect(() => {
@@ -1227,6 +1222,7 @@ const D3GraphView: React.FC<{
 
   // ── AI Graph Fill ──
   const handleAIFill = useCallback(async () => {
+    if (projection !== undefined) return;
     if (!aiFillTopic.trim()) {
       setShowAIFillInput(true);
       return;
@@ -1276,7 +1272,7 @@ const D3GraphView: React.FC<{
     } finally {
       setIsAiFilling(false);
     }
-  }, [aiFillTopic]);
+  }, [aiFillTopic, projection]);
 
   function mapColor(color: string): string {
     const map: Record<string, string> = {
@@ -1288,6 +1284,7 @@ const D3GraphView: React.FC<{
 
   // ── Quick Clear: Delete all ontology data ──
   const handleQuickClear = useCallback(async () => {
+    if (projection !== undefined) return;
     setShowClearConfirm(false);
     try {
       await duckDBService.query('DELETE FROM life_link');
@@ -1305,9 +1302,10 @@ const D3GraphView: React.FC<{
       console.error('[D3GraphView] Quick clear failed:', err);
       setToast({ message: '清空数据失败: ' + (err instanceof Error ? err.message : String(err)), type: 'error' });
     }
-  }, []);
+  }, [projection]);
 
   const handleContextMenuDelete = useCallback(async (node: GraphNode) => {
+    if (projection !== undefined) return;
     const parts = node.id.split('::');
     const prefix = parts[0];
     const idVal = Number(parts[1]);
@@ -1332,7 +1330,7 @@ const D3GraphView: React.FC<{
       console.error('删除节点失败:', err);
       setToast({ message: '删除失败: ' + (err instanceof Error ? err.message : String(err)), type: 'error' });
     }
-  }, [store, selectedNode, focusedNodeId, refreshGraph]);
+  }, [store, selectedNode, focusedNodeId, refreshGraph, projection]);
 
   // 统一入口状态重置：清空选择与聚焦，确保新案例载入后呈现纯净开箱视图
   const resetViewToCleanState = useCallback(() => {
@@ -1453,10 +1451,9 @@ const D3GraphView: React.FC<{
 
       /* Labels */
       .nv-node-label {
-        font-size: 10px; font-weight: bold; fill: white;
+        font-size: 10px; font-weight: bold; fill: var(--monokai-fg);
         text-anchor: start; pointer-events: all; cursor: pointer;
-        text-shadow: 0 0 3px rgba(0,0,0,0.9);
-        stroke: #000; stroke-width: 0.5px; paint-order: stroke fill;
+        stroke: var(--monokai-bg); stroke-width: 0.5px; paint-order: stroke fill;
       }
       .nv-typehub-label { font-size: 12px !important; font-weight: 800 !important; }
       .nv-linktype-label {
@@ -1546,8 +1543,8 @@ const D3GraphView: React.FC<{
       }
       .nv-is-dragging .nv-dim { opacity: 0.65 !important; }
       .nv-is-dragging .nv-dim-label { opacity: 0.5 !important; }
-      .nv-label-selected { fill: #FFD166 !important; font-size: 13px !important; font-weight: bold !important; }
-      .nv-label-match { fill: #4CC9F0 !important; }
+      .nv-label-selected { fill: var(--monokai-yellow) !important; font-size: 13px !important; font-weight: bold !important; }
+      .nv-label-match { fill: var(--monokai-cyan) !important; }
       .nv-hidden { display: none !important; }
       .nv-svg { overflow: visible; }
 
@@ -1555,7 +1552,7 @@ const D3GraphView: React.FC<{
       .nv-instance.nv-connected-node circle { stroke: #66d9ef !important; stroke-width: 2.4px !important; opacity: 1.0 !important; }
       .nv-typehub.nv-connected-node circle { stroke: #bd93f9 !important; stroke-width: 1.8px !important; opacity: 0.85 !important; }
       .nv-action.nv-connected-node circle { stroke: #a6e22e !important; stroke-width: 2.0px !important; opacity: 1.0 !important; }
-      .nv-connected-label { fill: #66d9ef !important; font-size: 11px !important; font-weight: bold !important; opacity: 1.0 !important; }
+      .nv-connected-label { fill: var(--monokai-cyan) !important; font-size: 11px !important; font-weight: bold !important; opacity: 1.0 !important; }
 
       /* Selected node: gentle pulse on the stroke (no group drop-shadow to avoid Chromium layout bugs) */
       .nv-selected-pulse circle {
@@ -1605,7 +1602,7 @@ const D3GraphView: React.FC<{
       /* 关系类型徽章样式 */
       .nv-linktype-label {
         font-size: 9px !important;
-        fill: rgba(255, 255, 255, 0.75) !important;
+        fill: var(--monokai-comment) !important;
         font-family: monospace !important;
         pointer-events: none !important;
       }
@@ -1623,7 +1620,7 @@ const D3GraphView: React.FC<{
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
-        color: rgba(255, 255, 255, 0.3);
+        color: var(--monokai-comment);
         font-size: 14px;
         pointer-events: none;
         text-align: center;
@@ -2097,6 +2094,10 @@ const D3GraphView: React.FC<{
     }
 
     if (graphDataRef.current.nodes.length === 0) {
+      nodesRef.current = [];
+      simulationRef.current?.stop();
+      triggerCanvasRenderRef.current();
+      pixiRendererRef.current?.setNodes([]);
       setD3Ready(true);
       return () => {
         const el = document.getElementById(styleId);
@@ -2239,7 +2240,7 @@ const D3GraphView: React.FC<{
     (window as any).__hubNodeId = hubNodeId;
 
     // 布局完成后通知外部（用于同步到其他视图）
-    if (onLayoutChange && nodes.length > 0) {
+    if (onLayoutChange && projection === undefined && nodes.length > 0) {
       const nodePositions: Record<number, { x: number; y: number }> = {};
       nodes.forEach(n => {
         if (n.x !== undefined && n.y !== undefined && Number.isFinite(n.x) && Number.isFinite(n.y)) {
@@ -3309,9 +3310,9 @@ const D3GraphView: React.FC<{
         return title.length > maxLen ? title.slice(0, maxLen) + '…' : title;
       })
       .style('font-size', (d: GraphNode) => `${getNodeLabelBaseFontSize(d)}px`)
-      .style('fill', (d: GraphNode) => d.group === 'property' ? '#7dd3fc' : 'white')
+      .style('fill', (d: GraphNode) => d.group === 'property' ? 'var(--monokai-cyan)' : 'var(--monokai-fg)')
       .style('font-weight', (d: GraphNode) => d.group === 'property' ? '600' : 'bold')
-      .style('stroke', '#090d16')
+      .style('stroke', 'var(--monokai-bg)')
       .style('stroke-width', '2.5px')
       .style('paint-order', 'stroke fill')
       .attr('text-anchor', 'middle')
@@ -3356,7 +3357,7 @@ const D3GraphView: React.FC<{
       labelEls
         .style('display', null)
         .style('font-size', (d: GraphNode) => `${getNodeLabelBaseFontSize(d) / safeScale}px`)
-        .style('stroke', '#0c0d12')
+        .style('stroke', 'var(--monokai-bg)')
         .style('stroke-width', `${2 / safeScale}px`)
         .style('paint-order', 'stroke fill')
         .style('text-anchor', 'middle')
@@ -3924,7 +3925,7 @@ const D3GraphView: React.FC<{
       svg.transition().duration(500)
         .call(zoom.transform as any, d3.zoomIdentity.translate(visualCenterX - (d.x || 0) * scale, visualCenterY - (d.y || 0) * scale).scale(scale));
       
-      if (onInspect) {
+      if (onInspect && projection === undefined) {
         const rawObjId = d._objId ?? (d.id.startsWith('obj::') ? Number(d.id.slice(5)) : Number(d.id));
         const rawTypeId = d._typeId ?? (d.id.startsWith('type::') ? Number(d.id.slice(6)) : Number(d.id));
         const rawActId = (d.id.startsWith('action::') ? Number(d.id.slice(8)) : Number(d.id));
@@ -3957,14 +3958,14 @@ const D3GraphView: React.FC<{
       }
     });
     const resetIfBlankCanvas = (event: MouseEvent) => {
-      const target = event.target as HTMLElement | SVGElement;
-      if (target.closest('.nv-node')) return;
+      const target = event.target as HTMLElement | SVGElement | null;
+      if (typeof target?.closest === 'function' && target.closest('.nv-node')) return;
       resetBlankCanvasStateRef.current?.();
     };
     svg.on('click.reset', resetIfBlankCanvas);
     svg.on('dblclick.reset', (event: MouseEvent) => {
-      const target = event.target as HTMLElement | SVGElement;
-      if (target.closest('.nv-node')) return;
+      const target = event.target as HTMLElement | SVGElement | null;
+      if (typeof target?.closest === 'function' && target.closest('.nv-node')) return;
       event.preventDefault();
       resetBlankCanvasStateRef.current?.();
     });
@@ -4467,6 +4468,7 @@ const D3GraphView: React.FC<{
   // Redundant helper functions highlightedSelectedNode and resetHighlights removed
 
   function showNodeInfo(d: GraphNode, data: GraphData) {
+    if (d._trace) { setShowInfo(true); return; }
     const groupLabels: Record<string, string> = {
       typeHub: '类型 (Type)', instance: '实例 (Instance)',
       linkType: '关系类型', action: '行动 (Action)',
@@ -4553,7 +4555,7 @@ const D3GraphView: React.FC<{
     svg.selectAll<SVGTextElement, GraphNode>('.nv-node-label')
       .classed('nv-dim-label', (d: GraphNode) => isActive && !matched.includes(d.id))
       .classed('nv-label-match', (d: GraphNode) => matched.includes(d.id) && isActive)
-      .style('fill', (d: GraphNode) => matched.includes(d.id) && isActive ? '#00BFFF' : 'white');
+      .style('fill', (d: GraphNode) => matched.includes(d.id) && isActive ? 'var(--monokai-cyan)' : 'var(--monokai-fg)');
     svg.selectAll<SVGPathElement, GraphLink>('.nv-link-instance')
       .style('opacity', (l: GraphLink) => {
         if (!isActive) {
@@ -4616,7 +4618,7 @@ const D3GraphView: React.FC<{
     const ty = visualCenterY - (node.y || 0) * scale;
     d3.select(svgRef.current).transition().duration(500)
       .call(zoomRef.current!.transform as any, d3.zoomIdentity.translate(tx, ty).scale(scale));
-    d3.selectAll<SVGTextElement, GraphNode>('.nv-node-label')
+    d3.select(svgRef.current).selectAll<SVGTextElement, GraphNode>('.nv-node-label')
       .classed('nv-label-selected', (d: GraphNode) => d.id === nodeId);
   };
 
@@ -4629,7 +4631,7 @@ const D3GraphView: React.FC<{
         if (e.key === 'c' || e.key === 'C') { e.preventDefault(); setShowControls(v => !v); }
         if (e.key === 'i' || e.key === 'I') { e.preventDefault(); setShowInfo(v => !v); }
         if (e.key === 'l' || e.key === 'L') { e.preventDefault(); setShowLegend(v => !v); }
-        if (e.key === 's' || e.key === 'S') { e.preventDefault(); (document.getElementById('nv-search-input') as HTMLInputElement)?.focus(); }
+        if (e.key === 's' || e.key === 'S') { e.preventDefault(); containerRef.current?.querySelector<HTMLInputElement>('input[data-node-search]')?.focus(); }
       }
       // Zoom shortcuts (no modifier needed when graph is focused)
       if (e.key === '=' || e.key === '+') { e.preventDefault(); zoomIn(); }
@@ -4744,7 +4746,7 @@ const D3GraphView: React.FC<{
   // Note: legacy alias `panelBase` / `btnStyle` kept so that the right-side
   // stats panel, legend and floating toggles (which still use inline style)
   // can share the same surface treatment via className below.
-  const SURFACE = 'bg-gradient-to-b from-monokai-surface/98 via-monokai-surface/92 to-monokai-sidebar/95 border border-monokai-border/80 rounded-lg shadow-[0_12px_40px_-16px_rgba(0,0,0,0.75)] backdrop-blur-md text-monokai-fg font-sans';
+  const SURFACE = 'bg-gradient-to-b from-monokai-surface/98 via-monokai-surface/92 to-monokai-sidebar/95 border border-monokai-border/80 rounded-lg shadow-lg backdrop-blur-md text-monokai-fg font-sans';
   const SURFACE_HEADER_BTN = 'px-2.5 py-1 text-[11px] font-medium rounded-md border border-monokai-border/80 bg-monokai-bg/70 text-monokai-fg-muted hover:bg-monokai-elevated hover:text-monokai-fg transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed';
   // Legacy aliases kept only to minimize blast radius for unrelated UI
   // blocks that still spread these into inline style props.
@@ -4789,8 +4791,8 @@ const D3GraphView: React.FC<{
       ref={containerRef}
       style={{
         width: '100%', height: '100%',
-        background: '#141916',
-        backgroundImage: 'radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px)',
+        background: 'var(--monokai-bg)',
+        backgroundImage: 'radial-gradient(color-mix(in srgb, var(--monokai-comment) 12%, transparent) 1px, transparent 1px)',
         backgroundSize: '24px 24px',
         position: 'relative', overflow: 'hidden',
         isolation: 'isolate',
@@ -4923,19 +4925,28 @@ const D3GraphView: React.FC<{
         }}
       />
 
-      {graphData && fullGraphData && (
+      {graphData && fullGraphData && !(compactTools && showControls) && (
         <div
           onMouseEnter={() => setIsPanelHovered(true)}
           onMouseLeave={() => setIsPanelHovered(false)}
+          tabIndex={0}
+          role="group"
+          aria-label="核心节点与关系筛选"
+          onFocus={() => setIsPanelHovered(true)}
+          onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setIsPanelHovered(false); }}
+          onKeyDown={event => { if (event.key === 'Escape') setIsPanelHovered(false); }}
           style={{
             position: 'absolute',
-            top: 12,
+            top: compactTools ? 86 : 12,
             left: '50%',
             transform: 'translateX(-50%)',
             zIndex: 1000,
             ...panelBase,
             padding: isPanelHovered ? '8px 10px' : '4px 12px',
-            width: isPanelHovered ? 'min(760px, calc(100% - 220px))' : 'auto',
+            width: isPanelHovered ? (compactTools ? 'calc(100% - 24px)' : 'min(760px, calc(100% - 220px))') : 'auto',
+            maxWidth: 'calc(100% - 24px)',
+            maxHeight: compactTools ? 'calc(100% - 98px)' : 'calc(100% - 24px)',
+            overflow: isPanelHovered ? 'auto' : 'hidden',
             minWidth: 0,
             boxShadow: '0 10px 28px rgba(0,0,0,0.35)',
             borderRadius: isPanelHovered ? '8px' : '20px',
@@ -4946,7 +4957,7 @@ const D3GraphView: React.FC<{
           }}
         >
           {!isPanelHovered ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#FFD166', whiteSpace: 'nowrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--monokai-yellow)', whiteSpace: 'nowrap' }}>
               <span style={{
                 display: 'inline-block',
                 width: 6,
@@ -4966,7 +4977,7 @@ const D3GraphView: React.FC<{
                 value={focusedNodeId || ''}
                 onChange={e => { setFocusedNodeId(e.target.value || null); setScopeMode('focus'); }}
                 style={{
-                  width: '100%', background: 'rgba(13,12,10,0.92)', color: '#f8f8f2',
+                  width: '100%', background: 'var(--monokai-surface)', color: 'var(--monokai-fg)',
                   border: '1px solid rgba(245,239,224,0.16)', borderRadius: 6,
                   padding: '4px 8px', fontSize: 11, outline: 'none',
                 }}
@@ -5002,7 +5013,7 @@ const D3GraphView: React.FC<{
                     style={{
                       ...btnStyle,
                       borderColor: isActive ? '#FFD166' : 'rgba(245,239,224,0.12)',
-                      color: isActive ? '#FFD166' : '#f8f8f2',
+                      color: isActive ? 'var(--monokai-yellow)' : 'var(--monokai-fg)',
                       background: isActive ? 'rgba(255,209,102,0.12)' : btnStyle.background,
                       fontWeight: isActive ? 600 : 400,
                     }}
@@ -5016,13 +5027,13 @@ const D3GraphView: React.FC<{
                 style={{
                   ...btnStyle,
                   borderColor: showWeakLinks ? '#50fa7b' : 'rgba(245,239,224,0.12)',
-                  color: showWeakLinks ? '#50fa7b' : '#f8f8f2',
+                  color: showWeakLinks ? 'var(--monokai-accent)' : 'var(--monokai-fg)',
                 }}
               >
                 {showWeakLinks ? '含弱关系' : '强关系'}
               </button>
             </div>
-            <div style={{ color: '#cbd5e1', fontSize: 11, whiteSpace: 'nowrap', marginLeft: 'auto' }}>
+            <div style={{ color: 'var(--monokai-fg-muted)', fontSize: 11, whiteSpace: 'nowrap', marginLeft: 'auto' }}>
               {stats.nodes}/{fullStats.nodes} 节点 · {stats.links}/{fullStats.links} 边
             </div>
           </div>
@@ -5064,89 +5075,35 @@ const D3GraphView: React.FC<{
       )}
 
       {/* ==================== EMPTY / UNINITIALIZED STATE ==================== */}
-      {!loading && !graphData && (
+      {projection !== undefined && !projection?.graph.nodes.length && <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-xs text-monokai-comment">{projection ? '当前查询没有匹配对象，请调整筛选' : '在侧栏选择对象与条件，查询结果将在此图谱显示'}</div>}
+      {projection === undefined && !loading && !graphData && (
         <div style={{
           position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column',
           alignItems: 'center', justifyContent: 'center', gap: 20, zIndex: 100,
           pointerEvents: 'none',
         }}>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>🔍</div>
-            <div style={{ fontSize: 18, color: '#ffd60a', fontWeight: 'bold', marginBottom: 8 }}>
-              本体论尚未初始化
-            </div>
-            {state?.error && (
-              <div
-                role="alert"
-                style={{
-                  color: '#f92672',
-                  fontSize: 12,
-                  marginBottom: 12,
-                  background: 'rgba(249, 38, 114, 0.1)',
-                  padding: '6px 12px',
-                  borderRadius: 6,
-                  border: '1px solid rgba(249, 38, 114, 0.3)',
-                }}
-              >
-                {state.error}
+          <EmptyState
+            icon={Search}
+            title="本体论尚未初始化"
+            description="当前工作区尚未载入本体结构或种子数据。可重试初始化，或通过 AI 构建图谱。"
+            className="w-full max-w-lg bg-transparent"
+            action={
+              <div className="pointer-events-auto flex flex-wrap justify-center gap-2">
+                <ActionButton size="sm" variant="success" icon={RefreshCw} onClick={() => store.initOntology?.()}>重试初始化</ActionButton>
+                <ActionButton size="sm" icon={Sparkles} onClick={handleAIFill} loading={isAiFilling}>{isAiFilling ? 'AI 构思中...' : 'AI 图谱生成'}</ActionButton>
+                <ActionButton size="sm" icon={RefreshCw} onClick={refreshGraph}>刷新图谱</ActionButton>
+                <ActionButton size="sm" onClick={downloadCSV} disabled={!graphData}>导出 CSV</ActionButton>
+                <ActionButton size="sm" onClick={downloadExcelFile} disabled={!graphData}>导出 Excel</ActionButton>
               </div>
-            )}
-            <div style={{ fontSize: 13, color: '#8f9e94', maxWidth: 400, lineHeight: 1.7, marginBottom: 12 }}>
-              当前工作区尚未载入本体结构或种子数据。<br />
-              可点击「重试初始化」导入默认模型，或通过 AI 自动构建图谱。
-            </div>
-
-            {/* AI Fill Topic Input */}
-            {showAIFillInput && (
-              <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: 16, pointerEvents: 'all' }}>
-                <input
-                  autoFocus
-                  value={aiFillTopic}
-                  onChange={e => setAiFillTopic(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') handleAIFill(); if (e.key === 'Escape') setShowAIFillInput(false); }}
-                  placeholder="输入图谱主题，如：电商订单领域"
-                  style={{
-                    padding: '6px 12px', borderRadius: 8, border: '1px solid #66d9ef',
-                    background: 'rgba(0,0,0,0.4)', color: '#fff', fontSize: 12, width: 260,
-                    outline: 'none',
-                  }}
-                />
-                <button onClick={handleAIFill} disabled={isAiFilling} style={{ ...btnStyle, padding: '6px 14px', borderColor: '#66d9ef', color: '#66d9ef' }}>
-                  {isAiFilling ? <Loader2 className="inline w-3.5 h-3.5 animate-spin" style={{ verticalAlign: 'middle' }} /> : <Sparkles className="inline w-3.5 h-3.5" style={{ verticalAlign: 'middle' }} />}
-                </button>
-                <button onClick={() => setShowAIFillInput(false)} style={{ ...btnStyle, padding: '6px 10px' }}>✕</button>
-              </div>
-            )}
-
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'center', pointerEvents: 'all' }}>
-              <button
-                onClick={() => store.initOntology?.()}
-                style={{ ...btnStyle, padding: '6px 16px', fontSize: 12, borderColor: '#a6e22e', color: '#a6e22e', background: 'rgba(166, 226, 46, 0.1)' }}
-              >
-                <RefreshCw className="inline w-3.5 h-3.5 mr-1" style={{ verticalAlign: 'middle' }} />
-                重试初始化
-              </button>
-              <button onClick={handleAIFill} disabled={isAiFilling} style={{ ...btnStyle, padding: '6px 16px', fontSize: 12, borderColor: '#66d9ef', color: '#66d9ef' }}>
-                {isAiFilling ? <><Loader2 className="inline w-3.5 h-3.5 mr-1 animate-spin" style={{ verticalAlign: 'middle' }} /> AI 构思中...</> : <><Sparkles className="inline w-3.5 h-3.5 mr-1" style={{ verticalAlign: 'middle' }} /> AI 图谱生成</>}
-              </button>
-              <button onClick={refreshGraph} style={{ ...btnStyle, padding: '6px 16px', fontSize: 12 }}>
-                <RefreshCw className="inline w-3.5 h-3.5 mr-1" style={{ verticalAlign: 'middle' }} />
-                刷新图谱
-              </button>
-              <button onClick={downloadCSV} disabled={!graphData} style={{ ...btnStyle, padding: '6px 16px', fontSize: 12, borderColor: '#343c37', opacity: !graphData ? 0.5 : 1 }}>
-                导出 CSV
-              </button>
-              <button onClick={downloadExcelFile} disabled={!graphData} style={{ ...btnStyle, padding: '6px 16px', fontSize: 12, borderColor: '#343c37', color: '#a6e22e', background: 'rgba(39,40,34,0.88)', opacity: !graphData ? 0.5 : 1 }}>
-                导出 Excel
-              </button>
-            </div>
-          </div>
+            }
+          />
+          {state?.error && <div role="alert" className="mx-4 max-w-lg rounded-lg border border-monokai-pink/30 bg-monokai-pink/10 px-3 py-2 text-xs text-monokai-pink">{state.error}</div>}
         </div>
       )}
 
       {/* AI 主题构思浮层 - 居中防遮挡 */}
-      {showAIFillInput && (
-        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-[1500] flex items-center gap-1.5 p-2 rounded-lg bg-monokai-surface/95 border border-monokai-cyan/50 shadow-2xl backdrop-blur-md">
+      {projection === undefined && showAIFillInput && (
+        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-[1500] flex w-max max-w-[calc(100%-1rem)] items-center gap-1.5 p-2 rounded-lg bg-monokai-surface/95 border border-monokai-cyan/50 shadow-2xl backdrop-blur-md">
           <input
             autoFocus
             value={aiFillTopic}
@@ -5154,7 +5111,7 @@ const D3GraphView: React.FC<{
             onKeyDown={e => { if (e.key === 'Enter') handleAIFill(); if (e.key === 'Escape') setShowAIFillInput(false); }}
             placeholder="输入图谱主题，回车确认"
             aria-label="AI 生成主题"
-            className={INPUT_AI}
+            className={INPUT_AI + ' min-w-0'}
           />
           <button onClick={handleAIFill} disabled={isAiFilling} aria-label="确认生成" className={BTN_AI + ' !flex-none px-2.5 py-1.5'}>
             {isAiFilling ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
@@ -5200,7 +5157,7 @@ const D3GraphView: React.FC<{
           onResetLayout={resetLayout}
           onZoomIn={zoomIn}
           onZoomOut={zoomOut}
-          onRefresh={refreshGraph}
+          onRefresh={projection !== undefined ? () => onProjectionRefresh?.() : refreshGraph}
           layoutMode={layoutMode}
           onLayoutModeChange={switchLayoutMode}
           searchTerm={searchTerm}
@@ -5220,8 +5177,8 @@ const D3GraphView: React.FC<{
           onEdgeRoutingModeChange={setEdgeRoutingMode}
           edgeLabelDisplay={edgeLabelDisplay}
           onEdgeLabelDisplayChange={setEdgeLabelDisplay}
-          onAIFill={() => setShowAIFillInput(true)}
-          onClear={() => setShowClearConfirm(true)}
+          onAIFill={projection === undefined ? () => setShowAIFillInput(true) : undefined}
+          onClear={projection === undefined ? () => setShowClearConfirm(true) : undefined}
           clickToFocus={clickToFocus}
           onClickToFocusChange={val => {
             setClickToFocus(val);
@@ -5331,8 +5288,8 @@ const D3GraphView: React.FC<{
       )}
 
       {/* ==================== RENDER ENGINE MODE SWITCHER (MECE 三引擎：SVG / Canvas / WebGL) ==================== */}
-      {graphData && (
-        <div ref={renderModeSwitcherRef} className="absolute top-2.5 right-[95px] z-[1000]">
+      {graphData && !(compactTools && showControls) && (
+        <div ref={renderModeSwitcherRef} className={`absolute ${compactTools ? 'top-12 right-2.5' : 'top-2.5 right-[95px]'} z-[1000]`}>
           <button
             onClick={() => setShowRenderModeMenu(v => !v)}
             aria-haspopup="menu"
@@ -5419,8 +5376,8 @@ const D3GraphView: React.FC<{
       )}
 
       {/* ==================== RIGHT: Stats + Info ==================== */}
-      {showInfo && graphData && (
-        <div ref={infoPanelRef} className={`${SURFACE} absolute top-2.5 right-2.5 z-[1000] p-2.5 min-w-[250px] max-h-[75vh] overflow-y-auto text-[12px]`}>
+      {showInfo && graphData && !(compactTools && showControls) && (
+        <div ref={infoPanelRef} className={`${SURFACE} absolute top-2.5 right-2.5 z-[1000] p-2.5 w-[250px] max-w-[calc(100%-20px)] max-h-[75%] overflow-y-auto text-[12px]`}>
           <div className="flex items-center justify-between mb-2">
             <strong className="text-[13px] text-monokai-fg">扫描统计</strong>
             <button onClick={() => setShowInfo(false)} className={SURFACE_HEADER_BTN}>隐藏</button>
@@ -5452,13 +5409,13 @@ const D3GraphView: React.FC<{
             )}
 
             <div className="border-t border-monokai-border pt-2 mt-2">
-              <div dangerouslySetInnerHTML={{ __html: infoContent || '<span style="color:var(--monokai-comment,#75715e);font-size:10px">单击节点查看详情</span>' }} />
+              {projection !== undefined ? <ProjectionTrace node={selectedNode} rows={projection?.rows || []}/> : <div dangerouslySetInnerHTML={{ __html: infoContent || '<span style="color:var(--monokai-comment,#75715e);font-size:10px">单击节点查看详情</span>' }} />}
             </div>
           </div>
         </div>
       )}
 
-      {!showInfo && (
+      {!showInfo && !(compactTools && showControls) && (
         <button onClick={() => setShowInfo(true)} className={`${SURFACE_HEADER_BTN} absolute top-2.5 right-2.5 z-[1000] shadow-md`}>
           信息面板
         </button>
@@ -5565,7 +5522,7 @@ const D3GraphView: React.FC<{
             left: '50%',
             transform: 'translateX(-50%)',
             zIndex: 1300,
-            background: 'rgba(39, 40, 34, 0.92)',
+            background: 'var(--monokai-sidebar)',
             border: '1px solid rgba(255, 209, 102, 0.3)',
             borderRadius: 24,
             padding: '6px 16px',
@@ -5579,12 +5536,12 @@ const D3GraphView: React.FC<{
           <button
             onClick={() => setIsPlayingTimeline(!isPlayingTimeline)}
             style={{
-              background: isPlayingTimeline ? '#ff5a8a' : '#FFD166',
+              background: isPlayingTimeline ? 'var(--monokai-pink)' : 'var(--monokai-yellow)',
               border: 'none',
               borderRadius: '50%',
               width: 26,
               height: 26,
-              color: '#12131a',
+              color: 'var(--monokai-on-accent)',
               fontWeight: 'bold',
               cursor: 'pointer',
               display: 'flex',
@@ -5597,7 +5554,7 @@ const D3GraphView: React.FC<{
             {isPlayingTimeline ? '⏸' : '▶'}
           </button>
 
-          <span style={{ fontSize: 11, color: '#FFD166', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
+          <span style={{ fontSize: 11, color: 'var(--monokai-yellow)', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
             ⏱ 拓扑演进: {timelineStep}%
           </span>
 
@@ -5613,12 +5570,12 @@ const D3GraphView: React.FC<{
             }}
             style={{
               width: 140,
-              accentColor: '#FFD166',
+              accentColor: 'var(--monokai-yellow)',
               cursor: 'pointer',
             }}
           />
 
-          <span style={{ fontSize: 10, color: '#888' }}>
+          <span style={{ fontSize: 10, color: 'var(--monokai-comment)' }}>
             ({graphData?.nodes.length || 0}/{fullGraphData.nodes.length} 节点)
           </span>
         </div>
@@ -5653,7 +5610,7 @@ const D3GraphView: React.FC<{
             zIndex: 1450,
             background: 'rgba(18, 19, 26, 0.94)',
             border: '1.5px solid #66d9ef',
-            color: '#f8f8f2',
+            color: 'var(--monokai-fg)',
             padding: '6px 16px',
             borderRadius: 24,
             fontSize: 11,
@@ -5674,12 +5631,12 @@ const D3GraphView: React.FC<{
               🎯 终点: {graphData?.nodes.find(n => n.id === pathTracerTarget)?.label || pathTracerTarget}
             </span>
           ) : (
-            <span style={{ color: '#FFD166', fontStyle: 'italic' }}>🎯 请右键选择终点...</span>
+            <span style={{ color: 'var(--monokai-yellow)', fontStyle: 'italic' }}>🎯 请右键选择终点...</span>
           )}
 
           {pathTraceResult && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(102, 217, 239, 0.15)', padding: '2px 8px', borderRadius: 12, border: '1px solid rgba(102, 217, 239, 0.4)' }}>
-              <span style={{ color: '#66d9ef' }}>⚡ 传输距离: {pathTraceResult.distance} 跳</span>
+              <span style={{ color: 'var(--monokai-cyan)' }}>⚡ 传输距离: {pathTraceResult.distance} 跳</span>
               <span style={{ color: '#ccc' }}>· {pathTraceResult.pathNodeIds.size} 节点</span>
             </div>
           )}
@@ -5714,11 +5671,11 @@ const D3GraphView: React.FC<{
       {graphData && (
         <div style={{
           position: 'absolute', right: 10, bottom: 10, zIndex: 1000,
-          background: 'rgba(39,40,34,0.88)', border: '1px solid rgba(245,239,224,0.15)', borderRadius: 6,
+          background: 'var(--monokai-sidebar)', border: '1px solid var(--monokai-border)', borderRadius: 6,
           padding: '6px 12px', display: 'flex', alignItems: 'center', gap: 8,
           maxWidth: 'min(280px, calc(100% - 20px))',
         }}>
-          <span style={{ fontSize: 11, color: '#888' }}>🔎</span>
+          <span style={{ fontSize: 11, color: 'var(--monokai-comment)' }}>🔎</span>
           <input
             type="text"
             value={searchTerm}
@@ -5728,10 +5685,11 @@ const D3GraphView: React.FC<{
               else if (e.key === 'Escape') setSearchTerm('');
             }}
             placeholder="搜索节点... (Alt+S)"
-            style={{ background: 'transparent', color: 'white', border: 'none', outline: 'none', fontSize: 12, width: 200 }}
+            data-node-search
+            style={{ background: 'transparent', color: 'var(--monokai-fg)', border: 'none', outline: 'none', fontSize: 12, width: 200 }}
           />
           {searchTerm && (
-            <button onClick={() => setSearchTerm('')} style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: 12, padding: 0 }}>✕</button>
+            <button onClick={() => setSearchTerm('')} style={{ background: 'none', border: 'none', color: 'var(--monokai-comment)', cursor: 'pointer', fontSize: 12, padding: 0 }}>✕</button>
           )}
           {searchHighlightedRef.current.length > 0 && (
             <span style={{ fontSize: 10, color: '#00BFFF', whiteSpace: 'nowrap' }}>{searchHighlightedRef.current.length}条</span>
@@ -5888,9 +5846,9 @@ const D3GraphView: React.FC<{
         .nv-context-menu {
           position: absolute;
           z-index: 2100;
-          background: #252623;
+          background: var(--monokai-sidebar);
           backdrop-filter: blur(12px);
-          border: 1px solid rgba(248, 248, 242, 0.1);
+          border: 1px solid var(--monokai-border);
           border-radius: 8px;
           padding: 4px;
           box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
@@ -5905,7 +5863,7 @@ const D3GraphView: React.FC<{
           gap: 8px;
           padding: 7px 12px;
           font-size: 12px;
-          color: #f8f8f2;
+          color: var(--monokai-fg);
           cursor: pointer;
           border-radius: 6px;
           transition: all 0.15s ease;
@@ -5915,8 +5873,8 @@ const D3GraphView: React.FC<{
           width: 100%;
         }
         .nv-context-menu-item:hover {
-          background: rgba(248, 248, 242, 0.08);
-          color: #ffffff;
+          background: var(--monokai-hover);
+          color: var(--monokai-fg);
         }
         .nv-context-menu-item.danger {
           color: #ff6188;
@@ -5939,12 +5897,12 @@ const D3GraphView: React.FC<{
         <div
           style={{
             position: 'absolute',
-            left: Math.min(tooltipPos.x + 14, (containerRef.current?.clientWidth ?? 800) - 260),
-            top: Math.min(tooltipPos.y - 8, (containerRef.current?.clientHeight ?? 600) - 320),
+            left: Math.max(0, Math.min(tooltipPos.x + 14, (containerRef.current?.clientWidth ?? 800) - 260)),
+            top: Math.max(0, Math.min(tooltipPos.y - 8, (containerRef.current?.clientHeight ?? 600) - 320)),
             zIndex: 1500,
             minWidth: 220,
             maxWidth: 260,
-            background: 'rgba(13,12,10,0.96)',
+            background: 'var(--monokai-sidebar)',
             border: `1.5px solid ${hoveredNode.color || 'rgba(245,239,224,0.2)'}`,
             borderRadius: 10,
             padding: '10px 12px',
@@ -5990,7 +5948,7 @@ const D3GraphView: React.FC<{
                     background: d.color, flexShrink: 0,
                     boxShadow: `0 0 6px ${d.color}80`,
                   }} />
-                  <span style={{ fontSize: 13, fontWeight: 700, color: '#f8f8f2', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--monokai-fg)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {d.label}
                   </span>
                 </div>
@@ -6034,8 +5992,8 @@ const D3GraphView: React.FC<{
                         const vStr = typeof v === 'object' ? JSON.stringify(v).slice(0, 20) : String(v);
                         return (
                           <div key={k} style={{ display: 'flex', gap: 4, fontSize: 11, lineHeight: 1.7 }}>
-                            <span style={{ color: '#66d9ef', flexShrink: 0 }}>{k}:</span>
-                            <span style={{ color: '#ccc', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{vStr}</span>
+                            <span style={{ color: 'var(--monokai-cyan)', flexShrink: 0 }}>{k}:</span>
+                            <span style={{ color: 'var(--monokai-fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{vStr}</span>
                           </div>
                         );
                       })}
@@ -6262,6 +6220,8 @@ const D3GraphView: React.FC<{
           </button>
           <button
             className="nv-context-menu-item danger"
+            disabled={projection !== undefined}
+            title={projection !== undefined ? '查询投影只读，请在来源数据中修改' : undefined}
             onClick={() => {
               if (confirm(`确定要删除此节点 "${contextMenu.node.label}" 吗？该操作同时会删除相关的连线与数据。`)) {
                 handleContextMenuDelete(contextMenu.node);
@@ -6278,7 +6238,7 @@ const D3GraphView: React.FC<{
       {/* ==================== Edge Inspector Floating Card (连线详情检查卡片) ==================== */}
       {selectedLinkInfo && (
         <div
-          className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[2000] min-w-[340px] max-w-[440px] p-3 rounded-xl border border-monokai-yellow/50 bg-[#1e1f1c]/95 shadow-[0_12px_36px_rgba(0,0,0,0.85)] backdrop-blur-xl font-sans text-monokai-fg animate-in fade-in zoom-in-95 duration-200"
+          className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[2000] min-w-[340px] max-w-[440px] p-3 rounded-xl border border-monokai-yellow/50 bg-monokai-sidebar/95 shadow-[0_12px_36px_rgba(0,0,0,0.85)] backdrop-blur-xl font-sans text-monokai-fg animate-in fade-in zoom-in-95 duration-200"
           role="region"
           aria-label="连线属性检查器"
         >
@@ -6338,6 +6298,13 @@ const D3GraphView: React.FC<{
               {selectedLinkInfo.description}
             </p>
           )}
+          {projection !== undefined && <div className="mt-2 max-h-64 overflow-auto space-y-2">
+            <ProjectionTrace link={selectedLinkInfo.link} rows={projection?.rows || []}/>
+            <details><summary className="cursor-pointer text-monokai-cyan text-xs">两端对象来源</summary>
+              <ProjectionTrace node={selectedLinkInfo.sourceNode} rows={projection?.rows || []}/>
+              <ProjectionTrace node={selectedLinkInfo.targetNode} rows={projection?.rows || []}/>
+            </details>
+          </div>}
 
           <div className="mt-2 pt-2 border-t border-monokai-border/40 flex items-center justify-between text-[10px]">
             <span className="text-monokai-comment">快捷操作:</span>

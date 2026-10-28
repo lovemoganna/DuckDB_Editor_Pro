@@ -28,7 +28,7 @@ import { SkillCategory } from '../../types';
 // ============================================================
 
 export interface CategoryColorSet {
-  /** Hex color for glow/shadow effects */
+  /** Semantic CSS color; use color-mix for transparency rather than hex suffixes. */
   primary: string;
   /** Tailwind class for background tint */
   bg: string;
@@ -65,15 +65,15 @@ export const CATEGORY_DESIGN: Record<SkillCategory, CategoryDesign> = {
     icon: Search,
     emoji: '🔍',
     colors: {
-      primary: '#66d9ef',
-      bg: 'bg-[#66d9ef]/[8%]',
-      bgSubtle: 'bg-[#66d9ef]/[5%]',
-      iconBg: 'bg-[#66d9ef]/[15%]',
+      primary: 'var(--monokai-cyan)',
+      bg: 'bg-monokai-cyan/[8%]',
+      bgSubtle: 'bg-monokai-cyan/[5%]',
+      iconBg: 'bg-monokai-cyan/[15%]',
       border: 'border-monokai-border',
-      text: 'text-[#66d9ef]',
-      icon: 'text-[#66d9ef]',
-      gradientFrom: 'from-[#66d9ef]/[10%]',
-      gradientTo: 'to-[#66d9ef]/[5%]',
+      text: 'text-monokai-cyan',
+      icon: 'text-monokai-cyan',
+      gradientFrom: 'from-monokai-cyan/[10%]',
+      gradientTo: 'to-monokai-cyan/[5%]',
     },
     sqlOperations: ['select', 'insert', 'update', 'delete', 'aggregation', 'join', 'window', 'cte'],
   },
@@ -82,15 +82,15 @@ export const CATEGORY_DESIGN: Record<SkillCategory, CategoryDesign> = {
     icon: RefreshCw,
     emoji: '🔄',
     colors: {
-      primary: '#a6e22e',
-      bg: 'bg-[#a6e22e]/[8%]',
-      bgSubtle: 'bg-[#a6e22e]/[5%]',
-      iconBg: 'bg-[#a6e22e]/[15%]',
+      primary: 'var(--monokai-accent)',
+      bg: 'bg-monokai-accent/[8%]',
+      bgSubtle: 'bg-monokai-accent/[5%]',
+      iconBg: 'bg-monokai-accent/[15%]',
       border: 'border-monokai-border',
-      text: 'text-[#a6e22e]',
-      icon: 'text-[#a6e22e]',
-      gradientFrom: 'from-[#a6e22e]/[10%]',
-      gradientTo: 'to-[#a6e22e]/[5%]',
+      text: 'text-monokai-accent',
+      icon: 'text-monokai-accent',
+      gradientFrom: 'from-monokai-accent/[10%]',
+      gradientTo: 'to-monokai-accent/[5%]',
     },
     sqlOperations: ['transformation'],
   },
@@ -99,15 +99,15 @@ export const CATEGORY_DESIGN: Record<SkillCategory, CategoryDesign> = {
     icon: BarChart3,
     emoji: '📊',
     colors: {
-      primary: '#ae81ff',
-      bg: 'bg-[#ae81ff]/[8%]',
-      bgSubtle: 'bg-[#ae81ff]/[5%]',
-      iconBg: 'bg-[#ae81ff]/[15%]',
+      primary: 'var(--monokai-purple)',
+      bg: 'bg-monokai-purple/[8%]',
+      bgSubtle: 'bg-monokai-purple/[5%]',
+      iconBg: 'bg-monokai-purple/[15%]',
       border: 'border-monokai-border',
-      text: 'text-[#ae81ff]',
-      icon: 'text-[#ae81ff]',
-      gradientFrom: 'from-[#ae81ff]/[10%]',
-      gradientTo: 'to-[#ae81ff]/[5%]',
+      text: 'text-monokai-purple',
+      icon: 'text-monokai-purple',
+      gradientFrom: 'from-monokai-purple/[10%]',
+      gradientTo: 'to-monokai-purple/[5%]',
     },
     sqlOperations: ['analysis'],
   },
@@ -116,15 +116,15 @@ export const CATEGORY_DESIGN: Record<SkillCategory, CategoryDesign> = {
     icon: Zap,
     emoji: '🚀',
     colors: {
-      primary: '#fd971f',
-      bg: 'bg-[#fd971f]/[8%]',
-      bgSubtle: 'bg-[#fd971f]/[5%]',
-      iconBg: 'bg-[#fd971f]/[15%]',
+      primary: 'var(--monokai-orange)',
+      bg: 'bg-monokai-orange/[8%]',
+      bgSubtle: 'bg-monokai-orange/[5%]',
+      iconBg: 'bg-monokai-orange/[15%]',
       border: 'border-monokai-border',
-      text: 'text-[#fd971f]',
-      icon: 'text-[#fd971f]',
-      gradientFrom: 'from-[#fd971f]/[10%]',
-      gradientTo: 'to-[#fd971f]/[5%]',
+      text: 'text-monokai-orange',
+      icon: 'text-monokai-orange',
+      gradientFrom: 'from-monokai-orange/[10%]',
+      gradientTo: 'to-monokai-orange/[5%]',
     },
     sqlOperations: ['optimization'],
   },
@@ -133,15 +133,15 @@ export const CATEGORY_DESIGN: Record<SkillCategory, CategoryDesign> = {
     icon: Wrench,
     emoji: '🛠️',
     colors: {
-      primary: '#8be9fd',
-      bg: 'bg-[#8be9fd]/[8%]',
-      bgSubtle: 'bg-[#8be9fd]/[5%]',
-      iconBg: 'bg-[#8be9fd]/[15%]',
+      primary: 'var(--monokai-cyan)',
+      bg: 'bg-monokai-cyan/[8%]',
+      bgSubtle: 'bg-monokai-cyan/[5%]',
+      iconBg: 'bg-monokai-cyan/[15%]',
       border: 'border-monokai-border',
-      text: 'text-[#8be9fd]',
-      icon: 'text-[#8be9fd]',
-      gradientFrom: 'from-[#8be9fd]/[10%]',
-      gradientTo: 'to-[#8be9fd]/[5%]',
+      text: 'text-monokai-cyan',
+      icon: 'text-monokai-cyan',
+      gradientFrom: 'from-monokai-cyan/[10%]',
+      gradientTo: 'to-monokai-cyan/[5%]',
     },
     sqlOperations: ['utility'],
   },
@@ -150,15 +150,15 @@ export const CATEGORY_DESIGN: Record<SkillCategory, CategoryDesign> = {
     icon: BookOpen,
     emoji: '📖',
     colors: {
-      primary: '#e6db74',
-      bg: 'bg-[#e6db74]/[8%]',
-      bgSubtle: 'bg-[#e6db74]/[5%]',
-      iconBg: 'bg-[#e6db74]/[15%]',
+      primary: 'var(--monokai-yellow)',
+      bg: 'bg-monokai-yellow/[8%]',
+      bgSubtle: 'bg-monokai-yellow/[5%]',
+      iconBg: 'bg-monokai-yellow/[15%]',
       border: 'border-monokai-border',
-      text: 'text-[#e6db74]',
-      icon: 'text-[#e6db74]',
-      gradientFrom: 'from-[#e6db74]/[10%]',
-      gradientTo: 'to-[#e6db74]/[5%]',
+      text: 'text-monokai-yellow',
+      icon: 'text-monokai-yellow',
+      gradientFrom: 'from-monokai-yellow/[10%]',
+      gradientTo: 'to-monokai-yellow/[5%]',
     },
     sqlOperations: [],
   },
@@ -176,17 +176,17 @@ export interface IntentDesign {
 }
 
 export const INTENT_DESIGN: Record<string, IntentDesign> = {
-  select:       { label: '数据查询',   color: 'text-[#66d9ef]',  bg: 'bg-[#66d9ef]/[20%]',  border: 'border-monokai-border' },
-  insert:       { label: '数据插入',   color: 'text-[#a6e22e]', bg: 'bg-[#a6e22e]/[20%]',  border: 'border-monokai-border' },
-  update:       { label: '数据更新',   color: 'text-[#e6db74]', bg: 'bg-[#e6db74]/[20%]',  border: 'border-monokai-border' },
-  delete:       { label: '数据删除',   color: 'text-[#f92672]', bg: 'bg-[#f92672]/[20%]',  border: 'border-monokai-border' },
-  aggregation:  { label: '聚合统计',   color: 'text-[#ae81ff]', bg: 'bg-[#ae81ff]/[20%]',  border: 'border-monokai-border' },
-  join:         { label: '多表关联',   color: 'text-[#f92672]', bg: 'bg-[#f92672]/[20%]',  border: 'border-monokai-border' },
-  window:       { label: '窗口函数',   color: 'text-[#8be9fd]', bg: 'bg-[#8be9fd]/[20%]',  border: 'border-monokai-border' },
-  transformation:{ label: '数据转换',  color: 'text-[#fd971f]', bg: 'bg-[#fd971f]/[20%]',  border: 'border-monokai-border' },
-  analysis:     { label: '数据分析',   color: 'text-[#ae81ff]', bg: 'bg-[#ae81ff]/[20%]',  border: 'border-monokai-border' },
-  optimization:  { label: 'SQL 优化',   color: 'text-[#e6db74]', bg: 'bg-[#e6db74]/[20%]',  border: 'border-monokai-border' },
-  utility:      { label: '工具生成',   color: 'text-[#75715e]', bg: 'bg-[#75715e]/[20%]',  border: 'border-monokai-border' },
+  select:       { label: '数据查询',   color: 'text-monokai-cyan',  bg: 'bg-monokai-cyan/[20%]',  border: 'border-monokai-border' },
+  insert:       { label: '数据插入',   color: 'text-monokai-accent', bg: 'bg-monokai-accent/[20%]',  border: 'border-monokai-border' },
+  update:       { label: '数据更新',   color: 'text-monokai-yellow', bg: 'bg-monokai-yellow/[20%]',  border: 'border-monokai-border' },
+  delete:       { label: '数据删除',   color: 'text-monokai-pink', bg: 'bg-monokai-pink/[20%]',  border: 'border-monokai-border' },
+  aggregation:  { label: '聚合统计',   color: 'text-monokai-purple', bg: 'bg-monokai-purple/[20%]',  border: 'border-monokai-border' },
+  join:         { label: '多表关联',   color: 'text-monokai-pink', bg: 'bg-monokai-pink/[20%]',  border: 'border-monokai-border' },
+  window:       { label: '窗口函数',   color: 'text-monokai-cyan', bg: 'bg-monokai-cyan/[20%]',  border: 'border-monokai-border' },
+  transformation:{ label: '数据转换',  color: 'text-monokai-orange', bg: 'bg-monokai-orange/[20%]',  border: 'border-monokai-border' },
+  analysis:     { label: '数据分析',   color: 'text-monokai-purple', bg: 'bg-monokai-purple/[20%]',  border: 'border-monokai-border' },
+  optimization:  { label: 'SQL 优化',   color: 'text-monokai-yellow', bg: 'bg-monokai-yellow/[20%]',  border: 'border-monokai-border' },
+  utility:      { label: '工具生成',   color: 'text-monokai-comment', bg: 'bg-monokai-comment/[20%]',  border: 'border-monokai-border' },
 };
 
 // Backward-compatible aliases
@@ -201,10 +201,10 @@ export const CATEGORY_META = CATEGORY_DESIGN;
 // ============================================================
 
 export const SEMANTIC_DESIGN = {
-  success: { primary: '#a6e22e', bg: 'bg-[#a6e22e]/[12%]', border: 'border-monokai-border', text: 'text-[#a6e22e]' },
-  error:   { primary: '#f92672', bg: 'bg-[#f92672]/[12%]',   border: 'border-rose-500/40',   text: 'text-[#f92672]' },
-  warning: { primary: '#e6db74', bg: 'bg-[#e6db74]/[12%]', border: 'border-amber-500/30', text: 'text-[#e6db74]' },
-  info:    { primary: '#66d9ef', bg: 'bg-[#66d9ef]/[12%]',  border: 'border-monokai-border',   text: 'text-[#66d9ef]' },
+  success: { primary: 'var(--monokai-accent)', bg: 'bg-monokai-accent/[12%]', border: 'border-monokai-border', text: 'text-monokai-accent' },
+  error:   { primary: 'var(--monokai-pink)', bg: 'bg-monokai-pink/[12%]',   border: 'border-rose-500/40',   text: 'text-monokai-pink' },
+  warning: { primary: 'var(--monokai-yellow)', bg: 'bg-monokai-yellow/[12%]', border: 'border-amber-500/30', text: 'text-monokai-yellow' },
+  info:    { primary: 'var(--monokai-cyan)', bg: 'bg-monokai-cyan/[12%]',  border: 'border-monokai-border',   text: 'text-monokai-cyan' },
 } as const;
 
 // ============================================================
@@ -212,11 +212,11 @@ export const SEMANTIC_DESIGN = {
 // ============================================================
 
 export const BRAND_DESIGN = {
-  primaryGradient: 'from-[#ae81ff] to-[#f92672]',
-  primaryBg: 'bg-gradient-to-r from-[#ae81ff] to-[#f92672]',
+  primaryGradient: 'from-monokai-purple to-monokai-pink',
+  primaryBg: 'bg-gradient-to-r from-monokai-purple to-monokai-pink',
   primaryText: 'text-white',
-  primaryBtn: 'bg-gradient-to-r from-[#ae81ff] to-[#f92672] text-white hover:opacity-90 shadow-md shadow-[#ae81ff]/[20%]',
-  primaryBtnDisabled: 'bg-gradient-to-r from-[#ae81ff]/[50%] to-[#f92672]/[50%] text-white/[60%] cursor-not-allowed',
+  primaryBtn: 'bg-gradient-to-r from-monokai-purple to-monokai-pink text-white hover:opacity-90 shadow-md shadow-monokai-purple/[20%]',
+  primaryBtnDisabled: 'bg-gradient-to-r from-monokai-purple/[50%] to-monokai-pink/[50%] text-white/[60%] cursor-not-allowed',
 } as const;
 
 // ============================================================

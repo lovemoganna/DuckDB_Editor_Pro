@@ -5,11 +5,12 @@ import { CreateViewModal } from '../CreateViewModal';
 import { ClearWorkspaceModal } from '../ClearWorkspaceModal';
 import { DuplicateTableModal } from '../DuplicateTableModal';
 import { RowDetailPanel } from '../RowDetailPanel';
-import { SettingsModal } from '../SettingsModal';
-import { ImportWizard } from '../ImportWizard';
-import { ExportModal } from '../ExportModal';
-import { WorkspaceBackupModal } from '../WorkspaceBackupModal';
-import { ProjectManagerModal } from '../ProjectManagerModal';
+import { DeferredTool } from '../ui/DeferredTool';
+const SettingsModal = React.lazy(() => import('../SettingsModal').then(module => ({ default: module.SettingsModal })));
+const ImportWizard = React.lazy(() => import('../ImportWizard').then(module => ({ default: module.ImportWizard })));
+const ExportModal = React.lazy(() => import('../ExportModal').then(module => ({ default: module.ExportModal })));
+const WorkspaceBackupModal = React.lazy(() => import('../WorkspaceBackupModal').then(module => ({ default: module.WorkspaceBackupModal })));
+const ProjectManagerModal = React.lazy(() => import('../ProjectManagerModal').then(module => ({ default: module.ProjectManagerModal })));
 import { duckDBService } from '../../services/duckdbService';
 import { useConfirmDialog } from '../ui/ConfirmDialog';
 import { useAppStore } from '../../hooks/store/useAppStore';
@@ -87,7 +88,8 @@ export const GlobalModalProvider: React.FC<GlobalModalProviderProps> = ({
   const [showWorkspaceBackupModal, setShowWorkspaceBackupModal] = useState(false);
   const [showCreateViewModal, setShowCreateViewModal] = useState(false);
   const [showClearWorkspaceModal, setShowClearWorkspaceModal] = useState(false);
-  const [showProjectManagerModal, setShowProjectManagerModal] = useState(false);
+  const showProjectManagerModal = useAppStore((state) => state.showProjectManagerModal);
+  const setShowProjectManagerModal = useAppStore((state) => state.setShowProjectManagerModal);
   const [currentProject, setCurrentProject] = useState<string | null>(null);
 
   useEffect(() => {
@@ -141,11 +143,20 @@ export const GlobalModalProvider: React.FC<GlobalModalProviderProps> = ({
     window.addEventListener('open-import-modal', handleOpenImport);
     window.addEventListener('duckdb-open-import', handleOpenImport);
     window.addEventListener('open-clear-workspace-modal', handleOpenClearWorkspace);
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'D' || e.key === 'd')) {
+        e.preventDefault();
+        setShowProjectManagerModal(!useAppStore.getState().showProjectManagerModal);
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown);
     window.addEventListener('open-project-manager-modal', handleOpenProjectManager);
     window.addEventListener('clear-all-views', handleClearAllViews);
     window.addEventListener('clear-all-macros', handleClearAllMacros);
 
     return () => {
+      window.removeEventListener('keydown', handleGlobalKeyDown);
       window.removeEventListener('open-workspace-backup-modal', handleOpenWorkspaceBackup);
       window.removeEventListener('open-export-database-modal', handleOpenExportDatabase);
       window.removeEventListener('open-settings-modal', handleOpenSettings);
@@ -161,11 +172,23 @@ export const GlobalModalProvider: React.FC<GlobalModalProviderProps> = ({
   }, [setShowCreateModal, setShowExportModal, setShowImportModal, setShowSettingsModal, addNotification, refreshTables]);
 
   const handleProjectSelected = async (name: string) => {
-    setCurrentProject(name);
+    const catalog = name || 'memory';
+    setCurrentProject(catalog);
+    useAppStore.getState().setCurrentDatabase(catalog);
     useAppStore.getState().setCurrentTable(null);
+    useAppStore.getState().setTables([]);
     await refreshTables();
-    window.dispatchEvent(new CustomEvent('duckdb-schema-changed'));
-    addNotification(name ? `已切换至项目工作区: ${name}` : '已切换至默认工作区', 'success');
+    window.dispatchEvent(
+      new CustomEvent('duckdb-database-changed', {
+        detail: { catalog, schema: 'main' },
+      }),
+    );
+    addNotification(
+      catalog === 'memory'
+        ? '已切换至 memory 临时分析空间'
+        : `已切换至数据库「${catalog}」——表、视图与仪表盘已隔离`,
+      'success',
+    );
   };
 
   return (
@@ -210,7 +233,7 @@ export const GlobalModalProvider: React.FC<GlobalModalProviderProps> = ({
         onNavigatePrev={() => setExpandedRowIdx(Math.max(0, (expandedRowIdx ?? 0) - 1))}
         onNavigateNext={() => setExpandedRowIdx(Math.min(tableData.length - 1, (expandedRowIdx ?? 0) + 1))}
       />
-      <SettingsModal
+      <DeferredTool open={showSettingsModal} onClose={() => setShowSettingsModal(false)}><SettingsModal
         isOpen={showSettingsModal}
         onClose={() => setShowSettingsModal(false)}
         aiProvider={aiProvider}
@@ -229,13 +252,15 @@ export const GlobalModalProvider: React.FC<GlobalModalProviderProps> = ({
         onExportWorkspace={handleExportWorkspace}
         onImportWorkspace={handleImportWorkspace}
       />
-      <WorkspaceBackupModal
+      </DeferredTool>
+      <DeferredTool open={showWorkspaceBackupModal} onClose={() => setShowWorkspaceBackupModal(false)}><WorkspaceBackupModal
         isOpen={showWorkspaceBackupModal}
         onClose={() => setShowWorkspaceBackupModal(false)}
         onExportWorkspace={handleExportWorkspace}
         onImportWorkspaceSuccess={refreshTables}
       />
-      <ImportWizard
+      </DeferredTool>
+      <DeferredTool open={showImportModal} onClose={() => setShowImportModal(false)}><ImportWizard
         isOpen={showImportModal}
         onClose={() => setShowImportModal(false)}
         onImportComplete={async (createdTables?: string[]) => {
@@ -248,16 +273,19 @@ export const GlobalModalProvider: React.FC<GlobalModalProviderProps> = ({
         onRefreshTables={refreshTables}
         onNotify={addNotification}
       />
-      <ExportModal
+      </DeferredTool>
+      <DeferredTool open={showExportModal} onClose={() => setShowExportModal(false)}><ExportModal
         isOpen={showExportModal}
         onClose={() => setShowExportModal(false)}
       />
-      <ProjectManagerModal
+      </DeferredTool>
+      <DeferredTool open={showProjectManagerModal} onClose={() => setShowProjectManagerModal(false)}><ProjectManagerModal
         isOpen={showProjectManagerModal}
         onClose={() => setShowProjectManagerModal(false)}
         onProjectSelected={handleProjectSelected}
         currentProject={currentProject}
       />
+      </DeferredTool>
     </>
   );
 };

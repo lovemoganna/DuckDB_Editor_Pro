@@ -5,7 +5,7 @@
  * High-vibrancy semantic colors for keywords, functions, strings, numbers, operators,
  * and status/risk indicators so every semantic type is instantly distinguishable.
  *
- * Font size: 11.5px, Line height: 1.45.
+ * Font size: 10px (SQL_EDITOR_FONT_SIZE), Line height: 1.6.
  */
 
 import { createTheme } from '@uiw/codemirror-themes';
@@ -14,7 +14,9 @@ import { EditorView } from '@codemirror/view';
 import type { Extension } from '@codemirror/state';
 
 const FONT_FAMILY = "'Victor Mono', 'JetBrains Mono', Consolas, Menlo, Monaco, monospace";
-const FONT_SIZE = '12px';
+/** Single source of truth: editor text and the autocomplete popup must always share this size. */
+export const SQL_EDITOR_FONT_SIZE = '10px';
+const FONT_SIZE = SQL_EDITOR_FONT_SIZE;
 const LINE_HEIGHT = '1.6';
 
 export type EditorThemeId = 'monokai-pro' | 'monokai-emerald' | 'monokai-dracula';
@@ -30,6 +32,26 @@ export const EDITOR_THEMES: EditorThemeMeta[] = [
   { id: 'monokai-emerald', label: 'Monokai Emerald', preview: { bg: '#1e1f1c', keyword: '#ff3b30', fn: '#30d158', string: '#ffcc00' } },
   { id: 'monokai-dracula', label: 'Monokai Dracula', preview: { bg: '#1e1f1c', keyword: '#ff79c6', fn: '#50fa7b', string: '#f1fa8c' } },
 ];
+
+/** Shared light syntax palette; follows the same semantic tokens as the workbench. */
+export const lightEditorTheme = createTheme({
+  theme: 'light',
+  settings: {
+    background: 'var(--monokai-surface)', foreground: 'var(--monokai-fg)',
+    caret: 'var(--monokai-fg)', selection: 'var(--monokai-hover)',
+    selectionMatch: 'var(--monokai-hover)', lineHighlight: 'var(--monokai-elevated)',
+    gutterBackground: 'var(--monokai-sidebar)', gutterForeground: 'var(--monokai-comment)',
+  },
+  styles: [
+    { tag: t.keyword, color: 'var(--monokai-pink)' },
+    { tag: [t.name, t.variableName], color: 'var(--monokai-fg)' },
+    { tag: t.function(t.variableName), color: 'var(--monokai-cyan)' },
+    { tag: t.string, color: 'var(--monokai-yellow)' },
+    { tag: [t.number, t.bool, t.null], color: 'var(--monokai-purple)' },
+    { tag: t.operator, color: 'var(--monokai-orange)' },
+    { tag: t.comment, color: 'var(--monokai-comment)', fontStyle: 'italic' },
+  ],
+});
 
 function createCssVarTheme(vars: Record<string, string>): Extension {
   return EditorView.theme({

@@ -1,0 +1,12 @@
+### Result
+{"types":2,"instances":5,"schemaEdges":1,"instanceEdges":3}
+### Ran Playwright code
+```js
+await (async page => { return await page.evaluate(async () => { const {loadDynamicGraphData} = await import("/DuckDB_Editor_Pro/components/Library/D3GraphView/D3GraphView.data.ts"); const g = await loadDynamicGraphData({objectTypeTable:"life_object_type",objectTable:"life_object",linkTypeTable:"life_link_type",linkTable:"life_link",actionTable:"life_action"}); return {types:g.nodes.filter(n=>n.group==="typeHub").length,instances:g.nodes.filter(n=>n.group==="instance").length,schemaEdges:g.links.filter(l=>l._isSchemaLink).length,instanceEdges:g.links.filter(l=>l._linkTypeId&&!l._isSchemaLink).length}; }); })(page);
+```
+### Page
+- Page URL: http://localhost:5173/DuckDB_Editor_Pro/
+- Page Title: DuckDB Manager Pro
+- Console: 4 errors, 6 warnings
+### Events
+- New console entries: .playwright-cli\console-2026-10-12T22-58-14-462Z.log#L1342-L2309

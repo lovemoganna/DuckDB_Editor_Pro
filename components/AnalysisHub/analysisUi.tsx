@@ -1,3 +1,5 @@
+import { chartDimensionValue } from '../../services/analysis/chartDisplay';
+import { formatValueBySpec, inferChartUnit } from '../../utils/chartFormat';
 /**
  * Shared Analysis Hub UI primitives & class tokens.
  * Thin composition helpers over Workbench + Monokai tokens — not a second design system.
@@ -33,6 +35,8 @@ export const AH = {
   link: `text-monokai-cyan hover:text-monokai-accent underline-offset-2 hover:underline transition-colors cursor-pointer ${focus}`,
   textLink: `text-monokai-cyan hover:text-monokai-accent hover:underline font-mono text-2xs inline-flex items-center gap-0.5 cursor-pointer ${focus}`,
   divider: 'border-t border-monokai-border/60',
+  /** Labeled divider for inline section breaks */
+  dividerLabel: 'flex items-center gap-2 text-2xs font-bold uppercase tracking-wider text-monokai-comment/70',
   quote:
     'border-l-2 border-monokai-yellow/70 bg-monokai-yellow/5 pl-2.5 py-1.5 text-meta text-monokai-fg-muted leading-relaxed',
   list: 'list-disc pl-4 space-y-1 text-meta text-monokai-fg/90 marker:text-monokai-comment',
@@ -42,14 +46,16 @@ export const AH = {
     'inline-flex items-center gap-0.5 rounded-md border border-monokai-border bg-monokai-bg px-1.5 py-0.5 font-mono text-3xs font-semibold text-monokai-comment',
   input: `rounded-md border border-monokai-border bg-monokai-surface px-2 py-1 text-meta text-monokai-fg font-mono placeholder:text-monokai-comment focus:border-monokai-accent focus:outline-none focus:ring-1 focus:ring-monokai-accent/25 ${focus}`,
   select: `rounded-md border border-monokai-border bg-monokai-surface px-2 py-1 text-meta text-monokai-fg font-mono focus:border-monokai-accent focus:outline-none focus:ring-1 focus:ring-monokai-accent/25 cursor-pointer ${focus}`,
-  chip: `px-2 py-0.5 text-meta rounded-md border border-monokai-border bg-monokai-surface text-monokai-comment hover:text-monokai-fg transition-colors cursor-pointer ${focus}`,
+  /** Inactive filter chip */
+  chip: `px-2 py-0.5 text-meta rounded-md border border-monokai-border bg-monokai-surface text-monokai-comment hover:text-monokai-fg hover:border-monokai-border-strong transition-colors cursor-pointer ${focus}`,
+  /** Active filter chip — accent border + subtle bg tint, no pointer cursor */
   chipActive:
-    'px-2 py-0.5 text-meta rounded-md border border-monokai-border-strong bg-monokai-elevated text-monokai-accent font-semibold',
+    'px-2 py-0.5 text-meta rounded-md border border-monokai-accent/50 bg-monokai-accent/10 text-monokai-accent font-semibold cursor-default',
   btnGhost: `inline-flex items-center gap-1 rounded-md border border-monokai-border bg-monokai-bg px-2 py-1 text-meta text-monokai-fg hover:border-monokai-border-strong hover:bg-monokai-elevated/50 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${focus}`,
   btnPrimary: `inline-flex items-center gap-1 rounded-md bg-monokai-accent px-2.5 py-1 text-meta font-semibold text-monokai-bg hover:bg-monokai-accent-hover transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${focus}`,
-  btnSuccess: `inline-flex items-center gap-1 rounded-md bg-monokai-green/15 border border-monokai-green/35 px-2.5 py-1 text-meta font-semibold text-monokai-green hover:bg-monokai-green/25 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${focus}`,
-  btnWarning: `inline-flex items-center gap-1 rounded-md bg-monokai-yellow/15 border border-monokai-yellow/35 px-2.5 py-1 text-meta font-semibold text-monokai-yellow hover:bg-monokai-yellow/25 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${focus}`,
-  iconBtn: `inline-flex items-center justify-center rounded-md border border-monokai-border bg-monokai-surface p-1.5 text-monokai-comment hover:text-monokai-fg hover:bg-monokai-elevated transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${focus}`,
+  btnSuccess: `inline-flex items-center gap-1 rounded-md border border-monokai-green/40 bg-monokai-green/10 px-2.5 py-1 text-meta font-semibold text-monokai-green hover:bg-monokai-green/20 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${focus}`,
+  btnWarning: `inline-flex items-center gap-1 rounded-md border border-monokai-yellow/40 bg-monokai-yellow/10 px-2.5 py-1 text-meta font-semibold text-monokai-yellow hover:bg-monokai-yellow/20 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${focus}`,
+  iconBtn: `inline-flex items-center justify-center rounded-md border border-monokai-border bg-monokai-surface p-1.5 text-monokai-comment hover:text-monokai-fg hover:bg-monokai-elevated hover:border-monokai-border-strong transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${focus}`,
   dangerIconBtn: `inline-flex items-center justify-center rounded-md p-1 text-monokai-comment hover:text-monokai-pink transition-colors cursor-pointer ${focus}`,
   segmentTrack: 'inline-flex items-center rounded-md border border-monokai-border bg-monokai-bg p-0.5',
   segmentItem: `flex items-center gap-1 px-2 py-0.5 text-meta rounded-md transition-colors cursor-pointer text-monokai-comment hover:text-monokai-fg ${focus}`,
@@ -61,37 +67,42 @@ export const AH = {
   table: 'w-full text-left border-collapse text-meta font-mono',
   th: 'px-2.5 py-1.5 font-semibold text-monokai-comment border-r border-monokai-border/40 last:border-r-0',
   td: 'px-2.5 py-1 text-monokai-fg/90 border-r border-monokai-border/30 last:border-r-0 whitespace-nowrap',
+  /** Inline SQL code block — flush top-border only, inherits parent border-radius */
   codeBlock:
-    'border-t border-monokai-border bg-monokai-bg p-2.5 text-meta font-mono text-monokai-cyan max-h-36 overflow-y-auto custom-scrollbar select-text',
+    'border-t border-monokai-border bg-monokai-bg px-2.5 py-2 text-2xs font-mono text-monokai-cyan max-h-40 overflow-y-auto custom-scrollbar select-text leading-relaxed',
+  /** Standalone SQL code panel with its own rounded border */
   codePanel:
-    'rounded-md border border-monokai-border bg-monokai-bg p-2.5 text-meta font-mono text-monokai-cyan overflow-auto custom-scrollbar select-text',
+    'rounded-md border border-monokai-border bg-monokai-bg p-2.5 text-2xs font-mono text-monokai-cyan overflow-auto custom-scrollbar select-text leading-relaxed',
   sqlBar:
     'border-t border-monokai-border bg-monokai-surface px-3 py-1.5 flex items-center justify-between gap-2 text-meta',
   fieldRow: 'flex flex-col gap-1 min-w-0',
   dashedAdd:
-    'flex items-center justify-center gap-1 rounded-md border border-dashed border-monokai-border py-1 text-2xs text-monokai-comment hover:border-monokai-accent hover:text-monokai-fg transition-colors cursor-pointer',
+    'flex items-center justify-center gap-1 rounded-md border border-dashed border-monokai-border py-1 text-2xs text-monokai-comment hover:border-monokai-accent hover:text-monokai-accent transition-colors cursor-pointer',
   /** Default chart host height (px) — keep pivot / timeseries / recipes aligned */
-  chartHeight: 280,
+  chartHeight: 268,
 } as const;
 
 const ICON_TONE_MAP = {
-  orange: 'bg-monokai-orange/20 text-monokai-orange',
-  cyan: 'bg-monokai-cyan/20 text-monokai-cyan',
-  yellow: 'bg-monokai-yellow/20 text-monokai-yellow',
-  green: 'bg-monokai-green/20 text-monokai-green',
-  accent: 'bg-monokai-accent/20 text-monokai-accent',
+  orange: 'bg-monokai-orange/15 text-monokai-orange',
+  cyan: 'bg-monokai-cyan/15 text-monokai-cyan',
+  yellow: 'bg-monokai-yellow/15 text-monokai-yellow',
+  green: 'bg-monokai-green/15 text-monokai-green',
+  accent: 'bg-monokai-accent/15 text-monokai-accent',
 } as const;
 
 export function analysisIconBox(tone: keyof typeof ICON_TONE_MAP = 'accent'): string {
   return `flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${ICON_TONE_MAP[tone]}`;
 }
 
-export function formatAnalysisCell(val: unknown): React.ReactNode {
+export function formatAnalysisCell(val: unknown, column = ''): React.ReactNode {
   if (val === null || val === undefined) {
     return <span className="text-monokai-comment italic">null</span>;
   }
+  const dimension = chartDimensionValue(val, column);
+  if (dimension !== String(val)) return dimension;
+  if (typeof val === 'number' && /^(uid|id)$|_uid$|_id$/i.test(column)) return String(val);
   if (typeof val === 'number') {
-    return Number.isInteger(val) ? val.toLocaleString() : val.toFixed(2);
+    return formatValueBySpec(val, { unit: inferChartUnit(column), decimals: Number.isInteger(val) ? 0 : 2, thousandSeparator: true, compact: false });
   }
   return String(val);
 }
@@ -161,27 +172,32 @@ export const AnalysisKpiTile: React.FC<AnalysisKpiTileProps> = ({
       {Icon && <Icon className={`h-3 w-3 ${iconClassName}`} aria-hidden="true" />}
       {label}
     </span>
-    <div className={`mt-0.5 text-sm font-bold font-mono tracking-tight ${valueClassName}`}>{value}</div>
+    <div className={`mt-0.5 text-[13px] font-bold font-mono tracking-tight leading-none ${valueClassName}`}>{value}</div>
     {hint && <div className="mt-0.5 text-2xs text-monokai-comment font-mono">{hint}</div>}
   </div>
 );
 
 interface AnalysisResultTableProps {
+  columnLabels?: Record<string,string>;
   columns: string[];
   rows: any[];
   title?: string;
   metaRight?: React.ReactNode;
   maxHeightClass?: string;
   emptyMessage?: string;
+  /** Hide the DuckDB footer attribution row */
+  hideFooter?: boolean;
 }
 
 export const AnalysisResultTable: React.FC<AnalysisResultTableProps> = ({
+  columnLabels = {},
   columns,
   rows,
   title,
   metaRight,
   maxHeightClass = 'max-h-56',
   emptyMessage = '暂无结果行',
+  hideFooter = false,
 }) => {
   if (rows.length === 0) {
     return (
@@ -207,7 +223,7 @@ export const AnalysisResultTable: React.FC<AnalysisResultTableProps> = ({
             <tr className="border-b border-monokai-border bg-monokai-bg/80 sticky top-0 z-10">
               {cols.map(col => (
                 <th key={col} className={AH.th}>
-                  {col}
+                  {columnLabels[col] || col}
                 </th>
               ))}
             </tr>
@@ -217,7 +233,7 @@ export const AnalysisResultTable: React.FC<AnalysisResultTableProps> = ({
               <tr key={rIdx} className="hover:bg-monokai-bg/40 transition-colors">
                 {cols.map(col => (
                   <td key={col} className={AH.td}>
-                    {formatAnalysisCell(row[col])}
+                    {formatAnalysisCell(row[col], col)}
                   </td>
                 ))}
               </tr>
@@ -225,10 +241,12 @@ export const AnalysisResultTable: React.FC<AnalysisResultTableProps> = ({
           </tbody>
         </table>
       </div>
-      <div className="px-2.5 py-1.5 bg-monokai-bg border-t border-monokai-border text-2xs text-monokai-comment font-mono flex items-center justify-between">
-        <span>共 {rows.length} 行</span>
-        <span>DuckDB Local WASM</span>
-      </div>
+      {!hideFooter && (
+        <div className="px-2.5 py-1.5 bg-monokai-bg border-t border-monokai-border text-2xs text-monokai-comment font-mono flex items-center justify-between">
+          <span>共 {rows.length} 行</span>
+          <span className="opacity-60">DuckDB WASM</span>
+        </div>
+      )}
     </div>
   );
 };
@@ -337,7 +355,9 @@ export const AnalysisSqlBar: React.FC<AnalysisSqlBarProps> = ({
       <button
         type="button"
         onClick={onToggle}
-        className={`flex items-center gap-1.5 text-monokai-comment hover:text-monokai-fg font-mono transition-colors cursor-pointer ${focus}`}
+        aria-expanded={open}
+        aria-controls="ah-sql-drawer"
+        className={`flex items-center gap-1.5 text-monokai-comment hover:text-monokai-fg font-mono transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-monokai-accent/60`}
       >
         <Code className="h-3.5 w-3.5 text-monokai-cyan" aria-hidden="true" />
         <span>{open ? '收起 SQL' : '查看底层 SQL'}</span>
@@ -347,6 +367,7 @@ export const AnalysisSqlBar: React.FC<AnalysisSqlBarProps> = ({
         onClick={onCopy}
         disabled={!sql}
         className={`${AH.btnGhost} disabled:opacity-50`}
+        aria-label="复制 SQL 到剪贴板"
       >
         {copied ? (
           <Check className="h-3 w-3 text-monokai-green" aria-hidden="true" />
@@ -357,7 +378,7 @@ export const AnalysisSqlBar: React.FC<AnalysisSqlBarProps> = ({
       </button>
     </div>
     {open && (
-      <div className={AH.codeBlock}>
+      <div id="ah-sql-drawer" className={AH.codeBlock}>
         <pre className="whitespace-pre-wrap leading-relaxed">{sql || emptyLabel}</pre>
       </div>
     )}

@@ -1,0 +1,10 @@
+$ vitest run --pool=threads --maxWorkers=1 --no-file-parallelism "services/analysis" "components/charts" "utils/chartFormat.test.ts" "utils/chartSpace.test.ts" "utils/chartStyleRules.test.ts" "components/DashboardWidget.requests.test.tsx" "components/Dashboard/KpiDynamicMiniCharts.test.tsx" "components/MermaidChart.requests.test.tsx" "services/workbench/queryCompiler.test.ts" "services/workbench/runtime.test.ts"
+
+ RUN  v4.1.10 C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor
+
+
+ Test Files  24 passed (24)
+      Tests  170 passed (170)
+   Start at  17:53:47
+   Duration  34.15s (transform 3.38s, setup 2.35s, import 7.90s, tests 1.58s, environment 18.69s)
+

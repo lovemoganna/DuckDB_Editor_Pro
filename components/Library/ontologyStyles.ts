@@ -491,6 +491,18 @@ export const REACTFLOW_STYLES = `
     border: 1px solid ${THEME_COLORS.border} !important;
     border-radius: 6px !important;
   }
+  .react-flow__minimap-mask {
+    fill: rgba(0, 0, 0, 0.45) !important;
+  }
+  [data-theme="light"] .react-flow__minimap {
+    background: #ffffff !important;
+    border: 1px solid ${THEME_COLORS.border} !important;
+  }
+  [data-theme="light"] .react-flow__minimap-mask {
+    fill: rgba(100, 116, 139, 0.25) !important;
+    stroke: ${THEME_COLORS.cyan} !important;
+    stroke-width: 1px !important;
+  }
   .react-flow__edge-path {
     transition: stroke 0.25s ease, stroke-width 0.2s ease;
   }

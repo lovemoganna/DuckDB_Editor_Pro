@@ -1,0 +1,491 @@
+- generic [ref=f2e3]:
+  - banner "全局工作区顶栏" [ref=f2e4]:
+    - generic [ref=f2e5]:
+      - button "🪶 DuckDB Studio PRO" [ref=f2e6] [cursor=pointer]:
+        - generic [ref=f2e7]: 🪶
+        - generic [ref=f2e9]:
+          - generic [ref=f2e10]: DuckDB Studio
+          - generic [ref=f2e11]: PRO
+      - navigation "业务领域大类" [ref=f2e13]:
+        - button "工程核心" [ref=f2e14] [cursor=pointer]
+        - button "分析洞察" [ref=f2e20] [cursor=pointer]
+        - button "知识沉淀" [ref=f2e25] [cursor=pointer]
+        - button "AI 认知" [ref=f2e30] [cursor=pointer]
+      - tablist "工程核心功能标签页" [ref=f2e36]:
+        - tab "仪表盘" [ref=f2e37] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f2e42]: "1"
+        - tab "数据" [selected] [ref=f2e43] [cursor=pointer]
+        - tab "Schema" [ref=f2e49] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f2e54]: "3"
+        - tab "SQL" [ref=f2e55] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f2e455]: "4"
+        - tab "数据流" [ref=f2e61] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f2e66]: "5"
+      - generic [ref=f2e546]:
+        - generic [ref=f2e549]: "表:"
+        - generic [ref=f2e550]: pivot_qa_functions
+    - generic [ref=f2e67]:
+      - button "项目 Ctrl+Shift+D" [ref=f2e68] [cursor=pointer]:
+        - generic [ref=f2e71]: 项目
+        - generic [ref=f2e72]: Ctrl+Shift+D
+      - button "新建表" [ref=f2e73] [cursor=pointer]
+      - button "duckdb_manager_workspace 已保存到 OPFS" [ref=f2e78] [cursor=pointer]:
+        - generic [ref=f2e81]: duckdb_manager_workspace
+        - generic [ref=f2e83]: 已保存到 OPFS
+      - button "AI 助手 Ctrl+I" [ref=f2e87] [cursor=pointer]:
+        - generic [ref=f2e90]: AI 助手
+        - generic [ref=f2e91]: Ctrl+I
+      - button "⌘K" [ref=f2e92] [cursor=pointer]
+      - button "帮助与快捷键" [ref=f2e96] [cursor=pointer]
+      - button "切换为浅色模式" [ref=f2e99] [cursor=pointer]
+      - button "AI 模型设置" [ref=f2e100] [cursor=pointer]
+  - main [ref=f2e103]:
+    - main [ref=f2e456]:
+      - generic [ref=f2e457]:
+        - generic [ref=f2e460]:
+          - generic [ref=f2e461]:
+            - heading "数据浏览" [level=1] [ref=f2e551]
+            - generic [ref=f2e552]:
+              - generic [ref=f2e553]: TABLE
+              - generic [ref=f2e555]: pivot_qa_functions
+          - paragraph [ref=f2e463]: "当前数据表: pivot_qa_functions · 分页表格 · 排序筛选 · 单元格编辑 · 画像分析 · 导出"
+        - generic [ref=f2e465]:
+          - button "在图谱中查看" [ref=f2e556] [cursor=pointer]
+          - button "透视分析" [ref=f2e557] [cursor=pointer]
+          - button "仪表盘" [ref=f2e558] [cursor=pointer]
+          - tablist "数据视图模式" [ref=f2e559]:
+            - tab "表格网格 2,421" [selected] [ref=f2e560] [cursor=pointer]:
+              - generic [ref=f2e562]: 表格网格
+              - generic [ref=f2e563]: 2,421
+            - tab "画像仪表盘 3 列" [ref=f2e564] [cursor=pointer]:
+              - generic [ref=f2e565]: 画像仪表盘
+              - generic [ref=f2e566]: 3 列
+          - button "插入行" [ref=f2e567] [cursor=pointer]
+      - generic [ref=f2e474]:
+        - generic [ref=f2e475]:
+          - generic [ref=f2e476]:
+            - generic [ref=f2e477]:
+              - generic [ref=f2e570]: TABLE
+              - heading "pivot_qa_functions" [level=2] [ref=f2e571]
+            - generic [ref=f2e572]:
+              - button "结构设计 ↗" [ref=f2e573] [cursor=pointer]
+              - button "分析中心 ↗" [ref=f2e575] [cursor=pointer]
+              - button "指标建模 ↗" [ref=f2e577] [cursor=pointer]
+              - button "在 SQL 中查询 ↗" [ref=f2e579] [cursor=pointer]
+              - button "数据流 ↗" [ref=f2e581] [cursor=pointer]
+          - generic [ref=f2e482]:
+            - button "可视化过滤" [ref=f2e583] [cursor=pointer]
+            - button "列配置" [ref=f2e585] [cursor=pointer]
+            - generic [ref=f2e587]:
+              - button "CSV" [ref=f2e588] [cursor=pointer]
+              - button "JSON" [ref=f2e589] [cursor=pointer]
+              - button "Parquet" [ref=f2e590] [cursor=pointer]
+              - button "高级…" [ref=f2e591] [cursor=pointer]
+        - generic [ref=f2e500]:
+          - generic [ref=f2e592]: WHERE
+          - 'textbox "可选过滤条件，如: id > 5 AND status = ''active''（留空并应用 = 全表）" [ref=f2e593]'
+          - button "应用" [ref=f2e594] [cursor=pointer]
+      - table [ref=f2e598]:
+        - rowgroup [ref=f2e605]:
+          - row [ref=f2e606]:
+            - columnheader [ref=f2e607]
+            - columnheader [ref=f2e608]
+            - columnheader "function_type VARCHAR" [ref=f2e609] [cursor=pointer]:
+              - generic [ref=f2e610]:
+                - generic "function_type" [ref=f2e612]
+                - generic "VARCHAR" [ref=f2e613]
+            - columnheader "return_type VARCHAR" [ref=f2e616] [cursor=pointer]:
+              - generic [ref=f2e617]:
+                - generic "return_type" [ref=f2e619]
+                - generic "VARCHAR" [ref=f2e620]
+            - columnheader "parameter_count BIGINT" [ref=f2e623] [cursor=pointer]:
+              - generic [ref=f2e624]:
+                - generic "parameter_count" [ref=f2e626]
+                - generic "BIGINT" [ref=f2e627]
+        - rowgroup [ref=f2e630]:
+          - row [ref=f2e631]:
+            - cell [ref=f2e632]
+            - cell [ref=f2e633]:
+              - button "在抽屉中查看该行完整详情" [ref=f2e634] [cursor=pointer]
+            - cell "table" [ref=f2e635]
+            - cell "NULL" [ref=f2e638]
+            - cell "3" [ref=f2e641]
+          - row [ref=f2e644]:
+            - cell [ref=f2e645]
+            - cell [ref=f2e646]:
+              - button "在抽屉中查看该行完整详情" [ref=f2e647] [cursor=pointer]
+            - cell "table" [ref=f2e648]
+            - cell "NULL" [ref=f2e651]
+            - cell "2" [ref=f2e654]
+          - row [ref=f2e657]:
+            - cell [ref=f2e658]
+            - cell [ref=f2e659]:
+              - button "在抽屉中查看该行完整详情" [ref=f2e660] [cursor=pointer]
+            - cell "table" [ref=f2e661]
+            - cell "NULL" [ref=f2e664]
+            - cell "1" [ref=f2e667]
+          - row [ref=f2e670]:
+            - cell [ref=f2e671]
+            - cell [ref=f2e672]:
+              - button "在抽屉中查看该行完整详情" [ref=f2e673] [cursor=pointer]
+            - cell "table" [ref=f2e674]
+            - cell "NULL" [ref=f2e677]
+            - cell "0" [ref=f2e680]
+          - row [ref=f2e683]:
+            - cell [ref=f2e684]
+            - cell [ref=f2e685]:
+              - button "在抽屉中查看该行完整详情" [ref=f2e686] [cursor=pointer]
+            - cell "table" [ref=f2e687]
+            - cell "NULL" [ref=f2e690]
+            - cell "2" [ref=f2e693]
+          - row [ref=f2e696]:
+            - cell [ref=f2e697]
+            - cell [ref=f2e698]:
+              - button "在抽屉中查看该行完整详情" [ref=f2e699] [cursor=pointer]
+            - cell "table" [ref=f2e700]
+            - cell "NULL" [ref=f2e703]
+            - cell "2" [ref=f2e706]
+          - row [ref=f2e709]:
+            - cell [ref=f2e710]
+            - cell [ref=f2e711]:
+              - button "在抽屉中查看该行完整详情" [ref=f2e712] [cursor=pointer]
+            - cell "table" [ref=f2e713]
+            - cell "NULL" [ref=f2e716]
+            - cell "1" [ref=f2e719]
+          - row [ref=f2e722]:
+            - cell [ref=f2e723]
+            - cell [ref=f2e724]:
+              - button "在抽屉中查看该行完整详情" [ref=f2e725] [cursor=pointer]
+            - cell "table" [ref=f2e726]
+            - cell "NULL" [ref=f2e729]
+            - cell "47" [ref=f2e732]
+          - row [ref=f2e735]:
+            - cell [ref=f2e736]
+            - cell [ref=f2e737]:
+              - button "在抽屉中查看该行完整详情" [ref=f2e738] [cursor=pointer]
+            - cell "table" [ref=f2e739]
+            - cell "NULL" [ref=f2e742]
+            - cell "0" [ref=f2e745]
+          - row [ref=f2e748]:
+            - cell [ref=f2e749]
+            - cell [ref=f2e750]:
+              - button "在抽屉中查看该行完整详情" [ref=f2e751] [cursor=pointer]
+            - cell "table" [ref=f2e752]
+            - cell "NULL" [ref=f2e755]
+            - cell "1" [ref=f2e758]
+          - row [ref=f2e761]:
+            - cell [ref=f2e762]
+            - cell [ref=f2e763]:
+              - button "在抽屉中查看该行完整详情" [ref=f2e764] [cursor=pointer]
+            - cell "table" [ref=f2e765]
+            - cell "NULL" [ref=f2e768]
+            - cell "2" [ref=f2e771]
+          - row [ref=f2e774]:
+            - cell [ref=f2e775]
+            - cell [ref=f2e776]:
+              - button "在抽屉中查看该行完整详情" [ref=f2e777] [cursor=pointer]
+            - cell "table" [ref=f2e778]
+            - cell "NULL" [ref=f2e781]
+            - cell "1" [ref=f2e784]
+          - row [ref=f2e787]:
+            - cell [ref=f2e788]
+            - cell [ref=f2e789]:
+              - button "在抽屉中查看该行完整详情" [ref=f2e790] [cursor=pointer]
+            - cell "table" [ref=f2e791]
+            - cell "NULL" [ref=f2e794]
+            - cell "1" [ref=f2e797]
+          - row [ref=f2e800]:
+            - cell [ref=f2e801]
+            - cell [ref=f2e802]:
+              - button "在抽屉中查看该行完整详情" [ref=f2e803] [cursor=pointer]
+            - cell "table" [ref=f2e804]
+            - cell "NULL" [ref=f2e807]
+            - cell "46" [ref=f2e810]
+          - row [ref=f2e813]:
+            - cell [ref=f2e814]
+            - cell [ref=f2e815]:
+              - button "在抽屉中查看该行完整详情" [ref=f2e816] [cursor=pointer]
+            - cell "table" [ref=f2e817]
+            - cell "NULL" [ref=f2e820]
+            - cell "46" [ref=f2e823]
+          - row [ref=f2e826]:
+            - cell [ref=f2e827]
+            - cell [ref=f2e828]:
+              - button "在抽屉中查看该行完整详情" [ref=f2e829] [cursor=pointer]
+            - cell "table" [ref=f2e830]
+            - cell "NULL" [ref=f2e833]
+            - cell "46" [ref=f2e836]
+          - row [ref=f2e839]:
+            - cell [ref=f2e840]
+            - cell [ref=f2e841]:
+              - button "在抽屉中查看该行完整详情" [ref=f2e842] [cursor=pointer]
+            - cell "table" [ref=f2e843]
+            - cell "NULL" [ref=f2e846]
+            - cell "46" [ref=f2e849]
+          - row [ref=f2e852]:
+            - cell [ref=f2e853]
+            - cell [ref=f2e854]:
+              - button "在抽屉中查看该行完整详情" [ref=f2e855] [cursor=pointer]
+            - cell "table" [ref=f2e856]
+            - cell "NULL" [ref=f2e859]
+            - cell "1" [ref=f2e862]
+          - row [ref=f2e865]:
+            - cell [ref=f2e866]
+            - cell [ref=f2e867]:
+              - button "在抽屉中查看该行完整详情" [ref=f2e868] [cursor=pointer]
+            - cell "table" [ref=f2e869]
+            - cell "NULL" [ref=f2e872]
+            - cell "1" [ref=f2e875]
+          - row [ref=f2e878]:
+            - cell [ref=f2e879]
+            - cell [ref=f2e880]:
+              - button "在抽屉中查看该行完整详情" [ref=f2e881] [cursor=pointer]
+            - cell "table" [ref=f2e882]
+            - cell "NULL" [ref=f2e885]
+            - cell "1" [ref=f2e888]
+          - row [ref=f2e891]:
+            - cell [ref=f2e892]
+            - cell [ref=f2e893]:
+              - button "在抽屉中查看该行完整详情" [ref=f2e894] [cursor=pointer]
+            - cell "table" [ref=f2e895]
+            - cell "NULL" [ref=f2e898]
+            - cell "2" [ref=f2e901]
+          - row [ref=f2e904]:
+            - cell [ref=f2e905]
+            - cell [ref=f2e906]:
+              - button "在抽屉中查看该行完整详情" [ref=f2e907] [cursor=pointer]
+            - cell "table" [ref=f2e908]
+            - cell "NULL" [ref=f2e911]
+            - cell "3" [ref=f2e914]
+          - row [ref=f2e917]:
+            - cell [ref=f2e918]
+            - cell [ref=f2e919]:
+              - button "在抽屉中查看该行完整详情" [ref=f2e920] [cursor=pointer]
+            - cell "table" [ref=f2e921]
+            - cell "NULL" [ref=f2e924]
+            - cell "3" [ref=f2e927]
+          - row [ref=f2e930]:
+            - cell [ref=f2e931]
+            - cell [ref=f2e932]:
+              - button "在抽屉中查看该行完整详情" [ref=f2e933] [cursor=pointer]
+            - cell "table" [ref=f2e934]
+            - cell "NULL" [ref=f2e937]
+            - cell "1" [ref=f2e940]
+          - row [ref=f2e943]:
+            - cell [ref=f2e944]
+            - cell [ref=f2e945]:
+              - button "在抽屉中查看该行完整详情" [ref=f2e946] [cursor=pointer]
+            - cell "table" [ref=f2e947]
+            - cell "NULL" [ref=f2e950]
+            - cell "1" [ref=f2e953]
+          - row [ref=f2e956]:
+            - cell [ref=f2e957]
+            - cell [ref=f2e958]:
+              - button "在抽屉中查看该行完整详情" [ref=f2e959] [cursor=pointer]
+            - cell "table" [ref=f2e960]
+            - cell "NULL" [ref=f2e963]
+            - cell "2" [ref=f2e966]
+          - row [ref=f2e969]:
+            - cell [ref=f2e970]
+            - cell [ref=f2e971]:
+              - button "在抽屉中查看该行完整详情" [ref=f2e972] [cursor=pointer]
+            - cell "table" [ref=f2e973]
+            - cell "NULL" [ref=f2e976]
+            - cell "1" [ref=f2e979]
+          - row [ref=f2e982]:
+            - cell [ref=f2e983]
+            - cell [ref=f2e984]:
+              - button "在抽屉中查看该行完整详情" [ref=f2e985] [cursor=pointer]
+            - cell "table" [ref=f2e986]
+            - cell "NULL" [ref=f2e989]
+            - cell "0" [ref=f2e992]
+          - row [ref=f2e995]:
+            - cell [ref=f2e996]
+            - cell [ref=f2e997]:
+              - button "在抽屉中查看该行完整详情" [ref=f2e998] [cursor=pointer]
+            - cell "table" [ref=f2e999]
+            - cell "NULL" [ref=f2e1002]
+            - cell "0" [ref=f2e1005]
+          - row [ref=f2e1008]:
+            - cell [ref=f2e1009]
+            - cell [ref=f2e1010]:
+              - button "在抽屉中查看该行完整详情" [ref=f2e1011] [cursor=pointer]
+            - cell "table" [ref=f2e1012]
+            - cell "NULL" [ref=f2e1015]
+            - cell "1" [ref=f2e1018]
+          - row [ref=f2e1021]:
+            - cell [ref=f2e1022]
+            - cell [ref=f2e1023]:
+              - button "在抽屉中查看该行完整详情" [ref=f2e1024] [cursor=pointer]
+            - cell "table" [ref=f2e1025]
+            - cell "NULL" [ref=f2e1028]
+            - cell "1" [ref=f2e1031]
+          - row [ref=f2e1034]:
+            - cell [ref=f2e1035]
+            - cell [ref=f2e1036]:
+              - button "在抽屉中查看该行完整详情" [ref=f2e1037] [cursor=pointer]
+            - cell "table" [ref=f2e1038]
+            - cell "NULL" [ref=f2e1041]
+            - cell "1" [ref=f2e1044]
+          - row [ref=f2e1047]:
+            - cell [ref=f2e1048]
+            - cell [ref=f2e1049]:
+              - button "在抽屉中查看该行完整详情" [ref=f2e1050] [cursor=pointer]
+            - cell "table" [ref=f2e1051]
+            - cell "NULL" [ref=f2e1054]
+            - cell "0" [ref=f2e1057]
+          - row [ref=f2e1060]:
+            - cell [ref=f2e1061]
+            - cell [ref=f2e1062]:
+              - button "在抽屉中查看该行完整详情" [ref=f2e1063] [cursor=pointer]
+            - cell "table" [ref=f2e1064]
+            - cell "NULL" [ref=f2e1067]
+            - cell "0" [ref=f2e1070]
+          - row [ref=f2e1073]:
+            - cell [ref=f2e1074]
+            - cell [ref=f2e1075]:
+              - button "在抽屉中查看该行完整详情" [ref=f2e1076] [cursor=pointer]
+            - cell "table" [ref=f2e1077]
+            - cell "NULL" [ref=f2e1080]
+            - cell "1" [ref=f2e1083]
+          - row [ref=f2e1086]:
+            - cell [ref=f2e1087]
+            - cell [ref=f2e1088]:
+              - button "在抽屉中查看该行完整详情" [ref=f2e1089] [cursor=pointer]
+            - cell "table" [ref=f2e1090]
+            - cell "NULL" [ref=f2e1093]
+            - cell "0" [ref=f2e1096]
+          - row [ref=f2e1099]:
+            - cell [ref=f2e1100]
+            - cell [ref=f2e1101]:
+              - button "在抽屉中查看该行完整详情" [ref=f2e1102] [cursor=pointer]
+            - cell "table" [ref=f2e1103]
+            - cell "NULL" [ref=f2e1106]
+            - cell "0" [ref=f2e1109]
+          - row [ref=f2e1112]:
+            - cell [ref=f2e1113]
+            - cell [ref=f2e1114]:
+              - button "在抽屉中查看该行完整详情" [ref=f2e1115] [cursor=pointer]
+            - cell "table" [ref=f2e1116]
+            - cell "NULL" [ref=f2e1119]
+            - cell "1" [ref=f2e1122]
+          - row [ref=f2e1125]:
+            - cell [ref=f2e1126]
+            - cell [ref=f2e1127]:
+              - button "在抽屉中查看该行完整详情" [ref=f2e1128] [cursor=pointer]
+            - cell "table" [ref=f2e1129]
+            - cell "NULL" [ref=f2e1132]
+            - cell "1" [ref=f2e1135]
+          - row [ref=f2e1138]:
+            - cell [ref=f2e1139]
+            - cell [ref=f2e1140]:
+              - button "在抽屉中查看该行完整详情" [ref=f2e1141] [cursor=pointer]
+            - cell "table" [ref=f2e1142]
+            - cell "NULL" [ref=f2e1145]
+            - cell "1" [ref=f2e1148]
+          - row [ref=f2e1151]:
+            - cell [ref=f2e1152]
+            - cell [ref=f2e1153]:
+              - button "在抽屉中查看该行完整详情" [ref=f2e1154] [cursor=pointer]
+            - cell "table" [ref=f2e1155]
+            - cell "NULL" [ref=f2e1158]
+            - cell "2" [ref=f2e1161]
+          - row [ref=f2e1164]:
+            - cell [ref=f2e1165]
+            - cell [ref=f2e1166]:
+              - button "在抽屉中查看该行完整详情" [ref=f2e1167] [cursor=pointer]
+            - cell "table" [ref=f2e1168]
+            - cell "NULL" [ref=f2e1171]
+            - cell "3" [ref=f2e1174]
+          - row [ref=f2e1177]:
+            - cell [ref=f2e1178]
+            - cell [ref=f2e1179]:
+              - button "在抽屉中查看该行完整详情" [ref=f2e1180] [cursor=pointer]
+            - cell "table" [ref=f2e1181]
+            - cell "NULL" [ref=f2e1184]
+            - cell "3" [ref=f2e1187]
+          - row [ref=f2e1190]:
+            - cell [ref=f2e1191]
+            - cell [ref=f2e1192]:
+              - button "在抽屉中查看该行完整详情" [ref=f2e1193] [cursor=pointer]
+            - cell "table" [ref=f2e1194]
+            - cell "NULL" [ref=f2e1197]
+            - cell "0" [ref=f2e1200]
+          - row [ref=f2e1203]:
+            - cell [ref=f2e1204]
+            - cell [ref=f2e1205]:
+              - button "在抽屉中查看该行完整详情" [ref=f2e1206] [cursor=pointer]
+            - cell "table" [ref=f2e1207]
+            - cell "NULL" [ref=f2e1210]
+            - cell "1" [ref=f2e1213]
+          - row [ref=f2e1216]:
+            - cell [ref=f2e1217]
+            - cell [ref=f2e1218]:
+              - button "在抽屉中查看该行完整详情" [ref=f2e1219] [cursor=pointer]
+            - cell "table" [ref=f2e1220]
+            - cell "NULL" [ref=f2e1223]
+            - cell "6" [ref=f2e1226]
+          - row [ref=f2e1229]:
+            - cell [ref=f2e1230]
+            - cell [ref=f2e1231]:
+              - button "在抽屉中查看该行完整详情" [ref=f2e1232] [cursor=pointer]
+            - cell "table" [ref=f2e1233]
+            - cell "NULL" [ref=f2e1236]
+            - cell "0" [ref=f2e1239]
+          - row [ref=f2e1242]:
+            - cell [ref=f2e1243]
+            - cell [ref=f2e1244]:
+              - button "在抽屉中查看该行完整详情" [ref=f2e1245] [cursor=pointer]
+            - cell "table" [ref=f2e1246]
+            - cell "NULL" [ref=f2e1249]
+            - cell "0" [ref=f2e1252]
+          - row [ref=f2e1255]:
+            - cell [ref=f2e1256]
+            - cell [ref=f2e1257]:
+              - button "在抽屉中查看该行完整详情" [ref=f2e1258] [cursor=pointer]
+            - cell "table" [ref=f2e1259]
+            - cell "NULL" [ref=f2e1262]
+            - cell "0" [ref=f2e1265]
+          - row [ref=f2e1268]:
+            - cell [ref=f2e1269]
+            - cell [ref=f2e1270]:
+              - button "在抽屉中查看该行完整详情" [ref=f2e1271] [cursor=pointer]
+            - cell "table" [ref=f2e1272]
+            - cell "NULL" [ref=f2e1275]
+            - cell "0" [ref=f2e1278]
+      - generic [ref=f2e1281]:
+        - generic [ref=f2e1282]: 共 2,421 条记录
+        - generic [ref=f2e1284]:
+          - generic [ref=f2e1285]:
+            - generic [ref=f2e1286]: "每页:"
+            - combobox [ref=f2e1287] [cursor=pointer]:
+              - option "25"
+              - option "50" [selected]
+              - option "100"
+              - option "200"
+          - button "首页" [disabled] [ref=f2e1288]
+          - button "上一页" [disabled] [ref=f2e1289]
+          - generic [ref=f2e1290]:
+            - generic [ref=f2e1291]: "页码:"
+            - spinbutton [ref=f2e1292]: "1"
+            - generic [ref=f2e1293]: / 49
+          - button "下一页" [ref=f2e1294] [cursor=pointer]
+          - button "末页" [ref=f2e1295] [cursor=pointer]
+  - contentinfo [ref=f2e123]:
+    - generic [ref=f2e124]:
+      - generic [ref=f2e125]: DuckDB 1.33.1
+      - generic [ref=f2e128]: "|"
+      - generic [ref=f2e129]: duckdb_manager_workspace [OPFS]
+      - generic [ref=f2e131]: "|"
+      - generic [ref=f2e132]: 持久化库
+      - generic [ref=f2e134]: "|"
+      - generic [ref=f2e135]: 1 张表
+      - generic [ref=f2e137]: "|"
+      - generic [ref=f2e138]: 1 个活动表
+      - generic [ref=f2e140]: "|"
+      - generic [ref=f2e141]: "内存: 0.25 MB / 3.1 GiB"
+    - generic [ref=f2e143]:
+      - generic [ref=f2e144]: 引擎就绪
+      - generic [ref=f2e148]: "|"
+      - generic [ref=f2e149]: 12:27
+      - button "刷新运行时状态" [ref=f2e150] [cursor=pointer]

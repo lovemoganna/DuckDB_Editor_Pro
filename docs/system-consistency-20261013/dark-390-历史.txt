@@ -1,0 +1,135 @@
+- banner "全局工作区顶栏":
+  - button "🪶 DuckDB Studio PRO":
+    - generic: 🪶
+    - generic: DuckDB Studio
+    - generic: PRO
+  - navigation "业务领域大类":
+    - button "工程核心":
+      - generic: 工程核心
+    - button "分析洞察":
+      - generic: 分析洞察
+    - button "知识沉淀":
+      - generic: 知识沉淀
+    - button "AI 认知":
+      - generic: AI 认知
+  - tablist "分析洞察功能标签页":
+    - tab "指标":
+      - generic: 指标
+    - tab "可视化":
+      - generic: 可视化
+    - tab "分析":
+      - generic: 分析
+    - tab "历史" [active] [selected]:
+      - generic: 历史
+    - tab "审计":
+      - generic: 审计
+  - button "项目":
+    - generic: 项目
+  - button "新建表":
+    - generic: 新建表
+  - button "临时分析空间":
+    - generic: 临时分析空间
+  - button "⌘K":
+  - button "帮助与快捷键":
+  - button "切换为浅色模式":
+  - button "AI 模型设置":
+- main:
+  - heading "分析洞察 • 查询历史 (Query History)" [level=1]
+  - generic: 3 次执行记录
+  - button "刷新":
+    - generic: 刷新
+  - button "清空历史":
+    - generic: 清空历史
+  - generic: 执行指标分析 (Execution Metrics)
+  - generic: (近 3 次执行记录)
+  - button "收起指标":
+    - generic: 收起指标
+  - generic: 总执行次数
+  - generic: "3"
+  - generic: 平均执行耗时
+  - generic: 325.5 ms
+  - generic: 执行成功率
+  - generic: 66.7%
+  - generic: 慢查询 (≥1s)
+  - generic: "0"
+  - generic: 已收藏查询
+  - generic: "0"
+  - tablist "执行状态过滤":
+    - tab "全部流水 3" [selected]:
+      - generic: 全部流水
+      - generic: "3"
+    - tab "执行成功 2":
+      - generic: 执行成功
+      - generic: "2"
+    - tab "异常报错 1":
+      - generic: 异常报错
+      - generic: "1"
+    - tab "已收藏 0":
+      - generic: 已收藏
+      - generic: "0"
+  - button "全部耗时"
+  - button "<100ms":
+    - generic: <100ms
+  - button "100ms-1s"
+  - button "🐢 ≥1s"
+  - textbox "搜索 SQL 语句、报错关键字或 ID..."
+  - generic: "排序:"
+  - combobox:
+    - option "最近执行 (Recent)" [selected]
+    - option "最高耗时 (Slowest)"
+    - option "执行状态 (Status)"
+  - button "卡片流视图 (Card Flow View)":
+  - button "紧凑表格视图 (Data Table View)":
+  - generic: 已显示 3 / 3 条
+  - article:
+    - generic: ERROR
+    - generic: 7 分钟前
+    - generic: 109ms
+    - button "收藏此查询":
+    - generic: SELECT * FROM __audit_missing_relation_20261013
+    - generic: "⚠️ 错误: Catalog Error: Table with name __audit_missing_relation_20261013 does not exist! Did you mean \"_sys_audit_log\"? LINE 1: SELECT * FROM __audit_missing_relation_20261013 ^"
+    - generic: 2026/10/13 06:45:37
+    - button "详情":
+      - generic: 详情
+    - button "复制":
+      - generic: 复制
+    - button "载入运行":
+      - generic: 载入运行
+    - button "删除单条历史记录":
+  - article:
+    - generic: SUCCESS
+    - generic: 9 分钟前
+    - generic: 252ms
+    - button "收藏此查询":
+    - generic: SELECT 42 AS answer, NULL::VARCHAR AS missing, repeat('长文本',100) AS long_text;
+    - generic: 2026/10/13 06:44:08
+    - button "详情":
+      - generic: 详情
+    - button "复制":
+      - generic: 复制
+    - button "载入运行":
+      - generic: 载入运行
+    - button "删除单条历史记录":
+  - article:
+    - generic: SUCCESS
+    - generic: 22 分钟前
+    - generic: 616ms
+    - button "收藏此查询":
+    - generic: SELECT 42 AS answer, '审查长文本验证' AS label
+    - generic: 2026/10/13 06:30:59
+    - button "详情":
+      - generic: 详情
+    - button "复制":
+      - generic: 复制
+    - button "载入运行":
+      - generic: 载入运行
+    - button "删除单条历史记录":
+  - generic: 显示 3 项 • 点击卡片或行可查看 SQL 语法高亮与格式化详情
+- contentinfo:
+  - generic: DuckDB 1.33.1
+  - generic: "|"
+  - generic: memory [MEMORY]
+  - generic: 引擎就绪
+  - generic: "|"
+  - generic: 06:53
+  - button "刷新运行时状态":

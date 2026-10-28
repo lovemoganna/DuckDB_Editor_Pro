@@ -1,0 +1,12 @@
+Already up to date
+Done in 445ms using pnpm v11.13.0
+$ vitest run --pool=threads --maxWorkers=1 --no-file-parallelism "components/Dashboard/MissionControl/DataIdeMissionControl.test.tsx" "services/workbench/queryCompiler.test.ts" "services/analysis/pivotExperience.test.ts" "components/AnalysisHub/PivotEditor.test.tsx" "components/AnalysisHub/AnalysisHub.test.tsx" "hooks/store/useAnalysisWorkspace.test.ts" "components/charts/PivotTableView.test.tsx" "hooks/useCurrentGraphDataset.test.tsx" "services/analysis/sqlCompiler.test.ts" "services/analysis/chartDisplay.test.ts" "services/analysis/adapters/dashboardWidgetAdapter.test.ts"
+
+ RUN  v4.1.10 C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor
+
+
+ Test Files  11 passed (11)
+      Tests  103 passed (103)
+   Start at  19:17:20
+   Duration  70.61s (transform 10.29s, setup 3.85s, import 28.28s, tests 5.06s, environment 28.07s)
+

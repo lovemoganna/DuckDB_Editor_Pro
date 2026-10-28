@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { duckDBService } from '../services/duckdbService';
-import { ModalShell } from './ui/Workbench';
+import { ModalShell, ActionButton } from './ui/Workbench';
 import {
   Table2,
   Plus,
@@ -36,17 +36,17 @@ interface DataTypeMeta {
 }
 
 const COMMON_DATA_TYPES: DataTypeMeta[] = [
-  { type: 'INTEGER', category: 'numeric', icon: '#', color: 'text-[#66d9ef]', badgeBg: 'bg-[#252623] text-[#66d9ef] border-[#3a3b36]' },
-  { type: 'BIGINT', category: 'numeric', icon: '#', color: 'text-[#66d9ef]', badgeBg: 'bg-[#252623] text-[#66d9ef] border-[#3a3b36]' },
-  { type: 'DOUBLE', category: 'numeric', icon: '#', color: 'text-[#66d9ef]', badgeBg: 'bg-[#252623] text-[#66d9ef] border-[#3a3b36]' },
-  { type: 'FLOAT', category: 'numeric', icon: '#', color: 'text-[#66d9ef]', badgeBg: 'bg-[#252623] text-[#66d9ef] border-[#3a3b36]' },
-  { type: 'DECIMAL(18,2)', category: 'numeric', icon: '#', color: 'text-[#66d9ef]', badgeBg: 'bg-[#252623] text-[#66d9ef] border-[#3a3b36]' },
-  { type: 'VARCHAR', category: 'text', icon: 'Aa', color: 'text-[#e6db74]', badgeBg: 'bg-[#252623] text-[#e6db74] border-[#3a3b36]' },
-  { type: 'UUID', category: 'text', icon: 'ID', color: 'text-[#e6db74]', badgeBg: 'bg-[#252623] text-[#e6db74] border-[#3a3b36]' },
-  { type: 'TIMESTAMP', category: 'datetime', icon: '🕒', color: 'text-[#ae81ff]', badgeBg: 'bg-[#252623] text-[#ae81ff] border-[#3a3b36]' },
-  { type: 'DATE', category: 'datetime', icon: '📅', color: 'text-[#ae81ff]', badgeBg: 'bg-[#252623] text-[#ae81ff] border-[#3a3b36]' },
-  { type: 'BOOLEAN', category: 'boolean', icon: '0/1', color: 'text-[#f92672]', badgeBg: 'bg-[#252623] text-[#f92672] border-[#3a3b36]' },
-  { type: 'JSON', category: 'json', icon: '{}', color: 'text-[#a6e22e]', badgeBg: 'bg-[#252623] text-[#a6e22e] border-[#3a3b36]' },
+  { type: 'INTEGER', category: 'numeric', icon: '#', color: 'text-monokai-cyan', badgeBg: 'bg-monokai-surface text-monokai-cyan border-monokai-border' },
+  { type: 'BIGINT', category: 'numeric', icon: '#', color: 'text-monokai-cyan', badgeBg: 'bg-monokai-surface text-monokai-cyan border-monokai-border' },
+  { type: 'DOUBLE', category: 'numeric', icon: '#', color: 'text-monokai-cyan', badgeBg: 'bg-monokai-surface text-monokai-cyan border-monokai-border' },
+  { type: 'FLOAT', category: 'numeric', icon: '#', color: 'text-monokai-cyan', badgeBg: 'bg-monokai-surface text-monokai-cyan border-monokai-border' },
+  { type: 'DECIMAL(18,2)', category: 'numeric', icon: '#', color: 'text-monokai-cyan', badgeBg: 'bg-monokai-surface text-monokai-cyan border-monokai-border' },
+  { type: 'VARCHAR', category: 'text', icon: 'Aa', color: 'text-monokai-yellow', badgeBg: 'bg-monokai-surface text-monokai-yellow border-monokai-border' },
+  { type: 'UUID', category: 'text', icon: 'ID', color: 'text-monokai-yellow', badgeBg: 'bg-monokai-surface text-monokai-yellow border-monokai-border' },
+  { type: 'TIMESTAMP', category: 'datetime', icon: '🕒', color: 'text-monokai-purple', badgeBg: 'bg-monokai-surface text-monokai-purple border-monokai-border' },
+  { type: 'DATE', category: 'datetime', icon: '📅', color: 'text-monokai-purple', badgeBg: 'bg-monokai-surface text-monokai-purple border-monokai-border' },
+  { type: 'BOOLEAN', category: 'boolean', icon: '0/1', color: 'text-monokai-pink', badgeBg: 'bg-monokai-surface text-monokai-pink border-monokai-border' },
+  { type: 'JSON', category: 'json', icon: '{}', color: 'text-monokai-accent', badgeBg: 'bg-monokai-surface text-monokai-accent border-monokai-border' },
 ];
 
 const getTypeMeta = (type: string): DataTypeMeta => {
@@ -54,21 +54,21 @@ const getTypeMeta = (type: string): DataTypeMeta => {
   if (found) return found;
   const t = type.toUpperCase();
   if (t.includes('INT') || t.includes('DOUBLE') || t.includes('FLOAT') || t.includes('DECIMAL')) {
-    return { type, category: 'numeric', icon: '#', color: 'text-[#66d9ef]', badgeBg: 'bg-[#252623] text-[#66d9ef] border-[#3a3b36]' };
+    return { type, category: 'numeric', icon: '#', color: 'text-monokai-cyan', badgeBg: 'bg-monokai-surface text-monokai-cyan border-monokai-border' };
   }
   if (t.includes('VARCHAR') || t.includes('TEXT') || t.includes('CHAR') || t.includes('UUID')) {
-    return { type, category: 'text', icon: 'Aa', color: 'text-[#e6db74]', badgeBg: 'bg-[#252623] text-[#e6db74] border-[#3a3b36]' };
+    return { type, category: 'text', icon: 'Aa', color: 'text-monokai-yellow', badgeBg: 'bg-monokai-surface text-monokai-yellow border-monokai-border' };
   }
   if (t.includes('TIME') || t.includes('DATE')) {
-    return { type, category: 'datetime', icon: '🕒', color: 'text-[#ae81ff]', badgeBg: 'bg-[#252623] text-[#ae81ff] border-[#3a3b36]' };
+    return { type, category: 'datetime', icon: '🕒', color: 'text-monokai-purple', badgeBg: 'bg-monokai-surface text-monokai-purple border-monokai-border' };
   }
   if (t.includes('BOOL')) {
-    return { type, category: 'boolean', icon: '0/1', color: 'text-[#f92672]', badgeBg: 'bg-[#252623] text-[#f92672] border-[#3a3b36]' };
+    return { type, category: 'boolean', icon: '0/1', color: 'text-monokai-pink', badgeBg: 'bg-monokai-surface text-monokai-pink border-monokai-border' };
   }
   if (t.includes('JSON')) {
-    return { type, category: 'json', icon: '{}', color: 'text-[#a6e22e]', badgeBg: 'bg-[#252623] text-[#a6e22e] border-[#3a3b36]' };
+    return { type, category: 'json', icon: '{}', color: 'text-monokai-accent', badgeBg: 'bg-monokai-surface text-monokai-accent border-monokai-border' };
   }
-  return { type, category: 'other', icon: 'Aa', color: 'text-[#66d9ef]', badgeBg: 'bg-[#252623] text-[#66d9ef] border-[#3a3b36]' };
+  return { type, category: 'other', icon: 'Aa', color: 'text-monokai-cyan', badgeBg: 'bg-monokai-surface text-monokai-cyan border-monokai-border' };
 };
 
 interface PresetConfig {
@@ -298,79 +298,76 @@ export const CreateTableModal: React.FC<CreateTableModalProps> = ({
       size="xl"
       footer={(
         <div className="flex items-center justify-between w-full font-sans">
-          <div className="text-[11px] text-[#75715e] hidden sm:flex items-center gap-2">
+          <div className="text-[11px] text-monokai-comment hidden sm:flex items-center gap-2">
             <span className="inline-flex items-center gap-1">
-              <kbd className="px-1.5 py-0.5 rounded bg-[#1e1f1c] border border-[#3a3b36] font-mono text-[10px] text-[#e6db74]">Enter</kbd>
+              <kbd className="px-1.5 py-0.5 rounded bg-monokai-surface border border-monokai-border font-mono text-[10px] text-monokai-yellow">Enter</kbd>
               <span>自动添加列</span>
             </span>
-            <span className="text-[#3a3b36]">·</span>
+            <span className="text-monokai-border">·</span>
             <span className="inline-flex items-center gap-1">
-              <kbd className="px-1.5 py-0.5 rounded bg-[#1e1f1c] border border-[#3a3b36] font-mono text-[10px] text-[#e6db74]">Tab</kbd>
+              <kbd className="px-1.5 py-0.5 rounded bg-monokai-surface border border-monokai-border font-mono text-[10px] text-monokai-yellow">Tab</kbd>
               <span>切换焦点</span>
             </span>
-            <span className="text-[#3a3b36]">·</span>
+            <span className="text-monokai-border">·</span>
             <span className="inline-flex items-center gap-1">
-              <kbd className="px-1.5 py-0.5 rounded bg-[#1e1f1c] border border-[#3a3b36] font-mono text-[10px] text-[#e6db74]">ESC</kbd>
+              <kbd className="px-1.5 py-0.5 rounded bg-monokai-surface border border-monokai-border font-mono text-[10px] text-monokai-yellow">ESC</kbd>
               <span>关闭窗口</span>
             </span>
           </div>
           <div className="flex items-center gap-2">
-            <button
+            <ActionButton
               type="button"
               onClick={onClose}
               disabled={loading}
-              className="px-3.5 py-1.5 rounded-[4px] border border-[#3a3b36] bg-[#252623] text-xs font-medium text-[#d8d7cc] hover:text-[#f8f8f2] hover:bg-[#2d2e29] transition-colors cursor-pointer disabled:opacity-50"
+              variant="secondary"
             >
               取消
-            </button>
+            </ActionButton>
             {onOpenSqlInTab && (
-              <button
+              <ActionButton
                 type="button"
                 onClick={() => {
                   onOpenSqlInTab(generatedDdl);
                   onClose();
                 }}
                 disabled={loading}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-[4px] border border-[#3a3b36] bg-[#2d2e29] text-xs font-semibold text-[#66d9ef] hover:border-[#66d9ef] hover:text-[#f8f8f2] transition-colors cursor-pointer disabled:opacity-50 shadow-xs"
+                variant="secondary"
+                icon={Terminal}
               >
-                <Terminal className="w-3.5 h-3.5 text-[#66d9ef]" />
-                <span>在 SQL 编辑器中打开</span>
-              </button>
+                在 SQL 编辑器中打开
+              </ActionButton>
             )}
-            <button
+            <ActionButton
               type="button"
               onClick={handleCreate}
               disabled={loading || !tableName.trim() || columns.some(c => !c.name.trim())}
-              className="flex items-center gap-1.5 px-4.5 py-1.5 rounded-[4px] bg-[#e6db74] text-xs font-bold text-[#1e1f1c] hover:bg-[#d8cc60] active:scale-[0.98] transition-all cursor-pointer shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+              variant="primary"
+              icon={Check}
+              loading={loading}
             >
-              {loading ? (
-                <span className="w-3.5 h-3.5 border-2 border-[#1e1f1c] border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <Check className="w-3.5 h-3.5 stroke-[2.5]" />
-              )}
-              <span>立即创建数据表</span>
-            </button>
+              立即创建数据表
+            </ActionButton>
           </div>
         </div>
       )}
     >
       <div className="space-y-3.5 font-sans text-xs">
         {/* 1. 表基础信息卡片 */}
-        <div className="p-3.5 rounded-lg bg-[#181915] border border-[#33352f]/90 shadow-sm space-y-3">
+        <div className="p-3.5 rounded-lg bg-monokai-surface border border-monokai-border shadow-sm space-y-3">
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <label className="text-xs font-bold text-[#f8f8f2] flex items-center gap-1.5" htmlFor="create-table-name">
-                <span>数据表名称 (Table Name) <span className="text-[#f92672]">*</span></span>
+              <label className="text-xs font-bold text-monokai-fg flex items-center gap-1.5" htmlFor="create-table-name">
+                <span>数据表名称 (Table Name) <span className="text-monokai-pink">*</span></span>
               </label>
-              <div className="flex items-center gap-1.5 text-[11px] text-[#75715e]">
+              <div className="flex items-center gap-1.5 text-[11px] text-monokai-comment">
                 <span>创建于当前 Schema:</span>
-                <span className="inline-flex items-center px-2 py-0.5 rounded bg-[#252623] text-[#e6db74] border border-[#3a3b36] font-mono font-semibold text-[11px]">
+                <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-monokai-elevated text-monokai-yellow border border-monokai-border font-mono font-semibold text-[11px]">
                   main
                 </span>
               </div>
             </div>
             <div className="relative flex items-center">
-              <div className="absolute left-3 flex items-center pointer-events-none text-[#75715e]">
+              <div className="absolute left-3 flex items-center pointer-events-none text-monokai-comment">
                 <Table2 className="h-4 w-4" />
               </div>
               <input
@@ -386,31 +383,31 @@ export const CreateTableModal: React.FC<CreateTableModalProps> = ({
                   }
                 }}
                 placeholder="例如：customer_orders, user_profiles"
-                className="w-full h-9 pl-10 pr-4 rounded-[4px] bg-[#1c1d19] border border-[#3a3b36] focus:border-[#5c5d55] focus:bg-[#22231e] text-xs font-mono text-[#f8f8f2] placeholder-[#75715e] outline-none transition-all caret-[#f8f8f2]"
+                className="w-full h-9 pl-10 pr-4 rounded-lg bg-monokai-bg border border-monokai-border focus:border-monokai-accent text-xs font-mono text-monokai-fg placeholder-monokai-comment outline-none transition-all"
               />
             </div>
           </div>
 
           {/* 预设模板选择栏 */}
-          <div className="pt-1 border-t border-[#2d2e29]">
+          <div className="pt-1 border-t border-monokai-border-subtle">
             <div className="flex items-center gap-2 flex-wrap mb-1.5">
-              <span className="text-[11px] font-semibold text-[#939293] flex items-center gap-1 shrink-0">
-                <Sparkles className="w-3 h-3 text-[#e6db74]" /> 快捷模板配置:
+              <span className="text-[11px] font-semibold text-monokai-fg-muted flex items-center gap-1 shrink-0">
+                <Sparkles className="w-3 h-3 text-monokai-yellow" /> 快捷模板配置:
               </span>
               {Object.entries(PRESETS).map(([key, p]) => (
                 <button
                   key={key}
                   type="button"
                   onClick={() => handleApplyPreset(key)}
-                  className={`group px-2.5 py-1 rounded-[4px] text-xs font-sans transition-all cursor-pointer flex items-center gap-1.5 ${
+                  className={`group px-2.5 py-1 rounded-lg text-xs font-sans transition-all cursor-pointer flex items-center gap-1.5 ${
                     activePreset === key
-                      ? 'bg-[#2d2e29] text-[#e6db74] border border-[#5c5d55] font-semibold shadow-xs'
-                      : 'bg-[#252623] hover:bg-[#2d2e29] text-[#d8d7cc] hover:text-[#f8f8f2] border border-[#3a3b36]'
+                      ? 'bg-monokai-elevated text-monokai-accent border border-monokai-accent/40 font-semibold shadow-xs'
+                      : 'bg-monokai-surface hover:bg-monokai-elevated text-monokai-fg-muted hover:text-monokai-fg border border-monokai-border'
                   }`}
                 >
                   <span>{p.label}</span>
                   <span className={`text-[10px] px-1 py-0.2 rounded font-mono ${
-                    activePreset === key ? 'bg-[#181915] text-[#e6db74]' : 'bg-[#181915] text-[#75715e] group-hover:text-[#939293]'
+                    activePreset === key ? 'bg-monokai-bg text-monokai-accent' : 'bg-monokai-bg text-monokai-comment group-hover:text-monokai-fg-muted'
                   }`}>
                     {p.badge}
                   </span>
@@ -422,18 +419,18 @@ export const CreateTableModal: React.FC<CreateTableModalProps> = ({
                   setColumns([{ name: 'id', type: 'BIGINT', pk: true, notNull: true, comment: '主键' }]);
                   setActivePreset('empty');
                 }}
-                className={`px-2.5 py-1 rounded-[4px] text-xs font-sans transition-all cursor-pointer ${
+                className={`px-2.5 py-1 rounded-lg text-xs font-sans transition-all cursor-pointer ${
                   activePreset === 'empty'
-                    ? 'bg-[#2d2e29] text-[#e6db74] border border-[#5c5d55] font-semibold shadow-xs'
-                    : 'bg-[#252623] hover:bg-[#2d2e29] text-[#75715e] hover:text-[#d8d7cc] border border-[#3a3b36]'
+                    ? 'bg-monokai-elevated text-monokai-accent border border-monokai-accent/40 font-semibold shadow-xs'
+                    : 'bg-monokai-surface hover:bg-monokai-elevated text-monokai-comment hover:text-monokai-fg border border-monokai-border'
                 }`}
               >
                 仅单主键列
               </button>
             </div>
             {activePreset && PRESETS[activePreset] && (
-              <p className="text-[11px] text-[#75715e] flex items-center gap-1 pl-1">
-                <Info className="w-3 h-3 text-[#66d9ef] shrink-0" />
+              <p className="text-[11px] text-monokai-comment flex items-center gap-1 pl-1">
+                <Info className="w-3 h-3 text-monokai-cyan shrink-0" />
                 <span>{PRESETS[activePreset].description}</span>
               </p>
             )}
@@ -444,18 +441,18 @@ export const CreateTableModal: React.FC<CreateTableModalProps> = ({
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <label className="text-xs font-bold text-[#f8f8f2] flex items-center gap-1.5">
-                <Layers className="w-3.5 h-3.5 text-[#66d9ef]" />
+              <label className="text-xs font-bold text-monokai-fg flex items-center gap-1.5">
+                <Layers className="w-3.5 h-3.5 text-monokai-cyan" />
                 <span>字段与类型定义 (Columns Schema)</span>
-                <span className="text-[11px] font-semibold text-[#e6db74]">({columns.length} 列)</span>
+                <span className="text-[11px] font-semibold text-monokai-yellow">({columns.length} 列)</span>
               </label>
               {/* 实时遥测指标指示 */}
               <div className="hidden sm:flex items-center gap-1.5 pl-2">
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#252623] border border-[#3a3b36] text-[10px] font-mono font-bold text-[#e6db74]">
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-monokai-surface border border-monokai-border text-[10px] font-mono font-bold text-monokai-yellow">
                   <Key className="w-2.5 h-2.5" />
                   {pkCount} 主键
                 </span>
-                <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-[#252623] border border-[#3a3b36] text-[10px] font-mono font-bold text-[#fd971f]">
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-monokai-surface border border-monokai-border text-[10px] font-mono font-bold text-monokai-orange">
                   {nnCount} 非空
                 </span>
               </div>
@@ -463,16 +460,16 @@ export const CreateTableModal: React.FC<CreateTableModalProps> = ({
             <button
               type="button"
               onClick={handleAddColumn}
-              className="flex items-center gap-1 px-3 py-1 rounded-[4px] bg-[#2d2e29] hover:bg-[#34352f] border border-[#3a3b36] hover:border-[#66d9ef] text-xs font-semibold text-[#66d9ef] hover:text-[#f8f8f2] transition-colors cursor-pointer shadow-xs"
+              className="flex items-center gap-1 px-3 py-1 rounded-lg bg-monokai-surface hover:bg-monokai-elevated border border-monokai-border hover:border-monokai-cyan/50 text-xs font-semibold text-monokai-cyan hover:text-monokai-fg transition-colors cursor-pointer shadow-xs"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>添加字段</span>
             </button>
           </div>
 
-          <div className="border border-[#33352f] rounded-[6px] overflow-hidden bg-[#181915] shadow-sm">
+          <div className="border border-monokai-border rounded-lg overflow-hidden bg-monokai-surface shadow-sm">
             {/* 表头 */}
-            <div className="grid grid-cols-12 gap-2 px-3 py-2 bg-[#252623] border-b border-[#33352f] text-[11px] font-semibold text-[#75715e] uppercase tracking-wider select-none">
+            <div className="grid grid-cols-12 gap-2 px-3 py-2 bg-monokai-elevated border-b border-monokai-border text-[11px] font-semibold text-monokai-comment uppercase tracking-wider select-none">
               <div className="col-span-3 pl-1">字段名称 (Name)</div>
               <div className="col-span-2">数据类型 (Type)</div>
               <div className="col-span-1 text-center">主键 (PK)</div>
@@ -483,14 +480,14 @@ export const CreateTableModal: React.FC<CreateTableModalProps> = ({
             </div>
 
             {/* 字段列表 */}
-            <div className="max-h-64 overflow-y-auto divide-y divide-[#33352f]/50 p-1 space-y-1 custom-scrollbar bg-[#1c1d19]">
+            <div className="max-h-64 overflow-y-auto divide-y divide-monokai-border/40 p-1 space-y-1 custom-scrollbar bg-monokai-bg">
               {columns.map((col, idx) => {
                 const meta = getTypeMeta(col.type);
                 const isLast = idx === columns.length - 1;
                 return (
                   <div
                     key={idx}
-                    className="grid grid-cols-12 gap-2 items-center px-2 py-1.5 rounded-[3px] hover:bg-[#252623]/80 transition-colors group"
+                    className="grid grid-cols-12 gap-2 items-center px-2 py-1.5 rounded-md hover:bg-monokai-surface transition-colors group"
                   >
                     {/* 字段名称 */}
                     <div className="col-span-3">
@@ -506,14 +503,14 @@ export const CreateTableModal: React.FC<CreateTableModalProps> = ({
                           }
                         }}
                         placeholder="column_name"
-                        className="w-full h-7.5 px-2 bg-[#181915] border border-[#3a3b36] focus:border-[#5c5d55] rounded-[3px] text-xs font-mono text-[#f8f8f2] focus:outline-none transition-colors caret-[#f8f8f2]"
+                        className="w-full h-7.5 px-2 bg-monokai-surface border border-monokai-border focus:border-monokai-accent rounded-md text-xs font-mono text-monokai-fg focus:outline-none transition-colors"
                       />
                     </div>
 
                     {/* 数据类型 + 类型微图标 */}
                     <div className="col-span-2 relative">
-                      <div className="flex items-center bg-[#181915] border border-[#3a3b36] focus-within:border-[#5c5d55] rounded-[3px] overflow-hidden">
-                        <span className={`px-1.5 py-0.5 text-[10px] font-mono font-bold border-r border-[#3a3b36] select-none ${meta.badgeBg}`}>
+                      <div className="flex items-center bg-monokai-surface border border-monokai-border focus-within:border-monokai-accent rounded-md overflow-hidden">
+                        <span className={`px-1.5 py-0.5 text-[10px] font-mono font-bold border-r border-monokai-border select-none ${meta.badgeBg}`}>
                           {meta.icon}
                         </span>
                         <select
@@ -522,7 +519,7 @@ export const CreateTableModal: React.FC<CreateTableModalProps> = ({
                           className={`w-full h-7.5 pl-1.5 pr-1 bg-transparent text-xs font-mono font-semibold focus:outline-none cursor-pointer ${meta.color}`}
                         >
                           {COMMON_DATA_TYPES.map(t => (
-                            <option key={t.type} value={t.type} className="bg-[#252623] text-[#f8f8f2]">
+                            <option key={t.type} value={t.type} className="bg-monokai-surface text-monokai-fg">
                               {t.type}
                             </option>
                           ))}
@@ -585,7 +582,7 @@ export const CreateTableModal: React.FC<CreateTableModalProps> = ({
                           }
                         }}
                         placeholder="NULL"
-                        className="w-full h-7.5 px-2 bg-[#181915] border border-[#3a3b36] focus:border-[#5c5d55] rounded-[3px] text-xs font-mono text-[#ae81ff] placeholder-[#75715e] focus:outline-none caret-[#f8f8f2]"
+                        className="w-full h-7.5 px-2 bg-monokai-surface border border-monokai-border focus:border-monokai-accent rounded-md text-xs font-mono text-monokai-purple placeholder-monokai-comment focus:outline-none"
                       />
                     </div>
 
@@ -602,7 +599,7 @@ export const CreateTableModal: React.FC<CreateTableModalProps> = ({
                           }
                         }}
                         placeholder="注释..."
-                        className="w-full h-7.5 px-2 bg-[#181915] border border-[#3a3b36] focus:border-[#5c5d55] rounded-[3px] text-xs font-sans text-[#f8f8f2] placeholder-[#75715e] focus:outline-none caret-[#f8f8f2]"
+                        className="w-full h-7.5 px-2 bg-monokai-surface border border-monokai-border focus:border-monokai-accent rounded-md text-xs font-sans text-monokai-fg placeholder-monokai-comment focus:outline-none"
                       />
                     </div>
 
@@ -612,7 +609,7 @@ export const CreateTableModal: React.FC<CreateTableModalProps> = ({
                         type="button"
                         onClick={() => handleMoveUp(idx)}
                         disabled={idx === 0}
-                        className="p-1 rounded hover:bg-[#34352f] text-[#75715e] hover:text-[#f8f8f2] disabled:opacity-20 cursor-pointer transition-colors"
+                        className="p-1 rounded hover:bg-monokai-elevated text-monokai-comment hover:text-monokai-fg disabled:opacity-20 cursor-pointer transition-colors"
                         title="上移"
                       >
                         <ArrowUp className="w-3 h-3" />
@@ -621,7 +618,7 @@ export const CreateTableModal: React.FC<CreateTableModalProps> = ({
                         type="button"
                         onClick={() => handleMoveDown(idx)}
                         disabled={idx === columns.length - 1}
-                        className="p-1 rounded hover:bg-[#34352f] text-[#75715e] hover:text-[#f8f8f2] disabled:opacity-20 cursor-pointer transition-colors"
+                        className="p-1 rounded hover:bg-monokai-elevated text-monokai-comment hover:text-monokai-fg disabled:opacity-20 cursor-pointer transition-colors"
                         title="下移"
                       >
                         <ArrowDown className="w-3 h-3" />
@@ -629,7 +626,7 @@ export const CreateTableModal: React.FC<CreateTableModalProps> = ({
                       <button
                         type="button"
                         onClick={() => handleDuplicateColumn(idx)}
-                        className="p-1 rounded hover:bg-[#34352f] text-[#75715e] hover:text-[#66d9ef] cursor-pointer transition-colors"
+                        className="p-1 rounded hover:bg-monokai-elevated text-monokai-comment hover:text-monokai-cyan cursor-pointer transition-colors"
                         title="复制该行"
                       >
                         <Copy className="w-3 h-3" />
@@ -638,7 +635,7 @@ export const CreateTableModal: React.FC<CreateTableModalProps> = ({
                         type="button"
                         onClick={() => handleRemoveColumn(idx)}
                         disabled={columns.length <= 1}
-                        className="p-1 rounded hover:bg-[#382025] text-[#75715e] hover:text-[#f92672] disabled:opacity-20 cursor-pointer transition-colors"
+                        className="p-1 rounded hover:bg-monokai-pink/15 text-monokai-comment hover:text-monokai-pink disabled:opacity-20 cursor-pointer transition-colors"
                         title="删除该列"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -654,50 +651,50 @@ export const CreateTableModal: React.FC<CreateTableModalProps> = ({
         {/* 3. 实时 DDL 语句预览区 (Live DDL Cockpit) */}
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold text-[#75715e] uppercase tracking-wider flex items-center gap-1.5">
-              <Code2 className="w-3 h-3 text-[#a6e22e]" />
+            <span className="text-[11px] font-semibold text-monokai-comment uppercase tracking-wider flex items-center gap-1.5">
+              <Code2 className="w-3 h-3 text-monokai-accent" />
               <span>实时 DDL 语句预览 (Live DDL Cockpit)</span>
             </span>
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-mono text-[#75715e] hidden sm:inline">DuckDB SQL · 语法就绪</span>
+              <span className="text-[10px] font-mono text-monokai-comment hidden sm:inline">DuckDB SQL · 语法就绪</span>
               <button
                 type="button"
                 onClick={handleCopyDdl}
-                className="flex items-center gap-1 text-[11px] text-[#66d9ef] hover:text-[#f8f8f2] font-sans cursor-pointer transition-colors px-2 py-0.5 rounded hover:bg-[#252623]"
+                className="flex items-center gap-1 text-[11px] text-monokai-cyan hover:text-monokai-fg font-sans cursor-pointer transition-colors px-2 py-0.5 rounded hover:bg-monokai-elevated"
                 title="复制代码到剪贴板"
               >
-                {copied ? <Check className="w-3 h-3 text-[#a6e22e]" /> : <Copy className="w-3 h-3" />}
+                {copied ? <Check className="w-3 h-3 text-monokai-accent" /> : <Copy className="w-3 h-3" />}
                 <span>{copied ? '已复制' : '复制代码'}</span>
               </button>
             </div>
           </div>
 
-          <div className="rounded-[6px] bg-[#181915] border border-[#33352f] overflow-hidden shadow-sm">
+          <div className="rounded-lg bg-monokai-surface border border-monokai-border overflow-hidden shadow-sm">
             {/* IDE 终端标签栏 */}
-            <div className="flex items-center justify-between px-3 py-1.5 bg-[#22231e] border-b border-[#33352f] select-none">
+            <div className="flex items-center justify-between px-3 py-1.5 bg-monokai-elevated border-b border-monokai-border select-none">
               <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#f92672]/80 inline-block" />
-                <span className="w-2.5 h-2.5 rounded-full bg-[#e6db74]/80 inline-block" />
-                <span className="w-2.5 h-2.5 rounded-full bg-[#a6e22e]/80 inline-block" />
-                <span className="ml-2 font-mono text-[11px] text-[#939293]">{tableName.trim() || 'new_table'}.sql</span>
-                <span className="text-[10px] font-mono text-[#75715e]">({ddlLines.length} 行)</span>
+                <span className="w-2.5 h-2.5 rounded-full bg-monokai-pink/80 inline-block" />
+                <span className="w-2.5 h-2.5 rounded-full bg-monokai-yellow/80 inline-block" />
+                <span className="w-2.5 h-2.5 rounded-full bg-monokai-accent/80 inline-block" />
+                <span className="ml-2 font-mono text-[11px] text-monokai-fg-muted">{tableName.trim() || 'new_table'}.sql</span>
+                <span className="text-[10px] font-mono text-monokai-comment">({ddlLines.length} 行)</span>
               </div>
               <button
                 type="button"
                 onClick={handleCopyDdl}
-                className="flex items-center gap-1 text-[10.5px] font-mono text-[#d8d7cc] hover:text-[#e6db74] hover:bg-[#2d2e29] border border-[#3a3b36] hover:border-[#e6db74]/60 px-2 py-0.5 rounded cursor-pointer transition-all shadow-xs"
+                className="flex items-center gap-1 text-[10.5px] font-mono text-monokai-fg-muted hover:text-monokai-yellow hover:bg-monokai-surface border border-monokai-border hover:border-monokai-yellow/60 px-2 py-0.5 rounded cursor-pointer transition-all shadow-xs"
                 title="复制代码 (Copy DDL)"
               >
-                {copied ? <Check className="w-3 h-3 text-[#a6e22e]" /> : <Copy className="w-3 h-3" />}
+                {copied ? <Check className="w-3 h-3 text-monokai-accent" /> : <Copy className="w-3 h-3" />}
                 <span>{copied ? '已复制' : '复制代码'}</span>
               </button>
             </div>
 
             {/* DDL 代码区域 */}
-            <div className="p-3 font-mono text-xs overflow-x-auto whitespace-pre-wrap leading-relaxed max-h-32 custom-scrollbar flex">
+            <div className="p-3 font-mono text-xs overflow-x-auto whitespace-pre-wrap leading-relaxed max-h-32 custom-scrollbar flex bg-monokai-bg">
               <span className="sr-only">{generatedDdl}</span>
               {/* 行号槽 */}
-              <div className="select-none text-[#5c584a] pr-3 text-right border-r border-[#2d2e29] mr-3 shrink-0">
+              <div className="select-none text-monokai-comment pr-3 text-right border-r border-monokai-border-subtle mr-3 shrink-0">
                 {ddlLines.map((_, i) => (
                   <div key={i}>{String(i + 1).padStart(2, '0')}</div>
                 ))}
@@ -705,47 +702,47 @@ export const CreateTableModal: React.FC<CreateTableModalProps> = ({
               {/* 代码内容 */}
               <div className="flex-1">
                 <div>
-                  <span className="text-[#f92672] font-bold">CREATE TABLE </span>
-                  <span className="text-[#f8f8f2]">"{tableName.trim() || 'new_table'}" </span>
-                  <span className="text-[#75715e]">(</span>
+                  <span className="text-monokai-pink font-bold">CREATE TABLE </span>
+                  <span className="text-monokai-fg">"{tableName.trim() || 'new_table'}" </span>
+                  <span className="text-monokai-comment">(</span>
                 </div>
                 {columns.map((col, idx) => {
                   const isLast = idx === columns.length - 1 && !columns.some(c => c.pk);
                   return (
                     <div key={idx} className="pl-4">
-                      <span className="text-[#f8f8f2]">"{col.name.trim() || 'unnamed_col'}" </span>
-                      <span className="text-[#66d9ef]">{col.type}</span>
-                      {col.notNull && !col.pk && <span className="text-[#f92672]"> NOT NULL</span>}
+                      <span className="text-monokai-fg">"{col.name.trim() || 'unnamed_col'}" </span>
+                      <span className="text-monokai-cyan">{col.type}</span>
+                      {col.notNull && !col.pk && <span className="text-monokai-pink"> NOT NULL</span>}
                       {col.defaultValue && col.defaultValue.trim() && (
                         <>
-                          <span className="text-[#f92672]"> DEFAULT </span>
-                          <span className="text-[#ae81ff]">{col.defaultValue.trim()}</span>
+                          <span className="text-monokai-pink"> DEFAULT </span>
+                          <span className="text-monokai-purple">{col.defaultValue.trim()}</span>
                         </>
                       )}
-                      {(!isLast || columns.some(c => c.pk)) && <span className="text-[#75715e]">,</span>}
+                      {(!isLast || columns.some(c => c.pk)) && <span className="text-monokai-comment">,</span>}
                     </div>
                   );
                 })}
                 {columns.some(c => c.pk) && (
                   <div className="pl-4">
-                    <span className="text-[#f92672]">PRIMARY KEY </span>
-                    <span className="text-[#75715e]">(</span>
-                    <span className="text-[#f8f8f2]">
+                    <span className="text-monokai-pink">PRIMARY KEY </span>
+                    <span className="text-monokai-comment">(</span>
+                    <span className="text-monokai-fg">
                       {columns.filter(c => c.pk).map(c => `"${c.name.trim() || 'unnamed_col'}"`).join(', ')}
                     </span>
-                    <span className="text-[#75715e]">)</span>
+                    <span className="text-monokai-comment">)</span>
                   </div>
                 )}
-                <div><span className="text-[#75715e]">);</span></div>
+                <div><span className="text-monokai-comment">);</span></div>
                 {columns.some(c => Boolean(c.comment?.trim())) && (
-                  <div className="mt-2 pt-2 border-t border-[#2d2e29]/60">
+                  <div className="mt-2 pt-2 border-t border-monokai-border-subtle">
                     {columns.filter(c => Boolean(c.comment?.trim())).map((c, i) => (
-                      <div key={i} className="text-[#75715e]">
-                        <span className="text-[#f92672]">COMMENT ON COLUMN </span>
-                        <span className="text-[#f8f8f2]">"{tableName.trim() || 'new_table'}"."{c.name.trim() || 'unnamed_col'}" </span>
-                        <span className="text-[#f92672]">IS </span>
-                        <span className="text-[#e6db74]">'{c.comment!.trim().replace(/'/g, "''")}'</span>
-                        <span className="text-[#75715e]">;</span>
+                      <div key={i} className="text-monokai-comment">
+                        <span className="text-monokai-pink">COMMENT ON COLUMN </span>
+                        <span className="text-monokai-fg">"{tableName.trim() || 'new_table'}"."{c.name.trim() || 'unnamed_col'}" </span>
+                        <span className="text-monokai-pink">IS </span>
+                        <span className="text-monokai-yellow">'{c.comment!.trim().replace(/'/g, "''")}'</span>
+                        <span className="text-monokai-comment">;</span>
                       </div>
                     ))}
                   </div>

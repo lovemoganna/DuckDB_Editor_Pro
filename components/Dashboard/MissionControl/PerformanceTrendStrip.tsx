@@ -1,5 +1,7 @@
+import { formatValueBySpec } from '../../../utils/chartFormat';
+import { queryHistogram as buildQueryHistogram, queryLatency, importGrowth, memorySnapshot } from '../../../services/analysis/telemetryCharts';
 import React, { useState, useMemo } from 'react';
-import { Activity } from 'lucide-react';
+import { Activity, ChevronDown, ChevronRight } from 'lucide-react';
 import { QueryHistoryItem } from '../../../types';
 import {
   type DashboardDbMetrics,
@@ -11,6 +13,7 @@ import {
   KpiPortalTooltip,
   type KpiTooltipData,
 } from '../KpiDynamicMiniCharts';
+import { DB } from '../dashboardUi';
 
 interface PerformanceTrendStripProps {
   metrics: DashboardDbMetrics;
@@ -19,6 +22,8 @@ interface PerformanceTrendStripProps {
   growthData?: GrowthTrendItem[];
   latencyData?: LatencyTrendItem[];
   onSelectQueryPoint?: (queryId: string, sql: string) => void;
+  /** When true, charts stay collapsed until the user expands (keeps home calm). */
+  defaultCollapsed?: boolean;
 }
 
 function formatQueryTime(timestamp?: number | string): string {
@@ -35,9 +40,11 @@ export const PerformanceTrendStrip: React.FC<PerformanceTrendStripProps> = ({
   growthData = [],
   latencyData = [],
   onSelectQueryPoint,
+  defaultCollapsed = false,
 }) => {
   const [activeRange, setActiveRange] = useState<'1h' | '6h' | '24h' | '7d'>('1h');
   const [tooltip, setTooltip] = useState<KpiTooltipData | null>(null);
+  const [isExpanded, setIsExpanded] = useState(!defaultCollapsed);
 
   const ranges: Array<{ id: '1h' | '6h' | '24h' | '7d'; label: string }> = [
     { id: '1h', label: '1小时' },
@@ -60,141 +67,14 @@ export const PerformanceTrendStrip: React.FC<PerformanceTrendStripProps> = ({
   }, [activeRange]);
 
   // 1. Real Query Histogram Bucketing with interval details
-  const { queryHistogram, histogramDetails } = useMemo(() => {
-    const buckets = Array(8).fill(0);
-    const details = Array.from({ length: 8 }, () => ({
-      successCount: 0,
-      errorCount: 0,
-      queries: [] as QueryHistoryItem[],
-      startTime: '',
-      endTime: '',
-    }));
-
-    const now = Date.now();
-    const startTime = now - rangeDurationMs;
-    const bucketDuration = rangeDurationMs / 8;
-
-    for (let i = 0; i < 8; i++) {
-      const bStart = new Date(startTime + i * bucketDuration);
-      const bEnd = new Date(startTime + (i + 1) * bucketDuration);
-      const fmt = (d: Date) =>
-        activeRange === '7d'
-          ? `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:00`
-          : `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-      details[i].startTime = fmt(bStart);
-      details[i].endTime = fmt(bEnd);
-    }
-
-    if (!allHistoryItems || allHistoryItems.length === 0) {
-      return { queryHistogram: buckets, histogramDetails: details };
-    }
-
-    let hasTimestampMatches = false;
-    allHistoryItems.forEach((item) => {
-      const itemTime = item.timestamp ? new Date(item.timestamp).getTime() : 0;
-      if (itemTime >= startTime && itemTime <= now) {
-        hasTimestampMatches = true;
-        const bIndex = Math.min(7, Math.max(0, Math.floor((itemTime - startTime) / bucketDuration)));
-        buckets[bIndex] += 1;
-        if (item.status === 'success') {
-          details[bIndex].successCount += 1;
-        } else {
-          details[bIndex].errorCount += 1;
-        }
-        details[bIndex].queries.push(item);
-      }
-    });
-
-    if (!hasTimestampMatches) {
-      // Fallback: distribute chronological order across buckets
-      const total = allHistoryItems.length;
-      allHistoryItems.forEach((item, i) => {
-        const bIndex = Math.min(7, Math.floor((i / total) * 8));
-        buckets[bIndex] += 1;
-        if (item.status === 'success') details[bIndex].successCount += 1;
-        else details[bIndex].errorCount += 1;
-        details[bIndex].queries.push(item);
-      });
-    }
-
-    return { queryHistogram: buckets, histogramDetails: details };
-  }, [allHistoryItems, rangeDurationMs, activeRange]);
+  const { queryHistogram, histogramDetails, currentHistory, range, averageLatency, total:rangeQueryTotal, queryTrendLabel, latencyTrendLabel } = useMemo(() => buildQueryHistogram(allHistoryItems, rangeDurationMs, activeRange === '7d'), [allHistoryItems, rangeDurationMs, activeRange]);
 
   const maxBucketCount = Math.max(...queryHistogram, 1);
 
   // 2. Real Latency Waveform Curve with Interactive Points
-  const { latencyCurvePath, latencyPoints, avgLatency } = useMemo(() => {
-    if (!allHistoryItems || allHistoryItems.length === 0) {
-      return { latencyCurvePath: '', latencyPoints: [], avgLatency: 0 };
-    }
-    const sample = allHistoryItems.slice(0, 10).reverse();
-    const sum = sample.reduce((acc, q) => acc + (q.executionTime || 0), 0);
-    const avg = sample.length > 0 ? sum / sample.length : 0;
-    const maxLat = Math.max(...sample.map((s) => s.executionTime || 1), avg * 1.5, 10);
-
-    const points = sample.map((item, idx) => {
-      const x = sample.length > 1 ? (idx / (sample.length - 1)) * 186 + 7 : 100;
-      const latency = item.executionTime || 1;
-      const y = Math.max(6, Math.min(34, 34 - (latency / maxLat) * 26));
-      return { x, y, latency, item };
-    });
-
-    if (points.length < 2) {
-      return {
-        latencyCurvePath: points.length === 1 ? `M 0 ${points[0].y} L 200 ${points[0].y}` : '',
-        latencyPoints: points,
-        avgLatency: avg,
-      };
-    }
-
-    const path = `M ${points.map((p) => `${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' L ')}`;
-    return { latencyCurvePath: path, latencyPoints: points, avgLatency: avg };
-  }, [allHistoryItems]);
-
-  // 3. Real Memory Curve & Points
-  const memoryPoints = useMemo(() => {
-    const pct = Math.max(1, Math.min(100, metrics.memoryPercentage || 1));
-    const baseY = 35;
-    const peakY = Math.max(8, 35 - (pct / 100) * 26);
-    return [
-      { x: 0, y: baseY, label: '系统基线' },
-      { x: 45, y: Math.max(baseY - 4, peakY + 6), label: '连接初始化' },
-      { x: 95, y: Math.max(baseY - 8, peakY + 2), label: 'Schema 缓存' },
-      { x: 145, y: peakY, label: '当前缓冲池' },
-      { x: 200, y: peakY, label: '峰值水平' },
-    ];
-  }, [metrics.memoryPercentage]);
-
-  const memoryAreaPath = useMemo(() => {
-    const pts = memoryPoints;
-    const line = pts.map((p) => `${p.x} ${p.y.toFixed(1)}`).join(' L ');
-    return `M ${line} L 200 38 L 0 38 Z`;
-  }, [memoryPoints]);
-
-  const memoryLinePath = useMemo(() => {
-    return `M ${memoryPoints.map((p) => `${p.x} ${p.y.toFixed(1)}`).join(' L ')}`;
-  }, [memoryPoints]);
-
-  // 4. Real Data Growth Step Curve with Interactive Points
-  const { dataStepCurve, importPoints } = useMemo(() => {
-    if (!recentImports || recentImports.length === 0) {
-      return { dataStepCurve: '', importPoints: [] };
-    }
-    const count = recentImports.length;
-    const stepX = 180 / (count + 1);
-    let path = 'M 0 34';
-    const pts: Array<{ x: number; y: number; item: RecentImportItem }> = [];
-
-    recentImports.forEach((imp, i) => {
-      const x = Math.round((i + 1) * stepX + 10);
-      const y = Math.max(8, 34 - ((i + 1) / count) * 24);
-      path += ` L ${x} 34 L ${x} ${y}`;
-      pts.push({ x, y, item: imp });
-    });
-    path += ` L 200 ${pts[pts.length - 1]?.y ?? 12}`;
-
-    return { dataStepCurve: path, importPoints: pts };
-  }, [recentImports]);
+  const { latencyCurvePath, latencyPoints } = useMemo(() => queryLatency(currentHistory,10,186,26,7,34,range), [currentHistory,range]);
+  const { memoryPoints, memoryAreaPath, memoryLinePath } = useMemo(() => memorySnapshot(metrics.memoryPercentage, metrics.memoryTotalGb), [metrics.memoryPercentage, metrics.memoryTotalGb]);
+  const { dataStepCurve, importPoints, totalFormatted: importedRows } = useMemo(() => importGrowth(recentImports,range), [recentImports,range]);
 
   // Real rolling time axis labels matching activeRange
   const timeLabels = useMemo(() => {
@@ -224,89 +104,69 @@ export const PerformanceTrendStrip: React.FC<PerformanceTrendStripProps> = ({
     return labels;
   }, [activeRange]);
 
-  // Real query count trend
-  const queryTrendLabel = useMemo(() => {
-    if (!allHistoryItems || allHistoryItems.length < 2) return '—';
-    const half = Math.floor(allHistoryItems.length / 2);
-    const older = allHistoryItems.slice(half);
-    const newer = allHistoryItems.slice(0, half);
-    const olderCount = older.length;
-    const newerCount = newer.length;
-    if (olderCount === 0) return '—';
-    const pct = Math.round(((newerCount - olderCount) / olderCount) * 100);
-    return pct >= 0 ? `+ ${pct}%` : `${pct}%`;
-  }, [allHistoryItems]);
-
-  // Real latency trend
-  const latencyTrendLabel = useMemo(() => {
-    if (!allHistoryItems || allHistoryItems.length < 2) return '—';
-    const items = allHistoryItems.filter(
-      (q) => typeof q.executionTime === 'number' && q.executionTime >= 0,
-    );
-    if (items.length < 2) return '—';
-    const half = Math.floor(items.length / 2);
-    const newer = items.slice(0, half);
-    const older = items.slice(half);
-    const avgNewer = newer.reduce((s, q) => s + (q.executionTime || 0), 0) / newer.length;
-    const avgOlder = older.reduce((s, q) => s + (q.executionTime || 0), 0) / older.length;
-    if (avgOlder === 0) return '—';
-    const pct = Math.round(((avgNewer - avgOlder) / avgOlder) * 100);
-    if (pct >= 0) return `+ ${pct}%`;
-    return `${pct}%`;
-  }, [allHistoryItems]);
-
-  const importGrowthLabel = useMemo(() => {
-    if (!recentImports || recentImports.length === 0) return '暂无导入';
-    return `+ ${recentImports.length} 次导入`;
-  }, [recentImports]);
+  const importGrowthLabel = importPoints.length ? `当前时段 ${importPoints.length} 次成功导入` : '当前时段暂无成功导入';
 
   return (
     <>
-      {/* Floating portal tooltip */}
-      <KpiPortalTooltip tooltip={tooltip} />
+      {isExpanded && <KpiPortalTooltip tooltip={tooltip} />}
 
-      <div className="relative flex flex-col overflow-hidden rounded-lg border border-monokai-border bg-monokai-surface p-4 shadow-xs select-text hover:border-monokai-border-strong transition-colors">
-        {/* Header with Title and Range Switcher */}
-        <div className="flex items-center justify-between border-b border-monokai-border pb-3">
-          <div className="flex items-center gap-2">
-            <span className="flex h-7 w-7 items-center justify-center rounded-md bg-monokai-cyan/15 text-monokai-cyan border border-monokai-cyan/30">
+      <div className={`${DB.panelLg} p-3`}>
+        <div className={`flex items-center justify-between ${isExpanded ? 'border-b border-monokai-border pb-3' : ''}`}>
+          <button
+            type="button"
+            onClick={() => setIsExpanded((v) => !v)}
+            className={`flex items-center gap-2 text-left min-w-0 ${DB.focus}`}
+            aria-expanded={isExpanded}
+          >
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-monokai-cyan/15 text-monokai-cyan border border-monokai-cyan/30">
               <Activity className="h-4 w-4" />
             </span>
-            <div>
-              <h2 className="text-sm sm:text-base font-bold text-monokai-fg tracking-tight font-sans">性能趋势</h2>
-              <span className="text-[11px] text-monokai-comment font-sans">运行期时序与物理负载实时遥测</span>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <h2 className="text-sm font-semibold text-monokai-fg tracking-tight font-sans">性能趋势</h2>
+                {isExpanded ? (
+                  <ChevronDown className="h-3.5 w-3.5 text-monokai-comment" />
+                ) : (
+                  <ChevronRight className="h-3.5 w-3.5 text-monokai-comment" />
+                )}
+              </div>
+              <span className="text-meta text-monokai-comment font-sans">
+                {isExpanded ? '查询吞吐 · 延迟 · 导入节奏' : '点击展开时序与负载遥测'}
+              </span>
             </div>
-          </div>
+          </button>
 
-          <div className="flex items-center gap-1 rounded-md border border-monokai-border bg-monokai-elevated p-0.5">
-            {ranges.map((r) => (
-              <button
-                key={r.id}
-                type="button"
-                onClick={() => setActiveRange(r.id)}
-                className={`rounded px-2.5 py-0.5 text-xs font-mono transition-colors cursor-pointer ${
-                  activeRange === r.id
-                    ? 'bg-monokai-accent text-monokai-bg font-bold shadow-xs'
-                    : 'text-monokai-fg-muted hover:text-monokai-fg'
-                }`}
-              >
-                {r.label}
-              </button>
-            ))}
-          </div>
+          {isExpanded && (
+            <div className="flex items-center gap-1 rounded-md border border-monokai-border bg-monokai-elevated p-0.5">
+              {ranges.map((r) => (
+                <button
+                  key={r.id}
+                  type="button"
+                  onClick={() => setActiveRange(r.id)}
+                  className={`rounded px-2.5 py-0.5 text-xs font-mono transition-colors cursor-pointer ${
+                    activeRange === r.id
+                      ? 'bg-monokai-accent text-monokai-bg font-bold shadow-xs'
+                      : 'text-monokai-fg-muted hover:text-monokai-fg'
+                  }`}
+                >
+                  {r.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* 4 Synchronized Visualizers Grid */}
+        {isExpanded && (
         <div className="mt-3.5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {/* 1. 查询次数 */}
           <div className="flex flex-col justify-between rounded-md border border-monokai-border bg-monokai-elevated/40 p-3 hover:border-monokai-cyan/50 hover:bg-monokai-hover/40 transition-all">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-monokai-fg font-sans">查询次数</span>
-              <span className="text-[10px] font-mono text-monokai-cyan">时序柱状图</span>
+              <span className="text-2xs font-mono text-monokai-cyan">时序柱状图</span>
             </div>
             <div className="mt-1 flex items-baseline gap-2">
               <span className="font-mono text-xl sm:text-2xl font-bold text-monokai-fg">
-                {metrics.totalQueries || 0}
+                {rangeQueryTotal}
               </span>
               {queryTrendLabel !== '—' && (
                 <span
@@ -356,11 +216,7 @@ export const PerformanceTrendStrip: React.FC<PerformanceTrendStripProps> = ({
                           { label: '报错次数', value: `${detail.errorCount} 次`, color: detail.errorCount > 0 ? 'text-monokai-pink' : 'text-monokai-comment' },
                           {
                             label: '区间占比',
-                            value: `${
-                              metrics.totalQueries > 0
-                                ? ((cnt / metrics.totalQueries) * 100).toFixed(1)
-                                : '0'
-                            }%`,
+                            value: formatValueBySpec(detail.percent, {percent:true,decimals:1}),
                           },
                         ],
                         footer: hasQueries ? '点击在上方查询流中定位并展开此区间记录' : '鼠标移动切换时段明细',
@@ -377,7 +233,7 @@ export const PerformanceTrendStrip: React.FC<PerformanceTrendStripProps> = ({
               })}
             </div>
 
-            <div className="mt-1.5 flex justify-between font-mono text-[10px] text-monokai-comment">
+            <div className="mt-1.5 flex justify-between font-mono text-2xs text-monokai-comment">
               {timeLabels.map((lbl, idx) => (
                 <span key={idx}>{lbl}</span>
               ))}
@@ -388,11 +244,11 @@ export const PerformanceTrendStrip: React.FC<PerformanceTrendStripProps> = ({
           <div className="flex flex-col justify-between rounded-md border border-monokai-border bg-monokai-elevated/40 p-3 hover:border-monokai-accent/50 hover:bg-monokai-hover/40 transition-all">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-monokai-fg font-sans">平均查询时间</span>
-              <span className="text-[10px] font-mono text-monokai-accent">延时曲线</span>
+              <span className="text-2xs font-mono text-monokai-accent">当前时段均值 · 曲线最近 10 次</span>
             </div>
             <div className="mt-1 flex items-baseline gap-2">
               <span className="font-mono text-xl sm:text-2xl font-bold text-monokai-fg">
-                {metrics.formattedAvgLatency || '—'}
+                {averageLatency != null ? formatValueBySpec(averageLatency,{unit:'ms',decimals:1}) : '—'}
               </span>
               {latencyTrendLabel !== '—' && (
                 <span
@@ -453,7 +309,7 @@ export const PerformanceTrendStrip: React.FC<PerformanceTrendStripProps> = ({
 
                   {/* Interactive Points */}
                   {latencyPoints.map((p, idx) => {
-                    const diff = p.latency - avgLatency;
+                    const diff = p.latency - (averageLatency ?? 0);
                     const diffLabel = `${diff >= 0 ? '+' : ''}${diff.toFixed(1)} ms vs 均值`;
                     return (
                       <g key={idx}>
@@ -486,7 +342,7 @@ export const PerformanceTrendStrip: React.FC<PerformanceTrendStripProps> = ({
                               items: [
                                 {
                                   label: '执行延时',
-                                  value: `${p.latency.toFixed(1)} ms`,
+                                  value: formatValueBySpec(p.latency,{unit:'ms',decimals:1}),
                                   color: 'text-monokai-accent',
                                 },
                                 {
@@ -529,7 +385,7 @@ export const PerformanceTrendStrip: React.FC<PerformanceTrendStripProps> = ({
               )}
             </div>
 
-            <div className="mt-1.5 flex justify-between font-mono text-[10px] text-monokai-comment">
+            <div className="mt-1.5 flex justify-between font-mono text-2xs text-monokai-comment">
               {timeLabels.map((lbl, idx) => (
                 <span key={idx}>{lbl}</span>
               ))}
@@ -540,14 +396,14 @@ export const PerformanceTrendStrip: React.FC<PerformanceTrendStripProps> = ({
           <div className="flex flex-col justify-between rounded-md border border-monokai-border bg-monokai-elevated/40 p-3 hover:border-monokai-purple/50 hover:bg-monokai-hover/40 transition-all">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-monokai-fg font-sans">内存使用</span>
-              <span className="text-[10px] font-mono text-monokai-purple">Buffer 容量</span>
+              <span className="text-2xs font-mono text-monokai-purple">Buffer 容量</span>
             </div>
             <div className="mt-1 flex items-baseline gap-2">
               <span className="font-mono text-xl sm:text-2xl font-bold text-monokai-fg">
                 {metrics.memoryUsageFormatted || '—'}
               </span>
               <span className="font-mono text-xs text-monokai-purple font-semibold">
-                {metrics.memoryPercentageDisplay || '0%'}
+                {metrics.memoryPercentageDisplay || '未采集'}
               </span>
             </div>
 
@@ -592,18 +448,18 @@ export const PerformanceTrendStrip: React.FC<PerformanceTrendStripProps> = ({
                           y: rect.top - 8,
                           title: `内存遥测 · ${pt.label}`,
                           badge: {
-                            label: metrics.memoryPercentageDisplay || '0%',
+                            label: metrics.memoryPercentageDisplay || '未采集',
                             tone: metrics.memoryPercentage > 80 ? 'warn' : 'ok',
                           },
                           items: [
                             {
                               label: '已用缓存',
-                              value: metrics.memoryUsageFormatted || '0 B',
+                              value: metrics.memoryUsageFormatted || '未采集',
                               color: 'text-monokai-purple',
                             },
                             {
                               label: '最大限制',
-                              value: `${metrics.memoryTotalGb} GB`,
+                              value: metrics.memoryTotalGb > 0 ? `${metrics.memoryTotalGb} GB` : '未采集',
                             },
                             {
                               label: '运行模式',
@@ -631,26 +487,24 @@ export const PerformanceTrendStrip: React.FC<PerformanceTrendStripProps> = ({
               </svg>
             </div>
 
-            <div className="mt-1.5 flex justify-between font-mono text-[10px] text-monokai-comment">
-              {timeLabels.map((lbl, idx) => (
-                <span key={idx}>{lbl}</span>
-              ))}
+            <div className="mt-1.5 flex justify-between font-mono text-2xs text-monokai-comment">
+              <span>当前采样 · 无历史曲线</span>
             </div>
           </div>
 
           {/* 4. 数据量增长 */}
           <div className="flex flex-col justify-between rounded-md border border-monokai-border bg-monokai-elevated/40 p-3 hover:border-monokai-yellow/50 hover:bg-monokai-hover/40 transition-all">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-monokai-fg font-sans">数据量增长</span>
-              <span className="text-[10px] font-mono text-monokai-yellow">摄入阶梯</span>
+              <span className="text-xs font-bold text-monokai-fg font-sans">成功导入累计行数</span>
+              <span className="text-2xs font-mono text-monokai-yellow">摄入阶梯</span>
             </div>
             <div className="mt-1 flex items-baseline gap-2">
               <span className="font-mono text-xl sm:text-2xl font-bold text-monokai-fg">
-                {metrics.dataSize || '—'}
+                {importedRows}
               </span>
               <span
                 className={`font-mono text-xs font-semibold ${
-                  recentImports.length > 0 ? 'text-monokai-yellow' : 'text-monokai-comment'
+                  importPoints.length > 0 ? 'text-monokai-yellow' : 'text-monokai-comment'
                 }`}
               >
                 {importGrowthLabel}
@@ -662,7 +516,7 @@ export const PerformanceTrendStrip: React.FC<PerformanceTrendStripProps> = ({
               className="mt-2 h-12 pt-2 border-b border-monokai-border relative"
               onMouseLeave={() => setTooltip(null)}
             >
-              {recentImports.length === 0 ? (
+              {importPoints.length === 0 ? (
                 <div
                   className="flex h-full w-full items-center justify-center opacity-40 hover:opacity-80 transition-opacity cursor-help"
                   onMouseEnter={(e) => {
@@ -739,13 +593,14 @@ export const PerformanceTrendStrip: React.FC<PerformanceTrendStripProps> = ({
               )}
             </div>
 
-            <div className="mt-1.5 flex justify-between font-mono text-[10px] text-monokai-comment">
+            <div className="mt-1.5 flex justify-between font-mono text-2xs text-monokai-comment">
               {timeLabels.map((lbl, idx) => (
                 <span key={idx}>{lbl}</span>
               ))}
             </div>
           </div>
         </div>
+        )}
       </div>
     </>
   );

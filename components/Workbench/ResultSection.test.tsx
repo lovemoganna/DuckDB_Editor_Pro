@@ -35,6 +35,18 @@ const mockResult: QueryResult = {
 };
 
 describe('ResultSection (BRD index8.md & Target Mockup Flow)', () => {
+  it('exports through an available callback and disables unsupported formats without fake settings', () => {
+    const onExportCsv = vi.fn();
+    render(<ResultSection result={mockResult} loading={false} onExportCsv={onExportCsv} />);
+    fireEvent.click(screen.getByText('导出'));
+    expect((screen.getByRole('button', { name: 'Arrow IPC（暂不可用）' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.queryByText('压缩算法')).toBeNull();
+    expect(screen.queryByText('包含列类型')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'CSV', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: '导出 CSV', exact: true }));
+    expect(onExportCsv).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
   it('renders Result Section with subtabs, status line, and toolbar', () => {
     render(
       <ResultSection
@@ -158,7 +170,7 @@ describe('ResultSection (BRD index8.md & Target Mockup Flow)', () => {
     // Switch to Explain tab
     fireEvent.click(screen.getByText('执行计划'));
 
-    expect(screen.getByText('图形')).toBeTruthy();
+    expect(screen.getByTestId('execution-plan-view')).toBeTruthy();
     expect(screen.getByText(/还没有执行步骤|暂无物理执行计划/)).toBeTruthy();
   });
 
@@ -183,10 +195,10 @@ describe('ResultSection (BRD index8.md & Target Mockup Flow)', () => {
 
     fireEvent.click(screen.getByText('执行计划'));
 
-    expect(screen.getByText('图形')).toBeTruthy();
-    expect(screen.getAllByText(/整理要输出的列|整理输出列/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/连接两路数据|内连接/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/读取「users」/).length).toBeGreaterThan(0);
+    expect(screen.getByTestId('execution-plan-view')).toBeTruthy();
+    expect(screen.getAllByLabelText(/PROJECTION/).length).toBeGreaterThan(0);
+    expect(screen.getAllByLabelText(/HASH_JOIN/).length).toBeGreaterThan(0);
+    expect(screen.getAllByLabelText(/SEQ_SCAN/).length).toBeGreaterThan(0);
   });
 
   it('renders 0 rows without bulky empty state when query returns empty rows', () => {

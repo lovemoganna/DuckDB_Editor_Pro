@@ -331,13 +331,13 @@ export const CanvasHelpPanel: React.FC<CanvasHelpPanelProps> = ({ config, onClos
     <div style={{
       position: 'absolute', top: 16, right: 16, zIndex: 200,
       width: 320, maxHeight: 'calc(100vh - 80px)', overflow: 'hidden',
-      background: 'rgba(23,23,35,0.95)', backdropFilter: 'blur(20px)',
-      border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16,
-      boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+      background: 'color-mix(in srgb, var(--monokai-surface) 96%, transparent)', backdropFilter: 'blur(20px)',
+      border: '1px solid var(--monokai-border)', borderRadius: 16,
+      boxShadow: '0 8px 32px rgba(0,0,0,0.25)',
       display: 'flex', flexDirection: 'column',
     }}>
       {/* Header */}
-      <div style={{ padding: '14px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+      <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--monokai-border)', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
         <HelpCircle className="w-4 h-4 text-indigo-400" />
         <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--monokai-fg)' }}>
           {config.type === 'canvas' ? '画布使用指南' : '图谱使用指南'}
@@ -451,7 +451,7 @@ export const CanvasHelpPanel: React.FC<CanvasHelpPanelProps> = ({ config, onClos
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                     <span style={{ color: design.color }}>{design.labelZh} / {design.label}</span>
                   </div>
-                  <div style={{ padding: '10px 12px', background: 'rgba(0,0,0,0.3)', borderRadius: 10, border: `1px solid ${design.borderClass}`, fontSize: 11, color: 'var(--monokai-fg-muted)', lineHeight: 1.7, marginBottom: 8 }}>
+                  <div style={{ padding: '10px 12px', background: 'color-mix(in srgb, var(--monokai-bg) 60%, transparent)', borderRadius: 10, border: `1px solid ${design.borderClass}`, fontSize: 11, color: 'var(--monokai-fg-muted)', lineHeight: 1.7, marginBottom: 8 }}>
                     {design.description}
                   </div>
                   <div style={{ fontSize: 10, color: 'var(--monokai-accent)', fontWeight: 600, marginBottom: 4 }}>适用场景</div>
@@ -462,7 +462,7 @@ export const CanvasHelpPanel: React.FC<CanvasHelpPanelProps> = ({ config, onClos
                   <div style={{ paddingLeft: 10, marginBottom: 8, fontSize: 11, color: 'var(--monokai-fg-muted)', lineHeight: 1.6 }}>
                     {design.commonMistakes.map((m, i) => <div key={i} style={{ marginBottom: 3 }}>• {m}</div>)}
                   </div>
-                  <div style={{ padding: '8px 10px', borderRadius: 8, background: 'rgba(0,0,0,0.2)', fontSize: 11, color: 'var(--monokai-purple)', lineHeight: 1.6 }}>
+                  <div style={{ padding: '8px 10px', borderRadius: 8, background: 'color-mix(in srgb, var(--monokai-bg) 40%, transparent)', fontSize: 11, color: 'var(--monokai-purple)', lineHeight: 1.6 }}>
                     示例：{CANVAS_MECE_PROMPTS.example(layer)}
                   </div>
                 </div>
@@ -477,7 +477,7 @@ export const CanvasHelpPanel: React.FC<CanvasHelpPanelProps> = ({ config, onClos
                   <div style={{ fontSize: 10, color: 'var(--monokai-purple)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
                     AI 一键填充提示词
                   </div>
-                  <div style={{ padding: '10px 12px', background: 'rgba(0,0,0,0.3)', borderRadius: 10, border: '1px solid rgba(167,139,250,0.15)', fontSize: 11, color: 'var(--monokai-fg-muted)', lineHeight: 1.7 }}>
+                  <div style={{ padding: '10px 12px', background: 'color-mix(in srgb, var(--monokai-bg) 60%, transparent)', borderRadius: 10, border: '1px solid color-mix(in srgb, var(--monokai-purple) 25%, transparent)', fontSize: 11, color: 'var(--monokai-fg-muted)', lineHeight: 1.7 }}>
                     {existingObjects.length > 0 ? (
                       <>基于已有对象 [{existingObjects.slice(0, 3).join(', ')}{existingObjects.length > 3 ? '...' : ''}]，生成数据处理拓扑，包含 Source/Transform/Sink 节点及依赖边。</>
                     ) : (
@@ -489,7 +489,7 @@ export const CanvasHelpPanel: React.FC<CanvasHelpPanelProps> = ({ config, onClos
                   <div style={{ fontSize: 10, color: 'var(--monokai-orange)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
                     二次优化提示词
                   </div>
-                  <div style={{ padding: '10px 12px', background: 'rgba(0,0,0,0.3)', borderRadius: 10, border: '1px solid rgba(251,146,60,0.15)', fontSize: 11, color: 'var(--monokai-fg-muted)', lineHeight: 1.7 }}>
+                  <div style={{ padding: '10px 12px', background: 'color-mix(in srgb, var(--monokai-bg) 60%, transparent)', borderRadius: 10, border: '1px solid color-mix(in srgb, var(--monokai-orange) 25%, transparent)', fontSize: 11, color: 'var(--monokai-fg-muted)', lineHeight: 1.7 }}>
                     输入类似「增加一个过滤节点」「改为时序聚合」等，AI 将更新拓扑 SQL 片段。
                   </div>
                 </div>
@@ -500,7 +500,7 @@ export const CanvasHelpPanel: React.FC<CanvasHelpPanelProps> = ({ config, onClos
                   <div style={{ fontSize: 10, color: 'var(--monokai-purple)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
                     AI 图谱生成提示词
                   </div>
-                  <div style={{ padding: '10px 12px', background: 'rgba(0,0,0,0.3)', borderRadius: 10, border: '1px solid rgba(167,139,250,0.15)', fontSize: 11, color: 'var(--monokai-fg-muted)', lineHeight: 1.7 }}>
+                  <div style={{ padding: '10px 12px', background: 'color-mix(in srgb, var(--monokai-bg) 60%, transparent)', borderRadius: 10, border: '1px solid color-mix(in srgb, var(--monokai-purple) 25%, transparent)', fontSize: 11, color: 'var(--monokai-fg-muted)', lineHeight: 1.7 }}>
                     输入领域主题（如「电商订单」「家庭财务」），AI 生成 5-10 个核心概念节点和关系边，包含布局坐标。
                   </div>
                 </div>
@@ -508,7 +508,7 @@ export const CanvasHelpPanel: React.FC<CanvasHelpPanelProps> = ({ config, onClos
                   <div style={{ fontSize: 10, color: 'var(--monokai-orange)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
                     展开节点提示词
                   </div>
-                  <div style={{ padding: '10px 12px', background: 'rgba(0,0,0,0.3)', borderRadius: 10, border: '1px solid rgba(251,146,60,0.15)', fontSize: 11, color: 'var(--monokai-fg-muted)', lineHeight: 1.7 }}>
+                  <div style={{ padding: '10px 12px', background: 'color-mix(in srgb, var(--monokai-bg) 60%, transparent)', borderRadius: 10, border: '1px solid color-mix(in srgb, var(--monokai-orange) 25%, transparent)', fontSize: 11, color: 'var(--monokai-fg-muted)', lineHeight: 1.7 }}>
                     选中某节点后，输入「围绕 [节点名] 展开更多关系」，AI 将追加相关概念节点和边。
                   </div>
                 </div>

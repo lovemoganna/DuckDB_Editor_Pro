@@ -21,9 +21,14 @@ export interface ModelingPropertyDef {
   type: 'VARCHAR' | 'INTEGER' | 'DECIMAL' | 'BOOLEAN' | 'TIMESTAMP' | 'JSON';
   description?: string;
   exampleValue?: any;
+  required?: boolean;
 }
 
 export interface ModelingObjectType {
+  identifier?: string;
+  sourceId?: number;
+  mapping?: { catalog: string; schema: string; table: string; idField: string; properties: Record<string, string>;
+    dataset?: { owner: string; id: string; version: number; sql: string; definitionSql: string; name: string } };
   name: string;
   description: string;
   category?: 'Core' | 'Transaction' | 'Master' | 'Event';
@@ -31,6 +36,9 @@ export interface ModelingObjectType {
 }
 
 export interface ModelingObject {
+  sourceId?: number;
+  provenance?: { catalog: string; schema: string; table: string; idField: string; key: string;
+    dataset?: { owner: string; id: string; version: number; sql: string; definitionSql: string; name: string } };
   name: string;
   objectType: string;
   properties: Record<string, any>;
@@ -38,6 +46,8 @@ export interface ModelingObject {
 }
 
 export interface ModelingLinkType {
+  sourceId?: number;
+  mapping?: { sourceField: string; targetField: string };
   name: string;
   description: string;
   fromType: string;
@@ -46,6 +56,8 @@ export interface ModelingLinkType {
 }
 
 export interface ModelingLink {
+  sourceId?: number;
+  provenance?: { sourceField: string; targetField: string };
   from: string;
   to: string;
   linkType: string;
@@ -54,6 +66,7 @@ export interface ModelingLink {
 }
 
 export interface ModelingAction {
+  sourceId?: number;
   name: string;
   objectName: string;
   description: string;
@@ -67,6 +80,8 @@ export interface ModelingValidationIssue {
   category: 'orphan' | 'duplicate' | 'hierarchy' | 'meaningless_link' | 'missing_property' | 'syntax' | 'property_as_node' | 'vague_parent';
   message: string;
   target?: string;
+  fix?: string;
+  element?: { kind: 'objectTypes' | 'linkTypes' | 'objects' | 'links' | 'actions'; index: number };
 }
 
 export interface ModelingLayoutNode {
@@ -86,6 +101,12 @@ export interface ModelingLayoutLink {
 }
 
 export interface OntologyModelingResult {
+  targetContext?: { catalog: string; schema: string };
+  modelingVersion?: 1;
+  instanceMappingSignature?: string;
+  dependentReferences?: Array<{ table: string; objectId: number; label: string }>;
+  baseRevision?: string;
+  baseline?: { objectTypes: number[]; objects: number[]; linkTypes: number[]; links: number[]; actions: number[] };
   title?: string;
   domain?: string;
   rationale: string;
@@ -240,7 +261,8 @@ class OntologyModelingService {
       try {
         const prompt = `你是一个资深本体论架构师。用户希望对当前本体模型进行局部调整与精炼。
 
-## 当前模型:
+## 当前模型（包含属性定义、关系端点和映射，必须保留未修改的字段）:
+${JSON.stringify({ objectTypes: current.objectTypes, linkTypes: current.linkTypes, actions: current.actions })}
 - 实体类型: ${current.objectTypes.map(t => t.name).join(', ')}
 - 实体对象: ${current.objects.map(o => `${o.name}(${o.objectType})`).join(', ')}
 - 关系连线: ${current.links.map(l => `${l.from} -[${l.linkType}]-> ${l.to}`).join(', ')}
@@ -481,6 +503,71 @@ class OntologyModelingService {
           target: act.name,
         });
       }
+    });
+
+    // Hard constraints shared by manual edits, AI proposals and the save boundary.
+    const invalid = (kind: NonNullable<ModelingValidationIssue['element']>['kind'], index: number, message: string, fix: string) => {
+      const row = data[kind]?.[index];
+      issues.push({ id: `constraint-${kind}-${index}-${issues.length}`, level: 'error', category: 'syntax',
+        target: row && 'name' in row ? row.name : String(index), message, fix, element: { kind, index } });
+    };
+    const checkNames = (kind: 'objectTypes' | 'linkTypes' | 'actions') => {
+      const seen = new Set<string>();
+      (data[kind] || []).forEach((row, i) => {
+        const key = row.name.trim().toLowerCase();
+        if (!key || seen.has(key)) invalid(kind, i, `名称为空或重复：${row.name}`, '填写唯一且非空的名称。');
+        seen.add(key);
+      });
+    };
+    checkNames('objectTypes'); checkNames('linkTypes'); checkNames('actions');
+    const identifiers = new Set<string>();
+    data.objectTypes.forEach((t, i) => {
+      const id = (t.identifier ?? t.name).trim().toLowerCase();
+      if (!id || identifiers.has(id)) invalid('objectTypes', i, `对象标识符为空或冲突：${id}`, '修改为唯一且非空的标识符。');
+      identifiers.add(id);
+      Object.entries(t.properties || {}).forEach(([name, def]) => {
+        const type = typeof def === 'string' ? def : def.type;
+        if (!name.trim() || !['VARCHAR','INTEGER','DECIMAL','BOOLEAN','TIMESTAMP','JSON'].includes(type))
+          invalid('objectTypes', i, `属性 ${name} 名称或类型无效`, '填写属性名称并选择支持的字段类型。');
+      });
+      if (t.mapping) {
+        const m = t.mapping;
+        if (!m.catalog || !m.schema || (!m.table && !m.dataset) || !m.idField) invalid('objectTypes', i, '数据映射缺少来源或标识字段', '选择工作区数据集或物理表，以及唯一标识字段。');
+        for (const [prop, field] of Object.entries(m.properties)) {
+          if (!(prop in (t.properties || {})) || !field) invalid('objectTypes', i, `属性映射 ${prop} 无效`, '选择已定义属性和实际来源字段。');
+        }
+      }
+    });
+    data.linkTypes.forEach((l, i) => {
+      if (!data.objectTypes.some(t => t.name === l.fromType) || !data.objectTypes.some(t => t.name === l.toType))
+        invalid('linkTypes', i, `关系 ${l.name} 缺少有效来源或目标对象`, '重新选择已定义的来源和目标 Object Type。');
+      if (l.mapping && (!l.mapping.sourceField || !l.mapping.targetField)) invalid('linkTypes', i, `关系 ${l.name} 缺少连接条件`, '选择两端表的关联字段。');
+    });
+    data.objects.forEach((o, i) => {
+      const t = data.objectTypes.find(t => t.name === o.objectType);
+      if (!t) invalid('objects', i, `实例 ${o.name} 的类型不存在`, '为实例选择存在的 Object Type。');
+      Object.entries(t?.properties || {}).forEach(([key, def]) => {
+        if (typeof def === 'object' && def.required && (o.properties[key] === undefined || o.properties[key] === null || o.properties[key] === ''))
+          invalid('objects', i, `实例 ${o.name} 缺少必填属性 ${key}`, '修正真实数据或属性映射。');
+        const value = o.properties[key], type = typeof def === 'string' ? def : def.type;
+        if (value == null) return;
+        const valid = type === 'INTEGER' ? Number.isInteger(Number(value)) && value !== ''
+          : type === 'DECIMAL' ? Number.isFinite(Number(value)) && value !== ''
+          : type === 'BOOLEAN' ? typeof value === 'boolean'
+          : type === 'TIMESTAMP' ? (typeof value === 'number' ? Number.isFinite(new Date(value).getTime()) : !Number.isNaN(Date.parse(String(value))))
+          : type === 'JSON' ? typeof value === 'object' || (() => { try { JSON.parse(String(value)); return true; } catch { return false; } })() : true;
+        if (!valid) invalid('objects', i, `实例 ${o.name} 属性 ${key} 不符合 ${type} 类型`, '修正属性类型或真实来源字段。');
+      });
+    });
+    data.links.forEach((l, i) => {
+      const from = data.objects.find(o => o.name === l.from), to = data.objects.find(o => o.name === l.to);
+      const type = data.linkTypes.find(t => t.name === l.linkType);
+      if (!from || !to || !type || from.objectType !== type.fromType || to.objectType !== type.toType)
+        invalid('links', i, `实例关系 ${l.linkType} 悬空或端点类型不匹配`, '修正关系类型和端点，或重新查询映射数据。');
+    });
+    (data.actions || []).forEach((a, i) => {
+      if (!data.objectTypes.some(t => t.name === a.objectName) && !data.objects.some(o => o.name === a.objectName))
+        invalid('actions', i, `行动 ${a.name} 缺少有效目标`, '选择存在的对象类型或真实实例。');
     });
 
     // 计算健康得分
@@ -1086,7 +1173,7 @@ ${concept}
     // 检查是否要求添加退款/取消动作
     if (text.includes('退款') || text.includes('取消') || text.includes('cancel')) {
       const orderObj = nextObjects.find(o => o.objectType.toLowerCase().includes('order') || o.name.includes('订单'));
-      const targetName = orderObj ? orderObj.name : (nextObjects[0]?.name || 'TargetObject');
+      const targetName = orderObj ? orderObj.name : (nextObjectTypes.find(t => /order|订单/i.test(t.name))?.name || nextObjects[0]?.name || nextObjectTypes[0]?.name || 'TargetObject');
       nextActions.push({
         name: 'CancelAndRefund',
         objectName: targetName,

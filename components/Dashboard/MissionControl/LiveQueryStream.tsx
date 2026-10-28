@@ -3,7 +3,6 @@ import {
   Play,
   Copy,
   Check,
-  Terminal,
   Clock,
   Search,
   MoreHorizontal,
@@ -13,15 +12,12 @@ import {
   ChevronRight,
   AlertCircle,
   Sparkles,
-  Flame,
-  Activity,
-  TrendingUp,
-  Gauge,
 } from 'lucide-react';
 import { Tab } from '../../../types';
 import { type RecentQueryDisplayItem } from '../../../hooks/useDashboardWorkflow';
 import { toastService } from '../../../services/toastService';
 import { useAppStore } from '../../../hooks/store/useAppStore';
+import { DB } from '../dashboardUi';
 
 interface LiveQueryStreamProps {
   queries: RecentQueryDisplayItem[];
@@ -217,28 +213,21 @@ export const LiveQueryStream: React.FC<LiveQueryStreamProps> = ({
   };
 
   return (
-    <div className="relative flex flex-col overflow-hidden rounded-xl border border-monokai-border bg-gradient-to-b from-monokai-surface to-monokai-surface/95 p-4 shadow-sm h-full select-text hover:border-monokai-accent/40 transition-colors backdrop-blur-xs">
-      {/* Header */}
-      <div className="flex flex-col gap-2.5 border-b border-monokai-border pb-3 shrink-0">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="flex h-7 w-7 items-center justify-center rounded-md bg-monokai-accent/15 text-monokai-accent border border-monokai-accent/30">
-              <Terminal className="h-4 w-4" />
-            </span>
-            <h2 className="text-sm sm:text-base font-bold text-monokai-fg tracking-tight font-sans">最近查询动态</h2>
-            <span className="flex items-center gap-1 rounded border border-monokai-accent/40 bg-monokai-accent/10 px-1.5 py-0.2 text-[10px] font-mono text-monokai-accent font-semibold">
-              <span className="h-1.5 w-1.5 rounded-full bg-monokai-accent animate-pulse" />
-              实时
-            </span>
-            <span className="font-mono text-xs text-monokai-comment">
-              ({queries.length} 条)
+    <div className={`${DB.panelLg}`}>
+      {/* Quiet panel chrome */}
+      <div className="flex flex-col gap-2 border-b border-monokai-border/80 pb-2.5 shrink-0">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-baseline gap-2 min-w-0">
+            <h2 className="text-sm font-semibold text-monokai-fg font-sans tracking-tight">最近查询</h2>
+            <span className="font-mono text-2xs text-monokai-comment tabular-nums">
+              {queries.length}
             </span>
           </div>
 
           <button
             type="button"
             onClick={() => onNavigate(Tab.HISTORY)}
-            className="text-xs font-mono text-monokai-cyan hover:text-monokai-cyan/80 hover:underline cursor-pointer flex items-center gap-1 font-medium"
+            className={DB.btnGhostLink}
             title="查看完整查询历史"
           >
             <span>全部历史</span>
@@ -246,33 +235,23 @@ export const LiveQueryStream: React.FC<LiveQueryStreamProps> = ({
           </button>
         </div>
 
-        {/* Mode Selector: Stream vs Slow Ranking vs Percentiles */}
-        <div className="flex flex-wrap items-center gap-1 rounded-md border border-monokai-border bg-monokai-elevated p-0.5 shrink-0">
+        {/* Mode: stream | slow | percentiles — compact labels */}
+        <div className={DB.segment}>
           <button
             type="button"
             onClick={() => setActiveMode('stream')}
-            className={`rounded px-2.5 py-0.5 text-xs font-mono transition-colors cursor-pointer flex items-center gap-1 ${
-              activeMode === 'stream'
-                ? 'bg-monokai-accent text-monokai-bg font-bold shadow-xs'
-                : 'text-monokai-fg-muted hover:text-monokai-fg'
-            }`}
+            className={`${activeMode === 'stream' ? DB.segmentItemActive : DB.segmentItem} ${DB.focus}`}
           >
-            <Terminal className="h-3 w-3" />
-            <span>查询流水</span>
+            流水
           </button>
           <button
             type="button"
             onClick={() => setActiveMode('slow_ranking')}
-            className={`rounded px-2.5 py-0.5 text-xs font-mono transition-colors cursor-pointer flex items-center gap-1 ${
-              activeMode === 'slow_ranking'
-                ? 'bg-monokai-accent text-monokai-bg font-bold shadow-xs'
-                : 'text-monokai-fg-muted hover:text-monokai-fg'
-            }`}
+            className={`${activeMode === 'slow_ranking' ? DB.segmentItemActive : DB.segmentItem} flex items-center gap-1 ${DB.focus}`}
           >
-            <Flame className="h-3 w-3 text-monokai-orange" />
-            <span>Top 慢查询排行</span>
+            <span>慢查询</span>
             {slowCount > 0 && (
-              <span className="rounded bg-monokai-orange/20 text-monokai-orange px-1 text-[9px] font-bold">
+              <span className="rounded bg-monokai-orange/20 text-monokai-orange px-1 text-3xs font-mono">
                 {slowCount}
               </span>
             )}
@@ -280,49 +259,36 @@ export const LiveQueryStream: React.FC<LiveQueryStreamProps> = ({
           <button
             type="button"
             onClick={() => setActiveMode('percentiles')}
-            className={`rounded px-2.5 py-0.5 text-xs font-mono transition-colors cursor-pointer flex items-center gap-1 ${
-              activeMode === 'percentiles'
-                ? 'bg-monokai-accent text-monokai-bg font-bold shadow-xs'
-                : 'text-monokai-fg-muted hover:text-monokai-fg'
-            }`}
+            className={`${activeMode === 'percentiles' ? DB.segmentItemActive : DB.segmentItem} ${DB.focus}`}
           >
-            <Gauge className="h-3 w-3 text-monokai-yellow" />
-            <span>延迟分位数</span>
+            分位数
           </button>
         </div>
 
         {/* Filter Bar: Status Tabs + Search */}
         <div className="flex flex-wrap items-center justify-between gap-2">
           {/* Status Pills */}
-          <div className="flex items-center rounded-md border border-monokai-border bg-monokai-elevated p-0.5 shrink-0 gap-0.5">
+          <div className={`${DB.segment} shrink-0 gap-0.5`}>
             <button
               type="button"
               aria-label="全部"
               onClick={() => handleFilterClick('all')}
-              className={`rounded px-2.5 py-0.5 text-xs font-mono transition-colors cursor-pointer flex items-center gap-1 ${
-                statusFilter === 'all'
-                  ? 'bg-monokai-accent text-monokai-bg font-bold shadow-xs'
-                  : 'text-monokai-fg-muted hover:text-monokai-fg'
-              }`}
+              className={`${statusFilter === 'all' ? DB.segmentItemActive : DB.segmentItem} flex items-center gap-1 ${DB.focus}`}
             >
               <span>全部</span>
               {queries.length > 0 && (
-                <span className="text-[10px] opacity-75 font-mono">({queries.length})</span>
+                <span className="text-2xs opacity-75 font-mono">({queries.length})</span>
               )}
             </button>
             <button
               type="button"
               aria-label="成功"
               onClick={() => handleFilterClick('success')}
-              className={`rounded px-2.5 py-0.5 text-xs font-mono transition-colors cursor-pointer flex items-center gap-1 ${
-                statusFilter === 'success'
-                  ? 'bg-monokai-accent text-monokai-bg font-bold shadow-xs'
-                  : 'text-monokai-fg-muted hover:text-monokai-fg'
-              }`}
+              className={`${statusFilter === 'success' ? DB.segmentItemActive : DB.segmentItem} flex items-center gap-1 ${DB.focus}`}
             >
               <span>成功</span>
               {successCount > 0 && (
-                <span className="text-[10px] opacity-75 font-mono">({successCount})</span>
+                <span className="text-2xs opacity-75 font-mono">({successCount})</span>
               )}
             </button>
             <button
@@ -339,7 +305,7 @@ export const LiveQueryStream: React.FC<LiveQueryStreamProps> = ({
             >
               <span>失败</span>
               {errorCount > 0 && (
-                <span className="rounded bg-monokai-pink text-monokai-bg px-1 text-[9px] font-bold">
+                <span className="rounded bg-monokai-pink text-monokai-bg px-1 text-3xs font-bold">
                   {errorCount}
                 </span>
               )}
@@ -359,7 +325,7 @@ export const LiveQueryStream: React.FC<LiveQueryStreamProps> = ({
             >
               <span>慢查询</span>
               {slowCount > 0 && (
-                <span className="rounded bg-monokai-yellow text-monokai-bg px-1 text-[9px] font-bold">
+                <span className="rounded bg-monokai-yellow text-monokai-bg px-1 text-3xs font-bold">
                   {slowCount}
                 </span>
               )}
@@ -374,7 +340,7 @@ export const LiveQueryStream: React.FC<LiveQueryStreamProps> = ({
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="过滤 SQL 语句..."
-              className="w-full rounded border border-monokai-border bg-monokai-elevated py-1 pl-8 pr-7 text-xs font-mono text-monokai-fg placeholder:text-monokai-comment focus:border-monokai-accent focus:outline-none"
+              className={DB.input}
             />
             {searchTerm && (
               <button
@@ -394,7 +360,7 @@ export const LiveQueryStream: React.FC<LiveQueryStreamProps> = ({
       {activeMode === 'stream' ? (
         queries.length === 0 ? (
         <div className="flex flex-1 flex-col items-center justify-center space-y-2 p-3 sm:p-4 text-center">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-monokai-border bg-monokai-elevated text-monokai-comment">
+          <div className="flex h-9 w-9 items-center justify-center rounded-md border border-monokai-border bg-monokai-elevated text-monokai-comment">
             <Clock className="h-4.5 w-4.5" />
           </div>
           <div>
@@ -430,7 +396,7 @@ export const LiveQueryStream: React.FC<LiveQueryStreamProps> = ({
         <div className="mt-1 flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar pr-0.5">
           <table className="w-full table-fixed text-left font-mono text-xs">
             <thead className="sticky top-0 bg-monokai-surface z-10">
-              <tr className="border-b border-monokai-border text-[11px] uppercase tracking-wider text-monokai-comment">
+              <tr className="border-b border-monokai-border text-meta uppercase tracking-wider text-monokai-comment">
                 <th className="w-[82px] py-2 pl-1 pr-2 font-medium">时间</th>
                 <th className="py-2 px-2 font-medium">SQL 片段</th>
                 <th className="w-[56px] py-2 px-1 font-medium text-center">状态</th>
@@ -489,7 +455,7 @@ export const LiveQueryStream: React.FC<LiveQueryStreamProps> = ({
                           />
                           <span>{formattedTime}</span>
                           {isHighlighted && (
-                            <span className="rounded bg-monokai-cyan/25 text-monokai-cyan px-1 py-0.2 text-[8px] font-bold">
+                            <span className="rounded bg-monokai-cyan/25 text-monokai-cyan px-1 py-0.2 text-3xs font-bold">
                               APM
                             </span>
                           )}
@@ -503,7 +469,7 @@ export const LiveQueryStream: React.FC<LiveQueryStreamProps> = ({
                               e.stopPropagation();
                               setExpandedId(isExpanded ? null : q.id);
                             }}
-                            className="text-[11px] font-mono text-monokai-pink truncate mt-0.5 flex items-center gap-1 hover:underline cursor-pointer"
+                            className="text-meta font-mono text-monokai-pink truncate mt-0.5 flex items-center gap-1 hover:underline cursor-pointer"
                             title={q.error}
                           >
                             <AlertCircle className="h-3 w-3 shrink-0" />
@@ -643,11 +609,11 @@ export const LiveQueryStream: React.FC<LiveQueryStreamProps> = ({
                       <tr className="bg-monokai-elevated/40 border-b border-monokai-border/80">
                         <td colSpan={5} className="p-2.5">
                           <div className="space-y-2">
-                            <div className="flex items-center justify-between text-[11px] text-monokai-comment font-mono">
+                            <div className="flex items-center justify-between text-meta text-monokai-comment font-mono">
                               <span className="flex items-center gap-1 text-monokai-fg-muted font-bold">
                                 <span>完整执行语句</span>
                                 {q.rowCount != null && (
-                                  <span className="text-[10px] text-monokai-accent">({q.rowCount} 行扫描)</span>
+                                  <span className="text-2xs text-monokai-accent">({q.rowCount} 行扫描)</span>
                                 )}
                               </span>
                               <div className="flex items-center gap-2">
@@ -699,7 +665,7 @@ export const LiveQueryStream: React.FC<LiveQueryStreamProps> = ({
                                       <button
                                         type="button"
                                         onClick={(e) => handleAiExplain(q.sql, e)}
-                                        className="inline-flex items-center gap-1 rounded border border-monokai-purple/50 bg-monokai-purple/20 px-2 py-1 text-[11px] font-sans font-semibold text-monokai-purple hover:bg-monokai-purple/30 cursor-pointer"
+                                        className="inline-flex items-center gap-1 rounded border border-monokai-purple/50 bg-monokai-purple/20 px-2 py-1 text-meta font-sans font-semibold text-monokai-purple hover:bg-monokai-purple/30 cursor-pointer"
                                       >
                                         <Sparkles className="h-3 w-3" />
                                         AI 解释这段 SQL
@@ -710,14 +676,14 @@ export const LiveQueryStream: React.FC<LiveQueryStreamProps> = ({
                                           onSelectQuery(q.sql);
                                           onNavigate(Tab.SQL);
                                         }}
-                                        className="inline-flex items-center gap-1 rounded border border-monokai-border bg-monokai-elevated px-2 py-1 text-[11px] font-sans text-monokai-fg hover:border-monokai-cyan cursor-pointer"
+                                        className="inline-flex items-center gap-1 rounded border border-monokai-border bg-monokai-elevated px-2 py-1 text-meta font-sans text-monokai-fg hover:border-monokai-cyan cursor-pointer"
                                       >
                                         去编辑器修正 →
                                       </button>
                                     </div>
                                   </div>
                                 </div>
-                                <div className="border-t border-monokai-pink/20 pt-1 text-[11px] text-monokai-fg-muted font-sans flex items-center gap-1">
+                                <div className="border-t border-monokai-pink/20 pt-1 text-meta text-monokai-fg-muted font-sans flex items-center gap-1">
                                   <span className="text-monokai-yellow font-bold">诊断提示:</span>
                                   <span>
                                     {q.error.toLowerCase().includes('does not exist') || q.error.toLowerCase().includes('not found')
@@ -761,11 +727,11 @@ export const LiveQueryStream: React.FC<LiveQueryStreamProps> = ({
               return (
                 <div
                   key={q.id || idx}
-                  className="rounded-lg border border-monokai-border bg-monokai-elevated/40 p-2.5 space-y-1.5 hover:border-monokai-orange/50 transition-colors"
+                  className="rounded-md border border-monokai-border bg-monokai-elevated/40 p-2.5 space-y-1.5 hover:border-monokai-orange/50 transition-colors"
                 >
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
-                      <span className={`flex h-5 w-5 items-center justify-center rounded text-[11px] font-mono font-bold ${
+                      <span className={`flex h-5 w-5 items-center justify-center rounded text-meta font-mono font-bold ${
                         idx === 0
                           ? 'bg-amber-400/20 text-amber-300 border border-amber-400/40'
                           : idx === 1
@@ -786,7 +752,7 @@ export const LiveQueryStream: React.FC<LiveQueryStreamProps> = ({
                         {q.duration || `${q.numericMs.toFixed(1)} ms`}
                       </span>
                       {q.status === 'error' && (
-                        <span className="rounded bg-monokai-pink/20 text-monokai-pink text-[10px] font-mono px-1">
+                        <span className="rounded bg-monokai-pink/20 text-monokai-pink text-2xs font-mono px-1">
                           失败
                         </span>
                       )}
@@ -799,7 +765,7 @@ export const LiveQueryStream: React.FC<LiveQueryStreamProps> = ({
                           onSelectQuery(`EXPLAIN ${q.sql}`);
                           onNavigate(Tab.SQL);
                         }}
-                        className="rounded bg-monokai-surface border border-monokai-border px-2 py-0.5 text-[11px] font-mono text-monokai-cyan hover:border-monokai-cyan transition-colors cursor-pointer"
+                        className="rounded bg-monokai-surface border border-monokai-border px-2 py-0.5 text-meta font-mono text-monokai-cyan hover:border-monokai-cyan transition-colors cursor-pointer"
                         title="在 SQL 编辑器中查看查询计划"
                       >
                         EXPLAIN
@@ -807,7 +773,7 @@ export const LiveQueryStream: React.FC<LiveQueryStreamProps> = ({
                       <button
                         type="button"
                         onClick={(e) => handleAiExplain(q.sql, e)}
-                        className="rounded bg-monokai-purple/15 border border-monokai-purple/30 px-2 py-0.5 text-[11px] font-mono text-monokai-purple hover:bg-monokai-purple/25 transition-colors cursor-pointer"
+                        className="rounded bg-monokai-purple/15 border border-monokai-purple/30 px-2 py-0.5 text-meta font-mono text-monokai-purple hover:bg-monokai-purple/25 transition-colors cursor-pointer"
                         title="AI 分析该查询性能瓶颈"
                       >
                         调优建议
@@ -830,7 +796,7 @@ export const LiveQueryStream: React.FC<LiveQueryStreamProps> = ({
                   </div>
 
                   {/* SQL Preview */}
-                  <div className="rounded bg-monokai-bg/80 px-2 py-1 font-mono text-[11px] text-monokai-fg-muted truncate">
+                  <div className="rounded bg-monokai-bg/80 px-2 py-1 font-mono text-meta text-monokai-fg-muted truncate">
                     {q.sql}
                   </div>
                 </div>
@@ -842,26 +808,26 @@ export const LiveQueryStream: React.FC<LiveQueryStreamProps> = ({
         <div className="mt-2 flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-0.5">
           {/* Latency Percentiles Scorecard */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            <div className="rounded-lg border border-monokai-border bg-monokai-elevated/40 p-2.5 text-center">
-              <div className="text-[10px] text-monokai-comment font-mono">P50 中位数延迟</div>
+            <div className="rounded-md border border-monokai-border bg-monokai-elevated/40 p-2.5 text-center">
+              <div className="text-2xs text-monokai-comment font-mono">P50 中位数延迟</div>
               <div className="text-base font-bold font-mono text-monokai-accent mt-0.5">
                 {latencyStats.p50} ms
               </div>
             </div>
-            <div className="rounded-lg border border-monokai-border bg-monokai-elevated/40 p-2.5 text-center">
-              <div className="text-[10px] text-monokai-comment font-mono">P90 高位延迟</div>
+            <div className="rounded-md border border-monokai-border bg-monokai-elevated/40 p-2.5 text-center">
+              <div className="text-2xs text-monokai-comment font-mono">P90 高位延迟</div>
               <div className="text-base font-bold font-mono text-monokai-yellow mt-0.5">
                 {latencyStats.p90} ms
               </div>
             </div>
-            <div className="rounded-lg border border-monokai-border bg-monokai-elevated/40 p-2.5 text-center">
-              <div className="text-[10px] text-monokai-comment font-mono">P99 峰值延迟</div>
+            <div className="rounded-md border border-monokai-border bg-monokai-elevated/40 p-2.5 text-center">
+              <div className="text-2xs text-monokai-comment font-mono">P99 峰值延迟</div>
               <div className="text-base font-bold font-mono text-monokai-pink mt-0.5">
                 {latencyStats.p99} ms
               </div>
             </div>
-            <div className="rounded-lg border border-monokai-border bg-monokai-elevated/40 p-2.5 text-center">
-              <div className="text-[10px] text-monokai-comment font-mono">平均耗时 / 极值</div>
+            <div className="rounded-md border border-monokai-border bg-monokai-elevated/40 p-2.5 text-center">
+              <div className="text-2xs text-monokai-comment font-mono">平均耗时 / 极值</div>
               <div className="text-xs font-bold font-mono text-monokai-cyan mt-1">
                 均: {latencyStats.avg}ms · 极: {latencyStats.max}ms
               </div>
@@ -869,7 +835,7 @@ export const LiveQueryStream: React.FC<LiveQueryStreamProps> = ({
           </div>
 
           {/* Latency Distribution Histogram Breakdown */}
-          <div className="rounded-lg border border-monokai-border bg-monokai-elevated/30 p-3 space-y-2">
+          <div className="rounded-md border border-monokai-border bg-monokai-elevated/30 p-3 space-y-2">
             <div className="flex items-center justify-between text-xs font-mono font-bold text-monokai-fg">
               <span>查询耗时区间分布 (Latency Buckets)</span>
               <span className="text-monokai-comment">{queries.length} 次样本</span>
@@ -890,7 +856,7 @@ export const LiveQueryStream: React.FC<LiveQueryStreamProps> = ({
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-2 pt-1 text-[11px] font-mono">
+            <div className="grid grid-cols-2 gap-2 pt-1 text-meta font-mono">
               <div className="flex items-center gap-1.5 text-monokai-fg">
                 <span className="h-2 w-2 rounded-full bg-monokai-accent" />
                 <span>&lt;10ms 极速执行 ({latencyStats.fastCount} 次)</span>
@@ -916,7 +882,7 @@ export const LiveQueryStream: React.FC<LiveQueryStreamProps> = ({
               <Sparkles className="h-3.5 w-3.5" />
               <span>DuckDB 向量执行提示</span>
             </div>
-            <div className="text-monokai-fg-muted text-[11px] leading-relaxed">
+            <div className="text-monokai-fg-muted text-meta leading-relaxed">
               DuckDB 支持单核 10 亿行/秒级别的列式向量扫描。若某条查询超过 200ms，通常是由于全表扫描非过滤字段、字符串模糊正则匹配或跨表笛卡尔积。推荐使用 Parquet 分区谓词下推优化。
             </div>
           </div>

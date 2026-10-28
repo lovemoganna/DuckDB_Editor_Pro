@@ -1,0 +1,1790 @@
+{
+  "generatedAt": "2026-10-09T05:58:52.213Z",
+  "scannedFiles": 687,
+  "versions": {
+    "chart.js": {
+      "declared": "4.4.2",
+      "installed": "4.4.2"
+    },
+    "react-chartjs-2": {
+      "declared": "5.2.0",
+      "installed": "5.2.0"
+    },
+    "chartjs-plugin-datalabels": {
+      "declared": "2.2.0",
+      "installed": "2.2.0"
+    },
+    "d3": {
+      "declared": "^7.9.0",
+      "installed": "7.9.0"
+    },
+    "reactflow": {
+      "declared": "^11.11.4",
+      "installed": "11.11.4"
+    },
+    "mermaid": {
+      "declared": "^11.12.2",
+      "installed": "11.16.0"
+    },
+    "pixi.js": {
+      "declared": "^8.20.1",
+      "installed": "8.20.1"
+    }
+  },
+  "inventory": [
+    {
+      "file": "components/AnalysisHub/AnalysisChartRenderer.tsx",
+      "sha256": "5511885fa5a9b09f998dca1f3068917e9baf18b56a630e1d2715455cf381ae36",
+      "contract": [
+        {
+          "source": "../../services/analysis",
+          "bindings": "{\r\n  listChartTypes,\r\n  type ChartTypeId,\r\n  type ChartSpec,\r\n  chartSpecToChartConfig,\r\n  mapResultToChartSpec,\r\n  createEmptySpec,\r\n  emptyFilters,\r\n}",
+          "line": 9
+        },
+        {
+          "source": "../../services/analysis/adapters/dashboardWidgetAdapter",
+          "bindings": "{ widgetRowsToChartSpec }",
+          "line": 18
+        },
+        {
+          "source": "../charts/ChartRenderer",
+          "bindings": "{ ChartRenderer }",
+          "line": 19
+        }
+      ],
+      "libraries": [],
+      "native": [],
+      "tags": [
+        "ChartRenderer"
+      ],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/AnalysisHub/AnalysisPivotWorkbench.tsx",
+      "sha256": "17cd8749cfd05126e6a1d8d37eafb0802b8d2247b707987e4a29150af4e3e705",
+      "contract": [
+        {
+          "source": "../../services/analysis",
+          "bindings": "{\r\n  classifySemanticType,\r\n  pivotConfigToSpec,\r\n  runAnalysis,\r\n  applyBrush,\r\n  resolveDefaultAgg,\r\n  type PivotDimension,\r\n  type PivotMetric,\r\n  type PivotFilter,\r\n  type PivotQueryConfig,\r\n  type AnalysisFieldCatalog,\r\n  type AnalysisSpec,\r\n  type ChartSpec,\r\n}",
+          "line": 13
+        },
+        {
+          "source": "./AnalysisChartRenderer",
+          "bindings": "{ AnalysisChartRenderer }",
+          "line": 27
+        }
+      ],
+      "libraries": [],
+      "native": [],
+      "tags": [
+        "AnalysisChartRenderer"
+      ],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/AnalysisHub/AnalysisRecipeCenter.tsx",
+      "sha256": "0f293481928f2f4bc3da6ceb9651f7b5f394e8ff44964101074953d451c4095d",
+      "contract": [
+        {
+          "source": "../../services/analysis",
+          "bindings": "{\r\n  executeRecipe,\r\n  getRecipeList,\r\n  classifySemanticType,\r\n  type RecipeMetadata,\r\n  type ChartSpec,\r\n}",
+          "line": 6
+        },
+        {
+          "source": "./AnalysisChartRenderer",
+          "bindings": "{ AnalysisChartRenderer }",
+          "line": 13
+        }
+      ],
+      "libraries": [],
+      "native": [],
+      "tags": [
+        "Sparkles",
+        "AnalysisChartRenderer"
+      ],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/AnalysisHub/AnalysisTimeSeries.tsx",
+      "sha256": "f07d110dd8dff47c6a0d05adad1b0a7a2368f092793dd0b9960dd24c429d0a74",
+      "contract": [
+        {
+          "source": "../../utils/chartFormat",
+          "bindings": "{ formatValueBySpec }",
+          "line": 1
+        },
+        {
+          "source": "../../services/analysis",
+          "bindings": "{\r\n  classifySemanticType,\r\n  timeSeriesConfigToSpec,\r\n  runAnalysis,\r\n  resolveDefaultAgg,\r\n  type TimeSeriesConfig,\r\n  type AnalysisFieldCatalog,\r\n  type ChartSpec,\r\n}",
+          "line": 13
+        },
+        {
+          "source": "./AnalysisChartRenderer",
+          "bindings": "{ AnalysisChartRenderer }",
+          "line": 22
+        }
+      ],
+      "libraries": [],
+      "native": [],
+      "tags": [
+        "AnalysisChartRenderer"
+      ],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/AnalysisHub/analysisUi.tsx",
+      "sha256": "ab2f0390566c6cf21d0b3eec6e567076b9631d1326ee70c8e42e5737c87b2e37",
+      "contract": [
+        {
+          "source": "../../services/analysis/chartDisplay",
+          "bindings": "{ chartDimensionValue }",
+          "line": 1
+        },
+        {
+          "source": "../../utils/chartFormat",
+          "bindings": "{ formatValueBySpec, inferChartUnit }",
+          "line": 2
+        }
+      ],
+      "libraries": [],
+      "native": [],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/AnalysisHub/LinkedAnalysis.tsx",
+      "sha256": "3a6f0ef4e1418f1127041126d2d26158cd9fcabbb8c130ec8c22fdddf2db0e8d",
+      "contract": [
+        {
+          "source": "./AnalysisChartRenderer",
+          "bindings": "{ AnalysisChartRenderer }",
+          "line": 14
+        }
+      ],
+      "libraries": [],
+      "native": [],
+      "tags": [
+        "AnalysisChartRenderer"
+      ],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/CausalGraph.tsx",
+      "sha256": "5a442c3a75e03c65d58c8f992ae7bb50342cf3c5d39afbf42a58ef84ddefc471",
+      "contract": [],
+      "libraries": [
+        {
+          "source": "reactflow",
+          "bindings": "ReactFlow, {\r\n    Background,\r\n    Controls,\r\n    useNodesState,\r\n    useEdgesState,\r\n    Connection,\r\n    Edge,\r\n    addEdge,\r\n    Node,\r\n    MarkerType\r\n}",
+          "line": 2
+        }
+      ],
+      "native": [],
+      "tags": [
+        "ReactFlow"
+      ],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/ChartBuilder.tsx",
+      "sha256": "84f41a1c8713b5217bb851f0fdc4fcfbd130110d580071dd19cdc7203c387b5d",
+      "contract": [
+        {
+          "source": "../services/analysis/adapters/dashboardWidgetAdapter",
+          "bindings": "{ widgetRowsToChartSpec }",
+          "line": 4
+        },
+        {
+          "source": "../services/analysis/chartRegistry",
+          "bindings": "{ listChartTypes }",
+          "line": 5
+        },
+        {
+          "source": "./charts/ChartRenderer",
+          "bindings": "{ ChartRenderer }",
+          "line": 7
+        },
+        {
+          "source": "../utils/chartFormat",
+          "bindings": "{ chartNumber, isIdentifierColumn }",
+          "line": 11
+        }
+      ],
+      "libraries": [],
+      "native": [],
+      "tags": [
+        "BarChart2",
+        "Sparkles",
+        "WidgetChartConfigPanel",
+        "ChartRenderer"
+      ],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/ChartDashboard.tsx",
+      "sha256": "b5970c097e9770bc4490afe808aa4ca4d17f977571b2e5f0b57275e471f8fe59",
+      "contract": [
+        {
+          "source": "./charts/ChartRenderer",
+          "bindings": "{ ChartRenderer }",
+          "line": 5
+        },
+        {
+          "source": "../services/analysis/adapters/dashboardWidgetAdapter",
+          "bindings": "{ widgetRowsToChartSpec }",
+          "line": 6
+        }
+      ],
+      "libraries": [],
+      "native": [],
+      "tags": [
+        "ChartRenderer"
+      ],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/charts/ChartRenderer.tsx",
+      "sha256": "61173c654dc9b23aec9444e97c43c7701af68c9896ac2080cc1ca3dc8c604993",
+      "contract": [
+        {
+          "source": "../../utils/chartFormat",
+          "bindings": "{ formatTableValue, formatValueBySpec }",
+          "line": 14
+        },
+        {
+          "source": "../../services/analysis/adapters/chartJsAdapter",
+          "bindings": "{\r\n  adaptChartSpec,\r\n  type AdaptedChartBundle,\r\n}",
+          "line": 15
+        },
+        {
+          "source": "../../services/analysis/types",
+          "bindings": "type { ChartSpec }",
+          "line": 19
+        },
+        {
+          "source": "../../services/analysis/chartDisplay",
+          "bindings": "{ filterSortTableRows, summarizeTableRows }",
+          "line": 20
+        }
+      ],
+      "libraries": [
+        {
+          "source": "chart.js",
+          "bindings": "type { Chart as ChartJS }",
+          "line": 9
+        },
+        {
+          "source": "react-chartjs-2",
+          "bindings": "{ Bar, Line, Pie, Doughnut, Scatter }",
+          "line": 13
+        }
+      ],
+      "native": [],
+      "tags": [
+        "PivotTableView",
+        "CanvasView"
+      ],
+      "constructors": [],
+      "directCanvasConsumer": true
+    },
+    {
+      "file": "components/charts/ChartViewport.tsx",
+      "sha256": "eac511e5b5c8dbb62552a9aacf7b9fb77fb9661fcd296c9a6c4be1a6b9e88aba",
+      "contract": [
+        {
+          "source": "../../utils/chartFormat",
+          "bindings": "{ formatValueBySpec }",
+          "line": 4
+        },
+        {
+          "source": "../../services/analysis/types",
+          "bindings": "type { ChartSpec }",
+          "line": 5
+        }
+      ],
+      "libraries": [],
+      "native": [],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/charts/PivotTableView.tsx",
+      "sha256": "a839f729895338bd24789b11a05bd80f1570ca872063e8ba1772a22b778160a2",
+      "contract": [
+        {
+          "source": "../../services/analysis/types",
+          "bindings": "type { ChartSpec }",
+          "line": 2
+        },
+        {
+          "source": "../../utils/chartFormat",
+          "bindings": "{ formatValueBySpec }",
+          "line": 3
+        },
+        {
+          "source": "../../services/analysis/chartDisplay",
+          "bindings": "{ filterSortTableRows }",
+          "line": 4
+        }
+      ],
+      "libraries": [],
+      "native": [],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/Dashboard/Home/DatasetPreview.tsx",
+      "sha256": "7d724556bf350b98472e9d9b736dd0318b8fd69c887d0bc4d757a0445b1af5a8",
+      "contract": [
+        {
+          "source": "../../../utils/chartFormat",
+          "bindings": "{ formatTableValue }",
+          "line": 5
+        }
+      ],
+      "libraries": [],
+      "native": [],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/Dashboard/Home/ExecutiveOverview.tsx",
+      "sha256": "dd65159403a18b720639b2f613abc6cc61627a4d17e6b43d795aa659571e464b",
+      "contract": [
+        {
+          "source": "../../AnalysisHub/AnalysisChartRenderer",
+          "bindings": "{ AnalysisChartRenderer }",
+          "line": 8
+        }
+      ],
+      "libraries": [],
+      "native": [],
+      "tags": [
+        "AnalysisChartRenderer"
+      ],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/Dashboard/KpiDynamicMiniCharts.tsx",
+      "sha256": "ae9356fa28360d406bc4462b66b4c2f177ac1894a1b5a5bfcc67c549cc64d32c",
+      "contract": [
+        {
+          "source": "../../utils/chartFormat",
+          "bindings": "{ formatValueBySpec }",
+          "line": 2
+        }
+      ],
+      "libraries": [],
+      "native": [
+        "svg"
+      ],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/Dashboard/MissionControl/DashboardSvgIllustrations.tsx",
+      "sha256": "1ba8686942c413ea86ac1e0de1d02273e656ccd421dd095c0337cc4befb00ad1",
+      "contract": [],
+      "libraries": [],
+      "native": [
+        "svg"
+      ],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/Dashboard/MissionControl/DataAssetTopologyView.tsx",
+      "sha256": "8b3360d82cdbf9fcb92f1631826108160e6998e6371abe62024f902065317be1",
+      "contract": [],
+      "libraries": [],
+      "native": [
+        "svg"
+      ],
+      "tags": [
+        "PieChart"
+      ],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/Dashboard/MissionControl/PerformanceTrendStrip.tsx",
+      "sha256": "1031502c9189d5c94be8143082750178af865eacfa3031b44c9f331dc9751572",
+      "contract": [
+        {
+          "source": "../../../utils/chartFormat",
+          "bindings": "{ formatValueBySpec }",
+          "line": 1
+        }
+      ],
+      "libraries": [],
+      "native": [
+        "svg"
+      ],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/Dashboard/MissionControl/SystemHealthGauges.tsx",
+      "sha256": "14256284d74299df81caf6ac86170841d06c2d8e2ceb9301b918d03335a861a8",
+      "contract": [],
+      "libraries": [],
+      "native": [
+        "svg"
+      ],
+      "tags": [
+        "CircularGauge"
+      ],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/Dashboard/WidgetChartConfigPanel.tsx",
+      "sha256": "697d12dfe62538a4ab79a287768a94737f3eb5640573c2a86143aebac844d036",
+      "contract": [
+        {
+          "source": "../../services/analysis/chartRegistry",
+          "bindings": "{ listChartTypes }",
+          "line": 4
+        }
+      ],
+      "libraries": [],
+      "native": [],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/DashboardWidget.tsx",
+      "sha256": "abbffb1635ea8c2c0022230293f2ba93fd2ddbfce055f5203c00eecec50febde",
+      "contract": [
+        {
+          "source": "../utils/chartFormat",
+          "bindings": "{ formatValueBySpec }",
+          "line": 6
+        },
+        {
+          "source": "../services/analysis/chartDisplay",
+          "bindings": "{ filterSortTableRows }",
+          "line": 8
+        },
+        {
+          "source": "../services/analysis/adapters/dashboardWidgetAdapter",
+          "bindings": "{ widgetRowsToChartSpec }",
+          "line": 9
+        },
+        {
+          "source": "./charts/ChartRenderer",
+          "bindings": "{ ChartRenderer }",
+          "line": 12
+        }
+      ],
+      "libraries": [],
+      "native": [],
+      "tags": [
+        "BarChart2",
+        "TrendingUp",
+        "PieChart",
+        "ChartRenderer",
+        "WidgetChartConfigPanel"
+      ],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/DataFlow/DataFlowCanvas.tsx",
+      "sha256": "0039f2fd3d9fc2355c83bb6bae4cf4d5431474c1ed43b7aa0291a872793b4e31",
+      "contract": [],
+      "libraries": [
+        {
+          "source": "reactflow",
+          "bindings": "ReactFlow, {\r\n  Background,\r\n  BackgroundVariant,\r\n  useReactFlow,\r\n  useViewport,\n  useStore as useReactFlowStore,\n  ReactFlowProvider,\r\n  NodeMouseHandler,\r\n  EdgeMouseHandler,\r\n  MiniMap,\r\n  ConnectionMode,\r\n  ConnectionLineType,\r\n  type Connection,\r\n}",
+          "line": 17
+        }
+      ],
+      "native": [
+        "svg"
+      ],
+      "tags": [
+        "DataFlowAssetSidebar",
+        "CanvasToolbar",
+        "ReactFlow",
+        "DataFlowInspector",
+        "DataFlowBottomDrawer",
+        "ReactFlowProvider",
+        "DataFlowCanvasInner"
+      ],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/DataFlow/edges/DataFlowCustomEdge.tsx",
+      "sha256": "2a0b79d73617d2d9530940a403964f314ed1aef5b650262b14fbf5464d2d8fa1",
+      "contract": [],
+      "libraries": [
+        {
+          "source": "reactflow",
+          "bindings": "{\r\n  EdgeProps,\r\n  getSmoothStepPath,\r\n  EdgeLabelRenderer,\r\n  Position,\r\n}",
+          "line": 10
+        }
+      ],
+      "native": [],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/DataFlow/nodes/DataFlowNode.tsx",
+      "sha256": "7d6e580c06e7501703a285e38f258b54394b59bc336f27a43817cf1b33c1de5c",
+      "contract": [],
+      "libraries": [
+        {
+          "source": "reactflow",
+          "bindings": "{ Handle, Position, NodeProps, useUpdateNodeInternals, useViewport }",
+          "line": 15
+        }
+      ],
+      "native": [],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/ERDiagram.tsx",
+      "sha256": "ec1f050617e5b29719a3d88c1a3d91819b74520de77c5af8ae7a4b724aca79ef",
+      "contract": [],
+      "libraries": [
+        {
+          "source": "mermaid",
+          "bindings": "mermaid",
+          "line": 4
+        }
+      ],
+      "native": [],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/ExecutionPlan/canvas/SvgEdgeLayer.tsx",
+      "sha256": "ad09a668d554d79327ed1c31592b1b5ff1ed6f583ad8aabd5be502cf7c6c3209",
+      "contract": [],
+      "libraries": [],
+      "native": [
+        "svg"
+      ],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/Learn/AcademyMarkdownReader.tsx",
+      "sha256": "b0810293fb18998899544f8f908bdf59acb64f42f8eaa5c9b041ab9044aed1e8",
+      "contract": [],
+      "libraries": [
+        {
+          "source": "mermaid",
+          "bindings": "mermaid",
+          "line": 15
+        }
+      ],
+      "native": [],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/Learn/MarkdownViewer.tsx",
+      "sha256": "6bf9f0657294de419e0916752143a49bd453bbc83bb34a5c83dbe2ef014a99a2",
+      "contract": [],
+      "libraries": [
+        {
+          "source": "mermaid",
+          "bindings": "mermaid",
+          "line": 20
+        }
+      ],
+      "native": [
+        "svg"
+      ],
+      "tags": [
+        "BarChart2"
+      ],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/Learn/OntologyCaseStudio.tsx",
+      "sha256": "d00817b55a2fcabca83b8432de971ed9821b2b0987e998322b08ee79824ac7bf",
+      "contract": [],
+      "libraries": [],
+      "native": [
+        "svg"
+      ],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/Learn/OntologyInteractiveViewer.tsx",
+      "sha256": "2fa2e447801ab90855f9c391819a98a8c996d79bc6707924d6e55c71b2040ac4",
+      "contract": [],
+      "libraries": [],
+      "native": [
+        "svg"
+      ],
+      "tags": [
+        "Sparkles"
+      ],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/Library/D3GraphView/D3GraphView.layout.ts",
+      "sha256": "b075070cb7702f6887f34cd262c358c93e9ef16544ae46ad0eaa4daf1a38e470",
+      "contract": [],
+      "libraries": [
+        {
+          "source": "d3",
+          "bindings": "{ quadtree }",
+          "line": 12
+        }
+      ],
+      "native": [],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/Library/D3GraphView/D3GraphViewMinimap.tsx",
+      "sha256": "378cce6d6950b68106e31029854442f4a12e182a4d6f6cc36cf65224202eeabd",
+      "contract": [],
+      "libraries": [],
+      "native": [
+        "canvas"
+      ],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/Library/D3GraphView/GraphRenderer.tsx",
+      "sha256": "e414de95ebd63e556c63cf8bb4d0f779875fc67af11e6dbe42799a0d364ae2fb",
+      "contract": [],
+      "libraries": [
+        {
+          "source": "d3",
+          "bindings": "* as d3",
+          "line": 12
+        }
+      ],
+      "native": [],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/Library/D3GraphView/renderEngineMeta.tsx",
+      "sha256": "6974d751f13c21d2c50d06fe6993f891e9e8e841467870bc673a077c82a0cceb",
+      "contract": [],
+      "libraries": [],
+      "native": [
+        "svg"
+      ],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/Library/D3GraphView/TopologyLayoutPanel.tsx",
+      "sha256": "efe950299ca7fc4807573f979cb95d35000acc65f9395203d02a9795541b5a42",
+      "contract": [],
+      "libraries": [],
+      "native": [
+        "svg"
+      ],
+      "tags": [
+        "Sparkles",
+        "Gauge",
+        "PerfMiniChart"
+      ],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/Library/D3GraphView.tsx",
+      "sha256": "9dee6042d603200df05e6c14ce3387d6268c14a647339f62d5f6f113f9606ef8",
+      "contract": [],
+      "libraries": [
+        {
+          "source": "d3",
+          "bindings": "* as d3",
+          "line": 19
+        }
+      ],
+      "native": [
+        "canvas",
+        "svg"
+      ],
+      "tags": [
+        "Sparkles",
+        "CanvasHelpPanel"
+      ],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/Library/ExampleGuide.tsx",
+      "sha256": "1b5d965d4f79ed9043c7585c7a3c9d623621f577de9653c0324e3416a58550ee",
+      "contract": [],
+      "libraries": [
+        {
+          "source": "d3",
+          "bindings": "* as d3",
+          "line": 6
+        }
+      ],
+      "native": [
+        "svg"
+      ],
+      "tags": [
+        "MiniGraph"
+      ],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/Library/GraphOverlayPanels.tsx",
+      "sha256": "9ff44c7e785a689c1addb586a075b2b5c636c3a9a286c05cbfea14c0fc97ef3f",
+      "contract": [],
+      "libraries": [],
+      "native": [
+        "svg"
+      ],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/Library/OntologyCanvas/hooks/useCanvasSnapshot.ts",
+      "sha256": "0386a872134371d111dc1930bfb59fa10ccf2897b9307d33b7b9e0fcc9cfedd3",
+      "contract": [],
+      "libraries": [
+        {
+          "source": "reactflow",
+          "bindings": "type { Node, Edge, Viewport }",
+          "line": 24
+        }
+      ],
+      "native": [],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/Library/OntologyCanvas/hooks/useClipboard.ts",
+      "sha256": "4b04a770d53df17165fbd56d5f1e89947df7bd6f1c0b12ed69f742e3279f73c3",
+      "contract": [],
+      "libraries": [
+        {
+          "source": "reactflow",
+          "bindings": "type { Node, Edge }",
+          "line": 27
+        }
+      ],
+      "native": [],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/Library/OntologyCanvas/hooks/useHistory.ts",
+      "sha256": "62b3865a5e5098c65365fff1431ac89c6f7214bc9b8467c2dac3d888254fcb93",
+      "contract": [],
+      "libraries": [
+        {
+          "source": "reactflow",
+          "bindings": "type { Node, Edge }",
+          "line": 29
+        }
+      ],
+      "native": [],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/Library/OntologyCanvas/hooks/useSelection.ts",
+      "sha256": "f3a11f605b7d6d0711d32ca621c74cf20f55c45e4cd2eb54fe72c9eb831750d8",
+      "contract": [],
+      "libraries": [
+        {
+          "source": "reactflow",
+          "bindings": "type { Node, Edge }",
+          "line": 26
+        }
+      ],
+      "native": [],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/Library/OntologyCanvas/OntologyCteCompiler.ts",
+      "sha256": "a94fbcba06fef90942f8fe2af12a479c10b8b080e976a8bb34235a4d84e023eb",
+      "contract": [],
+      "libraries": [
+        {
+          "source": "reactflow",
+          "bindings": "{ Edge, Node }",
+          "line": 1
+        }
+      ],
+      "native": [],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/Library/OntologyCanvas/OntologyEdge.tsx",
+      "sha256": "e9026df25f1578a1a736935f91260441da956614a14845d35bd44a2f158f8a8b",
+      "contract": [],
+      "libraries": [
+        {
+          "source": "reactflow",
+          "bindings": "{ EdgeLabelRenderer, EdgeProps, getBezierPath, getSmoothStepPath, getStraightPath, Position }",
+          "line": 17
+        }
+      ],
+      "native": [],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/Library/OntologyCanvas/OntologyExport.ts",
+      "sha256": "1eedac1c060c9e1f017588326a44f79ba3c87de80a558f1ebaed760012cb5032",
+      "contract": [],
+      "libraries": [
+        {
+          "source": "reactflow",
+          "bindings": "{ Edge, Node }",
+          "line": 1
+        }
+      ],
+      "native": [],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/Library/OntologyCanvas/OntologyLayout.ts",
+      "sha256": "33b43486244f0adf7afd7b2c1a4ca80f706049a7ec80392f64700085786b0e64",
+      "contract": [],
+      "libraries": [
+        {
+          "source": "d3-force",
+          "bindings": "{\r\n  forceCenter,\r\n  forceCollide,\r\n  forceLink,\r\n  forceManyBody,\r\n  forceSimulation,\r\n  forceX,\r\n  forceY,\r\n}",
+          "line": 2
+        },
+        {
+          "source": "reactflow",
+          "bindings": "{ Edge, Node }",
+          "line": 11
+        }
+      ],
+      "native": [],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/Library/OntologyCanvas/OntologyLayoutPanel.tsx",
+      "sha256": "03848cd0b84e4f423f05cbf57789c36cccfaab840b062ec9f6df8de5f1e74f39",
+      "contract": [],
+      "libraries": [],
+      "native": [
+        "svg"
+      ],
+      "tags": [
+        "Sparkles"
+      ],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/Library/OntologyCanvas/OntologyNode.tsx",
+      "sha256": "242bef8c52440d1a353238cbce794a84f23663f1a7188a4a460884df6bca304b",
+      "contract": [],
+      "libraries": [
+        {
+          "source": "reactflow",
+          "bindings": "{ Handle, Position, useViewport, useUpdateNodeInternals }",
+          "line": 28
+        }
+      ],
+      "native": [
+        "svg"
+      ],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/Library/OntologyCanvas/OntologyRouting.ts",
+      "sha256": "99c8017aa1b4328afd410e15af370154952be2ae3785803e5d1e449b0c2ba4be",
+      "contract": [],
+      "libraries": [
+        {
+          "source": "reactflow",
+          "bindings": "{ Edge, Node, Position }",
+          "line": 10
+        }
+      ],
+      "native": [],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/Library/OntologyCanvas/SearchEnhancement.tsx",
+      "sha256": "ad91163fde5562d8661f3039410753655ccf35270b6d074452f6c28ea84dfa47",
+      "contract": [],
+      "libraries": [],
+      "native": [
+        "svg"
+      ],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/Library/OntologyCanvas.tsx",
+      "sha256": "024c04b12674e39c10f116b77d9b88e590007b16ac772d5f74d0d5ff70523784",
+      "contract": [],
+      "libraries": [
+        {
+          "source": "reactflow",
+          "bindings": "ReactFlow, {\r\n  MiniMap,\r\n  Controls,\r\n  Background,\r\n  useNodesState,\r\n  useEdgesState,\r\n  useReactFlow,\r\n  ReactFlowProvider,\r\n  Node,\r\n  Edge,\r\n  useViewport,\r\n  Connection,\r\n  MarkerType,\r\n  ReactFlowInstance,\r\n  NodeChange,\r\n  EdgeChange,\r\n  SelectionMode,\r\n}",
+          "line": 2
+        }
+      ],
+      "native": [
+        "svg"
+      ],
+      "tags": [
+        "OntologyCanvasHeader",
+        "ReactFlow",
+        "CanvasContextMenu",
+        "ReactFlowProvider",
+        "OntologyCanvasInner"
+      ],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/Library/OntologyDataView.tsx",
+      "sha256": "6c9ec21c0594e7d6f9dd1b7f1f6bb7665e703937d7268b20662a2802fddb05bd",
+      "contract": [],
+      "libraries": [],
+      "native": [
+        "svg"
+      ],
+      "tags": [
+        "Sparkles"
+      ],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/Library/ontologyLayout.types.ts",
+      "sha256": "4449125b92a2cfd39b2c007961c799dcc67a17495f9fe6cccd7f69c0d75ed9e2",
+      "contract": [],
+      "libraries": [
+        {
+          "source": "reactflow",
+          "bindings": "type { Node, Edge }",
+          "line": 249
+        }
+      ],
+      "native": [],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/Library/OntologyModelingWizard.tsx",
+      "sha256": "5f60e01a714082c5dd54e9fe6b723afdd8bc6d160cf586cb292efcbbcd5d32d3",
+      "contract": [],
+      "libraries": [],
+      "native": [
+        "svg"
+      ],
+      "tags": [
+        "Sparkles",
+        "OntologyWorkbenchGraph"
+      ],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/Library/SchemaGraphView.tsx",
+      "sha256": "ca63dc30ac0b8924216ea090be97047f2876bdb9c612328f0ecb33fceb37ad97",
+      "contract": [],
+      "libraries": [
+        {
+          "source": "d3",
+          "bindings": "* as d3",
+          "line": 4
+        }
+      ],
+      "native": [
+        "svg"
+      ],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/Library/useGraphInteraction.ts",
+      "sha256": "5f0239c803af9551a1da25340b9ea4ecb4b949774930156ef5dfbe29284919a7",
+      "contract": [],
+      "libraries": [
+        {
+          "source": "d3",
+          "bindings": "* as d3",
+          "line": 8
+        }
+      ],
+      "native": [],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/MermaidChart.tsx",
+      "sha256": "71ad536d59853fb69fde25eeefbebaa7e94737052e2be7a60bb484d01730cb9e",
+      "contract": [],
+      "libraries": [
+        {
+          "source": "mermaid",
+          "bindings": "mermaid",
+          "line": 2
+        }
+      ],
+      "native": [],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/OntologyStudio/OntologyEntityCard.tsx",
+      "sha256": "0192ad37af71802869fb6e48092ad9ac3ff7b906bf01b073cb7101a62c0c87a2",
+      "contract": [],
+      "libraries": [
+        {
+          "source": "reactflow",
+          "bindings": "{ Handle, Position, NodeProps }",
+          "line": 2
+        }
+      ],
+      "native": [],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/OntologyStudio/OntologyRelationEdge.tsx",
+      "sha256": "6a7dedd7dea858750f07e790a8911b33096135933c92e5412f72eca6df9ca787",
+      "contract": [],
+      "libraries": [
+        {
+          "source": "reactflow",
+          "bindings": "{\n  EdgeProps,\n  getBezierPath,\n  EdgeLabelRenderer,\n  BaseEdge,\n}",
+          "line": 2
+        }
+      ],
+      "native": [],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/OntologyStudio/OntologyStudioCanvas.tsx",
+      "sha256": "7d454022e9f7f3fac1acb4c71be3afeeea895b06c429139bb0f605dbe3256f13",
+      "contract": [],
+      "libraries": [
+        {
+          "source": "reactflow",
+          "bindings": "ReactFlow, {\n  Background,\n  Controls,\n  MiniMap,\n  Connection,\n  Edge,\n  Node,\n  NodeChange,\n  EdgeChange,\n  applyNodeChanges,\n  applyEdgeChanges,\n  useReactFlow,\n  ReactFlowProvider,\n  BackgroundVariant,\n  MarkerType,\n}",
+          "line": 2
+        }
+      ],
+      "native": [],
+      "tags": [
+        "Sparkles",
+        "ReactFlow",
+        "ReactFlowProvider",
+        "CanvasInner"
+      ],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/OntologyWorkspace/OntologyMapCanvas.tsx",
+      "sha256": "824605bd692da46a74f6bcb742092fdcf9d33e7e2186334a79b1022f0ef39b27",
+      "contract": [],
+      "libraries": [],
+      "native": [
+        "svg"
+      ],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/skills/nodes/SkillNode.tsx",
+      "sha256": "2c87c14f82a4fd84ee173e7c04ee8a26826e366ee1d3b534fc460be173a2d28d",
+      "contract": [],
+      "libraries": [
+        {
+          "source": "reactflow",
+          "bindings": "{ Handle, Position, NodeProps }",
+          "line": 2
+        }
+      ],
+      "native": [],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/skills/PipelineBuilder.tsx",
+      "sha256": "c9441113692384f065e0cdcf9dda1af62f7c5151bf1cc56b585a017dbc3983a0",
+      "contract": [],
+      "libraries": [
+        {
+          "source": "reactflow",
+          "bindings": "ReactFlow, {\r\n  Background,\r\n  Controls,\r\n  MiniMap,\r\n  NodeTypes,\r\n  Edge,\r\n  Node,\r\n}",
+          "line": 2
+        }
+      ],
+      "native": [],
+      "tags": [
+        "ReactFlow"
+      ],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/skills/store/usePipelineStore.ts",
+      "sha256": "8863f4622e47e6ed5810b915656cf6434c1c1f298f53900494a58282e260f76a",
+      "contract": [],
+      "libraries": [
+        {
+          "source": "reactflow",
+          "bindings": "{\r\n  Connection,\r\n  Edge,\r\n  EdgeChange,\r\n  Node,\r\n  NodeChange,\r\n  addEdge,\r\n  OnNodesChange,\r\n  OnEdgesChange,\r\n  OnConnect,\r\n  applyNodeChanges,\r\n  applyEdgeChanges,\r\n}",
+          "line": 2
+        }
+      ],
+      "native": [],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/SqlEditor/SqlEditorHelpPanel.tsx",
+      "sha256": "50c4441ce45585ae9b74497def65183a2ca044c9a25da9e9bd388ba12ddfaf12",
+      "contract": [],
+      "libraries": [],
+      "native": [
+        "svg"
+      ],
+      "tags": [
+        "Sparkles"
+      ],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/StructureTab.tsx",
+      "sha256": "9cbcb24956cbc158ec47ec26146670f95869c5fdf5dad688542109f529b21385",
+      "contract": [],
+      "libraries": [],
+      "native": [
+        "svg"
+      ],
+      "tags": [
+        "SchemaGraph",
+        "BarChart3",
+        "Sparkles"
+      ],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/ui/ResizablePanel.tsx",
+      "sha256": "125bf007521700f4b3b3f4726d0d2cc78e7ca704d0090866358d62d1c46b0a16",
+      "contract": [],
+      "libraries": [],
+      "native": [
+        "svg"
+      ],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/Visualization/VisualizationCard.tsx",
+      "sha256": "e21c6c0f1554c5685ffda9681d35ec701be5b23dd6ab8e0612cd6253b42b9f30",
+      "contract": [
+        {
+          "source": "../charts/ChartRenderer",
+          "bindings": "{ ChartRenderer }",
+          "line": 6
+        },
+        {
+          "source": "../../services/analysis/adapters/dashboardWidgetAdapter",
+          "bindings": "{ widgetRowsToChartSpec }",
+          "line": 7
+        }
+      ],
+      "libraries": [],
+      "native": [],
+      "tags": [
+        "ChartRenderer"
+      ],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/Visualization/VisualizationWorkbench.tsx",
+      "sha256": "4790f61a5ae9f217985295d75c694d1efc8d5284e203c78acafde5063f8fe507",
+      "contract": [
+        {
+          "source": "../../utils/chartFormat",
+          "bindings": "{ chartNumber }",
+          "line": 12
+        }
+      ],
+      "libraries": [],
+      "native": [],
+      "tags": [
+        "BarChart2",
+        "ChartBuilder",
+        "LineageGraphView"
+      ],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "components/Workbench/ResultSection.tsx",
+      "sha256": "670bd3fac946931287fc9e52cbf5e26fa89d4ebe539505150608afe7b41d2155",
+      "contract": [
+        {
+          "source": "../charts/ChartRenderer",
+          "bindings": "{ ChartRenderer }",
+          "line": 1
+        },
+        {
+          "source": "../../utils/chartFormat",
+          "bindings": "{ formatValueBySpec, inferChartUnit, formatTableValue }",
+          "line": 2
+        },
+        {
+          "source": "../../services/analysis/adapters/dashboardWidgetAdapter",
+          "bindings": "{ widgetRowsToChartSpec }",
+          "line": 3
+        }
+      ],
+      "libraries": [],
+      "native": [],
+      "tags": [
+        "Sparkles",
+        "BarChart2",
+        "ChartRenderer"
+      ],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "services/analysis/adapters/chartJsAdapter.ts",
+      "sha256": "c530abc85d0b743869736fd8b31162b858a8be31dd85a84d35f926648e83bfa4",
+      "contract": [
+        {
+          "source": "../types",
+          "bindings": "type { ChartSpec, ChartTypeId }",
+          "line": 8
+        },
+        {
+          "source": "../../../utils/chartFormat",
+          "bindings": "{ axisTitleWithUnit, formatValueBySpec, inferChartUnit }",
+          "line": 9
+        },
+        {
+          "source": "../../../utils/chartUtils",
+          "bindings": "{\r\n  getChartOptions,\r\n  withBrushHandler,\r\n}",
+          "line": 11
+        },
+        {
+          "source": "../chartRegistry",
+          "bindings": "{ chartSpecToChartConfig }",
+          "line": 15
+        },
+        {
+          "source": "../chartDisplay",
+          "bindings": "{ toNumber }",
+          "line": 16
+        }
+      ],
+      "libraries": [],
+      "native": [],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "services/analysis/adapters/dashboardWidgetAdapter.ts",
+      "sha256": "48556946522ade0bb802e975aef7b2667ac0e4704ccc7f04dcf44298a7927782",
+      "contract": [
+        {
+          "source": "../types",
+          "bindings": "type { AnalysisSpec, ChartSpec, ChartTypeId }",
+          "line": 7
+        },
+        {
+          "source": "../chartRegistry",
+          "bindings": "{ mapResultToChartSpec, chartSpecToChartConfig }",
+          "line": 9
+        }
+      ],
+      "libraries": [],
+      "native": [],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "services/analysis/aiIntent.ts",
+      "sha256": "1696fd43b6c0e5235af2a677374339455ccfbc6f4f0a5c34bac1bd3925d90c6f",
+      "contract": [
+        {
+          "source": "./chartRegistry",
+          "bindings": "{ listChartTypes }",
+          "line": 20
+        }
+      ],
+      "libraries": [],
+      "native": [],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "services/analysis/chartDisplay.ts",
+      "sha256": "7f6e7fc693d0832d5afb3726c5f120f219a3225370a58bcb8726a7ea1f560a51",
+      "contract": [
+        {
+          "source": "./types",
+          "bindings": "type {\r\n  AnalysisSpec,\r\n  ChartSpec,\r\n  ChartTypeId,\r\n  MissingValuePolicy,\r\n  StackMode,\r\n  ValueFormatSpec,\r\n}",
+          "line": 6
+        },
+        {
+          "source": "../../utils/chartFormat",
+          "bindings": "{ chartNumber, formatValueBySpec, inferChartUnit, isIdentifierColumn }",
+          "line": 14
+        }
+      ],
+      "libraries": [],
+      "native": [],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "services/analysis/chartRegistry.ts",
+      "sha256": "01ee8df55b6d06cdb9220d486e6466889af0fb5dcf652bc2187381066e84edf5",
+      "contract": [
+        {
+          "source": "./types",
+          "bindings": "type {\r\n  AnalysisSpec,\r\n  ChartSpec,\r\n  ChartTypeId,\r\n  ColumnRoleMap,\r\n  CompiledAnalysis,\r\n}",
+          "line": 7
+        },
+        {
+          "source": "../../utils/chartFormat",
+          "bindings": "{ formatValueBySpec, inferChartUnit }",
+          "line": 14
+        },
+        {
+          "source": "./chartDisplay",
+          "bindings": "{\r\n  buildFormatSpec,\r\n  buildKpiCards,\r\n  buildKpiCompare,\r\n  computeHistogramBins,\r\n  computePivotTable,\r\n  computeCartesianSeries,\r\n  computeScatterPoints,\r\n  analyzeScatterPoints,\r\n  computeSliceLabels,\r\n  computeWaterfallSeries,\r\n  orderCategoryRows,\r\n  defaultLabelMode,\r\n  defaultShowValues,\r\n  detectEmptyState,\r\n  resolveMissingValue,\r\n  resolveStackMode,\r\n  scanSignedDomain,\r\n  sortRowsByTimeAxis,\r\n  toNumber,\r\n  summarizeTimeSeries,\r\n}",
+          "line": 15
+        }
+      ],
+      "libraries": [],
+      "native": [],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "services/analysis/chartWindow.ts",
+      "sha256": "ef631d9609561c603e4802c278d1caa6c6ad0441460524b421918c6d8851691c",
+      "contract": [
+        {
+          "source": "./types",
+          "bindings": "type { ChartSpec }",
+          "line": 1
+        }
+      ],
+      "libraries": [],
+      "native": [],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "services/analysis/fieldCatalog.ts",
+      "sha256": "fbec1f683307435fd50eae18a4b0f283166a25fb486baf309008c4cf7738df6f",
+      "contract": [
+        {
+          "source": "../../utils/chartFormat",
+          "bindings": "{ inferChartUnit }",
+          "line": 10
+        }
+      ],
+      "libraries": [],
+      "native": [],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "services/analysis/pipeline.ts",
+      "sha256": "2a090eb5f5017470129c95b1715d9697fa3f890e8b8e0589e8b7071fcb362ffe",
+      "contract": [
+        {
+          "source": "./chartRegistry",
+          "bindings": "{ mapResultToChartSpec, chartSpecToChartConfig }",
+          "line": 9
+        }
+      ],
+      "libraries": [],
+      "native": [],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "services/analysis/pivotFilter.ts",
+      "sha256": "4b98b95426bf0edf67deba47388cacc51946803e271f993592c6bb4254b92cbc",
+      "contract": [
+        {
+          "source": "./types",
+          "bindings": "type { ChartSpec }",
+          "line": 1
+        },
+        {
+          "source": "./chartDisplay",
+          "bindings": "{ computePivotTable }",
+          "line": 2
+        }
+      ],
+      "libraries": [],
+      "native": [],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "services/analysis/recipes.ts",
+      "sha256": "34ac896719e19b12da8376a645f9841277fee70ea699acacbfff603176c7eb91",
+      "contract": [
+        {
+          "source": "./chartRegistry",
+          "bindings": "{\r\n  chartSpecToChartConfig,\r\n  mapRecipeResultToChartSpec,\r\n}",
+          "line": 8
+        },
+        {
+          "source": "./types",
+          "bindings": "type { ChartSpec }",
+          "line": 12
+        }
+      ],
+      "libraries": [],
+      "native": [],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "services/analysis/scatterSelection.ts",
+      "sha256": "a1d65a783d920c978e6cfe63c5296cb0bfe802abc2a2b2d7d8b6cc1422d03109",
+      "contract": [
+        {
+          "source": "./types",
+          "bindings": "type { ChartSpec }",
+          "line": 1
+        }
+      ],
+      "libraries": [],
+      "native": [],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "services/analysis/telemetryCharts.ts",
+      "sha256": "235c550b71db7a7f086004605bb8d1985732925f1101e675fc5a44573ec16339",
+      "contract": [
+        {
+          "source": "../../utils/chartFormat",
+          "bindings": "{ chartNumber, formatValueBySpec }",
+          "line": 3
+        },
+        {
+          "source": "./adapters/dashboardWidgetAdapter",
+          "bindings": "{ widgetRowsToChartSpec }",
+          "line": 4
+        }
+      ],
+      "libraries": [],
+      "native": [],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "services/dataflow/logicalFlowForce.ts",
+      "sha256": "e207bcefa02b57b1743f5f799ca1825f8a35f352b4ced3d731cd580842931a0c",
+      "contract": [],
+      "libraries": [
+        {
+          "source": "d3-force",
+          "bindings": "{ forceSimulation, forceLink, forceManyBody, forceCollide, forceCenter, type SimulationNodeDatum }",
+          "line": 1
+        }
+      ],
+      "native": [],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "services/dataflow/logicalFlowLayout.ts",
+      "sha256": "c379ff82d18b6d5c53443340a08d468335f3494d91d71d81e46a172c24c15b41",
+      "contract": [],
+      "libraries": [
+        {
+          "source": "reactflow",
+          "bindings": "{ Position }",
+          "line": 8
+        }
+      ],
+      "native": [],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "services/dataflow/logicalRelationFlowParser.ts",
+      "sha256": "b8e2d7114555a681466da667933866863e3d3c11a283b10668199e48ae6f9e12",
+      "contract": [],
+      "libraries": [
+        {
+          "source": "reactflow",
+          "bindings": "{ Position }",
+          "line": 1
+        }
+      ],
+      "native": [],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "services/dataflow/workflowStore.ts",
+      "sha256": "8c8b80de219887a18d8dbba71b83dcebecf2b6237b6c5b9d11b7ab9ee93311e2",
+      "contract": [],
+      "libraries": [
+        {
+          "source": "reactflow",
+          "bindings": "{\r\n  applyNodeChanges,\r\n  applyEdgeChanges,\r\n  addEdge,\r\n  type NodeChange,\r\n  type EdgeChange,\r\n  type Connection,\r\n}",
+          "line": 18
+        }
+      ],
+      "native": [],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "services/dataflow/workflowTypes.ts",
+      "sha256": "c692dd4231dc4af89809267b6e2b5f7a865c9d6d707e2f6bb77914918d05bc7c",
+      "contract": [],
+      "libraries": [
+        {
+          "source": "reactflow",
+          "bindings": "type { Node, Edge }",
+          "line": 10
+        }
+      ],
+      "native": [],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "services/graphLayoutService.ts",
+      "sha256": "f044bd94d5f64cbdd7ec2bd5517a38e214dbb05587bede9de3fdb9e40647c48f",
+      "contract": [],
+      "libraries": [
+        {
+          "source": "d3",
+          "bindings": "{ quadtree }",
+          "line": 14
+        }
+      ],
+      "native": [],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "services/graphSimulation.worker.ts",
+      "sha256": "9e68b6d347397a9e71bdc0f196569f6cf00bd1410f36c6d623d354e101deaa28",
+      "contract": [],
+      "libraries": [
+        {
+          "source": "d3-force",
+          "bindings": "{\r\n  forceSimulation,\r\n  forceLink,\r\n  forceManyBody,\r\n  forceCenter,\r\n  forceCollide,\r\n  forceX,\r\n  forceY,\r\n  type Simulation,\r\n  type SimulationNodeDatum,\r\n  type SimulationLinkDatum,\r\n}",
+          "line": 22
+        }
+      ],
+      "native": [],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "services/PixiGraphRenderer.ts",
+      "sha256": "0015a6ff79a7bfbd0bed23213bbeb7798f5d299dad6ff37ce9e6389ed1e37c72",
+      "contract": [],
+      "libraries": [
+        {
+          "source": "pixi.js",
+          "bindings": "* as PIXI",
+          "line": 15
+        },
+        {
+          "source": "d3",
+          "bindings": "* as d3",
+          "line": 16
+        }
+      ],
+      "native": [],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "services/SimulationEngine.ts",
+      "sha256": "1542a40be26fa93cbb19721f05a5ec439a4026272ef1b2fed892f892b2d8041a",
+      "contract": [],
+      "libraries": [
+        {
+          "source": "d3",
+          "bindings": "* as d3",
+          "line": 24
+        },
+        {
+          "source": "d3",
+          "bindings": "type { Simulation, SimulationNodeDatum, SimulationLinkDatum }",
+          "line": 25
+        }
+      ],
+      "native": [],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "utils/chartPlugins.ts",
+      "sha256": "01984f8b54941e5f462b2b4053598e270be590ca12db6879f37f7ba2ccb9aea6",
+      "contract": [],
+      "libraries": [
+        {
+          "source": "chart.js",
+          "bindings": "type { Chart, ChartType, ChartTypeRegistry, Plugin }",
+          "line": 1
+        }
+      ],
+      "native": [],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "utils/chartStyleRules.ts",
+      "sha256": "93a053b19a4884a213a232f38e8f863ee093cf5927d1120ea7ffb2b9b12f862d",
+      "contract": [
+        {
+          "source": "./chartFormat",
+          "bindings": "{ formatValueBySpec }",
+          "line": 15
+        }
+      ],
+      "libraries": [],
+      "native": [],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    },
+    {
+      "file": "utils/chartUtils.ts",
+      "sha256": "335479930b35df6eeecd8b8301f723bbb28e48aba438a1fdcd724b005fe84d90",
+      "contract": [
+        {
+          "source": "./chartFormat",
+          "bindings": "{ axisTitleWithUnit, formatValueBySpec, resolveChartUnit }",
+          "line": 18
+        },
+        {
+          "source": "./chartPlugins",
+          "bindings": "{ doughnutCenterPlugin, pieLabelPlugin }",
+          "line": 21
+        }
+      ],
+      "libraries": [
+        {
+          "source": "chart.js",
+          "bindings": "{\r\n    Chart as ChartJS,\r\n    CategoryScale,\r\n    LinearScale,\r\n    PointElement,\r\n    LineElement,\r\n    BarElement,\r\n    ArcElement,\r\n    RadialLinearScale,\r\n    Title,\r\n    Tooltip,\r\n    Legend,\r\n    Filler,\r\n}",
+          "line": 2
+        }
+      ],
+      "native": [],
+      "tags": [],
+      "constructors": [],
+      "directCanvasConsumer": false
+    }
+  ],
+  "directCanvasConsumers": [
+    "components/charts/ChartRenderer.tsx"
+  ],
+  "note": "Source references only. Native SVG includes branding/decorative graphics; graph contracts retain topology semantics. No runtime or capability verdict is inferred."
+}

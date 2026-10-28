@@ -1,0 +1,193 @@
+{
+  "advisories": {
+    "1138097": {
+      "findings": [
+        {
+          "version": "11.16.0",
+          "paths": [
+            ".>mermaid"
+          ],
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1138097,
+      "title": "Mermaid configuration APIs allow prototype pollution",
+      "module_name": "mermaid",
+      "vulnerable_versions": ">=11.0.0-alpha.1 <11.16.1",
+      "patched_versions": ">=11.16.1",
+      "severity": "low",
+      "cwe": "CWE-1321",
+      "github_advisory_id": "GHSA-c4c3-pg64-4m4v",
+      "url": "https://github.com/advisories/GHSA-c4c3-pg64-4m4v"
+    },
+    "1138099": {
+      "findings": [
+        {
+          "version": "11.16.0",
+          "paths": [
+            ".>mermaid"
+          ],
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1138099,
+      "title": "Mermaid allows CSS injection applying to sibling elements of the diagram",
+      "module_name": "mermaid",
+      "vulnerable_versions": ">=11.0.0-alpha.1 <11.16.1",
+      "patched_versions": ">=11.16.1",
+      "severity": "moderate",
+      "cwe": "CWE-94",
+      "github_advisory_id": "GHSA-6x64-9x62-f2gx",
+      "url": "https://github.com/advisories/GHSA-6x64-9x62-f2gx"
+    },
+    "1138100": {
+      "findings": [
+        {
+          "version": "11.16.0",
+          "paths": [
+            ".>mermaid"
+          ],
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1138100,
+      "title": "Mermaid Architecture diagrams are vulnerable to prototype pollution",
+      "module_name": "mermaid",
+      "vulnerable_versions": ">=11.5.0 <11.16.1",
+      "patched_versions": ">=11.16.1",
+      "severity": "moderate",
+      "cwe": "CWE-1321",
+      "github_advisory_id": "GHSA-3rrr-jr9j-h3q3",
+      "url": "https://github.com/advisories/GHSA-3rrr-jr9j-h3q3"
+    },
+    "1138101": {
+      "findings": [
+        {
+          "version": "11.16.0",
+          "paths": [
+            ".>mermaid"
+          ],
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1138101,
+      "title": "Mermaid XY Charts are vulnerable to an infinite loop DoS",
+      "module_name": "mermaid",
+      "vulnerable_versions": ">=11.0.0-alpha.1 <11.16.1",
+      "patched_versions": ">=11.16.1",
+      "severity": "moderate",
+      "cwe": "CWE-835, CWE-1325",
+      "github_advisory_id": "GHSA-2v8p-3f2j-5mp7",
+      "url": "https://github.com/advisories/GHSA-2v8p-3f2j-5mp7"
+    },
+    "1138113": {
+      "findings": [
+        {
+          "version": "11.16.0",
+          "paths": [
+            ".>mermaid"
+          ],
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1138113,
+      "title": "Mermaid radar diagrams are vulnerable to DoS",
+      "module_name": "mermaid",
+      "vulnerable_versions": ">=11.6.0 <11.16.1",
+      "patched_versions": ">=11.16.1",
+      "severity": "moderate",
+      "cwe": "CWE-606, CWE-1322",
+      "github_advisory_id": "GHSA-rhh3-jpg6-66xh",
+      "url": "https://github.com/advisories/GHSA-rhh3-jpg6-66xh"
+    },
+    "1138538": {
+      "findings": [
+        {
+          "version": "3.4.12",
+          "paths": [
+            ".>mermaid>dompurify"
+          ],
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1138538,
+      "title": "DOMPurify: IN_PLACE hook removal leaves a detached subtree executable, causing XSS",
+      "module_name": "dompurify",
+      "vulnerable_versions": "<=3.4.12",
+      "patched_versions": ">=3.4.13",
+      "severity": "moderate",
+      "cwe": "CWE-79",
+      "github_advisory_id": "GHSA-55q2-fjhq-7xh7",
+      "url": "https://github.com/advisories/GHSA-55q2-fjhq-7xh7"
+    },
+    "1241204": {
+      "findings": [
+        {
+          "version": "3.4.12",
+          "paths": [
+            ".>mermaid>dompurify"
+          ],
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1241204,
+      "title": "DOMPurify: IN_PLACE returns a force-removed rawtext root whose text carries attacker markup — pure HTML reparse executes",
+      "module_name": "dompurify",
+      "vulnerable_versions": "<=3.4.15",
+      "patched_versions": ">=3.4.16",
+      "severity": "low",
+      "cwe": "CWE-79",
+      "github_advisory_id": "GHSA-6688-9rhm-gjv2",
+      "url": "https://github.com/advisories/GHSA-6688-9rhm-gjv2"
+    },
+    "1241206": {
+      "findings": [
+        {
+          "version": "0.16.47",
+          "paths": [
+            ".>mermaid>katex"
+          ],
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1241206,
+      "title": "KaTeX: Existing prototype pollution can bypass trust restrictions",
+      "module_name": "katex",
+      "vulnerable_versions": ">=0.11.0 <0.18.2",
+      "patched_versions": ">=0.18.2",
+      "severity": "low",
+      "cwe": "CWE-807",
+      "github_advisory_id": "GHSA-238p-pmpm-9mq7",
+      "url": "https://github.com/advisories/GHSA-238p-pmpm-9mq7"
+    }
+  },
+  "metadata": {
+    "vulnerabilities": {
+      "info": 0,
+      "low": 3,
+      "moderate": 5,
+      "high": 0,
+      "critical": 0
+    },
+    "dependencies": 429,
+    "devDependencies": 0,
+    "optionalDependencies": 1,
+    "totalDependencies": 430
+  }
+}

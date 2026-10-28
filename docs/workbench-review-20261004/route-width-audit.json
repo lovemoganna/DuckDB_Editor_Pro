@@ -1,0 +1,820 @@
+[
+  {
+    "requestedWidth": 1440,
+    "group": "工程核心",
+    "tab": "仪表盘",
+    "alerts": [],
+    "documentWidth": 1440,
+    "headings": [
+      "数据分析",
+      "SQL 驱动的分析工作台",
+      "分析看板",
+      "数据资产",
+      "最近查询"
+    ],
+    "width": 1440,
+    "loading": false
+  },
+  {
+    "requestedWidth": 1440,
+    "group": null,
+    "tab": "数据",
+    "alerts": [],
+    "documentWidth": 1440,
+    "headings": [
+      "数据资源工作台"
+    ],
+    "width": 1440,
+    "loading": false
+  },
+  {
+    "requestedWidth": 1440,
+    "group": null,
+    "tab": "Schema",
+    "alerts": [],
+    "documentWidth": 1440,
+    "headings": [
+      "Schema 架构体系"
+    ],
+    "width": 1440,
+    "loading": false
+  },
+  {
+    "requestedWidth": 1440,
+    "group": null,
+    "tab": "SQL",
+    "alerts": [],
+    "documentWidth": 1440,
+    "headings": [],
+    "width": 1440,
+    "loading": false
+  },
+  {
+    "requestedWidth": 1440,
+    "group": null,
+    "tab": "数据流",
+    "alerts": [],
+    "documentWidth": 1440,
+    "headings": [],
+    "width": 1440,
+    "loading": false
+  },
+  {
+    "requestedWidth": 1440,
+    "group": "分析洞察",
+    "tab": "指标",
+    "alerts": [],
+    "documentWidth": 1440,
+    "headings": [
+      "指标建模工作台",
+      "语义指标库 (Semantic Metrics)"
+    ],
+    "width": 1440,
+    "loading": false
+  },
+  {
+    "requestedWidth": 1440,
+    "group": null,
+    "tab": "可视化",
+    "alerts": [],
+    "documentWidth": 1440,
+    "headings": [
+      "多维数据可视化中心"
+    ],
+    "width": 1440,
+    "loading": false
+  },
+  {
+    "requestedWidth": 1440,
+    "group": null,
+    "tab": "分析",
+    "alerts": [],
+    "documentWidth": 1440,
+    "headings": [
+      "分析中心"
+    ],
+    "width": 1440,
+    "loading": false
+  },
+  {
+    "requestedWidth": 1440,
+    "group": null,
+    "tab": "历史",
+    "alerts": [],
+    "documentWidth": 1440,
+    "headings": [
+      "分析洞察 • 查询历史 (Query History)"
+    ],
+    "width": 1440,
+    "loading": false
+  },
+  {
+    "requestedWidth": 1440,
+    "group": null,
+    "tab": "审计",
+    "alerts": [],
+    "documentWidth": 1440,
+    "headings": [
+      "系统审计日志 (Audit Log)"
+    ],
+    "width": 1440,
+    "loading": false
+  },
+  {
+    "requestedWidth": 1440,
+    "group": "知识沉淀",
+    "tab": "知识资产",
+    "alerts": [],
+    "documentWidth": 1440,
+    "headings": [
+      "知识文献库",
+      "Lesson 1 · DuckDB SQL 入门",
+      "Lesson 1 · DuckDB SQL 入门",
+      "哲学知识图谱 · 本体论最小闭环",
+      "一、学习目标",
+      "二、哲学概念说明（本体论锚定）",
+      "三、DuckDB 环境说明（极简）"
+    ],
+    "width": 1440,
+    "loading": false
+  },
+  {
+    "requestedWidth": 1440,
+    "group": null,
+    "tab": "插件",
+    "alerts": [],
+    "documentWidth": 1440,
+    "headings": [
+      "扩展插件与 Lakehouse 湖仓引擎"
+    ],
+    "width": 1440,
+    "loading": false
+  },
+  {
+    "requestedWidth": 1440,
+    "group": "AI 认知",
+    "tab": "本体图谱",
+    "alerts": [],
+    "documentWidth": 1440,
+    "headings": [],
+    "width": 1440,
+    "loading": false
+  },
+  {
+    "requestedWidth": 1440,
+    "group": null,
+    "tab": "技能",
+    "alerts": [],
+    "documentWidth": 1440,
+    "headings": [],
+    "width": 1440,
+    "loading": false
+  },
+  {
+    "requestedWidth": 1440,
+    "group": null,
+    "tab": "能力",
+    "alerts": [],
+    "documentWidth": 1440,
+    "headings": [
+      "AI 能力库 (Capability Hub)",
+      "自然语言生成 SQL (NL2SQL)"
+    ],
+    "width": 1440,
+    "loading": false
+  },
+  {
+    "requestedWidth": 1440,
+    "group": null,
+    "tab": "推演",
+    "alerts": [],
+    "documentWidth": 1440,
+    "headings": [
+      "特征组合与语义还原器"
+    ],
+    "width": 1440,
+    "loading": false
+  },
+  {
+    "requestedWidth": 1024,
+    "group": "工程核心",
+    "tab": "仪表盘",
+    "alerts": [],
+    "documentWidth": 1024,
+    "headings": [
+      "数据分析",
+      "SQL 驱动的分析工作台",
+      "分析看板",
+      "数据资产",
+      "最近查询"
+    ],
+    "width": 1024,
+    "loading": false
+  },
+  {
+    "requestedWidth": 1024,
+    "group": null,
+    "tab": "数据",
+    "alerts": [],
+    "documentWidth": 1024,
+    "headings": [
+      "数据资源工作台"
+    ],
+    "width": 1024,
+    "loading": false
+  },
+  {
+    "requestedWidth": 1024,
+    "group": null,
+    "tab": "Schema",
+    "alerts": [],
+    "documentWidth": 1024,
+    "headings": [
+      "Schema 架构体系"
+    ],
+    "width": 1024,
+    "loading": false
+  },
+  {
+    "requestedWidth": 1024,
+    "group": null,
+    "tab": "SQL",
+    "alerts": [],
+    "documentWidth": 1024,
+    "headings": [],
+    "width": 1024,
+    "loading": false
+  },
+  {
+    "requestedWidth": 1024,
+    "group": null,
+    "tab": "数据流",
+    "alerts": [],
+    "documentWidth": 1024,
+    "headings": [],
+    "width": 1024,
+    "loading": false
+  },
+  {
+    "requestedWidth": 1024,
+    "group": "分析洞察",
+    "tab": "指标",
+    "alerts": [],
+    "documentWidth": 1024,
+    "headings": [
+      "指标建模工作台",
+      "语义指标库 (Semantic Metrics)"
+    ],
+    "width": 1024,
+    "loading": false
+  },
+  {
+    "requestedWidth": 1024,
+    "group": null,
+    "tab": "可视化",
+    "alerts": [],
+    "documentWidth": 1024,
+    "headings": [
+      "多维数据可视化中心"
+    ],
+    "width": 1024,
+    "loading": false
+  },
+  {
+    "requestedWidth": 1024,
+    "group": null,
+    "tab": "分析",
+    "alerts": [],
+    "documentWidth": 1024,
+    "headings": [
+      "分析中心"
+    ],
+    "width": 1024,
+    "loading": false
+  },
+  {
+    "requestedWidth": 1024,
+    "group": null,
+    "tab": "历史",
+    "alerts": [],
+    "documentWidth": 1024,
+    "headings": [
+      "分析洞察 • 查询历史 (Query History)"
+    ],
+    "width": 1024,
+    "loading": false
+  },
+  {
+    "requestedWidth": 1024,
+    "group": null,
+    "tab": "审计",
+    "alerts": [],
+    "documentWidth": 1024,
+    "headings": [
+      "系统审计日志 (Audit Log)"
+    ],
+    "width": 1024,
+    "loading": false
+  },
+  {
+    "requestedWidth": 1024,
+    "group": "知识沉淀",
+    "tab": "知识资产",
+    "alerts": [],
+    "documentWidth": 1024,
+    "headings": [
+      "知识文献库",
+      "Lesson 1 · DuckDB SQL 入门",
+      "Lesson 1 · DuckDB SQL 入门",
+      "哲学知识图谱 · 本体论最小闭环",
+      "一、学习目标",
+      "二、哲学概念说明（本体论锚定）",
+      "三、DuckDB 环境说明（极简）"
+    ],
+    "width": 1024,
+    "loading": false
+  },
+  {
+    "requestedWidth": 1024,
+    "group": null,
+    "tab": "插件",
+    "alerts": [],
+    "documentWidth": 1024,
+    "headings": [
+      "扩展插件与 Lakehouse 湖仓引擎"
+    ],
+    "width": 1024,
+    "loading": false
+  },
+  {
+    "requestedWidth": 1024,
+    "group": "AI 认知",
+    "tab": "本体图谱",
+    "alerts": [],
+    "documentWidth": 1024,
+    "headings": [],
+    "width": 1024,
+    "loading": false
+  },
+  {
+    "requestedWidth": 1024,
+    "group": null,
+    "tab": "技能",
+    "alerts": [],
+    "documentWidth": 1024,
+    "headings": [],
+    "width": 1024,
+    "loading": false
+  },
+  {
+    "requestedWidth": 1024,
+    "group": null,
+    "tab": "能力",
+    "alerts": [],
+    "documentWidth": 1024,
+    "headings": [
+      "AI 能力库 (Capability Hub)",
+      "自然语言生成 SQL (NL2SQL)"
+    ],
+    "width": 1024,
+    "loading": false
+  },
+  {
+    "requestedWidth": 1024,
+    "group": null,
+    "tab": "推演",
+    "alerts": [],
+    "documentWidth": 1024,
+    "headings": [
+      "特征组合与语义还原器"
+    ],
+    "width": 1024,
+    "loading": false
+  },
+  {
+    "requestedWidth": 1024,
+    "group": "工程核心",
+    "tab": "仪表盘",
+    "alerts": [],
+    "documentWidth": 1024,
+    "headings": [
+      "数据分析",
+      "SQL 驱动的分析工作台",
+      "分析看板",
+      "数据资产",
+      "最近查询"
+    ],
+    "width": 1024,
+    "loading": false
+  },
+  {
+    "requestedWidth": 760,
+    "group": null,
+    "tab": "仪表盘",
+    "alerts": [],
+    "documentWidth": 760,
+    "headings": [
+      "数据分析",
+      "SQL 驱动的分析工作台",
+      "资金副本验收-重开",
+      "数据基础与完备度",
+      "数据资产",
+      "最近查询"
+    ],
+    "width": 760,
+    "loading": false
+  },
+  {
+    "requestedWidth": 760,
+    "group": null,
+    "tab": "数据",
+    "alerts": [],
+    "documentWidth": 760,
+    "headings": [
+      "数据资源工作台"
+    ],
+    "width": 760,
+    "loading": false
+  },
+  {
+    "requestedWidth": 760,
+    "group": null,
+    "tab": "Schema",
+    "alerts": [],
+    "documentWidth": 760,
+    "headings": [
+      "Schema 架构体系"
+    ],
+    "width": 760,
+    "loading": false
+  },
+  {
+    "requestedWidth": 760,
+    "group": null,
+    "tab": "SQL",
+    "alerts": [],
+    "documentWidth": 760,
+    "headings": [],
+    "width": 760,
+    "loading": false
+  },
+  {
+    "requestedWidth": 760,
+    "group": null,
+    "tab": "数据流",
+    "alerts": [],
+    "documentWidth": 760,
+    "headings": [],
+    "width": 760,
+    "loading": false
+  },
+  {
+    "requestedWidth": 760,
+    "group": "分析洞察",
+    "tab": "指标",
+    "alerts": [],
+    "documentWidth": 760,
+    "headings": [
+      "指标建模工作台",
+      "语义指标库 (Semantic Metrics)"
+    ],
+    "width": 760,
+    "loading": false
+  },
+  {
+    "requestedWidth": 760,
+    "group": null,
+    "tab": "可视化",
+    "alerts": [],
+    "documentWidth": 760,
+    "headings": [
+      "多维数据可视化中心"
+    ],
+    "width": 760,
+    "loading": false
+  },
+  {
+    "requestedWidth": 760,
+    "group": null,
+    "tab": "分析",
+    "alerts": [],
+    "documentWidth": 760,
+    "headings": [
+      "分析中心"
+    ],
+    "width": 760,
+    "loading": false
+  },
+  {
+    "requestedWidth": 760,
+    "group": null,
+    "tab": "历史",
+    "alerts": [],
+    "documentWidth": 760,
+    "headings": [
+      "分析洞察 • 查询历史 (Query History)"
+    ],
+    "width": 760,
+    "loading": false
+  },
+  {
+    "requestedWidth": 760,
+    "group": null,
+    "tab": "审计",
+    "alerts": [],
+    "documentWidth": 760,
+    "headings": [
+      "系统审计日志 (Audit Log)"
+    ],
+    "width": 760,
+    "loading": false
+  },
+  {
+    "requestedWidth": 760,
+    "group": "知识沉淀",
+    "tab": "知识资产",
+    "alerts": [],
+    "documentWidth": 760,
+    "headings": [
+      "知识文献库",
+      "Lesson 1 · DuckDB SQL 入门",
+      "Lesson 1 · DuckDB SQL 入门",
+      "哲学知识图谱 · 本体论最小闭环",
+      "一、学习目标",
+      "二、哲学概念说明（本体论锚定）",
+      "三、DuckDB 环境说明（极简）"
+    ],
+    "width": 760,
+    "loading": false
+  },
+  {
+    "requestedWidth": 760,
+    "group": null,
+    "tab": "插件",
+    "alerts": [],
+    "documentWidth": 760,
+    "headings": [
+      "扩展插件与 Lakehouse 湖仓引擎"
+    ],
+    "width": 760,
+    "loading": false
+  },
+  {
+    "requestedWidth": 760,
+    "group": "AI 认知",
+    "tab": "本体图谱",
+    "alerts": [],
+    "documentWidth": 760,
+    "headings": [],
+    "width": 760,
+    "loading": false
+  },
+  {
+    "requestedWidth": 760,
+    "group": null,
+    "tab": "技能",
+    "alerts": [],
+    "documentWidth": 760,
+    "headings": [],
+    "width": 760,
+    "loading": false
+  },
+  {
+    "requestedWidth": 760,
+    "group": null,
+    "tab": "能力",
+    "alerts": [],
+    "documentWidth": 760,
+    "headings": [
+      "AI 能力库 (Capability Hub)",
+      "自然语言生成 SQL (NL2SQL)"
+    ],
+    "width": 760,
+    "loading": false
+  },
+  {
+    "requestedWidth": 760,
+    "group": null,
+    "tab": "推演",
+    "alerts": [],
+    "documentWidth": 760,
+    "headings": [
+      "特征组合与语义还原器"
+    ],
+    "width": 760,
+    "loading": false
+  },
+  {
+    "requestedWidth": 760,
+    "group": "工程核心",
+    "tab": "仪表盘",
+    "alerts": [],
+    "documentWidth": 760,
+    "headings": [
+      "数据分析",
+      "SQL 驱动的分析工作台",
+      "分析看板",
+      "数据资产",
+      "最近查询"
+    ],
+    "width": 760,
+    "loading": false
+  },
+  {
+    "requestedWidth": 390,
+    "group": null,
+    "tab": "仪表盘",
+    "alerts": [],
+    "documentWidth": 390,
+    "headings": [
+      "数据分析",
+      "SQL 驱动的分析工作台",
+      "资金副本验收-重开",
+      "数据基础与完备度",
+      "数据资产",
+      "最近查询"
+    ],
+    "width": 390,
+    "loading": false
+  },
+  {
+    "requestedWidth": 390,
+    "group": null,
+    "tab": "数据",
+    "alerts": [],
+    "documentWidth": 390,
+    "headings": [
+      "数据资源工作台"
+    ],
+    "width": 390,
+    "loading": false
+  },
+  {
+    "requestedWidth": 390,
+    "group": null,
+    "tab": "Schema",
+    "alerts": [],
+    "documentWidth": 390,
+    "headings": [
+      "Schema 架构体系"
+    ],
+    "width": 390,
+    "loading": false
+  },
+  {
+    "requestedWidth": 390,
+    "group": null,
+    "tab": "SQL",
+    "alerts": [],
+    "documentWidth": 390,
+    "headings": [],
+    "width": 390,
+    "loading": false
+  },
+  {
+    "requestedWidth": 390,
+    "group": null,
+    "tab": "数据流",
+    "alerts": [],
+    "documentWidth": 390,
+    "headings": [],
+    "width": 390,
+    "loading": false
+  },
+  {
+    "requestedWidth": 390,
+    "group": "分析洞察",
+    "tab": "指标",
+    "alerts": [],
+    "documentWidth": 390,
+    "headings": [
+      "指标建模工作台",
+      "语义指标库 (Semantic Metrics)"
+    ],
+    "width": 390,
+    "loading": false
+  },
+  {
+    "requestedWidth": 390,
+    "group": null,
+    "tab": "可视化",
+    "alerts": [],
+    "documentWidth": 390,
+    "headings": [
+      "多维数据可视化中心"
+    ],
+    "width": 390,
+    "loading": false
+  },
+  {
+    "requestedWidth": 390,
+    "group": null,
+    "tab": "分析",
+    "alerts": [],
+    "documentWidth": 390,
+    "headings": [
+      "分析中心"
+    ],
+    "width": 390,
+    "loading": false
+  },
+  {
+    "requestedWidth": 390,
+    "group": null,
+    "tab": "历史",
+    "alerts": [],
+    "documentWidth": 390,
+    "headings": [
+      "分析洞察 • 查询历史 (Query History)"
+    ],
+    "width": 390,
+    "loading": false
+  },
+  {
+    "requestedWidth": 390,
+    "group": null,
+    "tab": "审计",
+    "alerts": [],
+    "documentWidth": 390,
+    "headings": [
+      "系统审计日志 (Audit Log)"
+    ],
+    "width": 390,
+    "loading": false
+  },
+  {
+    "requestedWidth": 390,
+    "group": "知识沉淀",
+    "tab": "知识资产",
+    "alerts": [],
+    "documentWidth": 390,
+    "headings": [
+      "知识文献库",
+      "Lesson 1 · DuckDB SQL 入门",
+      "Lesson 1 · DuckDB SQL 入门",
+      "哲学知识图谱 · 本体论最小闭环",
+      "一、学习目标",
+      "二、哲学概念说明（本体论锚定）",
+      "三、DuckDB 环境说明（极简）"
+    ],
+    "width": 390,
+    "loading": false
+  },
+  {
+    "requestedWidth": 390,
+    "group": null,
+    "tab": "插件",
+    "alerts": [],
+    "documentWidth": 390,
+    "headings": [
+      "扩展插件与 Lakehouse 湖仓引擎"
+    ],
+    "width": 390,
+    "loading": false
+  },
+  {
+    "requestedWidth": 390,
+    "group": "AI 认知",
+    "tab": "本体图谱",
+    "alerts": [],
+    "documentWidth": 390,
+    "headings": [],
+    "width": 390,
+    "loading": false
+  },
+  {
+    "requestedWidth": 390,
+    "group": null,
+    "tab": "技能",
+    "alerts": [],
+    "documentWidth": 390,
+    "headings": [],
+    "width": 390,
+    "loading": false
+  },
+  {
+    "requestedWidth": 390,
+    "group": null,
+    "tab": "能力",
+    "alerts": [],
+    "documentWidth": 390,
+    "headings": [
+      "AI 能力库 (Capability Hub)",
+      "自然语言生成 SQL (NL2SQL)"
+    ],
+    "width": 390,
+    "loading": false
+  },
+  {
+    "requestedWidth": 390,
+    "group": null,
+    "tab": "推演",
+    "alerts": [],
+    "documentWidth": 390,
+    "headings": [
+      "特征组合与语义还原器"
+    ],
+    "width": 390,
+    "loading": false
+  }
+]

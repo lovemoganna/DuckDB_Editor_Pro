@@ -9,10 +9,13 @@ import { duckDBService } from '../../services/duckdbService';
 afterEach(() => {
   cleanup();
   localStorage.clear();
+  vi.restoreAllMocks();
 });
 
 describe('DataExplorerPanel One-Click Clear & Deletion', () => {
   beforeEach(() => {
+    vi.spyOn(duckDBService, 'getRuntimeInfo').mockReturnValue({ currentDatabase: 'duckdb_manager_workspace', persistent: true });
+    vi.spyOn(duckDBService, 'query').mockResolvedValue([]);
     localStorage.setItem('duckdb_recent_queries_v1', JSON.stringify(['revenue_q4.sql']));
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     vi.spyOn(duckDBService, 'getBaseTables').mockResolvedValue(['users', 'orders']);
@@ -34,6 +37,23 @@ describe('DataExplorerPanel One-Click Clear & Deletion', () => {
     vi.spyOn(duckDBService, 'dropRegisteredFile').mockResolvedValue(undefined);
   });
 
+  it('discards metadata from the previous database after switching to an empty catalog', async () => {
+    let catalog = 'domain_a';
+    vi.spyOn(duckDBService, 'getRuntimeInfo').mockImplementation(() => ({ currentDatabase: catalog, persistent: true }));
+    let finishOldRequest!: (tables: string[]) => void;
+    vi.spyOn(duckDBService, 'getBaseTables')
+      .mockImplementationOnce(() => new Promise((resolve) => { finishOldRequest = resolve; }))
+      .mockResolvedValue([]);
+    vi.spyOn(duckDBService, 'getViews').mockResolvedValue([]);
+    vi.spyOn(duckDBService, 'getMacros').mockResolvedValue([]);
+    const { rerender } = render(<DataExplorerPanel databaseName="domain_a" onRefreshTables={vi.fn()} tables={[]} />);
+    catalog = 'domain_b';
+    rerender(<DataExplorerPanel databaseName="domain_b" onRefreshTables={vi.fn()} tables={[]} />);
+    finishOldRequest(['old_domain_table']);
+    await waitFor(() => expect(screen.getByText('表 (0)')).toBeInTheDocument());
+    expect(screen.queryByText('old_domain_table')).not.toBeInTheDocument();
+  });
+
   it('renders all 5 asset sections with clear buttons', async () => {
     render(<DataExplorerPanel onRefreshTables={vi.fn()} tables={['users', 'orders']} />);
 
@@ -46,7 +66,7 @@ describe('DataExplorerPanel One-Click Clear & Deletion', () => {
     });
 
     expect(screen.getByTitle('一键清空所有数据表')).toBeInTheDocument();
-    expect(screen.getByTitle('一键清空所有视图')).toBeInTheDocument();
+    expect(await screen.findByTitle('一键清空所有视图')).toBeInTheDocument();
     expect(screen.getByTitle('一键清空所有宏')).toBeInTheDocument();
     expect(screen.getByTitle('一键清空文件与远程源')).toBeInTheDocument();
     expect(screen.getByTitle('一键清空最近打开记录')).toBeInTheDocument();

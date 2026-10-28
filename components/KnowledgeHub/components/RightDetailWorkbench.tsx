@@ -31,6 +31,7 @@ import {
   type SqlBlockExecutionResult
 } from '../../../services/ontology/ontologySynthesisEngine';
 import { toastService } from '../../../services/toastService';
+import { useContainerWidth } from '../../ui/useContainerWidth';
 
 interface RightDetailWorkbenchProps {
   asset: KnowledgeAsset | null;
@@ -60,6 +61,8 @@ const RightDetailWorkbenchInner: React.FC<RightDetailWorkbenchProps> = ({
   onOpenAiAssistant,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const availableWidth = useContainerWidth(containerRef, Boolean(asset));
+  const stacked = availableWidth !== null && availableWidth < 700;
 
   // 左右分栏宽度持久化（参考工程核心 - SQL 工作台标准）
   const [leftWidth, setLeftWidth] = useState<number>(() => {
@@ -283,9 +286,9 @@ const RightDetailWorkbenchInner: React.FC<RightDetailWorkbenchProps> = ({
   }
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-monokai-bg overflow-hidden select-none">
+    <div className="flex-1 min-w-0 flex flex-col h-full bg-monokai-bg overflow-hidden select-none">
       {/* 顶部操作工具栏 */}
-      <div className="px-5 py-2 border-b border-monokai-border bg-monokai-surface flex items-center justify-between shrink-0">
+      <div className="px-5 py-2 border-b border-monokai-border bg-monokai-surface flex flex-wrap gap-2 items-center justify-between shrink-0">
         <div className="flex items-center gap-2.5 text-xs text-monokai-comment min-w-0">
           {isSidebarCollapsed && onToggleSidebar && (
             <button
@@ -377,12 +380,13 @@ const RightDetailWorkbenchInner: React.FC<RightDetailWorkbenchProps> = ({
       </div>
 
       {/* 核心双栏交互工作台：左侧教程/代码 + 中间拖拽分界 + 右侧本体图谱 */}
-      <div ref={containerRef} className="flex-1 overflow-hidden flex flex-row relative select-text">
+      <div ref={containerRef} className={`flex-1 min-h-0 min-w-0 overflow-hidden flex ${stacked ? 'flex-col' : 'flex-row'} relative select-text`}>
         {/* 左侧：教程阅读与代码执行 */}
         <div 
           style={{ 
-            width: isGraphCollapsed ? '100%' : `${leftWidth}px`, 
-            flexShrink: 0 
+            width: isGraphCollapsed || stacked ? '100%' : `${Math.min(leftWidth, Math.max(360, (availableWidth ?? leftWidth + 340) - 340))}px`,
+            flexShrink: 0,
+            height: stacked && !isGraphCollapsed ? '50%' : '100%',
           }} 
           className="h-full overflow-hidden flex flex-col min-w-0 transition-[width] duration-75"
         >
@@ -409,7 +413,7 @@ const RightDetailWorkbenchInner: React.FC<RightDetailWorkbenchProps> = ({
         </div>
 
         {/* 中间拖拽分界把手 (参考工程核心 - SQL) */}
-        {!isGraphCollapsed && (
+        {!isGraphCollapsed && !stacked && (
           <div
             onMouseDown={() => setIsDragging(true)}
             onTouchStart={() => setIsDragging(true)}
@@ -424,14 +428,14 @@ const RightDetailWorkbenchInner: React.FC<RightDetailWorkbenchProps> = ({
 
         {/* 右侧：本体图谱实时渲染 (统一复用 AI 认知 - 本体图谱规范) */}
         {!isGraphCollapsed && (
-          <div className="flex-1 min-w-[320px] h-full flex flex-col overflow-hidden bg-monokai-bg relative">
+          <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden bg-monokai-bg relative">
             {/* 图谱面板顶部标题与执行状态栏 */}
-            <div className="h-9 px-3 border-b border-monokai-border bg-monokai-sidebar flex items-center justify-between shrink-0 select-none">
+            <div className="min-h-9 py-1 px-3 gap-2 border-b border-monokai-border bg-monokai-sidebar flex flex-wrap items-center justify-between shrink-0 select-none">
               <div className="flex items-center gap-2 min-w-0">
                 <div className="w-5 h-5 rounded bg-monokai-cyan/20 border border-monokai-cyan/40 flex items-center justify-center text-monokai-cyan shrink-0">
                   <Network className="w-3.5 h-3.5" />
                 </div>
-                <span className="text-xs font-bold text-white tracking-wide truncate">
+                <span className="text-xs font-bold text-monokai-fg tracking-wide truncate">
                   本体图谱实时渲染
                 </span>
                 {synthesizedOntology?.executionReport?.successCount ? (
@@ -440,7 +444,7 @@ const RightDetailWorkbenchInner: React.FC<RightDetailWorkbenchProps> = ({
                     <span>执行驱动 ({synthesizedOntology.executionMetrics.avgDurationMs}ms)</span>
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 shrink-0">
+                  <span className="inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded bg-monokai-yellow/15 text-monokai-yellow border border-monokai-yellow/30 shrink-0">
                     <Sparkles className="w-3 h-3" />
                     <span>待执行代码驱动</span>
                   </span>

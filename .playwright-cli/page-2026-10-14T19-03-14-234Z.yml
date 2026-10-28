@@ -1,0 +1,221 @@
+- generic [ref=f1e3]:
+  - banner "全局工作区顶栏" [ref=f1e4]:
+    - generic [ref=f1e5]:
+      - button "🪶 DuckDB Studio PRO" [ref=f1e6] [cursor=pointer]:
+        - generic [ref=f1e7]: 🪶
+        - generic [ref=f1e9]:
+          - generic [ref=f1e10]: DuckDB Studio
+          - generic [ref=f1e11]: PRO
+      - navigation "业务领域大类" [ref=f1e13]:
+        - button "工程核心" [ref=f1e14] [cursor=pointer]
+        - button "分析洞察" [ref=f1e20] [cursor=pointer]
+        - button "知识沉淀" [ref=f1e25] [cursor=pointer]
+        - button "AI 认知" [ref=f1e30] [cursor=pointer]
+      - tablist "工程核心功能标签页" [ref=f1e36]:
+        - tab "仪表盘" [ref=f1e37] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f1e150]: "1"
+        - tab "数据" [ref=f1e43] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f1e48]: "2"
+        - tab "Schema" [ref=f1e49] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f1e54]: "3"
+        - tab "SQL" [active] [selected] [ref=f1e55] [cursor=pointer]
+        - tab "数据流" [ref=f1e61] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f1e66]: "5"
+    - generic [ref=f1e67]:
+      - button "项目 Ctrl+Shift+D" [ref=f1e68] [cursor=pointer]:
+        - generic [ref=f1e71]: 项目
+        - generic [ref=f1e72]: Ctrl+Shift+D
+      - button "新建表" [ref=f1e73] [cursor=pointer]
+      - button "memory 临时分析空间" [ref=f1e78] [cursor=pointer]:
+        - generic [ref=f1e81]: memory
+        - generic [ref=f1e83]: 临时分析空间
+      - button "AI 助手 Ctrl+I" [ref=f1e87] [cursor=pointer]:
+        - generic [ref=f1e90]: AI 助手
+        - generic [ref=f1e91]: Ctrl+I
+      - button "⌘K" [ref=f1e92] [cursor=pointer]
+      - button "帮助与快捷键" [ref=f1e96] [cursor=pointer]
+      - button "切换为浅色模式" [ref=f1e99] [cursor=pointer]
+      - button "AI 模型设置" [ref=f1e100] [cursor=pointer]
+  - main [ref=f1e103]:
+    - generic [ref=f1e152]:
+      - generic [ref=f1e153]:
+        - generic [ref=f1e155]:
+          - generic [ref=f1e156]:
+            - generic [ref=f1e157]: 数据资源浏览
+            - generic [ref=f1e159]:
+              - button "刷新元数据" [ref=f1e160] [cursor=pointer]
+              - button "隐藏左侧边栏" [ref=f1e161] [cursor=pointer]
+          - textbox "搜索表、视图、文件..." [ref=f1e164]
+          - generic [ref=f1e165]:
+            - generic [ref=f1e166]:
+              - button "新建表" [ref=f1e167] [cursor=pointer]
+              - button "打开文件" [ref=f1e169] [cursor=pointer]
+            - generic [ref=f1e171]:
+              - button "附加数据库" [ref=f1e172] [cursor=pointer]
+              - button "添加数据源" [ref=f1e174] [cursor=pointer]
+          - generic [ref=f1e176]:
+            - generic [ref=f1e177]:
+              - generic [ref=f1e178] [cursor=pointer]:
+                - generic [ref=f1e179]: memory
+                - generic [ref=f1e180]: (当前)
+              - generic [ref=f1e182]:
+                - generic [ref=f1e183] [cursor=pointer]: main
+                - generic [ref=f1e185]:
+                  - generic [ref=f1e187]:
+                    - generic [ref=f1e188] [cursor=pointer]: 表 (0)
+                    - button "新建数据表" [ref=f1e191] [cursor=pointer]
+                  - generic [ref=f1e192]: 视图 (0)
+                  - generic [ref=f1e196]: 宏 (Macros) (0)
+            - generic [ref=f1e200]: 文件与远程源 (0)
+            - generic [ref=f1e204]: 最近打开 (0)
+        - generic [ref=f1e210]:
+          - generic "双击空白处新建查询" [ref=f1e211]:
+            - tablist "SQL 查询标签页" [ref=f1e212]:
+              - tab "query_1.sql 标签选项 关闭标签页" [selected] [ref=f1e213] [cursor=pointer]:
+                - generic "query_1.sql • 左键切换 • 双击重命名 • 右键更多选项 (另存为/关闭等) • 中键快速关闭" [ref=f1e217]: query_1.sql
+                - generic [ref=f1e218]:
+                  - button "标签选项" [ref=f1e219]
+                  - button "关闭标签页" [ref=f1e220]
+              - button "新建查询标签页" [ref=f1e221] [cursor=pointer]
+            - generic [ref=f1e222]: 1 个查询
+          - toolbar "SQL 工作区工具栏" [ref=f1e224]:
+            - generic [ref=f1e225]:
+              - group "执行" [ref=f1e226]:
+                - generic [ref=f1e228]:
+                  - button "运行" [ref=f1e229] [cursor=pointer]
+                  - button "更多执行选项" [ref=f1e231] [cursor=pointer]
+                - button "停止" [disabled] [ref=f1e232]
+              - group "编辑" [ref=f1e234]:
+                - button "格式化" [ref=f1e235] [cursor=pointer]
+                - button "复制当前 SQL 代码到剪贴板" [ref=f1e238] [cursor=pointer]
+                - generic "编辑器字号 10px" [ref=f1e240]:
+                  - button "减小字号" [disabled] [ref=f1e241]
+                  - generic [ref=f1e242]: "10"
+                  - button "增大字号" [ref=f1e243] [cursor=pointer]
+              - group "视图模式与流程图" [ref=f1e245]:
+                - generic [ref=f1e246]:
+                  - button "流程图" [ref=f1e247] [cursor=pointer]
+                  - button "流程图模式选项" [ref=f1e249] [cursor=pointer]
+            - generic [ref=f1e250]:
+              - group "智能助手" [ref=f1e251]:
+                - button "AI 解释" [ref=f1e252] [cursor=pointer]:
+                  - generic [ref=f1e253]: 解释
+                - button "AI 分析" [ref=f1e255] [cursor=pointer]:
+                  - generic [ref=f1e256]: 分析
+              - button "历史 0" [ref=f1e258] [cursor=pointer]:
+                - generic [ref=f1e259]: 历史
+                - generic [ref=f1e260]: "0"
+              - generic "当前目录上下文：memory.main" [ref=f1e261]:
+                - generic [ref=f1e262]: memory
+                - generic [ref=f1e263]: .
+                - generic [ref=f1e264]: main
+          - generic [ref=f1e265]:
+            - generic [ref=f1e270]:
+              - generic [ref=f1e272]: "1"
+              - textbox [ref=f1e276]
+            - separator "拖动调整比例，双击恢复 50/50 分屏" [ref=f1e278]:
+              - generic [ref=f1e279]:
+                - generic [ref=f1e280]: 分隔条
+                - generic [ref=f1e283]:
+                  - generic [ref=f1e284]:
+                    - generic [ref=f1e285]: L
+                    - generic [ref=f1e286]: "1"
+                  - generic [ref=f1e287]: ·
+                  - generic [ref=f1e288]:
+                    - generic [ref=f1e289]: C
+                    - generic [ref=f1e290]: "0"
+              - generic [ref=f1e291]:
+                - button "最大化结果" [ref=f1e292] [cursor=pointer]
+                - button "最大化代码" [ref=f1e304] [cursor=pointer]
+              - generic [ref=f1e306]:
+                - generic [ref=f1e307]:
+                  - generic [ref=f1e308]: 双击
+                  - generic [ref=f1e309]: 重置
+                - generic [ref=f1e310]:
+                  - text: "40"
+                  - generic [ref=f1e311]: "%"
+            - generic [ref=f1e313]:
+              - generic [ref=f1e314]:
+                - generic [ref=f1e315]:
+                  - tablist "查询结果视图切换" [ref=f1e316]:
+                    - tab "数据" [selected] [ref=f1e317] [cursor=pointer]
+                    - tab "图表" [ref=f1e320] [cursor=pointer]
+                    - tab "透视" [ref=f1e322] [cursor=pointer]
+                    - tab "执行计划" [ref=f1e324] [cursor=pointer]
+                  - textbox "过滤当前结果..." [ref=f1e328]
+                - generic [ref=f1e329]:
+                  - generic [ref=f1e330]:
+                    - button "筛选" [ref=f1e331] [cursor=pointer]
+                    - button "排序" [ref=f1e333] [cursor=pointer]
+                    - button "分组" [ref=f1e336] [cursor=pointer]
+                    - button "导出" [ref=f1e339] [cursor=pointer]
+                  - generic [ref=f1e341]: 就绪待命
+                  - button "全屏浏览结果集" [ref=f1e346] [cursor=pointer]
+              - generic [ref=f1e349]:
+                - paragraph [ref=f1e351]: 等待执行查询
+                - paragraph [ref=f1e352]: 按 Ctrl+Enter 运行 SQL。结果可在上方切换数据、图表、透视与执行计划。
+              - generic [ref=f1e353]:
+                - generic [ref=f1e354]:
+                  - button "第一页" [disabled] [ref=f1e355]
+                  - button "上一页" [disabled] [ref=f1e356]
+                  - generic [ref=f1e357]: "1"
+                  - button "下一页" [disabled] [ref=f1e359]
+                  - button "最后一页" [disabled] [ref=f1e360]
+                  - generic [ref=f1e361]: 第 1 页, 共 1 页
+                - generic [ref=f1e362]:
+                  - generic [ref=f1e363]:
+                    - generic [ref=f1e364]: "每页:"
+                    - combobox [ref=f1e365] [cursor=pointer]:
+                      - option "25 行"
+                      - option "50 行"
+                      - option "100 行" [selected]
+                      - option "200 行"
+                      - option "500 行"
+                      - option "1000 行"
+                  - generic [ref=f1e366]: 0 / 0 行
+                  - button "表格渲染设置" [ref=f1e367] [cursor=pointer]
+        - generic [ref=f1e368]:
+          - button "展开列画像" [ref=f1e369] [cursor=pointer]:
+            - generic [ref=f1e370]: 列画像
+          - button "展开 AI 智能助手" [ref=f1e371] [cursor=pointer]:
+            - generic [ref=f1e372]: AI助手
+      - generic [ref=f1e373]:
+        - generic [ref=f1e374]:
+          - generic [ref=f1e375]:
+            - generic [ref=f1e376]: db
+            - generic [ref=f1e377]: memory.main
+            - generic [ref=f1e378]: (0表)
+          - button "行 1 列 1" [ref=f1e379] [cursor=pointer]:
+            - generic [ref=f1e380]: 行
+            - generic [ref=f1e381]: "1"
+            - generic [ref=f1e382]: 列
+            - generic [ref=f1e383]: "1"
+          - 'generic "当前查询: query_1.sql" [ref=f1e384]': query_1.sql
+          - generic "点击查看运行时状态中心" [ref=f1e386] [cursor=pointer]:
+            - generic [ref=f1e387]: 内存
+            - generic [ref=f1e388]: 未采集
+          - generic "查看运行时状态详情" [ref=f1e389] [cursor=pointer]:
+            - generic [ref=f1e390]: 运行时
+            - generic [ref=f1e391]: 就绪
+        - generic [ref=f1e392]:
+          - generic "点击打开运行时状态中心" [ref=f1e393] [cursor=pointer]: 就绪
+          - button "控制" [ref=f1e398] [cursor=pointer]
+          - button "反馈" [ref=f1e400] [cursor=pointer]
+  - contentinfo [ref=f1e122]:
+    - generic [ref=f1e123]:
+      - generic [ref=f1e124]: DuckDB 1.33.1
+      - generic [ref=f1e127]: "|"
+      - generic [ref=f1e128]: memory [MEMORY]
+      - generic [ref=f1e130]: "|"
+      - generic [ref=f1e131]: 内存库
+      - generic [ref=f1e133]: "|"
+      - generic [ref=f1e134]: 0 张表
+      - generic [ref=f1e136]: "|"
+      - generic [ref=f1e137]: 暂无表
+      - generic [ref=f1e139]: "|"
+      - generic [ref=f1e140]: "内存: 0.00 MB / 3.1 GiB"
+    - generic [ref=f1e142]:
+      - generic [ref=f1e143]: 引擎就绪
+      - generic [ref=f1e147]: "|"
+      - generic [ref=f1e148]: 12:03
+      - button "刷新运行时状态" [ref=f1e149] [cursor=pointer]

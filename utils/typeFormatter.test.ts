@@ -14,6 +14,34 @@ import {
 
 describe('typeFormatter', () => {
   describe('Acceptance Criteria Cases', () => {
+    it('labels DuckDB integer128 Arrow fields without relabeling variable binary', () => {
+      expect(arrowTypeToDuckDBType({typeId:15,byteWidth:16})).toBe('HUGEINT');
+      expect(arrowTypeToDuckDBType({typeId:4,toString:()=> 'Binary'})).not.toBe('HUGEINT');
+    });
+    it('preserves naive TIMESTAMP wall clocks instead of shifting them to browser timezone', () => {
+      const previous = process.env.TZ;
+      process.env.TZ = 'America/Los_Angeles';
+      try {
+        const epoch = Date.parse('2025-01-01T00:20:00Z');
+        expect(formatCellValue(epoch, 'TIMESTAMP')).toBe('2025-01-01 00:20:00');
+        expect(formatCellValue(BigInt(epoch) * 1000n, 'TIMESTAMP')).toBe('2025-01-01 00:20:00');
+        expect(formatCellValue('2025-01-01 00:20:00', 'TIMESTAMP')).toBe('2025-01-01 00:20:00');
+      } finally {
+        if (previous === undefined) delete process.env.TZ;
+        else process.env.TZ = previous;
+      }
+    });
+    it('keeps DATE calendar days unchanged in a western timezone', () => {
+      const previous = process.env.TZ;
+      process.env.TZ = 'America/Los_Angeles';
+      try {
+        expect(formatCellValue(1788220800000, 'DATE')).toBe('2026-09-01');
+        expect(formatDate(new Date('2026-09-01T00:00:00Z'))).toBe('2026-09-01');
+      } finally {
+        if (previous === undefined) delete process.env.TZ;
+        else process.env.TZ = previous;
+      }
+    });
     it('formats acceptance criteria table correctly based strictly on DuckDB column types', () => {
       // id: BIGINT -> 1001 (NOT 1,001)
       expect(formatCellValue(1001, 'BIGINT')).toBe('1001');
@@ -45,7 +73,7 @@ describe('typeFormatter', () => {
     });
 
     it('formats timestamp when real database type is TIMESTAMP', () => {
-      const d = new Date(2026, 7, 29, 22, 53, 9, 808); // Aug 29 2026 22:53:09.808
+      const d = new Date('2026-08-29T22:53:09.808Z'); // Arrow representation of a naive DuckDB wall clock
       const formatted = formatCellValue(d, 'TIMESTAMP');
       expect(formatted).toBe('2026-08-29 22:53:09.808');
     });
@@ -110,4 +138,3 @@ describe('typeFormatter', () => {
     });
   });
 });
-

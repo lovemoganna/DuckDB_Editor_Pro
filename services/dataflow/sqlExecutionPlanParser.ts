@@ -19,9 +19,7 @@ import type {
   DataFlowNodeData,
   BugTraceInfo,
   SqlExecutionStage,
-  SqlParadigmMeta,
 } from './workflowTypes';
-import { getSqlParadigm } from './sqlToWorkflowParser';
 
 // ============================================================
 // 1. 结构化物理算子定义
@@ -565,6 +563,143 @@ export function pruneAndNormalizeOperatorTree(rootList: RawParsedOperator[]): Ra
 }
 
 /**
+ * Merge a multi-root EXPLAIN forest into one readable pipeline and drop
+ * anonymous duplicate scans that leave orphan nodes on the canvas.
+ */
+export function coalesceOperatorForest(roots: RawParsedOperator[]): RawParsedOperator[] {
+  if (!roots || roots.length === 0) return roots;
+
+  const countNodes = (op: RawParsedOperator): number =>
+    1 + op.children.reduce((sum, c) => sum + countNodes(c), 0);
+
+  const collect = (op: RawParsedOperator, cat: OperatorCategory, out: RawParsedOperator[]) => {
+    if (op.category === cat) out.push(op);
+    for (const c of op.children) collect(c, cat, out);
+  };
+
+  const hasTable = (op: RawParsedOperator, table: string): boolean => {
+    if (op.tableName && op.tableName.toLowerCase() === table.toLowerCase()) return true;
+    return op.children.some((c) => hasTable(c, table));
+  };
+
+  const dedupeAnonymousScans = (op: RawParsedOperator): RawParsedOperator => {
+    op.children = op.children.map(dedupeAnonymousScans);
+    if (op.children.length <= 1) return op;
+
+    const namedTables = new Set(
+      op.children
+        .filter((c) => c.category === 'scan' && c.tableName)
+        .map((c) => c.tableName!.toLowerCase()),
+    );
+
+    // Drop anonymous scans when a named scan already covers the same parent
+    if (namedTables.size > 0) {
+      op.children = op.children.filter(
+        (c) => !(c.category === 'scan' && !c.tableName && c.children.length === 0),
+      );
+    }
+
+    // Deduplicate named scans of the same table under one parent
+    const seen = new Set<string>();
+    op.children = op.children.filter((c) => {
+      if (c.category !== 'scan' || !c.tableName) return true;
+      const key = c.tableName.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    return op;
+  };
+
+  // Score roots: prefer result / aggregate / larger trees
+  const ranked = [...roots].sort((a, b) => {
+    const score = (op: RawParsedOperator) =>
+      (op.category === 'result' ? 1000 : 0) +
+      (op.category === 'aggregate' ? 500 : 0) +
+      (op.category === 'join' ? 200 : 0) +
+      countNodes(op);
+    return score(b) - score(a);
+  });
+
+  let main = structuredClone(ranked[0]) as RawParsedOperator;
+
+  // Fold useful named scans from orphan roots into the main tree
+  for (const orphan of ranked.slice(1)) {
+    const scans: RawParsedOperator[] = [];
+    collect(orphan, 'scan', scans);
+    for (const scan of scans) {
+      if (!scan.tableName) continue;
+      if (hasTable(main, scan.tableName)) continue;
+      // Attach missing table scan under the deepest leaf consumer (usually the sole child chain)
+      let attachPoint = main;
+      while (attachPoint.children.length === 1) {
+        attachPoint = attachPoint.children[0];
+      }
+      // Prefer attaching as child of the first aggregate/join walking from root
+      const findAttach = (op: RawParsedOperator): RawParsedOperator | null => {
+        if (op.category === 'aggregate' || op.category === 'join' || op.category === 'filter') return op;
+        for (const c of op.children) {
+          const hit = findAttach(c);
+          if (hit) return hit;
+        }
+        return null;
+      };
+      const target = findAttach(main) || attachPoint;
+      target.children = [
+        ...target.children,
+        {
+          ...structuredClone(scan),
+          children: [],
+        },
+      ];
+    }
+  }
+
+  main = dedupeAnonymousScans(main);
+
+  // Ensure a result root so the canvas always ends with an explicit sink
+  if (main.category !== 'result') {
+    main = {
+      id: `coalesce_result_${Date.now().toString(36)}`,
+      name: 'RESULT_COLLECTOR',
+      category: 'result',
+      depth: 0,
+      costPercent: 0,
+      filterConditions: [],
+      projections: [],
+      groupByKeys: [],
+      rawLines: ['Result Collector'],
+      children: [main],
+    };
+  }
+
+  return [main];
+}
+
+function isSimpleSingleTableSql(sql: string): boolean {
+  const clean = sql.replace(/--.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
+  if (/\bWITH\b/i.test(clean) || /\bUNION\b/i.test(clean)) return false;
+  if (/\bJOIN\b/i.test(clean)) return false;
+  const froms = [...clean.matchAll(/\bFROM\s+([a-zA-Z0-9_".]+)/gi)];
+  return froms.length === 1;
+}
+
+function hasDisconnectedNodes(
+  nodes: Array<{ id: string }>,
+  edges: Array<{ source: string; target: string }>,
+): boolean {
+  if (nodes.length <= 1) return false;
+  if (edges.length === 0) return true;
+  const connected = new Set<string>();
+  for (const e of edges) {
+    connected.add(e.source);
+    connected.add(e.target);
+  }
+  return nodes.some((n) => !connected.has(n.id));
+}
+
+/**
  * 核心方法：将真实 DuckDB 物理执行计划转换为数据流 DAG
  *
  * 数据库物理执行计划是自底向上的树（Parent 消费 Child 的数据）。
@@ -582,20 +717,43 @@ export function buildRealExecutionWorkflow(
     rawOperators = parseDuckDbExplainPlan(planText);
   }
 
-  // 若无 EXPLAIN 输出（例如语法解析失败），基于 SQL 进行确定性推演构建
-  if (rawOperators.length === 0) {
+  // 简单单表 SQL：若 EXPLAIN 解析成多根森林（易产生孤立节点），改用确定性 SQL 推演
+  if (
+    isSimpleSingleTableSql(sql) &&
+    (rawOperators.length === 0 || rawOperators.length > 1)
+  ) {
+    rawOperators = synthesizeOperatorsFromSql(sql, tabTitle);
+  } else if (rawOperators.length === 0) {
     rawOperators = synthesizeOperatorsFromSql(sql, tabTitle);
   }
 
-  // 关键：清洗并规范化算子树，消除所有 PROJECTION 穿透节点与冗余伪算子
-  const cleanedOperators = pruneAndNormalizeOperatorTree(rawOperators);
+  // 清洗并规范化算子树，消除 PROJECTION 穿透与冗余伪算子
+  let cleanedOperators = pruneAndNormalizeOperatorTree(rawOperators);
+
+  // 再次：简单查询若仍多根，强制走合成管线
+  if (isSimpleSingleTableSql(sql) && cleanedOperators.length > 1) {
+    cleanedOperators = synthesizeOperatorsFromSql(sql, tabTitle);
+  }
+
+  // 合并多根森林、去掉匿名重复 SCAN，保证画布上是一条可读链路
+  cleanedOperators = coalesceOperatorForest(cleanedOperators);
 
   // 展平并分配自底向上时序与数据流连线
-  const { nodes, edges, traceableSourceIds, resultNodeId } = convertOperatorsToDataFlow(
+  let { nodes, edges, traceableSourceIds, resultNodeId } = convertOperatorsToDataFlow(
     cleanedOperators,
     sql,
     queryResult
   );
+
+  // 简单查询若仍出现孤立节点，回退到确定性合成管线
+  if (isSimpleSingleTableSql(sql) && hasDisconnectedNodes(nodes, edges)) {
+    cleanedOperators = coalesceOperatorForest(synthesizeOperatorsFromSql(sql, tabTitle));
+    ({ nodes, edges, traceableSourceIds, resultNodeId } = convertOperatorsToDataFlow(
+      cleanedOperators,
+      sql,
+      queryResult
+    ));
+  }
 
   // 诊断并定位异常节点
   let faultyNodeId: string | null = null;
@@ -653,7 +811,6 @@ function convertOperatorsToDataFlow(
 
     const nodeType = mapCategoryToNodeType(op.category);
     const stage = mapCategoryToStage(op.category);
-    const paradigm = getSqlParadigm(stage);
 
     const isSource = nodeType === 'source';
     const isResult = nodeType === 'result';
@@ -675,15 +832,19 @@ function convertOperatorsToDataFlow(
     const inRows = op.inputRows;
     const filterRatio = inRows && outRows && inRows > outRows ? Math.round(((inRows - outRows) / inRows) * 100) : undefined;
 
+    // Real status only: never paint "success" from a static/EXPLAIN sketch.
+    // success = actual run evidence (queryResult or EXPLAIN ANALYZE timings).
+    const hasRunEvidence = Boolean(queryResult) || op.actualTimeMs !== undefined;
+    const nodeStatus: DataFlowNodeData['status'] = hasRunEvidence ? 'success' : 'idle';
+
     const nodeData: DataFlowNodeData = {
       id: nodeId,
       type: nodeType,
       title,
       subtitle,
-      status: 'success',
+      status: nodeStatus,
       stepIndex: stepIndex++,
       sqlStage: stage,
-      paradigm,
       executionTimeSec: op.actualTimeMs ? Number((op.actualTimeMs / 1000).toFixed(4)) : undefined,
       rowCount: outRows,
       inputRowCount: inRows,
@@ -696,15 +857,20 @@ function convertOperatorsToDataFlow(
       sqlRange: range,
       tableName: op.tableName,
       format: isSource ? (op.tableName?.endsWith('.parquet') ? 'PARQUET' : op.tableName?.endsWith('.csv') ? 'CSV' : 'TABLE') : undefined,
-      isRealDuckDB: true,
+      isRealDuckDB: !op.id.startsWith('synth_'),
       hasAnomaly: false,
       config: {
         operatorName: op.name,
-        costPercent: op.costPercent,
+        costPercent: op.id.startsWith('synth_') ? undefined : op.costPercent,
         isBottleneck: op.isBottleneck,
         rawAnnotations: op.rawLines,
         projections: op.projections,
         filterConditions: op.filterConditions,
+        // A fallback diagram has no physical aggregate expressions; retain the
+        // original query instead of compiling an empty aggregate as SELECT *.
+        ...(op.category === 'aggregate' && op.id.startsWith('synth_')
+          ? { rawSql: originalSql.trim().replace(/;\s*$/, '').trim() }
+          : {}),
       },
     };
 
@@ -755,6 +921,7 @@ function convertOperatorsToDataFlow(
     resultNodeId = finalResultId;
 
     const resultRows = queryResult?.rows ? queryResult.rows.length : (lastNode.data.rowCount ?? 0);
+    const hasRunEvidence = Boolean(queryResult);
 
     nodes.push({
       id: finalResultId,
@@ -764,16 +931,15 @@ function convertOperatorsToDataFlow(
         id: finalResultId,
         type: 'result',
         title: '最终查询结果',
-        subtitle: 'RESULT COLLECTOR',
-        status: 'success',
+        subtitle: 'RESULT',
+        status: hasRunEvidence ? 'success' : 'idle',
         stepIndex: stepIndex++,
         sqlStage: 'select',
-        paradigm: getSqlParadigm('select'),
-        rowCount: resultRows,
+        rowCount: hasRunEvidence ? resultRows : undefined,
         columnCount: queryResult?.columns?.length,
-        isRealDuckDB: true,
-        clauseSnippet: 'SELECT ... [Result Set]',
-        config: { limit: 100 },
+        isRealDuckDB: lastNode.data.isRealDuckDB,
+        clauseSnippet: undefined,
+        config: {},
       },
     });
 
@@ -842,11 +1008,11 @@ function formatNodeDisplay(op: RawParsedOperator): {
   switch (op.category) {
     case 'scan':
       title = op.tableName ? `SCAN ${op.tableName}` : 'SCAN (表扫描)';
-      subtitle = normName;
+      subtitle = op.tableName ? `物理表 · ${op.tableName}` : 'FROM · 数据源装载';
       if (op.filterConditions.length > 0) {
         predicate = `下推过滤: ${op.filterConditions.join(' AND ')}`;
       } else if (op.tableName) {
-        predicate = `物理表: ${op.tableName}`;
+        predicate = `读取 ${op.tableName} 全表/列存块`;
       }
       break;
 
@@ -864,8 +1030,11 @@ function formatNodeDisplay(op: RawParsedOperator): {
 
     case 'aggregate':
       title = op.groupByKeys.length > 0 ? `AGGREGATE (${op.groupByKeys.join(', ')})` : 'AGGREGATE (汇总)';
-      subtitle = normName;
-      predicate = op.groupByKeys.length > 0 ? `group by: ${op.groupByKeys.join(', ')}` : 'scalar aggregate';
+      subtitle = op.groupByKeys.length > 0 ? 'GROUP BY 聚合' : '标量聚合 · 无 GROUP BY';
+      predicate =
+        op.groupByKeys.length > 0
+          ? `group by: ${op.groupByKeys.join(', ')}`
+          : '对扫描结果计算 SUM/COUNT/AVG 等汇总指标';
       break;
 
     case 'sort':
@@ -1369,7 +1538,7 @@ function synthesizeOperatorsFromSql(sql: string, tabTitle?: string): RawParsedOp
       name: 'FILTER',
       category: 'filter',
       depth: 3,
-      filterConditions: [whereMatch[1].trim().slice(0, 100)],
+      filterConditions: [whereMatch[1].trim().replace(/;\s*$/, '').trim()],
       projections: [],
       groupByKeys: [],
       costPercent: 15,
@@ -1379,19 +1548,22 @@ function synthesizeOperatorsFromSql(sql: string, tabTitle?: string): RawParsedOp
     currentParent = filterOp;
   }
 
-  // 4. 是否有 GROUP BY
+  // 4. 是否有 GROUP BY 或标量聚合 (SUM/COUNT/AVG/... 无 GROUP BY)
   const groupMatch = cleanSql.match(/\bGROUP\s+BY\s+([\s\S]+?)(?:\bHAVING|\bORDER\s+BY|\bLIMIT|$)/i);
-  if (groupMatch) {
+  const scalarAggMatch = !groupMatch && /\b(SUM|COUNT|AVG|MIN|MAX|MEDIAN|STDDEV|VARIANCE)\s*\(/i.test(cleanSql);
+  if (groupMatch || scalarAggMatch) {
     const aggOp: RawParsedOperator = {
       id: `synth_agg_${counter++}`,
-      name: 'HASH_GROUP_BY',
+      name: groupMatch ? 'HASH_GROUP_BY' : 'UNGROUPED_AGGREGATE',
       category: 'aggregate',
       depth: 4,
       filterConditions: [],
       projections: [],
-      groupByKeys: groupMatch[1].split(',').map(s => s.trim()),
+      groupByKeys: groupMatch ? groupMatch[1].split(',').map(s => s.trim()) : [],
       costPercent: 25,
-      rawLines: [`Hash Group By [${groupMatch[1].trim()}]`],
+      rawLines: groupMatch
+        ? [`Hash Group By [${groupMatch[1].trim()}]`]
+        : ['Ungrouped Aggregate (scalar)'],
       children: [currentParent],
     };
     currentParent = aggOp;

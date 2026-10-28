@@ -8,13 +8,14 @@
 
 import { EditorView } from '@codemirror/view';
 import type { Extension } from '@codemirror/state';
+import { SQL_EDITOR_FONT_SIZE } from './sqlEditorThemes';
 
 const FONT_FAMILY = 'var(--font-sql-editor)';
 
 export const sqlAutocompleteTheme: Extension = EditorView.theme({
   '.cm-tooltip-autocomplete': {
     fontFamily: `${FONT_FAMILY} !important`,
-    fontSize: '8px !important',
+    fontSize: `${SQL_EDITOR_FONT_SIZE} !important`,
     lineHeight: '1.45 !important',
     backgroundColor: 'var(--monokai-bg) !important',
     color: 'var(--monokai-fg) !important',
@@ -41,9 +42,9 @@ export const sqlAutocompleteTheme: Extension = EditorView.theme({
 
   '.cm-tooltip-autocomplete > ul > li': {
     fontFamily: `${FONT_FAMILY} !important`,
-    fontSize: '8px !important',
-    height: '28px !important',
-    lineHeight: '28px !important',
+    fontSize: `${SQL_EDITOR_FONT_SIZE} !important`,
+    height: '24px !important',
+    lineHeight: '24px !important',
     padding: '0 8px !important',
     borderRadius: '5px !important',
     display: 'flex !important',
@@ -71,10 +72,10 @@ export const sqlAutocompleteTheme: Extension = EditorView.theme({
     display: 'inline-flex !important',
     alignItems: 'center !important',
     justifyContent: 'center !important',
-    minWidth: '42px !important',
+    minWidth: '52px !important',
     height: '16px !important',
     padding: '0 4px !important',
-    fontSize: '9px !important',
+    fontSize: `${SQL_EDITOR_FONT_SIZE} !important`,
     fontWeight: '700 !important',
     letterSpacing: '0.04em !important',
     textTransform: 'uppercase !important',
@@ -135,12 +136,12 @@ export const sqlAutocompleteTheme: Extension = EditorView.theme({
 
   '.cm-completionLabel': {
     fontFamily: `${FONT_FAMILY} !important`,
-    fontSize: '8px !important',
+    fontSize: `${SQL_EDITOR_FONT_SIZE} !important`,
   },
 
   '.cm-completionDetail': {
     fontFamily: `${FONT_FAMILY} !important`,
-    fontSize: '8px !important',
+    fontSize: `${SQL_EDITOR_FONT_SIZE} !important`,
     color: 'var(--monokai-comment) !important',
     marginLeft: 'auto !important',
     padding: '0 6px !important',
@@ -151,7 +152,7 @@ export const sqlAutocompleteTheme: Extension = EditorView.theme({
 
   '.cm-tooltip.cm-completionInfo': {
     fontFamily: 'var(--font-sans) !important',
-    fontSize: '11px !important',
+    fontSize: `${SQL_EDITOR_FONT_SIZE} !important`,
     lineHeight: '1.45 !important',
     backgroundColor: 'var(--monokai-elevated) !important',
     color: 'var(--monokai-fg-muted) !important',

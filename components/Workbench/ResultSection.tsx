@@ -1,4 +1,10 @@
+import { ChartRenderer } from '../charts/ChartRenderer';
+import { formatValueBySpec, inferChartUnit, formatTableValue } from '../../utils/chartFormat';
+import { widgetRowsToChartSpec } from '../../services/analysis/adapters/dashboardWidgetAdapter';
+import { expandChartExport } from '../../utils/chartExport';
+import { wrapChartLabel } from '../../utils/chartSpace';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Table as TableIcon,
   BarChart2,
@@ -53,34 +59,27 @@ import {
   FileWarning,
   Workflow,
   Loader2,
+  LayoutDashboard,
   type LucideIcon,
 } from 'lucide-react';
-import type { QueryResult } from '../../types';
+import type { QueryResult, ChartConfig, ChartType } from '../../types';
 import { duckDBService } from '../../services/duckdbService';
 import { formatCellValue, formatDate, formatTimestamp, getTypeBadgeStyle } from '../../utils/typeFormatter';
 import CodeMirror from '@uiw/react-codemirror';
 import { sql } from '@codemirror/lang-sql';
 import { monokai } from '@uiw/codemirror-theme-monokai';
+import { lightEditorTheme } from '../../themes/sqlEditorThemes';
+import { useUiTheme } from '../../services/uiTheme';
 import { EditorView } from '@codemirror/view';
-import { Bar, Line, Pie, Doughnut, Scatter } from 'react-chartjs-2';
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  BarElement,
-  ArcElement,
-  Filler,
-  Title,
-  Tooltip,
-  Legend,
-} from 'chart.js';
-import ChartDataLabels from 'chartjs-plugin-datalabels';
 import { toastService } from '../../services/toastService';
+import { createWidgetFromSql } from '../../services/homeDashboardService';
+import { useAppStore } from '../../hooks/store/useAppStore';
+import {Tab} from '../../types';
+import {datasetFromQueryResult} from '../../services/workbench/currentDataset';
+import {openPivotAnalysis} from '../../hooks/store/useAnalysisWorkspace';
 import { dispatchDataflowTraceFault } from '../../services/dataflow/dataflowEvents';
 import { SegmentedTabs, ModalShell, ActionButton, FormInput } from '../ui/Workbench';
-import { ExplainPlanView } from './ExplainPlanView';
+import { ExecutionPlanView } from '../ExecutionPlan';
 
 const GROUP_SQL_PREVIEW_EXTENSIONS = [
   sql(),
@@ -108,20 +107,6 @@ const GROUP_SQL_PREVIEW_EXTENSIONS = [
     },
   }),
 ];
-
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  BarElement,
-  ArcElement,
-  Filler,
-  Title,
-  Tooltip,
-  Legend,
-  ChartDataLabels
-);
 
 type ChartKind = 'bar' | 'column' | 'line' | 'area' | 'pie' | 'doughnut' | 'scatter';
 type ChartFamily = 'compare' | 'trend' | 'compose' | 'relate';
@@ -167,29 +152,36 @@ const CHART_AGG_ITEMS = [
   { value: 'max', label: 'MAX' },
 ] as const;
 
-type PivotAgg = 'sum' | 'avg' | 'count';
-const PIVOT_AGG_ITEMS: ReadonlyArray<{ value: PivotAgg; label: string }> = [
-  { value: 'sum', label: 'SUM' },
-  { value: 'avg', label: 'AVG' },
-  { value: 'count', label: 'COUNT' },
+export type PivotAgg = 'sum' | 'avg' | 'count' | 'count_distinct' | 'min' | 'max' | 'median';
+export type PivotShowAs = 'raw' | 'percent_total' | 'percent_row' | 'percent_col';
+
+export interface PivotAggOption {
+  value: PivotAgg;
+  label: string;
+  enLabel: string;
+  group: 'basic' | 'distinct' | 'dist';
+  description: string;
+  numericOnly: boolean;
+}
+
+export const PIVOT_AGG_OPTIONS: ReadonlyArray<PivotAggOption> = [
+  { value: 'sum', label: '求和', enLabel: 'SUM', group: 'basic', description: '累加所有数值，适合金额、销售额、数量等', numericOnly: true },
+  { value: 'avg', label: '平均值', enLabel: 'AVG', group: 'basic', description: '计算算术平均水平，适合单价、评分、客单价等', numericOnly: true },
+  { value: 'count', label: '计数 (行数)', enLabel: 'COUNT', group: 'distinct', description: '统计包含的数据记录行数，适用任何字段或整行', numericOnly: false },
+  { value: 'count_distinct', label: '去重计数 (唯一值)', enLabel: 'DISTINCT', group: 'distinct', description: '统计不重复唯一值个数，适合独立客户、UV、不同SKU数等', numericOnly: false },
+  { value: 'min', label: '最小值', enLabel: 'MIN', group: 'dist', description: '单元格内的极小下限，适合最低售价、最早时间等', numericOnly: false },
+  { value: 'max', label: '最大值', enLabel: 'MAX', group: 'dist', description: '单元格内的极大上限，适合峰值流量、最高价格等', numericOnly: false },
+  { value: 'median', label: '中位数', enLabel: 'MEDIAN', group: 'dist', description: '数值排序居中典型值，不受极大极小离群异动干扰', numericOnly: true },
+];
+
+export const PIVOT_SHOW_AS_OPTIONS: ReadonlyArray<{ value: PivotShowAs; label: string; desc: string }> = [
+  { value: 'raw', label: '原始数值', desc: '直接按聚合函数计算所得结果' },
+  { value: 'percent_total', label: '总计占比 %', desc: '各单元格占全局总计的百分比' },
+  { value: 'percent_row', label: '行占比 %', desc: '各单元格占所在行小计的百分比' },
+  { value: 'percent_col', label: '列占比 %', desc: '各单元格占所在列小计的百分比' },
 ];
 const PIVOT_MAX_ROW_KEYS = 50;
 const PIVOT_MAX_COL_KEYS = 15;
-
-function resolvePivotAggValue(
-  cell: { sum: number; count: number } | undefined,
-  agg: PivotAgg,
-): number | null {
-  if (!cell || cell.count === 0) return null;
-  if (agg === 'count') return cell.count;
-  if (agg === 'avg') return cell.sum / cell.count;
-  return cell.sum;
-}
-
-function formatPivotNumber(val: number | null): string {
-  if (val == null) return '—';
-  return val.toLocaleString('en-US', { maximumFractionDigits: 2 });
-}
 
 const CHART_SORT_ITEMS: ReadonlyArray<{ value: ChartSort; label: string; hint: string }> = [
   { value: 'value_desc', label: '值↓', hint: '按指标降序' },
@@ -481,6 +473,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
   onApplyAggregateToSql,
   onToggleDataFlow,
 }) => {
+  const { theme: uiTheme } = useUiTheme();
   const [activeSubTab, setActiveSubTab] = useState<'data' | 'chart' | 'pivot' | 'explain'>('data');
   const [pageSize, setPageSize] = useState<number>(100);
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -491,14 +484,9 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
   // Modals & Popovers
   const [showExportModal, setShowExportModal] = useState<boolean>(false);
   const [exportFormat, setExportFormat] = useState<'parquet' | 'csv' | 'json' | 'arrow'>('parquet');
-  const [exportFileName, setExportFileName] = useState<string>('query_result.parquet');
-  const [includeTypes, setIncludeTypes] = useState<boolean>(true);
-  const [compression, setCompression] = useState<string>('ZSTD');
-  const [exportScope, setExportScope] = useState<'all' | 'selection'>('all');
 
   const [showFilterModal, setShowFilterModal] = useState<boolean>(false);
   const [showGroupModal, setShowGroupModal] = useState<boolean>(false);
-  const [showStreamingModal, setShowStreamingModal] = useState<boolean>(false);
   const [isStreamingActive, setIsStreamingActive] = useState<boolean>(false);
 
   // Group & Aggregate configuration — empty until user chooses real columns
@@ -584,6 +572,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
   // Explain visualization subtab — always tied to current editor SQL (live DuckDB)
   const [explainAnalyzeMode, setExplainAnalyzeMode] = useState(false);
   const [liveExplainPlan, setLiveExplainPlan] = useState<string>('');
+  const [liveExplainJson, setLiveExplainJson] = useState<any>(null);
   /** SQL that the current liveExplainPlan was fetched for (normalized). */
   const [planSourceSql, setPlanSourceSql] = useState<string>('');
   const [planFetchedAt, setPlanFetchedAt] = useState<number | null>(null);
@@ -615,12 +604,12 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
   const [chartAgg, setChartAgg] = useState<ChartAgg>('sum');
   const [chartTopN, setChartTopN] = useState<(typeof CHART_TOP_N_OPTIONS)[number]>(25);
   const [chartSort, setChartSort] = useState<ChartSort>('value_desc');
-  const [chartLegend, setChartLegend] = useState<ChartLegend>('right');
+  const [chartLegend, setChartLegend] = useState<ChartLegend>('bottom');
   const [chartColorMode, setChartColorMode] = useState<ChartColorMode>('categorical');
-  const [chartShowLabels, setChartShowLabels] = useState<boolean>(false);
+  const [chartShowLabels, setChartShowLabels] = useState<boolean>(true);
   const [chartSeries, setChartSeries] = useState<string>(CHART_SERIES_NONE);
   const [chartValueMode, setChartValueMode] = useState<ChartValueMode>('absolute');
-  const chartCanvasRef = useRef<ChartJS | null>(null);
+  const chartHostRef = useRef<HTMLDivElement>(null);
 
   const chartFamily = familyOfChart(chartType);
   const chartVariants = CHART_FAMILY_VARIANTS[chartFamily];
@@ -634,18 +623,49 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
   const [pivotRowCol, setPivotRowCol] = useState<string>('');
   const [pivotColCol, setPivotColCol] = useState<string>('');
   const [pivotValCol, setPivotValCol] = useState<string>('');
-  const [pivotAgg, setPivotAgg] = useState<PivotAgg>('sum');
+  const [pivotAgg, setPivotAgg] = useState<PivotAgg>('count');
+  const [pivotShowAs, setPivotShowAs] = useState<PivotShowAs>('raw');
+  const [pivotDecimals, setPivotDecimals] = useState<number>(2);
+  const [isAggMenuOpen, setIsAggMenuOpen] = useState<boolean>(false);
+  const aggMenuRef = useRef<HTMLDivElement>(null);
+  const [aggMenuPos, setAggMenuPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
 
-  // Keep export filename aligned with the active query tab + format
+  const handleToggleAggMenu = () => {
+    if (!isAggMenuOpen && aggMenuRef.current) {
+      const rect = aggMenuRef.current.getBoundingClientRect();
+      const menuWidth = 216;
+      let left = rect.left;
+      if (left + menuWidth > window.innerWidth - 16) {
+        left = Math.max(16, window.innerWidth - menuWidth - 16);
+      }
+      setAggMenuPos({
+        top: rect.bottom + 4,
+        left: Math.max(16, left),
+      });
+    }
+    setIsAggMenuOpen(prev => !prev);
+  };
+
   useEffect(() => {
-    const base = (activeTabTitle || 'query_result')
-      .replace(/\.sql$/i, '')
-      .replace(/[^\w\u4e00-\u9fff.-]+/g, '_')
-      .replace(/^_+|_+$/g, '') || 'query_result';
-    const ext =
-      exportFormat === 'csv' ? 'csv' : exportFormat === 'json' ? 'json' : exportFormat === 'arrow' ? 'arrow' : 'parquet';
-    setExportFileName(`${base}.${ext}`);
-  }, [activeTabTitle, exportFormat]);
+    if (!isAggMenuOpen) return;
+    const handlePointerDown = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (aggMenuRef.current?.contains(target)) return;
+      const portalEl = document.getElementById('pivot-measure-studio-portal');
+      if (portalEl?.contains(target)) return;
+      setIsAggMenuOpen(false);
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsAggMenuOpen(false);
+    };
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isAggMenuOpen]);
+  const pivotInitializedRef = useRef<boolean>(false);
 
   // Cell Context Menu
   const [cellMenu, setCellMenu] = useState<{
@@ -857,14 +877,13 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
         setChartSeries(CHART_SERIES_NONE);
       }
 
-      if (!pivotRowCol || !columns.includes(pivotRowCol)) setPivotRowCol(columns[0]);
-      if (!pivotColCol || !columns.includes(pivotColCol)) setPivotColCol(columns.length > 1 ? columns[1] : columns[0]);
-      if (!pivotValCol || !columns.includes(pivotValCol)) {
-        const numCol = columns.find(c => {
-          const t = (result?.columnTypeMap?.[c] || '').toUpperCase();
-          return t.includes('INT') || t.includes('DECIMAL') || t.includes('FLOAT') || t.includes('DOUBLE') || c.includes('额') || c.includes('数') || c.includes('量') || c.includes('amount');
-        }) || columns[columns.length - 1];
-        setPivotValCol(numCol);
+      if (!pivotInitializedRef.current) {
+        // 默认行维度、列维度、值均保持为空（无）
+        pivotInitializedRef.current = true;
+      } else {
+        if (pivotRowCol && !columns.includes(pivotRowCol)) setPivotRowCol('');
+        if (pivotColCol && !columns.includes(pivotColCol)) setPivotColCol('');
+        if (pivotValCol && !columns.includes(pivotValCol)) setPivotValCol('');
       }
     }
   }, [columns, result]);
@@ -960,11 +979,12 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
       const startedAt = performance.now();
       setLoadingExplain(true);
       duckDBService
-        .getExplainPlan(sql, explainAnalyzeMode)
+        .getStructuredExplainPlan(sql, explainAnalyzeMode)
         .then(res => {
           if (cancelled || gen !== explainFetchGenRef.current) return;
           const text = res.planText || '';
           setLiveExplainPlan(text);
+          setLiveExplainJson(res.jsonPlan || null);
           setPlanSourceSql(sql);
           setPlanFetchedAt(Date.now());
           setExplainPlanMs(performance.now() - startedAt);
@@ -997,261 +1017,6 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
     };
   }, [activeSubTab, activeTabSql, explainAnalyzeMode]);
 
-  // Dynamic Chart Data — supports series split + absolute/% value mode
-  const dynamicChartData = useMemo(() => {
-    type AggCell = { sum: number; count: number; min: number; max: number };
-    const palette = MONOKAI_CHART_PALETTE;
-    const mono = '#66d9ef';
-    const round2 = (n: number) => Math.round(n * 100) / 100;
-    const metricOf = (cell: AggCell) => {
-      if (chartAgg === 'count') return cell.count;
-      if (chartAgg === 'avg') return cell.count === 0 ? 0 : cell.sum / cell.count;
-      if (chartAgg === 'min') return Number.isFinite(cell.min) ? cell.min : 0;
-      if (chartAgg === 'max') return Number.isFinite(cell.max) ? cell.max : 0;
-      return cell.sum;
-    };
-    const bump = (map: Map<string, AggCell>, key: string, yVal: number) => {
-      const prev = map.get(key);
-      if (!prev) {
-        map.set(key, { sum: yVal, count: 1, min: yVal, max: yVal });
-      } else {
-        map.set(key, {
-          sum: prev.sum + yVal,
-          count: prev.count + 1,
-          min: Math.min(prev.min, yVal),
-          max: Math.max(prev.max, yVal),
-        });
-      }
-    };
-    const toShare = (values: number[], totals?: number[]) =>
-      values.map((v, i) => {
-        const den = totals ? (totals[i] || 1) : (values.reduce((a, b) => a + Math.abs(b), 0) || 1);
-        return round2((v / den) * 100);
-      });
-    const sortPairs = (pairs: Array<readonly [string, number]>) => {
-      let next = [...pairs].sort((a, b) => {
-        if (chartSort === 'value_asc') return a[1] - b[1];
-        if (chartSort === 'value_desc') return b[1] - a[1];
-        if (chartSort === 'label_asc') return a[0].localeCompare(b[0], 'zh-CN');
-        return b[0].localeCompare(a[0], 'zh-CN');
-      });
-      if (chartSort === 'label_asc' || chartSort === 'label_desc') {
-        const byValue = [...next].sort((a, b) => Math.abs(b[1]) - Math.abs(a[1])).slice(0, chartTopN);
-        next = byValue.sort((a, b) =>
-          chartSort === 'label_asc' ? a[0].localeCompare(b[0], 'zh-CN') : b[0].localeCompare(a[0], 'zh-CN')
-        );
-      } else {
-        next = next.slice(0, chartTopN);
-      }
-      return next;
-    };
-
-    if (rawRows.length === 0 || !chartXAxis || !chartYAxis) {
-      return {
-        labels: ['无数据'],
-        datasets: [{ label: '暂无数据', data: [0], backgroundColor: ['#75715e'] }],
-      };
-    }
-
-    if (chartType === 'scatter') {
-      const points = rawRows
-        .map(r => {
-          const xRaw = r[chartXAxis];
-          const yRaw = r[chartYAxis];
-          const x = typeof xRaw === 'number' ? xRaw : parseFloat(String(xRaw));
-          const y = typeof yRaw === 'number' ? yRaw : parseFloat(String(yRaw));
-          if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
-          return { x, y };
-        })
-        .filter((p): p is { x: number; y: number } => p != null)
-        .slice(0, Math.max(chartTopN * 8, 200));
-
-      return {
-        datasets: [
-          {
-            label: `${chartYAxis} vs ${chartXAxis}`,
-            data: points,
-            backgroundColor: 'rgba(102, 217, 239, 0.65)',
-            borderColor: mono,
-            borderWidth: 1,
-            pointRadius: 4,
-            pointHoverRadius: 6,
-          },
-        ],
-      };
-    }
-
-    const seriesLabelBase = `${chartAgg.toUpperCase()}(${chartYAxis})${chartValueMode === 'percent' ? ' %' : ''}`;
-
-    // Multi-series: X × Series → multiple datasets (stacked for bar/column/area)
-    if (chartSeriesActive) {
-      const cellMap = new Map<string, AggCell>();
-      const xTotals = new Map<string, number>();
-      const seriesTotals = new Map<string, number>();
-
-      for (const r of rawRows) {
-        const xKey = r[chartXAxis] == null ? '(NULL)' : String(r[chartXAxis]);
-        const sKey = r[chartSeries] == null ? '(NULL)' : String(r[chartSeries]);
-        const rawY = r[chartYAxis];
-        const yVal = typeof rawY === 'number' ? rawY : parseFloat(String(rawY)) || 0;
-        const cellKey = `${xKey}\u0001${sKey}`;
-        bump(cellMap, cellKey, yVal);
-      }
-
-      for (const [cellKey, cell] of cellMap.entries()) {
-        const [xKey, sKey] = cellKey.split('\u0001');
-        const m = metricOf(cell);
-        xTotals.set(xKey, (xTotals.get(xKey) || 0) + Math.abs(m));
-        seriesTotals.set(sKey, (seriesTotals.get(sKey) || 0) + Math.abs(m));
-      }
-
-      const xRanked = sortPairs(Array.from(xTotals.entries()).map(([k, v]) => [k, v] as const));
-      const labels = xRanked.map(([k]) => k);
-
-      let seriesKeys = Array.from(seriesTotals.entries())
-        .sort((a, b) => b[1] - a[1])
-        .map(([k]) => k)
-        .slice(0, 12);
-      if (seriesKeys.length === 0) seriesKeys = ['(NULL)'];
-
-      const categoryTotals = labels.map(xKey => {
-        let t = 0;
-        for (const sKey of seriesKeys) {
-          const cell = cellMap.get(`${xKey}\u0001${sKey}`);
-          if (cell) t += Math.abs(metricOf(cell));
-        }
-        return t || 1;
-      });
-
-      const datasets = seriesKeys.map((sKey, si) => {
-        const color = chartColorMode === 'mono' ? mono : palette[si % palette.length];
-        let data = labels.map(xKey => {
-          const cell = cellMap.get(`${xKey}\u0001${sKey}`);
-          return cell ? round2(metricOf(cell)) : 0;
-        });
-        if (chartValueMode === 'percent') {
-          data = toShare(data, categoryTotals);
-        }
-
-        if (chartType === 'line' || chartType === 'area') {
-          return {
-            label: sKey,
-            data,
-            backgroundColor: chartType === 'area' ? `${color}38` : `${color}14`,
-            borderColor: color,
-            borderWidth: 2,
-            fill: chartType === 'area',
-            tension: 0.35,
-            pointBackgroundColor: color,
-            pointBorderColor: 'var(--monokai-bg)',
-            pointBorderWidth: 2,
-            pointRadius: labels.length > 20 ? 2 : 3,
-            pointHoverRadius: 5,
-          };
-        }
-
-        return {
-          label: sKey,
-          data,
-          backgroundColor: chartColorMode === 'mono' ? `${color}99` : `${color}cc`,
-          borderColor: color,
-          borderWidth: 1,
-          borderRadius: 3,
-          stack: 'series',
-        };
-      });
-
-      return { labels, datasets };
-    }
-
-    const groupMap = new Map<string, AggCell>();
-    for (const r of rawRows) {
-      const xKey = r[chartXAxis] == null ? '(NULL)' : String(r[chartXAxis]);
-      const rawY = r[chartYAxis];
-      const yVal = typeof rawY === 'number' ? rawY : parseFloat(String(rawY)) || 0;
-      bump(groupMap, xKey, yVal);
-    }
-
-    let pairs = sortPairs(
-      Array.from(groupMap.entries()).map(([key, cell]) => [key, round2(metricOf(cell))] as const)
-    );
-
-    const labels = pairs.map(s => s[0]);
-    let values = pairs.map(s => s[1]);
-    if (chartValueMode === 'percent') {
-      values = toShare(values);
-    }
-
-    const colors =
-      chartColorMode === 'mono'
-        ? labels.map(() => mono)
-        : labels.map((_, i) => palette[i % palette.length]);
-
-    if (chartType === 'line' || chartType === 'area') {
-      return {
-        labels,
-        datasets: [
-          {
-            label: seriesLabelBase,
-            data: values,
-            backgroundColor: chartType === 'area' ? 'rgba(102, 217, 239, 0.22)' : 'rgba(102, 217, 239, 0.08)',
-            borderColor: mono,
-            borderWidth: 2,
-            fill: chartType === 'area',
-            tension: 0.35,
-            pointBackgroundColor: mono,
-            pointBorderColor: 'var(--monokai-bg)',
-            pointBorderWidth: 2,
-            pointRadius: labels.length > 20 ? 2 : 4,
-            pointHoverRadius: 6,
-          },
-        ],
-      };
-    }
-
-    if (isCircularChart(chartType)) {
-      return {
-        labels,
-        datasets: [
-          {
-            label: seriesLabelBase,
-            data: values,
-            backgroundColor: colors,
-            borderColor: 'var(--monokai-bg)',
-            borderWidth: 2,
-            hoverOffset: 6,
-          },
-        ],
-      };
-    }
-
-    return {
-      labels,
-      datasets: [
-        {
-          label: seriesLabelBase,
-          data: values,
-          backgroundColor: colors.map(c => (chartColorMode === 'mono' ? `${c}99` : `${c}cc`)),
-          borderColor: colors,
-          borderWidth: 1,
-          borderRadius: 4,
-        },
-      ],
-    };
-  }, [
-    rawRows,
-    chartXAxis,
-    chartYAxis,
-    chartSeries,
-    chartSeriesActive,
-    chartType,
-    chartAgg,
-    chartTopN,
-    chartSort,
-    chartColorMode,
-    chartValueMode,
-  ]);
-
   const handleChartTypeChange = (next: ChartKind) => {
     setChartType(next);
     if (!usesSeriesEncoding(next)) {
@@ -1277,14 +1042,16 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
     setChartYAxis(chartXAxis);
   };
 
-  const handleExportChartPng = () => {
-    const chart = chartCanvasRef.current;
-    if (!chart || rawRows.length === 0) {
+  const handleExportChartPng = async () => {
+    const element = chartHostRef.current;
+    if (!element || !element.querySelector('canvas') || rawRows.length === 0) {
       toastService.info('当前没有可导出的图表');
       return;
     }
     try {
-      const url = chart.toBase64Image('image/png', 1);
+      const url = (await (await import('html2canvas')).default(element, {
+        scale: 2, backgroundColor: '#1e1f1c', onclone: document => expandChartExport(document, element),
+      })).toDataURL('image/png');
       const a = document.createElement('a');
       a.href = url;
       a.download = `duckdb-chart-${chartType}-${Date.now()}.png`;
@@ -1293,179 +1060,6 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
     } catch {
       toastService.error('图表导出失败');
     }
-  };
-
-  // Dynamic Pivot Matrix computed from rawRows
-  const dynamicPivotMatrix = useMemo(() => {
-    if (rawRows.length === 0 || !pivotRowCol || !pivotValCol) {
-      return null;
-    }
-
-    const sameDim = Boolean(pivotColCol && pivotColCol === pivotRowCol);
-    const hasCol = Boolean(pivotColCol && !sameDim);
-    const rowKeysSet = new Set<string>();
-    const colKeysSet = new Set<string>();
-    const matrix: Record<string, { sum: number; count: number }> = {};
-    const rowAcc: Record<string, { sum: number; count: number }> = {};
-    const colAcc: Record<string, { sum: number; count: number }> = {};
-    let grandSum = 0;
-    let grandCount = 0;
-
-    for (const r of rawRows) {
-      const rKey = r[pivotRowCol] == null ? '(NULL)' : String(r[pivotRowCol]);
-      const cKey = hasCol ? (r[pivotColCol] == null ? '(NULL)' : String(r[pivotColCol])) : '汇总';
-      const rawVal = r[pivotValCol];
-      const val = typeof rawVal === 'number' ? rawVal : parseFloat(String(rawVal)) || 0;
-
-      rowKeysSet.add(rKey);
-      colKeysSet.add(cKey);
-
-      const cellKey = `${rKey}___${cKey}`;
-      if (!matrix[cellKey]) matrix[cellKey] = { sum: 0, count: 0 };
-      matrix[cellKey].sum += val;
-      matrix[cellKey].count += 1;
-
-      if (!rowAcc[rKey]) rowAcc[rKey] = { sum: 0, count: 0 };
-      rowAcc[rKey].sum += val;
-      rowAcc[rKey].count += 1;
-
-      if (!colAcc[cKey]) colAcc[cKey] = { sum: 0, count: 0 };
-      colAcc[cKey].sum += val;
-      colAcc[cKey].count += 1;
-
-      grandSum += val;
-      grandCount += 1;
-    }
-
-    const allRowKeys = Array.from(rowKeysSet);
-    const allColKeys = Array.from(colKeysSet);
-    const truncatedRows = allRowKeys.length > PIVOT_MAX_ROW_KEYS;
-    const truncatedCols = allColKeys.length > PIVOT_MAX_COL_KEYS;
-    const rowKeys = allRowKeys.slice(0, PIVOT_MAX_ROW_KEYS);
-    const colKeys = allColKeys.slice(0, PIVOT_MAX_COL_KEYS);
-
-    const rowTotals: Record<string, number | null> = {};
-    const colTotals: Record<string, number | null> = {};
-    for (const rKey of rowKeys) {
-      rowTotals[rKey] = resolvePivotAggValue(rowAcc[rKey], pivotAgg);
-    }
-    for (const cKey of colKeys) {
-      colTotals[cKey] = resolvePivotAggValue(colAcc[cKey], pivotAgg);
-    }
-    const grandTotal = resolvePivotAggValue(
-      grandCount > 0 ? { sum: grandSum, count: grandCount } : undefined,
-      pivotAgg,
-    );
-
-    return {
-      rowKeys,
-      colKeys,
-      matrix,
-      rowTotals,
-      colTotals,
-      grandTotal,
-      grandCount,
-      sameDim,
-      hasCol,
-      truncatedRows,
-      truncatedCols,
-      totalRowKeys: allRowKeys.length,
-      totalColKeys: allColKeys.length,
-    };
-  }, [rawRows, pivotRowCol, pivotColCol, pivotValCol, pivotAgg]);
-
-  const pivotColWidths = useMemo(() => {
-    if (!dynamicPivotMatrix) {
-      return { corner: 120, cols: {} as Record<string, number>, total: 96, table: 120 };
-    }
-    const { rowKeys, colKeys, matrix, rowTotals, colTotals, grandTotal } = dynamicPivotMatrix;
-    const aggLabel = `${pivotAgg.toUpperCase()}(${pivotValCol})`;
-    const cornerLabel = `${pivotRowCol} \\ ${pivotColCol || '—'} · ${aggLabel}`;
-    const corner = Math.max(
-      120,
-      Math.round(measureSansPx(cornerLabel, 12, 700) + 28),
-      ...rowKeys.map(r => Math.round(measureSansPx(String(r), 12, 600) + 28)),
-      Math.round(measureSansPx('总计', 12, 700) + 28),
-    );
-
-    const cols: Record<string, number> = {};
-    for (const cKey of colKeys) {
-      const headerNeed = Math.round(measureSansPx(String(cKey), 12, 600) + 28);
-      let maxContent = Math.round(measureSansPx('—', 12, 400) + 28);
-      for (const rKey of rowKeys) {
-        const text = formatPivotNumber(resolvePivotAggValue(matrix[`${rKey}___${cKey}`], pivotAgg));
-        maxContent = Math.max(maxContent, Math.round(measureSansPx(text, 12, 400) + 28));
-      }
-      maxContent = Math.max(maxContent, Math.round(measureSansPx(formatPivotNumber(colTotals[cKey] ?? null), 12, 700) + 28));
-      cols[cKey] = Math.max(72, Math.min(280, Math.max(headerNeed, maxContent)));
-    }
-
-    const totalHeader = Math.round(measureSansPx('总计', 12, 700) + 28);
-    let totalContent = totalHeader;
-    for (const rKey of rowKeys) {
-      totalContent = Math.max(totalContent, Math.round(measureSansPx(formatPivotNumber(rowTotals[rKey] ?? null), 12, 600) + 28));
-    }
-    totalContent = Math.max(totalContent, Math.round(measureSansPx(formatPivotNumber(grandTotal), 12, 700) + 28));
-    const total = Math.max(88, Math.min(200, totalContent));
-    const table = corner + colKeys.reduce((sum, k) => sum + (cols[k] || 96), 0) + total;
-    return { corner, cols, total, table };
-  }, [dynamicPivotMatrix, pivotRowCol, pivotColCol, pivotValCol, pivotAgg]);
-
-  const handleSwapPivotAxes = () => {
-    if (!pivotRowCol || !pivotColCol) {
-      toastService.info('请先选择行维度与列维度');
-      return;
-    }
-    if (pivotRowCol === pivotColCol) {
-      toastService.info('行与列维度相同，无需互换');
-      return;
-    }
-    setPivotRowCol(pivotColCol);
-    setPivotColCol(pivotRowCol);
-  };
-
-  const pivotSqlPreview = useMemo(() => {
-    if (!pivotRowCol || !pivotValCol) return '';
-    const baseSql = activeTabSql?.replace(/;\s*$/, '') || 'SELECT * FROM result';
-    const indented = baseSql.replace(/\n/g, '\n    ');
-    const aggFn = pivotAgg.toUpperCase();
-    const sameDim = Boolean(pivotColCol && pivotColCol === pivotRowCol);
-    const hasCol = Boolean(pivotColCol && !sameDim);
-    if (hasCol) {
-      return `SELECT\n    ${pivotRowCol},\n    ${pivotColCol},\n    ${aggFn}(${pivotValCol}) AS ${aggFn.toLowerCase()}_${pivotValCol}\nFROM (\n    ${indented}\n)\nGROUP BY\n    ${pivotRowCol},\n    ${pivotColCol};`;
-    }
-    return `SELECT\n    ${pivotRowCol},\n    ${aggFn}(${pivotValCol}) AS ${aggFn.toLowerCase()}_${pivotValCol}\nFROM (\n    ${indented}\n)\nGROUP BY\n    ${pivotRowCol};`;
-  }, [activeTabSql, pivotRowCol, pivotColCol, pivotValCol, pivotAgg]);
-
-  const handleGeneratePivotSql = () => {
-    if (!pivotRowCol || !pivotValCol) {
-      toastService.info('请先配置行维度与值字段');
-      return;
-    }
-    if (onApplyAggregateToSql) {
-      onApplyAggregateToSql(pivotSqlPreview, `透视 ${pivotAgg.toUpperCase()}(${pivotValCol})`, true);
-      toastService.success('已生成透视 SQL 并打开新查询标签');
-    } else {
-      navigator.clipboard.writeText(pivotSqlPreview);
-      toastService.success('已复制透视 SQL');
-    }
-  };
-
-  const handleCopyPivotMatrix = () => {
-    if (!dynamicPivotMatrix || dynamicPivotMatrix.rowKeys.length === 0) {
-      toastService.info('当前无透视矩阵可复制');
-      return;
-    }
-    const { rowKeys, colKeys, matrix, rowTotals, colTotals, grandTotal } = dynamicPivotMatrix;
-    const header = [`${pivotRowCol}\\${pivotColCol || '汇总'}`, ...colKeys, '总计'];
-    const lines = [header.join('\t')];
-    for (const rKey of rowKeys) {
-      const cells = colKeys.map(cKey => formatPivotNumber(resolvePivotAggValue(matrix[`${rKey}___${cKey}`], pivotAgg)));
-      lines.push([rKey, ...cells, formatPivotNumber(rowTotals[rKey] ?? null)].join('\t'));
-    }
-    lines.push(['总计', ...colKeys.map(cKey => formatPivotNumber(colTotals[cKey] ?? null)), formatPivotNumber(grandTotal)].join('\t'));
-    navigator.clipboard.writeText(lines.join('\n'));
-    toastService.success('已复制透视矩阵 (TSV)');
   };
 
   const totalRowCount = result?.totalRows ?? rawRows.length;
@@ -1590,6 +1184,253 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
 
     return list;
   }, [rawRows, filterRules, tableSearch, effectiveSortRules, sortRules]);
+
+  const effectivePivotRow = pivotRowCol || '汇总范围';
+  const effectivePivotCol = pivotColCol || '';
+  const effectivePivotVal = pivotValCol || '记录数';
+  const effectivePivotAgg = pivotValCol ? pivotAgg : 'count';
+
+  const isSelectedValNumeric = useMemo(() => {
+    if (!pivotValCol) return false;
+    const type = (result?.columnTypeMap?.[pivotValCol] || '').toUpperCase();
+    if (type.includes('INT') || type.includes('DECIMAL') || type.includes('FLOAT') || type.includes('DOUBLE') || type.includes('NUMERIC')) {
+      return true;
+    }
+    for (const r of filteredRows.slice(0, 10)) {
+      const v = r[pivotValCol];
+      if (v != null && typeof v === 'number') return true;
+    }
+    return false;
+  }, [pivotValCol, result, filteredRows]);
+
+  const preparedPivotRows = useMemo(() => {
+    if (!filteredRows.length) return [];
+    if (pivotRowCol && pivotValCol) return filteredRows;
+    return filteredRows.map(r => {
+      const copy: Record<string, unknown> = { ...r };
+      if (!pivotRowCol) copy[effectivePivotRow] = '全部';
+      if (!pivotValCol) copy[effectivePivotVal] = 1;
+      return copy;
+    });
+  }, [filteredRows, pivotRowCol, pivotValCol, effectivePivotRow, effectivePivotVal]);
+
+  const formatPivotNumber = (value: number | string | null) => {
+    if (pivotShowAs !== 'raw') {
+      return formatValueBySpec(value, {
+        unit: '%',
+        decimals: pivotDecimals,
+        compact: false,
+        percent: false,
+      });
+    }
+    const isCount = effectivePivotAgg === 'count' || effectivePivotAgg === 'count_distinct';
+    return formatValueBySpec(value, {
+      unit: isCount ? '个' : inferChartUnit(pivotValCol),
+      decimals: isCount ? 0 : pivotDecimals,
+      compact: false,
+      thousandSeparator: true,
+    });
+  };
+
+  const rawPivotSpec = useMemo(() => {
+    if (!preparedPivotRows.length) {
+      return widgetRowsToChartSpec([], {
+        id:'sql-result-pivot',title:'透视表',type:'pivot',xKey:effectivePivotRow,yKeys:[effectivePivotVal],rowKey:effectivePivotRow,colKey:effectivePivotCol,valKey:effectivePivotVal,
+        aggFunc:effectivePivotAgg,unit:['count','count_distinct'].includes(effectivePivotAgg)?'个':inferChartUnit(pivotValCol),format:{compact:false,thousandSeparator:true,decimals:['count','count_distinct'].includes(effectivePivotAgg)?0:pivotDecimals},
+      });
+    }
+    return widgetRowsToChartSpec(preparedPivotRows, {
+      id:'sql-result-pivot',title:'透视表',type:'pivot',xKey:effectivePivotRow,yKeys:[effectivePivotVal],rowKey:effectivePivotRow,colKey:effectivePivotCol,valKey:effectivePivotVal,
+      aggFunc:effectivePivotAgg,unit:['count','count_distinct'].includes(effectivePivotAgg)?'个':inferChartUnit(pivotValCol),format:{compact:false,thousandSeparator:true,decimals:['count','count_distinct'].includes(effectivePivotAgg)?0:pivotDecimals},
+    });
+  }, [preparedPivotRows, effectivePivotRow, effectivePivotCol, effectivePivotVal, effectivePivotAgg, pivotValCol, pivotDecimals]);
+
+  const dynamicPivotMatrix = useMemo(() => {
+    if (!filteredRows.length) return null;
+    const sameDim = Boolean(pivotColCol && pivotRowCol && pivotColCol === pivotRowCol);
+    const hasCol = Boolean(pivotColCol && !sameDim);
+    const baseTable = rawPivotSpec.pivotTable;
+    if (!baseTable) return null;
+
+    if (pivotShowAs === 'raw') {
+      return {
+        ...baseTable, sameDim, hasCol,
+        rowKeys: baseTable.rowValues, colKeys: baseTable.colValues,
+        truncatedRows: false, truncatedCols: false,
+        totalRowKeys: baseTable.rowValues.length, totalColKeys: baseTable.colValues.length,
+      };
+    }
+
+    const { rowValues, colValues, matrix: rawMatrix, rowTotals: rawRowTotals, colTotals: rawColTotals, grandTotal: rawGrandTotal } = baseTable;
+    const grandNum = Number(rawGrandTotal) || 0;
+
+    const transformedMatrix: Record<string, Record<string, number | string>> = Object.create(null);
+    const transformedRowTotals: Record<string, number | string> = Object.create(null);
+    const transformedColTotals: Record<string, number | string> = Object.create(null);
+
+    for (const r of rowValues) {
+      transformedMatrix[r] = Object.create(null);
+      const rowSum = Number(rawRowTotals[r]) || 0;
+      for (const c of colValues) {
+        const cellRaw = rawMatrix[r]?.[c];
+        if (cellRaw == null || cellRaw === '') continue;
+        const cellNum = Number(cellRaw);
+        if (Number.isNaN(cellNum)) continue;
+
+        let pct: number | null = null;
+        if (pivotShowAs === 'percent_total') {
+          pct = grandNum ? (cellNum / grandNum) * 100 : 0;
+        } else if (pivotShowAs === 'percent_row') {
+          pct = rowSum ? (cellNum / rowSum) * 100 : 0;
+        } else if (pivotShowAs === 'percent_col') {
+          const colSum = Number(rawColTotals[c]) || 0;
+          pct = colSum ? (cellNum / colSum) * 100 : 0;
+        }
+        if (pct != null) {
+          transformedMatrix[r][c] = Number(pct.toFixed(pivotDecimals));
+        }
+      }
+
+      if (pivotShowAs === 'percent_total') {
+        transformedRowTotals[r] = grandNum ? Number(((rowSum / grandNum) * 100).toFixed(pivotDecimals)) : 0;
+      } else if (pivotShowAs === 'percent_row') {
+        transformedRowTotals[r] = 100;
+      } else {
+        transformedRowTotals[r] = rawRowTotals[r];
+      }
+    }
+
+    for (const c of colValues) {
+      const colSum = Number(rawColTotals[c]) || 0;
+      if (pivotShowAs === 'percent_total') {
+        transformedColTotals[c] = grandNum ? Number(((colSum / grandNum) * 100).toFixed(pivotDecimals)) : 0;
+      } else if (pivotShowAs === 'percent_col') {
+        transformedColTotals[c] = 100;
+      } else {
+        transformedColTotals[c] = rawColTotals[c];
+      }
+    }
+
+    const transformedGrandTotal = pivotShowAs === 'percent_total' ? 100 : rawGrandTotal;
+
+    return {
+      ...baseTable, sameDim, hasCol,
+      matrix: transformedMatrix,
+      rowTotals: transformedRowTotals,
+      colTotals: transformedColTotals,
+      grandTotal: transformedGrandTotal,
+      rowKeys: rowValues,
+      colKeys: colValues,
+      truncatedRows: false,
+      truncatedCols: false,
+      totalRowKeys: rowValues.length,
+      totalColKeys: colValues.length,
+    };
+  }, [filteredRows, pivotRowCol, pivotColCol, rawPivotSpec, pivotShowAs, pivotDecimals]);
+
+  const pivotSpec = useMemo(() => {
+    if (!dynamicPivotMatrix) return rawPivotSpec;
+    const isPct = pivotShowAs !== 'raw';
+    return {
+      ...rawPivotSpec,
+      format: {
+        unit: isPct ? '%' : (['count', 'count_distinct'].includes(effectivePivotAgg) ? '个' : inferChartUnit(pivotValCol)),
+        decimals: isPct ? pivotDecimals : (['count', 'count_distinct'].includes(effectivePivotAgg) ? 0 : pivotDecimals),
+        thousandSeparator: true,
+        percent: false,
+      },
+      pivotTable: {
+        ...dynamicPivotMatrix,
+        rowKey: effectivePivotRow,
+        colKey: effectivePivotCol,
+        valKey: effectivePivotVal,
+        aggregation: effectivePivotAgg,
+        rowValues: dynamicPivotMatrix.rowKeys,
+        colValues: dynamicPivotMatrix.colKeys,
+      },
+    };
+  }, [rawPivotSpec, dynamicPivotMatrix, pivotShowAs, pivotDecimals, effectivePivotAgg, pivotValCol, effectivePivotRow, effectivePivotCol, effectivePivotVal]);
+
+  const handleSwapPivotAxes = () => {
+    if (!pivotRowCol && !pivotColCol) {
+      toastService.info('行与列维度均为空，无需互换');
+      return;
+    }
+    if (pivotRowCol === pivotColCol) {
+      toastService.info('行与列维度相同，无需互换');
+      return;
+    }
+    setPivotRowCol(pivotColCol);
+    setPivotColCol(pivotRowCol);
+  };
+
+  const pivotSqlPreview = useMemo(() => {
+    const baseSql = activeTabSql?.replace(/;\s*$/, '') || 'SELECT * FROM result';
+    const indented = baseSql.replace(/\n/g, '\n    ');
+    const aggFn = (pivotValCol ? pivotAgg : 'count').toUpperCase();
+    const metricExpr = pivotValCol ? `${aggFn}(${pivotValCol})` : 'COUNT(*)';
+    const metricAlias = pivotValCol ? `${aggFn.toLowerCase()}_${pivotValCol}` : 'record_count';
+    const sameDim = Boolean(pivotColCol && pivotRowCol && pivotColCol === pivotRowCol);
+    const hasCol = Boolean(pivotColCol && !sameDim);
+    const hasRow = Boolean(pivotRowCol);
+
+    if (hasRow && hasCol) {
+      return `SELECT\n    ${pivotRowCol},\n    ${pivotColCol},\n    ${metricExpr} AS ${metricAlias}\nFROM (\n    ${indented}\n)\nGROUP BY\n    ${pivotRowCol},\n    ${pivotColCol};`;
+    } else if (hasRow) {
+      return `SELECT\n    ${pivotRowCol},\n    ${metricExpr} AS ${metricAlias}\nFROM (\n    ${indented}\n)\nGROUP BY\n    ${pivotRowCol};`;
+    } else if (hasCol) {
+      return `SELECT\n    ${pivotColCol},\n    ${metricExpr} AS ${metricAlias}\nFROM (\n    ${indented}\n)\nGROUP BY\n    ${pivotColCol};`;
+    } else {
+      return `SELECT\n    ${metricExpr} AS ${metricAlias}\nFROM (\n    ${indented}\n);`;
+    }
+  }, [activeTabSql, pivotRowCol, pivotColCol, pivotValCol, pivotAgg]);
+
+  const handleGeneratePivotSql = () => {
+    if (!pivotRowCol || !pivotValCol) {
+      toastService.info('请先配置行维度与值字段');
+      return;
+    }
+    if (onApplyAggregateToSql) {
+      onApplyAggregateToSql(pivotSqlPreview, `透视 ${pivotAgg.toUpperCase()}(${pivotValCol})`, true);
+      toastService.success('已生成透视 SQL 并打开新查询标签');
+    } else {
+      navigator.clipboard.writeText(pivotSqlPreview);
+      toastService.success('已复制透视 SQL');
+    }
+  };
+
+  const handleCopyPivotMatrix = () => {
+    if (!dynamicPivotMatrix || dynamicPivotMatrix.rowKeys.length === 0) {
+      toastService.info('当前无透视矩阵可复制');
+      return;
+    }
+    const { rowKeys, colKeys, matrix, rowTotals, colTotals, grandTotal } = dynamicPivotMatrix;
+    const header = [`${pivotRowCol}\\${pivotColCol || '汇总'}`, ...colKeys, '总计'];
+    const lines = [header.join('\t')];
+    for (const rKey of rowKeys) {
+      const cells = colKeys.map(cKey => formatPivotNumber(matrix[rKey]?.[cKey] ?? null));
+      lines.push([rKey, ...cells, formatPivotNumber(rowTotals[rKey] ?? null)].join('\t'));
+    }
+    lines.push(['总计', ...colKeys.map(cKey => formatPivotNumber(colTotals[cKey] ?? null)), formatPivotNumber(grandTotal)].join('\t'));
+    navigator.clipboard.writeText(lines.join('\n'));
+    toastService.success('已复制透视矩阵 (TSV)');
+  };
+
+  const resultChartConfig: ChartConfig = {
+    id: 'sql-result', title: `${chartYAxis} by ${chartXAxis}`,
+    type: chartType === 'column' ? 'bar' : chartType,
+    xKey: chartXAxis, yKeys: [chartYAxis], aggregation: chartAgg,
+    horizontal: chartType === 'bar', groupBy: chartSeriesActive ? chartSeries : undefined,
+    categorySort: chartSort, topN: chartType === 'scatter' ? undefined : chartTopN,
+    showLegend: chartLegend !== 'hidden', legendPosition: chartLegend === 'hidden' ? 'bottom' : chartLegend,
+    showValues: chartShowLabels, labelMode: chartShowLabels ? 'auto' : 'never',
+    stackMode: chartSeriesActive && ['bar', 'column', 'area'].includes(chartType)
+      ? (chartValueMode === 'percent' ? 'percent' : 'stack') : 'none',
+    valueMode: chartValueMode, missingValue: 'break',
+    colors: chartColorMode === 'mono' ? ['#66d9ef'] : undefined,
+    format: chartValueMode === 'percent' ? { unit: '%', percent: true } : undefined,
+  };
+  const resultChartSpec = widgetRowsToChartSpec(filteredRows, resultChartConfig);
 
   const totalFilteredCount = filteredRows.length;
   const totalPages = Math.max(1, Math.ceil(totalFilteredCount / pageSize));
@@ -1934,28 +1775,22 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
     }
   };
 
+  const exportHandler = exportFormat === 'csv' ? onExportCsv : exportFormat === 'json' ? onExportJson : exportFormat === 'parquet' ? onExportParquet : undefined;
   const handleExecuteExport = () => {
+    if (!exportHandler || rawRows.length === 0) return;
     setShowExportModal(false);
-    if (exportFormat === 'csv') {
-      onExportCsv?.();
-    } else if (exportFormat === 'parquet') {
-      onExportParquet?.();
-    } else if (exportFormat === 'json') {
-      onExportJson?.();
-    } else {
-      toastService.success(`已导出 ${exportFileName}`);
-    }
+    exportHandler();
   };
 
   return (
-    <div className={`flex h-full w-full flex-col bg-monokai-bg select-none text-monokai-fg font-sans ${isFullscreen ? 'fixed inset-0 z-50 bg-monokai-bg shadow-2xl p-2' : ''}`}>
+    <div className={`flex h-full w-full min-h-0 flex-col overflow-auto bg-monokai-bg select-none text-monokai-fg font-sans ${isFullscreen ? 'fixed inset-0 z-50 bg-monokai-bg shadow-2xl p-2' : ''}`}>
       {/* 1. Unified Result Header (h-11: 44px) - Clean Segmented Pill & Focused Actions */}
-      <div className="flex h-11 shrink-0 items-center justify-between border-b border-monokai-border bg-gradient-to-b from-monokai-surface/95 via-monokai-surface/85 to-monokai-surface/70 px-3 gap-3 text-xs select-none relative z-10 font-sans">
+      <div className="flex min-h-11 flex-wrap py-1 whitespace-nowrap shrink-0 items-center justify-between border-b border-monokai-border bg-gradient-to-b from-monokai-surface/95 via-monokai-surface/85 to-monokai-surface/70 px-3 gap-3 text-xs select-none relative z-10 font-sans">
         {/* Top hairline for crisp top edge with refined gradient */}
         <span className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-monokai-cyan/20 to-transparent" />
 
         {/* Left: View Mode Subtabs (Clean Segmented Pill) */}
-        <div className="flex items-center gap-2.5 min-w-0">
+        <div className="flex flex-wrap items-center gap-2.5 min-w-0 max-w-full">
           <SegmentedTabs<'data' | 'chart' | 'pivot' | 'explain'>
             aria-label="查询结果视图切换"
             value={activeSubTab}
@@ -2000,7 +1835,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
         </div>
 
         {/* Right: Focused Data Actions + Status & Metrics */}
-        <div className="flex items-center gap-2.5 shrink-0">
+        <div className="flex flex-wrap items-center gap-2.5 min-w-0 max-w-full">
           {/* MECE Action Pills — transform / aggregate / export (views live in SegmentedTabs) */}
           <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-gradient-to-b from-monokai-bg/75 to-monokai-bg/45 border border-monokai-border/75 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),inset_0_-1px_0_rgba(0,0,0,0.18),0_1px_2px_-1px_rgba(0,0,0,0.2)]">
             
@@ -2177,6 +2012,20 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
           )}
 
           {/* Column Layout Mode & Resets */}
+          {result?.executedSql && !result.error && !result.isExplain && <ActionButton size="sm" variant="primary" disabled={loading || isStale} onClick={()=>{
+            try {
+              const dataset=datasetFromQueryResult(result,result.resultId || 'result',activeTabTitle || result.queryTitle || 'SQL');
+              if(dataset.catalog!==useAppStore.getState().currentDatabase)throw new Error('查询所属数据库已变化，请重新执行');
+              openPivotAnalysis(dataset);
+            }catch(error){toastService.error(String((error as Error).message));}
+          }}>透视分析</ActionButton>}
+          {result?.executedSql && !result.error && !result.isExplain && <ActionButton size="sm" variant="secondary" disabled={loading || isStale} onClick={()=>{
+            try {
+              const dataset=datasetFromQueryResult(result,result.resultId || 'result',activeTabTitle || result.queryTitle || 'SQL');
+              if(dataset.catalog!==useAppStore.getState().currentDatabase)throw new Error('查询所属数据库已变化，请重新执行');
+              useAppStore.getState().setActiveDataset(dataset);useAppStore.getState().setActiveTab(Tab.ONTOLOGY);
+            }catch(error){toastService.error(String((error as Error).message));}
+          }}>在图谱中查看</ActionButton>}
           {activeSubTab === 'data' && columns.length > 0 && (
             <div className="hidden md:flex items-center gap-1 pl-2.5 border-l border-monokai-border/70">
               <button
@@ -2229,8 +2078,8 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
 
       {/* 3. Main Result Content Area based on Active Subtab */}
       <div
-        className={`flex-1 relative custom-scrollbar min-h-0 ${
-          activeSubTab === 'explain' ? 'overflow-hidden flex flex-col' : 'overflow-auto'
+        className={`flex-1 relative custom-scrollbar min-h-32 ${
+          activeSubTab === 'explain' || activeSubTab === 'chart' || activeSubTab === 'pivot' ? 'overflow-hidden flex flex-col' : 'overflow-auto'
         }`}
         data-testid="result-content-area"
       >
@@ -2621,16 +2470,10 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                         } else if (isTemporal) {
                           formattedVal = tUpper.includes('TIME') ? formatTimestamp(val) : formatDate(val);
                         } else if (typeof val === 'number') {
-                          const isIdCol = col.endsWith('_id') || col === 'id' || col.endsWith('Id');
-                          if (isIdCol) {
-                            formattedVal = String(Math.trunc(val));
-                          } else if (col === '营业额' || col === '客单价' || col.toLowerCase().includes('price') || col.toLowerCase().includes('revenue') || col.toLowerCase().includes('amount') || colType.includes('DECIMAL') || colType.includes('DOUBLE')) {
-                            formattedVal = val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                          } else if (Number.isInteger(val)) {
-                            formattedVal = val.toLocaleString('en-US');
-                          } else {
-                            formattedVal = Number(val.toFixed(4)).toLocaleString('en-US');
-                          }
+                          formattedVal = formatTableValue(val, col, {
+                            unit: inferChartUnit(col), compact: false, thousandSeparator: true,
+                            decimals: Number.isInteger(val) ? 0 : 2,
+                          });
                         } else {
                           formattedVal = formatCellValue(val, colType);
                         }
@@ -2685,7 +2528,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
 
         {/* Dynamic Chart View — MECE: 意图 → 形态 → 编码 → 计算/范围/呈现 */}
         {activeSubTab === 'chart' && (
-          <div className="h-full flex flex-col overflow-hidden bg-monokai-bg">
+          <div className="h-full flex flex-col overflow-auto bg-monokai-bg">
             <div className="shrink-0 border-b border-monokai-border bg-gradient-to-b from-monokai-surface/95 via-monokai-surface/85 to-monokai-surface/70 relative z-10 font-sans">
               <span className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-monokai-cyan/20 to-transparent" />
 
@@ -2731,16 +2574,55 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-gradient-to-b from-monokai-bg/85 to-monokai-bg/65 border border-monokai-border/75 font-mono shrink-0">
-                  <span className="w-1.5 h-1.5 rounded-full bg-monokai-cyan shadow-[0_0_8px_rgba(102,217,239,0.85)] animate-pulse" aria-hidden />
-                  <span className="text-2xs text-monokai-comment/65">实时</span>
-                  <span className="font-bold tabular-nums text-monokai-cyan text-2xs">{rawRows.length.toLocaleString()}</span>
-                  <span className="text-2xs text-monokai-comment/65">行</span>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    type="button"
+                    title="将当前图表保存并加入分析首页看板"
+                    onClick={async () => {
+                      const sqlText = (activeTabSql || '').trim();
+                      if (!sqlText) {
+                        toastService.warning('当前没有可保存的 SQL');
+                        return;
+                      }
+                      if (!chartXAxis || !chartYAxis) {
+                        toastService.warning('请先选择图表的 X / Y 字段');
+                        return;
+                      }
+                      const chartConfig: ChartConfig = {
+                        ...resultChartConfig, id: `wb-chart-${Date.now()}`, source: 'manual',
+                      };
+                      try {
+                        await createWidgetFromSql({
+                          name: chartConfig.title,
+                          sql: sqlText,
+                          widgetType: 'chart',
+                          chartConfig,
+                          rowCount: rawRows.length,
+                          columns,
+                          addToBoard: true,
+                        });
+                        useAppStore.getState().bumpDashboardRefresh();
+                        toastService.success('已加入分析首页看板');
+                      } catch (e: any) {
+                        toastService.error(e?.message || '加入看板失败');
+                      }
+                    }}
+                    className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-monokai-accent/40 bg-monokai-accent/10 text-monokai-accent text-2xs font-semibold hover:bg-monokai-accent/20 cursor-pointer transition-colors"
+                  >
+                    <LayoutDashboard className="w-3 h-3" />
+                    加入看板
+                  </button>
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-gradient-to-b from-monokai-bg/85 to-monokai-bg/65 border border-monokai-border/75 font-mono">
+                    <span className="w-1.5 h-1.5 rounded-full bg-monokai-cyan shadow-[0_0_8px_rgba(102,217,239,0.85)] animate-pulse" aria-hidden />
+                    <span className="text-2xs text-monokai-comment/65">实时</span>
+                    <span className="font-bold tabular-nums text-monokai-cyan text-2xs">{rawRows.length.toLocaleString()}</span>
+                    <span className="text-2xs text-monokai-comment/65">行</span>
+                  </div>
                 </div>
               </div>
 
               {/* 2. 编码 (Encoding) — field mapping only */}
-              <div className="flex h-9 items-center gap-2 px-3 border-t border-monokai-border/60 text-xs overflow-x-auto scrollbar-hide">
+              <div className="flex min-h-9 py-1 flex-wrap items-center gap-2 px-3 border-t border-monokai-border/60 text-xs overflow-visible relative z-30">
                 <span className="text-3xs font-bold uppercase tracking-[0.14em] text-monokai-comment/70 shrink-0 w-8">编码</span>
                 <label className="flex items-center gap-1.5 shrink-0">
                   <span className="text-2xs font-semibold uppercase tracking-[0.1em] text-monokai-comment">
@@ -2957,7 +2839,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
               </div>
             </div>
 
-            <div className="flex-1 min-h-0 w-full relative p-3">
+            <div className="flex-1 min-h-[360px] shrink-0 w-full relative p-3">
               {rawRows.length === 0 ? (
                 <div className="flex h-full flex-col items-center justify-center gap-2.5 rounded-lg border border-dashed border-monokai-border/70 bg-monokai-bg/40 text-xs font-sans">
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-monokai-border/80 bg-monokai-surface/80">
@@ -2969,234 +2851,8 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                   </div>
                 </div>
               ) : (
-                <div className="h-full min-h-[240px] w-full rounded-lg border border-monokai-border/70 bg-monokai-bg/50 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.025)]">
-                  {(() => {
-                    const monoTick = { size: 10, family: RESULT_MONO_FONT };
-                    const tooltipBase = {
-                      backgroundColor: '#272822',
-                      titleColor: '#f8f8f2',
-                      bodyColor: '#66d9ef',
-                      borderColor: '#3a3b36',
-                      borderWidth: 1,
-                    };
-                    const legendLabels = {
-                      color: '#f8f8f2',
-                      font: { size: 11, family: "'Noto Sans SC', 'IBM Plex Sans', sans-serif" },
-                      boxWidth: 12,
-                      boxHeight: 12,
-                    };
-                    const legendOpts = {
-                      display: chartLegend !== 'hidden',
-                      position: (chartLegend === 'bottom' ? 'bottom' : 'right') as 'bottom' | 'right',
-                      labels: legendLabels,
-                    };
-                    const formatTick = (value: any) => {
-                      const num = Number(value);
-                      if (chartValueMode === 'percent') return `${num}%`;
-                      if (Math.abs(num) >= 1_000_000) return `${(num / 1_000_000).toFixed(1)}M`;
-                      if (Math.abs(num) >= 1_000) return `${(num / 1_000).toFixed(0)}k`;
-                      return String(num);
-                    };
-                    const formatMetric = (v: number) =>
-                      chartValueMode === 'percent'
-                        ? `${Number(v).toLocaleString('en-US')}%`
-                        : Number(v).toLocaleString('en-US');
-                    const bindChartRef = (instance: ChartJS | null) => {
-                      chartCanvasRef.current = instance;
-                    };
-                    const stacked = chartSeriesActive && (chartType === 'bar' || chartType === 'column' || chartType === 'area');
-                    const datalabelsPlugin = chartShowLabels
-                      ? {
-                          datalabels: {
-                            color: '#f8f8f2',
-                            font: { size: 10, weight: 'bold' as const, family: RESULT_MONO_FONT },
-                            formatter: (v: number) => formatMetric(v),
-                            anchor: 'end' as const,
-                            align: 'end' as const,
-                            clamp: true,
-                          },
-                        }
-                      : { datalabels: { display: false } };
-
-                    if (chartType === 'pie') {
-                      return (
-                        <Pie
-                          ref={bindChartRef as any}
-                          data={dynamicChartData as any}
-                          options={{
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: {
-                              legend: legendOpts,
-                              tooltip: {
-                                ...tooltipBase,
-                                callbacks: {
-                                  label: (ctx: any) => {
-                                    if (chartValueMode === 'percent') {
-                                      return ` ${ctx.label}: ${formatMetric(Number(ctx.raw))}`;
-                                    }
-                                    const total = (ctx.dataset.data as number[]).reduce((a, b) => a + b, 0) || 1;
-                                    const pct = ((Number(ctx.raw) / total) * 100).toFixed(1);
-                                    return ` ${ctx.label}: ${Number(ctx.raw).toLocaleString('en-US')} (${pct}%)`;
-                                  },
-                                },
-                              },
-                              ...datalabelsPlugin,
-                            },
-                          }}
-                        />
-                      );
-                    }
-                    if (chartType === 'doughnut') {
-                      return (
-                        <Doughnut
-                          ref={bindChartRef as any}
-                          data={dynamicChartData as any}
-                          options={{
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            cutout: '58%',
-                            plugins: {
-                              legend: legendOpts,
-                              tooltip: {
-                                ...tooltipBase,
-                                callbacks: {
-                                  label: (ctx: any) => {
-                                    if (chartValueMode === 'percent') {
-                                      return ` ${ctx.label}: ${formatMetric(Number(ctx.raw))}`;
-                                    }
-                                    const total = (ctx.dataset.data as number[]).reduce((a, b) => a + b, 0) || 1;
-                                    const pct = ((Number(ctx.raw) / total) * 100).toFixed(1);
-                                    return ` ${ctx.label}: ${Number(ctx.raw).toLocaleString('en-US')} (${pct}%)`;
-                                  },
-                                },
-                              },
-                              ...datalabelsPlugin,
-                            },
-                          }}
-                        />
-                      );
-                    }
-                    if (chartType === 'scatter') {
-                      return (
-                        <Scatter
-                          ref={bindChartRef as any}
-                          data={dynamicChartData as any}
-                          options={{
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            scales: {
-                              x: {
-                                type: 'linear',
-                                grid: { color: 'rgba(58,59,54,0.55)' },
-                                ticks: { color: '#75715e', font: monoTick, callback: formatTick },
-                                title: { display: true, text: chartXAxis, color: '#75715e', font: { size: 11 } },
-                              },
-                              y: {
-                                type: 'linear',
-                                grid: { color: 'rgba(58,59,54,0.55)' },
-                                ticks: { color: '#75715e', font: monoTick, callback: formatTick },
-                                title: { display: true, text: chartYAxis, color: '#75715e', font: { size: 11 } },
-                              },
-                            },
-                            plugins: {
-                              legend: legendOpts,
-                              tooltip: tooltipBase,
-                              datalabels: { display: false },
-                            },
-                          }}
-                        />
-                      );
-                    }
-                    if (chartType === 'line' || chartType === 'area') {
-                      return (
-                        <Line
-                          ref={bindChartRef as any}
-                          data={dynamicChartData as any}
-                          options={{
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            scales: {
-                              x: {
-                                stacked: stacked || undefined,
-                                grid: { color: 'rgba(58,59,54,0.55)' },
-                                ticks: { color: '#f8f8f2', font: monoTick },
-                              },
-                              y: {
-                                stacked: stacked || undefined,
-                                min: chartValueMode === 'percent' ? 0 : undefined,
-                                max: chartValueMode === 'percent' && chartSeriesActive ? 100 : undefined,
-                                grid: { color: 'rgba(58,59,54,0.55)' },
-                                ticks: { color: '#75715e', font: monoTick, callback: formatTick },
-                              },
-                            },
-                            plugins: {
-                              legend: legendOpts,
-                              tooltip: {
-                                ...tooltipBase,
-                                callbacks: {
-                                  label: (ctx: any) => ` ${ctx.dataset.label}: ${formatMetric(Number(ctx.raw))}`,
-                                },
-                              },
-                              datalabels: { display: false },
-                            },
-                          }}
-                        />
-                      );
-                    }
-                    return (
-                      <Bar
-                        ref={bindChartRef as any}
-                        data={dynamicChartData as any}
-                        options={{
-                          indexAxis: chartType === 'bar' ? 'y' : 'x',
-                          responsive: true,
-                          maintainAspectRatio: false,
-                          scales: {
-                            x: {
-                              stacked: stacked || undefined,
-                              min: chartType === 'bar' && chartValueMode === 'percent' ? 0 : undefined,
-                              max: chartType === 'bar' && chartValueMode === 'percent' && chartSeriesActive ? 100 : undefined,
-                              grid: { color: chartType === 'bar' ? 'rgba(58,59,54,0.55)' : 'rgba(58,59,54,0.35)' },
-                              ticks: {
-                                color: chartType === 'bar' ? '#75715e' : '#f8f8f2',
-                                font: monoTick,
-                                callback: chartType === 'bar' ? formatTick : undefined,
-                              },
-                            },
-                            y: {
-                              stacked: stacked || undefined,
-                              min: chartType === 'column' && chartValueMode === 'percent' ? 0 : undefined,
-                              max: chartType === 'column' && chartValueMode === 'percent' && chartSeriesActive ? 100 : undefined,
-                              grid: { display: chartType !== 'bar', color: 'rgba(58,59,54,0.55)' },
-                              ticks: {
-                                color: chartType === 'bar' ? '#f8f8f2' : '#75715e',
-                                font: chartType === 'bar'
-                                  ? { size: 11, weight: 'bold' as const, family: RESULT_MONO_FONT }
-                                  : monoTick,
-                                callback: chartType === 'column' ? formatTick : undefined,
-                              },
-                            },
-                          },
-                          plugins: {
-                            legend: {
-                              display: chartLegend !== 'hidden',
-                              position: chartLegend === 'bottom' ? 'bottom' : (chartSeriesActive ? 'top' : 'right'),
-                              labels: legendLabels,
-                            },
-                            tooltip: {
-                              ...tooltipBase,
-                              bodyColor: 'var(--monokai-accent)',
-                              callbacks: {
-                                label: (ctx: any) => ` ${ctx.dataset.label}: ${formatMetric(Number(ctx.raw))}`,
-                              },
-                            },
-                            ...datalabelsPlugin,
-                          },
-                        }}
-                      />
-                    );
-                  })()}
+                <div ref={chartHostRef} id="sql-result-chart" data-chart-viewport className="h-full min-h-0">
+                  <ChartRenderer chartSpec={resultChartSpec} hideTitle />
                 </div>
               )}
             </div>
@@ -3206,7 +2862,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
         {/* Dynamic Pivot View — MECE: 配置 / 结果 / 动作 */}
         {activeSubTab === 'pivot' && (
           <div className="h-full flex flex-col overflow-hidden bg-monokai-bg font-sans" style={{ fontFamily: RESULT_TABLE_FONT }}>
-            <div className="result-pivot-toolbar shrink-0 border-b border-monokai-border bg-gradient-to-b from-monokai-surface/95 via-monokai-surface/85 to-monokai-surface/70 relative z-10">
+            <div className="result-pivot-toolbar shrink-0 border-b border-monokai-border bg-gradient-to-b from-monokai-surface/95 via-monokai-surface/85 to-monokai-surface/70 relative z-30 overflow-visible">
               <span className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-monokai-cyan/20 to-transparent" />
 
               <div className="flex h-10 items-center justify-between gap-3 px-3">
@@ -3225,7 +2881,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                     </span>
                     <span className="text-monokai-comment/65">维</span>
                     <span className="text-monokai-comment/50">·</span>
-                    <span className="font-bold text-monokai-green">{pivotAgg.toUpperCase()}({pivotValCol || '—'})</span>
+                    <span className="font-bold text-monokai-green">{effectivePivotAgg.toUpperCase()}({pivotValCol || '行数'})</span>
                   </div>
                   <button
                     type="button"
@@ -3259,6 +2915,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                       className={`${WORKBENCH_SELECT_CLASS} text-monokai-cyan`}
                       style={{ fontFamily: RESULT_TABLE_FONT }}
                     >
+                      <option value="">(无)</option>
                       {columns.map(col => <option key={col} value={col}>{col}</option>)}
                     </select>
                     <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-monokai-comment/70" />
@@ -3284,6 +2941,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                       className={`${WORKBENCH_SELECT_CLASS} text-monokai-cyan`}
                       style={{ fontFamily: RESULT_TABLE_FONT }}
                     >
+                      <option value="">(无)</option>
                       {columns.map(col => <option key={col} value={col}>{col}</option>)}
                     </select>
                     <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-monokai-comment/70" />
@@ -3298,166 +2956,200 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
 
                 <div className="h-4 w-px bg-monokai-border/60 shrink-0" />
 
+                {/* 值字段选择器 */}
                 <label className="flex items-center gap-1.5 shrink-0">
                   <span className="text-2xs font-semibold uppercase tracking-[0.12em] text-monokai-comment">值</span>
-                  <div className="relative w-36">
+                  <div className="relative w-32">
                     <select
                       aria-label="值字段"
                       value={pivotValCol}
-                      onChange={e => setPivotValCol(e.target.value)}
-                      className={`${WORKBENCH_SELECT_CLASS} text-monokai-green`}
+                      onChange={e => {
+                        const nextCol = e.target.value;
+                        setPivotValCol(nextCol);
+                        if (!nextCol) {
+                          setPivotAgg('count');
+                        } else {
+                          const isNum = (result?.columnTypeMap?.[nextCol] || '').toUpperCase().match(/INT|DECIMAL|FLOAT|DOUBLE|NUMERIC/);
+                          if (isNum && pivotAgg === 'count') {
+                            setPivotAgg('sum');
+                          } else if (!isNum && ['sum', 'avg', 'median'].includes(pivotAgg)) {
+                            setPivotAgg('count');
+                            toastService.info('已自动切换为「计数」统计（非数值列适合计数或去重）');
+                          }
+                        }
+                      }}
+                      className={`${WORKBENCH_SELECT_CLASS} text-monokai-green font-semibold`}
                       style={{ fontFamily: RESULT_TABLE_FONT }}
                     >
+                      <option value="">(无)</option>
                       {columns.map(col => <option key={col} value={col}>{col}</option>)}
                     </select>
                     <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-monokai-comment/70" />
                   </div>
                 </label>
 
+                {/* 聚合计算方式选择器（协调一致的精准下拉） */}
+                <label className="flex items-center gap-1.5 shrink-0">
+                  <span className="text-2xs font-semibold uppercase tracking-[0.12em] text-monokai-comment">聚合</span>
+                  <div className="relative w-28" ref={aggMenuRef}>
+                    <button
+                      type="button"
+                      onClick={handleToggleAggMenu}
+                      data-testid="pivot-agg-pill"
+                      aria-label="聚合计算类型"
+                      aria-expanded={isAggMenuOpen}
+                      className={`${WORKBENCH_SELECT_CLASS} flex items-center justify-between text-monokai-green font-semibold text-xs transition-all duration-150 ${
+                        isAggMenuOpen ? 'border-monokai-green/60 ring-1 ring-monokai-green/25 bg-monokai-bg' : ''
+                      }`}
+                      style={{ fontFamily: RESULT_TABLE_FONT }}
+                      title="选择透视聚合统计方式"
+                    >
+                      <span className="truncate">
+                        {PIVOT_AGG_OPTIONS.find(a => a.value === pivotAgg)?.label || pivotAgg.toUpperCase()}
+                      </span>
+                      <ChevronDown className={`w-3 h-3 text-monokai-comment/70 shrink-0 transition-transform ${isAggMenuOpen ? 'rotate-180 text-monokai-green' : ''}`} />
+                    </button>
+
+                    {/* 灵动轻巧的聚合选项 Menu Portal — 绝对置顶，绝不被裁切或遮挡 */}
+                    {isAggMenuOpen && typeof document !== 'undefined' && createPortal(
+                      <div
+                        id="pivot-measure-studio-portal"
+                        data-testid="pivot-measure-studio-portal"
+                        style={{
+                          position: 'fixed',
+                          top: aggMenuPos.top,
+                          left: aggMenuPos.left,
+                          zIndex: 9999,
+                        }}
+                        className="w-52 rounded-lg border border-monokai-border/90 bg-monokai-surface/98 backdrop-blur-xl shadow-2xl p-1 animate-in fade-in zoom-in-95 duration-100 font-sans text-xs select-none"
+                      >
+                        {[
+                          { groupTitle: '常用统计', items: PIVOT_AGG_OPTIONS.filter(o => ['sum', 'avg', 'median'].includes(o.value)) },
+                          { groupTitle: '计数与去重', items: PIVOT_AGG_OPTIONS.filter(o => ['count_distinct', 'count'].includes(o.value)) },
+                          { groupTitle: '极值范围', items: PIVOT_AGG_OPTIONS.filter(o => ['max', 'min'].includes(o.value)) },
+                        ].map((grp, gIdx) => (
+                          <div key={grp.groupTitle}>
+                            {gIdx > 0 && <div className="my-1 border-t border-monokai-border/40" />}
+                            <div className="px-2 py-0.5 text-[10px] font-mono text-monokai-comment/60 uppercase tracking-wider">
+                              {grp.groupTitle}
+                            </div>
+                            {grp.items.map(opt => {
+                              const isSelected = opt.value === pivotAgg;
+                              const isWarning = opt.numericOnly && !isSelectedValNumeric && Boolean(pivotValCol);
+                              return (
+                                <button
+                                  key={opt.value}
+                                  type="button"
+                                  data-agg-key={opt.value}
+                                  onClick={() => {
+                                    setPivotAgg(opt.value);
+                                    setIsAggMenuOpen(false);
+                                    if (isWarning) {
+                                      toastService.warning(`${opt.label}主要针对数值列计算`);
+                                    }
+                                  }}
+                                  className={`w-full h-7 px-2 rounded flex items-center justify-between text-left cursor-pointer transition-colors ${
+                                    isSelected
+                                      ? 'bg-monokai-green/15 text-monokai-green font-semibold'
+                                      : 'text-monokai-fg hover:bg-monokai-elevated hover:text-monokai-fg'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-1.5 min-w-0">
+                                    <span className="text-xs truncate">{opt.label}</span>
+                                    <span className="text-[9px] font-mono text-monokai-comment/70">({opt.enLabel})</span>
+                                  </div>
+                                  <div className="flex items-center gap-1 shrink-0">
+                                    {isWarning && (
+                                      <span className="text-[9px] text-monokai-yellow/80">需数值</span>
+                                    )}
+                                    {isSelected && <Check className="w-3.5 h-3.5 text-monokai-green stroke-[2.5]" />}
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        ))}
+                      </div>,
+                      document.body
+                    )}
+                  </div>
+                </label>
+
                 <div className="h-4 w-px bg-monokai-border/60 shrink-0" />
 
-                <SegmentedTabs<PivotAgg>
-                  aria-label="透视聚合方式"
-                  value={pivotAgg}
-                  items={[...PIVOT_AGG_ITEMS]}
-                  onChange={setPivotAgg}
-                  size="sm"
-                  tone="green"
-                />
+                {/* 计算口径 / 显示方式 (Show Values As) — 协调标准的 Select 下拉 */}
+                <label className="flex items-center gap-1.5 shrink-0">
+                  <span className="text-2xs font-semibold uppercase tracking-[0.12em] text-monokai-comment">口径</span>
+                  <div className="relative w-28">
+                    <select
+                      aria-label="计算口径"
+                      data-testid="pivot-show-as-select"
+                      value={pivotShowAs}
+                      onChange={e => setPivotShowAs(e.target.value as PivotShowAs)}
+                      className={`${WORKBENCH_SELECT_CLASS} text-monokai-cyan font-medium text-xs`}
+                      style={{ fontFamily: RESULT_TABLE_FONT }}
+                      title="切换数值计算口径（支持原始绝对值、全局总计占比、行占比与列占比）"
+                    >
+                      {PIVOT_SHOW_AS_OPTIONS.map(opt => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-monokai-comment/70" />
+                  </div>
+                </label>
+
+                {/* 小数位调节器 */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = pivotDecimals === 0 ? 1 : pivotDecimals === 1 ? 2 : pivotDecimals === 2 ? 4 : 0;
+                    setPivotDecimals(next);
+                  }}
+                  className="h-8 px-2.5 inline-flex items-center gap-1 rounded-md border border-monokai-border/80 bg-monokai-bg/70 hover:bg-monokai-elevated text-xs font-mono text-monokai-comment hover:text-monokai-fg cursor-pointer transition-all duration-150 shrink-0"
+                  title="切换小数位数（.0 / .1 / .2 / .4）"
+                >
+                  <span className="text-monokai-yellow font-bold">.{pivotDecimals}</span>
+                  <span className="text-2xs text-monokai-comment/80">小数</span>
+                </button>
               </div>
             </div>
 
-            <div className="flex-1 min-h-0 overflow-auto custom-scrollbar p-4">
+            <div className="flex-1 min-h-0 overflow-hidden flex flex-col bg-monokai-bg font-sans" style={{ fontFamily: RESULT_TABLE_FONT }}>
               {rawRows.length === 0 ? (
-                <div className="p-8 text-center text-monokai-comment font-sans rounded-xl border border-monokai-border/60 bg-monokai-elevated/40">
-                  当前无查询结果集，请先执行 SQL 后再做透视汇总。
+                <div className="flex h-full min-h-[220px] flex-col items-center justify-center px-6 py-8 text-center font-sans">
+                  <div className="w-full max-w-md rounded-lg border border-dashed border-monokai-border/70 bg-monokai-surface/25 px-6 py-8">
+                    <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-xl border border-monokai-border/60 bg-monokai-elevated text-monokai-comment">
+                      <TableProperties className="h-5 w-5 text-monokai-cyan" strokeWidth={1.75} />
+                    </div>
+                    <p className="mb-1 text-xs font-semibold text-monokai-fg-muted">当前无查询结果集</p>
+                    <p className="mx-auto max-w-sm text-meta leading-relaxed text-monokai-comment">请先在上方编辑器执行 SQL 查询后再进行多维交叉透视。</p>
+                  </div>
                 </div>
               ) : !dynamicPivotMatrix || dynamicPivotMatrix.rowKeys.length === 0 ? (
-                <div className="p-8 text-center text-monokai-comment font-sans rounded-xl border border-monokai-border/60 bg-monokai-elevated/40">
-                  所选维度暂无有效键值，请调整行 / 列 / 值字段。
+                <div className="flex h-full min-h-[220px] flex-col items-center justify-center px-6 py-8 text-center font-sans">
+                  <div className="w-full max-w-md rounded-lg border border-dashed border-monokai-border/70 bg-monokai-surface/25 px-6 py-8">
+                    <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-xl border border-monokai-border/60 bg-monokai-elevated text-monokai-comment">
+                      <TableProperties className="h-5 w-5 text-monokai-yellow" strokeWidth={1.75} />
+                    </div>
+                    <p className="mb-1 text-xs font-semibold text-monokai-fg-muted">所选维度暂无有效键值</p>
+                    <p className="mx-auto max-w-sm text-meta leading-relaxed text-monokai-comment">请调整行、列或值度量字段以生成多维透视矩阵。</p>
+                  </div>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="flex-1 min-h-0 flex flex-col w-full h-full">
                   {(dynamicPivotMatrix.truncatedRows || dynamicPivotMatrix.truncatedCols) && (
-                    <div className="result-pivot-truncate flex items-center gap-2 px-3 py-2 rounded-lg border border-monokai-yellow/40 bg-monokai-yellow/10 text-meta text-monokai-yellow font-sans">
+                    <div className="result-pivot-truncate m-2.5 flex items-center gap-2 px-3 py-1.5 rounded-lg border border-monokai-yellow/40 bg-monokai-yellow/10 text-meta text-monokai-yellow font-sans shrink-0">
                       <Info className="w-3.5 h-3.5 shrink-0" />
                       <span>
                         已截断展示：行键 {dynamicPivotMatrix.rowKeys.length}/{dynamicPivotMatrix.totalRowKeys}
                         ，列键 {dynamicPivotMatrix.colKeys.length}/{dynamicPivotMatrix.totalColKeys}
-                        （上限 {PIVOT_MAX_ROW_KEYS}×{PIVOT_MAX_COL_KEYS}）。需要完整结果请使用「生成 SQL」。
+                        （上限 {PIVOT_MAX_ROW_KEYS}×{PIVOT_MAX_COL_KEYS}）。完整导出请使用右上角「生成 SQL」。
                       </span>
                     </div>
                   )}
 
-                  <div className="result-pivot-grid overflow-x-auto custom-scrollbar rounded-lg border border-monokai-border/70 bg-monokai-elevated/50 p-1" style={{ fontFamily: RESULT_TABLE_FONT }}>
-                    <table
-                      className="border-collapse w-max select-text"
-                      style={{
-                        tableLayout: 'fixed',
-                        width: pivotColWidths.table,
-                        fontFamily: RESULT_TABLE_FONT,
-                      }}
-                    >
-                      <colgroup>
-                        <col style={{ width: `${pivotColWidths.corner}px`, minWidth: `${pivotColWidths.corner}px` }} />
-                        {dynamicPivotMatrix.colKeys.map(cKey => (
-                          <col
-                            key={cKey}
-                            style={{
-                              width: `${pivotColWidths.cols[cKey] || 96}px`,
-                              minWidth: `${pivotColWidths.cols[cKey] || 96}px`,
-                            }}
-                          />
-                        ))}
-                        <col style={{ width: `${pivotColWidths.total}px`, minWidth: `${pivotColWidths.total}px` }} />
-                      </colgroup>
-                      <thead className="bg-monokai-surface text-monokai-fg text-xs sticky top-0 z-20 select-none">
-                        <tr className="h-11 border-b border-monokai-border/40">
-                          <th
-                            className="p-2 border border-monokai-border font-bold text-center whitespace-nowrap font-sans"
-                            style={{ textAlign: 'center', fontFamily: RESULT_TABLE_FONT }}
-                          >
-                            <div className="flex flex-col items-center gap-0.5 leading-tight">
-                              <span>{pivotRowCol} \ {pivotColCol || '汇总'}</span>
-                              <span className="text-3xs font-semibold text-monokai-green tracking-wide">
-                                {pivotAgg.toUpperCase()}({pivotValCol})
-                              </span>
-                            </div>
-                          </th>
-                          {dynamicPivotMatrix.colKeys.map(cKey => (
-                            <th
-                              key={cKey}
-                              className="p-2 border border-monokai-border font-semibold text-center whitespace-nowrap font-sans"
-                              style={{ textAlign: 'center', fontFamily: RESULT_TABLE_FONT }}
-                            >
-                              {cKey}
-                            </th>
-                          ))}
-                          <th
-                            className="p-2 border border-monokai-border text-monokai-green font-bold text-center whitespace-nowrap font-sans"
-                            style={{ textAlign: 'center', fontFamily: RESULT_TABLE_FONT }}
-                          >
-                            总计
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-monokai-border text-monokai-fg-muted font-sans text-xs" style={{ fontFamily: RESULT_TABLE_FONT }}>
-                        {dynamicPivotMatrix.rowKeys.map(rKey => (
-                          <tr key={rKey} className="hover:bg-monokai-surface/60 transition-colors">
-                            <td
-                              className="p-2 border border-monokai-border font-semibold text-monokai-fg text-center whitespace-nowrap"
-                              style={{ textAlign: 'center', fontFamily: RESULT_TABLE_FONT }}
-                            >
-                              {rKey}
-                            </td>
-                            {dynamicPivotMatrix.colKeys.map(cKey => {
-                              const val = resolvePivotAggValue(
-                                dynamicPivotMatrix.matrix[`${rKey}___${cKey}`],
-                                pivotAgg,
-                              );
-                              return (
-                                <td
-                                  key={cKey}
-                                  className="p-2 border border-monokai-border text-center tabular-nums whitespace-nowrap font-sans"
-                                  style={{ textAlign: 'center', fontFamily: RESULT_TABLE_FONT }}
-                                >
-                                  {formatPivotNumber(val)}
-                                </td>
-                              );
-                            })}
-                            <td
-                              className="p-2 border border-monokai-border text-monokai-green font-semibold text-center tabular-nums whitespace-nowrap font-sans"
-                              style={{ textAlign: 'center', fontFamily: RESULT_TABLE_FONT }}
-                            >
-                              {formatPivotNumber(dynamicPivotMatrix.rowTotals[rKey] ?? null)}
-                            </td>
-                          </tr>
-                        ))}
-                        <tr className="bg-monokai-surface font-bold text-monokai-fg">
-                          <td
-                            className="p-2 border border-monokai-border text-center whitespace-nowrap font-sans"
-                            style={{ textAlign: 'center', fontFamily: RESULT_TABLE_FONT }}
-                          >
-                            总计
-                          </td>
-                          {dynamicPivotMatrix.colKeys.map(cKey => (
-                            <td
-                              key={cKey}
-                              className="p-2 border border-monokai-border text-monokai-green text-center tabular-nums whitespace-nowrap font-sans"
-                              style={{ textAlign: 'center', fontFamily: RESULT_TABLE_FONT }}
-                            >
-                              {formatPivotNumber(dynamicPivotMatrix.colTotals[cKey] ?? null)}
-                            </td>
-                          ))}
-                          <td
-                            className="p-2 border border-monokai-border text-monokai-yellow font-bold text-center tabular-nums whitespace-nowrap font-sans"
-                            style={{ textAlign: 'center', fontFamily: RESULT_TABLE_FONT }}
-                          >
-                            {formatPivotNumber(dynamicPivotMatrix.grandTotal)}
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
+                  <div className="flex-1 min-h-0 w-full h-full overflow-hidden" style={{ fontFamily: RESULT_TABLE_FONT }}>
+                    <ChartRenderer chartSpec={pivotSpec} hideTitle />
                   </div>
                 </div>
               )}
@@ -3468,8 +3160,9 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
         {/* Explain plan — must fill remaining height (parent is flex column + overflow hidden) */}
         {activeSubTab === 'explain' && (
           <div className="flex-1 min-h-0 w-full overflow-hidden flex flex-col">
-            <ExplainPlanView
+            <ExecutionPlanView
               planText={liveExplainPlan}
+              jsonPlan={liveExplainJson}
               loading={loadingExplain}
               totalRows={rawRows.length}
               executionTime={explainPlanMs ?? 0}
@@ -3499,11 +3192,12 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
                 const gen = ++explainFetchGenRef.current;
                 const startedAt = performance.now();
                 setLoadingExplain(true);
-                duckDBService.getExplainPlan(sql, explainAnalyzeMode)
+                duckDBService.getStructuredExplainPlan(sql, explainAnalyzeMode)
                   .then(res => {
                     if (gen !== explainFetchGenRef.current) return;
                     const text = res.planText || '';
                     setLiveExplainPlan(text);
+                    setLiveExplainJson(res.jsonPlan || null);
                     setPlanSourceSql(sql);
                     setPlanFetchedAt(Date.now());
                     setExplainPlanMs(performance.now() - startedAt);
@@ -3530,7 +3224,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
 
       {/* 4. Bottom Pagination — data/chart/pivot only (irrelevant on explain) */}
       {activeSubTab !== 'explain' && (
-      <div className="h-8 shrink-0 border-t border-monokai-border bg-gradient-to-b from-monokai-sidebar/95 via-monokai-sidebar to-monokai-bg/40 px-3 flex items-center justify-between text-xs font-mono text-monokai-comment relative">
+      <div className="min-h-8 py-1 gap-1 flex-wrap whitespace-nowrap shrink-0 border-t border-monokai-border bg-gradient-to-b from-monokai-sidebar/95 via-monokai-sidebar to-monokai-bg/40 px-3 flex items-center justify-between text-xs font-mono text-monokai-comment relative">
         {/* Subtle hairline for depth */}
         <span className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-monokai-fg/8 to-transparent" />
         <div className="flex items-center gap-1 text-meta">
@@ -4265,7 +3959,7 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
             <div className="rounded-lg border border-monokai-border/80 bg-monokai-bg overflow-hidden shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
               <CodeMirror
                 value={groupSqlPreview}
-                theme={monokai}
+                theme={uiTheme === 'light' ? lightEditorTheme : monokai}
                 extensions={GROUP_SQL_PREVIEW_EXTENSIONS}
                 editable={false}
                 basicSetup={{
@@ -4282,242 +3976,38 @@ export const ResultSection: React.FC<ResultSectionProps> = ({
         </div>
       </ModalShell>
 
-      {/* 9. Export Data Modal — Enhanced with format icons and preview */}
-      {showExportModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 select-none font-sans">
-          <div className="w-full max-w-lg rounded-xl border border-monokai-border bg-monokai-elevated shadow-2xl overflow-hidden">
-            {/* Header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-monokai-border bg-gradient-to-b from-monokai-surface to-monokai-surface/80">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-monokai-orange/20 to-monokai-orange/10 border border-monokai-orange/40 flex items-center justify-center">
-                  <Download className="w-4.5 h-4.5 text-monokai-orange" />
-                </div>
-                <div>
-                  <h2 className="text-sm font-semibold text-monokai-fg tracking-tight">导出数据</h2>
-                  <p className="text-meta text-monokai-comment">支持多种格式与压缩选项</p>
-                </div>
-              </div>
-              <button onClick={() => setShowExportModal(false)} className="p-2 text-monokai-comment hover:text-monokai-fg hover:bg-monokai-surface rounded-md transition-colors">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="px-5 py-4 space-y-4">
-              {/* Export Scope */}
-              <div className="space-y-2">
-                <label className="text-2xs font-semibold uppercase tracking-[0.12em] text-monokai-comment">导出范围</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => setExportScope('all')}
-                    className={`p-3 rounded-lg border text-left transition-all ${
-                      exportScope === 'all'
-                        ? 'bg-gradient-to-b from-monokai-cyan/15 to-monokai-cyan/5 border-monokai-cyan/50 text-monokai-fg'
-                        : 'bg-monokai-bg/50 border-monokai-border/60 hover:border-monokai-border text-monokai-comment'
-                    }`}
-                  >
-                    <div className="text-meta font-semibold mb-0.5">全部结果</div>
-                    <div className="text-2xs text-monokai-comment font-mono">{totalRowCount.toLocaleString()} 行</div>
-                  </button>
-                  <button
-                    onClick={() => setExportScope('selection')}
-                    className={`p-3 rounded-lg border text-left transition-all ${
-                      exportScope === 'selection'
-                        ? 'bg-gradient-to-b from-monokai-cyan/15 to-monokai-cyan/5 border-monokai-cyan/50 text-monokai-fg'
-                        : 'bg-monokai-bg/50 border-monokai-border/60 hover:border-monokai-border text-monokai-comment'
-                    }`}
-                  >
-                    <div className="text-meta font-semibold mb-0.5">当前视图</div>
-                    <div className="text-2xs text-monokai-comment font-mono">{loadedRowCount.toLocaleString()} 行</div>
-                  </button>
-                </div>
-              </div>
-
-              {/* Format Selection */}
-              <div className="space-y-2">
-                <label className="text-2xs font-semibold uppercase tracking-[0.12em] text-monokai-comment">导出格式</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { value: 'parquet', label: 'Parquet', desc: '高性能列式存储', badge: '推荐', color: 'cyan' },
-                    { value: 'csv', label: 'CSV', desc: '通用逗号分隔', badge: null, color: 'green' },
-                    { value: 'json', label: 'JSON', desc: '结构化数据', badge: null, color: 'yellow' },
-                    { value: 'arrow', label: 'Arrow IPC', desc: '零拷贝格式', badge: null, color: 'amethyst' },
-                  ].map(fmt => (
-                    <button
-                      key={fmt.value}
-                      onClick={() => {
-                        setExportFormat(fmt.value as any);
-                        setExportFileName(`export_${Date.now()}.${fmt.value}`);
-                      }}
-                      className={`p-3 rounded-lg border text-left transition-all ${
-                        exportFormat === fmt.value
-                          ? `bg-gradient-to-b from-monokai-${fmt.color}/15 to-monokai-${fmt.color}/5 border-monokai-${fmt.color}/50`
-                          : 'bg-monokai-bg/50 border-monokai-border/60 hover:border-monokai-border'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between mb-1">
-                        <span className={`text-xs font-semibold ${
-                          exportFormat === fmt.value ? `text-monokai-${fmt.color}` : 'text-monokai-fg'
-                        }`}>{fmt.label}</span>
-                        {fmt.badge && (
-                          <span className={`text-3xs px-1.5 py-0.5 rounded bg-monokai-${fmt.color}/20 text-monokai-${fmt.color} font-bold`}>
-                            {fmt.badge}
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-2xs text-monokai-comment">{fmt.desc}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Compression (for Parquet) */}
-              {exportFormat === 'parquet' && (
-                <div className="space-y-2">
-                  <label className="text-2xs font-semibold uppercase tracking-[0.12em] text-monokai-comment">压缩算法</label>
-                  <div className="grid grid-cols-4 gap-1.5">
-                    {[
-                      { value: 'ZSTD', label: 'ZSTD', desc: '推荐', speed: '快' },
-                      { value: 'SNAPPY', label: 'SNAPPY', desc: '平衡', speed: '快' },
-                      { value: 'GZIP', label: 'GZIP', desc: '兼容好', speed: '中' },
-                      { value: 'NONE', label: '无', desc: '原始', speed: '—' },
-                    ].map(opt => (
-                      <button
-                        key={opt.value}
-                        onClick={() => setCompression(opt.value)}
-                        className={`p-2 rounded-lg border text-center transition-all ${
-                          compression === opt.value
-                            ? 'bg-monokai-cyan/15 border-monokai-cyan/50'
-                            : 'bg-monokai-bg/50 border-monokai-border/60 hover:border-monokai-border'
-                        }`}
-                      >
-                        <div className={`text-meta font-semibold ${
-                          compression === opt.value ? 'text-monokai-cyan' : 'text-monokai-fg'
-                        }`}>{opt.label}</div>
-                        <div className="text-3xs text-monokai-comment mt-0.5">{opt.speed}</div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Filename */}
-              <div className="space-y-2">
-                <label className="text-2xs font-semibold uppercase tracking-[0.12em] text-monokai-comment">文件名</label>
-                <input
-                  type="text"
-                  value={exportFileName}
-                  onChange={e => setExportFileName(e.target.value)}
-                  className="w-full bg-monokai-bg/70 border border-monokai-border/80 rounded-lg px-3 py-2 text-xs text-monokai-fg font-mono focus:outline-none focus:border-monokai-cyan/60 focus:ring-1 focus:ring-monokai-cyan/25 transition-all"
-                />
-              </div>
-
-              {/* Options */}
-              <div className="flex items-center gap-4">
-                <label className="flex items-center gap-2 cursor-pointer text-xs text-monokai-comment hover:text-monokai-fg transition-colors">
-                  <input
-                    type="checkbox"
-                    checked={includeTypes}
-                    onChange={e => setIncludeTypes(e.target.checked)}
-                    className="rounded border-monokai-border text-monokai-cyan focus:ring-monokai-cyan/30"
-                  />
-                  <span>包含列类型</span>
-                </label>
-                <span className="text-2xs text-monokai-comment/60">·</span>
-                <span className="text-2xs text-monokai-comment">
-                  {columns.length} 列 × {exportScope === 'all' ? totalRowCount : loadedRowCount} 行
-                </span>
-              </div>
-
-              {/* Export Summary */}
-              <div className="p-3 rounded-lg bg-monokai-sidebar/60 border border-monokai-border/40">
-                <div className="flex items-center justify-between text-meta">
-                  <span className="text-monokai-comment">预计文件大小</span>
-                  <span className="font-mono font-semibold text-monokai-fg">
-                    ≈ {Math.ceil((exportScope === 'all' ? totalRowCount : loadedRowCount) * columns.length * 12 / 1024 / 1024 * (compression === 'NONE' ? 2 : 1)).toLocaleString()} MB
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-monokai-border bg-gradient-to-b from-monokai-bg to-monokai-bg/80">
-              <ActionButton variant="secondary" size="sm" onClick={() => setShowExportModal(false)}>
-                取消
-              </ActionButton>
-              <ActionButton
-                variant="warning"
-                size="sm"
-                icon={Download}
-                className="!bg-monokai-orange !text-monokai-bg hover:!brightness-110"
-                onClick={handleExecuteExport}
-              >
-                导出 {exportFormat.toUpperCase()}
-              </ActionButton>
-            </div>
-          </div>
+      {/* Export options mirror the actual callbacks; unsupported options cannot report success. */}
+      <ModalShell
+        open={showExportModal}
+        title="导出数据"
+        description="CSV / JSON 导出已加载结果；Parquet 重新执行当前查询导出全部结果。文件名自动生成。"
+        onClose={() => setShowExportModal(false)}
+        size="md"
+        icon={Download}
+        footer={(
+          <>
+            <ActionButton variant="secondary" size="sm" onClick={() => setShowExportModal(false)}>取消</ActionButton>
+            <ActionButton variant="warning" size="sm" icon={Download} disabled={!exportHandler || rawRows.length === 0} onClick={handleExecuteExport}>
+              导出 {exportFormat.toUpperCase()}
+            </ActionButton>
+          </>
+        )}
+      >
+        <div className="grid grid-cols-2 gap-2" role="group" aria-label="导出格式">
+          {([
+            { value: 'parquet', label: 'Parquet', available: Boolean(onExportParquet) },
+            { value: 'csv', label: 'CSV', available: Boolean(onExportCsv) },
+            { value: 'json', label: 'JSON', available: Boolean(onExportJson) },
+            { value: 'arrow', label: 'Arrow IPC', available: false },
+          ] as const).map(fmt => (
+            <ActionButton key={fmt.value} variant={exportFormat === fmt.value ? 'primary' : 'secondary'} disabled={!fmt.available} onClick={() => setExportFormat(fmt.value)}>
+              {fmt.label}{!fmt.available ? '（暂不可用）' : ''}
+            </ActionButton>
+          ))}
         </div>
-      )}
+        <p className="mt-3 text-xs text-monokai-comment">已加载 {rawRows.length.toLocaleString()} 行 · {columns.length} 列</p>
+      </ModalShell>
 
-      {/* 10. Streaming Fetch Monitor Modal */}
-      {showStreamingModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 select-none font-sans">
-          <div className="w-full max-w-sm rounded-xl border border-monokai-border bg-monokai-elevated shadow-2xl p-5 space-y-4">
-            <div className="flex items-center justify-between border-b border-monokai-border-subtle pb-2">
-              <div className="flex items-center gap-2">
-                <span className="w-4 h-4 rounded-full bg-monokai-yellow/20 text-monokai-yellow text-2xs font-bold flex items-center justify-center">
-                  2
-                </span>
-                <span className="text-sm font-semibold text-monokai-fg">结果流式读取中</span>
-              </div>
-              <button onClick={() => setShowStreamingModal(false)} className="p-1 text-monokai-comment hover:text-monokai-fg">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="space-y-3 font-mono text-xs">
-              <div className="space-y-1">
-                <div className="text-monokai-fg-muted">查询执行中...</div>
-                <div className="text-monokai-fg font-bold text-sm">已加载 25,000 行</div>
-                <div className="text-monokai-comment text-meta">总行数 8,761,233 行 (持续流式读取)</div>
-              </div>
-
-              {/* Progress bar */}
-              <div className="w-full h-2 rounded-full bg-monokai-surface overflow-hidden">
-                <div className="h-full bg-monokai-green w-1/3 rounded-full animate-pulse" />
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 p-2 rounded bg-monokai-surface border border-monokai-border text-meta">
-                <div>
-                  <span className="text-monokai-comment">速度:</span>
-                  <div className="text-monokai-fg font-medium">125,000 行/秒</div>
-                </div>
-                <div>
-                  <span className="text-monokai-comment">耗时:</span>
-                  <div className="text-monokai-fg font-medium">2.34s</div>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-monokai-border-subtle">
-              <button
-                onClick={() => {
-                  setShowStreamingModal(false);
-                  toastService.info('已停止流式获取，保留已读取数据');
-                }}
-                className="px-3 py-1.5 rounded-lg bg-monokai-pink/80 hover:bg-monokai-pink text-white text-xs font-semibold cursor-pointer"
-              >
-                停止获取
-              </button>
-              <button
-                onClick={() => setShowStreamingModal(false)}
-                className="px-3 py-1.5 rounded-lg bg-monokai-surface hover:bg-monokai-elevated border border-monokai-border text-monokai-fg-muted text-xs font-medium cursor-pointer"
-              >
-                后台继续
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

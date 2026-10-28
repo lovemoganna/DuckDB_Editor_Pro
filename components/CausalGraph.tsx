@@ -32,7 +32,8 @@ const CausalGraph: React.FC<CausalGraphProps> = ({ data, correlations }) => {
     const [selectedNode, setSelectedNode] = useState<string | null>(null);
 
     useEffect(() => {
-        if (!data?.nodes || !data?.edges) return;
+        setDeltas({}); setSelectedNode(null); setIsSimulating(false);
+        if (!data?.nodes || !data?.edges) { setNodes([]); setEdges([]); return; }
 
         // Layout Logic (Simple Circle)
         const radius = 250;

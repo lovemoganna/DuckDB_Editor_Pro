@@ -1,9 +1,17 @@
 import * as duckdb from '@duckdb/duckdb-wasm';
 import duckdb_wasm from '@duckdb/duckdb-wasm/dist/duckdb-eh.wasm?url';
 import duckdb_worker from '@duckdb/duckdb-wasm/dist/duckdb-browser-eh.worker.js?url';
+// Vite worker constructor — preferred path; falls back to classic Worker(url) below.
+import DuckDBWorkerCtor from '@duckdb/duckdb-wasm/dist/duckdb-browser-eh.worker.js?worker';
 import { ColumnStats, ImportOptions, EnrichedColumnStats, ObjectRef, QueryResult } from '../types';
 import { ONTOLOGY_CREATE_STATEMENTS, ONTOLOGY_SEED_STATEMENTS } from '../components/Library/ontologyDataModel';
 import { workbookIO } from './workbookIO';
+import { allocateExcelTableNames } from './importTableNames';
+import { splitSqlStatements as splitScriptStatements } from './dataflow/sqlToWorkflowParser';
+import { stripSqlHeader } from './sqlScript';
+import { splitSqlScript } from './dataflow/sqlStructure';
+import { executeSqlScript, type ScriptExecutionContext } from './dataflow/sqlScriptExecution';
+import { requireAnalysisQuery } from './analysis/readQueryGuard';
 import {
   saveWorkspaceSnapshot,
   loadWorkspaceSnapshot,
@@ -13,6 +21,28 @@ import {
   type DuckDBWorkspaceSnapshot,
 } from './duckdbWorkspaceStorage';
 import { arrowTypeToDuckDBType } from '../utils/typeFormatter';
+import {
+  duckDBResultToRows,
+  openWorkspaceDatabase,
+} from './duckdbRuntime';
+import {
+  DatabaseCatalog,
+  DEFAULT_SESSION_HUB_ALIAS,
+  MEMORY_DATABASE_NAME,
+  quoteIdent,
+  sanitizeDatabaseAlias,
+  type CatalogDatabaseInfo,
+} from './databaseCatalog';
+import {
+  deleteOpfsDuckdbFile,
+  createOpfsDuckdbFile,
+  isOpfsAvailable,
+  listOpfsDuckdbAliases,
+  importOpfsDuckdbFile,
+  opfsAttachPath,
+  prepareOpfsWorkspaceFile,
+} from './opfsDatabaseFiles';
+import { validateDuckDBDatabaseFile } from './workspaceDatabaseFile';
 
 export interface DuckDBRuntimeInfo {
   ready?: boolean;
@@ -23,6 +53,9 @@ export interface DuckDBRuntimeInfo {
   storageMode?: 'indexeddb' | 'opfs' | 'memory';
   dbSize?: string;
   memoryUsage?: string;
+  /** Active DuckDB catalog (current_database()) */
+  currentDatabase?: string;
+  databaseContextRevision?: number;
 }
 
 const DUCKDB_VERSION = '1.33.1';
@@ -51,40 +84,7 @@ async function withTimeout<T>(promise: Promise<T>, ms: number, message: string):
   }
 }
 
-function splitSqlStatements(sql: string): string[] {
-  const statements: string[] = [];
-  let current = '';
-  let inSingleQuote = false;
-  let inDoubleQuote = false;
-  
-  for (let i = 0; i < sql.length; i++) {
-    const char = sql[i];
-    
-    if (char === "'" && !inDoubleQuote) {
-      if (sql[i - 1] !== '\\') {
-        inSingleQuote = !inSingleQuote;
-      }
-    } else if (char === '"' && !inSingleQuote) {
-      if (sql[i - 1] !== '\\') {
-        inDoubleQuote = !inDoubleQuote;
-      }
-    }
-    
-    if (char === ';' && !inSingleQuote && !inDoubleQuote) {
-      if (current.trim()) {
-        statements.push(current.trim());
-      }
-      current = '';
-    } else {
-      current += char;
-    }
-  }
-  
-  if (current.trim()) {
-    statements.push(current.trim());
-  }
-  return statements;
-}
+function splitSqlStatements(sql: string): string[] { return splitSqlScript(sql).map(statement => statement.sql); }
 
 class DuckDBService {
   private db: duckdb.AsyncDuckDB | null = null;
@@ -102,8 +102,27 @@ class DuckDBService {
   private isVirtualBootstrapping = false;
   private isBatchExecuting = false;
   private queryQueue: Promise<any> = Promise.resolve();
+  private databaseLifecycleQueue: Promise<unknown> = Promise.resolve();
+
+  private serializeDatabaseLifecycle<T>(operation: () => Promise<T>): Promise<T> {
+    const result = this.databaseLifecycleQueue.then(operation);
+    this.databaseLifecycleQueue = result.catch(() => undefined);
+    return result;
+  }
   private inTransaction = false;
   private registeredFiles = new Map<string, any>();
+  private databaseCatalog: DatabaseCatalog | null = null;
+  private currentDatabaseName: string = MEMORY_DATABASE_NAME;
+  private databaseContextRevision = 0;
+  private sqlTransactionOpen = false;
+
+  private async checkpointPersistentCatalogs(): Promise<void> {
+    if (this.storageMode !== 'opfs' || !this.conn || this.sqlTransactionOpen) return;
+    const result = await this.conn.query("SELECT database_name FROM duckdb_databases() WHERE path IS NOT NULL AND path <> '' AND path <> ':memory:' AND NOT readonly AND NOT internal");
+    for (const row of this.cleanDuckDBResult(result)) {
+      await this.conn.query(`CHECKPOINT ${quoteIdent(String(row.database_name))}`);
+    }
+  }
 
   setVirtualBootstrapping(val: boolean): void {
     this.isVirtualBootstrapping = val;
@@ -126,40 +145,159 @@ class DuckDBService {
       isLegacy: this.isLegacy,
       version: DUCKDB_VERSION,
       persistenceError: this.persistenceError,
+      currentDatabase: this.currentDatabaseName,
+      databaseContextRevision: this.databaseContextRevision,
     };
   };
+
+  private getCatalog(): DatabaseCatalog {
+    if (!this.databaseCatalog) {
+      throw new Error('Database catalog is not ready');
+    }
+    return this.databaseCatalog;
+  }
+
+  private async releaseOpfsAttachHandles(alias: string): Promise<void> {
+    if (!this.db) return;
+    const base = opfsAttachPath(alias);
+    const candidates = [
+      base,
+      `${base}.wal`,
+      `${base}.wal.checkpoint`,
+      `${base}.wal.recovery`,
+      `${alias}.duckdb`,
+      `${alias}.duckdb.wal`,
+      `${alias}.duckdb.wal.checkpoint`,
+      `${alias}.duckdb.wal.recovery`,
+    ];
+    for (const name of candidates) {
+      try {
+        await this.db.dropFile(name);
+      } catch {
+        /* handle may not be registered */
+      }
+    }
+  }
+
+  private initDatabaseCatalog(): void {
+    const supportsOpfs = isOpfsAvailable() && this.storageMode === 'opfs' && !this.isLegacy;
+    this.databaseCatalog = new DatabaseCatalog(
+      (sql) => this.query(sql),
+      {
+        supportsPersistentFiles: supportsOpfs,
+        sessionHubName: DEFAULT_SESSION_HUB_ALIAS,
+        ensurePersistentFile: async (alias) => {
+          return this.registerDomainOpfsHandles(alias);
+        },
+        createPersistentFile: async (alias) => {
+          await createOpfsDuckdbFile(alias);
+          return this.registerDomainOpfsHandles(alias);
+        },
+        releasePersistentFile: (alias) => this.releaseOpfsAttachHandles(alias),
+        deletePersistentFile: async (alias) => {
+          await this.releaseOpfsAttachHandles(alias);
+          await deleteOpfsDuckdbFile(alias);
+        },
+        listPersistentFiles: () => listOpfsDuckdbAliases(DEFAULT_SESSION_HUB_ALIAS),
+      },
+    );
+  }
+
+  private async registerDomainOpfsHandles(alias: string): Promise<string> {
+    if (!this.db) throw new Error('DuckDB 尚未连接');
+    const path = `${alias}.duckdb`;
+    const root = await navigator.storage.getDirectory();
+    try {
+      for (const name of [path, `${path}.wal`, `${path}.wal.checkpoint`, `${path}.wal.recovery`]) {
+        const handle = await root.getFileHandle(name, { create: true });
+        await this.db.registerFileHandle(name, handle, duckdb.DuckDBDataProtocol.BROWSER_FSACCESS, true);
+      }
+    } catch (error) {
+      await this.releaseOpfsAttachHandles(alias);
+      throw error;
+    }
+    return path;
+  }
+
+  private dispatchDatabaseChanged(catalog: string, schema: string) {
+    if (catalog !== this.currentDatabaseName) this.databaseContextRevision += 1;
+    this.currentDatabaseName = catalog;
+    try { localStorage.setItem('duckdb-active-catalog', catalog); } catch { /* preference storage unavailable */ }
+    if (typeof window === 'undefined') return;
+    window.dispatchEvent(
+      new CustomEvent('duckdb-database-changed', {
+        detail: { catalog, schema },
+      }),
+    );
+    this.dispatchSchemaChanged(true);
+  }
+
+  private async syncCurrentDatabaseName(): Promise<string> {
+    if (this.conn) {
+      try {
+        const raw = await this.conn.query('SELECT current_database() as db, current_schema() as sch');
+        const rows = this.cleanDuckDBResult(raw);
+        if (rows && rows[0]?.db) {
+          this.currentDatabaseName = String(rows[0].db);
+          return this.currentDatabaseName;
+        }
+      } catch {
+        // Fallback to getCurrentCatalogAndSchema below
+      }
+    }
+    const ctx = await this.getCurrentCatalogAndSchema();
+    this.currentDatabaseName = ctx.catalog || MEMORY_DATABASE_NAME;
+    return this.currentDatabaseName;
+  }
+
+  private async applyUseOnBothConnections(catalog: string, schema = 'main'): Promise<void> {
+    if (!this.conn) throw new Error('DB not connected');
+    const quoteIdent = (name: string) => `"${String(name).replace(/"/g, '""')}"`;
+    await this.conn.query(`USE ${quoteIdent(catalog)}`);
+    try {
+      await this.conn.query(`SET schema = ${quoteIdent(schema)}`);
+    } catch {
+      /* USE may already bind schema */
+    }
+    if (this.readConn && this.readConn !== this.conn) {
+      try {
+        await this.readConn.query(`USE ${quoteIdent(catalog)}`);
+        await this.readConn.query(`SET schema = ${quoteIdent(schema)}`);
+      } catch {
+        try { await this.readConn.close(); } catch { /* already closed */ }
+        this.readConn = this.conn;
+      }
+    }
+  }
 
   getEngineVersion(): string {
     return DUCKDB_VERSION;
   }
 
   private cleanDuckDBResult(result: any): any[] {
-    if (!result) return [];
-    return result.toArray().map((row: any) => {
-      const raw = typeof row.toJSON === 'function' ? row.toJSON() : row;
-      const clean: any = {};
-      for (const k of Object.keys(raw)) {
-        const val = raw[k];
-        if (val === null || val === undefined) {
-          clean[k] = null;
-        } else if (typeof val === 'bigint') {
-          clean[k] = Number(val);
-        } else {
-          clean[k] = val;
-        }
+    return duckDBResultToRows(result, value => {
+      if (value == null) return null;
+      // Preserve existing timestamps, binary cells and safe integer numbers.
+      if (typeof value === 'bigint') {
+        const number = Number(value);
+        return Number.isSafeInteger(number) ? number : value.toString();
       }
-      return clean;
+      return value;
     });
   }
 
-  private async runInQueue<T>(fn: () => Promise<T>): Promise<T> {
-    const wrappedFn = () => withTimeout(fn(), 25000, 'DuckDB 查询队列执行超时 (25s)');
-    const next = this.queryQueue.then(wrappedFn);
-    this.queryQueue = next.then(() => {}).catch(() => {});
-    return next;
+  private async runInQueue<T>(fn: () => Promise<T>, timeoutMs: number | null = 25000, lifecycle?: import('./workbench/queryLifecycle').QueryLifecycle): Promise<T> {
+    // A UI timeout must never release the connection while the engine is still executing.
+    const operation=this.queryQueue.then(fn);
+    this.queryQueue=operation.then(()=>{},()=>{});
+    lifecycle?.onExecutionScheduled?.(this.queryQueue);
+    return timeoutMs===null?operation:withTimeout(operation,timeoutMs,'DuckDB 查询队列执行超时 (25s)');
   }
 
+  private logicalFlowContextPromise: Promise<import('./dataflow/logicalRelationFlowParser').FlowParseContext> | null = null;
+
   dispatchSchemaChanged(force: boolean = false) {
+    this.logicalFlowContextPromise = null;
     if (!force && (this.isBatchExecuting || this.isVirtualBootstrapping)) {
       return;
     }
@@ -168,6 +306,7 @@ class DuckDBService {
     }
     this.schemaChangeTimeout = setTimeout(() => {
       window.dispatchEvent(new CustomEvent('duckdb-schema-changed'));
+      window.dispatchEvent(new CustomEvent('duckdb-tables-changed'));
       this.schemaChangeTimeout = null;
     }, 200);
   }
@@ -192,6 +331,8 @@ class DuckDBService {
     }
 
     const runInit = async () => {
+      let preferredCatalog: string | null = null;
+      try { preferredCatalog = localStorage.getItem('duckdb-active-catalog'); } catch { /* optional preference */ }
       // --- FORCE REFRESH CHECK ---
       console.log("%c!!! DUCKDB SERVICE INITIATING (V5 - VITE BUNDLED) !!!", "background: green; color: white; font-size: 20px");
 
@@ -214,22 +355,64 @@ class DuckDBService {
 
       console.log(`[DuckDB] Target Worker URL: ${mainWorkerURL}`);
 
-      // Do not cache-bust the worker URL: module workers resolve relative imports
-      // against their script URL, and a changing `?t=` query can stall instantiate().
-      const worker = new Worker(mainWorkerURL, { type: 'module' });
-      // Custom logger that silences "table does not exist" / "Catalog Error" noise.
-      // DuckDB logs these at INFO level (not ERROR), so we filter by message content only.
-      // duckdb.Logger is an interface, not a class — implement it directly.
-      const logger: duckdb.Logger = {
-        log(entry: duckdb.LogEntryVariant) {
-          const msg = typeof entry.value === 'string' ? entry.value : '';
-          if (/Table with name|Catalog Error|does not exist/i.test(msg)) return;
-          console.log(`[DuckDB] [${duckdb.getLogLevelLabel(entry.level)}] ${msg}`);
+      // Prefer Vite's ?worker constructor (blob URL, correctly typed).
+      // Fallback: classic Worker(url) — duckdb-browser-eh.worker.js is an IIFE bundle,
+      // so NEVER pass { type: 'module' } (that silently hangs instantiate()).
+      const createWorker = (): Worker => {
+        try {
+          return new DuckDBWorkerCtor();
+        } catch (e) {
+          console.warn('[DuckDB] Vite ?worker ctor failed, falling back to Worker(url)', e);
+          return new Worker(mainWorkerURL);
         }
       };
 
-      this.db = new duckdb.AsyncDuckDB(logger, worker);
-      await withTimeout(this.db.instantiate(mainModuleURL), 60000, 'DuckDB WASM 内核加载超时');
+      let worker: Worker | null = createWorker();
+      try {
+        // Custom logger that silences "table does not exist" / "Catalog Error" noise.
+        // DuckDB logs these at INFO level (not ERROR), so we filter by message content only.
+        // duckdb.Logger is an interface, not a class — implement it directly.
+        const logger: duckdb.Logger = {
+          log(entry: duckdb.LogEntryVariant) {
+            const msg = typeof entry.value === 'string' ? entry.value : '';
+            if (/Table with name|Catalog Error|does not exist/i.test(msg)) return;
+            console.log(`[DuckDB] [${duckdb.getLogLevelLabel(entry.level)}] ${msg}`);
+          }
+        };
+
+        this.db = new duckdb.AsyncDuckDB(logger, worker);
+        await withTimeout(this.db.instantiate(mainModuleURL), 60000, 'DuckDB WASM 内核加载超时');
+        worker = null; // ownership transferred to AsyncDuckDB on success
+      } catch (err) {
+        try { worker?.terminate(); } catch { /* ignore */ }
+        worker = null;
+        try { await this.db?.terminate(); } catch { /* ignore */ }
+        this.db = null;
+        throw err;
+      }
+
+      // Open the legacy workspace as DuckDB's primary OPFS file. DuckDB-Wasm's
+      // OPFS ATTACH path needs a persistent primary file for writable domains.
+      const canUseOpfs =
+        !this.isLegacy
+        && isOpfsAvailable();
+
+      // Version probe needs a connection — open first, then connect.
+      // Legacy kernels skip open() (instantiate already yields memory).
+      let openMode: 'opfs' | 'memory' = 'memory';
+      if (!this.isLegacy) {
+        // isLegacy not known yet — use OPFS attempt; openWorkspaceDatabase falls back.
+        const openResult = await openWorkspaceDatabase(this.db, canUseOpfs,
+          async () => {
+            await prepareOpfsWorkspaceFile();
+            return this.registerDomainOpfsHandles(DEFAULT_SESSION_HUB_ALIAS);
+          });
+        openMode = openResult.mode;
+        if (openResult.persistenceError) {
+          this.persistenceError = openResult.persistenceError.message;
+        }
+      }
+
       this.conn = await this.db.connect();
       try {
         this.readConn = await this.db.connect();
@@ -260,6 +443,22 @@ class DuckDBService {
         console.log("%c[DuckDB] High-Performance Mode: ON (COOP/COEP Active)", "color: green; font-weight: bold");
       } else {
         console.warn("[DuckDB] High-Performance Mode: OFF (Persistence may be limited)");
+      }
+
+      if (openMode === 'opfs' && !this.isLegacy) {
+        this.storageMode = 'opfs';
+        this.isPersistent = true;
+        try {
+          await this.conn.query(`ATTACH ':memory:' AS ${quoteIdent(MEMORY_DATABASE_NAME)}`);
+          await this.applyUseOnBothConnections(MEMORY_DATABASE_NAME, 'main');
+          this.currentDatabaseName = MEMORY_DATABASE_NAME;
+        } catch (e) {
+          this.persistenceError = e instanceof Error ? e.message : String(e);
+          console.warn('[DuckDB] Temporary memory database could not be attached:', e);
+        }
+      } else {
+        this.storageMode = 'memory';
+        this.currentDatabaseName = MEMORY_DATABASE_NAME;
       }
 
       // --- UNIVERSAL VFS BOOTSTRAP (TRY/CATCH WRAPPED) ---
@@ -311,23 +510,39 @@ class DuckDBService {
       }
 
       this.isInitialized = true;
+      this.initDatabaseCatalog();
 
-      // Restore workspace cache from IndexedDB
-      if (typeof indexedDB !== 'undefined') {
+      // Remount actual files, then restore the selection only if that catalog exists.
+      if (this.storageMode === 'opfs' && this.databaseCatalog) {
         try {
-          this.isPersistent = true;
-          this.storageMode = 'indexeddb';
-          await withTimeout(
-            this.restoreFromIndexedDBCache(),
-            12000,
-            'IndexedDB workspace restore timed out',
+          const mounted = await withTimeout(
+            this.databaseCatalog.remountPersistedDatabases(),
+            15000,
+            'Remount persisted databases timed out',
           );
-        } catch (cacheErr: any) {
-          this.isRestoringFromCache = false;
-          console.warn('[DuckDB] Failed to restore from IndexedDB cache:', cacheErr);
-          this.persistenceError = cacheErr?.message || String(cacheErr);
+          if (mounted.length) {
+            console.log(`[DuckDB] Remounted domain databases: ${mounted.join(', ')}`);
+          }
+        } catch (remountErr) {
+          console.warn('[DuckDB] Remount persisted databases failed:', remountErr);
         }
       }
+
+      await this.syncCurrentDatabaseName();
+      try {
+        const preferred = preferredCatalog;
+        if (preferred && this.databaseCatalog && (await this.databaseCatalog.listDatabases()).some((database) => database.name === preferred)) {
+          await this.applyUseOnBothConnections(preferred, 'main');
+          await this.syncCurrentDatabaseName();
+          try { localStorage.setItem('duckdb-active-catalog', preferred); } catch { /* optional preference */ }
+        }
+      } catch (error) {
+        console.warn('[DuckDB] Last catalog selection could not be restored', error);
+      }
+
+      // The legacy IndexedDB snapshot belongs to the old workspace, never to
+      // the temporary memory catalog or a newly selected analysis domain.
+      // Keep the snapshot untouched as a backup; OPFS catalogs own live data.
     };
 
     this.initPromise = runInit();
@@ -414,7 +629,7 @@ class DuckDBService {
    * Schedule debounced saving of workspace snapshot to IndexedDB
    */
   scheduleCacheSave(delayMs: number = 400, force: boolean = false): void {
-    if (!this.isPersistent || this.isRestoringFromCache) return;
+    if (!this.isPersistent || this.storageMode === 'opfs' || this.isRestoringFromCache) return;
     if (!force && (this.isVirtualBootstrapping || this.isBatchExecuting)) return;
     if (this.cacheSaveTimeout) {
       clearTimeout(this.cacheSaveTimeout);
@@ -548,6 +763,7 @@ class DuckDBService {
   }
 
   async query(sql: string): Promise<any[]> {
+    if(splitSqlScript(sql).length>1){const result=await this.queryWithMetadata(sql);if(result.error)throw new Error(result.error);return result.rows;}
     return this.runInQueue(async () => {
       await this.waitForInit();
       if (!this.conn) throw new Error("Database not connected");
@@ -563,47 +779,54 @@ class DuckDBService {
       const statements = splitSqlStatements(sql);
       let lastResult: any[] = [];
       let schemaChanged = false;
+      let dataChanged = false;
       for (const stmt of statements) {
         if (!stmt.trim()) continue;
-        const result = await this.conn.query(stmt);
-        if (/^\s*(CREATE|DROP|ALTER|COPY|IMPORT|INSERT\s+INTO|UPDATE|DELETE)/i.test(stmt)) {
-          if (!stmt.includes('_sys_') && !stmt.includes('information_schema') && !stmt.includes('pg_catalog')) {
+        const statementHead = stmt.replace(/^\s*(?:(?:--[^\n]*\n)|(?:\/\*[\s\S]*?\*\/))*/g, '').trim();
+        const catalogChanged = /^(?:ATTACH|DETACH|USE)\b/i.test(statementHead);
+        const contextChanged = /^(?:USE|DETACH|SET\s+schema\b)\b/i.test(statementHead);
+        const rawAttach = statementHead.match(/^ATTACH\s+(?:DATABASE\s+)?(?:IF\s+NOT\s+EXISTS\s+)?['"]opfs:\/\/([A-Za-z0-9_]+)\.duckdb['"]/i);
+        let executableStmt = stmt;
+        if (rawAttach && this.storageMode === 'opfs') {
+          await this.registerDomainOpfsHandles(rawAttach[1]);
+          executableStmt = stmt.replace(`opfs://${rawAttach[1]}.duckdb`, `${rawAttach[1]}.duckdb`);
+        }
+        const rawDetach = statementHead.match(/^DETACH\s+(?:DATABASE\s+)?(?:IF\s+EXISTS\s+)?["`]?([A-Za-z_][\w]*)["`]?/i);
+        if (rawDetach && rawDetach[1] !== MEMORY_DATABASE_NAME && rawDetach[1] !== DEFAULT_SESSION_HUB_ALIAS) {
+          await this.conn.query(`CHECKPOINT ${quoteIdent(rawDetach[1])}`);
+        }
+        if (/^DETACH\b/i.test(statementHead) && this.readConn && this.readConn !== this.conn) {
+          await this.readConn.query(`USE ${MEMORY_DATABASE_NAME}`);
+        }
+        const result = await this.conn.query(executableStmt);
+        if (/^(?:BEGIN|START\s+TRANSACTION)\b/i.test(statementHead)) this.sqlTransactionOpen = true;
+        if (/^(?:COMMIT|ROLLBACK)\b/i.test(statementHead)) this.sqlTransactionOpen = false;
+        if (/^(?:CREATE|DROP|ALTER|COPY|IMPORT|INSERT|UPDATE|DELETE|TRUNCATE|MERGE|COMMIT)\b/i.test(statementHead)) dataChanged = true;
+        if (rawDetach) await this.releaseOpfsAttachHandles(rawDetach[1]);
+        if (/^(?:CREATE|DROP|ALTER|COPY|IMPORT|INSERT|UPDATE|DELETE|TRUNCATE|MERGE|COMMIT|ROLLBACK)\b/i.test(statementHead)) {
+          if (!statementHead.includes('_sys_') && !statementHead.includes('__studio') && !statementHead.includes('information_schema') && !statementHead.includes('pg_catalog')) {
             schemaChanged = true;
           }
         }
-        try {
-          lastResult = result.toArray().map((row) => {
-            const raw = row.toJSON();
-            const clean: any = {};
-            for (const k of Object.keys(raw)) {
-              const val = raw[k];
-              if (val === null || val === undefined) {
-                clean[k] = null;
-              } else if (typeof val === 'bigint') {
-                clean[k] = Number(val);
-              } else if (typeof val === 'object' && !(val instanceof Date) && !(val instanceof Array)) {
-                const cName = val.constructor?.name || '';
-                if ('scale' in val || cName.includes('Decimal') || cName.includes('Numeric')) {
-                  const strVal = typeof val.toString === 'function' ? val.toString() : '';
-                  const numVal = Number(strVal);
-                  if (!isNaN(numVal)) {
-                    if (val.scale && !strVal.includes('.')) {
-                      clean[k] = numVal / Math.pow(10, val.scale);
-                    } else {
-                      clean[k] = numVal;
-                    }
-                  } else {
-                    clean[k] = val;
-                  }
-                } else {
-                  clean[k] = val;
-                }
-              } else {
-                clean[k] = val;
-              }
+        if (catalogChanged || contextChanged) {
+          const context = await this.conn.query('SELECT current_database() AS db, current_schema() AS sch');
+          const current = context.toArray()[0]?.toJSON() as { db?: string; sch?: string } | undefined;
+          const catalog = current?.db || MEMORY_DATABASE_NAME;
+          const schema = current?.sch || 'main';
+          if (this.readConn && this.readConn !== this.conn) {
+            try {
+              await this.readConn.query(`USE ${quoteIdent(catalog)}.${quoteIdent(schema)}`);
+            } catch (error) {
+              console.warn('[DuckDB] Read connection could not follow catalog change; using writer connection', error);
+              try { await this.readConn.close(); } catch { /* already closed */ }
+              this.readConn = this.conn;
             }
-            return clean;
-          });
+          }
+          if (catalogChanged) this.dispatchDatabaseChanged(catalog, schema);
+          else this.dispatchSchemaChanged(true);
+        }
+        try {
+          lastResult = this.cleanDuckDBResult(result);
         } catch (e) {
           // Drop/Create statements might not return rows
           lastResult = [];
@@ -613,6 +836,7 @@ class DuckDBService {
         this.dispatchSchemaChanged();
         this.scheduleCacheSave();
       }
+      if (dataChanged) await this.checkpointPersistentCatalogs();
       return lastResult;
     });
   }
@@ -620,27 +844,18 @@ class DuckDBService {
   /** Read-only query method using dedicated secondary connection without queue lock */
   async readQuery(sql: string): Promise<any[]> {
     await this.waitForInit();
-    if (!this.readConn) return this.query(sql);
+    if (!this.readConn || this.readConn === this.conn || this.currentDatabaseName === MEMORY_DATABASE_NAME || /\bmemory\b/i.test(sql)) {
+      return this.query(sql);
+    }
 
     try {
       const result = await this.readConn.query(sql);
-      return result.toArray().map((row) => {
-        const raw = row.toJSON();
-        const clean: any = {};
-        for (const k of Object.keys(raw)) {
-          const val = raw[k];
-          if (val === null || val === undefined) {
-            clean[k] = null;
-          } else if (typeof val === 'bigint') {
-            clean[k] = Number(val);
-          } else {
-            clean[k] = val;
-          }
-        }
-        return clean;
-      });
-    } catch (e) {
-      // Fallback to main query queue if secondary connection encounters issue
+      return this.cleanDuckDBResult(result);
+    } catch (e: any) {
+      // SQL errors belong to this query; replaying on another connection can hide
+      // a missing reference or change which catalog supplies an unqualified name.
+      if (/\b(?:Catalog|Binder|Parser|Conversion|Constraint|Invalid Input|Out of Range|Not Implemented) Error:/i.test(String(e?.message ?? e))) throw e;
+      // A failed worker/connection may still be served by the main connection.
       return this.query(sql);
     }
   }
@@ -653,7 +868,8 @@ class DuckDBService {
       const rows = await this.readQuery(`
         SELECT table_name, column_name, data_type 
         FROM information_schema.columns 
-        WHERE table_schema = current_schema()
+        WHERE table_catalog = current_database()
+          AND table_schema = current_schema()
           AND table_name NOT LIKE '_sys_%'
         ORDER BY table_name, ordinal_position
       `);
@@ -724,7 +940,7 @@ class DuckDBService {
       await this.waitForInit();
       if (!this.conn) throw new Error("Database not connected");
       const prefix = analyze ? 'EXPLAIN ANALYZE ' : 'EXPLAIN ';
-      return await this.conn.query(prefix + sql).then(res => res.toArray().map(r => r.toJSON()));
+      return await this.conn.query(prefix + sql).then(res => this.cleanDuckDBResult(res));
     });
   }
 
@@ -744,19 +960,23 @@ class DuckDBService {
 
       try {
         const result = await this.conn.query(sql);
-        const isSchemaChange = type === 'IMPORT' || type === 'CREATE' || type === 'DROP' || type === 'ALTER' || /^\s*(CREATE|DROP|ALTER|COPY|IMPORT)/i.test(sql);
+        await this.checkpointPersistentCatalogs();
+        const statementHead = stripSqlHeader(sql).trim();
+        const isSchemaChange = /^(?:IMPORT|CREATE|DROP|ALTER|COPY|INSERT|UPDATE|DELETE|TRUNCATE|MERGE|COMMIT|ROLLBACK)$/i.test(type)
+          || /^(?:CREATE|DROP|ALTER|COPY|IMPORT|INSERT|UPDATE|DELETE|TRUNCATE|MERGE|COMMIT|ROLLBACK)\b/i.test(statementHead);
         if (isSchemaChange) {
           this.dispatchSchemaChanged();
         }
         let rows: any[] = [];
         try {
-          rows = result.toArray().map(r => r.toJSON());
+          rows = this.cleanDuckDBResult(result);
         } catch (e) {
           // Some statements like DROP don't return rows
         }
 
         // Attempt to infer affected rows if possible, otherwise 0 or result length
-        const affected = rows.length;
+        const count = rows[0]?.Count ?? rows[0]?.count;
+        const affected = typeof count === 'number' || typeof count === 'bigint' ? Number(count) : rows.length;
 
         // Log asynchronously to avoid blocking UI significantly, but ensure it happens
         const cleanSql = sql.replace(/'/g, "''");
@@ -806,54 +1026,253 @@ class DuckDBService {
     }
   }
 
+  /** Read-only catalogue binding; never evaluates user queries or intermediate nodes. */
+  async getLogicalFlowContext(): Promise<import('./dataflow/logicalRelationFlowParser').FlowParseContext> {
+    if(!this.conn)return {};
+    if (this.logicalFlowContextPromise) return this.logicalFlowContextPromise;
+    const pending = this.readLogicalFlowContext();
+    this.logicalFlowContextPromise = pending;
+    try { return await pending; }
+    catch (error) {
+      if (this.logicalFlowContextPromise === pending) this.logicalFlowContextPromise = null;
+      throw error;
+    }
+  }
+
+  private async readLogicalFlowContext(): Promise<import('./dataflow/logicalRelationFlowParser').FlowParseContext> {
+    const scope=await this.query('SELECT current_database() AS catalog, current_schema() AS schema');
+    const objects=await this.query(`SELECT database_name AS catalog,schema_name AS schema,table_name AS name,'TABLE' AS objectType,temporary FROM duckdb_tables()
+      UNION ALL SELECT database_name,schema_name,view_name,'VIEW',temporary FROM duckdb_views()
+      UNION ALL SELECT database_name,schema_name,sequence_name,'SEQUENCE',temporary FROM duckdb_sequences()
+      UNION ALL SELECT database_name,schema_name,function_name,CASE WHEN function_type='table_macro' THEN 'TABLE MACRO' ELSE 'MACRO' END,true FROM duckdb_functions() WHERE function_type IN ('macro','table_macro')`);
+    const functions=await this.query("SELECT DISTINCT function_name FROM duckdb_functions() WHERE function_type='aggregate'");
+    const catalogs=await this.query('SELECT database_name FROM duckdb_databases()');
+    return {catalogs:catalogs.map(r=>r.database_name),catalog:scope[0]?.catalog,schema:scope[0]?.schema,objects,aggregateFunctions:functions.map(r=>r.function_name)};
+  }
+
   async getTables(): Promise<string[]> {
-    try {
       const rows = await this.query(`
-        SELECT table_name 
-        FROM information_schema.tables 
-        WHERE table_schema = current_schema()
+        SELECT table_name
+        FROM information_schema.tables
+        WHERE table_catalog = current_database()
+          AND table_schema = current_schema()
+          AND table_schema NOT IN ('information_schema', 'pg_catalog', '__studio')
+        ORDER BY table_name
       `);
       return rows
         .map((r: any) => String(r.table_name || r.name || Object.values(r)[0] || ''))
         .filter((n: string) => Boolean(n) && !n.startsWith('_sys_'));
-    } catch {
-      const rows = await this.query("SHOW TABLES");
-      return rows
-        .map((r: any) => String(r.name || r.table_name || Object.values(r)[0] || ''))
-        .filter((n: string) => Boolean(n) && !n.startsWith('_sys_'));
-    }
   }
 
   async listTables(): Promise<string[]> {
     return this.getTables();
   }
 
+  /** @deprecated Prefer createDatabase / attachDatabase — real DuckDB ATTACH. */
   async attachProject(projectName: string): Promise<void> {
-    await this.waitForInit();
-    if (!this.conn) throw new Error("DB not connected");
-    const alias = projectName.replace(/[^a-zA-Z0-9]/g, '_');
-    await this.query(`CREATE SCHEMA IF NOT EXISTS "${alias}"`);
-    console.log(`[Persistence] Created/Attached project schema ${alias}`);
+    await this.attachDatabase(projectName, { persistent: true });
   }
 
+  /** @deprecated Prefer useDatabase */
   async useProject(projectName: string): Promise<void> {
-    if (!this.conn) return;
-    const alias = projectName.replace(/[^a-zA-Z0-9]/g, '_');
-    let targetSchema = alias;
-    try {
-      const res = await this.query(`SELECT schema_name FROM information_schema.schemata WHERE schema_name LIKE '%${alias}%'`);
-      if (res && res.length > 0) {
-        targetSchema = res[0].schema_name || alias;
-      }
-    } catch {}
+    await this.useDatabase(projectName);
+  }
 
-    await this.conn.query(`SET schema = '${targetSchema}'`);
-    if (this.readConn && this.readConn !== this.conn) {
-      try {
-        await this.readConn.query(`SET schema = '${targetSchema}'`);
-      } catch {}
+  async listDatabases(): Promise<CatalogDatabaseInfo[]> {
+    await this.waitForInit();
+    return this.getCatalog().listDatabases();
+  }
+
+  createDatabase(name: string, opts?: { persistent?: boolean; activate?: boolean }): Promise<CatalogDatabaseInfo> {
+    return this.serializeDatabaseLifecycle(() => this.createDatabaseInternal(name, opts));
+  }
+
+  private async createDatabaseInternal(
+    name: string,
+    opts?: { persistent?: boolean; activate?: boolean },
+  ): Promise<CatalogDatabaseInfo> {
+    await this.waitForInit();
+    if (opts?.persistent !== false) {
+      if (this.storageMode !== 'opfs') throw new Error('OPFS 不可用，无法创建持久化数据库');
+      const alias = sanitizeDatabaseAlias(name);
+      if ((await listOpfsDuckdbAliases(DEFAULT_SESSION_HUB_ALIAS)).includes(alias)) {
+        throw new Error(`数据库文件「${alias}.duckdb」已存在，请先挂载或另选名称`);
+      }
     }
-    console.log(`[Persistence] Switched context to ${targetSchema}`);
+    const created = await this.getCatalog().createDatabase(name, opts);
+    // Catalog.useDatabase only hits the query() path (write conn). Sync readConn + events.
+    if (opts?.activate !== false) {
+      await this.applyUseOnBothConnections(created.name, 'main');
+      this.dispatchDatabaseChanged(created.name, 'main');
+    } else {
+      this.dispatchSchemaChanged(true);
+    }
+    return created;
+  }
+
+  attachDatabase(name: string, opts?: { persistent?: boolean; path?: string }): Promise<CatalogDatabaseInfo> {
+    return this.serializeDatabaseLifecycle(() => this.attachDatabaseInternal(name, opts));
+  }
+
+  private async attachDatabaseInternal(
+    name: string,
+    opts?: { persistent?: boolean; path?: string },
+  ): Promise<CatalogDatabaseInfo> {
+    await this.waitForInit();
+    const attached = await this.getCatalog().attachDatabase(name, opts);
+    this.dispatchSchemaChanged(true);
+    return attached;
+  }
+
+  async listDetachedDatabaseFiles(): Promise<string[]> {
+    await this.waitForInit();
+    const [files, attached] = await Promise.all([listOpfsDuckdbAliases(DEFAULT_SESSION_HUB_ALIAS), this.listDatabases()]);
+    const active = new Set(attached.map((db) => db.name));
+    return files.filter((name) => !active.has(name));
+  }
+
+  deleteDetachedDatabaseFile(name: string): Promise<void> {
+    return this.serializeDatabaseLifecycle(async () => {
+      await this.waitForInit();
+      const alias = sanitizeDatabaseAlias(name);
+      if (this.storageMode !== 'opfs' || !isOpfsAvailable()) {
+        throw new Error('OPFS 不可用，无法删除数据库文件');
+      }
+      await this.releaseOpfsAttachHandles(alias);
+      await deleteOpfsDuckdbFile(alias);
+      this.dispatchSchemaChanged(true);
+    });
+  }
+
+  async getDatabaseTableCounts(): Promise<Record<string, number>> {
+    await this.waitForInit();
+    try {
+      const rows = await this.readQuery(`
+        SELECT database_name, count(*) as count 
+        FROM duckdb_tables() 
+        GROUP BY database_name
+      `);
+      const counts: Record<string, number> = {};
+      for (const row of rows || []) {
+        if (row.database_name) {
+          counts[String(row.database_name)] = Number(row.count || 0);
+        }
+      }
+      return counts;
+    } catch {
+      try {
+        const altRows = await this.readQuery(`
+          SELECT table_catalog as database_name, count(*) as count
+          FROM information_schema.tables
+          GROUP BY table_catalog
+        `);
+        const counts: Record<string, number> = {};
+        for (const row of altRows || []) {
+          if (row.database_name) {
+            counts[String(row.database_name)] = Number(row.count || 0);
+          }
+        }
+        return counts;
+      } catch {
+        return {};
+      }
+    }
+  }
+
+  async getDatabaseSchemas(): Promise<Record<string, string[]>> {
+    await this.waitForInit();
+    try {
+      const rows = await this.readQuery(`
+        SELECT catalog_name as database_name, schema_name 
+        FROM information_schema.schemata
+        WHERE schema_name NOT IN ('information_schema', 'pg_catalog', 'pg_toast')
+        ORDER BY catalog_name, schema_name
+      `);
+      const map: Record<string, string[]> = {};
+      for (const row of rows || []) {
+        const db = String(row.database_name || '');
+        const sch = String(row.schema_name || '');
+        if (db && sch) {
+          if (!map[db]) map[db] = [];
+          map[db].push(sch);
+        }
+      }
+      return map;
+    } catch {
+      return {};
+    }
+  }
+
+
+
+
+  importDatabaseFile(file: File, name: string): Promise<CatalogDatabaseInfo> {
+    return this.serializeDatabaseLifecycle(() => this.importDatabaseFileInternal(file, name));
+  }
+
+  private async importDatabaseFileInternal(file: File, name: string): Promise<CatalogDatabaseInfo> {
+    await this.waitForInit();
+    const alias = sanitizeDatabaseAlias(name);
+    if ((await this.listDatabases()).some((db) => db.name.toLowerCase() === alias.toLowerCase())) throw new Error(`数据库「${alias}」已挂载，请更换文件名`);
+    if (this.storageMode !== 'opfs' || !isOpfsAvailable()) {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      validateDuckDBDatabaseFile(bytes);
+      const virtualFile = `mounted_${alias}_${Date.now()}.duckdb`;
+      await this.registerFileBuffer(virtualFile, bytes);
+      try {
+        await this.query(`ATTACH '${virtualFile}' AS ${quoteIdent(alias)} (READ_ONLY)`);
+        const mounted = (await this.listDatabases()).find(db => db.name === alias);
+        if (!mounted) throw new Error(`挂载数据库「${alias}」失败`);
+        return mounted;
+      } catch (error) {
+        try { await this.query(`DETACH ${quoteIdent(alias)}`); } catch { /* preserve attach failure */ }
+        await this.dropFile(virtualFile);
+        throw error;
+      }
+    }
+    const stored = await listOpfsDuckdbAliases(DEFAULT_SESSION_HUB_ALIAS);
+    if (stored.some(db => db.toLowerCase() === alias.toLowerCase())) throw new Error(`数据库文件「${alias}.duckdb」已存在，请挂载已有库或更换文件名`);
+    await importOpfsDuckdbFile(file, alias);
+    try {
+      return await this.attachDatabaseInternal(alias, { persistent: true });
+    } catch (error) {
+      try { await this.releaseOpfsAttachHandles(alias); await deleteOpfsDuckdbFile(alias); } catch { /* preserve attach failure */ }
+      throw error;
+    }
+  }
+
+  useDatabase(name: string): Promise<{ catalog: string; schema: string }> {
+    return this.serializeDatabaseLifecycle(() => this.useDatabaseInternal(name));
+  }
+
+  private async useDatabaseInternal(name: string): Promise<{ catalog: string; schema: string }> {
+    await this.waitForInit();
+    const ctx = await this.getCatalog().useDatabase(name);
+    await this.applyUseOnBothConnections(ctx.catalog, ctx.schema);
+    this.dispatchDatabaseChanged(ctx.catalog, ctx.schema);
+    return ctx;
+  }
+
+  detachDatabase(name: string): Promise<void> {
+    return this.serializeDatabaseLifecycle(() => this.detachDatabaseInternal(name));
+  }
+
+  private async detachDatabaseInternal(name: string): Promise<void> {
+    await this.waitForInit();
+    await this.getCatalog().detachDatabase(name);
+    await this.syncCurrentDatabaseName();
+    this.dispatchDatabaseChanged(this.currentDatabaseName, 'main');
+  }
+
+  dropDatabase(name: string): Promise<void> {
+    return this.serializeDatabaseLifecycle(() => this.dropDatabaseInternal(name));
+  }
+
+  private async dropDatabaseInternal(name: string): Promise<void> {
+    await this.waitForInit();
+    await this.getCatalog().dropDatabase(name);
+    await this.syncCurrentDatabaseName();
+    this.dispatchDatabaseChanged(this.currentDatabaseName, 'main');
   }
 
   async ontologyInit(): Promise<void> {
@@ -879,7 +1298,11 @@ class DuckDBService {
   }
 
   async getTableSchema(tableName: string): Promise<any[]> {
-    return this.query(`PRAGMA table_info('${tableName}')`);
+    // This runtime exposes PRAGMA's TINYINT flags inconsistently through Arrow.
+    // Cast them inside DuckDB before materialization so non-PK fields stay measures/dimensions.
+    const literal = String(tableName).replace(/'/g, "''");
+    return this.query(`SELECT cid, name, type, CAST("notnull" AS INTEGER) AS "notnull",
+      dflt_value, CAST(pk AS INTEGER) AS pk FROM pragma_table_info('${literal}') ORDER BY cid`);
   }
 
   async getExtensions(): Promise<any[]> {
@@ -909,6 +1332,12 @@ class DuckDBService {
     await this.waitForInit();
     if (!this.db) throw new Error("Database not connected");
     await this.db.registerFileText(name, text);
+  }
+
+  async registerFileBuffer(name: string, buffer: Uint8Array): Promise<void> {
+    await this.waitForInit();
+    if (!this.db) throw new Error("Database not connected");
+    await this.db.registerFileBuffer(name, buffer);
   }
 
   async dropFile(name: string): Promise<void> {
@@ -961,30 +1390,71 @@ class DuckDBService {
     }
   }
 
+  /** SQL dumps are atomic: a failed statement restores the previous database. */
+  async importSqlScript(content: string, replaceTables: string[] = []): Promise<string[]> {
+    await this.waitForInit();
+    return this.runInQueue(async () => {
+      if (!this.conn) throw new Error('数据库尚未就绪');
+      const statements = splitScriptStatements(content).map(stripSqlHeader).filter(Boolean);
+      if (!statements.length) throw new Error('SQL 文件为空');
+      if (statements.some(statement => /^(ATTACH|DETACH|USE|EXPORT|IMPORT|CHECKPOINT|ROLLBACK)\b/i.test(statement))) {
+        throw new Error('SQL 文件需在当前数据库中执行；请移除数据库切换、外部导入/导出或回滚指令');
+      }
+      if (this.sqlTransactionOpen) throw new Error('请先完成当前 SQL 事务再导入文件');
+      const scope = this.cleanDuckDBResult(await this.conn.query('SELECT current_database() AS db, current_schema() AS sch'))[0];
+      const prefix = `${quoteIdent(scope.db)}.${quoteIdent(scope.sch)}`;
+      const executable = statements.filter(statement => !/^(?:BEGIN|START\s+TRANSACTION|COMMIT|END)\b/i.test(statement));
+      await this.conn.query('BEGIN TRANSACTION');
+      this.sqlTransactionOpen = true;
+      let index = 0;
+      try {
+        // Child tables first when declared foreign keys exist.
+        const constraints = this.cleanDuckDBResult(await this.conn.query(`SELECT table_name, referenced_table FROM duckdb_constraints() WHERE database_name = '${String(scope.db).replace(/'/g, "''")}' AND schema_name = '${String(scope.sch).replace(/'/g, "''")}' AND constraint_type = 'FOREIGN KEY'`));
+        const pending = new Set(replaceTables);
+        while (pending.size) {
+          const next = [...pending].find(table => !constraints.some(fk => fk.referenced_table === table && pending.has(fk.table_name) && fk.table_name !== table));
+          if (!next) throw new Error('SQL 来源表存在循环外键，无法自动重建；请在 SQL 中提供迁移语句');
+          await this.conn.query(`DROP TABLE IF EXISTS ${prefix}.${quoteIdent(next)}`); pending.delete(next);
+        }
+        for (const statement of executable) { index++; await this.conn.query(statement); }
+        await this.conn.query('COMMIT');
+      } catch (error) {
+        try { await this.conn.query('ROLLBACK'); } catch { /* connection error remains primary */ }
+        throw new Error(`SQL 导入失败（第 ${index || 1} 条语句），已回滚：${(error as Error).message}`);
+      } finally { this.sqlTransactionOpen = false; }
+      await this.checkpointPersistentCatalogs();
+      this.scheduleCacheSave();
+      this.dispatchSchemaChanged();
+      const result = await this.conn.query(`SELECT table_name FROM information_schema.tables WHERE table_catalog = '${String(scope.db).replace(/'/g, "''")}' AND table_schema = '${String(scope.sch).replace(/'/g, "''")}' AND table_name NOT LIKE '_sys_%' AND table_schema <> '__studio' ORDER BY table_name`);
+      return this.cleanDuckDBResult(result).map(row => String(row.table_name));
+    });
+  }
+
   async importFile(file: File, tableName: string, options?: ImportOptions): Promise<string[]> {
+    if (file.name.toLowerCase().endsWith('.sql')) return this.importSqlScript(await file.text());
+    if (file.name.toLowerCase().endsWith('.duckdb')) {
+      // Share preview, destination validation and conflict handling with the wizard.
+      const { dataImportService } = await import('./dataImportService');
+      try {
+        const metadata = await dataImportService.sniffSource('local', file, '', '', {
+          format: 'DuckDB', delimiter: ',', quote: '"', header: true, encoding: 'UTF-8',
+        });
+        const { allocateImportTableNames } = await import('./importTableNames');
+        const sheets = metadata.sheets || [];
+        const names = allocateImportTableNames(tableName, sheets.map(sheet => ({ name: sheet.name })));
+        const scope = await this.getCurrentCatalogAndSchema();
+        const result = await dataImportService.executeBatchImport(scope.schema, sheets.map((sheet, i) => ({
+          sheetName: sheet.name, tableName: names[i], rawSqlSource: sheet.rawSqlSource, columns: sheet.columns,
+        })), options?.conflictMode || 'fail');
+        return result.createdTables;
+      } finally {
+        await dataImportService.cleanupVirtualFiles();
+      }
+    }
     return this.runInQueue(async () => {
       if (!this.db || !this.conn) return [];
 
       const lowerName = file.name.toLowerCase();
-      const isSql = lowerName.endsWith('.sql');
-      if (isSql) {
-        const sqlContent = await file.text();
-        const statements = splitSqlStatements(sqlContent);
-        for (const stmt of statements) {
-          if (stmt.trim()) {
-            await this.conn.query(stmt);
-          }
-        }
-
-        const cleanSql = sqlContent.substring(0, 1000).replace(/'/g, "''");
-        const auditSql = `INSERT INTO memory._sys_audit_log (id, operation_type, target_table, details, affected_rows, sql_statement) VALUES (nextval('memory._sys_audit_seq'), 'IMPORT', '${tableName}', 'Executed SQL script ${file.name}', 0, '${cleanSql}');`;
-        try {
-          await this.conn.query(auditSql);
-        } catch {}
-        this.dispatchSchemaChanged();
-        return [tableName];
-      }
-
       let tableExists = false;
       try {
         const checkRes = await this.conn.query(`SELECT table_name FROM information_schema.tables WHERE table_schema = current_schema() AND table_name = '${tableName.replace(/'/g, "''")}'`);
@@ -1016,11 +1486,11 @@ class DuckDBService {
           throw new Error(`Excel 文件 (${file.name}) 中未发现包含有效数据的工作表`);
         }
 
+        const allocatedTableNames = allocateExcelTableNames(nonBlankSheets, file.name || tableName);
         const createdTables: string[] = [];
         for (let i = 0; i < nonBlankSheets.length; i++) {
           const sheet = nonBlankSheets[i];
-          const cleanSheetName = sheet.name.replace(/[^a-zA-Z0-9_\u4e00-\u9fa5]/g, '_').replace(/^_+/, '') || `sheet_${i + 1}`;
-          const targetTable = nonBlankSheets.length === 1 ? tableName : `${tableName}_${cleanSheetName}`;
+          const targetTable = allocatedTableNames[i];
 
           const virtualFileName = `${targetTable}_excel_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 6)}.csv`;
           const virtualFile = new File([sheet.csvText], virtualFileName, { type: 'text/csv' });
@@ -1943,68 +2413,31 @@ class DuckDBService {
    * lists available persistent database files in OPFS.
    */
   async listProjects(): Promise<string[]> {
-    if ('storage' in navigator && 'getDirectory' in navigator.storage) {
-      try {
-        const root = await navigator.storage.getDirectory();
-        const projects: string[] = [];
-        // @ts-ignore - iterate is valid in modern browsers
-        for await (const [name, handle] of root.entries()) {
-          if (name.endsWith('.duckdb')) {
-            projects.push(name.replace('.duckdb', ''));
-          }
-        }
-        return projects;
-      } catch (e) {
-        console.warn("[Persistence] OPFS List Failed", e);
-        return [];
+    try {
+      await this.waitForInit();
+      const [fromOpfs, dbs] = await Promise.all([
+        listOpfsDuckdbAliases(DEFAULT_SESSION_HUB_ALIAS),
+        this.listDatabases(),
+      ]);
+      const set = new Set<string>();
+      for (const name of fromOpfs) {
+        if (name && name !== DEFAULT_SESSION_HUB_ALIAS) set.add(name);
       }
+      for (const db of dbs) {
+        if (db.name && db.name !== DEFAULT_SESSION_HUB_ALIAS) set.add(db.name);
+      }
+      return Array.from(set).sort((a, b) => a.localeCompare(b));
+    } catch {
+      return [];
     }
-    return [];
   }
 
   async detachProject(projectName: string): Promise<void> {
-    if (!this.conn) return;
-    const alias = projectName.replace(/[^a-zA-Z0-9]/g, '_');
-    try {
-      await this.conn.query(`DETACH "${alias}"`);
-    } catch (e) { /* ignore */ }
+    await this.detachDatabase(projectName);
   }
 
   async deleteProject(projectName: string): Promise<void> {
-    const dbName = projectName.endsWith('.duckdb') ? projectName : `${projectName}.duckdb`;
-    const alias = projectName.replace(/[^a-zA-Z0-9]/g, '_');
-
-    // Step 1: Detach from DuckDB first to release file handle
-    if (this.conn) {
-      try {
-        await this.conn.query(`DETACH DATABASE IF EXISTS "${alias}"`);
-        console.log(`[Persistence] Detached ${alias} from DuckDB.`);
-      } catch (e) {
-        // Database might not be attached, that's fine
-        console.warn(`[Persistence] Detach warning (may be expected):`, e);
-      }
-    }
-
-    // Step 2: Drop the file registration from DuckDB's VFS cache
-    if (this.db) {
-      try {
-        await this.db.dropFile(dbName);
-        console.log(`[Persistence] Dropped ${dbName} from VFS cache.`);
-      } catch (e) {
-        console.warn(`[Persistence] dropFile warning (may be expected):`, e);
-      }
-    }
-
-    // Step 3: Delete from OPFS
-    if ('storage' in navigator && 'getDirectory' in navigator.storage) {
-      try {
-        const root = await navigator.storage.getDirectory();
-        await root.removeEntry(dbName);
-        console.log(`[Persistence] Deleted ${dbName} from OPFS.`);
-      } catch (e) {
-        console.warn(`[Persistence] OPFS delete failed:`, e);
-      }
-    }
+    await this.dropDatabase(projectName);
   }
 
   /**
@@ -2127,7 +2560,7 @@ class DuckDBService {
     if (!this.conn) return null;
     try {
       const res = await this.conn.query(`SELECT value FROM _sys_kv_store WHERE key = '${key}'`);
-      const rows = res.toArray().map(r => r.toJSON());
+      const rows = this.cleanDuckDBResult(res);
       if (rows.length > 0) {
         return typeof rows[0].value === 'string' ? JSON.parse(rows[0].value) : rows[0].value;
       }
@@ -2323,7 +2756,7 @@ class DuckDBService {
     }
   }
 
-  async saveOntologyCanvasState(id: string, spaceId: string | null, objectId: number | null, title: string, color: string, x: number, y: number, width: number, height: number, nodeType: string, metadata: any): Promise<void> {
+  async saveOntologyCanvasState(id: string, spaceId: string | null, objectId: number | null, title: string, color: string, x: number, y: number, width: number, height: number, nodeType: string, metadata: any, scope?: { catalog: string; schema: string }): Promise<void> {
     const spaceVal = spaceId ? `'${spaceId.replace(/'/g, "''")}'` : 'NULL';
     const objVal = (objectId != null && Number.isFinite(objectId) && !Number.isNaN(objectId)) ? objectId : 'NULL';
     const xVal = Number.isFinite(x) ? x : 0;
@@ -2335,8 +2768,9 @@ class DuckDBService {
     const safeColor = (color || '').replace(/'/g, "''");
     const safeNodeType = (nodeType || 'object').replace(/'/g, "''");
     const metadataVal = metadata ? `'${JSON.stringify(metadata).replace(/'/g, "''")}'` : "'{}'";
+    const canvasTable = scope ? `${quoteIdent(scope.catalog)}.${quoteIdent(scope.schema)}.${quoteIdent('life_canvas_state')}` : 'life_canvas_state';
     await this.query(`
-      INSERT INTO life_canvas_state (id, space_id, object_id, title, color, x, y, width, height, node_type, metadata)
+      INSERT INTO ${canvasTable} (id, space_id, object_id, title, color, x, y, width, height, node_type, metadata)
       VALUES ('${safeId}', ${spaceVal}, ${objVal}, '${safeTitle}', '${safeColor}', ${xVal}, ${yVal}, ${widthVal}, ${heightVal}, '${safeNodeType}', ${metadataVal})
       ON CONFLICT (id) DO UPDATE SET
         space_id = EXCLUDED.space_id,
@@ -2678,11 +3112,11 @@ class DuckDBService {
     try {
       const memRes = await this.query('SELECT * FROM duckdb_memory()');
       if (memRes && memRes.length > 0) {
-        let total = 0;
-        for (const row of memRes) {
-          total += Number(row.memory_usage ?? 0);
+        const values = memRes.map(row => Number(row.memory_usage_bytes ?? row.memory_usage));
+        if (values.every(value => Number.isFinite(value) && value >= 0)) {
+          const total = values.reduce((sum, value) => sum + value, 0);
+          memoryUsage = `${(total / (1024 * 1024)).toFixed(2)} MB`;
         }
-        memoryUsage = `${(total / (1024 * 1024)).toFixed(2)} MB`;
       }
     } catch (e) {}
 
@@ -2704,6 +3138,45 @@ class DuckDBService {
     } catch {
       return [];
     }
+  }
+
+  /** Read-only prepared execution: never substitutes placeholders into SQL text. */
+  async readQueryWithParams(sql: string, params: (string | number | boolean | null)[]): Promise<any[]> {
+    return this.runInQueue(async () => {
+      await this.waitForInit();
+      if (!this.conn) throw new Error('Database not connected');
+      const prepared = await this.conn.prepare(sql);
+      try { return this.cleanDuckDBResult(await prepared.query(...params)); }
+      finally { await prepared.close(); }
+    });
+  }
+
+  /** Keep result metadata, totals and rows in one queue turn, without intervening writes. */
+  async readQueryBatchWithParams(statements: {sql: string; params: (string | number | boolean | null)[]}[], lifecycle?: import('./workbench/queryLifecycle').QueryLifecycle): Promise<any[][]> {
+    const queries = statements.map(statement => {
+      const describe = /^\s*DESCRIBE\s+/i.exec(statement.sql);
+      const sql = describe
+        ? `DESCRIBE ${requireAnalysisQuery(statement.sql.slice(describe[0].length))}`
+        : requireAnalysisQuery(statement.sql);
+      return {...statement,sql};
+    });
+    const queuedAt = performance.now();
+    return this.runInQueue(async () => {
+      const { requireCurrent } = await import('./workbench/queryLifecycle');
+      requireCurrent(lifecycle);
+      lifecycle?.onQueueStart?.(performance.now() - queuedAt);
+      await this.waitForInit();
+      requireCurrent(lifecycle);
+      if (!this.conn) throw new Error('Database not connected');
+      const results: any[][] = [];
+      for (const {sql,params} of queries) {
+        requireCurrent(lifecycle);
+        const prepared = await this.conn.prepare(sql);
+        try { results.push(this.cleanDuckDBResult(await prepared.query(...params))); }
+        finally { await prepared.close(); }
+      }
+      return results;
+    },25000,lifecycle);
   }
 
   async queryWithParams(sql: string, params?: any[]): Promise<any[]> {
@@ -2747,9 +3220,10 @@ class DuckDBService {
     // Cancellation stub
   }
 
-  async executeTransaction<T = unknown>(statementsOrCallback: string[] | (() => Promise<T>)): Promise<T | void> {
+  async executeTransaction<T = unknown>(statementsOrCallback: string[] | ((query: (sql: string) => Promise<any[]>) => Promise<T>)): Promise<T | void> {
     return this.runInQueue(async () => {
       await this.waitForInit();
+      if (this.sqlTransactionOpen && !this.inTransaction) throw new Error('请先完成当前 SQL 事务再导入或写入数据');
       const isNested = this.inTransaction;
       if (!isNested) {
         this.inTransaction = true;
@@ -2772,12 +3246,17 @@ class DuckDBService {
             if (this.conn) await this.conn.query(stmt);
           }
         } else {
-          res = await statementsOrCallback();
+          // Use this scoped executor inside callbacks; recursively queuing query() would deadlock.
+          res = await statementsOrCallback(async sql => {
+            if (!this.conn) throw new Error('Database not connected');
+            return this.cleanDuckDBResult(await this.conn.query(sql));
+          });
         }
 
         if (!isNested && this.conn) {
           try {
             await this.conn.query('COMMIT');
+            await this.checkpointPersistentCatalogs();
           } catch (e) {
             const msg = e instanceof Error ? e.message : String(e);
             if (!/no transaction is active/i.test(msg)) throw e;
@@ -2865,7 +3344,8 @@ class DuckDBService {
       const rows = await this.query(`
         SELECT DISTINCT table_name 
         FROM information_schema.tables 
-        WHERE (table_schema = current_schema() OR table_schema = 'main') 
+        WHERE table_catalog = current_database()
+          AND (table_schema = current_schema() OR table_schema = 'main')
           AND table_type = 'BASE TABLE'
           AND table_name NOT LIKE '_sys_%'
       `);
@@ -2875,7 +3355,8 @@ class DuckDBService {
         const rows = await this.query(`
           SELECT DISTINCT table_name 
           FROM duckdb_tables() 
-          WHERE (schema_name = current_schema() OR schema_name = 'main') 
+          WHERE database_name = current_database()
+            AND (schema_name = current_schema() OR schema_name = 'main')
             AND NOT internal 
             AND table_name NOT LIKE '_sys_%'
         `);
@@ -2893,7 +3374,7 @@ class DuckDBService {
       const res = await this.query(`
         SELECT DISTINCT view_name 
         FROM duckdb_views() 
-        WHERE NOT internal 
+        WHERE database_name = current_database() AND NOT internal
           AND schema_name NOT IN ('information_schema', 'pg_catalog')
           AND view_name NOT LIKE '_sys_%'
       `);
@@ -2904,7 +3385,8 @@ class DuckDBService {
       const res = await this.query(`
         SELECT DISTINCT table_name 
         FROM information_schema.views 
-        WHERE table_schema NOT IN ('information_schema', 'pg_catalog')
+        WHERE table_catalog = current_database()
+          AND table_schema NOT IN ('information_schema', 'pg_catalog', '__studio')
           AND table_name NOT LIKE '_sys_%'
       `);
       return res.map((r: any) => String(r.table_name || Object.values(r)[0])).filter(Boolean);
@@ -2918,7 +3400,8 @@ class DuckDBService {
       const res = await this.query(`
         SELECT DISTINCT function_name 
         FROM duckdb_functions() 
-        WHERE (function_type = 'macro' OR function_type = 'table_macro' OR function_type ILIKE '%macro%') 
+        WHERE database_name = current_database()
+          AND (function_type = 'macro' OR function_type = 'table_macro' OR function_type ILIKE '%macro%')
           AND (schema_name = current_schema() OR schema_name = 'main' OR schema_name = 'temp') 
           AND NOT internal 
           AND function_name NOT LIKE '_sys_%'
@@ -3089,13 +3572,129 @@ class DuckDBService {
   async getCurrentCatalogAndSchema(): Promise<{ catalog: string; schema: string }> {
     try {
       const res = await this.query('SELECT current_database() as db, current_schema() as sch');
-      return {
-        catalog: res[0]?.db || 'memory',
-        schema: res[0]?.sch || 'main',
-      };
+      if (res && res[0]?.db) {
+        return { catalog: String(res[0].db), schema: String(res[0]?.sch || 'main') };
+      }
     } catch {
-      return { catalog: 'memory', schema: 'main' };
+      // Fallback if query fails during initialization or mock runtime
     }
+    return { catalog: this.currentDatabaseName || MEMORY_DATABASE_NAME, schema: 'main' };
+  }
+
+  /**
+   * List switchable analysis targets from real DuckDB catalogs (SHOW DATABASES / duckdb_databases).
+   * Schemas remain available as secondary switches inside the current database.
+   */
+  async listAnalysisContexts(): Promise<
+    Array<{ id: string; label: string; kind: 'schema' | 'database' | 'project'; isCurrent: boolean }>
+  > {
+    await this.waitForInit();
+    const current = await this.getCurrentCatalogAndSchema();
+    const items: Array<{ id: string; label: string; kind: 'schema' | 'database' | 'project'; isCurrent: boolean }> = [];
+    const seen = new Set<string>();
+
+    const push = (id: string, label: string, kind: 'schema' | 'database' | 'project', isCurrent: boolean) => {
+      const key = `${kind}:${id}`;
+      if (seen.has(key) || !id) return;
+      seen.add(key);
+      items.push({ id, label, kind, isCurrent });
+    };
+
+    try {
+      const dbs = await this.listDatabases();
+      for (const db of dbs) {
+        const badge = db.persistent ? '持久库' : '内存库';
+        const isDbCurrent = db.name === current.catalog && (!current.schema || current.schema === 'main');
+        push(
+          db.name,
+          `${badge} · ${db.name}${db.name === MEMORY_DATABASE_NAME ? '（临时）' : ''}`,
+          'database',
+          isDbCurrent,
+        );
+      }
+
+      // Include detached persistent files in OPFS so user can directly switch into them
+      try {
+        const detached = await this.listDetachedDatabaseFiles();
+        for (const fileAlias of detached) {
+          push(
+            fileAlias,
+            `离线持久库 · ${fileAlias}`,
+            'database',
+            fileAlias === current.catalog,
+          );
+        }
+      } catch {
+        /* detached files optional */
+      }
+    } catch {
+      push(current.catalog || MEMORY_DATABASE_NAME, `库 · ${current.catalog || MEMORY_DATABASE_NAME}`, 'database', true);
+    }
+
+
+    // Secondary: schemas in the *current* database only
+    try {
+      const schemas = await this.readQuery(
+        `SELECT schema_name FROM information_schema.schemata
+         WHERE catalog_name = current_database()
+           AND schema_name NOT IN ('information_schema', 'pg_catalog', 'pg_toast')
+         ORDER BY CASE WHEN schema_name = 'main' THEN 0 ELSE 1 END, schema_name`,
+      );
+      for (const row of schemas || []) {
+        const name = String(row.schema_name || '');
+        if (name === 'main') continue; // main is implied by database switch
+        push(name, `Schema · ${current.catalog}.${name}`, 'schema', name === current.schema);
+      }
+    } catch {
+      /* schemas optional */
+    }
+
+    if (!items.some((it) => it.isCurrent) && items.length > 0) {
+      const match = items.find((it) => it.id === current.catalog);
+      if (match) match.isCurrent = true;
+      else items[0].isCurrent = true;
+    }
+
+    if (items.length === 0) {
+      push(MEMORY_DATABASE_NAME, '内存库 · memory（临时）', 'database', true);
+    }
+    return items;
+  }
+
+  /**
+   * Switch active analysis context, then callers should refresh tables + board.
+   */
+  async switchAnalysisContext(target: {
+    id: string;
+    kind: 'schema' | 'database' | 'project';
+  }): Promise<{ catalog: string; schema: string }> {
+    await this.waitForInit();
+    if (!this.conn) throw new Error('DB not connected');
+
+    const quoteIdent = (name: string) => `"${String(name).replace(/"/g, '""')}"`;
+
+    if (target.kind === 'database' || target.kind === 'project') {
+      const ctx = await this.useDatabase(target.id);
+      return ctx;
+    }
+
+    // schema within current database
+    try {
+      await this.conn.query(`SET schema = ${quoteIdent(target.id)}`);
+    } catch (e: any) {
+      throw new Error(`无法切换 Schema「${target.id}」: ${e?.message || e}`);
+    }
+    if (this.readConn && this.readConn !== this.conn) {
+      try {
+        await this.readConn.query(`SET schema = ${quoteIdent(target.id)}`);
+      } catch {
+        /* ignore */
+      }
+    }
+
+    const ctx = await this.getCurrentCatalogAndSchema();
+    this.dispatchDatabaseChanged(ctx.catalog, ctx.schema);
+    return ctx;
   }
 
   async getTableOrViewDefinition(target: ObjectRef | string): Promise<{ rowCount: number; schema: any[]; ddl: string; sql?: string }> {
@@ -3137,11 +3736,15 @@ class DuckDBService {
       // Normalize so we never emit "EXPLAIN EXPLAIN ..." or explain a trailing semicolon-only stump
       let normalized = (sql || '').trim().replace(/;+\s*$/g, '').trim();
       while (/^EXPLAIN\s+/i.test(normalized)) {
-        normalized = normalized.replace(/^EXPLAIN\s+(?:ANALYZE\s+)?/i, '').trim();
+        normalized = normalized.replace(/^EXPLAIN\s+(?:ANALYZE\s+)?(?:\([^)]+\)\s+)?/i, '').trim();
       }
       if (!normalized) {
         return { planText: 'Error explaining query: SQL 为空，无法生成执行计划' };
       }
+      if (splitSqlStatements(normalized).filter(statement => stripSqlHeader(statement).trim()).length !== 1) {
+        return { planText: 'Error explaining query: 执行计划仅支持单条 SQL，请选中一条语句；不会重放多语句脚本' };
+      }
+      if (detail) normalized = requireAnalysisQuery(normalized);
       const res = await this.query(detail ? `EXPLAIN ANALYZE ${normalized}` : `EXPLAIN ${normalized}`);
       let physicalPlanText: string | undefined;
       for (const r of res) {
@@ -3158,12 +3761,146 @@ class DuckDBService {
     }
   }
 
-  async queryWithMetadata(sql: string): Promise<QueryResult & { columnTypes: string[]; columnTypeMap: Record<string, string> }> {
+  async getStructuredExplainPlan(sql: string, analyze: boolean = false): Promise<{
+    planText: string;
+    jsonPlan?: any;
+    isAnalyzed: boolean;
+    queryLatencyMs?: number;
+    cpuTimeMs?: number;
+    error?: string;
+  }> {
+    try {
+      let normalized = (sql || '').trim().replace(/;+\s*$/g, '').trim();
+      while (/^EXPLAIN\s+/i.test(normalized)) {
+        normalized = normalized.replace(/^EXPLAIN\s+(?:ANALYZE\s+)?(?:\([^)]+\)\s+)?/i, '').trim();
+      }
+      if (!normalized) {
+        return { planText: '', error: 'SQL 为空，无法生成执行计划', isAnalyzed: false };
+      }
+      if (splitSqlStatements(normalized).filter(statement => stripSqlHeader(statement).trim()).length !== 1) {
+        return { planText: '', error: '执行计划仅支持单条 SQL，请选中一条语句；不会重放多语句脚本', isAnalyzed: false };
+      }
+      if (analyze) normalized = requireAnalysisQuery(normalized);
+
+      const explainSql = analyze
+        ? `EXPLAIN (ANALYZE, FORMAT JSON) ${normalized}`
+        : `EXPLAIN (FORMAT JSON) ${normalized}`;
+
+      let rows: any[] = [];
+      let jsonPlan: any = null;
+      let rawText = '';
+      try {
+        rows = await this.query(explainSql);
+        if (rows && rows.length > 0) {
+          for (const r of rows) {
+            const key = String(r.explain_key || '').toLowerCase();
+            const val = String(r.explain_value ?? r.explore_value ?? Object.values(r)[1] ?? Object.values(r)[0] ?? '');
+            if (!rawText) rawText = val;
+            const trimmed = val.trim();
+            if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+              try {
+                jsonPlan = JSON.parse(trimmed);
+                if (key.includes('physical') || key.includes('analyzed')) {
+                  rawText = val;
+                  break;
+                }
+              } catch {
+                // not json
+              }
+            }
+          }
+        }
+      } catch (structuredErr: any) {
+        console.warn('Structured explain query failed, falling back to text explain:', structuredErr);
+      }
+
+      if (!jsonPlan) {
+        const fallbackRes = await this.getExplainPlan(sql, analyze);
+        const err = fallbackRes.planText.startsWith('Error explaining') ? fallbackRes.planText : undefined;
+        return {
+          planText: fallbackRes.planText,
+          jsonPlan: undefined,
+          isAnalyzed: analyze,
+          error: err,
+        };
+      }
+
+      const latencyMs = typeof jsonPlan?.latency === 'number' ? jsonPlan.latency * 1000 : undefined;
+      const cpuTimeMs = typeof jsonPlan?.cpu_time === 'number' ? jsonPlan.cpu_time * 1000 : undefined;
+
+      return {
+        planText: rawText,
+        jsonPlan,
+        isAnalyzed: analyze,
+        queryLatencyMs: latencyMs,
+        cpuTimeMs,
+      };
+    } catch (e: any) {
+      return { planText: '', error: `Error explaining query: ${e.message}`, isAnalyzed: false };
+    }
+  }
+
+  async queryWithMetadata(sql: string, scriptContext?: ScriptExecutionContext): Promise<QueryResult & { columnTypes: string[]; columnTypeMap: Record<string, string> }> {
     const startTime = performance.now();
     try {
+      if (scriptContext || splitSqlScript(sql).length > 1) {
+        return await this.runInQueue(async () => {
+          await this.waitForInit();
+          if (!this.conn) throw new Error('Database not connected');
+          const connection = this.conn;
+          let changed = false;
+          const execute = async (statement: string) => {
+            const head = splitSqlScript(statement)[0]?.tokens[0]?.upper;
+            let executable = statement;
+            const attach = statement.match(/^ATTACH\s+(?:DATABASE\s+)?(?:IF\s+NOT\s+EXISTS\s+)?['"]opfs:\/\/([A-Za-z0-9_]+)\.duckdb['"]/i);
+            if (attach && this.storageMode === 'opfs') { await this.registerDomainOpfsHandles(attach[1]); executable = statement.replace(`opfs://${attach[1]}.duckdb`, `${attach[1]}.duckdb`); }
+            const detach = statement.match(/^DETACH\s+(?:DATABASE\s+)?(?:IF\s+EXISTS\s+)?["`]?([A-Za-z_][\w]*)["`]?/i);
+            if (detach && detach[1] !== MEMORY_DATABASE_NAME && detach[1] !== DEFAULT_SESSION_HUB_ALIAS) await connection.query(`CHECKPOINT ${quoteIdent(detach[1])}`);
+            if (detach && this.readConn && this.readConn !== connection) await this.readConn.query(`USE ${MEMORY_DATABASE_NAME}`);
+            const arrowTable = await connection.query(executable);
+            if (['BEGIN','START'].includes(head)) this.sqlTransactionOpen = true;
+            if (['COMMIT','ROLLBACK','ABORT'].includes(head)) this.sqlTransactionOpen = false;
+            if (detach) await this.releaseOpfsAttachHandles(detach[1]);
+            if (['CREATE','DROP','ALTER','INSERT','UPDATE','DELETE','COPY','MERGE','ATTACH','DETACH','USE','SET','COMMIT','ROLLBACK'].includes(head)) changed = true;
+            const fields = arrowTable.schema?.fields || [], rows = this.cleanDuckDBResult(arrowTable);
+            const columns = fields.map((f: any) => f.name), columnTypes = fields.map((f: any) => arrowTypeToDuckDBType(f.type) || 'VARCHAR');
+            return { columns, columnTypes, columnTypeMap: Object.fromEntries(columns.map((c: string, i: number) => [c, columnTypes[i]])), rows, arrowTable, executionTime: performance.now() - startTime };
+          };
+          try {
+            const result = await executeSqlScript(sql, { execute, transactionOpen: () => this.sqlTransactionOpen || this.inTransaction, setTransactionOpen: value => { this.sqlTransactionOpen = value; } }, {...scriptContext,tabId:scriptContext?.tabId||'',documentSql:scriptContext?.documentSql||sql,baseOffset:scriptContext?.baseOffset||0,connectionId:connection.useUnsafe((_db,id)=>String(id))});
+            return result || { columns: [], columnTypes: [], columnTypeMap: {}, rows: [], executionTime: performance.now() - startTime };
+          } finally {
+            if (changed) {
+              // Synchronize the reader to the writer only after the script releases its transaction.
+              try { const scope = this.cleanDuckDBResult(await connection.query('SELECT current_database() AS db, current_schema() AS sch'))[0]; if(scope?.db)this.currentDatabaseName=String(scope.db); if (this.readConn && this.readConn !== connection) await this.readConn.query(`USE ${quoteIdent(scope.db)}.${quoteIdent(scope.sch)}`); } catch { /* preserve the original execution error */ }
+              if (!this.sqlTransactionOpen) await this.checkpointPersistentCatalogs();
+              this.dispatchSchemaChanged(); this.scheduleCacheSave();
+            }
+          }
+        }, null);
+      }
+      if (splitSqlStatements(sql).some((statement) => /^(?:ATTACH|DETACH|USE)\b/i.test(statement.replace(/^\s*(?:(?:--[^\n]*\n)|(?:\/\*[\s\S]*?\*\/))*/g, '').trim()))) {
+        const rows = await this.query(sql);
+        const columns = rows.length ? Object.keys(rows[0]) : [];
+        const columnTypes = columns.map((column) => typeof rows[0][column] === 'number' ? 'DOUBLE' : 'VARCHAR');
+        const columnTypeMap = Object.fromEntries(columns.map((column, index) => [column, columnTypes[index]]));
+        return { columns, columnTypes, columnTypeMap, rows, executionTime: performance.now() - startTime };
+      }
       await this.waitForInit();
       if (!this.conn) throw new Error("Database not connected");
-      const arrowTable = await this.conn.query(sql);
+      const arrowTable = await this.runInQueue(async () => {
+        const result = await this.conn!.query(sql);
+        const statements = splitSqlStatements(sql).map((statement) => statement.replace(/^\s*(?:(?:--[^\n]*\n)|(?:\/\*[\s\S]*?\*\/))*/g, '').trim());
+        for (const statement of statements) {
+          if (/^(?:BEGIN|START\s+TRANSACTION)\b/i.test(statement)) this.sqlTransactionOpen = true;
+          if (/^(?:COMMIT|ROLLBACK)\b/i.test(statement)) this.sqlTransactionOpen = false;
+        }
+        if (statements.some((statement) => /^(?:CREATE|DROP|ALTER|COPY|IMPORT|INSERT|UPDATE|DELETE|TRUNCATE|MERGE|COMMIT|ROLLBACK)\b/i.test(statement))) {
+          await this.checkpointPersistentCatalogs();
+          this.dispatchSchemaChanged();
+        }
+        return result;
+      });
       const rows = this.cleanDuckDBResult(arrowTable);
       const executionTime = performance.now() - startTime;
       const fields = arrowTable.schema?.fields || [];
@@ -3196,9 +3933,18 @@ class DuckDBService {
     }
   }
 
-  async executeAndAuditWithMetadata(sql: string, operation: string, target: string, details?: string): Promise<QueryResult & { columnTypes: string[]; columnTypeMap: Record<string, string> }> {
+  async executeAndAuditWithMetadata(sql: string, operation: string, target: string, details?: string, scriptContext?: ScriptExecutionContext): Promise<QueryResult & { columnTypes: string[]; columnTypeMap: Record<string, string> }> {
     const startTime = performance.now();
     try {
+      if (scriptContext) {
+        const result = await this.queryWithMetadata(sql, scriptContext);
+        if (result.error) throw new Error(result.error);
+        if (!this.isLegacy) {
+          const escape = (value: string) => value.replace(/'/g, "''");
+          await this.query(`INSERT INTO memory._sys_audit_log (id, operation_type, target_table, details, affected_rows, sql_statement) VALUES (nextval('memory._sys_audit_seq'), '${escape(operation)}', '${escape(target || '')}', '${escape(details || '')}', ${result.rows.length}, '${escape(sql)}')`);
+        }
+        return result;
+      }
       const rows = await this.executeAndAudit(sql, operation, target, details);
       const executionTime = performance.now() - startTime;
       const columns = rows && rows.length > 0 ? Object.keys(rows[0]) : [];
@@ -3268,3 +4014,6 @@ class DuckDBService {
 }
 
 export const duckDBService = new DuckDBService();
+if (typeof window !== 'undefined') {
+  (window as any).__duckDBService = duckDBService;
+}

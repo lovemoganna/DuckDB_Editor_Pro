@@ -1,0 +1,399 @@
+- generic [ref=f5e3]:
+  - banner "全局工作区顶栏" [ref=f5e4]:
+    - generic [ref=f5e5]:
+      - button "🪶 DuckDB Studio PRO" [ref=f5e6] [cursor=pointer]:
+        - generic [ref=f5e7]: 🪶
+        - generic [ref=f5e9]:
+          - generic [ref=f5e10]: DuckDB Studio
+          - generic [ref=f5e11]: PRO
+      - navigation "业务领域大类" [ref=f5e13]:
+        - button "工程核心" [ref=f5e14] [cursor=pointer]
+        - button "分析洞察" [ref=f5e20] [cursor=pointer]
+        - button "知识沉淀" [ref=f5e25] [cursor=pointer]
+        - button "AI 认知" [ref=f5e30] [cursor=pointer]
+      - tablist "工程核心功能标签页" [ref=f5e36]:
+        - tab "仪表盘" [ref=f5e37] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f5e2672]: "1"
+        - tab "数据" [ref=f5e43] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f5e2283]: "2"
+        - tab "Schema" [ref=f5e49] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f5e54]: "3"
+        - tab "SQL" [selected] [ref=f5e55] [cursor=pointer]
+        - tab "数据流" [ref=f5e61] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f5e66]: "5"
+      - generic [ref=f5e2674]:
+        - generic [ref=f5e2677]: "表:"
+        - generic [ref=f5e2678]: baseline_crypto_transactions
+    - generic [ref=f5e67]:
+      - button "项目" [ref=f5e68] [cursor=pointer]
+      - button "duckdb_manager_workspace 已保存到 OPFS" [ref=f5e73] [cursor=pointer]:
+        - generic [ref=f5e76]: duckdb_manager_workspace
+        - generic [ref=f5e78]: 已保存到 OPFS
+      - button "AI 助手 Ctrl+I" [ref=f5e82] [cursor=pointer]:
+        - generic [ref=f5e85]: AI 助手
+        - generic [ref=f5e86]: Ctrl+I
+      - button "⌘K" [ref=f5e87] [cursor=pointer]
+      - button "帮助与快捷键" [ref=f5e91] [cursor=pointer]
+      - button "切换为浅色模式" [ref=f5e94] [cursor=pointer]
+      - button "AI 模型设置" [ref=f5e95] [cursor=pointer]
+  - main [ref=f5e98]:
+    - generic [ref=f5e99]:
+      - generic [ref=f5e2679]:
+        - generic [ref=f5e2680]:
+          - generic [ref=f5e2682]:
+            - generic [ref=f5e2683]:
+              - generic [ref=f5e2684]: 数据资源浏览
+              - generic [ref=f5e2686]:
+                - button "刷新元数据" [ref=f5e2687] [cursor=pointer]
+                - button "隐藏左侧边栏" [ref=f5e2688] [cursor=pointer]
+            - textbox "搜索表、视图、文件..." [ref=f5e2691]
+            - generic [ref=f5e2692]:
+              - generic [ref=f5e2693]:
+                - button "打开文件" [ref=f5e2694] [cursor=pointer]
+                - button "附加数据库" [ref=f5e2696] [cursor=pointer]
+              - button "添加数据源" [ref=f5e2698] [cursor=pointer]
+            - generic [ref=f5e2700]:
+              - generic [ref=f5e2701]:
+                - generic [ref=f5e2702] [cursor=pointer]:
+                  - generic [ref=f5e2703]: duckdb_manager_workspace
+                  - generic [ref=f5e2704]: (当前)
+                - generic [ref=f5e2706]:
+                  - generic [ref=f5e2707] [cursor=pointer]: main
+                  - generic [ref=f5e2709]:
+                    - generic [ref=f5e2710]:
+                      - generic [ref=f5e2711]:
+                        - generic [ref=f5e2712] [cursor=pointer]: 表 (8)
+                        - button "一键清空所有数据表" [ref=f5e2714] [cursor=pointer]
+                      - generic [ref=f5e2715]:
+                        - generic "单击查看列画像 · 双击查询前 100 行" [ref=f5e2716] [cursor=pointer]:
+                          - generic [ref=f5e2717]: baseline_crypto_transactions
+                          - generic [ref=f5e2719]:
+                            - generic "引擎估算行数；精确结果请执行 COUNT(*)" [ref=f5e2720]: 约 25 行
+                            - button "快速查询表 baseline_crypto_transactions" [ref=f5e2721]
+                            - button "插入表名 baseline_crypto_transactions" [ref=f5e2722]
+                            - button "将表 baseline_crypto_transactions 添加到数据流画布" [ref=f5e2723]
+                            - button "删除表 baseline_crypto_transactions" [ref=f5e2724]
+                        - generic "单击查看列画像 · 双击查询前 100 行" [ref=f5e2725] [cursor=pointer]:
+                          - generic [ref=f5e2726]: baseline_crypto_transactions_lab_baseline
+                          - generic [ref=f5e2728]:
+                            - generic "引擎估算行数；精确结果请执行 COUNT(*)" [ref=f5e2729]: 约 25 行
+                            - button "快速查询表 baseline_crypto_transactions_lab_baseline" [ref=f5e2730]
+                            - button "插入表名 baseline_crypto_transactions_lab_baseline" [ref=f5e2731]
+                            - button "将表 baseline_crypto_transactions_lab_baseline 添加到数据流画布" [ref=f5e2732]
+                            - button "删除表 baseline_crypto_transactions_lab_baseline" [ref=f5e2733]
+                        - generic "单击查看列画像 · 双击查询前 100 行" [ref=f5e2734] [cursor=pointer]:
+                          - generic [ref=f5e2735]: baseline_exchange_rates
+                          - generic [ref=f5e2737]:
+                            - generic "引擎估算行数；精确结果请执行 COUNT(*)" [ref=f5e2738]: 约 8 行
+                            - button "快速查询表 baseline_exchange_rates" [ref=f5e2739]
+                            - button "插入表名 baseline_exchange_rates" [ref=f5e2740]
+                            - button "将表 baseline_exchange_rates 添加到数据流画布" [ref=f5e2741]
+                            - button "删除表 baseline_exchange_rates" [ref=f5e2742]
+                        - generic "单击查看列画像 · 双击查询前 100 行" [ref=f5e2743] [cursor=pointer]:
+                          - generic [ref=f5e2744]: baseline_exchange_rates_lab_baseline
+                          - generic [ref=f5e2746]:
+                            - generic "引擎估算行数；精确结果请执行 COUNT(*)" [ref=f5e2747]: 约 8 行
+                            - button "快速查询表 baseline_exchange_rates_lab_baseline" [ref=f5e2748]
+                            - button "插入表名 baseline_exchange_rates_lab_baseline" [ref=f5e2749]
+                            - button "将表 baseline_exchange_rates_lab_baseline 添加到数据流画布" [ref=f5e2750]
+                            - button "删除表 baseline_exchange_rates_lab_baseline" [ref=f5e2751]
+                        - generic "单击查看列画像 · 双击查询前 100 行" [ref=f5e2752] [cursor=pointer]:
+                          - generic [ref=f5e2753]: baseline_fiat_transactions
+                          - generic [ref=f5e2755]:
+                            - generic "引擎估算行数；精确结果请执行 COUNT(*)" [ref=f5e2756]: 约 25 行
+                            - button "快速查询表 baseline_fiat_transactions" [ref=f5e2757]
+                            - button "插入表名 baseline_fiat_transactions" [ref=f5e2758]
+                            - button "将表 baseline_fiat_transactions 添加到数据流画布" [ref=f5e2759]
+                            - button "删除表 baseline_fiat_transactions" [ref=f5e2760]
+                        - generic "单击查看列画像 · 双击查询前 100 行" [ref=f5e2761] [cursor=pointer]:
+                          - generic [ref=f5e2762]: baseline_fiat_transactions_lab_baseline
+                          - generic [ref=f5e2764]:
+                            - generic "引擎估算行数；精确结果请执行 COUNT(*)" [ref=f5e2765]: 约 25 行
+                            - button "快速查询表 baseline_fiat_transactions_lab_baseline" [ref=f5e2766]
+                            - button "插入表名 baseline_fiat_transactions_lab_baseline" [ref=f5e2767]
+                            - button "将表 baseline_fiat_transactions_lab_baseline 添加到数据流画布" [ref=f5e2768]
+                            - button "删除表 baseline_fiat_transactions_lab_baseline" [ref=f5e2769]
+                        - generic "单击查看列画像 · 双击查询前 100 行" [ref=f5e2770] [cursor=pointer]:
+                          - generic [ref=f5e2771]: baseline_users
+                          - generic [ref=f5e2773]:
+                            - generic "引擎估算行数；精确结果请执行 COUNT(*)" [ref=f5e2774]: 约 10 行
+                            - button "快速查询表 baseline_users" [ref=f5e2775]
+                            - button "插入表名 baseline_users" [ref=f5e2776]
+                            - button "将表 baseline_users 添加到数据流画布" [ref=f5e2777]
+                            - button "删除表 baseline_users" [ref=f5e2778]
+                        - generic "单击查看列画像 · 双击查询前 100 行" [ref=f5e2779] [cursor=pointer]:
+                          - generic [ref=f5e2780]: baseline_users_lab_baseline
+                          - generic [ref=f5e2782]:
+                            - generic "引擎估算行数；精确结果请执行 COUNT(*)" [ref=f5e2783]: 约 10 行
+                            - button "快速查询表 baseline_users_lab_baseline" [ref=f5e2784]
+                            - button "插入表名 baseline_users_lab_baseline" [ref=f5e2785]
+                            - button "将表 baseline_users_lab_baseline 添加到数据流画布" [ref=f5e2786]
+                            - button "删除表 baseline_users_lab_baseline" [ref=f5e2787]
+                    - generic [ref=f5e2788]: 视图 (0)
+                    - generic [ref=f5e2792]: 宏 (Macros) (0)
+              - generic [ref=f5e2796]: 文件与远程源 (0)
+              - generic [ref=f5e2800]: 最近打开 (0)
+          - generic [ref=f5e2806]:
+            - generic "双击空白处新建查询" [ref=f5e2807]:
+              - tablist "SQL 查询标签页" [ref=f5e2808]:
+                - tab "query_1.sql 标签选项 关闭标签页" [ref=f5e2809] [cursor=pointer]:
+                  - generic "query_1.sql • 左键切换 • 双击重命名 • 右键更多选项 (另存为/关闭等) • 中键快速关闭" [ref=f5e2810]: query_1.sql
+                  - generic [ref=f5e2811]:
+                    - button "标签选项" [ref=f5e2812]
+                    - button "关闭标签页" [ref=f5e2813]
+                - tab "查询 2 未保存更改 标签选项 关闭标签页" [selected] [ref=f5e3003] [cursor=pointer]:
+                  - generic "查询 2 • 左键切换 • 双击重命名 • 右键更多选项 (另存为/关闭等) • 中键快速关闭" [ref=f5e2818]: 查询 2
+                  - generic "未保存更改" [ref=f5e3004]
+                  - generic [ref=f5e2819]:
+                    - button "标签选项" [ref=f5e2820]
+                    - button "关闭标签页" [ref=f5e2821]
+                - button "新建查询标签页" [ref=f5e2822] [cursor=pointer]
+              - generic [ref=f5e2823]: 2 个查询
+            - toolbar "SQL 工作区工具栏" [ref=f5e2825]:
+              - generic [ref=f5e2826]:
+                - group "执行" [ref=f5e2827]:
+                  - generic [ref=f5e2829]:
+                    - button "运行" [ref=f5e2830] [cursor=pointer]
+                    - button "更多执行选项" [ref=f5e2832] [cursor=pointer]
+                  - button "停止" [disabled] [ref=f5e2833]
+                - group "编辑" [ref=f5e2835]:
+                  - button "格式化" [ref=f5e2836] [cursor=pointer]
+                  - button "复制当前 SQL 代码到剪贴板" [ref=f5e2839] [cursor=pointer]
+                  - generic "编辑器字号 10px" [ref=f5e2841]:
+                    - button "减小字号" [disabled] [ref=f5e2842]
+                    - generic [ref=f5e2843]: "10"
+                    - button "增大字号" [ref=f5e2844] [cursor=pointer]
+                - group "视图模式与流程图" [ref=f5e2846]:
+                  - generic [ref=f5e2847]:
+                    - button "流程图" [ref=f5e2848] [cursor=pointer]
+                    - button "流程图模式选项" [ref=f5e2850] [cursor=pointer]
+              - generic [ref=f5e2851]:
+                - group "智能助手" [ref=f5e2852]:
+                  - button "AI 解释" [ref=f5e2853] [cursor=pointer]:
+                    - generic [ref=f5e2854]: 解释
+                  - button "AI 分析" [ref=f5e2856] [cursor=pointer]:
+                    - generic [ref=f5e2857]: 分析
+                - button "历史 1" [ref=f5e3050] [cursor=pointer]:
+                  - generic [ref=f5e2860]: 历史
+                  - generic [ref=f5e2861]: "1"
+                - generic "当前目录上下文：duckdb_manager_workspace.main" [ref=f5e2862]:
+                  - generic [ref=f5e2863]: duckdb_manager_workspace
+                  - generic [ref=f5e2864]: .
+                  - generic [ref=f5e2865]: main
+            - generic [ref=f5e2866]:
+              - generic [ref=f5e2871]:
+                - generic [ref=f5e3051]: "1"
+                - textbox [ref=f5e2877]:
+                  - generic [ref=f5e2878]: SELECT * FROM baseline_fiat_transactions LIMIT 1;
+              - separator "拖动调整比例，双击恢复 50/50 分屏" [ref=f5e2879]:
+                - generic [ref=f5e2880]:
+                  - generic [ref=f5e2881]: 分隔条
+                  - generic [ref=f5e2884]:
+                    - generic [ref=f5e2885]:
+                      - generic [ref=f5e2886]: L
+                      - generic [ref=f5e2887]: "1"
+                    - generic [ref=f5e2888]: ·
+                    - generic [ref=f5e2889]:
+                      - generic [ref=f5e2890]: C
+                      - generic [ref=f5e2891]: "49"
+                - generic [ref=f5e2892]:
+                  - button "最大化结果" [ref=f5e2893] [cursor=pointer]
+                  - button "最大化代码" [ref=f5e2905] [cursor=pointer]
+                - generic [ref=f5e2907]:
+                  - generic [ref=f5e2908]:
+                    - generic [ref=f5e2909]: 双击
+                    - generic [ref=f5e2910]: 重置
+                  - generic [ref=f5e2911]:
+                    - text: "40"
+                    - generic [ref=f5e2912]: "%"
+              - generic [ref=f5e2914]:
+                - generic [ref=f5e2915]:
+                  - generic [ref=f5e2916]:
+                    - tablist "查询结果视图切换" [ref=f5e2917]:
+                      - tab "数据 1" [selected] [ref=f5e3055] [cursor=pointer]:
+                        - generic [ref=f5e2920]: 数据
+                        - generic [ref=f5e3056]: "1"
+                      - tab "图表" [ref=f5e2921] [cursor=pointer]
+                      - tab "透视" [ref=f5e2923] [cursor=pointer]
+                      - tab "执行计划" [ref=f5e2925] [cursor=pointer]
+                    - textbox "过滤当前结果..." [ref=f5e2929]
+                  - generic [ref=f5e2930]:
+                    - generic [ref=f5e2931]:
+                      - button "筛选" [ref=f5e2932] [cursor=pointer]
+                      - button "排序" [ref=f5e2934] [cursor=pointer]
+                      - button "分组" [ref=f5e2937] [cursor=pointer]
+                      - button "导出" [ref=f5e2940] [cursor=pointer]
+                    - generic [ref=f5e2942]:
+                      - generic [ref=f5e2943]: 待重新运行
+                      - generic [ref=f5e3057]:
+                        - generic "数据行数" [ref=f5e3058]: "1"
+                        - generic [ref=f5e3059]: 行
+                        - generic "字段列数" [ref=f5e3061]: "10"
+                        - generic [ref=f5e3062]: 列
+                        - generic "执行耗时" [ref=f5e3064]: "39"
+                        - generic [ref=f5e3065]: ms
+                    - button "紧凑自适应" [ref=f5e3067] [cursor=pointer]
+                    - button "全屏浏览结果集" [ref=f5e2947] [cursor=pointer]
+                - table [ref=f5e3069]:
+                  - rowgroup [ref=f5e3082]:
+                    - row [ref=f5e3083]:
+                      - columnheader "#" [ref=f5e3084]
+                      - columnheader "fiat_order_id VARCHAR" [ref=f5e3085] [cursor=pointer]:
+                        - generic [ref=f5e3086]:
+                          - generic "fiat_order_id" [ref=f5e3088]
+                          - 'generic "列类型: VARCHAR" [ref=f5e3089]': VARCHAR
+                        - generic "拖拽调整列宽，双击恢复最佳自适应" [ref=f5e3090]
+                      - columnheader "uid BIGINT" [ref=f5e3092] [cursor=pointer]:
+                        - generic [ref=f5e3093]:
+                          - generic "uid" [ref=f5e3095]
+                          - 'generic "列类型: BIGINT" [ref=f5e3096]': BIGINT
+                        - generic "拖拽调整列宽，双击恢复最佳自适应" [ref=f5e3097]
+                      - columnheader "direction VARCHAR" [ref=f5e3099] [cursor=pointer]:
+                        - generic [ref=f5e3100]:
+                          - generic "direction" [ref=f5e3102]
+                          - 'generic "列类型: VARCHAR" [ref=f5e3103]': VARCHAR
+                        - generic "拖拽调整列宽，双击恢复最佳自适应" [ref=f5e3104]
+                      - columnheader "currency VARCHAR" [ref=f5e3106] [cursor=pointer]:
+                        - generic [ref=f5e3107]:
+                          - generic "currency" [ref=f5e3109]
+                          - 'generic "列类型: VARCHAR" [ref=f5e3110]': VARCHAR
+                        - generic "拖拽调整列宽，双击恢复最佳自适应" [ref=f5e3111]
+                      - columnheader "amount DECIMAL" [ref=f5e3113] [cursor=pointer]:
+                        - generic [ref=f5e3114]:
+                          - generic "amount" [ref=f5e3116]
+                          - 'generic "列类型: DECIMAL" [ref=f5e3117]': DECIMAL
+                        - generic "拖拽调整列宽，双击恢复最佳自适应" [ref=f5e3118]
+                      - columnheader "fee DECIMAL" [ref=f5e3120] [cursor=pointer]:
+                        - generic [ref=f5e3121]:
+                          - generic "fee" [ref=f5e3123]
+                          - 'generic "列类型: DECIMAL" [ref=f5e3124]': DECIMAL
+                        - generic "拖拽调整列宽，双击恢复最佳自适应" [ref=f5e3125]
+                      - columnheader "channel VARCHAR" [ref=f5e3127] [cursor=pointer]:
+                        - generic [ref=f5e3128]:
+                          - generic "channel" [ref=f5e3130]
+                          - 'generic "列类型: VARCHAR" [ref=f5e3131]': VARCHAR
+                        - generic "拖拽调整列宽，双击恢复最佳自适应" [ref=f5e3132]
+                      - columnheader "status VARCHAR" [ref=f5e3134] [cursor=pointer]:
+                        - generic [ref=f5e3135]:
+                          - generic "status" [ref=f5e3137]
+                          - 'generic "列类型: VARCHAR" [ref=f5e3138]': VARCHAR
+                        - generic "拖拽调整列宽，双击恢复最佳自适应" [ref=f5e3139]
+                      - columnheader "created_at TIMESTAMP" [ref=f5e3141] [cursor=pointer]:
+                        - generic [ref=f5e3142]:
+                          - generic "created_at" [ref=f5e3144]
+                          - 'generic "列类型: TIMESTAMP" [ref=f5e3145]': TIMESTAMP
+                        - generic "拖拽调整列宽，双击恢复最佳自适应" [ref=f5e3146]
+                      - columnheader "completed_at TIMESTAMP" [ref=f5e3148] [cursor=pointer]:
+                        - generic [ref=f5e3149]:
+                          - generic "completed_at" [ref=f5e3151]
+                          - 'generic "列类型: TIMESTAMP" [ref=f5e3152]': TIMESTAMP
+                        - generic "拖拽调整列宽，双击恢复最佳自适应" [ref=f5e3153]
+                  - rowgroup [ref=f5e3155]:
+                    - row [ref=f5e3156]:
+                      - cell "1" [ref=f5e3157]
+                      - cell "fo_20250110_78423190" [ref=f5e3158]
+                      - cell "784231905" [ref=f5e3159]
+                      - cell "deposit" [ref=f5e3160]
+                      - cell "EUR" [ref=f5e3161]
+                      - cell "1500.00" [ref=f5e3162]
+                      - cell "0.00" [ref=f5e3163]
+                      - cell "sepa_instant" [ref=f5e3164]
+                      - cell "completed" [ref=f5e3165]
+                      - cell "2025-01-10 02:15:00" [ref=f5e3168]
+                      - cell "2025-01-10 02:18:00" [ref=f5e3169]
+                - generic [ref=f5e2954]:
+                  - generic [ref=f5e2955]:
+                    - button "第一页" [disabled] [ref=f5e2956]
+                    - button "上一页" [disabled] [ref=f5e2957]
+                    - generic [ref=f5e2958]: "1"
+                    - button "下一页" [disabled] [ref=f5e2960]
+                    - button "最后一页" [disabled] [ref=f5e2961]
+                    - generic [ref=f5e2962]: 第 1 页, 共 1 页
+                  - generic [ref=f5e2963]:
+                    - generic [ref=f5e2964]:
+                      - generic [ref=f5e2965]: "每页:"
+                      - combobox [ref=f5e2966] [cursor=pointer]:
+                        - option "25 行"
+                        - option "50 行"
+                        - option "100 行" [selected]
+                        - option "200 行"
+                        - option "500 行"
+                        - option "1000 行"
+                    - generic [ref=f5e2967]: 1-1 / 1 行
+                    - button "表格渲染设置" [ref=f5e2968] [cursor=pointer]
+          - generic [ref=f5e2969]:
+            - button "展开列画像" [ref=f5e2970] [cursor=pointer]:
+              - generic [ref=f5e2971]: 列画像
+            - button "展开 AI 智能助手" [ref=f5e2972] [cursor=pointer]:
+              - generic [ref=f5e2973]: AI助手
+        - generic [ref=f5e2974]:
+          - generic [ref=f5e2975]:
+            - generic [ref=f5e2976]:
+              - generic [ref=f5e2977]: db
+              - generic [ref=f5e2978]: duckdb_manager_workspace.main
+              - generic [ref=f5e2979]: (8表)
+            - button "行 1 列 50" [ref=f5e3170] [cursor=pointer]:
+              - generic [ref=f5e2981]: 行
+              - generic [ref=f5e2982]: "1"
+              - generic [ref=f5e2983]: 列
+              - generic [ref=f5e2984]: "50"
+            - 'generic "当前查询: 查询 2" [ref=f5e2985]':
+              - generic [ref=f5e2986]: 查询 2
+              - generic "未保存更改" [ref=f5e3046]
+            - generic "点击查看运行时状态中心" [ref=f5e2987] [cursor=pointer]:
+              - generic [ref=f5e2988]: 内存
+              - generic [ref=f5e2989]: 未采集
+            - generic "查看运行时状态详情" [ref=f5e2990] [cursor=pointer]:
+              - generic [ref=f5e2991]: 运行时
+              - generic [ref=f5e2992]: 就绪
+          - generic [ref=f5e2993]:
+            - generic "点击打开运行时状态中心" [ref=f5e2994] [cursor=pointer]:
+              - generic [ref=f5e2998]: 就绪
+              - generic [ref=f5e3173]: (39ms)
+            - button "控制" [ref=f5e2999] [cursor=pointer]
+            - button "反馈" [ref=f5e3001] [cursor=pointer]
+      - complementary "AI Copilot 侧边栏" [ref=f5e117]:
+        - generic "拖拽调整侧边栏宽度" [ref=f5e118]
+        - generic [ref=f5e119]:
+          - generic [ref=f5e120]:
+            - generic [ref=f5e121]: AI Copilot
+            - button "Gemini 2.0 Flash" [ref=f5e123] [cursor=pointer]
+          - generic [ref=f5e125]:
+            - button "会话历史" [ref=f5e126] [cursor=pointer]:
+              - generic [ref=f5e127]: "2"
+            - button "新建会话" [ref=f5e128] [cursor=pointer]
+            - button "清空会话历史" [ref=f5e129] [cursor=pointer]
+            - button "收起侧边栏" [ref=f5e130] [cursor=pointer]
+        - generic [ref=f5e132]:
+          - generic [ref=f5e133]: SQL 编辑器
+          - generic [ref=f5e134]: ·
+          - button "选择关注的数据表" [ref=f5e136] [cursor=pointer]:
+            - generic [ref=f5e137]: baseline_crypto_transactions
+            - generic [ref=f5e2330]: "1"
+        - generic [ref=f5e139]:
+          - paragraph [ref=f5e140]: 有什么想查的？
+          - paragraph [ref=f5e141]: 可围绕 baseline_crypto_transactions 提问、生成 SQL 或做数据探查。
+        - generic [ref=f5e143]:
+          - button "生成探索问题" [ref=f5e144] [cursor=pointer]
+          - generic [ref=f5e2331]: 基于 baseline_crypto_transactions
+        - generic [ref=f5e147]:
+          - textbox "提问、生成 SQL 或分析数据…" [ref=f5e148]
+          - button "发送" [disabled] [ref=f5e150]
+  - contentinfo [ref=f5e152]:
+    - generic [ref=f5e153]:
+      - generic [ref=f5e154]: DuckDB 1.33.1
+      - generic [ref=f5e157]: "|"
+      - generic [ref=f5e158]: duckdb_manager_workspace [OPFS]
+      - generic [ref=f5e160]: "|"
+      - generic [ref=f5e161]: 持久化库
+      - generic [ref=f5e163]: "|"
+      - generic [ref=f5e164]: 8 张表
+      - generic [ref=f5e166]: "|"
+      - generic [ref=f5e167]: 8 个活动表
+      - generic [ref=f5e169]: "|"
+      - generic [ref=f5e170]: "内存: 0.25 MB / 3.1 GiB"
+    - generic [ref=f5e172]:
+      - generic [ref=f5e173]: 引擎就绪
+      - generic [ref=f5e177]: "|"
+      - generic [ref=f5e178]: 08:26
+      - button "刷新运行时状态" [ref=f5e179] [cursor=pointer]

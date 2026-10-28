@@ -1,0 +1,58 @@
+Already up to date
+Done in 295ms using pnpm v11.13.0
+$ vite "--host" "127.0.0.1"
+Port 5173 is in use, trying another one...
+
+  VITE v6.4.3  ready in 266 ms
+
+  ➜  Local:   http://127.0.0.1:5174/DuckDB_Editor_Pro/
+12:06:24 PM [vite] vite.config.ts changed, restarting server...
+12:06:24 PM [vite] vite.config.ts changed, restarting server...
+12:06:33 PM [vite] server restarted.
+12:08:01 PM [vite] (client) page reload components/Dashboard/WidgetErrorBoundary.tsx
+12:08:01 PM [vite] (client) page reload components/DashboardGrid.tsx
+12:08:01 PM [vite] (client) page reload services/workbench/runtime.test.ts
+12:08:02 PM [vite] (client) page reload components/DashboardWidget.requests.test.tsx
+Sourcemap for "C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/node_modules/.pnpm/@duckdb+duckdb-wasm@1.32.0/node_modules/@duckdb/duckdb-wasm/dist/duckdb-browser-eh.worker.js" points to missing source files
+12:09:13 PM [vite] (client) page reload services/dashboardRepair.test.ts
+12:09:13 PM [vite] (client) hmr update /index.css?direct, /App.tsx, /index.css, /components/Dashboard.tsx, /components/ImportWizard.tsx, /components/DataTab.tsx, /components/Dashboard/MissionControl/DataIdeMissionControl.tsx, /components/AnalysisHub/AnalysisHubPanel.tsx, /components/Workbench/ResultSection.tsx, /components/AnalysisHub/AnalysisTimeSeries.tsx, /components/AnalysisHub/AnalysisRecipeCenter.tsx, /components/AnalysisHub/LinkedAnalysis.tsx, /components/AnalysisHub/AnalysisProfiler.tsx, /components/AnalysisHub/AnalysisChartRenderer.tsx, /components/DashboardWidget.tsx, /components/AnalysisHub/PivotEditor.tsx, /components/Dashboard/Home/WorkspaceObjects.tsx, /components/Dashboard/Home/HomeDataFoundation.tsx, /components/ProjectManagerModal.tsx, /components/Dashboard/Home/HomeQueryInsight.tsx, /components/Dashboard/Home/HomeBoardCanvas.tsx, /components/Dashboard/Home/DatasetFieldChartBuilder.tsx, /components/Workbench/WorkbenchView.tsx, /components/Workbench/SqlWorkspacePanel.tsx, /components/Dashboard/Home/WorkbenchControls.tsx, /components/Dashboard/Home/DashboardDiagnostics.tsx, /components/DashboardGrid.tsx, /components/Dashboard/WidgetErrorBoundary.tsx
+12:09:13 PM [vite] (client) hmr update /components/DashboardWidget.tsx, /index.css?direct, /index.css
+12:09:13 PM [vite] (client) page reload components/Dashboard/Home/HomeLifecycle.test.tsx
+12:09:14 PM [vite] (client) hmr update /components/DashboardWidget.tsx, /index.css?direct, /index.css
+12:09:14 PM [vite] (client) page reload components/Dashboard/Home/HomeLifecycle.test.tsx
+12:09:45 PM [vite] (client) page reload dist/index.html
+12:09:45 PM [vite] (client) page reload dist/index.html
+12:11:22 PM [vite] (client) hmr update /components/DashboardWidget.tsx, /index.css?direct, /index.css
+12:12:06 PM [vite] (client) page reload dist/index.html
+12:13:21 PM [vite] (client) hmr update /components/Dashboard/MissionControl/DataIdeMissionControl.tsx, /index.css?direct, /index.css
+12:13:29 PM [vite] (client) hmr update /components/DashboardWidget.tsx, /index.css?direct, /index.css
+12:13:46 PM [vite] (client) hmr update /index.css?direct, /index.css, /components/Dashboard/Home/HomeBoardCanvas.tsx, /components/AnalysisHub/PivotEditor.tsx, /components/Dashboard/Home/WorkbenchControls.tsx, /components/DashboardWidget.tsx, /components/Dashboard/Home/DatasetPreview.tsx, /components/Dashboard/Home/DatasetFieldChartBuilder.tsx
+12:14:21 PM [vite] (client) page reload components/Dashboard/MissionControl/DataIdeMissionControl.test.tsx
+12:14:21 PM [vite] (client) page reload services/workbench/queryCompiler.test.ts
+12:14:42 PM [vite] (client) page reload dist/index.html
+12:14:43 PM [vite] (client) page reload dist/index.html
+12:18:11 PM [vite] (client) page reload components/Dashboard/MissionControl/DataIdeMissionControl.test.tsx
+12:18:11 PM [vite] (client) hmr update /components/AnalysisHub/PivotEditor.tsx, /index.css?direct, /index.css
+12:18:12 PM [vite] (client) page reload dist/index.html
+12:18:12 PM [vite] (client) hmr update /components/layout/AppTopBar.tsx, /index.css?direct, /index.css
+12:18:12 PM [vite] (client) page reload index.html
+12:18:18 PM [vite] vite.config.ts changed, restarting server...
+12:18:44 PM [vite] server restarted.
+12:21:35 PM [vite] (client) page reload services/dbService.ts
+12:21:35 PM [vite] (client) page reload services/analysis/pivotExperience.ts
+12:21:35 PM [vite] (client) page reload components/AnalysisHub/AnalysisHubPanel.tsx
+12:21:35 PM [vite] vite.config.ts changed, restarting server...
+12:21:35 PM [vite] (client) page reload services/analysis/pivotExperience.test.ts
+12:22:03 PM [vite] server restarted.
+12:23:05 PM [vite] (client) page reload output/dashboard-governance-snapshot/index.html
+12:23:06 PM [vite] (client) page reload output/dashboard-governance-snapshot/dist/index.html
+12:23:07 PM [vite] changed tsconfig file detected: C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/output/dashboard-governance-snapshot/tsconfig.json - Clearing cache and forcing full-reload to ensure TypeScript is compiled with updated config values.
+12:23:12 PM [vite] (client) page reload output/dashboard-governance-snapshot/test/dashboard-stability.html
+12:23:12 PM [vite] (client) page reload output/dashboard-governance-snapshot/test/global-visualization-real.html
+12:23:12 PM [vite] (client) page reload output/dashboard-governance-snapshot/test/sql-flow-engine.html
+12:23:12 PM [vite] (client) page reload output/dashboard-governance-snapshot/test/visualization-contract.html
+12:24:37 PM [vite] (client) page reload output/dashboard-governance-snapshot/tmp/ui-audit-build/index.html
+Sourcemap for "C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/node_modules/.pnpm/@duckdb+duckdb-wasm@1.32.0/node_modules/@duckdb/duckdb-wasm/dist/duckdb-browser-eh.worker.js" points to missing source files
+12:30:10 PM [vite] (client) page reload output/dashboard-governance-snapshot/dist/index.html
+12:30:11 PM [vite] (client) page reload output/dashboard-governance-snapshot/dist/index.html
+12:34:06 PM [vite] (client) page reload output/dashboard-governance-snapshot/dist/index.html

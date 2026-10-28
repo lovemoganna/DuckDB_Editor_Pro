@@ -162,13 +162,13 @@ interface CopilotState {
 }
 
 const getInitialOpen = (): boolean => {
-  if (typeof window === 'undefined') return true;
+  if (typeof window === 'undefined') return false;
   const saved = localStorage.getItem('copilot_sidebar_open');
   if (saved !== null) {
     return saved === 'true';
   }
-  // 宽屏默认展开，窄屏默认收起
-  return window.innerWidth >= 1280;
+  // 默认隐藏右侧 AI 助手
+  return false;
 };
 
 const getInitialWidth = (): number => {

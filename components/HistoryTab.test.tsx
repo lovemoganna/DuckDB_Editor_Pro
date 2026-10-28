@@ -56,6 +56,7 @@ const renderHistoryTab = () =>
   );
 
 beforeEach(() => {
+  useSqlEditorStore.setState({ history: [] });
   localStorage.setItem('duckdb_sql_history', JSON.stringify(mockHistory));
 });
 
@@ -66,6 +67,25 @@ afterEach(() => {
 });
 
 describe('HistoryTab workbench', () => {
+  it('cancels deletion from a nested drawer without closing the drawer or losing a record', async () => {
+    renderHistoryTab();
+    fireEvent.click(screen.getAllByTitle('查看详情分析')[0]);
+    fireEvent.click(screen.getByRole('button', { name: '删除记录' }));
+    expect(screen.getByRole('dialog', { name: '删除 SQL 历史记录' })).toBeInTheDocument();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: '删除 SQL 历史记录' })).not.toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'SQL 执行深度分析' })).toBeInTheDocument();
+    expect(useSqlEditorStore.getState().history).toHaveLength(3);
+  });
+
+  it('removes a single record only after explicit confirmation', async () => {
+    renderHistoryTab();
+    fireEvent.click(screen.getAllByTitle('删除单条历史记录')[0]);
+    expect(useSqlEditorStore.getState().history).toHaveLength(3);
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: '确认删除' })); });
+    expect(useSqlEditorStore.getState().history).toHaveLength(2);
+  });
+
   it('renders standard header, execution metrics strip and history items', async () => {
     renderHistoryTab();
 

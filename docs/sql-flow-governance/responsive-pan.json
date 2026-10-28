@@ -1,0 +1,24 @@
+{
+  "lastNode": {
+    "bottom": 988.9499893188477,
+    "height": 62.900001525878906,
+    "left": 640.7999877929688,
+    "right": 831.1999969482422,
+    "top": 926.0499877929688,
+    "width": 190.40000915527344,
+    "x": 640.7999877929688,
+    "y": 926.0499877929688
+  },
+  "statuses": [
+    "success",
+    "success",
+    "success",
+    "success",
+    "success",
+    "success",
+    "success",
+    "success",
+    "success"
+  ],
+  "style": "transform: translate(195.8px, -378.6px) scale(0.85);"
+}

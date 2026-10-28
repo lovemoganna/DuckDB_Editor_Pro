@@ -1,4 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { useVisualizationRequest } from '../../hooks/useVisualizationRequest';
+import { useAppStore } from '../../hooks/store/useAppStore';
 import * as d3 from 'd3';
 import { RefreshCw, Loader2, Network, Table2, Eye, ChevronRight } from 'lucide-react';
 import { duckDBService } from '../../services/duckdbService';
@@ -78,7 +80,11 @@ const SchemaGraphView: React.FC<SchemaGraphViewProps> = ({
     ontologyObjects?: LifeObject[];
   } | null>(null);
 
+  const request = useVisualizationRequest();
+  const database = useAppStore(state => state.currentDatabase);
   const loadSchemaGraph = useCallback(async () => {
+    const current = request.begin();
+    setNodes([]); setLinks([]); setSelectedNodeId(null); setNodeInfo(null);
     const effective = selectedTables ?? [];
     if (effective.length === 0) {
       setNodes([]);
@@ -109,6 +115,7 @@ const SchemaGraphView: React.FC<SchemaGraphViewProps> = ({
         columns: t.columns.map(c => ({ name: c.name, type: c.type })),
       }));
       const rels = await duckDBService.inferRelationships(schemas);
+      if (!current()) return;
 
       const schemaNodes: SchemaNode[] = tableInfos.map((t, i) => ({
         id: `tbl::${t.name}`,
@@ -149,11 +156,12 @@ const SchemaGraphView: React.FC<SchemaGraphViewProps> = ({
       setNodes([...schemaNodes]);
       setLinks([...schemaLinks]);
     } catch (e: any) {
+      if (!current()) return;
       setError(e.message);
     } finally {
-      setLoading(false);
+      if (current()) setLoading(false);
     }
-  }, [selectedTables, ontologyObjectsByTable]);
+  }, [selectedTables, ontologyObjectsByTable, database, request]);
 
   // React to prop changes — no more polling
   useEffect(() => {
@@ -161,10 +169,12 @@ const SchemaGraphView: React.FC<SchemaGraphViewProps> = ({
     if (effective.length > 0) {
       loadSchemaGraph();
     } else {
+      request.invalidate(); setLoading(false); setError(null); setSelectedNodeId(null); setNodeInfo(null);
       setNodes([]);
       setLinks([]);
     }
-  }, [selectedTables, loadSchemaGraph]);
+    return request.invalidate;
+  }, [selectedTables, loadSchemaGraph, request]);
 
   // D3 Rendering
   useEffect(() => {

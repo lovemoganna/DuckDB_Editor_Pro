@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 import React from 'react';
-import { render, screen, fireEvent, within, act } from '@testing-library/react';
+import { render, screen, fireEvent, within, act, waitFor } from '@testing-library/react';
 import { DataFlowCanvas } from './DataFlowCanvas';
 import { DataFlowCustomEdge } from './edges/DataFlowCustomEdge';
 import { useWorkflowStore } from '../../services/dataflow/workflowStore';
@@ -31,6 +31,7 @@ vi.mock('reactflow', async () => {
   return {
     ...actual,
     ReactFlow: ({ children }: any) => <div data-testid="reactflow-mock">{children}</div>,
+    useViewport: () => ({ zoom: 1, x: 0, y: 0 }),
     Background: () => <div data-testid="rf-background" />,
     useReactFlow: () => ({
       zoomIn: vi.fn(),
@@ -38,13 +39,46 @@ vi.mock('reactflow', async () => {
       fitView: vi.fn(),
       getZoom: () => 1,
       setCenter: vi.fn(),
+      setViewport: vi.fn(),
+      getNodes: () => useWorkflowStore.getState().nodes,
     }),
   };
 });
 
 describe('DataFlowCanvas UI & Integration Tests', () => {
+  it('offers all SQL layouts and changes geometry without losing relationships', async () => {
+    render(<DataFlowCanvas activeSql="SELECT customer_id, SUM(sales_amount) as total_spent FROM demo_sales GROUP BY customer_id" />);
+    const chooser = screen.getByRole('combobox', { name: '流程图布局' });
+    expect(within(chooser).getAllByRole('option').map(o => o.textContent)).toEqual(['自动','横向','纵向','树形','力导向']);
+    await waitFor(()=>expect(useWorkflowStore.getState().syncStatus).toBe('ready'));
+    const edges=useWorkflowStore.getState().edges.map(e=>e.id);
+    expect(edges.length).toBeGreaterThan(0);
+    fireEvent.change(chooser,{target:{value:'vertical'}});
+    await waitFor(()=>{
+      expect(useWorkflowStore.getState().nodes.length).toBeGreaterThan(0);
+      expect(useWorkflowStore.getState().nodes.filter(n=>n.type!=='logicalBoundary').every(n=>n.data.flowDirection==='DOWN')).toBe(true);
+    });
+    expect(useWorkflowStore.getState().edges.map(e=>e.id)).toEqual(edges);
+    await act(()=>useWorkflowStore.getState().setSqlLayoutMode('auto'));
+  });
+  it('returns to a ready empty canvas for SQL that contains only comments', async () => {
+    await useWorkflowStore.getState().syncFromSql('-- editor guidance\n/* another header */', 'empty');
+    render(<DataFlowCanvas activeSql={'-- editor guidance\n/* another header */'} />);
+    expect(screen.getByText('执行路径画布就绪')).toBeInTheDocument();
+    expect(screen.queryByText('等待从 SQL 生成执行路径')).not.toBeInTheDocument();
+    expect(useWorkflowStore.getState().nodes).toHaveLength(0);
+    expect(useWorkflowStore.getState().syncStatus).toBe('idle');
+  });
+
   beforeEach(async () => {
-    await useWorkflowStore.getState().resetToDefaultDemo();
+    await useWorkflowStore.getState().syncFromSql(
+      `SELECT customer_id, SUM(sales_amount) as total_spent FROM demo_sales GROUP BY customer_id`,
+      '销售分析'
+    );
+    const aggNode = useWorkflowStore.getState().nodes.find(n => n.data.type === 'aggregate' || n.id === 'node_agg_step');
+    if (aggNode) {
+      useWorkflowStore.getState().selectNode(aggNode.id);
+    }
   });
 
   it('renders top tabs and controls', () => {
@@ -59,7 +93,7 @@ describe('DataFlowCanvas UI & Integration Tests', () => {
   it('renders the 8 left sidebar rail actions', () => {
     render(<DataFlowCanvas />);
 
-    // 自由编排模式下侧栏会自动展开；若仍折叠则点开
+    // 侧栏默认折叠；若折叠则点开
     const expandBtn = screen.queryByTitle('展开左侧资产与算子库');
     if (expandBtn) fireEvent.click(expandBtn);
 
@@ -80,10 +114,10 @@ describe('DataFlowCanvas UI & Integration Tests', () => {
     const openInspector = screen.getByTitle('查看已选节点的属性与数据预览');
     fireEvent.click(openInspector);
 
-    expect(screen.getAllByText('聚合统计').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText('节点配置')).toBeInTheDocument();
-    expect(screen.getByText('SQL 预览')).toBeInTheDocument();
-    expect(screen.getByText('运行节点')).toBeInTheDocument();
+    expect(screen.getByText('Relation 状态（语义推断）')).toBeInTheDocument();
+    expect(screen.getByText('Grain · 粒度')).toBeInTheDocument();
+    expect(screen.getByText('真实 Statement 输出')).toBeInTheDocument();
+    expect(screen.queryByText('运行节点')).not.toBeInTheDocument();
   });
 
   it('renders bottom drawer with run logs', () => {
@@ -95,7 +129,7 @@ describe('DataFlowCanvas UI & Integration Tests', () => {
     fireEvent.click(screen.getByText('展开控制台'));
     expect(screen.getByText('清空')).toBeInTheDocument();
     expect(screen.getByText('自动滚动')).toBeInTheDocument();
-    expect(screen.getByText('DuckDB 运行中')).toBeInTheDocument();
+    expect(screen.getByText('流程待运行')).toBeInTheDocument();
   });
 
   it('renders dynamic generation mode switchers and workbench action buttons', () => {
@@ -103,7 +137,6 @@ describe('DataFlowCanvas UI & Integration Tests', () => {
 
     expect(screen.getByText('当前 SQL 流图')).toBeInTheDocument();
     expect(screen.getByText('全库表与视图血缘')).toBeInTheDocument();
-    expect(screen.getByText('自由编排')).toBeInTheDocument();
     expect(screen.getByText('从 SQL 同步')).toBeInTheDocument();
     expect(screen.getByText('运行全流程')).toBeInTheDocument();
     // 次要工具收纳在「工具」溢出菜单中
@@ -129,6 +162,7 @@ describe('DataFlowCanvas UI & Integration Tests', () => {
     expect(screen.getByText('执行路径画布就绪')).toBeInTheDocument();
     expect(screen.getByText('前往 SQL 工作台')).toBeInTheDocument();
     expect(screen.getByText('全库表血缘')).toBeInTheDocument();
+    expect(screen.queryByText('从当前 SQL 重建')).not.toBeInTheDocument();
   });
 
   it('shows sync-from-SQL as primary empty CTA when editor already has SQL', () => {
@@ -186,7 +220,7 @@ describe('DataFlowCanvas UI & Integration Tests', () => {
     render(<DataFlowCanvas layoutMode="split" hideSubNav />);
 
     // RTL render 会刷 effect：分屏异常自动打开 Inspector；关掉后应出现异常条
-    fireEvent.click(screen.getByTitle('收起检查器'));
+    fireEvent.click(screen.getByTitle('关闭属性抽屉'));
     const banner = screen.getByTestId('dataflow-fault-banner');
     expect(banner).toBeInTheDocument();
     expect(within(banner).getByText('查看诊断')).toBeInTheDocument();
@@ -224,7 +258,7 @@ describe('DataFlowCanvas UI & Integration Tests', () => {
 
     render(<DataFlowCanvas />);
 
-    const closeBtn = screen.queryByTitle('收起检查器');
+    const closeBtn = screen.queryByTitle('关闭属性抽屉');
     if (closeBtn) fireEvent.click(closeBtn);
 
     act(() => {
@@ -240,7 +274,8 @@ describe('DataFlowCanvas UI & Integration Tests', () => {
     expect(screen.getByText('节点配置')).toBeInTheDocument();
   });
 
-  it('renders Quick Add operator button on toolbar and allows adding operator', () => {
+  it('renders Quick Add operator button on toolbar and allows adding operator in custom mode', () => {
+    useWorkflowStore.setState({ dataFlowMode: 'custom' });
     render(<DataFlowCanvas />);
 
     const addBtn = screen.getByText('加算子');
@@ -256,6 +291,24 @@ describe('DataFlowCanvas UI & Integration Tests', () => {
     const initialNodes = useWorkflowStore.getState().nodes.length;
     fireEvent.click(screen.getByText('表连接 (Join)'));
     expect(useWorkflowStore.getState().nodes.length).toBe(initialNodes + 1);
+  });
+
+  it('preserves an explicit custom mode when the editor contains SQL', async () => {
+    useWorkflowStore.setState({ dataFlowMode: 'custom', liveSyncWithSql: false });
+    render(<DataFlowCanvas activeSql="SELECT 1" />);
+    await new Promise(resolve => setTimeout(resolve, 220));
+    expect(useWorkflowStore.getState().dataFlowMode).toBe('custom');
+    expect(screen.getByText('加算子')).toBeInTheDocument();
+    expect(screen.queryByText('从 SQL 同步')).not.toBeInTheDocument();
+  });
+
+  it('preserves catalog mode and hides graph editing with SQL present', async () => {
+    useWorkflowStore.setState({ dataFlowMode: 'catalog', liveSyncWithSql: false });
+    render(<DataFlowCanvas activeSql="SELECT 1" />);
+    await new Promise(resolve => setTimeout(resolve, 220));
+    expect(useWorkflowStore.getState().dataFlowMode).toBe('catalog');
+    expect(screen.queryByText('加算子')).not.toBeInTheDocument();
+    expect(screen.getByText('刷新血缘')).toBeInTheDocument();
   });
 
   it('renders 快速溯源 Bug button when error node exists and focuses on culprit node', () => {
@@ -304,7 +357,7 @@ describe('DataFlowCanvas UI & Integration Tests', () => {
     expect(screen.getAllByText('字段别名提前引用').length).toBeGreaterThanOrEqual(1);
   });
 
-  it('opens inspector via 套路解析 instead of dead node expansion toggle', () => {
+  it('tools menu keeps step/compile and no longer exposes preset/paradigm entries', () => {
     useWorkflowStore.setState({
       nodes: [
         {
@@ -319,14 +372,6 @@ describe('DataFlowCanvas UI & Integration Tests', () => {
             stepIndex: 1,
             type: 'source',
             config: { tableName: 'orders' },
-            paradigm: {
-              stage: 'from',
-              stageName: 'FROM',
-              executionOrder: 1,
-              roleDesc: '数据装载',
-              mentalModel: '先确定数据从哪来',
-              pitfallWarning: '注意别名与表作用域',
-            },
             nodeType: 'sql',
             isSource: true,
             isOutput: false,
@@ -340,11 +385,10 @@ describe('DataFlowCanvas UI & Integration Tests', () => {
     render(<DataFlowCanvas />);
 
     fireEvent.click(screen.getByText('工具'));
-    fireEvent.click(screen.getByText('套路解析'));
-
-    expect(useWorkflowStore.getState().selectedNodeId).toBe('node_from');
-    expect(screen.getByText('节点配置')).toBeInTheDocument();
-    expect(screen.getByText('SQL 运行套路法则')).toBeInTheDocument();
+    expect(screen.getByText('单步推演')).toBeInTheDocument();
+    expect(screen.getByText('编译为 SQL')).toBeInTheDocument();
+    expect(screen.queryByText('套路解析')).not.toBeInTheDocument();
+    expect(screen.queryByText('避坑演练')).not.toBeInTheDocument();
   });
 
   it('renders DataFlowCustomEdge correctly with highlightState and isErrorPath without errors', () => {
@@ -396,20 +440,56 @@ describe('DataFlowCanvas UI & Integration Tests', () => {
     expect(container.querySelector('path')).toBeInTheDocument();
   });
 
-  it('renders 避坑演练 menu and loads a pitfall preset scenario', () => {
-    const handleOpenInSql = vi.fn();
-    render(<DataFlowCanvas onOpenInSqlEditor={handleOpenInSql} />);
+  it('dynamically recalculates flowchart when activeSql changes from Code A to Code B', async () => {
+    useWorkflowStore.setState({
+      nodes: [],
+      edges: [],
+      selectedNodeId: null,
+      dataFlowMode: 'sql',
+      liveSyncWithSql: true,
+      syncStatus: 'idle',
+      activeSql: '',
+    });
 
-    fireEvent.click(screen.getByText('工具'));
-    fireEvent.click(screen.getByText('避坑演练'));
-    expect(screen.getByText('别名在 WHERE 中提前使用 (Binder Error)')).toBeInTheDocument();
+    const { rerender } = render(
+      <DataFlowCanvas
+        layoutMode="split"
+        activeSql="SELECT country, SUM(sales) FROM sales GROUP BY country"
+        activeTabTitle="Code A"
+      />
+    );
 
-    // Click the preset
-    fireEvent.click(screen.getByText('别名在 WHERE 中提前使用 (Binder Error)'));
-    expect(handleOpenInSql).toHaveBeenCalled();
+    // Canvas effect alone must build Code A (no manual syncFromSql)
+    await waitFor(() => {
+      const state = useWorkflowStore.getState();
+      expect(state.nodes.some(n => n.data.tableName === 'sales' || n.data.title.includes('sales'))).toBe(true);
+      expect(state.nodes.some(n => n.data.type === 'aggregate' || n.data.title.includes('聚合') || n.data.title.toLowerCase().includes('sum'))).toBe(true);
+      expect(state.nodes.some(n => n.data.type === 'join')).toBe(false);
+    }, { timeout: 3000 });
+
+    rerender(
+      <DataFlowCanvas
+        layoutMode="split"
+        activeSql="SELECT o.id, u.name FROM orders o JOIN users u ON o.user_id = u.id"
+        activeTabTitle="Code B"
+      />
+    );
+
+    await waitFor(() => {
+      const state = useWorkflowStore.getState();
+      // Code A structure fully replaced
+      expect(state.nodes.some(n => n.data.tableName === 'sales' || n.data.title.includes('sales'))).toBe(false);
+      expect(state.nodes.some(n => n.data.type === 'aggregate')).toBe(false);
+      // Code B generated
+      expect(state.nodes.some(n => n.data.tableName === 'orders' || n.data.title.includes('orders'))).toBe(true);
+      expect(state.nodes.some(n => n.data.tableName === 'users' || n.data.title.includes('users'))).toBe(true);
+      expect(state.nodes.some(n => n.data.type === 'join')).toBe(true);
+      expect(state.activeTabTitle).toBe('Code B');
+    }, { timeout: 3000 });
   });
 
-  it('activates and controls 单步推演 simulation with floating stepper island', () => {
+  it('activates and controls 单步推演 simulation in Custom mode', () => {
+    useWorkflowStore.setState({dataFlowMode:'custom',liveSyncWithSql:false});
     render(<DataFlowCanvas />);
 
     fireEvent.click(screen.getByText('工具'));

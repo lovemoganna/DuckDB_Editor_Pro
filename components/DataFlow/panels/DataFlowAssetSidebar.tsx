@@ -32,7 +32,9 @@ import {
 import { useWorkflowStore } from '../../../services/dataflow/workflowStore';
 import { duckDBService } from '../../../services/duckdbService';
 import type { WorkflowNodeType } from '../../../services/dataflow/workflowTypes';
-import { dfPanelHeader, dfPanelTitle } from '../dataflowUi';
+import { dfInput, dfPanelHeader, dfPanelTitle } from '../dataflowUi';
+import { dispatchDataflowCenterNode } from '../../../services/dataflow/dataflowEvents';
+import { toastService } from '../../../services/toastService';
 
 export interface DataFlowAssetSidebarProps {
   isCollapsed?: boolean;
@@ -111,7 +113,7 @@ const OPERATORS: OperatorItem[] = [
     description: '全链路执行与控制台日志',
     icon: History,
     accentColor: 'text-monokai-comment',
-    bgColor: 'bg-white/[0.05] border-monokai-border/40',
+    bgColor: 'bg-monokai-surface/60 border-monokai-border/40',
   },
 ];
 
@@ -127,6 +129,8 @@ export const DataFlowAssetSidebar: React.FC<DataFlowAssetSidebarProps> = ({
     dataFlowMode,
     setBottomDrawerTab,
     setIsBottomDrawerOpen,
+    nodes,
+    selectNode,
   } = useWorkflowStore();
 
   const [localCollapsed, setLocalCollapsed] = useState(false);
@@ -145,8 +149,7 @@ export const DataFlowAssetSidebar: React.FC<DataFlowAssetSidebarProps> = ({
   const handleRefresh = async (e: React.MouseEvent) => {
     e.stopPropagation();
     setIsRefreshing(true);
-    await refreshAvailableTables();
-    setTimeout(() => setIsRefreshing(false), 500);
+    try { await refreshAvailableTables(); } finally { setIsRefreshing(false); }
   };
 
   const filteredTables = availableTables.filter(t =>
@@ -161,7 +164,7 @@ export const DataFlowAssetSidebar: React.FC<DataFlowAssetSidebarProps> = ({
         <button
           type="button"
           onClick={toggleCollapse}
-          className="p-1.5 rounded hover:bg-white/[0.06] text-monokai-comment hover:text-monokai-fg cursor-pointer transition-colors"
+          className="p-1.5 rounded hover:bg-monokai-elevated text-monokai-comment hover:text-monokai-fg cursor-pointer transition-colors"
           title="展开左侧资产与算子库"
         >
           <PanelLeftOpen className="w-4 h-4 text-monokai-accent" />
@@ -204,7 +207,7 @@ export const DataFlowAssetSidebar: React.FC<DataFlowAssetSidebarProps> = ({
         <button
           type="button"
           onClick={toggleCollapse}
-          className="p-1 rounded hover:bg-white/[0.06] text-monokai-comment hover:text-monokai-fg cursor-pointer transition-colors"
+          className="p-1 rounded hover:bg-monokai-elevated text-monokai-comment hover:text-monokai-fg cursor-pointer transition-colors"
           title="折叠侧边栏"
         >
           <PanelLeftClose className="w-3.5 h-3.5" />
@@ -215,6 +218,10 @@ export const DataFlowAssetSidebar: React.FC<DataFlowAssetSidebarProps> = ({
         {/* ── 分组 1: 数据库与血缘对象树 ── */}
         <div className="border-b border-monokai-border/80">
           <div
+            role="button"
+            tabIndex={0}
+            aria-expanded={isTablesSectionOpen}
+            onKeyDown={e => { if (e.target !== e.currentTarget) return; if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setIsTablesSectionOpen(!isTablesSectionOpen); } }}
             onClick={() => setIsTablesSectionOpen(!isTablesSectionOpen)}
             className="flex items-center justify-between px-3 py-2 bg-monokai-surface/60 hover:bg-monokai-elevated/60 cursor-pointer transition-colors text-xs font-semibold text-monokai-fg"
           >
@@ -233,8 +240,9 @@ export const DataFlowAssetSidebar: React.FC<DataFlowAssetSidebarProps> = ({
             <button
               type="button"
               onClick={handleRefresh}
-              className="p-1 rounded hover:bg-white/[0.08] text-monokai-comment hover:text-monokai-accent cursor-pointer"
+              className="p-1 rounded hover:bg-monokai-elevated text-monokai-comment hover:text-monokai-accent cursor-pointer"
               title="刷新表列表"
+              disabled={isRefreshing}
             >
               <RefreshCw className={`w-3 h-3 ${isRefreshing ? 'animate-spin text-monokai-accent' : ''}`} />
             </button>
@@ -244,47 +252,84 @@ export const DataFlowAssetSidebar: React.FC<DataFlowAssetSidebarProps> = ({
             <div className="p-2 space-y-1.5">
               {/* 搜索框 */}
               <div className="relative">
-                <Search className="absolute left-2 top-2 w-3 h-3 text-monokai-comment" />
+                <Search className="absolute left-2 top-2 w-3 h-3 text-monokai-comment pointer-events-none" />
                 <input
                   type="text"
+                  aria-label="搜索数据表与视图"
                   placeholder="搜索数据表 / 视图..."
                   value={tableSearch}
                   onChange={e => setTableSearch(e.target.value)}
-                  className="w-full rounded-md bg-monokai-bg border border-monokai-border pl-7 pr-2 py-1 text-meta font-mono text-monokai-fg placeholder:text-monokai-comment outline-none focus:border-monokai-accent/70"
+                  className={`${dfInput} pl-7`}
                 />
               </div>
 
               {/* 表清单 */}
               <div className="max-h-44 overflow-y-auto custom-scrollbar space-y-1 pr-0.5">
                 {filteredTables.length > 0 ? (
-                  filteredTables.map(tbl => (
-                    <div
-                      key={tbl}
-                      draggable
-                      onDragStart={e => {
-                        e.dataTransfer.setData('application/duckdb-table', tbl);
-                        e.dataTransfer.effectAllowed = 'copy';
-                      }}
-                      className="group flex items-center justify-between p-1.5 rounded-md border border-monokai-border/50 bg-monokai-bg/60 hover:bg-monokai-elevated hover:border-monokai-accent/40 cursor-grab active:cursor-grabbing transition-all text-xs"
-                      title={`拖拽至画布以创建「${tbl}」数据源节点`}
-                    >
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <GripVertical className="w-2.5 h-2.5 text-monokai-comment/40 group-hover:text-monokai-comment shrink-0" />
-                        <Table className="w-3 h-3 text-monokai-cyan shrink-0" />
-                        <span className="font-mono text-meta text-monokai-fg font-medium truncate">
-                          {tbl}
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => addSourceNodeForTable(tbl)}
-                        className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-monokai-accent/20 text-monokai-accent cursor-pointer transition-opacity"
-                        title="点击直接添加至画布"
+                  filteredTables.map(tbl => {
+                    const existingNode = nodes.find(
+                      n =>
+                        (n.data.tableName && n.data.tableName.toLowerCase() === tbl.toLowerCase()) ||
+                        (n.data.title && n.data.title.toLowerCase() === tbl.toLowerCase())
+                    );
+                    return (
+                      <div
+                        key={tbl}
+                        draggable={isCustomMode}
+                        role="button"
+                        tabIndex={0}
+                        aria-disabled={!existingNode && !isCustomMode}
+                        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.currentTarget.click(); } }}
+                        onDragStart={e => {
+                          e.dataTransfer.setData('application/duckdb-table', tbl);
+                          e.dataTransfer.effectAllowed = 'copy';
+                        }}
+                        onClick={() => {
+                          if (existingNode) {
+                            selectNode(existingNode.id);
+                            dispatchDataflowCenterNode({ nodeId: existingNode.id });
+                          } else if (isCustomMode) {
+                            void addSourceNodeForTable(tbl);
+                          }
+                        }}
+                        className={`group flex items-center justify-between p-1.5 rounded-md border text-xs cursor-pointer transition-all ${
+                          existingNode
+                            ? 'border-monokai-accent/40 bg-monokai-accent/10 hover:bg-monokai-accent/15'
+                            : 'border-monokai-border/50 bg-monokai-bg/60 hover:bg-monokai-elevated hover:border-monokai-accent/40'
+                        }`}
+                        title={
+                          existingNode
+                            ? `已在画布中，点击聚焦「${tbl}」节点`
+                            : isCustomMode ? `点击或拖拽至画布以创建「${tbl}」数据源节点` : '切换至自由编排后添加数据源'
+                        }
                       >
-                        <Plus className="w-3 h-3" />
-                      </button>
-                    </div>
-                  ))
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <GripVertical className="w-2.5 h-2.5 text-monokai-comment/40 group-hover:text-monokai-comment shrink-0" />
+                          <Table className={`w-3 h-3 shrink-0 ${existingNode ? 'text-monokai-accent' : 'text-monokai-cyan'}`} />
+                          <span className="font-mono text-meta text-monokai-fg font-medium truncate">
+                            {tbl}
+                          </span>
+                        </div>
+                        {existingNode ? (
+                          <span className="text-3xs font-mono px-1 py-0.5 rounded bg-monokai-accent/20 text-monokai-accent border border-monokai-accent/30">
+                            已在画布
+                          </span>
+                        ) : isCustomMode ? (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void addSourceNodeForTable(tbl);
+                            }}
+                            className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-monokai-accent/20 text-monokai-accent cursor-pointer transition-opacity"
+                            title="点击直接添加至画布"
+                          >
+                            <Plus className="w-3 h-3" />
+                          </button>
+                        ) : null}
+                      </div>
+                    );
+                  })
                 ) : (
                   <div className="py-3 text-center text-2xs text-monokai-comment font-mono">
                     {tableSearch ? '未匹配到表' : '暂无数据表'}
@@ -298,6 +343,10 @@ export const DataFlowAssetSidebar: React.FC<DataFlowAssetSidebarProps> = ({
         {/* ── 分组 2: ETL 算子库与模板 ── */}
         <div className="flex-1 flex flex-col min-h-0">
           <div
+            role="button"
+            tabIndex={0}
+            aria-expanded={isOperatorsSectionOpen}
+            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setIsOperatorsSectionOpen(!isOperatorsSectionOpen); } }}
             onClick={() => setIsOperatorsSectionOpen(!isOperatorsSectionOpen)}
             className="flex items-center justify-between px-3 py-2 bg-monokai-surface/60 hover:bg-monokai-elevated/60 cursor-pointer transition-colors text-xs font-semibold text-monokai-fg border-b border-monokai-border/60"
           >
@@ -311,7 +360,7 @@ export const DataFlowAssetSidebar: React.FC<DataFlowAssetSidebarProps> = ({
               <span>ETL 算子库</span>
             </div>
             {!isCustomMode && (
-              <span className="text-2xs font-normal text-monokai-comment px-1 rounded bg-white/[0.04]">
+              <span className="text-2xs font-normal text-monokai-comment px-1 rounded bg-monokai-elevated">
                 仅编排模式
               </span>
             )}
@@ -327,7 +376,9 @@ export const DataFlowAssetSidebar: React.FC<DataFlowAssetSidebarProps> = ({
                 const isAction = !op.type;
                 const isAvailable = isAction || isCustomMode;
                 return (
-                  <div
+                  <button
+                    type="button"
+                    disabled={!isAvailable}
                     key={op.title || op.type}
                     draggable={Boolean(isCustomMode && op.type)}
                     onDragStart={e => {
@@ -343,9 +394,12 @@ export const DataFlowAssetSidebar: React.FC<DataFlowAssetSidebarProps> = ({
                         setIsBottomDrawerOpen(true);
                       } else if (isCustomMode && op.type) {
                         addNode(op.type);
+                        toastService.success(`已添加「${op.title}」算子节点`);
+                      } else if (!isCustomMode && op.type) {
+                        toastService.info('当前处于 SQL/血缘模式，可在顶部切换至「自由编排」以自由添加算子');
                       }
                     }}
-                    className={`group flex items-center gap-2.5 p-2 rounded-lg border transition-all ${
+                    className={`group w-full text-left flex items-center gap-2.5 p-2 rounded-lg border transition-all ${
                       isAvailable
                         ? 'border-monokai-border/60 bg-monokai-bg/60 hover:bg-monokai-elevated hover:border-monokai-accent/40 cursor-pointer'
                         : 'border-monokai-border/40 bg-monokai-bg/30 opacity-50 cursor-not-allowed'
@@ -374,7 +428,7 @@ export const DataFlowAssetSidebar: React.FC<DataFlowAssetSidebarProps> = ({
                         {op.description}
                       </div>
                     </div>
-                  </div>
+                  </button>
                 );
               })}
             </div>

@@ -1,9 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import {
-  Network,
   Table as TableIcon,
   Search,
-  Layers,
   Play,
   Database,
   Plus,
@@ -33,6 +31,7 @@ import {
 } from '../../../hooks/useDashboardWorkflow';
 import { useAppStore } from '../../../hooks/store/useAppStore';
 import { EmptyCockpitIllustration } from './DashboardSvgIllustrations';
+import { DB } from '../dashboardUi';
 
 interface DataAssetTopologyViewProps {
   tables: TableItemDetail[];
@@ -47,6 +46,7 @@ interface DataAssetTopologyViewProps {
   onNavigate?: (tab: Tab) => void;
   onOpenCreate?: () => void;
   onOpenImport?: () => void;
+  onOpenExport?: () => void;
 }
 
 interface CalculatedNode {
@@ -73,9 +73,11 @@ export const DataAssetTopologyView: React.FC<DataAssetTopologyViewProps> = ({
   onNavigate,
   onOpenCreate,
   onOpenImport,
+  onOpenExport,
 }) => {
   type AssetViewTab = 'er' | 'schema' | 'profile' | 'sample' | 'quality' | 'dataset';
-  const [activeTab, setActiveTab] = useState<AssetViewTab>('er');
+  /** Default to asset list — ER / profile are secondary progressive disclosure */
+  const [activeTab, setActiveTab] = useState<AssetViewTab>('dataset');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTableName, setSelectedTableName] = useState<string | null>(null);
 
@@ -288,119 +290,101 @@ export const DataAssetTopologyView: React.FC<DataAssetTopologyViewProps> = ({
   };
 
   return (
-    <div className="relative flex flex-col overflow-hidden rounded-xl border border-monokai-border bg-gradient-to-b from-monokai-surface to-monokai-surface/95 p-4 shadow-sm h-full select-text hover:border-monokai-cyan/40 transition-colors backdrop-blur-xs">
-      {/* Header with Title, Quick Link, Tabs, and Search */}
-      <div className="flex flex-col gap-2.5 border-b border-monokai-border pb-3 shrink-0">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="flex h-7 w-7 items-center justify-center rounded-md bg-monokai-cyan/15 text-monokai-cyan border border-monokai-cyan/30">
-              <Network className="h-4 w-4" />
-            </span>
-            <h2 className="text-sm sm:text-base font-bold text-monokai-fg tracking-tight font-sans">数据资产概览</h2>
-            <span className="rounded bg-monokai-elevated px-2 py-0.5 font-mono text-xs text-monokai-fg-muted border border-monokai-border">
-              {tables.length} 张表 / 视图
+    <div className={`${DB.panelLg}`}>
+      {/* Quiet panel chrome — title + tools, no icon tile */}
+      <div className="flex flex-col gap-2 border-b border-monokai-border/80 pb-2.5 shrink-0">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-baseline gap-2 min-w-0">
+            <h2 className="text-sm font-semibold text-monokai-fg font-sans tracking-tight">数据资产</h2>
+            <span className="font-mono text-2xs text-monokai-comment tabular-nums">
+              {tables.length}
             </span>
           </div>
 
-          <button
-            type="button"
-            onClick={() => onNavigate?.(Tab.DATA)}
-            className="text-xs font-mono text-monokai-cyan hover:text-monokai-cyan/80 hover:underline cursor-pointer flex items-center gap-1 font-medium"
-          >
-            <span>资产目录</span>
-            <span>→</span>
-          </button>
+          <div className="flex items-center gap-1 shrink-0">
+            {onOpenCreate && (
+              <button type="button" onClick={onOpenCreate} className={DB.btnSecondary} title="新建表">
+                <Plus className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">新建</span>
+              </button>
+            )}
+            {onOpenImport && (
+              <button type="button" onClick={onOpenImport} className={DB.btnSecondary} title="导入数据">
+                <Upload className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">导入</span>
+              </button>
+            )}
+            {onOpenExport && (
+              <button type="button" onClick={onOpenExport} className={DB.btnSecondary} title="导出">
+                <ExternalLink className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">导出</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => onNavigate?.(Tab.DATA)}
+              className={DB.btnGhostLink}
+              title="打开数据网格"
+            >
+              <span>数据页</span>
+              <span>→</span>
+            </button>
+          </div>
         </div>
 
-        {/* View Mode Tabs + Search */}
+        {/* Primary views + secondary select — avoid 6-pill chrome */}
         <div className="flex flex-wrap items-center justify-between gap-2">
-          {/* View Mode Tabs */}
-          <div className="flex flex-wrap items-center gap-1 rounded-md border border-monokai-border bg-monokai-elevated p-0.5 shrink-0">
-            <button
-              type="button"
-              onClick={() => setActiveTab('er')}
-              className={`rounded px-2 py-0.5 text-xs font-mono transition-colors cursor-pointer ${
-                activeTab === 'er'
-                  ? 'bg-monokai-accent text-monokai-bg font-bold shadow-xs'
-                  : 'text-monokai-fg-muted hover:text-monokai-fg'
-              }`}
+          <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+            <div className={DB.segment}>
+              {(
+                [
+                  { id: 'dataset' as const, label: '数据集' },
+                  { id: 'er' as const, label: 'ER' },
+                  { id: 'schema' as const, label: '结构' },
+                ] as const
+              ).map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`${activeTab === tab.id ? DB.segmentItemActive : DB.segmentItem} ${DB.focus}`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+            <label className="sr-only" htmlFor="asset-more-view">
+              更多视图
+            </label>
+            <select
+              id="asset-more-view"
+              value={['profile', 'sample', 'quality'].includes(activeTab) ? activeTab : ''}
+              onChange={(e) => {
+                const v = e.target.value as AssetViewTab | '';
+                if (v) setActiveTab(v);
+              }}
+              className="rounded-md border border-monokai-border bg-monokai-elevated px-2 py-0.5 text-2xs font-mono text-monokai-fg-muted hover:text-monokai-fg cursor-pointer focus:outline-none focus:border-monokai-accent/70"
+              title="画像 / 抽样 / 质量"
             >
-              ER 关系
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('schema')}
-              className={`rounded px-2 py-0.5 text-xs font-mono transition-colors cursor-pointer ${
-                activeTab === 'schema'
-                  ? 'bg-monokai-accent text-monokai-bg font-bold shadow-xs'
-                  : 'text-monokai-fg-muted hover:text-monokai-fg'
-              }`}
-            >
-              表结构
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('profile')}
-              className={`rounded px-2 py-0.5 text-xs font-mono transition-colors cursor-pointer flex items-center gap-1 ${
-                activeTab === 'profile'
-                  ? 'bg-monokai-accent text-monokai-bg font-bold shadow-xs'
-                  : 'text-monokai-fg-muted hover:text-monokai-fg'
-              }`}
-            >
-              <PieChart className="h-3 w-3" />
-              <span>数据画像</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('sample')}
-              className={`rounded px-2 py-0.5 text-xs font-mono transition-colors cursor-pointer flex items-center gap-1 ${
-                activeTab === 'sample'
-                  ? 'bg-monokai-accent text-monokai-bg font-bold shadow-xs'
-                  : 'text-monokai-fg-muted hover:text-monokai-fg'
-              }`}
-            >
-              <TableIcon className="h-3 w-3" />
-              <span>即时抽样</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('quality')}
-              className={`rounded px-2 py-0.5 text-xs font-mono transition-colors cursor-pointer flex items-center gap-1 ${
-                activeTab === 'quality'
-                  ? 'bg-monokai-accent text-monokai-bg font-bold shadow-xs'
-                  : 'text-monokai-fg-muted hover:text-monokai-fg'
-              }`}
-            >
-              <ShieldCheck className="h-3 w-3" />
-              <span>质量雷达</span>
-              {qualityAudit.missingPk.length > 0 && (
-                <span className="rounded-full bg-monokai-pink text-monokai-bg px-1 text-[9px] font-bold">
-                  !
-                </span>
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('dataset')}
-              className={`rounded px-2 py-0.5 text-xs font-mono transition-colors cursor-pointer ${
-                activeTab === 'dataset'
-                  ? 'bg-monokai-accent text-monokai-bg font-bold shadow-xs'
-                  : 'text-monokai-fg-muted hover:text-monokai-fg'
-              }`}
-            >
-              数据集
-            </button>
+              <option value="" disabled>
+                更多…
+              </option>
+              <option value="profile">画像</option>
+              <option value="sample">抽样</option>
+              <option value="quality">
+                {qualityAudit.missingPk.length > 0 ? '质量 (!)' : '质量'}
+              </option>
+            </select>
           </div>
 
-          {/* Search input */}
-          <div className="relative flex items-center flex-1 min-w-[150px] max-w-[220px]">
-            <Search className="absolute left-2.5 h-3.5 w-3.5 text-monokai-comment" />
+          <div className="relative flex items-center flex-1 min-w-[140px] max-w-[200px]">
+            <Search className="absolute left-2 h-3.5 w-3.5 text-monokai-comment pointer-events-none" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="搜索表名、字段或注释..."
-              className="w-full rounded border border-monokai-border bg-monokai-elevated py-1 pl-8 pr-7 text-xs font-mono text-monokai-fg placeholder:text-monokai-comment focus:border-monokai-accent focus:outline-none"
+              placeholder="搜索表…"
+              className={DB.input}
             />
             {searchQuery && (
               <button
@@ -513,7 +497,7 @@ export const DataAssetTopologyView: React.FC<DataAssetTopologyViewProps> = ({
                       top: `${node.y}%`,
                       transform: 'translate(-50%, -50%)',
                     }}
-                    className={`group absolute z-10 flex cursor-pointer items-center gap-2 rounded-md border p-2 shadow-sm backdrop-blur-xs transition-all duration-200 hover:scale-105 hover:z-30 ${
+                    className={`group absolute z-10 flex cursor-pointer items-center gap-2 rounded-md border p-2 shadow-sm   transition-all duration-200 hover:scale-105 hover:z-30 ${
                       node.isCenter
                         ? 'border-monokai-accent bg-monokai-elevated min-w-[120px] py-1.5 px-2.5 ring-1 ring-monokai-accent/60'
                         : isView
@@ -581,7 +565,7 @@ export const DataAssetTopologyView: React.FC<DataAssetTopologyViewProps> = ({
                         )}
                       </div>
                       <div
-                        className={`font-mono text-[10px] ${
+                        className={`font-mono text-2xs ${
                           node.isCenter
                             ? 'text-monokai-accent'
                             : isView
@@ -606,14 +590,14 @@ export const DataAssetTopologyView: React.FC<DataAssetTopologyViewProps> = ({
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5">
                         <span className="font-mono text-xs font-bold text-monokai-fg truncate">{selectedTableDetail.name}</span>
-                        <span className="rounded bg-monokai-elevated px-1 py-0.2 text-[9px] font-mono text-monokai-fg-muted border border-monokai-border">
+                        <span className="rounded bg-monokai-elevated px-1 py-0.2 text-3xs font-mono text-monokai-fg-muted border border-monokai-border">
                           {selectedTableDetail.type || 'table'}
                         </span>
                         {selectedTableDetail.hasPrimaryKey && (
-                          <span className="rounded bg-monokai-yellow/15 border border-monokai-yellow/30 px-1 py-0.2 text-[9px] font-mono text-monokai-yellow font-bold">PK</span>
+                          <span className="rounded bg-monokai-yellow/15 border border-monokai-yellow/30 px-1 py-0.2 text-3xs font-mono text-monokai-yellow font-bold">PK</span>
                         )}
                       </div>
-                      <div className="font-mono text-[10px] text-monokai-comment flex items-center gap-2">
+                      <div className="font-mono text-2xs text-monokai-comment flex items-center gap-2">
                         <span className="text-monokai-accent">{selectedTableDetail.formattedRowCount} 行</span>
                         <span>·</span>
                         <span>{selectedTableDetail.columnCount} 列</span>
@@ -627,7 +611,7 @@ export const DataAssetTopologyView: React.FC<DataAssetTopologyViewProps> = ({
                     <button
                       type="button"
                       onClick={() => handleNavigateToData(selectedTableDetail.name)}
-                      className="flex items-center gap-1 rounded bg-monokai-elevated hover:bg-monokai-hover border border-monokai-border px-2 py-0.5 text-[11px] font-mono text-monokai-cyan transition-colors cursor-pointer"
+                      className="flex items-center gap-1 rounded bg-monokai-elevated hover:bg-monokai-hover border border-monokai-border px-2 py-0.5 text-meta font-mono text-monokai-cyan transition-colors cursor-pointer"
                       title="进入数据网格查看"
                     >
                       <TableIcon className="h-2.5 w-2.5" />
@@ -636,7 +620,7 @@ export const DataAssetTopologyView: React.FC<DataAssetTopologyViewProps> = ({
                     <button
                       type="button"
                       onClick={() => onQuickQuery?.(selectedTableDetail.name)}
-                      className="flex items-center gap-1 rounded bg-monokai-cyan/20 hover:bg-monokai-cyan/30 border border-monokai-cyan/40 px-2 py-0.5 text-[11px] font-mono text-monokai-cyan font-semibold transition-colors cursor-pointer"
+                      className="flex items-center gap-1 rounded bg-monokai-cyan/20 hover:bg-monokai-cyan/30 border border-monokai-cyan/40 px-2 py-0.5 text-meta font-mono text-monokai-cyan font-semibold transition-colors cursor-pointer"
                       title="在 SQL 编辑器中运行抽样查询"
                     >
                       <Play className="h-2.5 w-2.5 fill-current" />
@@ -645,7 +629,7 @@ export const DataAssetTopologyView: React.FC<DataAssetTopologyViewProps> = ({
                     <button
                       type="button"
                       onClick={() => onPeekTable?.(selectedTableDetail.name)}
-                      className="flex items-center gap-1 rounded bg-monokai-elevated hover:bg-monokai-hover border border-monokai-border px-2 py-0.5 text-[11px] font-mono text-monokai-yellow transition-colors cursor-pointer"
+                      className="flex items-center gap-1 rounded bg-monokai-elevated hover:bg-monokai-hover border border-monokai-border px-2 py-0.5 text-meta font-mono text-monokai-yellow transition-colors cursor-pointer"
                       title="打开全景抽屉查看字段与剖析"
                     >
                       <Eye className="h-2.5 w-2.5" />
@@ -665,14 +649,14 @@ export const DataAssetTopologyView: React.FC<DataAssetTopologyViewProps> = ({
 
               {/* Dynamic Footer Tip (rendered when no table is pinned) */}
               {!selectedTableDetail && (
-                <div className="absolute bottom-2 left-3 right-3 flex items-center justify-between text-[11px] text-monokai-comment font-mono">
+                <div className="absolute bottom-2 left-3 right-3 flex items-center justify-between text-meta text-monokai-comment font-mono">
                   <span className="pointer-events-none">点击实体就地锁定检视 · 双击抽屉全景 · 悬停快捷入口</span>
                   <div className="flex items-center gap-2">
                     {filteredTables.length > nodes.length && (
                       <button
                         type="button"
                         onClick={() => setActiveTab('schema')}
-                        className="rounded bg-monokai-cyan/15 border border-monokai-cyan/40 px-2 py-0.5 text-[11px] text-monokai-cyan hover:bg-monokai-cyan/25 cursor-pointer pointer-events-auto transition-colors font-mono"
+                        className="rounded bg-monokai-cyan/15 border border-monokai-cyan/40 px-2 py-0.5 text-meta text-monokai-cyan hover:bg-monokai-cyan/25 cursor-pointer pointer-events-auto transition-colors font-mono"
                         title="点击切换到表结构列表查看全部数据表"
                       >
                         +{filteredTables.length - nodes.length} 张更多表 (切至结构列表)
@@ -703,16 +687,16 @@ export const DataAssetTopologyView: React.FC<DataAssetTopologyViewProps> = ({
                 <div className="flex items-center gap-2 min-w-0">
                   <TableIcon className="h-3.5 w-3.5 text-monokai-cyan shrink-0" />
                   <span className="text-xs font-bold text-monokai-fg truncate">{t.name}</span>
-                  <span className="rounded bg-monokai-surface px-1.5 py-0.2 font-mono text-[10px] text-monokai-fg-muted border border-monokai-border">
+                  <span className="rounded bg-monokai-surface px-1.5 py-0.2 font-mono text-2xs text-monokai-fg-muted border border-monokai-border">
                     {t.type || 'table'}
                   </span>
                   {t.hasPrimaryKey && (
-                    <span className="rounded bg-monokai-yellow/15 border border-monokai-yellow/30 px-1 py-0.2 text-[10px] font-mono text-monokai-yellow">
+                    <span className="rounded bg-monokai-yellow/15 border border-monokai-yellow/30 px-1 py-0.2 text-2xs font-mono text-monokai-yellow">
                       PK
                     </span>
                   )}
                   {t.columnCount > 0 && (
-                    <span className="text-[11px] text-monokai-comment font-mono">
+                    <span className="text-meta text-monokai-comment font-mono">
                       {t.columnCount} 列
                     </span>
                   )}
@@ -727,7 +711,7 @@ export const DataAssetTopologyView: React.FC<DataAssetTopologyViewProps> = ({
                       e.stopPropagation();
                       onPeekTable?.(t.name);
                     }}
-                    className="flex h-5 items-center gap-1 rounded bg-monokai-surface border border-monokai-border px-2 text-[11px] font-mono text-monokai-fg hover:border-monokai-border-strong cursor-pointer"
+                    className="flex h-5 items-center gap-1 rounded bg-monokai-surface border border-monokai-border px-2 text-meta font-mono text-monokai-fg hover:border-monokai-border-strong cursor-pointer"
                     title="零跳转抽屉快速预览"
                   >
                     <Eye className="h-2.5 w-2.5 text-monokai-cyan" />
@@ -740,7 +724,7 @@ export const DataAssetTopologyView: React.FC<DataAssetTopologyViewProps> = ({
                       e.stopPropagation();
                       onQuickQuery?.(t.name);
                     }}
-                    className="flex h-5 items-center gap-1 rounded bg-monokai-cyan/20 border border-monokai-cyan/40 px-2 text-[11px] font-mono text-monokai-cyan hover:bg-monokai-cyan/30 cursor-pointer"
+                    className="flex h-5 items-center gap-1 rounded bg-monokai-cyan/20 border border-monokai-cyan/40 px-2 text-meta font-mono text-monokai-cyan hover:bg-monokai-cyan/30 cursor-pointer"
                     title="在 SQL 编辑器中打开查询"
                   >
                     <Play className="h-2.5 w-2.5 fill-current" />
@@ -760,7 +744,7 @@ export const DataAssetTopologyView: React.FC<DataAssetTopologyViewProps> = ({
           ) : tableProfileMetrics ? (
             <div className="space-y-3">
               {/* Table Picker & Identity */}
-              <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-monokai-border bg-monokai-elevated/40 p-2.5">
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-monokai-border bg-monokai-elevated/40 p-2.5">
                 <div className="flex items-center gap-2">
                   <TableIcon className="h-4 w-4 text-monokai-cyan" />
                   <span className="text-xs font-mono text-monokai-comment">当前画像表:</span>
@@ -798,25 +782,25 @@ export const DataAssetTopologyView: React.FC<DataAssetTopologyViewProps> = ({
               {/* Core Table Metrics Cards */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 <div className="rounded-md border border-monokai-border bg-monokai-bg/60 p-2 text-center">
-                  <div className="text-[10px] text-monokai-comment font-mono">数据记录数</div>
+                  <div className="text-2xs text-monokai-comment font-mono">数据记录数</div>
                   <div className="text-sm font-bold font-mono text-monokai-accent mt-0.5">
                     {tableProfileMetrics.table.formattedRowCount}
                   </div>
                 </div>
                 <div className="rounded-md border border-monokai-border bg-monokai-bg/60 p-2 text-center">
-                  <div className="text-[10px] text-monokai-comment font-mono">字段总数</div>
+                  <div className="text-2xs text-monokai-comment font-mono">字段总数</div>
                   <div className="text-sm font-bold font-mono text-monokai-cyan mt-0.5">
                     {tableProfileMetrics.totalCols} 列
                   </div>
                 </div>
                 <div className="rounded-md border border-monokai-border bg-monokai-bg/60 p-2 text-center">
-                  <div className="text-[10px] text-monokai-comment font-mono">存储空间</div>
+                  <div className="text-2xs text-monokai-comment font-mono">存储空间</div>
                   <div className="text-sm font-bold font-mono text-monokai-yellow mt-0.5">
                     {tableProfileMetrics.table.formattedSize || '—'}
                   </div>
                 </div>
                 <div className="rounded-md border border-monokai-border bg-monokai-bg/60 p-2 text-center">
-                  <div className="text-[10px] text-monokai-comment font-mono">主键完整度</div>
+                  <div className="text-2xs text-monokai-comment font-mono">主键完整度</div>
                   <div className={`text-sm font-bold font-mono mt-0.5 ${tableProfileMetrics.table.hasPrimaryKey ? 'text-monokai-accent' : 'text-monokai-pink'}`}>
                     {tableProfileMetrics.table.hasPrimaryKey ? '✓ 已设主键' : '⚠ 缺失主键'}
                   </div>
@@ -824,7 +808,7 @@ export const DataAssetTopologyView: React.FC<DataAssetTopologyViewProps> = ({
               </div>
 
               {/* Column Type Breakdown Chart */}
-              <div className="rounded-lg border border-monokai-border bg-monokai-elevated/30 p-3 space-y-2">
+              <div className="rounded-md border border-monokai-border bg-monokai-elevated/30 p-3 space-y-2">
                 <div className="flex items-center justify-between text-xs font-mono">
                   <span className="font-bold text-monokai-fg flex items-center gap-1.5">
                     <PieChart className="h-3.5 w-3.5 text-monokai-purple" />
@@ -873,7 +857,7 @@ export const DataAssetTopologyView: React.FC<DataAssetTopologyViewProps> = ({
                 </div>
 
                 {/* Legend */}
-                <div className="flex flex-wrap items-center gap-3 pt-1 text-[11px] font-mono">
+                <div className="flex flex-wrap items-center gap-3 pt-1 text-meta font-mono">
                   <span className="flex items-center gap-1 text-monokai-fg">
                     <span className="h-2 w-2 rounded-full bg-monokai-accent" />
                     <span>数值型 {tableProfileMetrics.numericCount} ({tableProfileMetrics.numericPct}%)</span>
@@ -894,7 +878,7 @@ export const DataAssetTopologyView: React.FC<DataAssetTopologyViewProps> = ({
               </div>
 
               {/* Columns Table */}
-              <div className="rounded-lg border border-monokai-border bg-monokai-elevated/20 overflow-hidden">
+              <div className="rounded-md border border-monokai-border bg-monokai-elevated/20 overflow-hidden">
                 <div className="px-3 py-2 bg-monokai-elevated/60 border-b border-monokai-border flex items-center justify-between text-xs font-mono font-bold text-monokai-fg">
                   <span>字段名称 (Column Name)</span>
                   <span>DuckDB 类型 (Type)</span>
@@ -906,7 +890,7 @@ export const DataAssetTopologyView: React.FC<DataAssetTopologyViewProps> = ({
                         <div className="flex items-center gap-1.5 min-w-0">
                           {c.isPrimaryKey && <Key className="h-3 w-3 text-monokai-yellow shrink-0" />}
                           <span className="text-monokai-fg truncate">{c.name}</span>
-                          {!c.nullable && <span className="text-[10px] text-monokai-pink font-semibold">NOT NULL</span>}
+                          {!c.nullable && <span className="text-2xs text-monokai-pink font-semibold">NOT NULL</span>}
                         </div>
                         <span className="text-monokai-cyan font-bold">{c.type || 'UNKNOWN'}</span>
                       </div>
@@ -992,7 +976,7 @@ export const DataAssetTopologyView: React.FC<DataAssetTopologyViewProps> = ({
               <table className="w-full text-left border-collapse text-xs font-mono">
                 <thead>
                   <tr className="bg-monokai-elevated/80 border-b border-monokai-border sticky top-0 z-10">
-                    <th className="py-1.5 px-2 text-[10px] text-monokai-comment w-10 text-center font-bold">#</th>
+                    <th className="py-1.5 px-2 text-2xs text-monokai-comment w-10 text-center font-bold">#</th>
                     {sampleCols.map((col) => (
                       <th key={col} className="py-1.5 px-3 text-monokai-fg font-bold whitespace-nowrap">
                         {col}
@@ -1003,7 +987,7 @@ export const DataAssetTopologyView: React.FC<DataAssetTopologyViewProps> = ({
                 <tbody className="divide-y divide-monokai-border/40">
                   {sampleRows.map((row, rowIdx) => (
                     <tr key={rowIdx} className="hover:bg-monokai-hover/60 transition-colors">
-                      <td className="py-1 px-2 text-center text-[10px] text-monokai-comment">{rowIdx + 1}</td>
+                      <td className="py-1 px-2 text-center text-2xs text-monokai-comment">{rowIdx + 1}</td>
                       {sampleCols.map((col) => {
                         const val = row[col];
                         return (
@@ -1028,7 +1012,7 @@ export const DataAssetTopologyView: React.FC<DataAssetTopologyViewProps> = ({
       ) : activeTab === 'quality' ? (
         <div className="mt-2.5 flex-1 w-full overflow-y-auto space-y-3 custom-scrollbar pr-1 min-h-[360px]">
           {/* Quality Health Score Banner */}
-          <div className="flex items-center justify-between rounded-lg border border-monokai-border bg-monokai-elevated/40 p-3">
+          <div className="flex items-center justify-between rounded-md border border-monokai-border bg-monokai-elevated/40 p-3">
             <div className="flex items-center gap-2.5">
               <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-monokai-accent/40 bg-monokai-accent/15 text-monokai-accent">
                 <ShieldCheck className="h-5 w-5" />
@@ -1067,20 +1051,20 @@ export const DataAssetTopologyView: React.FC<DataAssetTopologyViewProps> = ({
               <div className="rounded-lg border border-monokai-accent/30 bg-monokai-accent/5 p-4 text-center">
                 <ShieldCheck className="h-8 w-8 text-monokai-accent mx-auto mb-1.5" />
                 <div className="text-xs font-bold text-monokai-fg font-sans">全库数据资产质量健康</div>
-                <div className="text-[11px] text-monokai-comment font-mono mt-0.5">
+                <div className="text-meta text-monokai-comment font-mono mt-0.5">
                   所有物理表均已设置主键约束，未发现孤立零行空表
                 </div>
               </div>
             ) : (
               <div className="space-y-2">
                 {qualityAudit.missingPk.map((t) => (
-                  <div key={t.name} className="flex items-center justify-between rounded-lg border border-monokai-border bg-monokai-surface p-2.5 text-xs font-mono">
+                  <div key={t.name} className="flex items-center justify-between rounded-md border border-monokai-border bg-monokai-surface p-2.5 text-xs font-mono">
                     <div className="flex items-center gap-2 min-w-0">
-                      <span className="rounded bg-monokai-pink/15 border border-monokai-pink/30 px-1.5 py-0.5 text-[10px] text-monokai-pink font-bold">
+                      <span className="rounded bg-monokai-pink/15 border border-monokai-pink/30 px-1.5 py-0.5 text-2xs text-monokai-pink font-bold">
                         无主键
                       </span>
                       <span className="font-bold text-monokai-fg truncate">{t.name}</span>
-                      <span className="text-monokai-comment text-[11px]">({t.formattedRowCount} 行)</span>
+                      <span className="text-monokai-comment text-meta">({t.formattedRowCount} 行)</span>
                     </div>
                     <button
                       type="button"
@@ -1093,9 +1077,9 @@ export const DataAssetTopologyView: React.FC<DataAssetTopologyViewProps> = ({
                 ))}
 
                 {qualityAudit.emptyTables.map((t) => (
-                  <div key={t.name} className="flex items-center justify-between rounded-lg border border-monokai-border bg-monokai-surface p-2.5 text-xs font-mono">
+                  <div key={t.name} className="flex items-center justify-between rounded-md border border-monokai-border bg-monokai-surface p-2.5 text-xs font-mono">
                     <div className="flex items-center gap-2 min-w-0">
-                      <span className="rounded bg-monokai-yellow/15 border border-monokai-yellow/30 px-1.5 py-0.5 text-[10px] text-monokai-yellow font-bold">
+                      <span className="rounded bg-monokai-yellow/15 border border-monokai-yellow/30 px-1.5 py-0.5 text-2xs text-monokai-yellow font-bold">
                         空表 (0行)
                       </span>
                       <span className="font-bold text-monokai-fg truncate">{t.name}</span>
@@ -1115,26 +1099,100 @@ export const DataAssetTopologyView: React.FC<DataAssetTopologyViewProps> = ({
         </div>
       ) : (
         <div className="mt-2.5 flex-1 w-full overflow-y-auto space-y-2.5 custom-scrollbar pr-1 min-h-[360px]">
+          {/* Asset list — primary home surface */}
+          <div className="rounded-md border border-monokai-border bg-monokai-elevated/40 overflow-hidden">
+            <div className="flex items-center justify-between border-b border-monokai-border px-3 py-2">
+              <span className="text-xs font-semibold text-monokai-fg font-sans">表与视图</span>
+              <span className={DB.metaMono}>{filteredTables.length} 项</span>
+            </div>
+            {filteredTables.length === 0 ? (
+              <div className="p-4 text-center space-y-2">
+                <p className="text-xs font-semibold text-monokai-fg">当前数据库暂无数据表或视图</p>
+                <p className="text-2xs text-monokai-comment font-mono">
+                  导入 CSV / Parquet，或新建空表开始
+                </p>
+                <div className="flex items-center justify-center gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={onOpenImport}
+                    className="inline-flex items-center gap-1 rounded bg-monokai-cyan/15 border border-monokai-cyan/30 px-2.5 py-1 text-xs font-mono text-monokai-cyan hover:bg-monokai-cyan/25 transition-colors cursor-pointer"
+                  >
+                    <Upload className="h-3 w-3" />
+                    <span>导入文件</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onOpenCreate}
+                    className="inline-flex items-center gap-1 rounded border border-monokai-border bg-monokai-surface px-2.5 py-1 text-xs font-mono text-monokai-fg hover:border-monokai-border-strong transition-colors cursor-pointer"
+                  >
+                    <Plus className="h-3 w-3" />
+                    <span>新建表</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="divide-y divide-monokai-border max-h-[220px] overflow-y-auto custom-scrollbar">
+                {filteredTables.map((t) => (
+                  <div
+                    key={t.name}
+                    className="flex items-center justify-between gap-2 px-3 py-1.5 hover:bg-monokai-hover/50 transition-colors"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => handleNavigateToData(t.name)}
+                      className="flex min-w-0 flex-1 items-center gap-2 text-left cursor-pointer"
+                    >
+                      <TableIcon className={`h-3.5 w-3.5 shrink-0 ${t.type === 'view' ? 'text-monokai-purple' : 'text-monokai-cyan'}`} />
+                      <span className="truncate text-xs font-medium text-monokai-fg font-mono">{t.name}</span>
+                      <span className="shrink-0 rounded border border-monokai-border bg-monokai-surface px-1 py-0.5 text-2xs font-mono text-monokai-comment">
+                        {t.type || 'table'}
+                      </span>
+                    </button>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span className="font-mono text-2xs text-monokai-accent">{t.formattedRowCount}</span>
+                      <button
+                        type="button"
+                        onClick={() => onPeekTable?.(t.name)}
+                        className="rounded border border-monokai-border bg-monokai-surface px-1.5 py-0.5 text-2xs font-mono text-monokai-comment hover:text-monokai-fg hover:border-monokai-border-strong cursor-pointer"
+                        title={`预览 ${t.name}`}
+                      >
+                        <Eye className="h-3 w-3" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onQuickQuery?.(t.name)}
+                        className="rounded border border-monokai-border bg-monokai-surface px-1.5 py-0.5 text-2xs font-mono text-monokai-comment hover:text-monokai-accent hover:border-monokai-accent/40 cursor-pointer"
+                        title={`查询 ${t.name}`}
+                      >
+                        <Play className="h-3 w-3" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* Top Engine Storage Stats */}
           <div className="rounded-md border border-monokai-border bg-monokai-elevated/40 p-3 space-y-2 text-xs">
             <div className="flex items-center justify-between">
-              <span className="text-monokai-fg-muted font-medium">当前活跃数据库 (Active DB)</span>
+              <span className="text-monokai-fg-muted font-medium">当前活跃数据库</span>
               <span className="font-mono text-monokai-fg font-bold">{metrics?.databaseName || 'duckdb_managed'}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-monokai-fg-muted font-medium">存储持久化模式 (Storage Engine)</span>
+              <span className="text-monokai-fg-muted font-medium">存储模式</span>
               <span className="font-mono text-monokai-accent font-bold">
-                {metrics?.isPersistent ? 'OPFS 本地持久化文件' : '内存临时沙盒 (In-Memory)'}
+                {metrics?.isPersistent ? 'OPFS 本地持久化' : '内存临时沙盒'}
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-monokai-fg-muted font-medium">实体分布 (Tables / Views)</span>
+              <span className="text-monokai-fg-muted font-medium">实体分布</span>
               <span className="font-mono text-monokai-cyan font-bold">
-                {tables.filter((t) => t.type !== 'view').length} 物理表 · {tables.filter((t) => t.type === 'view').length} 视图
+                {tables.filter((t) => t.type !== 'view').length} 表 · {tables.filter((t) => t.type === 'view').length} 视图
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-monokai-fg-muted font-medium">总占用空间 (Footprint)</span>
+              <span className="text-monokai-fg-muted font-medium">占用空间</span>
               <span className="font-mono text-monokai-yellow font-bold">{metrics?.dataSize || '0 B'}</span>
             </div>
           </div>

@@ -5,7 +5,8 @@ import { useUiTheme } from '../../services/uiTheme';
  * Do not invent formats, datasets, or Chart.js constructors here.
  */
 
-import React, { useMemo, useState, useRef, useEffect } from 'react';
+import React, { useMemo, useState, useRef, useEffect, useId } from 'react';
+import { MoveHorizontal } from 'lucide-react';
 import type { Chart as ChartJS } from 'chart.js';
 import { useContainerSize } from '../ui/useContainerWidth';
 import { tableSpace } from '../../utils/tableSpace';
@@ -65,7 +66,7 @@ function KpiView({
           {['value', 'records'].includes((card?.label || '').toLowerCase()) ? bundle.title : card?.label || bundle.title}
         </span>}
         <div className="mt-1 flex items-baseline gap-2 min-w-0">
-          <span className="font-mono text-2xl font-bold text-monokai-green tracking-tight break-words">
+          <span className="font-mono text-3xl font-semibold tabular-nums text-monokai-green tracking-tight break-words">
             {card?.formatted ?? '—'}
           </span>
         </div>
@@ -223,6 +224,7 @@ function CanvasView({ bundle, className, heightClass, spec, hiddenLegend, onLege
   onBrushSelection?: (field: string, values: Array<string | number>) => void;
 }) {
   const host = useRef<HTMLDivElement>(null);
+  const scrollHintId = useId();
   const plot = useRef<HTMLDivElement>(null);
   const { width, height } = useContainerSize(plot);
   const hostSize = useContainerSize(host);
@@ -283,12 +285,14 @@ function CanvasView({ bundle, className, heightClass, spec, hiddenLegend, onLege
     });
     instance.update('none');
   }, [hidden, data, width, height, arc]);
-  const props = { ref: chart as never, data: data as never, options: canvasOptions as never };
+  const scrollsHorizontally = width > 0 && geometry.width > width + 1;
+  const props = { ref: chart as never, data: data as never, options: canvasOptions as never, role: 'img', 'aria-label': `${spec.title}，${spec.chartType === 'scatter' ? '散点图' : `${data.labels.length} 个分类`}，${data.datasets.length} 个系列` };
   return <div ref={host} className={`flex ${sideLegend ? 'flex-row' : 'flex-col'} min-w-0 min-h-0 w-full ${heightClass || 'h-full'} ${className || ''}`}>
     {spec.chartType === 'scatter' && onBrushSelection && <button type="button" aria-pressed={boxSelection} className="shrink-0 px-2 py-1 text-xs text-monokai-cyan" onClick={() => { setBoxSelection(!boxSelection); setDrag(null); }}>框选联动{boxSelection ? '：拖动选择' : ''}</button>}
     {spec.colorScale&&<div className="shrink-0 px-2 text-xs text-monokai-comment">颜色：{spec.colorScale.field} · {formatValueBySpec(spec.colorScale.min,spec.formatByKey?.[spec.colorScale.field])}–{formatValueBySpec(spec.colorScale.max,spec.formatByKey?.[spec.colorScale.field])}</div>}
 
-    <div ref={plot} className="min-h-0 flex-1 overflow-auto custom-scrollbar flex" aria-label="图表绘图区">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+    <div ref={plot} role="region" tabIndex={0} aria-describedby={scrollsHorizontally ? scrollHintId : undefined} className="min-h-0 flex-1 overflow-auto custom-scrollbar flex focus-visible:outline focus-visible:outline-2 focus-visible:outline-monokai-accent focus-visible:-outline-offset-2" aria-label="图表绘图区">
       {/* Auto margins center a fitting plot, but collapse to zero for overflow so both axes remain reachable. */}
       <div className="relative shrink-0 m-auto" style={{ width: geometry.width, height: geometry.height, touchAction: boxSelection ? 'none' : 'auto' }}
         onClickCapture={event => { if (boxSelection) event.stopPropagation(); }}
@@ -325,6 +329,8 @@ function CanvasView({ bundle, className, heightClass, spec, hiddenLegend, onLege
         {chartJsType === 'scatter' && <Scatter key={signature} {...props} />}
         {drag && <div aria-hidden className="pointer-events-none absolute border border-monokai-cyan bg-monokai-cyan/10" style={{ left: Math.min(drag.x, drag.endX), top: Math.min(drag.y, drag.endY), width: Math.abs(drag.x - drag.endX), height: Math.abs(drag.y - drag.endY) }}/>}
       </div>
+    </div>
+    {scrollsHorizontally && <p id={scrollHintId} className="flex shrink-0 items-center justify-center gap-1.5 border-t border-monokai-border/50 px-2 py-1 text-xs text-monokai-comment"><MoveHorizontal size={13} aria-hidden="true" />横向滚动查看完整图表</p>}
     </div>
     {options.plugins.legend.display && <div aria-label="图例" style={{ order: legendPosition === 'top' || legendPosition === 'left' ? -1 : 1,
       ...(sideLegend ? { maxWidth: '40%', maxHeight: '100%' } : {}) }} className={`shrink-0 ${sideLegend ? `flex-col ${options.plugins.legend.align === 'center' ? 'justify-center' : options.plugins.legend.align === 'end' ? 'justify-end' : 'justify-start'}` : `max-h-24 flex-wrap ${options.plugins.legend.align === 'center' ? 'justify-center' : options.plugins.legend.align === 'end' ? 'justify-end' : 'justify-start'}`} overflow-auto custom-scrollbar flex gap-x-4 gap-y-2 px-2.5 py-2 text-2xs text-monokai-fg`}>

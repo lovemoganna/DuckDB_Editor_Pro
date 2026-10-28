@@ -40,7 +40,7 @@ const CircularGauge: React.FC<GaugeProps> = ({
 
   // Normalize display: convert MiB/GiB/KiB to MB/GB/KB to fit cleanly without truncation
   const displayVal = value.replace('MiB', 'MB').replace('GiB', 'GB').replace('KiB', 'KB');
-  const fontSize = displayVal.length > 7 ? 'text-[9px]' : displayVal.length > 5 ? 'text-[10px]' : 'text-xs';
+  const fontSize = displayVal.length > 7 ? 'text-3xs' : displayVal.length > 5 ? 'text-2xs' : 'text-xs';
 
   return (
     <div
@@ -48,7 +48,7 @@ const CircularGauge: React.FC<GaugeProps> = ({
       onMouseLeave={onMouseLeave}
       className="flex flex-col items-center justify-center p-1 sm:p-1.5 rounded-md bg-monokai-elevated/50 border border-monokai-border hover:border-monokai-border-strong hover:bg-monokai-hover/60 transition-all cursor-pointer group"
     >
-      <span className="font-mono text-[10px] font-bold text-monokai-fg-muted mb-0.5 group-hover:text-monokai-fg transition-colors truncate max-w-full">
+      <span className="font-mono text-2xs font-bold text-monokai-fg-muted mb-0.5 group-hover:text-monokai-fg transition-colors truncate max-w-full">
         {label}
       </span>
       <div className="relative flex items-center justify-center h-9 w-9 sm:h-10 sm:w-10">
@@ -87,7 +87,7 @@ const CircularGauge: React.FC<GaugeProps> = ({
         </div>
       </div>
 
-      <span className="mt-1 text-center font-mono text-[10px] text-monokai-comment truncate max-w-[72px]" title={subtext}>
+      <span className="mt-1 text-center font-mono text-2xs text-monokai-comment truncate max-w-[72px]" title={subtext}>
         {subtext}
       </span>
     </div>
@@ -125,22 +125,20 @@ export const SystemHealthGauges: React.FC<SystemHealthGaugesProps> = ({
     }
   }, [metrics.dataSize]);
 
-  // Real CPU Activity calculation
+  // Query activity is observable; CPU utilization is not exposed by the browser.
   const isExecuting = Boolean(isRefreshing || duckDBService.isBatchRunning?.());
-  const cpuPct = isExecuting ? 90 : metrics.totalQueries > 0 ? 5 : 0;
-  const cpuText = isExecuting ? '90%' : `${cpuPct}%`;
+  const engineActivity = isExecuting ? 100 : 0;
+  const engineText = isExecuting ? '计算中' : '空闲';
 
   // Real Storage calculation
   const storagePercentage = useMemo(() => {
     if (storageEstimate && storageEstimate.quota > 0) {
-      return Math.max(1, Math.round((storageEstimate.usage / storageEstimate.quota) * 100));
+      return (storageEstimate.usage / storageEstimate.quota) * 100;
     }
-    return metrics.rawSizeBytes > 0
-      ? Math.min(100, Math.round((metrics.rawSizeBytes / (1024 * 1024 * 1024)) * 10))
-      : 0;
+    return 0;
   }, [storageEstimate, metrics.rawSizeBytes]);
 
-  const cores = typeof navigator !== 'undefined' ? navigator.hardwareConcurrency || 4 : 4;
+  const cores = typeof navigator !== 'undefined' ? navigator.hardwareConcurrency : undefined;
 
   const handleCpuHover = (e: React.MouseEvent) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -153,12 +151,12 @@ export const SystemHealthGauges: React.FC<SystemHealthGaugesProps> = ({
         tone: isExecuting ? 'warn' : 'ok',
       },
       items: [
-        { label: '并发核心', value: `${cores} 核 (HardwareConcurrency)` },
+        { label: '硬件线程', value: cores ? `${cores} (HardwareConcurrency)` : '未采集' },
         { label: '向量指令集', value: '128-bit SIMD', color: 'text-monokai-cyan' },
         { label: '执行载体', value: 'Dedicated WebWorker' },
-        { label: '当前利用率', value: cpuText, color: isExecuting ? 'text-monokai-yellow' : 'text-monokai-accent' },
+        { label: '执行状态', value: engineText, color: isExecuting ? 'text-monokai-yellow' : 'text-monokai-accent' },
       ],
-      footer: '基于多核硬件线程并发调度',
+      footer: '显示查询执行状态；浏览器未提供 CPU 利用率',
     });
   };
 
@@ -174,7 +172,7 @@ export const SystemHealthGauges: React.FC<SystemHealthGaugesProps> = ({
       },
       items: [
         { label: '已分配缓冲', value: metrics.memoryUsageFormatted || '0 B', color: 'text-monokai-yellow' },
-        { label: '缓冲池上限', value: `${metrics.memoryTotalGb} GB` },
+        { label: '缓冲池上限', value: metrics.memoryTotalGb > 0 ? `${metrics.memoryTotalGb} GB` : '未采集' },
         { label: '持久化架构', value: metrics.modeLabel || '内存数据库' },
         { label: '内存优化', value: 'PRAGMA shrink_memory;' },
       ],
@@ -191,7 +189,7 @@ export const SystemHealthGauges: React.FC<SystemHealthGaugesProps> = ({
       y: rect.top - 8,
       title: '本地存储配额与空间',
       badge: {
-        label: `${storagePercentage}% 配额已用`,
+        label: storageEstimate ? `${storagePercentage.toFixed(2)}% 配额已用` : '配额未采集',
         tone: storagePercentage > 80 ? 'warn' : 'info',
       },
       items: [
@@ -230,10 +228,10 @@ export const SystemHealthGauges: React.FC<SystemHealthGaugesProps> = ({
     <div className="grid grid-cols-4 gap-1.5">
       {/* 1. CPU */}
       <CircularGauge
-        label="CPU"
-        value={cpuText}
-        subtext="WASM 线程"
-        percentage={cpuPct}
+        label="引擎"
+        value={engineText}
+        subtext="执行状态"
+        percentage={engineActivity}
         strokeColor="#66d9ef"
         glowColor="rgba(102, 217, 239, 0.4)"
         color="text-monokai-cyan"
@@ -246,7 +244,7 @@ export const SystemHealthGauges: React.FC<SystemHealthGaugesProps> = ({
         label="内存"
         value={metrics.memoryUsageFormatted || '—'}
         subtext={metrics.memoryPercentageDisplay || '0%'}
-        percentage={Math.max(2, metrics.memoryPercentage)}
+        percentage={metrics.memoryPercentage}
         strokeColor="#e6db74"
         glowColor="rgba(230, 219, 116, 0.4)"
         color="text-monokai-yellow"
@@ -258,7 +256,7 @@ export const SystemHealthGauges: React.FC<SystemHealthGaugesProps> = ({
       <CircularGauge
         label="磁盘"
         value={metrics.dataSize || '—'}
-        subtext="已用空间"
+        subtext="表体积估算"
         percentage={storagePercentage}
         strokeColor="#ae81ff"
         glowColor="rgba(174, 129, 255, 0.4)"
@@ -270,13 +268,13 @@ export const SystemHealthGauges: React.FC<SystemHealthGaugesProps> = ({
       {/* 4. 查询成功率 */}
       <CircularGauge
         label="查询成功率"
-        value={metrics.totalQueries > 0 ? `${metrics.successRatePct}%` : '100%'}
+        value={metrics.totalQueries > 0 ? `${metrics.successRatePct}%` : '—'}
         subtext={
           metrics.totalQueries > 0
             ? `${metrics.totalQueries - metrics.errorCount}/${metrics.totalQueries}`
             : '0/0'
         }
-        percentage={metrics.totalQueries > 0 ? metrics.successRatePct : 100}
+        percentage={metrics.totalQueries > 0 ? metrics.successRatePct : 0}
         strokeColor="#a6e22e"
         glowColor="rgba(166, 226, 46, 0.4)"
         color="text-monokai-accent"
@@ -298,13 +296,13 @@ export const SystemHealthGauges: React.FC<SystemHealthGaugesProps> = ({
                 <ShieldCheck className="h-3 w-3" />
               </span>
               <h3 className="text-xs font-bold text-monokai-fg tracking-tight font-sans">系统状态</h3>
-              <span className="flex items-center gap-1 text-[11px] font-mono text-monokai-accent font-medium">
+              <span className="flex items-center gap-1 text-meta font-mono text-monokai-accent font-medium">
                 <span className="h-1.5 w-1.5 rounded-full bg-monokai-accent animate-pulse" />
-                {isExecuting ? '计算中' : '运行正常'}
+                {isExecuting ? '计算中' : '引擎空闲'}
               </span>
             </div>
 
-            <div className="flex items-center gap-1.5 text-[11px] font-mono text-monokai-comment">
+            <div className="flex items-center gap-1.5 text-meta font-mono text-monokai-comment">
               <span>{currentTime}</span>
               <button
                 type="button"
@@ -328,7 +326,7 @@ export const SystemHealthGauges: React.FC<SystemHealthGaugesProps> = ({
   return (
     <>
       <KpiPortalTooltip tooltip={tooltip} />
-      <div className="relative flex flex-col overflow-hidden rounded-lg border border-monokai-border bg-monokai-surface p-4 shadow-xs group shrink-0">
+      <div className="relative flex flex-col overflow-hidden rounded-md border border-monokai-border bg-monokai-surface p-4 shadow-xs group shrink-0">
         {/* Header */}
         <div className="relative z-10 flex items-center justify-between border-b border-monokai-border pb-2.5">
           <div className="flex items-center gap-2">
@@ -338,7 +336,7 @@ export const SystemHealthGauges: React.FC<SystemHealthGaugesProps> = ({
             <h2 className="text-sm font-bold text-monokai-fg tracking-tight font-sans">系统状态</h2>
             <span className="flex items-center gap-1 text-xs font-mono text-monokai-accent font-medium">
               <span className="h-1.5 w-1.5 rounded-full bg-monokai-accent animate-pulse" />
-              {isExecuting ? '计算中' : '运行正常'}
+              {isExecuting ? '计算中' : '引擎空闲'}
             </span>
           </div>
 

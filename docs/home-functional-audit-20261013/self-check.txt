@@ -1,0 +1,12 @@
+F1: PASS evidence/diff/test correspondence
+F3: PASS evidence/diff/test correspondence
+F4: PASS evidence/diff/test correspondence
+F5: PASS evidence/diff/test correspondence
+F6: PASS evidence/diff/test correspondence
+F7: PASS evidence/diff/test correspondence
+F8: PASS evidence/diff/test correspondence
+F9: PASS evidence/diff/test correspondence
+8 production file hashes unchanged after final tests/build started: PASS
+F2: datasets dependency and removed-selection reset reviewed in changes.diff; two targeted tests PASS in acceptance output
+Final test output: Test Files  26 passed (26)
+      Tests  118 passed (118)

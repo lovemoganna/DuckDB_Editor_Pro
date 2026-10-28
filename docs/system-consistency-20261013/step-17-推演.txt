@@ -1,0 +1,73 @@
+- banner "全局工作区顶栏":
+  - button "🪶 DuckDB Studio PRO":
+    - generic: 🪶
+    - generic: DuckDB Studio
+    - generic: PRO
+  - navigation "业务领域大类":
+    - button "工程核心":
+      - generic: 工程核心
+    - button "分析洞察":
+      - generic: 分析洞察
+    - button "知识沉淀":
+      - generic: 知识沉淀
+    - button "AI 认知":
+      - generic: AI 认知
+  - tablist "AI 认知功能标签页":
+    - tab "本体图谱":
+      - generic: 本体图谱
+    - tab "技能":
+      - generic: 技能
+    - tab "能力":
+      - generic: 能力
+    - tab "推演" [active] [selected]:
+      - generic: 推演
+  - button "项目 Ctrl+Shift+D":
+    - generic: 项目
+    - generic: Ctrl+Shift+D
+  - button "新建表":
+    - generic: 新建表
+  - button "memory 临时分析空间":
+    - generic: memory
+    - generic: 临时分析空间
+  - button "AI 助手 Ctrl+I":
+    - generic: AI 助手
+    - generic: Ctrl+I
+  - button "⌘K":
+  - button "帮助与快捷键":
+  - button "切换为浅色模式":
+  - button "AI 模型设置":
+- main:
+  - main:
+    - heading "特征组合与语义还原器" [level=1]
+    - paragraph: 先还原结构，再解释结构；不改事实，不丢关系，不擅自补关系
+    - complementary:
+      - generic: 原始输入 (Raw Input)
+      - generic: 0 字符 · 不截断
+      - textbox "原始输入":
+        - /placeholder: 粘贴自然语言、业务规则、条件、指标、法律条文、产品逻辑或多个离散事实……
+      - checkbox "需要外部映射"
+      - strong: 需要外部映射 (Strict Source Mapping)
+      - generic: 只匹配你提供的依据，不联网、不调用模型常识补来源。
+      - button "开始语义还原" [disabled]:
+        - generic: 开始语义还原
+      - button "清空输入":
+      - generic: 最近记录
+      - paragraph: 成功通过校验的结果会仅保存在当前浏览器。
+    - heading "等待原始输入进行语义还原" [level=3]
+    - paragraph: 输入业务规则或离散事实后，系统将自动拆解特征、识别拓扑关系，生成具有可追溯性的演绎图谱。
+- contentinfo:
+  - generic: DuckDB 1.33.1
+  - generic: "|"
+  - generic: memory [MEMORY]
+  - generic: "|"
+  - generic: 内存库
+  - generic: "|"
+  - generic: 0 张表
+  - generic: "|"
+  - generic: 暂无表
+  - generic: "|"
+  - generic: "内存: 2.39 MB / 3.1 GiB"
+  - generic: 引擎就绪
+  - generic: "|"
+  - generic: 07:11
+  - button "刷新运行时状态":

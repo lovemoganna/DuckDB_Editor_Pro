@@ -1,0 +1,301 @@
+### Page
+- Page URL: http://localhost:5173/DuckDB_Editor_Pro/
+- Page Title: DuckDB Manager Pro
+- Console: 0 errors, 1 warnings
+### Snapshot
+```yaml
+- generic [ref=f2e1]:
+  - generic [ref=f2e3]:
+    - banner "全局工作区顶栏" [ref=f2e4]:
+      - generic [ref=f2e5]:
+        - button "🪶 DuckDB Studio PRO" [ref=f2e6] [cursor=pointer]:
+          - generic [ref=f2e7]: 🪶
+          - generic [ref=f2e9]:
+            - generic [ref=f2e10]: DuckDB Studio
+            - generic [ref=f2e11]: PRO
+        - navigation "业务领域大类" [ref=f2e13]:
+          - button "工程核心" [ref=f2e14] [cursor=pointer]
+          - button "分析洞察" [ref=f2e19] [cursor=pointer]
+          - button "知识沉淀" [ref=f2e24] [cursor=pointer]
+          - button "AI 认知" [ref=f2e29] [cursor=pointer]
+        - tablist "AI 认知功能标签页" [ref=f2e36]:
+          - tab "本体图谱" [selected] [ref=f2e37] [cursor=pointer]
+          - tab "技能" [ref=f2e43] [cursor=pointer]
+          - tab "能力" [ref=f2e48] [cursor=pointer]
+          - tab "推演" [ref=f2e53] [cursor=pointer]
+      - generic [ref=f2e58]:
+        - button "项目 Ctrl+Shift+D" [ref=f2e59] [cursor=pointer]:
+          - generic [ref=f2e62]: 项目
+          - generic [ref=f2e63]: Ctrl+Shift+D
+        - button "新建表" [ref=f2e64] [cursor=pointer]
+        - button "memory 临时分析空间" [ref=f2e69] [cursor=pointer]:
+          - generic [ref=f2e72]: memory
+          - generic [ref=f2e74]: 临时分析空间
+        - button "AI 助手 Ctrl+I" [ref=f2e78] [cursor=pointer]:
+          - generic [ref=f2e81]: AI 助手
+          - generic [ref=f2e82]: Ctrl+I
+        - button "⌘K" [ref=f2e83] [cursor=pointer]
+        - button "帮助与快捷键" [ref=f2e87] [cursor=pointer]
+        - button "切换为浅色模式" [ref=f2e90] [cursor=pointer]
+        - button "AI 模型设置" [ref=f2e91] [cursor=pointer]
+    - main [ref=f2e94]:
+      - generic [ref=f2e100]:
+        - generic [ref=f2e101]:
+          - generic [ref=f2e102]:
+            - button "展开本体侧栏" [ref=f2e103] [cursor=pointer]
+            - generic [ref=f2e104]: 本体知识空间 (Ontology Studio)
+          - tablist "本体视图切换" [ref=f2e107]:
+            - tab "知识图谱" [selected] [ref=f2e108] [cursor=pointer]
+            - tab "数据视图" [ref=f2e111] [cursor=pointer]
+            - tab "实体画布" [ref=f2e113] [cursor=pointer]
+          - generic [ref=f2e115]:
+            - button "数据切片" [ref=f2e116] [cursor=pointer]
+            - button "本体建模" [ref=f2e118] [cursor=pointer]
+            - button "组合推演" [ref=f2e120] [cursor=pointer]
+            - button "推演定义" [ref=f2e122] [cursor=pointer]
+            - button "聚合洞察" [ref=f2e124] [cursor=pointer]
+        - generic [ref=f2e126]:
+          - generic [ref=f2e128]:
+            - generic [ref=f2e129]: 本体论未初始化
+            - button "一键初始化" [ref=f2e130] [cursor=pointer]
+          - generic [ref=f2e131]:
+            - generic [ref=f2e132]:
+              - generic [ref=f2e133]: 跳数
+              - button "1跳" [ref=f2e134] [cursor=pointer]
+              - button "2跳" [ref=f2e135] [cursor=pointer]
+              - button "3跳" [ref=f2e136] [cursor=pointer]
+              - button "全图" [ref=f2e137] [cursor=pointer]
+            - button "刷新图谱数据" [ref=f2e138] [cursor=pointer]
+        - generic [ref=f2e143]:
+          - img "知识图谱可视化（SVG D3 (矢量交互)）：0 个节点，0 条关系连线。" [ref=f2e144]
+          - generic:
+            - generic:
+              - generic: 🔍
+              - generic: 本体论尚未初始化
+              - generic: 当前工作区尚未载入本体结构或种子数据。可点击「重试初始化」导入默认模型，或通过 AI 自动构建图谱。
+              - generic [ref=f2e146]:
+                - button "重试初始化" [ref=f2e147] [cursor=pointer]
+                - button "AI 图谱生成" [ref=f2e148] [cursor=pointer]
+                - button "刷新图谱" [ref=f2e149] [cursor=pointer]
+                - button "导出 CSV" [disabled] [ref=f2e150]
+                - button "导出 Excel" [disabled] [ref=f2e151]
+          - button "控制面板" [ref=f2e152] [cursor=pointer]
+          - button "信息面板" [ref=f2e153] [cursor=pointer]
+          - button "图例" [ref=f2e154] [cursor=pointer]
+    - contentinfo [ref=f2e155]:
+      - generic [ref=f2e156]:
+        - generic [ref=f2e157]: DuckDB 1.33.1
+        - generic [ref=f2e160]: "|"
+        - generic [ref=f2e161]: memory [MEMORY]
+        - generic [ref=f2e163]: "|"
+        - generic [ref=f2e164]: 内存库
+        - generic [ref=f2e166]: "|"
+        - generic [ref=f2e167]: 0 张表
+        - generic [ref=f2e169]: "|"
+        - generic [ref=f2e170]: 暂无表
+        - generic [ref=f2e172]: "|"
+        - generic [ref=f2e173]: "内存: 0.00 MB / 3.1 GiB"
+      - generic [ref=f2e175]:
+        - generic [ref=f2e176]: 引擎就绪
+        - generic [ref=f2e180]: "|"
+        - generic [ref=f2e181]: 15:55
+        - button "刷新运行时状态" [ref=f2e182] [cursor=pointer]
+  - dialog [ref=f2e184]:
+    - banner [ref=f2e185]:
+      - generic [ref=f2e188]:
+        - generic [ref=f2e189]:
+          - heading "AI 本体建模工作台 (Ontology Modeling Studio)" [level=2] [ref=f2e190]
+          - generic [ref=f2e191]: 生产级本体建模
+        - paragraph [ref=f2e192]: 手动与 AI 共用草案 · 实时编辑 · 真实数据映射 · 校验后确认保存
+      - button "关闭" [ref=f2e194] [cursor=pointer]
+    - generic [ref=f2e196]:
+      - generic [ref=f2e197]:
+        - button "手动建模" [pressed] [ref=f2e198] [cursor=pointer]
+        - button "AI 辅助建模" [ref=f2e199] [cursor=pointer]
+        - status [ref=f2e200]: 草案 · 尚未保存 · 2 类型 · 0 真实实例 · 0 项错误
+        - button "取消未保存修改" [ref=f2e201] [cursor=pointer]
+      - generic [ref=f2e202]:
+        - generic [ref=f2e203]:
+          - button "1 业务需求输入" [ref=f2e204] [cursor=pointer]:
+            - generic [ref=f2e205]: "1"
+            - generic [ref=f2e206]: 业务需求输入
+          - button "2 四要素建模工作台" [ref=f2e207] [cursor=pointer]:
+            - generic [ref=f2e208]: "2"
+            - generic [ref=f2e209]: 四要素建模工作台
+          - button "3 写入本体图谱" [ref=f2e210] [cursor=pointer]:
+            - generic [ref=f2e211]: "3"
+            - generic [ref=f2e212]: 写入本体图谱
+        - generic [ref=f2e213]:
+          - generic [ref=f2e214]: 手动建模
+          - button "健康度 80%" [ref=f2e215] [cursor=pointer]
+          - button "自动体检修复" [ref=f2e216] [cursor=pointer]
+          - button "写入本体图谱" [ref=f2e217] [cursor=pointer]
+      - generic [ref=f2e218]:
+        - generic [ref=f2e219]:
+          - generic [ref=f2e220]:
+            - generic [ref=f2e221]:
+              - button "+类型 (Type)" [ref=f2e222] [cursor=pointer]
+              - button "+关系 (Link)" [ref=f2e223] [cursor=pointer]
+              - button "+行动 (Action)" [ref=f2e224] [cursor=pointer]
+            - generic [ref=f2e226]:
+              - button "图谱拓扑 (Schema)" [ref=f2e227] [cursor=pointer]
+              - button "四要素列表" [ref=f2e228] [cursor=pointer]
+          - generic [ref=f2e230]:
+            - generic [ref=f2e231]:
+              - generic [ref=f2e232]:
+                - generic [ref=f2e233]: 动态本体图谱预览
+                - generic [ref=f2e234]: 2 本体类型 (Schema) · 0 关系类型 · 0 业务行动
+              - generic [ref=f2e235]:
+                - button "125%" [ref=f2e236] [cursor=pointer]
+                - button "放大 (或滚轮向上)" [ref=f2e237] [cursor=pointer]
+                - button "缩小 (或滚轮向下)" [ref=f2e238] [cursor=pointer]
+                - button "自适应全貌居中 (Fit to View)" [ref=f2e239] [cursor=pointer]
+                - button "重置视图" [ref=f2e240] [cursor=pointer]
+                - button "全宽画布" [ref=f2e242] [cursor=pointer]
+            - generic [ref=f2e244]:
+              - img "本体类型建模画布" [ref=f2e245]:
+                - generic [ref=f2e247]:
+                  - generic [ref=f2e248] [cursor=pointer]:
+                    - generic [ref=f2e252]: Customer
+                    - generic [ref=f2e254]: Core
+                    - generic [ref=f2e255]:
+                      - generic [ref=f2e256]:
+                        - generic [ref=f2e257]: •
+                        - generic [ref=f2e258]: "id:"
+                        - generic [ref=f2e259]: VARCHAR
+                      - generic [ref=f2e260]:
+                        - generic [ref=f2e261]: •
+                        - generic [ref=f2e262]: "status:"
+                        - generic [ref=f2e263]: VARCHAR
+                      - generic [ref=f2e264]:
+                        - generic [ref=f2e265]: •
+                        - generic [ref=f2e266]: "created_at:"
+                        - generic [ref=f2e267]: TIMESTA
+                    - generic [ref=f2e268]: 3 字段
+                  - generic [ref=f2e270] [cursor=pointer]:
+                    - generic [ref=f2e275]: Order
+                    - generic [ref=f2e277]: Core
+                    - generic [ref=f2e278]:
+                      - generic [ref=f2e279]:
+                        - generic [ref=f2e280]: •
+                        - generic [ref=f2e281]: "id:"
+                        - generic [ref=f2e282]: VARCHAR
+                      - generic [ref=f2e283]:
+                        - generic [ref=f2e284]: •
+                        - generic [ref=f2e285]: "status:"
+                        - generic [ref=f2e286]: VARCHAR
+                      - generic [ref=f2e287]:
+                        - generic [ref=f2e288]: •
+                        - generic [ref=f2e289]: "created_at:"
+                        - generic [ref=f2e290]: TIMESTA
+                    - generic [ref=f2e291]: 3 字段
+              - generic: 💡 类型画布 · 双击空白创建类型 · Shift 点击两端建立关系 · 滚轮缩放 / 拖动
+        - generic [ref=f2e293]:
+          - generic [ref=f2e294]:
+            - generic [ref=f2e295]:
+              - button "实体属性 3" [ref=f2e296] [cursor=pointer]:
+                - generic [ref=f2e297]: 实体属性
+                - generic [ref=f2e298]: "3"
+              - button "关系连线 0" [ref=f2e299] [cursor=pointer]:
+                - generic [ref=f2e300]: 关系连线
+                - generic [ref=f2e301]: "0"
+              - button "行动列表 0" [ref=f2e302] [cursor=pointer]:
+                - generic [ref=f2e303]: 行动列表
+                - generic [ref=f2e304]: "0"
+              - button "示例验证 0" [ref=f2e305] [cursor=pointer]:
+                - generic [ref=f2e306]: 示例验证
+                - generic [ref=f2e307]: "0"
+              - button "体检诊断 2" [ref=f2e308] [cursor=pointer]:
+                - generic [ref=f2e309]: 体检诊断
+                - generic [ref=f2e310]: "2"
+              - button "数据映射 0" [ref=f2e311] [cursor=pointer]:
+                - generic [ref=f2e312]: 数据映射
+                - generic [ref=f2e313]: "0"
+            - button "收起检查器以全屏预览图谱" [ref=f2e314] [cursor=pointer]
+          - generic [ref=f2e315]:
+            - paragraph [ref=f2e316]: 双击画布空白创建类型；Shift 依次点击两个节点建立关系。选中节点编辑属性，选中连线编辑关系。
+            - generic [ref=f2e317]:
+              - generic [ref=f2e318]:
+                - generic [ref=f2e319]: "模型健康度:"
+                - generic [ref=f2e320]: 80分
+              - button "一键自动修复防错" [ref=f2e321] [cursor=pointer]
+            - generic [ref=f2e322]:
+              - generic [ref=f2e323]:
+                - generic [ref=f2e324]:
+                  - generic [ref=f2e325]: "正在编辑节点:"
+                  - textbox "对象名称" [ref=f2e326]: Order
+                - button "重新推导该节点" [ref=f2e327] [cursor=pointer]
+              - generic [ref=f2e328]:
+                - text: 对象标识符
+                - textbox "对象标识符" [active] [ref=f2e329]: order
+              - generic [ref=f2e330]:
+                - text: 对象说明
+                - textbox "对象说明" [ref=f2e331]: 新增业务实体类型
+              - button "删除对象类型" [ref=f2e332] [cursor=pointer]
+              - generic [ref=f2e333]:
+                - generic [ref=f2e334]:
+                  - generic [ref=f2e335]: "实体分类 (Category):"
+                  - combobox [ref=f2e336]:
+                    - option "Core (核心业务对象)" [selected]
+                    - option "Transaction (交易与单据)"
+                    - option "Master (主数据与主体)"
+                    - option "Event (事件与流转)"
+                - generic [ref=f2e337]:
+                  - generic [ref=f2e338]: "节点合并 (Merge):"
+                  - generic [ref=f2e339]:
+                    - combobox [ref=f2e340]:
+                      - option "合并至..." [selected]
+                      - option "Customer"
+                    - button "确认" [disabled] [ref=f2e341] [cursor=pointer]
+            - generic [ref=f2e342]:
+              - generic [ref=f2e343]:
+                - generic [ref=f2e344]: 【Order】属性 Schema 字典
+                - button "新建属性" [ref=f2e345] [cursor=pointer]
+              - generic [ref=f2e346]:
+                - generic [ref=f2e347]:
+                  - textbox "属性名称 id" [ref=f2e348]: id
+                  - combobox "属性类型 id" [ref=f2e349]:
+                    - option "VARCHAR" [selected]
+                    - option "DECIMAL"
+                    - option "INTEGER"
+                    - option "BOOLEAN"
+                    - option "TIMESTAMP"
+                    - option "JSON"
+                  - generic [ref=f2e350]:
+                    - checkbox "必填 id" [ref=f2e351]
+                    - text: 必填
+                  - button [ref=f2e352] [cursor=pointer]
+                - generic [ref=f2e353]:
+                  - textbox "属性名称 status" [ref=f2e354]: status
+                  - combobox "属性类型 status" [ref=f2e355]:
+                    - option "VARCHAR" [selected]
+                    - option "DECIMAL"
+                    - option "INTEGER"
+                    - option "BOOLEAN"
+                    - option "TIMESTAMP"
+                    - option "JSON"
+                  - generic [ref=f2e356]:
+                    - checkbox "必填 status" [ref=f2e357]
+                    - text: 必填
+                  - button [ref=f2e358] [cursor=pointer]
+                - generic [ref=f2e359]:
+                  - textbox "属性名称 created_at" [ref=f2e360]: created_at
+                  - combobox "属性类型 created_at" [ref=f2e361]:
+                    - option "VARCHAR"
+                    - option "DECIMAL"
+                    - option "INTEGER"
+                    - option "BOOLEAN"
+                    - option "TIMESTAMP" [selected]
+                    - option "JSON"
+                  - generic [ref=f2e362]:
+                    - checkbox "必填 created_at" [ref=f2e363]
+                    - text: 必填
+                  - button [ref=f2e364] [cursor=pointer]
+            - generic [ref=f2e365]:
+              - generic [ref=f2e366]:
+                - generic [ref=f2e367]: 本体草案
+                - generic [ref=f2e369]: · 建模设计依据：
+              - paragraph [ref=f2e370]: 对象类型定义与真实数据实例分层管理。
+```
+### Events
+- New console entries: .playwright-cli\console-2026-10-12T22-47-33-981Z.log#L1106-L2238

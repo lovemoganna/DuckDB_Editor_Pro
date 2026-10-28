@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Check, Database, HardDrive, Cpu, Clock, Activity, MessageSquare } from 'lucide-react';
 import type { DuckDBRuntimeInfo } from '../../services/duckdbService';
 
@@ -35,36 +35,6 @@ export const WorkbenchStatusBar: React.FC<WorkbenchStatusBarProps> = ({
   onOpenFeedback,
   onFocusEditor,
 }) => {
-  const [memoryStats, setMemoryStats] = useState({
-    usedMb: 620,
-    totalMb: 4096,
-    pct: 15,
-  });
-  const [lastCheckpoint, setLastCheckpoint] = useState<string>('09:42:18');
-
-  useEffect(() => {
-    const updateMemory = () => {
-      const perf = (performance as any).memory;
-      if (perf && perf.usedJSHeapSize && perf.jsHeapSizeLimit) {
-        const used = Math.round(perf.usedJSHeapSize / (1024 * 1024));
-        const total = Math.round(perf.jsHeapSizeLimit / (1024 * 1024));
-        const pct = Math.min(100, Math.round((used / total) * 100));
-        setMemoryStats({ usedMb: Math.max(380, used), totalMb: Math.max(4096, total), pct: Math.max(10, pct) });
-      }
-    };
-    updateMemory();
-    const interval = setInterval(updateMemory, 10000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const handleCheckpointClick = () => {
-    const now = new Date().toLocaleTimeString('zh-CN', { hour12: false });
-    setLastCheckpoint(now);
-    if (onOpenRuntimeCenter) {
-      onOpenRuntimeCenter();
-    }
-  };
-
   return (
     <footer className="h-7 w-full shrink-0 border-t border-monokai-border/80 bg-gradient-to-b from-monokai-sidebar/95 via-monokai-sidebar/90 to-monokai-sidebar/95 px-3 flex items-center justify-between text-xs font-mono text-monokai-fg-muted select-none z-30 relative">
       {/* Subtle top hairline for depth */}
@@ -116,25 +86,18 @@ export const WorkbenchStatusBar: React.FC<WorkbenchStatusBarProps> = ({
         >
           <Cpu className="w-3 h-3 text-monokai-cyan/80" />
           <span className="text-[10px] uppercase tracking-wide text-monokai-comment/80">内存</span>
-          <span className="font-bold tabular-nums">{memoryStats.usedMb}</span>
-          <span className="text-monokai-comment/70 text-[10px]">MB</span>
-          <div className="relative w-8 h-1 rounded-full bg-monokai-bg overflow-hidden border border-monokai-border/40">
-            <div 
-              className="absolute inset-y-0 left-0 bg-gradient-to-r from-monokai-cyan to-monokai-accent rounded-full transition-all duration-300"
-              style={{ width: `${memoryStats.pct}%` }}
-            />
-          </div>
+          <span className="font-bold tabular-nums">{runtimeInfo.memoryUsage || '未采集'}</span>
         </div>
 
         {/* Checkpoint */}
         <div
-          onClick={handleCheckpointClick}
+          onClick={onOpenRuntimeCenter}
           className="hidden xl:flex items-center gap-1 text-monokai-fg-muted hover:text-monokai-cyan cursor-pointer px-1.5 py-0.5 rounded-md hover:bg-monokai-cyan/8 transition-colors border border-transparent hover:border-monokai-cyan/30 shrink-0"
-          title="点击执行 Checkpoint (持久化同步)"
+          title="查看运行时状态详情"
         >
           <Clock className="w-3 h-3 text-monokai-comment/80" />
-          <span className="text-[10px] uppercase tracking-wide text-monokai-comment/80">cp</span>
-          <span className="font-mono text-[10px] tabular-nums">{lastCheckpoint}</span>
+          <span className="text-[10px] text-monokai-comment/80">运行时</span>
+          <span className="font-mono text-[10px]">{runtimeInfo.ready ? '就绪' : '初始化中'}</span>
         </div>
       </div>
 

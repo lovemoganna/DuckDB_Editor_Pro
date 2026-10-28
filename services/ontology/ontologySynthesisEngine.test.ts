@@ -470,6 +470,27 @@ WHERE order_date >= '2026-03-01';`
   // ─────────────────────────────────────────────────────────────────────────
   // 验收测试: 正确识别哲学教程中的概念/思想家/学派领域实体与关系
   // ─────────────────────────────────────────────────────────────────────────
+  it('preserves quoted SQL in batch execution and reports malformed blocks without aborting the batch', async () => {
+    const { duckDBService } = await import('../duckdbService');
+    const querySpy = vi.spyOn(duckDBService, 'query').mockResolvedValue([]);
+    try {
+      const report = await executeAllSqlBlocks([
+        "SELECT 'a;b--c/*d*/' AS value; SELECT $$x;y$$ AS other;",
+        "SELECT 'unterminated",
+        'SELECT 42 AS answer;',
+      ]);
+      expect(querySpy).toHaveBeenCalledTimes(3);
+      expect(querySpy).toHaveBeenNthCalledWith(1, "SELECT 'a;b--c/*d*/' AS value;");
+      expect(querySpy).toHaveBeenNthCalledWith(2, 'SELECT $$x;y$$ AS other;');
+      expect(querySpy).toHaveBeenNthCalledWith(3, 'SELECT 42 AS answer;');
+      expect(report.results.map(result => result.success)).toEqual([true, false, true]);
+      expect(report.failedCount).toBe(1);
+      expect(report.results[1].error).toBeTruthy();
+    } finally {
+      querySpy.mockRestore();
+    }
+  });
+
   it('执行管道与本体合成: 正确识别哲学教程中的概念/思想家/学派领域实体与关系', () => {
     const report: BatchExecutionReport = {
       total: 3,

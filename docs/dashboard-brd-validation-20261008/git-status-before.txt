@@ -1,0 +1,336 @@
+ M .gitignore
+ M App.tsx
+ M components/AnalysisHub/AnalysisChartRenderer.tsx
+ M components/AnalysisHub/AnalysisHub.test.tsx
+ M components/AnalysisHub/AnalysisHubPanel.tsx
+ M components/AnalysisHub/AnalysisPivotWorkbench.tsx
+ M components/AnalysisHub/AnalysisProfiler.tsx
+ M components/AnalysisHub/AnalysisRecipeCenter.tsx
+ M components/AnalysisHub/AnalysisTimeSeries.tsx
+ D components/AnalysisHub/analysisEngine.ts
+ M components/AnalysisHub/analysisUi.tsx
+ M components/AnalysisHub/index.ts
+ M components/AuditTab.tsx
+ M components/ChartBuilder.tsx
+ M components/ChartDashboard.tsx
+ M components/Copilot/CopilotSidebar.test.tsx
+ M components/Copilot/CopilotSidebar.tsx
+ M components/Dashboard.test.tsx
+ M components/Dashboard.tsx
+ D components/Dashboard/AllColumnsDrawer.tsx
+ D components/Dashboard/CrossModuleLinkage.test.tsx
+ D components/Dashboard/CustomDashboardDrawer.tsx
+ D components/Dashboard/DashboardActionStage.tsx
+ D components/Dashboard/DashboardAnalyticsHub.tsx
+ D components/Dashboard/DashboardChartsRow.tsx
+ D components/Dashboard/DashboardDetailCanvas.tsx
+ D components/Dashboard/DashboardHero.tsx
+ D components/Dashboard/DashboardHeroTelemetry.tsx
+ D components/Dashboard/DashboardIconRail.tsx
+ D components/Dashboard/DashboardKpiRow.tsx
+ D components/Dashboard/DashboardMasterRail.tsx
+ D components/Dashboard/DashboardModeNav.tsx
+ D components/Dashboard/DashboardQuickActions.tsx
+ D components/Dashboard/DashboardRecentQueries.tsx
+ D components/Dashboard/DashboardRecentTables.tsx
+ D components/Dashboard/DashboardStatusBar.tsx
+ D components/Dashboard/DataAssetCockpit.tsx
+ D components/Dashboard/DataAssetHeader.tsx
+ D components/Dashboard/DataAssetInspector.tsx
+ D components/Dashboard/DataAssetToolbar.tsx
+ D components/Dashboard/EmptyStateCockpit.tsx
+ D components/Dashboard/FocusIssuesCard.tsx
+ D components/Dashboard/InstantDataChartBuilder.tsx
+ D components/Dashboard/InstantDataProbe.test.tsx
+ D components/Dashboard/InstantDataProbe.tsx
+ D components/Dashboard/InstantQueryScratchpad.tsx
+ M components/Dashboard/KpiDynamicMiniCharts.test.tsx
+ M components/Dashboard/KpiDynamicMiniCharts.tsx
+ D components/Dashboard/LiveSqlScratchpad.tsx
+ D components/Dashboard/MissionControl/ActionLaunchpad.tsx
+ M components/Dashboard/MissionControl/DashboardHealthAnomalyBanner.tsx
+ M components/Dashboard/MissionControl/DashboardSvgIllustrations.tsx
+ M components/Dashboard/MissionControl/DataAssetTopologyView.test.tsx
+ M components/Dashboard/MissionControl/DataAssetTopologyView.tsx
+ M components/Dashboard/MissionControl/DataIdeMissionControl.test.tsx
+ M components/Dashboard/MissionControl/DataIdeMissionControl.tsx
+ M components/Dashboard/MissionControl/LiveQueryStream.test.tsx
+ M components/Dashboard/MissionControl/LiveQueryStream.tsx
+ M components/Dashboard/MissionControl/MissionControlBidirectionalFlow.test.tsx
+ M components/Dashboard/MissionControl/MissionControlKpis.tsx
+ M components/Dashboard/MissionControl/MissionControlTopStrip.test.tsx
+ M components/Dashboard/MissionControl/MissionControlTopStrip.tsx
+ M components/Dashboard/MissionControl/PerformanceTrendStrip.tsx
+ M components/Dashboard/MissionControl/SystemHealthGauges.tsx
+ D components/Dashboard/RealTableInspector.tsx
+ D components/Dashboard/SchemaAssetCatalog.tsx
+ D components/Dashboard/Step01Connect.tsx
+ D components/Dashboard/Step02Prepare.tsx
+ D components/Dashboard/Step03Analyze.tsx
+ M components/Dashboard/StudioBottomBar.test.tsx
+ M components/Dashboard/StudioBottomBar.tsx
+ D components/Dashboard/StudioHero.tsx
+ D components/Dashboard/StudioSidebar.test.tsx
+ D components/Dashboard/StudioSidebar.tsx
+ D components/Dashboard/TableAssetCard.tsx
+ D components/Dashboard/TableAssetGrid.tsx
+ D components/Dashboard/TelemetryActivityStream.tsx
+ D components/Dashboard/UnifiedTimelineFeed.test.tsx
+ D components/Dashboard/UnifiedTimelineFeed.tsx
+ M components/Dashboard/dashboardUi.tsx
+ D components/Dashboard/sqlHighlight.tsx
+ M components/DashboardGrid.tsx
+ M components/DashboardWidget.tsx
+ M components/DataFlow/DataFlowCanvas.test.tsx
+ M components/DataFlow/DataFlowCanvas.tsx
+ M components/DataFlow/dataflowUi.ts
+ M components/DataFlow/edges/DataFlowCustomEdge.tsx
+ M components/DataFlow/nodes/DataFlowNode.tsx
+ M components/DataFlow/panels/DataFlowAssetSidebar.tsx
+ M components/DataFlow/panels/DataFlowBottomDrawer.tsx
+ M components/DataFlow/panels/DataFlowInspector.tsx
+ M components/DataTab.tsx
+ M components/History/HistoryDetailDrawer.tsx
+ M components/HistoryTab.test.tsx
+ M components/HistoryTab.tsx
+ M components/ImportWizard.test.tsx
+ M components/ImportWizard.tsx
+ M components/InsertRowModal.tsx
+ M components/KnowledgeHub/components/RightDetailWorkbench.tsx
+ M components/Library/D3GraphView.tsx
+ M components/Library/D3GraphView/TopologyLayoutPanel.tsx
+ M components/Library/GraphOverlayPanels.tsx
+ M components/Library/OntologyCanvas.tsx
+ M components/Library/OntologyCanvas/CanvasContextMenu.tsx
+ M components/Library/OntologyCanvas/OntologyCanvasHeader.tsx
+ M components/Library/OntologyCanvas/OntologyEdge.tsx
+ M components/Library/OntologyCanvas/OntologyLayoutPanel.tsx
+ M components/Library/UniversalImporter.tsx
+ M components/MarkdownPreview.tsx
+ M components/MetricCard.test.tsx
+ M components/MetricCard.tsx
+ M components/MetricChartListModal.tsx
+ M components/MetricDataSourceModal.tsx
+ M components/MetricEditModal.tsx
+ M components/MetricManager.tsx
+ M components/MetricTemplateModal.tsx
+ M components/ProjectManagerModal.tsx
+ M components/SkillImportModal.tsx
+ M components/SqlEditor.tsx
+ M components/SqlEditor/SaveQueryModal.tsx
+ M components/SqlEditor/SqlEditorTabs.tsx
+ M components/TableManager.tsx
+ M components/Workbench/DataExplorerPanel.test.tsx
+ M components/Workbench/DataExplorerPanel.tsx
+ M components/Workbench/ExplainPlanView.tsx
+ M components/Workbench/ResultSection.test.tsx
+ M components/Workbench/ResultSection.tsx
+ M components/Workbench/SqlWorkspacePanel.test.tsx
+ M components/Workbench/SqlWorkspacePanel.tsx
+ M components/Workbench/WorkbenchStatusBar.tsx
+ M components/Workbench/WorkbenchView.test.tsx
+ M components/Workbench/WorkbenchView.tsx
+ M components/Workbench/explainPlanModel.ts
+ M components/Workbench/index.ts
+ M components/Workbench/seedWorkbenchData.ts
+ M components/layout/ActiveFeatureHost.test.tsx
+ M components/layout/ActiveFeatureHost.tsx
+ M components/layout/AppSidebar.tsx
+ M components/layout/AppTopBar.test.tsx
+ M components/layout/AppTopBar.tsx
+ M components/layout/GlobalModalProvider.tsx
+ M components/skills/DuckDBGuide.tsx
+ M components/skills/SkillComparison.tsx
+ M components/skills/SkillHeader.tsx
+ M components/skills/SkillList.tsx
+ M components/theme/ai-skills.ts
+ M components/ui/CodeHighlightBlock.tsx
+ M components/ui/ConfirmDialog.tsx
+ M components/ui/LineageGraphView.tsx
+ M components/ui/Workbench.test.tsx
+ M components/ui/Workbench.tsx
+ M components/ui/WorkbenchShell.test.tsx
+ M components/ui/WorkbenchShell.tsx
+ M designSystem.ts
+ M hooks/store/useAppStore.ts
+ M hooks/store/useDataViewStore.ts
+ M hooks/store/useSqlEditorStore.ts
+ M hooks/useDashboardWorkflow.ts
+ M hooks/useSqlExecution.ts
+ M index.css
+ M index.tsx
+ M package.json
+ M pnpm-lock.yaml
+ M services/dataImportService.test.ts
+ M services/dataImportService.ts
+ M services/dataflow/sqlExecutionPlanParser.ts
+ M services/dataflow/sqlToWorkflowParser.test.ts
+ M services/dataflow/sqlToWorkflowParser.ts
+ M services/dataflow/workflowCompiler.test.ts
+ M services/dataflow/workflowCompiler.ts
+ M services/dataflow/workflowStore.test.ts
+ M services/dataflow/workflowStore.ts
+ M services/dataflow/workflowTypes.ts
+ M services/dbService.ts
+ M services/duckdbRuntime.test.ts
+ M services/duckdbRuntime.ts
+ M services/duckdbService.persistence.test.ts
+ M services/duckdbService.ts
+ M services/duckdbService.viewsMacros.test.ts
+ M services/excelMultiSheetIntegration.test.ts
+ M services/interaction_audit.test.ts
+ M services/metricAnalyzer.ts
+ M services/sql/sqlCompletionEngine.ts
+ M services/studioWorkflowE2E.test.ts
+ M services/workbench/queryExecutionService.test.ts
+ M services/workbench/queryExecutionService.ts
+ M services/workbench/types.ts
+ M services/workbookIO.test.ts
+ M services/workbookIO.ts
+ M services/workspaceNavigation.test.ts
+ M services/workspaceNavigation.ts
+ M tailwind.config.js
+ M themes/sqlEditorThemes.ts
+ M types.ts
+ M types/analysis.ts
+ M types/chart.ts
+ M utils.tsx
+ M utils/chartUtils.ts
+ M utils/sqlExporter.ts
+ M utils/typeFormatter.test.ts
+ M utils/typeFormatter.ts
+ M vitest.config.ts
+ M vitest.setup.ts
+?? CONTEXT.md
+?? components/AnalysisHub/AnalysisUnitSelector.tsx
+?? components/AnalysisHub/LinkedAnalysis.tsx
+?? components/Dashboard/Home/
+?? components/Dashboard/MissionControl/DataIdeMissionControl.linkage.test.tsx
+?? components/Dashboard/WidgetChartConfigPanel.test.tsx
+?? components/Dashboard/WidgetChartConfigPanel.tsx
+?? components/DashboardGrid.layout.test.tsx
+?? components/DashboardGrid.test.ts
+?? components/DashboardWidget.requests.test.tsx
+?? components/DataFlow/panels/DataFlowBottomDrawer.test.tsx
+?? components/DataFlow/panels/DataFlowNodeConfig.tsx
+?? components/DataFlow/panels/DataFlowPanels.test.tsx
+?? components/DataFlow/panels/LogicalFlowInspector.tsx
+?? components/DataTab.test.tsx
+?? components/ExecutionPlan/
+?? components/Library/D3GraphView/renderEngineMeta.tsx
+?? components/MetricCreatePackageModal.tsx
+?? components/SqlEditor/SqlEditorTabs.test.tsx
+?? components/Visualization/
+?? components/charts/
+?? components/ui/useContainerWidth.test.tsx
+?? components/ui/useContainerWidth.ts
+?? components/ui/useOverlayFocus.ts
+?? current_dash.png
+?? docs/analysis-workbench-delivery.md
+?? docs/analysis-workbench-implementation-plan.md
+?? docs/chart-space-validation-20261007/
+?? docs/dashboard-brd-validation-20261008/
+?? docs/sql-analysis-workspace.md
+?? docs/sql-flow-audit-20261002/
+?? docs/sql-flow-governance/
+?? docs/sql-flow-ui-audit-20261002.md
+?? docs/system-audit-20261002.md
+?? docs/system-review-20261003/
+?? docs/ui-consistency-audit-20261002.md
+?? docs/ui-system-audit-20261003/
+?? docs/workbench-baseline-20261004/
+?? docs/workbench-baseline-diff.txt
+?? docs/workbench-review-20261004/
+?? docs/workbench-validation-20261004/
+?? hooks/store/useAnalysisWorkspace.test.ts
+?? hooks/store/useAnalysisWorkspace.ts
+?? hooks/useAnalyticalCatalog.ts
+?? hooks/useDatabaseAnalysisRuntime.ts
+?? public/empty_domain.duckdb
+?? real_dashboard.png
+?? scripts/fix_type_errors.py
+?? scripts/generate-empty-domain.py
+?? scripts/validate-workbench.cjs
+?? services/analysis/
+?? services/analysisObjects.availability.test.ts
+?? services/analysisObjects.ts
+?? services/analyticalCatalogService.test.ts
+?? services/analyticalCatalogService.ts
+?? services/dataFoundationComprehensive.test.ts
+?? services/databaseAnalysis.test.ts
+?? services/databaseAnalysis.ts
+?? services/databaseCatalog.test.ts
+?? services/databaseCatalog.ts
+?? services/dataflow/fixtures/
+?? services/dataflow/logicalFlowForce.ts
+?? services/dataflow/logicalFlowGovernance.test.ts
+?? services/dataflow/logicalFlowLayout.ts
+?? services/dataflow/logicalFlowLayouts.test.ts
+?? services/dataflow/logicalFlowResponsive.test.ts
+?? services/dataflow/logicalFlowViewport.ts
+?? services/dataflow/logicalRelationFlow.schema.json
+?? services/dataflow/logicalRelationFlowParser.test.ts
+?? services/dataflow/logicalRelationFlowParser.ts
+?? services/dataflow/logicalRelationFlowTypes.ts
+?? services/dataflow/simpleAggregateWorkflow.test.ts
+?? services/dataflow/sqlExecutionHighlight.ts
+?? services/dataflow/sqlHash.ts
+?? services/dataflow/sqlScriptExecution.test.ts
+?? services/dataflow/sqlScriptExecution.ts
+?? services/dataflow/sqlStructure.ts
+?? services/dbService.dashboard.test.ts
+?? services/domainMigration.ts
+?? services/domainMigrationSql.test.ts
+?? services/domainMigrationSql.ts
+?? services/dynamicHome.test.ts
+?? services/dynamicHome.ts
+?? services/executiveMetrics.test.ts
+?? services/executiveMetrics.ts
+?? services/executiveWorkspace.test.ts
+?? services/executiveWorkspace.ts
+?? services/homeDashboardService.test.ts
+?? services/homeDashboardService.ts
+?? services/homeDefaultVisualizations.test.ts
+?? services/homeDefaultVisualizations.ts
+?? services/importTableNames.ts
+?? services/localDuckdbImport.test.ts
+?? services/metricAnalyzer.test.ts
+?? services/metricAssetStorage.ts
+?? services/opfsDatabaseFiles.test.ts
+?? services/opfsDatabaseFiles.ts
+?? services/queryVizHint.test.ts
+?? services/queryVizHint.ts
+?? services/repairHomeRetailTables.test.ts
+?? services/repairHomeRetailTables.ts
+?? services/sqlScript.ts
+?? services/sqlWorkspaceService.test.ts
+?? services/sqlWorkspaceService.ts
+?? services/uiTheme.test.ts
+?? services/uiTheme.ts
+?? services/visualizationAssets.test.ts
+?? services/visualizationAssets.ts
+?? services/workbench/analysisTypes.ts
+?? services/workbench/dashboardFormat.test.ts
+?? services/workbench/dashboardFormat.ts
+?? services/workbench/datasetGuards.ts
+?? services/workbench/datasets.test.ts
+?? services/workbench/datasets.ts
+?? services/workbench/queryCompiler.test.ts
+?? services/workbench/queryCompiler.ts
+?? services/workbench/runtime.test.ts
+?? services/workbench/runtime.ts
+?? take_real_screenshot.mjs
+?? test/
+?? types/analyticalCatalog.ts
+?? utils.test.tsx
+?? utils/chartExport.ts
+?? utils/chartFormat.test.ts
+?? utils/chartFormat.ts
+?? utils/chartPlugins.ts
+?? utils/chartSpace.test.ts
+?? utils/chartSpace.ts
+?? utils/chartStyleRules.test.ts
+?? utils/chartStyleRules.ts
+?? utils/chartTheme.ts
+?? utils/memoryMetrics.test.ts
+?? utils/memoryMetrics.ts

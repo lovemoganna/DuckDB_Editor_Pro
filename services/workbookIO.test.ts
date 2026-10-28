@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { WorkbookImportError, workbookIO } from './workbookIO';
+import writeXlsxFile from 'write-excel-file/browser';
 
 describe('WorkbookIO', () => {
+  it('preserves timezone-free Excel dates at month boundaries for timestamp inference', async () => {
+    const output = writeXlsxFile([{sheet:'Dates',data:[[{value:'created_at',type:String}],[{value:new Date('2025-01-01T00:20:00.000Z'),type:Date,format:'yyyy-mm-dd hh:mm:ss'}]]}]);
+    const buffer = await (await output.toBlob()).arrayBuffer();
+    const sheets = await workbookIO.readAllSheets({name:'dates.xlsx',size:buffer.byteLength,arrayBuffer:async()=>buffer});
+    expect(sheets[0].rows[0][0]).toMatch(/^2025-01-01 00:20:00/);
+    expect(sheets[0].csvText).not.toContain('Z');
+  });
   it('round-trips a simple workbook through the maintained adapter', async () => {
     const buffer = await workbookIO.createWorkbookBuffer([
       {
@@ -186,4 +194,3 @@ describe('WorkbookIO', () => {
     expect(schemaOnly?.isEmpty).toBe(false); // Has headers, so schema exists!
   });
 });
-

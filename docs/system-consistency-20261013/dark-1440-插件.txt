@@ -1,0 +1,298 @@
+- banner "全局工作区顶栏":
+  - button "🪶 DuckDB Studio PRO":
+    - generic: 🪶
+    - generic: DuckDB Studio
+    - generic: PRO
+  - navigation "业务领域大类":
+    - button "工程核心":
+      - generic: 工程核心
+    - button "分析洞察":
+      - generic: 分析洞察
+    - button "知识沉淀":
+      - generic: 知识沉淀
+    - button "AI 认知":
+      - generic: AI 认知
+  - tablist "知识沉淀功能标签页":
+    - tab "知识资产":
+      - generic: 知识资产
+    - tab "插件" [active] [selected]:
+      - generic: 插件
+    - tab "知识联动":
+      - generic: 知识联动
+  - button "项目 Ctrl+Shift+D":
+    - generic: 项目
+    - generic: Ctrl+Shift+D
+  - button "新建表":
+    - generic: 新建表
+  - button "memory 临时分析空间":
+    - generic: memory
+    - generic: 临时分析空间
+  - button "AI 助手 Ctrl+I":
+    - generic: AI 助手
+    - generic: Ctrl+I
+  - button "⌘K":
+  - button "帮助与快捷键":
+  - button "切换为浅色模式":
+  - button "AI 模型设置":
+- main:
+  - generic: 知识网络
+  - generic: /
+  - generic: 插件
+  - button "折叠右侧上下文" [expanded]:
+  - main:
+    - heading "扩展插件与 Lakehouse 湖仓引擎" [level=1]
+    - generic: 6/11 引擎已就绪
+    - paragraph: 管理 DuckDB 插件生态能力，支持 HTTPFS / Parquet / S3 远程零拷贝数据湖直连与即席算子加速
+    - button "刷新插件状态":
+    - button "远程数据湖向导 (Lakehouse)":
+      - generic: 远程数据湖向导 (Lakehouse)
+    - generic: "生态插件:"
+    - generic: "11"
+    - generic: 个可用模组
+    - generic: "已激活加载:"
+    - generic: "6"
+    - generic: Active
+    - generic: "湖仓格式引擎:"
+    - generic: "4"
+    - generic: Parquet/CSV/JSON/Excel
+    - generic: "沙箱环境:"
+    - generic: WebWorker In-Browser WASM
+    - generic: 点击任意卡片查看详细 API 与即席测试代码
+    - textbox "搜索插件名称、描述、SQL 算子或能力标签..."
+    - tablist "插件分类过滤":
+      - tab "全部 11" [selected]:
+        - generic: 全部
+        - generic: "11"
+      - tab "Format 4":
+        - generic: Format
+        - generic: "4"
+      - tab "Core 2":
+        - generic: Core
+        - generic: "2"
+      - tab "Connect 2":
+        - generic: Connect
+        - generic: "2"
+      - tab "Search 1":
+        - generic: Search
+        - generic: "1"
+      - tab "Geo 1":
+        - generic: Geo
+        - generic: "1"
+      - tab "AI 1":
+        - generic: AI
+        - generic: "1"
+    - tablist "插件状态过滤":
+      - tab "全部 11" [selected]:
+        - generic: 全部
+        - generic: "11"
+      - tab "已激活 6":
+        - generic: 已激活
+        - generic: "6"
+      - tab "待命 5":
+        - generic: 待命
+        - generic: "5"
+    - heading "Format 层级能力" [level=3]
+    - generic: 4 个模组
+    - generic: parquet
+    - generic: Format
+    - generic: Active
+    - generic: Parquet 列式湖仓引擎
+    - paragraph: 工业级列式湖仓格式。支持谓词下推、字典编码与高压缩比，是 OLAP 分析与 Lakehouse 的基石。
+    - generic "read_parquet"
+    - generic "COPY TO ... PARQUET"
+    - generic "Parquet Schema Discovery"
+    - generic: "+1"
+    - button "详情与示例":
+      - generic: 详情与示例
+    - button "运行":
+      - text: 运行
+    - generic: csv
+    - generic: Format
+    - generic: Active
+    - generic: CSV 智能流式解析器
+    - paragraph: 高性能 CSV 读取与导出引擎，支持全自动方言探测、表头识别、类型推断与并行块读取。
+    - generic "read_csv_auto"
+    - generic "COPY ... TO ... (FORMAT CSV)"
+    - generic "Auto-Dialect Detection"
+    - generic: "+1"
+    - button "详情与示例":
+      - generic: 详情与示例
+    - button "运行":
+      - text: 运行
+    - generic: json
+    - generic: Format
+    - generic: Ready
+    - generic: JSON 结构化与嵌套解析器
+    - paragraph: 高级 JSON/NDJSON 解析扩展。支持嵌套层级下钻、字段抽取、动态 Schema 构建与 JSON 序列化。
+    - generic "read_json_auto"
+    - generic "json_extract"
+    - generic "json_extract_string"
+    - generic: "+1"
+    - button "详情与示例":
+      - generic: 详情与示例
+    - button "运行":
+      - text: 运行
+    - button "激活":
+      - generic: 激活
+    - generic: excel
+    - generic: Format
+    - generic: Active
+    - generic: Excel 工作簿解析组件
+    - paragraph: 浏览器端集成的高性能 Excel 解析内核，支持多工作表直读、.xlsx/.xls 文件导入与公式值解析。
+    - generic "XLSX Sheet Parser"
+    - generic "Workbook Scanner"
+    - generic "Client-side VFS"
+    - button "详情与示例":
+      - generic: 详情与示例
+    - button "运行":
+      - text: 运行
+    - heading "Connect 层级能力" [level=3]
+    - generic: 2 个模组
+    - generic: httpfs
+    - generic: Connect
+    - generic: Ready
+    - generic: HTTPFS 远程文件系统 (云存储直连)
+    - paragraph: 通过 HTTP/HTTPS/S3 协议零复制直接访问远程对象存储与公开数据集，无需全量下载即可按需分片拉取。
+    - generic "HTTPS File Stream"
+    - generic "S3 Object Storage"
+    - generic "HTTP Range Requests"
+    - generic: "+1"
+    - button "详情与示例":
+      - generic: 详情与示例
+    - button "运行":
+      - text: 运行
+    - button "激活":
+      - generic: 激活
+    - generic: sqlite
+    - generic: Connect
+    - generic: Ready
+    - generic: SQLite 跨数据库挂载引擎
+    - paragraph: 零开销直接挂载与扫描 SQLite 数据库文件，支持跨数据库联合查询与数据表双向复制迁移。
+    - generic "sqlite_scan"
+    - generic "ATTACH ... (TYPE SQLITE)"
+    - generic "Cross-DB Join"
+    - generic: "+1"
+    - button "详情与示例":
+      - generic: 详情与示例
+    - button "运行":
+      - text: 运行
+    - button "激活":
+      - generic: 激活
+    - heading "Core 层级能力" [level=3]
+    - generic: 2 个模组
+    - generic: tpch
+    - generic: Core
+    - generic: Active
+    - generic: TPC-H 决策支持基准套件
+    - paragraph: 工业级 TPC-H 决策基准生成器，可一键生成具有复杂关联与业务规律的超大规模分析型数据表。
+    - generic "dbgen(sf=...)"
+    - generic "Benchmark Queries (22 Templates)"
+    - generic "OLAP Stress Test"
+    - button "详情与示例":
+      - generic: 详情与示例
+    - button "运行":
+      - text: 运行
+    - generic: icu
+    - generic: Core
+    - generic: Active
+    - generic: ICU 国际化与高精度时区扩展
+    - paragraph: "提供 Unicode 国际化组件、全球时区转换 (`TIMESTAMPTZ`)、语言排序规则 (Collation) 与复杂日历计算。"
+    - generic "TIMESTAMPTZ Support"
+    - generic "COLLATE Rules"
+    - generic "Timezone Conversions"
+    - generic: "+1"
+    - button "详情与示例":
+      - generic: 详情与示例
+    - button "运行":
+      - text: 运行
+    - heading "Search 层级能力" [level=3]
+    - generic: 1 个模组
+    - generic: fts
+    - generic: Search
+    - generic: Ready
+    - generic: FTS 全文检索引擎
+    - paragraph: 内置全文检索与倒排索引内核，支持 BM25 评分算法、词干提取 (Stemming) 与文本相关性排序。
+    - generic "PRAGMA create_fts_index"
+    - generic "match_bm25"
+    - generic "Stemming"
+    - generic: "+1"
+    - button "详情与示例":
+      - generic: 详情与示例
+    - button "运行":
+      - text: 运行
+    - button "激活":
+      - generic: 激活
+    - heading "Geo 层级能力" [level=3]
+    - generic: 1 个模组
+    - generic: spatial
+    - generic: Geo
+    - generic: Ready
+    - generic: Spatial 空间地理信息分析
+    - paragraph: 地理信息系统 (GIS) 分析扩展，支持点、线、多边形几何拓扑计算、空间索引与坐标系转换。
+    - generic "ST_Point"
+    - generic "ST_Distance"
+    - generic "ST_Area"
+    - generic: "+2"
+    - button "详情与示例":
+      - generic: 详情与示例
+    - button "运行":
+      - text: 运行
+    - button "激活":
+      - generic: 激活
+    - heading "AI 层级能力" [level=3]
+    - generic: 1 个模组
+    - generic: vss
+    - generic: AI
+    - generic: Active
+    - generic: VSS 向量相似度检索 (Vector Search)
+    - paragraph: 支持高维向量相似度检索、HNSW 向量索引与余弦/欧氏距离计算，赋能 RAG 与 AI 知识库。
+    - generic "HNSW Index"
+    - generic "array_cosine_similarity"
+    - generic "array_distance"
+    - generic: "+1"
+    - button "详情与示例":
+      - generic: 详情与示例
+    - button "运行":
+      - text: 运行
+  - separator "调整右侧窗格宽度"
+  - complementary:
+    - generic: 上下文
+    - text: 当前工作面
+    - generic: 插件
+    - paragraph: 知识网络 · Context IDE 工作面
+    - generic: 数据上下文
+    - term: 当前表
+    - definition: 未选择
+    - term: 数据资产
+    - definition: 0 张表
+    - term: 运行引擎
+    - definition: MEM
+    - generic: 同组功能
+    - button "知识资产":
+      - generic: 知识资产
+    - button "插件":
+      - generic: 插件
+    - button "知识 × 本体联动":
+      - generic: 知识 × 本体联动
+    - text: 快捷操作
+    - generic: 全局命令
+    - generic: Ctrl K
+    - generic: Monokai Context IDE
+  - generic: 工作区就绪
+  - generic: 插件
+- contentinfo:
+  - generic: DuckDB 1.33.1
+  - generic: "|"
+  - generic: memory [MEMORY]
+  - generic: "|"
+  - generic: 内存库
+  - generic: "|"
+  - generic: 0 张表
+  - generic: "|"
+  - generic: 暂无表
+  - generic: "|"
+  - generic: "内存: 0.00 MB / 3.1 GiB"
+  - generic: 引擎就绪
+  - generic: "|"
+  - generic: 06:53
+  - button "刷新运行时状态":

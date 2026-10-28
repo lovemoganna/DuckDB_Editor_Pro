@@ -1,17 +1,20 @@
-import React, { useEffect, useCallback, useState } from 'react';
+import { useAnalysisWorkspace, navigateToAnalysisSource } from './hooks/store/useAnalysisWorkspace';
+import React, { useEffect, useCallback, useState, useRef } from 'react';
 import { AlertTriangle, X, ChevronRight } from 'lucide-react';
 import { ErrorBoundary } from './components/ui/ErrorBoundary';
 import { duckDBService, type DuckDBRuntimeInfo } from './services/duckdbService';
+import { dbService } from './services/dbService';
+import { useWorkflowStore } from './services/dataflow/workflowStore';
 import { Tab, Notification, ColumnInfo, ColumnStats, MetricChart } from './types';
 import { AICooldownBanner } from './components/AICooldownBanner';
 import { CommandPalette } from './components/CommandPalette';
-import { DataTab } from './components/DataTab';
-import { StructureTab } from './components/StructureTab';
-import { AuditTab } from './components/AuditTab';
-import HistoryTab from './components/HistoryTab';
+const DataTab = React.lazy(() => import('./components/DataTab').then(module => ({ default: module.DataTab })));
+const StructureTab = React.lazy(() => import('./components/StructureTab').then(module => ({ default: module.StructureTab })));
+const AuditTab = React.lazy(() => import('./components/AuditTab').then(module => ({ default: module.AuditTab })));
+const HistoryTab = React.lazy(() => import('./components/HistoryTab'));
 import { ActiveFeatureHost } from './components/layout/ActiveFeatureHost';
 import { AppTopBar } from './components/layout/AppTopBar';
-import { WorkbenchLoadingState } from './components/ui';
+import { WorkbenchLoadingState } from './components/ui/Workbench';
 import { GlobalModalProvider } from './components/layout/GlobalModalProvider';
 import { useAppStore } from './hooks/store/useAppStore';
 import { getWorkspaceFeature, resolveWorkspaceTab } from './services/workspaceNavigation';
@@ -26,6 +29,7 @@ import {
 } from './services/completeWorkspaceBackup';
 
 import { useDataViewStore } from './hooks/store/useDataViewStore';
+import { useSqlEditorStore } from './hooks/store/useSqlEditorStore';
 import { useSchemaViewStore } from './hooks/store/useSchemaViewStore';
 import { ConfirmDialogProvider, useConfirmDialog } from './components/ui/ConfirmDialog';
 import { KeyboardShortcutsModal } from './components/ui/KeyboardShortcutsModal';
@@ -41,7 +45,7 @@ const Extensions = React.lazy(() =>
 );
 import { Dashboard } from './components/Dashboard';
 import { StudioBottomBar } from './components/Dashboard/StudioBottomBar';
-import { WorkbenchView } from './components/Workbench';
+const WorkbenchView = React.lazy(() => import('./components/Workbench/WorkbenchView').then(module => ({ default: module.WorkbenchView })));
 import { seedDemoWorkbenchData } from './components/Workbench/seedWorkbenchData';
 const KnowledgeHubApp = React.lazy(() =>
   import('./components/KnowledgeHub').then(module => ({ default: module.KnowledgeHubApp })),
@@ -72,8 +76,17 @@ const AnalysisHubPanel = React.lazy(() =>
 const DataFlowCanvas = React.lazy(() =>
   import('./components/DataFlow/DataFlowCanvas').then(module => ({ default: module.DataFlowCanvas })),
 );
+const VisualizationWorkbench = React.lazy(() =>
+  import('./components/Visualization/VisualizationWorkbench').then(module => ({
+    default: module.VisualizationWorkbench,
+  })),
+);
 import { CopilotSidebar } from './components/Copilot/CopilotSidebar';
 import { useCopilotStore } from './hooks/store/useCopilotStore';
+
+import { useDatabaseAnalysisRuntime } from './hooks/useDatabaseAnalysisRuntime';
+import { restoreSqlWorkspaceSession } from './services/sqlWorkspaceService';
+import { toastService } from './services/toastService';
 
 const AppContent: React.FC = () => {
   const { toasts, removeToast, clearAllToasts } = useToastManager();
@@ -83,6 +96,7 @@ const AppContent: React.FC = () => {
     isZenMode, toggleZenMode,
     tables, setTables,
     currentTable, setCurrentTable,
+    currentDatabase, setCurrentDatabase,
     pendingSql, setPendingSql,
     pendingChartConfig, setPendingChartConfig,
     showCreateModal, setShowCreateModal,
@@ -98,12 +112,37 @@ const AppContent: React.FC = () => {
 
   // ── Init ──────────────────────────────────────────────────────
   const [isReady, setIsReady] = useState(false);
+  useDatabaseAnalysisRuntime(isReady);
+  const [focusedMetricId, setFocusedMetricId] = useState<string | null>(null);
+  const visualizationMetricId = useAnalysisWorkspace(s => s.visualizationMetricId);
+  const setVisualizationMetricId = useAnalysisWorkspace(s => s.setVisualizationMetricId);
+  useEffect(() => { setFocusedMetricId(null); setVisualizationMetricId(null);
+    const linked = useAnalysisWorkspace.getState().context;
+    if (linked && linked.databaseName !== currentDatabase) useAnalysisWorkspace.getState().setContext(null);
+  }, [currentDatabase]);
   const [initError, setInitError] = useState<string | null>(null);
   const [runtimeInfo, setRuntimeInfo] = useState<DuckDBRuntimeInfo>(() => (
     typeof duckDBService?.getRuntimeInfo === 'function'
       ? duckDBService.getRuntimeInfo()
       : { persistent: false, isLegacy: false, ready: false, version: '1.33.1', persistenceError: null }
   ));
+  const [activeDatabasePersistent, setActiveDatabasePersistent] = useState<boolean | null>(null);
+  useEffect(() => {
+    let active = true;
+    setActiveDatabasePersistent(currentDatabase === 'memory' ? false : null);
+    if (runtimeInfo.ready && typeof duckDBService.listDatabases === 'function') {
+      void duckDBService.listDatabases().then(databases => {
+        if (active) setActiveDatabasePersistent(databases.find(database => database.name === currentDatabase)?.persistent ?? false);
+      }).catch(console.error);
+    }
+    return () => { active = false; };
+  }, [currentDatabase, runtimeInfo.ready]);
+  const analysisRuntimeInfo: DuckDBRuntimeInfo = {
+    ...runtimeInfo,
+    currentDatabase: currentDatabase || runtimeInfo.currentDatabase,
+    persistent: activeDatabasePersistent ?? runtimeInfo.persistent,
+    storageMode: activeDatabasePersistent === false ? 'memory' : runtimeInfo.storageMode,
+  };
 
   const {
     dataViewMode, setDataViewMode,
@@ -144,29 +183,15 @@ const AppContent: React.FC = () => {
   const [loadingModels, setLoadingModels] = useState(false);
 
   // ── SQL 工作台状态与独立数据流大屏双向联动 ──
-  const [dataflowTabs, setDataflowTabs] = useState<Array<{ id: string; title: string; sql: string }>>(() => {
-    try {
-      const saved = localStorage.getItem('workbench_layout_state');
-      if (saved) {
-        const snap = JSON.parse(saved);
-        if (Array.isArray(snap.tabs) && snap.tabs.length > 0) {
-          return snap.tabs;
-        }
-      }
-    } catch {}
-    return [{ id: 'tab-1', title: '查询 1', sql: 'SELECT * FROM demo_sales LIMIT 50;' }];
-  });
-
-  const [dataflowActiveTabId, setDataflowActiveTabId] = useState<string>(() => {
-    try {
-      const saved = localStorage.getItem('workbench_layout_state');
-      if (saved) {
-        const snap = JSON.parse(saved);
-        if (snap.activeTabId) return snap.activeTabId;
-      }
-    } catch {}
-    return 'tab-1';
-  });
+  const [dataflowTabs, setDataflowTabs] = useState<Array<{ id: string; title: string; sql: string; isDirty?: boolean }>>([]);
+  const [dataflowActiveTabId, setDataflowActiveTabId] = useState('');
+  const dataflowRevision = useRef(0);
+  const handleWorkbenchWorkspaceChange = useCallback((tabs: Array<{ id: string; title: string; sql: string; isDirty?: boolean }>, activeTabId: string) => {
+    dataflowRevision.current++;
+    setDataflowTabs(tabs);
+    setDataflowActiveTabId(activeTabId);
+  }, []);
+  const [dataflowFocusTable, setDataflowFocusTable] = useState<string | null>(null);
 
   // ── AI Copilot 跨 Tab 上下文同步与全局快捷键 (Ctrl+I) ──
   useEffect(() => {
@@ -182,48 +207,30 @@ const AppContent: React.FC = () => {
     const handleCopilotHotkey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'i') {
         e.preventDefault();
+        if (activeTab === Tab.HISTORY || activeTab === Tab.AUDIT) return;
         useCopilotStore.getState().toggleOpen();
       }
     };
     window.addEventListener('keydown', handleCopilotHotkey);
     return () => window.removeEventListener('keydown', handleCopilotHotkey);
-  }, []);
+  }, [activeTab]);
 
+  // Independent DataFlow and SQL consume the same catalog-owned workspace.
   useEffect(() => {
-    const refreshDataflowTabs = () => {
-      try {
-        const saved = localStorage.getItem('workbench_layout_state');
-        if (saved) {
-          const snap = JSON.parse(saved);
-          if (Array.isArray(snap.tabs) && snap.tabs.length > 0) {
-            setDataflowTabs(snap.tabs);
-            if (snap.activeTabId) setDataflowActiveTabId(snap.activeTabId);
-          }
-        }
-      } catch {}
-    };
-
-    if (activeTab === Tab.DATAFLOW) {
-      refreshDataflowTabs();
-    }
-
-    const handleTabSqlUpdated = (e: Event) => {
-      const customEvent = e as CustomEvent<{ tabTitle?: string; sql: string }>;
-      if (customEvent.detail?.sql) {
-        setDataflowTabs(prev =>
-          prev.map(t => {
-            if (t.id === dataflowActiveTabId || (customEvent.detail.tabTitle && t.title === customEvent.detail.tabTitle)) {
-              return { ...t, sql: customEvent.detail.sql };
-            }
-            return t;
-          })
-        );
-      }
-    };
-
-    window.addEventListener('workbench_tab_sql_updated', handleTabSqlUpdated);
-    return () => window.removeEventListener('workbench_tab_sql_updated', handleTabSqlUpdated);
-  }, [activeTab, dataflowActiveTabId]);
+    if (!isReady) return;
+    const revision = ++dataflowRevision.current;
+    let active = true;
+    setDataflowTabs([]);
+    setDataflowActiveTabId('');
+    setDataflowFocusTable(null);
+    void dbService.getDomainSetting<{ tabs: Array<{ id: string; title: string; sql: string; isDirty?: boolean }>; activeTabId: string }>('workbench-workspace', currentDatabase)
+      .then(saved => {
+        if (!active || revision !== dataflowRevision.current || !saved?.tabs?.length) return;
+        setDataflowTabs(saved.tabs);
+        setDataflowActiveTabId(saved.tabs.some(tab => tab.id === saved.activeTabId) ? saved.activeTabId : saved.tabs[0].id);
+      }).catch(error => console.warn('[DataFlow] Workspace could not be loaded', error));
+    return () => { active = false; };
+  }, [isReady, currentDatabase]);
 
   // ── Init & Refresh ─────────────────────────────────────────────
   useEffect(() => {
@@ -231,9 +238,10 @@ const AppContent: React.FC = () => {
   }, [setShowImportModal]);
 
   const refreshTables = useCallback(async () => {
+    const requestedCatalog = duckDBService.getRuntimeInfo().currentDatabase;
     try {
       const t = await duckDBService.getTables();
-      setTables(t);
+      if (requestedCatalog === duckDBService.getRuntimeInfo().currentDatabase) setTables(t);
     } catch (e) { console.error(e); }
   }, [setTables]);
 
@@ -244,25 +252,71 @@ const AppContent: React.FC = () => {
     } catch (e) { console.error(e); }
   }, [setAuditLogs]);
 
+  const handleSwitchAnalysisContext = useCallback(async (target: { id: string; kind: 'schema' | 'database' | 'project' }) => {
+    try {
+      const next = await duckDBService.switchAnalysisContext(target);
+      useAppStore.getState().setCurrentDatabase(next.catalog || 'memory');
+      useAppStore.getState().setCurrentTable(null);
+      useAppStore.getState().setTables([]);
+      setCurrentDatabase(next.catalog || 'memory');
+      setCurrentTable(null);
+      await refreshTables();
+      toastService.success(
+        `已切换到 ${target.kind === 'database' || target.kind === 'project' ? '数据库' : 'Schema'}「${target.id}」`,
+      );
+    } catch (err: any) {
+      toastService.error(`切换失败: ${err?.message || '未知错误'}`);
+    }
+  }, [refreshTables, setCurrentDatabase, setCurrentTable]);
+
   useEffect(() => {
+    useCopilotStore.getState().setContext({ table: null, tables: [], pin: false });
     duckDBService.init()
       .then(async () => {
+        try { await restoreSqlWorkspaceSession(); } catch (error) { toastService.error(String((error as Error).message)); }
         if (typeof duckDBService?.getRuntimeInfo === 'function') {
           setRuntimeInfo(duckDBService.getRuntimeInfo());
         }
+        const ctx = await duckDBService.getCurrentCatalogAndSchema();
+        setCurrentDatabase(ctx.catalog);
         setIsReady(true);
         await refreshTables();
       })
       .catch((e) => setInitError(e?.message || String(e) || 'DuckDB 工作区初始化失败'));
-  }, [refreshTables]);
+  }, [refreshTables, setCurrentDatabase]);
 
   useEffect(() => {
     const handleSchemaChange = () => {
       void refreshTables();
     };
+    const handleDatabaseChange = (event: Event) => {
+      const detail = (event as CustomEvent<{ catalog?: string }>).detail;
+      if (detail?.catalog) {
+        useAppStore.getState().setTables([]);
+        useAppStore.getState().clearPending();
+        useCopilotStore.getState().setContext({ table: null, tables: [], pin: false });
+        setDataflowFocusTable(null);
+        useWorkflowStore.getState().resetDatabaseContext();
+        useDataViewStore.getState().resetDomainState();
+        useSqlEditorStore.setState((state) => ({
+          tabs: state.tabs.map((tab) => ({ ...tab, result: null, loading: false })),
+          savedQueries: [],
+          schemaTree: {},
+        }));
+        setCurrentDatabase(detail.catalog);
+        setCurrentTable(null);
+      }
+      void refreshTables();
+    };
     window.addEventListener('duckdb-schema-changed', handleSchemaChange);
-    return () => window.removeEventListener('duckdb-schema-changed', handleSchemaChange);
-  }, [refreshTables]);
+    window.addEventListener('duckdb-tables-changed', handleSchemaChange);
+    window.addEventListener('duckdb-database-changed', handleDatabaseChange);
+    return () => {
+      window.removeEventListener('duckdb-schema-changed', handleSchemaChange);
+      window.removeEventListener('duckdb-tables-changed', handleSchemaChange);
+      window.removeEventListener('duckdb-database-changed', handleDatabaseChange);
+    };
+  }, [refreshTables, setCurrentDatabase, setCurrentTable]);
 
   // Load full schema for ER Diagram
   useEffect(() => {
@@ -323,7 +377,7 @@ const AppContent: React.FC = () => {
   // Safeguard: warn before refresh/close if running in ephemeral in-memory mode with data
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (!runtimeInfo.persistent && tables.length > 0) {
+      if (!analysisRuntimeInfo.persistent && tables.length > 0) {
         e.preventDefault();
         e.returnValue = '当前处于内存临时模式，刷新或离开将丢失未导出的数据与表结构，确定离开吗？';
         return e.returnValue;
@@ -331,7 +385,7 @@ const AppContent: React.FC = () => {
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [runtimeInfo.persistent, tables.length]);
+  }, [analysisRuntimeInfo.persistent, tables.length]);
 
   // ── Data Fetching ─────────────────────────────────────────────
   // (Delegated to useDataViewStore for unblocked readQuery execution)
@@ -346,6 +400,7 @@ const AppContent: React.FC = () => {
     inspectorTab?: 'profile' | 'add' | 'ddl';
   }) => {
     const { targetTab, tableName, filter, sql, executeDirectly, inspectorTab } = options;
+    if (targetTab === Tab.ANALYSIS_HUB && tableName) useAnalysisWorkspace.getState().setContext(null);
     if (tableName) {
       setCurrentTable(tableName);
     }
@@ -401,6 +456,14 @@ const AppContent: React.FC = () => {
       return;
     }
 
+    if (targetTab === Tab.DATAFLOW) {
+      if (tableName) {
+        setDataflowFocusTable(tableName);
+      }
+      setActiveTab(Tab.DATAFLOW);
+      return;
+    }
+
     setActiveTab(targetTab);
   }, [
     setCurrentTable,
@@ -423,6 +486,10 @@ const AppContent: React.FC = () => {
 
   // ── Data Operations ────────────────────────────────────────────
   const handleTableSelect = async (name: string, initialFilter: string = '') => {
+    if (!name) {
+      setCurrentTable('');
+      return;
+    }
     await handleNavigateWithContext({
       targetTab: Tab.DATA,
       tableName: name,
@@ -484,7 +551,11 @@ const AppContent: React.FC = () => {
     try {
       await seedDemoWorkbenchData();
       addNotification('已成功载入完整示例数据集', 'success');
-      await refreshTables();
+      const t = await duckDBService.getTables();
+      setTables(t);
+      if (t.length > 0 && !currentTable) {
+        await handleTableSelect(t[0]);
+      }
     } catch (e: any) { addNotification(e.message, 'error'); }
   };
 
@@ -494,7 +565,7 @@ const AppContent: React.FC = () => {
       await duckDBService.renameTable(currentTable, renameTableName);
       addNotification(`Renamed ${currentTable} to ${renameTableName}`, 'success');
       await refreshTables();
-      handleTableSelect(renameTableName);
+      await handleNavigateWithContext({ targetTab: activeTab, tableName: renameTableName });
     } catch (e: any) { addNotification(e.message, 'error'); }
   };
 
@@ -736,7 +807,14 @@ const AppContent: React.FC = () => {
           ⚠️
         </div>
         <h1 className="text-2xl font-bold tracking-tight text-white mb-2">DuckDB Engine Launch Failed</h1>
-        <p className="text-sm text-slate-400 max-w-md mb-6 leading-relaxed">{initError}</p>
+        <p className="text-sm text-slate-400 max-w-md mb-2 leading-relaxed">{initError}</p>
+        {/WASM|Worker|超时/i.test(initError || '') && (
+          <p className="text-xs text-slate-500 max-w-md mb-6 leading-relaxed">
+            若在 Cursor 内置预览中打开，Web Worker 可能被禁用。请用系统浏览器访问{' '}
+            <span className="font-mono text-slate-400">http://localhost:5173/DuckDB_Editor_Pro/</span>
+            {' '}后点击下方重试。
+          </p>
+        )}
         <button
           onClick={() => window.location.reload()}
           className="px-5 py-2.5 rounded-xl bg-red-500/20 text-red-300 border border-red-500/40 hover:bg-red-500/30 font-medium text-sm transition-all cursor-pointer"
@@ -859,8 +937,9 @@ const AppContent: React.FC = () => {
         setShowSettingsModal={setShowSettingsModal}
         fetchTableData={fetchTableData}
         refreshAudit={refreshAudit}
-        runtimeInfo={runtimeInfo}
-        activeDatabase="duckdb_manager_workspace"
+        runtimeInfo={analysisRuntimeInfo}
+        activeDatabase={currentDatabase || runtimeInfo.currentDatabase || 'memory'}
+        onSwitchAnalysisContext={handleSwitchAnalysisContext}
       />
 
       {/* Main Studio Body (Center Content Area) */}
@@ -935,7 +1014,7 @@ const AppContent: React.FC = () => {
                 context={{
                   currentTable,
                   tableCount: tables.length,
-                  runtimeLabel: runtimeInfo.persistent ? 'OPFS' : 'MEM',
+                  runtimeLabel: analysisRuntimeInfo.persistent ? 'OPFS' : 'MEM',
                   persistent: runtimeInfo.persistent,
                 }}
                 renderers={{
@@ -943,9 +1022,10 @@ const AppContent: React.FC = () => {
                   <ErrorBoundary section="Dashboard">
                     <div className="w-full h-full flex flex-col overflow-hidden bg-monokai-bg">
                       <Dashboard
+                        key={currentDatabase}
                         tables={tables}
                         onNavigate={setActiveTab}
-                        runtimeInfo={runtimeInfo}
+                        runtimeInfo={analysisRuntimeInfo}
                         onSelectTable={(tableName, filter) => handleNavigateWithContext({ targetTab: Tab.DATA, tableName, filter })}
                         onSelectTableStructure={(tableName, focusTab) => handleNavigateWithContext({ targetTab: Tab.STRUCTURE, tableName, inspectorTab: focusTab })}
                         onSelectTableAnalysis={(tableName) => handleNavigateWithContext({ targetTab: Tab.ANALYSIS_HUB, tableName })}
@@ -1005,6 +1085,8 @@ const AppContent: React.FC = () => {
                         onNavigateToAnalysis={(tbl) => handleNavigateWithContext({ targetTab: Tab.ANALYSIS_HUB, tableName: tbl })}
                         onNavigateToMetrics={(tbl) => handleNavigateWithContext({ targetTab: Tab.METRICS, tableName: tbl })}
                         onNavigateToSql={(sql) => handleNavigateWithContext({ targetTab: Tab.SQL, sql })}
+                        onNavigateToDataFlow={(tbl) => handleNavigateWithContext({ targetTab: Tab.DATAFLOW, tableName: tbl })}
+                        onShowExportModal={() => setShowExportModal(true)}
                       />
                     </div>
                   </ErrorBoundary>
@@ -1041,7 +1123,7 @@ const AppContent: React.FC = () => {
                         onHandleDuplicateTable={() => currentTable && setShowDuplicateModal(true)}
                         onHandleDropTable={handleDropTable}
                         onAddNotification={addNotification}
-                        onSelectTable={handleTableSelect}
+                        onSelectTable={(tableName) => tableName ? handleNavigateWithContext({ targetTab: Tab.STRUCTURE, tableName }) : setCurrentTable('')}
                         onLoadDemo={handleCreateDemo}
                         onShowCreateModal={() => setShowCreateModal(true)}
                         onShowImportModal={() => setShowImportModal(true)}
@@ -1061,21 +1143,17 @@ const AppContent: React.FC = () => {
                       <div className="w-full h-full flex flex-col overflow-hidden bg-monokai-bg">
                         <DataFlowCanvas
                           standalone={true}
-                          initialMode={currTab?.sql?.trim() ? 'sql' : 'catalog'}
-                          activeSql={currTab?.sql || ''}
+                          initialMode={dataflowFocusTable ? 'catalog' : 'sql'}
+                          initialFocusTable={dataflowFocusTable || undefined}
+                          activeSql={dataflowFocusTable ? '' : (currTab?.sql || '')}
                           activeTabTitle={currTab?.title || 'SQL 查询'}
                           tabs={dataflowTabs}
                           activeTabId={dataflowActiveTabId}
                           onSelectTab={(tabId) => {
                             setDataflowActiveTabId(tabId);
-                            try {
-                              const saved = localStorage.getItem('workbench_layout_state');
-                              if (saved) {
-                                const snap = JSON.parse(saved);
-                                snap.activeTabId = tabId;
-                                localStorage.setItem('workbench_layout_state', JSON.stringify(snap));
-                              }
-                            } catch {}
+                            window.dispatchEvent(new CustomEvent('workbench_select_tab', { detail: { tabId } }));
+                            void dbService.saveDomainSetting('workbench-workspace', { tabs: dataflowTabs, activeTabId: tabId }, currentDatabase)
+                              .catch(error => console.warn('[DataFlow] Active query could not be saved', error));
                           }}
                           onSwitchToSqlEditor={() => setActiveTab(Tab.SQL)}
                           onOpenInSqlEditor={(sql, title) => {
@@ -1092,7 +1170,7 @@ const AppContent: React.FC = () => {
                       <WorkbenchView
                         tables={tables}
                         currentTable={currentTable}
-                        runtimeInfo={runtimeInfo}
+                        runtimeInfo={analysisRuntimeInfo}
                         onRefreshTables={refreshTables}
                         onSelectTable={handleTableSelect}
                         onOpenFile={() => setShowImportModal(true)}
@@ -1101,6 +1179,7 @@ const AppContent: React.FC = () => {
                         schema={schema}
                         profileData={profileData}
                         onNavigateToDataFlow={() => setActiveTab(Tab.DATAFLOW)}
+                        onWorkspaceChange={handleWorkbenchWorkspaceChange}
                       />
                     </div>
                   </ErrorBoundary>
@@ -1129,8 +1208,8 @@ const AppContent: React.FC = () => {
                 [Tab.ANALYSIS_HUB]: () => (
                   <ErrorBoundary section="Analysis Hub">
                     <div className="w-full h-full flex flex-col overflow-hidden bg-monokai-bg">
-                      <AnalysisHubPanel
-                        runtimeInfo={runtimeInfo}
+                      <AnalysisHubPanel key={currentDatabase}
+                        runtimeInfo={analysisRuntimeInfo}
                         onInsertSql={(sql, executeDirectly) => {
                           setPendingSql(sql);
                           setActiveTab(Tab.SQL);
@@ -1149,11 +1228,39 @@ const AppContent: React.FC = () => {
                   <ErrorBoundary section="Metrics">
                     <div className="w-full h-full flex flex-col overflow-hidden bg-monokai-bg">
                       <MetricManager
+                        key={currentDatabase}
                         tables={tables}
                         currentTable={currentTable}
+                        currentMetricId={focusedMetricId}
                         onExecuteSql={(sql) => { setPendingSql(sql); setActiveTab(Tab.SQL); }}
                         onChartGenerated={handleChartGenerated}
                         onNavigateToDashboard={() => setActiveTab(Tab.DASHBOARD)}
+                        onNavigateToVisualization={(metricId) => { setVisualizationMetricId(metricId || null); setActiveTab(Tab.VISUALIZATION); }}
+                        onNavigateToData={(tableName) => handleNavigateWithContext({ targetTab: Tab.DATA, tableName })}
+                      />
+                    </div>
+                  </ErrorBoundary>
+                ),
+                [Tab.VISUALIZATION]: () => (
+                  <ErrorBoundary section="Visualization Workbench">
+                    <div className="w-full h-full flex flex-col overflow-hidden bg-monokai-bg">
+                      <VisualizationWorkbench
+                        key={currentDatabase}
+                        tables={tables}
+                        currentTable={currentTable}
+                        currentMetricId={visualizationMetricId}
+                        onExecuteSql={(sql) => {
+                          setPendingSql(sql);
+                          setActiveTab(Tab.SQL);
+                        }}
+                        onNavigateToDashboard={() => setActiveTab(Tab.DASHBOARD)}
+                        onNavigateToData={(tableName) => {
+                          void navigateToAnalysisSource(tableName).catch(err => addNotification(`来源数据打开失败：${err.message}`, 'error'));
+                        }}
+                        onNavigateToMetrics={(metricId) => {
+                          setFocusedMetricId(metricId || null);
+                          setActiveTab(Tab.METRICS);
+                        }}
                       />
                     </div>
                   </ErrorBoundary>
@@ -1238,18 +1345,20 @@ const AppContent: React.FC = () => {
             </React.Suspense>
           </div>
 
-          {/* Right: Dedicated Persistent AI Copilot Sidebar */}
-          <CopilotSidebar
-            tables={tables}
-            currentTable={currentTable}
-            onNavigate={setActiveTab}
-          />
+          {/* Right: Dedicated Persistent AI Copilot Sidebar (隐藏于【分析洞察】历史与审计模块) */}
+          {activeTab !== Tab.HISTORY && activeTab !== Tab.AUDIT && (
+            <CopilotSidebar
+              tables={tables}
+              currentTable={currentTable}
+              onNavigate={setActiveTab}
+            />
+          )}
         </div>
       </main>
 
       {/* Full-width Bottom Status Bar matching 00-reference.png */}
       <StudioBottomBar
-        runtimeInfo={runtimeInfo}
+        runtimeInfo={analysisRuntimeInfo}
         onRefresh={() => {
           void refreshTables();
           void refreshAudit();

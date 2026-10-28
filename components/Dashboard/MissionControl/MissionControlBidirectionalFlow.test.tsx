@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import React from 'react';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act, cleanup } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ConfirmDialogProvider } from '../../ui/ConfirmDialog';
 import { Dashboard } from '../../Dashboard';
@@ -8,188 +8,70 @@ import { Tab } from '../../../types';
 import { useAppStore } from '../../../hooks/store/useAppStore';
 import { useSqlEditorStore } from '../../../hooks/store/useSqlEditorStore';
 
-const mocks = vi.hoisted(() => ({
-  query: vi.fn(),
-  readQuery: vi.fn(),
-  getTables: vi.fn(),
-  getTableSchema: vi.fn(),
-  importFile: vi.fn(),
-  dropTable: vi.fn(),
-}));
+const mocks = vi.hoisted(() => ({ tables: [] as string[], counts: {} as Record<string, number>, readQuery: vi.fn(), batch: vi.fn() }));
+const board = vi.hoisted(() => ({ id:'home-current',name:'Analysis',databaseName:'memory',items:[],createdAt:1,updatedAt:1 }));
+vi.mock('../../../services/duckdbService', () => ({ duckDBService: {
+  query: mocks.readQuery, readQuery: mocks.readQuery, readQueryBatchWithParams: mocks.batch,
+  getTables: async () => mocks.tables, getTableSchema: async () => [{name:'id',type:'INTEGER',pk:true}],
+  getCurrentCatalogAndSchema: async () => ({catalog:'memory',schema:'main'}),
+  listAnalysisContexts: async () => [{id:'memory',label:'memory / main',kind:'database',isCurrent:true}],
+  isBatchRunning: () => false, getRuntimeInfo: () => ({storageMode:'memory'}),
+} }));
+vi.mock('../../../services/dynamicHome', () => ({ensureDynamicHome: async () => ({board,widgetsAdded:0,tableNames:mocks.tables})}));
+vi.mock('../../../services/analysisObjects', () => ({listAnalysisObjects: async () => []}));
+vi.mock('../../../services/dbService', () => ({dbService: {
+  getDashboards: async () => [board], getQueries: async () => [],
+  getDomainSetting: async () => null, saveDomainSetting: vi.fn(),
+} }));
+vi.mock('../../../services/toastService', () => ({toastService:{info:vi.fn(),success:vi.fn(),error:vi.fn(),warning:vi.fn(),show:vi.fn()}}));
 
-vi.mock('../../../services/duckdbService', () => ({
-  duckDBService: {
-    query: mocks.query,
-    readQuery: mocks.readQuery,
-    getTables: mocks.getTables,
-    getTableSchema: mocks.getTableSchema,
-    importFile: mocks.importFile,
-    dropTable: mocks.dropTable,
-    isBatchRunning: () => false,
-  },
-}));
-
-vi.mock('../../../services/toastService', () => ({
-  toastService: {
-    info: vi.fn(),
-    success: vi.fn(),
-    error: vi.fn(),
-    warning: vi.fn(),
-    show: vi.fn(),
-  },
-}));
-
-describe('Dashboard Mission Control Bidirectional Real Workflow E2E', () => {
+// Contract test with database doubles. Real SQL/data correctness is covered by fundsBaseline.integration.test.ts.
+describe('current analysis home data and navigation contract', () => {
   beforeEach(() => {
-    localStorage.clear();
-    localStorage.setItem('duckdb_dashboard_layout_mode', 'mission-control');
-    useAppStore.setState({
-      tables: [],
-      currentTable: null,
-      pendingSql: '',
-      activeTab: Tab.DASHBOARD,
-    });
-    useSqlEditorStore.setState({
-      history: [],
-      tabs: [],
-      activeTabId: '',
-    });
-
-    mocks.query.mockImplementation(async (sql: string) => {
+    localStorage.clear(); mocks.tables=[]; mocks.counts={};
+    useAppStore.setState({tables:[],currentTable:null,currentDatabase:'memory',pendingSql:'',activeTab:Tab.DASHBOARD,dashboardRefreshTrigger:0});
+    useSqlEditorStore.setState({history:[],tabs:[],activeTabId:''});
+    mocks.readQuery.mockImplementation(async (sql:string) => {
+      if (sql.startsWith('DESCRIBE')) return [{column_name:'id',column_type:'INTEGER',key:'PRI',null:'NO'}];
+      if (sql.includes('duckdb_tables()')) return mocks.tables.map(table_name => ({database_name:'memory',schema_name:'main',table_name}));
       if (sql.includes('COUNT(*)')) {
-        return [{ cnt: 1200 }];
+        const table=mocks.tables.find(name=>sql.includes(`"${name}"`));
+        return [{cnt:table?mocks.counts[table]:0}];
       }
-      if (sql.includes('duckdb_views')) {
-        return [];
-      }
-      if (sql.includes('current_database')) {
-        return [{ cur_db: 'main' }];
-      }
+      if (sql.includes('duckdb_databases()')) return [{database_name:'memory'}];
       return [];
     });
-    mocks.readQuery.mockImplementation(mocks.query);
-    mocks.getTables.mockResolvedValue([]);
-    mocks.getTableSchema.mockResolvedValue([
-      { name: 'id', type: 'INTEGER', pk: true },
-      { name: 'val', type: 'VARCHAR', pk: false },
-    ]);
+    mocks.batch.mockImplementation(async () => [[{count:8500}],[{id:42}]]);
   });
+  afterEach(() => {cleanup();vi.clearAllMocks();});
 
-  afterEach(() => {
-    vi.clearAllMocks();
-  });
+  it('updates metadata consumers after schema changes and preserves navigation context', async () => {
+    const onNavigate=vi.fn((tab:Tab)=>useAppStore.getState().setActiveTab(tab));
+    const renderHome=(tables:string[]) => <ConfirmDialogProvider><Dashboard tables={tables} onNavigate={onNavigate} runtimeInfo={{version:'1.33.1',persistent:false,ready:true}}/></ConfirmDialogProvider>;
+    const view=render(renderHome([]));
+    await screen.findByRole('button',{name:'导入数据',exact:true});
+    expect(screen.queryByRole('alert')).toBeNull();
 
-  it('executes full bidirectional cycle: other page writes -> dashboard reflects -> dashboard interacts -> navigates with context -> mutation synchronizes', async () => {
-    const onNavigate = vi.fn((tab) => {
-      useAppStore.getState().setActiveTab(tab);
-    });
+    mocks.tables=['orders','customers'];mocks.counts={orders:8500,customers:320};
+    act(()=>{useAppStore.getState().setTables(mocks.tables);window.dispatchEvent(new Event('duckdb-schema-changed'));});
+    view.rerender(renderHome(mocks.tables));
+    await screen.findByText(/2 个数据集 · 8\.8 K 行/);
+    await screen.findByRole('option',{name:'memory.main.orders'});
+    fireEvent.change(screen.getByRole('combobox',{name:'浏览数据集'}),{target:{value:'table:["memory","main","orders"]'}});
+    await screen.findByText('memory.main.orders · 明细预览');
+    await screen.findByText('42');
+    expect(mocks.batch).toHaveBeenCalledWith(expect.arrayContaining([expect.objectContaining({sql:expect.stringContaining('"memory"."main"."orders"')})]));
+    fireEvent.click(screen.getByRole('button',{name:'管理数据'}));
+    expect(onNavigate).toHaveBeenLastCalledWith(Tab.DATA);
+    expect(useAppStore.getState().currentDatabase).toBe('memory');
+    fireEvent.click(screen.getByRole('button',{name:'查看 Schema'}));
+    expect(onNavigate).toHaveBeenLastCalledWith(Tab.STRUCTURE);
 
-    // ── Phase 1: Initial Render on Empty Database ──
-    const { rerender } = render(
-      <ConfirmDialogProvider>
-        <Dashboard
-          tables={[]}
-          onNavigate={onNavigate}
-          initialLayoutMode="mission-control"
-          runtimeInfo={{ version: '1.33.1', persistent: true, ready: true }}
-        />
-      </ConfirmDialogProvider>
-    );
-
-    // Verify honest empty states on clean slate
-    expect(screen.getByText('当前数据库暂无数据表或视图')).toBeInTheDocument();
-    expect(screen.getByText('暂无查询执行流水')).toBeInTheDocument();
-    expect(screen.getByText('仪表盘')).toBeInTheDocument();
-
-    // ── Phase 2: Other Page Modifies Data (Table Import + SQL Execution) ──
-    // Simulate table created by import or SQL DDL
-    mocks.getTables.mockResolvedValue(['orders', 'customers']);
-    mocks.query.mockImplementation(async (sql: string) => {
-      if (sql.includes('orders') && sql.includes('COUNT(*)')) return [{ cnt: 8500 }];
-      if (sql.includes('customers') && sql.includes('COUNT(*)')) return [{ cnt: 320 }];
-      return [];
-    });
-    mocks.readQuery.mockImplementation(mocks.query);
-
-    // Emulate SQL Editor executing query and saving to store
-    act(() => {
-      useAppStore.getState().setTables(['orders', 'customers']);
-      useSqlEditorStore.getState().addHistory({
-        id: 'real-query-101',
-        sql: 'SELECT * FROM orders WHERE amount > 500;',
-        timestamp: new Date().toISOString(),
-        executionTime: 8,
-        affectedRows: 42,
-        status: 'success',
-      });
-      window.dispatchEvent(new Event('duckdb-schema-changed'));
-    });
-
-    // Re-render Dashboard with updated tables prop (as App.tsx does)
-    rerender(
-      <ConfirmDialogProvider>
-        <Dashboard
-          tables={['orders', 'customers']}
-          onNavigate={onNavigate}
-          initialLayoutMode="mission-control"
-          runtimeInfo={{ version: '1.33.1', persistent: true, ready: true }}
-        />
-      </ConfirmDialogProvider>
-    );
-
-    // Wait for Dashboard to reflect real schema and real query execution
-    await waitFor(() => {
-      expect(screen.getAllByText('orders').length).toBeGreaterThan(0);
-      expect(screen.getAllByText('customers').length).toBeGreaterThan(0);
-      expect(screen.getByText('SELECT * FROM orders WHERE amount > 500;')).toBeInTheDocument();
-      expect(screen.getAllByText('8 ms').length).toBeGreaterThan(0);
-    });
-
-    // ── Phase 3: Dashboard Click Object -> Navigates with Real Context ──
-    // 1. Click on table node in topology
-    const ordersNode = screen.getAllByText('orders')[0];
-    fireEvent.click(ordersNode);
-
-    // App state currentTable must be set to 'orders'
-    expect(useAppStore.getState().currentTable).toBe('orders');
-
-    // 2. Click "新建 SQL 查询" on Action Launchpad
-    const newSqlTile = screen.getByText('新建 SQL 查询');
-    fireEvent.click(newSqlTile);
-
-    // A real tab must be created in useSqlEditorStore and onNavigate called
-    expect(useSqlEditorStore.getState().tabs.length).toBeGreaterThan(0);
-    expect(onNavigate).toHaveBeenCalledWith(Tab.SQL);
-
-    // 3. Click re-run query directly from Live Query Stream
-    const rerunBtn = screen.getByTitle('立即重新执行此查询');
-    fireEvent.click(rerunBtn);
-
-    // Direct execution triggers onNavigate with SQL context
-    expect(onNavigate).toHaveBeenCalledWith(Tab.SQL);
-
-    // ── Phase 4: Mutation on Data -> Dashboard Synchronizes Again ──
-    // Drop table 'customers'
-    mocks.getTables.mockResolvedValue(['orders']);
-    act(() => {
-      useAppStore.getState().setTables(['orders']);
-      window.dispatchEvent(new Event('duckdb-schema-changed'));
-    });
-
-    rerender(
-      <ConfirmDialogProvider>
-        <Dashboard
-          tables={['orders']}
-          onNavigate={onNavigate}
-          initialLayoutMode="mission-control"
-          runtimeInfo={{ version: '1.33.1', persistent: true, ready: true }}
-        />
-      </ConfirmDialogProvider>
-    );
-
-    await waitFor(() => {
-      expect(screen.getAllByText('orders').length).toBeGreaterThan(0);
-      expect(screen.queryByText('customers')).not.toBeInTheDocument();
-    });
+    mocks.tables=['orders'];
+    act(()=>{useAppStore.getState().setTables(mocks.tables);window.dispatchEvent(new Event('duckdb-schema-changed'));});
+    view.rerender(renderHome(mocks.tables));
+    await screen.findByText(/1 个数据集 · 8\.5 K 行/);
+    await waitFor(()=>expect(screen.queryByRole('option',{name:'memory.main.customers'})).toBeNull());
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 });

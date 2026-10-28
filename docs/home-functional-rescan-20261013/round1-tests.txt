@@ -1,0 +1,10 @@
+$ vitest run --pool=threads --maxWorkers=1 --no-file-parallelism "components/Dashboard/Home/WorkspaceObjects.test.tsx" "components/Dashboard/Home/HomeBoardCanvas.audit.test.tsx"
+
+ RUN  v4.1.10 C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor
+
+
+ Test Files  2 passed (2)
+      Tests  9 passed (9)
+   Start at  17:04:27
+   Duration  21.64s (transform 9.21s, setup 628ms, import 14.30s, tests 1.87s, environment 4.00s)
+

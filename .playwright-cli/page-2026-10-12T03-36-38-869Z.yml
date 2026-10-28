@@ -1,0 +1,128 @@
+- generic [ref=e3]:
+  - banner "全局工作区顶栏" [ref=e16]:
+    - generic [ref=e17]:
+      - button "🪶 DuckDB Studio PRO" [ref=e18] [cursor=pointer]:
+        - generic [ref=e19]: 🪶
+        - generic [ref=e21]:
+          - generic [ref=e22]: DuckDB Studio
+          - generic [ref=e23]: PRO
+      - navigation "业务领域大类" [ref=e25]:
+        - button "工程核心" [ref=e26] [cursor=pointer]
+        - button "分析洞察" [ref=e32] [cursor=pointer]
+        - button "知识沉淀" [ref=e37] [cursor=pointer]
+        - button "AI 认知" [ref=e42] [cursor=pointer]
+      - tablist "分析洞察功能标签页" [ref=e163]:
+        - tab "指标" [selected] [ref=e164] [cursor=pointer]
+        - tab "可视化" [ref=e170] [cursor=pointer]
+        - tab "分析" [ref=e175] [cursor=pointer]
+        - tab "历史" [ref=e180] [cursor=pointer]
+        - tab "审计" [ref=e185] [cursor=pointer]
+    - generic [ref=e79]:
+      - button "项目 Ctrl+Shift+D" [ref=e80] [cursor=pointer]:
+        - generic [ref=e83]: 项目
+        - generic [ref=e84]: Ctrl+Shift+D
+      - button "新建表" [ref=e85] [cursor=pointer]
+      - button "memory 临时分析空间" [ref=e90] [cursor=pointer]:
+        - generic [ref=e93]: memory
+        - generic [ref=e95]: 临时分析空间
+      - button "AI 助手 Ctrl+I" [ref=e99] [cursor=pointer]:
+        - generic [ref=e102]: AI 助手
+        - generic [ref=e103]: Ctrl+I
+      - button "⌘K" [ref=e104] [cursor=pointer]
+      - button "帮助与快捷键" [ref=e108] [cursor=pointer]
+      - button "切换为浅色模式" [ref=e111] [cursor=pointer]
+      - button "AI 模型设置" [ref=e112] [cursor=pointer]
+  - main [ref=e115]:
+    - generic [ref=e192]:
+      - generic [ref=e235]:
+        - generic [ref=e236]:
+          - button "返回指标包列表" [ref=e237] [cursor=pointer]
+          - generic [ref=e238]:
+            - generic [ref=e239]:
+              - heading "P0 指标创建验收" [level=2] [ref=e240]
+              - generic [ref=e241]: 1 个指标
+            - paragraph [ref=e242]: 真实基线；不完整候选修复验收
+        - generic [ref=e243]:
+          - button "仪表盘" [ref=e244] [cursor=pointer]
+          - button "验证全部" [ref=e246] [cursor=pointer]
+          - button "生成全部图表" [ref=e248] [cursor=pointer]
+          - button "查看图表" [ref=e250] [cursor=pointer]
+          - button "可视化中心" [ref=e252] [cursor=pointer]
+          - button "导出" [ref=e254] [cursor=pointer]
+          - button "删除包" [ref=e256] [cursor=pointer]
+      - generic [ref=e211]:
+        - generic [ref=e212]:
+          - generic [ref=e258]: "依赖数据表:"
+          - button "p0_users" [disabled] [ref=e259]
+          - button "p0_payments" [disabled] [ref=e260]
+        - generic [ref=e261]:
+          - generic [ref=e262]:
+            - text: "已验证:"
+            - strong [ref=e263]: "0"
+          - generic [ref=e264]:
+            - text: "已关联图表:"
+            - strong [ref=e265]: "0"
+          - generic [ref=e266]:
+            - text: "收藏:"
+            - strong [ref=e267]: "0"
+      - generic [ref=e217]:
+        - generic [ref=e218]:
+          - textbox "搜索指标名称、公式、业务定义..." [ref=e269]
+          - button "收藏筛选" [ref=e270] [cursor=pointer]
+          - button "手动建立指标" [ref=e272] [cursor=pointer]
+          - button "添加模版指标" [ref=e274] [cursor=pointer]
+        - button "全部" [pressed] [ref=e277] [cursor=pointer]
+      - generic [ref=e278]: 显示 1 / 1 个指标
+      - generic [ref=e282]:
+        - generic [ref=e283]:
+          - generic [ref=e284]:
+            - generic [ref=e285]:
+              - generic "P0 完成 USD 金额" [ref=e287]
+              - generic [ref=e288]:
+                - generic [ref=e289]:
+                  - text: "单位:"
+                  - strong [ref=e290]: USD
+                - generic [ref=e291]: 验证失败
+            - generic [ref=e292]:
+              - button "在 SQL 编辑器中运行" [ref=e293] [cursor=pointer]
+              - button "验证 SQL 计算" [ref=e294] [cursor=pointer]
+              - button "修复字段并重新验证" [ref=e295] [cursor=pointer]
+              - button "生成图表" [ref=e296] [cursor=pointer]
+              - button "收藏指标" [ref=e297] [cursor=pointer]
+              - button "编辑指标定义" [ref=e298] [cursor=pointer]
+              - button "复制指标 JSON" [ref=e299] [cursor=pointer]
+              - button "删除指标" [ref=e300] [cursor=pointer]
+          - alert [ref=e301]: "验证失败：数据库结构或查询定义已失效：Catalog Error: Table with name p0_payments does not exist! Did you mean \"pg_namespace\"? LINE 2: dflt_value, CAST(pk AS INTEGER) AS pk FROM pragma_table_info('p0_payments') ORDER BY cid ^"
+          - status [ref=e302]: 候选草稿待补齐：应用场景、决策价值、业务口径。可编辑补全，SQL 验证不代表业务价值已确认。
+          - generic [ref=e303]:
+            - generic [ref=e304]: 业务价值待确认
+            - generic [ref=e305]: 业务口径待审核
+            - generic "明确业务问题与应用场景；说明决策价值与使用方式；补充业务定义与总体范围；指定负责人；约定更新频率与延迟；确认可加性；确认业务时区；完成业务口径审核" [ref=e306]: 口径待完善 8 项
+            - generic [ref=e307]: 跨组 / 跨期请重新计算
+          - generic [ref=e308]:
+            - generic [ref=e309]:
+              - generic [ref=e310]: 计算公式 (SQL)
+              - code
+            - button "复制公式" [ref=e311] [cursor=pointer]
+        - generic [ref=e312]:
+          - button "进入指标分析 · 使用当前口径" [ref=e313] [cursor=pointer]
+          - button "加入首页 · 引用当前指标" [ref=e315] [cursor=pointer]
+        - button "展开完整参数" [ref=e317] [cursor=pointer]
+  - contentinfo [ref=e134]:
+    - generic [ref=e135]:
+      - generic [ref=e136]: DuckDB 1.33.1
+      - generic [ref=e139]: "|"
+      - generic [ref=e140]: memory [MEMORY]
+      - generic [ref=e142]: "|"
+      - generic [ref=e143]: 内存库
+      - generic [ref=e145]: "|"
+      - generic [ref=e146]: 0 张表
+      - generic [ref=e148]: "|"
+      - generic [ref=e149]: 暂无表
+      - generic [ref=e151]: "|"
+      - generic [ref=e152]: "内存: 0.00 MB / 3.1 GiB"
+    - generic [ref=e154]:
+      - generic [ref=e155]: 引擎就绪
+      - generic [ref=e159]: "|"
+      - generic [ref=e160]: 20:36
+      - button "刷新运行时状态" [ref=e161] [cursor=pointer]

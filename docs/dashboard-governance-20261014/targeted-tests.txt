@@ -1,0 +1,33 @@
+Already up to date
+Done in 326ms using pnpm v11.13.0
+
+ RUN  v4.1.10 C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor
+
+Error: broken renderer
+    at DashboardWidget (C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/DashboardGrid.stability.test.tsx:9:51)
+    at renderWithHooks (C:\Users\luoyu\Desktop\Duckdb_Manager\duckdb-editor\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:15486:18)
+    at mountIndeterminateComponent (C:\Users\luoyu\Desktop\Duckdb_Manager\duckdb-editor\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:20103:13)
+    at beginWork (C:\Users\luoyu\Desktop\Duckdb_Manager\duckdb-editor\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:21626:16)
+    at HTMLUnknownElement.callCallback (C:\Users\luoyu\Desktop\Duckdb_Manager\duckdb-editor\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:4164:14)
+    at HTMLUnknownElement.callTheUserObjectsOperation (C:\Users\luoyu\Desktop\Duckdb_Manager\duckdb-editor\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\generated\idl\EventListener.js:26:30)
+    at innerInvokeEventListeners (C:\Users\luoyu\Desktop\Duckdb_Manager\duckdb-editor\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:360:16)
+    at invokeEventListeners (C:\Users\luoyu\Desktop\Duckdb_Manager\duckdb-editor\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:296:3)
+    at HTMLUnknownElementImpl._dispatch (C:\Users\luoyu\Desktop\Duckdb_Manager\duckdb-editor\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:243:9)
+    at HTMLUnknownElementImpl.dispatchEvent (C:\Users\luoyu\Desktop\Duckdb_Manager\duckdb-editor\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:114:17)
+Error: broken renderer
+    at DashboardWidget (C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/DashboardGrid.stability.test.tsx:9:51)
+    at renderWithHooks (C:\Users\luoyu\Desktop\Duckdb_Manager\duckdb-editor\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:15486:18)
+    at mountIndeterminateComponent (C:\Users\luoyu\Desktop\Duckdb_Manager\duckdb-editor\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:20103:13)
+    at beginWork (C:\Users\luoyu\Desktop\Duckdb_Manager\duckdb-editor\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:21626:16)
+    at HTMLUnknownElement.callCallback (C:\Users\luoyu\Desktop\Duckdb_Manager\duckdb-editor\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:4164:14)
+    at HTMLUnknownElement.callTheUserObjectsOperation (C:\Users\luoyu\Desktop\Duckdb_Manager\duckdb-editor\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\generated\idl\EventListener.js:26:30)
+    at innerInvokeEventListeners (C:\Users\luoyu\Desktop\Duckdb_Manager\duckdb-editor\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:360:16)
+    at invokeEventListeners (C:\Users\luoyu\Desktop\Duckdb_Manager\duckdb-editor\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:296:3)
+    at HTMLUnknownElementImpl._dispatch (C:\Users\luoyu\Desktop\Duckdb_Manager\duckdb-editor\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:243:9)
+    at HTMLUnknownElementImpl.dispatchEvent (C:\Users\luoyu\Desktop\Duckdb_Manager\duckdb-editor\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:114:17)
+
+ Test Files  16 passed (16)
+      Tests  82 passed (82)
+   Start at  10:47:50
+   Duration  100.62s (transform 9.09s, setup 6.02s, import 35.52s, tests 7.63s, environment 42.89s)
+

@@ -6,7 +6,7 @@ export type WorkspaceFeatureSection = 'database' | 'analytics' | 'knowledge' | '
 
 export type WorkspaceIconName =
   | 'dashboard' | 'sql' | 'data' | 'schema'
-  | 'metrics' | 'logs' | 'history' | 'plugins'
+  | 'metrics' | 'visualization' | 'logs' | 'history' | 'plugins'
   | 'library' | 'analysis' | 'learn'
   | 'ai' | 'skills' | 'ontology' | 'deduction';
 
@@ -25,6 +25,7 @@ export const WORKSPACE_FEATURES: readonly WorkspaceFeature[] = [
   { tab: Tab.DATA, label: '数据', icon: 'data', aliases: ['table-data'], section: 'database', lifecycle: 'active-only' },
   { tab: Tab.STRUCTURE, label: 'Schema', icon: 'schema', aliases: ['schema'], section: 'database', lifecycle: 'active-only' },
   { tab: Tab.METRICS, label: '指标', icon: 'metrics', aliases: ['semantic-metrics'], section: 'analytics', lifecycle: 'active-only' },
+  { tab: Tab.VISUALIZATION, label: '可视化', icon: 'visualization', aliases: ['visualization', 'charts', 'viz', '可视化', '图表'], section: 'analytics', lifecycle: 'active-only' },
   { tab: Tab.ANALYSIS_HUB, label: '分析中心', icon: 'analysis', aliases: ['analysis'], section: 'analytics', lifecycle: 'active-only' },
   { tab: Tab.HISTORY, label: '历史', icon: 'history', aliases: ['query-history'], section: 'analytics', lifecycle: 'active-only' },
   { tab: Tab.AUDIT, label: '审计日志', icon: 'logs', aliases: ['logs', 'audit', 'audit-log'], section: 'analytics', lifecycle: 'active-only' },

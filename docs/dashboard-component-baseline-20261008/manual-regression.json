@@ -1,0 +1,121 @@
+{
+  "fixedDataset": "sql_funds_flow four business tables matching baseline.duckdb",
+  "refreshes": [
+    {
+      "step": "refresh-1",
+      "net": "false",
+      "dataset": "table:[\"sql_funds_flow\",\"main\",\"fiat_transactions\"]",
+      "values": [
+        {
+          "present": true,
+          "value": "104,270 USD"
+        },
+        {
+          "present": true,
+          "value": "13,000 USDT"
+        },
+        {
+          "present": true,
+          "value": "86%"
+        },
+        {
+          "present": true,
+          "value": "47,730 USD"
+        }
+      ]
+    },
+    {
+      "step": "refresh-2",
+      "net": "false",
+      "dataset": "table:[\"sql_funds_flow\",\"main\",\"fiat_transactions\"]"
+    },
+    {
+      "step": "refresh-3",
+      "net": "false",
+      "dataset": "table:[\"sql_funds_flow\",\"main\",\"fiat_transactions\"]"
+    }
+  ],
+  "postFixRefresh": {
+    "core": [
+      {
+        "value": "104,270 USD",
+        "present": true
+      },
+      {
+        "value": "13,000 USDT",
+        "present": true
+      },
+      {
+        "value": "86%",
+        "present": true
+      },
+      {
+        "value": "47,730 USD",
+        "present": true
+      }
+    ],
+    "selectedBaseline": "table:[\"sql_funds_flow\",\"main\",\"fiat_transactions\"]",
+    "net": false
+  },
+  "widths": [
+    {
+      "canvases": [
+        {
+          "height": 302,
+          "width": 708
+        },
+        {
+          "height": 302,
+          "width": 339
+        }
+      ],
+      "scrollWidth": 768,
+      "width": 768
+    },
+    {
+      "canvases": [
+        {
+          "height": 262,
+          "width": 380
+        },
+        {
+          "height": 262,
+          "width": 338
+        }
+      ],
+      "scrollWidth": 390,
+      "width": 390
+    }
+  ],
+  "channelFilter": {
+    "field": "channel",
+    "value": "wire_transfer",
+    "bindings": "fiat_transactions",
+    "usdGmv": 102000,
+    "usdNet": 48000,
+    "monthlyWarningBefore": true,
+    "monthlyWarningAfter": false
+  },
+  "fullscreen": {
+    "rows": 10,
+    "legendHidden": [
+      "false",
+      "false"
+    ],
+    "legendRestored": [
+      "true",
+      "true"
+    ],
+    "detailMay": {
+      "deposits": 0,
+      "withdrawals": 0,
+      "net": 0
+    }
+  },
+  "restored": {
+    "globalFilters": [],
+    "allSeriesVisible": true,
+    "datasetPreview": "选择数据集",
+    "viewport": "default"
+  }
+}

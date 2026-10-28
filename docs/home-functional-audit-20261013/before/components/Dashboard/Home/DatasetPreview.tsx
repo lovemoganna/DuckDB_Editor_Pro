@@ -1,0 +1,124 @@
+import React, { useEffect, useState } from 'react';
+import { duckDBService } from '../../../services/duckdbService';
+import { compileAnalysis } from '../../../services/workbench/queryCompiler';
+import type { DatasetDefinition, DashboardContext } from '../../../services/workbench/analysisTypes';
+import { formatTableValue } from '../../../utils/chartFormat';
+import { tableSpace } from '../../../utils/tableSpace';
+import { formatCellValue } from '../../../utils/typeFormatter';
+import { ActionButton } from '../../ui/Workbench';
+
+export function DatasetPreview({ dataset, datasets, context, revision, onBuildChart, onOpenGraph }: {
+  dataset?: DatasetDefinition; datasets: DatasetDefinition[]; context?: DashboardContext; revision: number;
+  onBuildChart?: (datasetId: string) => void;
+  onOpenGraph?: () => void;
+}) {
+  const [page, setPage] = useState(0), [rows, setRows] = useState<Record<string, unknown>[]>([]);
+  const [total, setTotal] = useState(0), [busy, setBusy] = useState(false), [error, setError] = useState('');
+  const [notices, setNotices] = useState<string[]>([]), [retry, setRetry] = useState(0);
+  const filters = JSON.stringify(context?.filters || []);
+  const resultScope = JSON.stringify([dataset, filters, page]);
+  const [successfulScope, setSuccessfulScope] = useState<string>();
+  const hasResult = successfulScope === resultScope;
+  useEffect(() => { setPage(0); }, [dataset?.id, filters]);
+  useEffect(() => {
+    let active = true;
+    setError('');
+    if (!hasResult) { setRows([]); setTotal(0); setNotices([]); }
+    if (!dataset) { setBusy(false); return; }
+    setBusy(true);
+    void (async () => {
+      try {
+        if (dataset.error) throw new Error(dataset.error);
+        const query = compileAnalysis({ sql: '', catalog: dataset.catalog, schema: dataset.schema, datasets,
+          globalFilters: context?.filters, spec: { datasetId: dataset.id, dimensions: [], aggregation: 'DETAIL' } });
+        const [counts, records] = await duckDBService.readQueryBatchWithParams([
+          { sql: `SELECT COUNT(*) AS count FROM (${query.sql}) AS preview`, params: query.params },
+          { sql: `SELECT * FROM (${query.sql}) AS preview LIMIT 50 OFFSET ${page * 50}`, params: query.params },
+        ]);
+        if (active) { setTotal(Number(counts[0]?.count || 0)); setRows(records); setNotices(query.notices); setSuccessfulScope(resultScope); }
+      } catch (err) { if (active) setError(String((err as Error).message)); }
+      finally { if (active) setBusy(false); }
+    })();
+    return () => { active = false; };
+  }, [dataset, datasets, filters, revision, page, retry]);
+  if (!dataset) return null;
+  const sizing = tableSpace(dataset.fields.map(field=>field.name), rows);
+  return <section aria-busy={busy} className="min-w-0 rounded-lg border border-monokai-border/80 bg-monokai-surface/40 p-3.5 text-xs shadow-xs">
+    <div className="flex flex-wrap gap-2 items-center justify-between pb-2 border-b border-monokai-border/60">
+      <div className="flex items-center gap-2">
+        {onOpenGraph && <ActionButton size="sm" variant="secondary" disabled={!!dataset.error} onClick={onOpenGraph}>在图谱中查看</ActionButton>}
+        <h3 className="font-semibold text-monokai-fg break-words">{dataset.name} · 明细预览</h3>
+        <span className="rounded bg-monokai-surface px-1.5 py-0.5 text-2xs text-monokai-comment font-mono border border-monokai-border/60">
+          {dataset.fields.length} 字段
+        </span>
+      </div>
+      <div className="flex items-center gap-2">
+        {hasResult && <span className="text-2xs font-mono text-monokai-comment">{total} 行记录</span>}
+        {onBuildChart && (
+          <ActionButton
+            size="sm"
+            variant="primary"
+            onClick={() => onBuildChart(dataset.id)}
+          >
+            以该数据集创建图表
+          </ActionButton>
+        )}
+      </div>
+    </div>
+    {busy && (
+      <div role="status" className="flex items-center gap-2 py-6 justify-center text-xs text-monokai-comment font-mono">
+        <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-monokai-accent border-t-transparent" />
+        <span>正在加载明细数据…</span>
+      </div>
+    )}
+    {error && (
+      <div role="alert" className="my-2 flex items-center justify-between rounded-md border border-monokai-pink/30 bg-monokai-pink/10 px-3 py-2 text-xs text-monokai-pink">
+        <p>{hasResult ? `刷新失败，显示上次成功结果：${error}` : error}</p>
+        <button type="button" className="ml-2 font-medium underline hover:text-monokai-pink/80 cursor-pointer" onClick={() => setRetry(value => value + 1)}>重试</button>
+      </div>
+    )}
+    {hasResult &&
+      <div className="max-h-80 overflow-auto mt-2 rounded border border-monokai-border bg-monokai-bg/60 custom-scrollbar">
+        <table className="text-left w-full text-xs" style={{ minWidth: sizing.width, tableLayout: 'fixed' }}>
+          <colgroup>{sizing.widths.map((width,i)=><col key={i} style={{width}} />)}</colgroup>
+          <thead className="sticky top-0 bg-monokai-surface shadow-xs">
+            <tr>
+              {dataset.fields.map(field => (
+                <th key={field.name} className="px-2.5 py-2 font-medium text-2xs text-monokai-fg-muted uppercase tracking-wider border-b border-monokai-border">
+                  {field.name}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-monokai-border/40">
+            {rows.map((row, index) => (
+              <tr key={index} className="hover:bg-monokai-surface/50 transition-colors">
+                {dataset.fields.map(field => (
+                  <td key={field.name} className="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg">
+                    {/^(DATE|TIMESTAMP)/i.test(field.type) ? formatCellValue(row[field.name], field.type) : formatTableValue(row[field.name], field.name, { compact: false })}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {rows.length === 0 && <p className="py-8 text-center text-xs text-monokai-comment">当前条件下暂无记录</p>}
+      </div>
+    }
+    {!busy && !error && total > 50 && (
+      <div className="flex items-center justify-end gap-2 mt-2.5 pt-1 text-2xs font-mono text-monokai-comment">
+        <ActionButton size="sm" variant="secondary" disabled={page === 0} onClick={() => setPage(value => value - 1)}>上一页</ActionButton>
+        <span className="px-1.5">{page + 1} / {Math.ceil(total / 50)}</span>
+        <ActionButton size="sm" variant="secondary" disabled={(page + 1) * 50 >= total} onClick={() => setPage(value => value + 1)}>下一页</ActionButton>
+      </div>
+    )}
+    {hasResult && notices.length > 0 && (
+      <details className="mt-2 text-2xs text-monokai-comment rounded border border-monokai-border/60 bg-monokai-surface/30 p-2">
+        <summary className="cursor-pointer hover:text-monokai-fg font-medium">筛选适用范围（{notices.length} 条提示）</summary>
+        <div className="mt-1.5 space-y-1">
+          {notices.map(notice => <p key={notice} className="text-monokai-comment">{notice}</p>)}
+        </div>
+      </details>
+    )}
+  </section>;
+}

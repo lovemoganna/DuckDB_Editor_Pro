@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { ColumnInfo } from '../../types';
 import { duckDBService } from '../../services/duckdbService';
+import { useAppStore } from './useAppStore';
+import { quoteIdent } from '../../services/databaseCatalog';
 
 /** Separate cancellation tokens so table loads are not discarded by profile fetches (and vice versa). */
 let activeTableRequestId = 0;
@@ -39,6 +41,7 @@ export interface DataViewState {
   setExpandedRowIdx: (idx: number | null) => void;
   setSelectedRows: (rows: Set<any> | ((prev: Set<any>) => Set<any>)) => void;
   setSortConfig: (config: { key: string; direction: 'ASC' | 'DESC' }[]) => void;
+  resetDomainState: () => void;
 
   // Data Fetching
   fetchTableData: (tableName: string, offset: number, limit: number, currentSort?: any, currentFilter?: string) => Promise<void>;
@@ -87,13 +90,28 @@ export const useDataViewStore = create<DataViewState>((set, get) => ({
     selectedRows: typeof rows === 'function' ? rows(state.selectedRows) : rows
   })),
   setSortConfig: (sortConfig) => set({ sortConfig }),
+  resetDomainState: () => {
+    activeTableRequestId += 1;
+    activeProfileRequestId += 1;
+    set({ tableData: [], tableColumns: [], hiddenColumns: new Set(), loadingData: false,
+      pagination: { limit: 50, offset: 0, total: 0 }, schema: [], sortConfig: [], filterQuery: '',
+      selectedRows: new Set(), profileData: [], expandedRowIdx: null, showColMenu: false,
+      editingCell: null });
+  },
 
   fetchTableData: async (tableName, offset, limit, currentSort = get().sortConfig, currentFilter = get().filterQuery) => {
     const requestId = ++activeTableRequestId;
     const appliedFilter = (currentFilter ?? '').trim();
     set({ loadingData: true, filterQuery: appliedFilter });
     try {
+      const scope = await duckDBService.getCurrentCatalogAndSchema();
       const whereClause = appliedFilter ? `WHERE ${appliedFilter}` : '';
+      const pendingApp = useAppStore.getState();
+      if(pendingApp.currentTable===tableName && pendingApp.currentDatabase===scope.catalog) pendingApp.setActiveDataset({
+        id:`table:${JSON.stringify([scope.catalog,scope.schema,tableName])}`,name:`${scope.catalog}.${scope.schema}.${tableName}`,
+        catalog:scope.catalog,schema:scope.schema,table:tableName,kind:'table',version:1,
+        sql:`SELECT * FROM ${[scope.catalog,scope.schema,tableName].map(quoteIdent).join('.')} ${whereClause}`,fields:[],error:'正在应用数据筛选，请稍候',
+      });
       const countQuery = `SELECT COUNT(*) as c FROM "${tableName}" ${whereClause}`;
       let total = 0;
       try {
@@ -115,6 +133,13 @@ export const useDataViewStore = create<DataViewState>((set, get) => ({
 
       const data = await duckDBService.readQuery(query);
       if (requestId !== activeTableRequestId) return;
+      const app = useAppStore.getState();
+      if(app.currentTable===tableName && app.currentDatabase===scope.catalog) app.setActiveDataset({
+        id:`table:${JSON.stringify([scope.catalog,scope.schema,tableName])}`,name:`${scope.catalog}.${scope.schema}.${tableName}`,
+        catalog:scope.catalog,schema:scope.schema,table:tableName,kind:'table',version:1,
+        sql:`SELECT * FROM ${[scope.catalog,scope.schema,tableName].map(quoteIdent).join('.')} ${whereClause}`,
+        fields:schemaInfo.map(c=>({name:c.name,type:c.type})),
+      });
       set({
         tableData: data,
         schema: schemaInfo,
@@ -122,9 +147,12 @@ export const useDataViewStore = create<DataViewState>((set, get) => ({
         pagination: { limit, offset, total },
         selectedRows: new Set(),
         filterQuery: appliedFilter,
+        sortConfig: currentSort !== undefined ? currentSort : get().sortConfig,
       });
     } catch (e: any) {
       if (requestId !== activeTableRequestId) return;
+      const app=useAppStore.getState();
+      if(app.currentTable===tableName && app.activeDataset?.table===tableName) app.setActiveDataset({...app.activeDataset,error:e.message || String(e)});
       set({ tableData: [] });
       throw e;
     } finally {

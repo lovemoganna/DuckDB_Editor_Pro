@@ -1,0 +1,392 @@
+- banner "全局工作区顶栏":
+  - button "🪶 DuckDB Studio PRO":
+    - generic: 🪶
+    - generic: DuckDB Studio
+    - generic: PRO
+  - navigation "业务领域大类":
+    - button "工程核心":
+      - generic: 工程核心
+    - button "分析洞察":
+      - generic: 分析洞察
+    - button "知识沉淀":
+      - generic: 知识沉淀
+    - button "AI 认知":
+      - generic: AI 认知
+  - tablist "工程核心功能标签页":
+    - tab "仪表盘":
+      - generic: 仪表盘
+      - generic: "1"
+    - tab "数据" [active] [selected]:
+      - generic: 数据
+    - tab "Schema":
+      - generic: Schema
+      - generic: "3"
+    - tab "SQL":
+      - generic: SQL
+      - generic: "4"
+    - tab "数据流":
+      - generic: 数据流
+      - generic: "5"
+  - button "项目":
+    - generic: 项目
+  - button "已保存到 OPFS":
+    - generic: 已保存到 OPFS
+  - button "AI 助手":
+    - generic: AI 助手
+  - button "⌘K":
+  - button "帮助与快捷键":
+  - button "切换为深色模式":
+  - button "AI 模型设置":
+- main:
+  - main:
+    - heading "数据资源工作台" [level=1]
+    - paragraph: DuckDB 数据资源总览 · 共 13 个对象 (13 张表 · 0 视图) · 极速网格浏览 · 跨模块直达
+    - button "加载示例":
+      - generic: 加载示例
+    - button "新建表":
+      - generic: 新建表
+    - button "导入文件":
+      - generic: 导入文件
+    - button "仪表盘":
+      - generic: 仪表盘
+    - text: 数据表与视图 / OBJECTS
+    - generic: "13"
+    - generic: (13 表 · 0 视图)
+    - text: 估算记录体量 / ESTIMATED ROWS
+    - generic: "96"
+    - generic: 条记录
+    - text: 字段规模与主键 / SCHEMA SCOPE
+    - generic: "84"
+    - generic: 字段 · PK率 100%
+    - text: 引擎状态 / RUNTIME
+    - generic: DuckDB WASM
+    - generic: 列式极速向量化执行
+    - textbox "搜索表名 / 字段名…"
+    - button "全部 (13)"
+    - button "表 (13)"
+    - text: "排序:"
+    - combobox:
+      - option "默认顺序" [selected]
+      - option "表名 A → Z"
+      - option "表名 Z → A"
+      - option "记录数 由多到少"
+      - option "字段数 由多到少"
+    - button "卡片网格视图":
+    - button "紧凑表格列表视图":
+    - article:
+      - heading "crypto_transactions" [level=3]
+      - generic: TABLE
+      - 'generic "主键字段: crypto_order_id"':
+        - text: crypto_order_id
+      - button "复制表名":
+      - text: 估算行数
+      - generic: 25 行
+      - text: 字段规模
+      - generic: 13 列
+      - generic: crypto_order_id
+      - generic: uid
+      - generic: direction
+      - generic: asset
+      - generic: "+9"
+      - button "浏览数据 ↗":
+        - generic: 浏览数据 ↗
+      - button "查看结构定义":
+      - button "在分析中心探查":
+      - button "在指标建模中定义":
+      - button "在 SQL 中快速查询":
+      - button "查看数据流血缘":
+    - article:
+      - heading "exchange_rates" [level=3]
+      - generic: TABLE
+      - 'generic "主键字段: asset, quote_currency, effective_date"':
+        - text: asset, quote_currency, effective_date
+      - button "复制表名":
+      - text: 估算行数
+      - generic: 8 行
+      - text: 字段规模
+      - generic: 8 列
+      - generic: asset
+      - generic: asset_name
+      - generic: asset_type
+      - generic: quote_currency
+      - generic: "+4"
+      - button "浏览数据 ↗":
+        - generic: 浏览数据 ↗
+      - button "查看结构定义":
+      - button "在分析中心探查":
+      - button "在指标建模中定义":
+      - button "在 SQL 中快速查询":
+      - button "查看数据流血缘":
+    - article:
+      - heading "fiat_transactions" [level=3]
+      - generic: TABLE
+      - 'generic "主键字段: fiat_order_id"':
+        - text: fiat_order_id
+      - button "复制表名":
+      - text: 估算行数
+      - generic: 25 行
+      - text: 字段规模
+      - generic: 10 列
+      - generic: fiat_order_id
+      - generic: uid
+      - generic: direction
+      - generic: currency
+      - generic: "+6"
+      - button "浏览数据 ↗":
+        - generic: 浏览数据 ↗
+      - button "查看结构定义":
+      - button "在分析中心探查":
+      - button "在指标建模中定义":
+      - button "在 SQL 中快速查询":
+      - button "查看数据流血缘":
+    - article:
+      - heading "life_action" [level=3]
+      - generic: TABLE
+      - 'generic "主键字段: id"':
+        - text: id
+      - button "复制表名":
+      - text: 估算行数
+      - generic: 0 行
+      - text: 字段规模
+      - generic: 6 列
+      - generic: id
+      - generic: object_id
+      - generic: name
+      - generic: description
+      - generic: "+2"
+      - button "浏览数据 ↗":
+        - generic: 浏览数据 ↗
+      - button "查看结构定义":
+      - button "在分析中心探查":
+      - button "在指标建模中定义":
+      - button "在 SQL 中快速查询":
+      - button "查看数据流血缘":
+    - article:
+      - heading "life_canvas_edge" [level=3]
+      - generic: TABLE
+      - 'generic "主键字段: id"':
+        - text: id
+      - button "复制表名":
+      - text: 估算行数
+      - generic: 0 行
+      - text: 字段规模
+      - generic: 3 列
+      - generic: id
+      - generic: source_id
+      - generic: target_id
+      - button "浏览数据 ↗":
+        - generic: 浏览数据 ↗
+      - button "查看结构定义":
+      - button "在分析中心探查":
+      - button "在指标建模中定义":
+      - button "在 SQL 中快速查询":
+      - button "查看数据流血缘":
+    - article:
+      - heading "life_canvas_state" [level=3]
+      - generic: TABLE
+      - 'generic "主键字段: id"':
+        - text: id
+      - button "复制表名":
+      - text: 估算行数
+      - generic: 7 行
+      - text: 字段规模
+      - generic: 11 列
+      - generic: id
+      - generic: space_id
+      - generic: object_id
+      - generic: title
+      - generic: "+7"
+      - button "浏览数据 ↗":
+        - generic: 浏览数据 ↗
+      - button "查看结构定义":
+      - button "在分析中心探查":
+      - button "在指标建模中定义":
+      - button "在 SQL 中快速查询":
+      - button "查看数据流血缘":
+    - article:
+      - heading "life_insight" [level=3]
+      - generic: TABLE
+      - 'generic "主键字段: id"':
+        - text: id
+      - button "复制表名":
+      - text: 估算行数
+      - generic: 0 行
+      - text: 字段规模
+      - generic: 5 列
+      - generic: id
+      - generic: object_id
+      - generic: insight
+      - generic: tag
+      - generic: "+1"
+      - button "浏览数据 ↗":
+        - generic: 浏览数据 ↗
+      - button "查看结构定义":
+      - button "在分析中心探查":
+      - button "在指标建模中定义":
+      - button "在 SQL 中快速查询":
+      - button "查看数据流血缘":
+    - article:
+      - heading "life_introspection" [level=3]
+      - generic: TABLE
+      - 'generic "主键字段: id"':
+        - text: id
+      - button "复制表名":
+      - text: 估算行数
+      - generic: 0 行
+      - text: 字段规模
+      - generic: 5 列
+      - generic: id
+      - generic: object_id
+      - generic: question
+      - generic: answer
+      - generic: "+1"
+      - button "浏览数据 ↗":
+        - generic: 浏览数据 ↗
+      - button "查看结构定义":
+      - button "在分析中心探查":
+      - button "在指标建模中定义":
+      - button "在 SQL 中快速查询":
+      - button "查看数据流血缘":
+    - article:
+      - heading "life_link" [level=3]
+      - generic: TABLE
+      - 'generic "主键字段: id"':
+        - text: id
+      - button "复制表名":
+      - text: 估算行数
+      - generic: 6 行
+      - text: 字段规模
+      - generic: 5 列
+      - generic: id
+      - generic: link_type_id
+      - generic: source_object_id
+      - generic: target_object_id
+      - generic: "+1"
+      - button "浏览数据 ↗":
+        - generic: 浏览数据 ↗
+      - button "查看结构定义":
+      - button "在分析中心探查":
+      - button "在指标建模中定义":
+      - button "在 SQL 中快速查询":
+      - button "查看数据流血缘":
+    - article:
+      - heading "life_link_type" [level=3]
+      - generic: TABLE
+      - 'generic "主键字段: id"':
+        - text: id
+      - button "复制表名":
+      - text: 估算行数
+      - generic: 6 行
+      - text: 字段规模
+      - generic: 3 列
+      - generic: id
+      - generic: name
+      - generic: description
+      - button "浏览数据 ↗":
+        - generic: 浏览数据 ↗
+      - button "查看结构定义":
+      - button "在分析中心探查":
+      - button "在指标建模中定义":
+      - button "在 SQL 中快速查询":
+      - button "查看数据流血缘":
+    - article:
+      - heading "life_object" [level=3]
+      - generic: TABLE
+      - 'generic "主键字段: id"':
+        - text: id
+      - button "复制表名":
+      - text: 估算行数
+      - generic: 7 行
+      - text: 字段规模
+      - generic: 5 列
+      - generic: id
+      - generic: object_type_id
+      - generic: name
+      - generic: properties
+      - generic: "+1"
+      - button "浏览数据 ↗":
+        - generic: 浏览数据 ↗
+      - button "查看结构定义":
+      - button "在分析中心探查":
+      - button "在指标建模中定义":
+      - button "在 SQL 中快速查询":
+      - button "查看数据流血缘":
+    - article:
+      - heading "life_object_type" [level=3]
+      - generic: TABLE
+      - 'generic "主键字段: id"':
+        - text: id
+      - button "复制表名":
+      - text: 估算行数
+      - generic: 2 行
+      - text: 字段规模
+      - generic: 3 列
+      - generic: id
+      - generic: name
+      - generic: description
+      - button "浏览数据 ↗":
+        - generic: 浏览数据 ↗
+      - button "查看结构定义":
+      - button "在分析中心探查":
+      - button "在指标建模中定义":
+      - button "在 SQL 中快速查询":
+      - button "查看数据流血缘":
+    - article:
+      - heading "users" [level=3]
+      - generic: TABLE
+      - 'generic "主键字段: uid"':
+        - text: uid
+      - button "复制表名":
+      - text: 估算行数
+      - generic: 10 行
+      - text: 字段规模
+      - generic: 7 列
+      - generic: uid
+      - generic: user_name
+      - generic: country_code
+      - generic: base_fiat_currency
+      - generic: "+3"
+      - button "浏览数据 ↗":
+        - generic: 浏览数据 ↗
+      - button "查看结构定义":
+      - button "在分析中心探查":
+      - button "在指标建模中定义":
+      - button "在 SQL 中快速查询":
+      - button "查看数据流血缘":
+  - complementary "AI Copilot 侧边栏":
+    - generic "拖拽调整侧边栏宽度"
+    - generic: AI Copilot
+    - button "Gemini 2.0 Flash":
+      - generic: Gemini 2.0 Flash
+    - button "会话历史":
+      - generic: "2"
+    - button "新建会话":
+    - button "清空会话历史":
+    - button "收起侧边栏":
+    - generic: 数据网格
+    - generic: ·
+    - button "选择关注的数据表":
+      - generic: crypto_transactions
+      - generic: "1"
+    - paragraph: 有什么想查的？
+    - paragraph: 可围绕 crypto_transactions 提问、生成 SQL 或做数据探查。
+    - button "生成探索问题":
+      - generic: 生成探索问题
+    - generic: 基于 crypto_transactions
+    - textbox "提问、生成 SQL 或分析数据…"
+    - button "发送" [disabled]:
+      - generic: 发送
+- contentinfo:
+  - generic: DuckDB 1.33.1
+  - generic: "|"
+  - generic: sql_funds_flow [OPFS]
+  - generic: "|"
+  - generic: 持久化库
+  - generic: "|"
+  - generic: 13 张表
+  - generic: "|"
+  - generic: 13 个活动表
+  - generic: 引擎就绪
+  - generic: "|"
+  - generic: 20:22
+  - button "刷新运行时状态":

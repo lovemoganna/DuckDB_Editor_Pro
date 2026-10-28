@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { lightEditorTheme, SQL_EDITOR_FONT_SIZE } from '../themes/sqlEditorThemes';
+import { useUiTheme } from '../services/uiTheme';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Play, Save, FolderOpen, X, Plus, Clock, Database, ChevronRight, ChevronDown, ChevronLeft, Search, MoreVertical, Layout, Type, Download, Trash2, Maximize2, Minimize2, Table, BarChart2, FileText, Smartphone, Monitor, RefreshCw, Sparkles, Lightbulb, Zap, AlertTriangle, Target, Wand2, Eye, EyeOff, Code, Info, Loader2, RotateCcw, HelpCircle, MessageSquare, Copy, Check, Link, Link2, Wrench, Globe, Pin, Terminal, ClipboardList } from 'lucide-react';
@@ -10,28 +12,20 @@ import { useSqlExecution } from '../hooks/useSqlExecution';
 import { useSqlAiAssistant } from '../hooks/useSqlAiAssistant';
 import { useSqlEditorExtensions } from '../hooks/useSqlEditorExtensions';
 import { useSqlEditorStore, useToastAutoDismiss } from '../hooks/store/useSqlEditorStore';
+import { useAppStore } from '../hooks/store/useAppStore';
+import { Tab } from '../types';
+import { requireAnalysisQuery } from '../services/analysis/readQueryGuard';
+import { enrichSavedQueryLineage, addSavedQueryToHomeBoard } from '../services/homeDashboardService';
 import { saveExplanation, getAllExplanations, clearAllExplanations, deleteExplanation, AiExplanation } from '../services/aiExplanationStorage';
 import { QueryResult, QueryHistoryItem, SavedQuery, ColumnInfo, ChartConfig, SqlTab } from '../types';
 import { getTypeIcon, highlightSql } from '../utils';
 import { SQL_CATEGORY_HELP, SNIPPET_GROUPS, SNIPPET_CATEGORY_META, SNIPPETS } from '../data/sqlEditorData';
 import type { SqlCategoryHelp } from '../data/sqlEditorData';
-import { exportCsv, exportJson, exportMarkdown, exportExcel, generateHtmlReport, copyAsTsv, copyAsMarkdown, copyAsHtml, downloadBlob, exportDataAsync } from '../utils/sqlExporter';
-import {
-    Chart as ChartJS,
-    CategoryScale,
-    LinearScale,
-    PointElement,
-    LineElement,
-    BarElement,
-    ArcElement,
-    Title,
-    Tooltip,
-    Legend,
-} from 'chart.js';
-import { Bar, Line, Pie, Doughnut, Scatter } from 'react-chartjs-2';
-import ChartDataLabels from 'chartjs-plugin-datalabels';
+import { exportCsv, exportJson, exportMarkdown, exportExcel, generateHtmlReport, copyAsTsv, copyAsMarkdown, copyAsHtml, downloadBlob, downloadSqlTab, exportDataAsync } from '../utils/sqlExporter';
 import { TableTree } from './TableTree';
-import CodeMirror from '@uiw/react-codemirror';
+import CodeMirror, {type ReactCodeMirrorRef} from '@uiw/react-codemirror';
+import {useWorkflowStore} from '../services/dataflow/workflowStore';
+import {executionHighlight,executionHighlightTheme,setExecutionHighlight} from '../services/dataflow/sqlExecutionHighlight';
 import { monokai } from '@uiw/codemirror-theme-monokai';
 import { EditorView } from '@codemirror/view';
 import { format } from 'sql-formatter';
@@ -50,22 +44,8 @@ import {
 import { AiCapabilityPromptModal } from './AiCapabilityLibrary/AiCapabilityPromptModal';
 import { SqlEditorHelpPanel } from './SqlEditor/SqlEditorHelpPanel';
 import { SqlEditorResultTable } from './SqlEditor/SqlEditorResultTable';
-import { SqlEditorExplainView } from './SqlEditor/SqlEditorExplainView';
 import { SqlEditorErrorView } from './SqlEditor/SqlEditorErrorView';
-import { SqlEditorProfilingView } from './SqlEditor/SqlEditorProfilingView';
-
-ChartJS.register(
-    CategoryScale,
-    LinearScale,
-    PointElement,
-    LineElement,
-    BarElement,
-    ArcElement,
-    Title,
-    Tooltip,
-    Legend,
-    ChartDataLabels
-);
+import { ExecutionPlanView } from './ExecutionPlan';
 
 interface SqlEditorProps {
     onRun: () => void;
@@ -138,6 +118,7 @@ const generateAIFillPrompt = (
 };
 
 export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendingChartConfig, isZenMode, onToggleZen, onPendingConsumed }) => {
+    const uiTheme = useUiTheme(state => state.theme);
     // --- Toast auto-dismiss (subscription-based, replaces imperative timer) ---
     useToastAutoDismiss();
 
@@ -147,6 +128,10 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
     const setActiveTabId = useSqlEditorStore((s) => s.setActiveTabId);
     const createTab = useSqlEditorStore((s) => s.createTab);
     const closeTabStore = useSqlEditorStore((s) => s.closeTab);
+    const closeOtherTabsStore = useSqlEditorStore((s) => s.closeOtherTabs);
+    const closeTabsToRightStore = useSqlEditorStore((s) => s.closeTabsToRight);
+    const closeAllTabsStore = useSqlEditorStore((s) => s.closeAllTabs);
+    const duplicateTabStore = useSqlEditorStore((s) => s.duplicateTab);
     const updateActiveTab = useSqlEditorStore((s) => s.updateActiveTab);
     const getActiveTab = useSqlEditorStore((s) => s.getActiveTab);
     const renameTab = useSqlEditorStore((s) => s.renameTab);
@@ -154,6 +139,10 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
     const setEditingTitleId = useSqlEditorStore((s) => s.setEditingTitleId);
     const tempTitle = useSqlEditorStore((s) => s.tempTitle);
     const setTempTitle = useSqlEditorStore((s) => s.setTempTitle);
+
+    const [targetSaveTab, setTargetSaveTab] = useState<SqlTab | null>(null);
+    const [targetSaveDatabase, setTargetSaveDatabase] = useState<string | null>(null);
+    const [isSavingQuery, setIsSavingQuery] = useState(false);
 
     const aiPrompt = useSqlEditorStore((s) => s.aiPrompt);
     const setAiPrompt = useSqlEditorStore((s) => s.setAiPrompt);
@@ -186,6 +175,7 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
     const previewDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
     const history = useSqlEditorStore((s) => s.history);
+    const currentDatabase = useAppStore((s) => s.currentDatabase);
     const savedQueries = useSqlEditorStore((s) => s.savedQueries);
     const setSavedQueries = useSqlEditorStore((s) => s.setSavedQueries);
     const schemaTree = useSqlEditorStore((s) => s.schemaTree);
@@ -252,8 +242,14 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
     const PAGE_SIZE = 50;
 
     const selectionRef = useRef('');
+    const selectionOffsetRef = useRef(0);
     const cursorOffsetRef = useRef(0);
     const activeTab = getActiveTab();
+    const executionEditorRef=useRef<ReactCodeMirrorRef>(null);
+    const executionRange=useWorkflowStore(s=>s.executionSqlRange);
+    const flowDocument=useWorkflowStore(s=>s.activeDocumentId);
+    useEffect(()=>{void useWorkflowStore.getState().syncFromSql(activeTab?.code||'',activeTab?.title,false,activeTabId);},[activeTab?.code,activeTabId]);
+    useEffect(()=>{executionEditorRef.current?.view?.dispatch({effects:setExecutionHighlight.of(executionRange&&flowDocument===activeTabId?{from:executionRange.start,to:executionRange.end}:null),scrollIntoView:true});},[executionRange,flowDocument,activeTabId]);
 
     const hasMismatchedBrackets = useMemo(() => {
         if (!activeTab || !activeTab.code) return false;
@@ -281,9 +277,58 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
         createTab();
     };
 
-    const closeTab = (id: string, e: React.MouseEvent) => {
-        e.stopPropagation();
+    const closeTab = (id: string, e?: React.MouseEvent) => {
+        if (e) e.stopPropagation();
         closeTabStore(id);
+    };
+
+    const handleCloseOtherTabs = (id: string) => {
+        closeOtherTabsStore(id);
+    };
+
+    const handleCloseTabsToRight = (id: string) => {
+        closeTabsToRightStore(id);
+    };
+
+    const handleCloseAllTabs = () => {
+        closeAllTabsStore();
+    };
+
+    const handleDuplicateTab = (id: string) => {
+        const newId = duplicateTabStore(id);
+        if (newId) {
+            toastService.info('已复制为新标签页');
+        }
+    };
+
+    const handleOpenSaveModal = (tab?: SqlTab) => {
+        const target = tab || getActiveTab();
+        if (!target) return;
+        setTargetSaveTab(target);
+        setTargetSaveDatabase(currentDatabase);
+        setSaveQueryName(target.title || 'Untitled Query');
+        setShowSaveModal(true);
+    };
+
+    const handleSaveAsSqlFile = (tab: SqlTab) => {
+        try {
+            const filename = downloadSqlTab(tab);
+            useSqlEditorStore.getState().updateTabById(tab.id, { savedCode: tab.code });
+            toastService.success(`已另存为本地文件：${filename}`);
+        } catch (error) {
+            toastService.error(`导出 SQL 失败：${error instanceof Error ? error.message : String(error)}`);
+        }
+    };
+
+    const handleSaveAsDuckdbFile = async () => {
+        try {
+            const blob = await duckDBService.exportDatabase();
+            const catalog = (currentDatabase || 'database').replace(/[^\w.-]+/g, '_');
+            downloadBlob(blob, `${catalog || 'database'}.duckdb`);
+            toastService.success(`已导出数据库文件：${catalog || 'database'}.duckdb`);
+        } catch (error) {
+            toastService.error(`导出数据库失败：${error instanceof Error ? error.message : String(error)}`);
+        }
     };
 
     const handleTitleDoubleClick = (tab: SqlTab) => {
@@ -301,26 +346,29 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
     // --- Initialization ---
 
     useEffect(() => {
-        loadData();
+        let active = true;
+        void loadData(() => active);
 
         const handleSchemaChange = () => {
             refreshSchema();
         };
         window.addEventListener('duckdb-schema-changed', handleSchemaChange);
         return () => {
+            active = false;
             window.removeEventListener('duckdb-schema-changed', handleSchemaChange);
         };
-    }, []);
+    }, [currentDatabase]);
 
-    const loadData = async () => {
+    const loadData = async (isCurrent: () => boolean = () => true) => {
         try {
-            const saved = await dbService.getQueries();
+            const saved = await dbService.getQueries(currentDatabase);
+            if (!isCurrent()) return;
             setSavedQueries(saved);
             // 加载 AI 解释历史
             const explanationHistory = await getAllExplanations();
-            setAiExplanationHistory(explanationHistory);
+            if (isCurrent()) setAiExplanationHistory(explanationHistory);
         } catch (e) { console.error(e); }
-        refreshSchema();
+        if (isCurrent()) refreshSchema();
     };
 
     useEffect(() => {
@@ -469,7 +517,7 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
     });
 
     /** Thin wrapper preserving original signature `execute(explain)`. */
-    const execute = (explain = false, overrideSql?: string) => runExecute(explain, overrideSql ?? (selectionRef.current.trim() || undefined), cursorOffsetRef.current);
+    const execute = (explain = false, overrideSql?: string) => runExecute(explain, overrideSql ?? (selectionRef.current || undefined), cursorOffsetRef.current, selectionRef.current ? selectionOffsetRef.current : undefined);
 
     /** Thin wrapper preserving original handleKeyDown signature. */
     const handleKeyDown = (e: React.KeyboardEvent) =>
@@ -638,6 +686,7 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
                 ? crypto.randomUUID()
                 : `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
             sql,
+            databaseName: useAppStore.getState().currentDatabase,
             timestamp: Date.now(),
             status,
             executionTime: duration
@@ -650,24 +699,58 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
     };
 
     const handleSaveQuery = async () => {
-        const tab = getActiveTab();
-        if (!tab || !saveQueryName.trim()) return;
-        const newSaved: SavedQuery = {
-            id: Date.now().toString(),
-            name: saveQueryName,
+        const tab = targetSaveTab
+            ? useSqlEditorStore.getState().tabs.find(t => t.id === targetSaveTab.id)
+            : getActiveTab();
+        if (!tab || !saveQueryName.trim() || isSavingQuery) return;
+        setIsSavingQuery(true);
+        try {
+        const rowCount = tab.result?.rows?.length;
+        const columns = tab.result?.columns;
+        const newSaved: SavedQuery = enrichSavedQueryLineage({
+            id: crypto.randomUUID(),
+            databaseName: targetSaveDatabase || currentDatabase,
+            name: saveQueryName.trim(),
             sql: tab.code,
             createdAt: Date.now(),
             pinned: saveAsWidget,
             widgetType: saveAsWidget ? widgetType : undefined,
-            charts: (saveAsWidget && widgetType === 'chart') ? [tab.chartConfig] : undefined
-        };
+            charts: (saveAsWidget && widgetType === 'chart') ? [tab.chartConfig] : undefined,
+            lastResultMeta: {
+                rowCount,
+                columns: columns?.map((c: any) => (typeof c === 'string' ? c : c.name)).filter(Boolean),
+                ranAt: Date.now(),
+            },
+        });
         await dbService.saveQuery(newSaved);
+        useSqlEditorStore.getState().updateTabById(tab.id, { savedCode: tab.code });
+        if (saveAsWidget) {
+            try {
+                await addSavedQueryToHomeBoard(newSaved.id, {
+                    w: widgetType === 'value' ? 3 : 4,
+                    h: widgetType === 'value' ? 2 : 3,
+                });
+                useAppStore.getState().bumpDashboardRefresh();
+                toastService.success('已保存并加入分析首页看板');
+            } catch {
+                toastService.success('查询已保存');
+            }
+        } else {
+            toastService.success('查询已保存');
+        }
         await loadData(); // Reload to refresh list
 
         setShowSaveModal(false);
         setSaveQueryName('');
         setSaveAsWidget(false);
+        setTargetSaveTab(null);
+        setTargetSaveDatabase(null);
         setActiveSidebarTab('saved');
+        } catch (error) {
+            toastService.error(`保存查询失败：${error instanceof Error ? error.message : String(error)}`);
+        } finally {
+            setIsSavingQuery(false);
+        }
     };
 
     const deleteSavedQuery = async (id: string, e: React.MouseEvent) => {
@@ -800,7 +883,9 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
 
 
 
-    const filteredHistory = history.filter(h => h.sql.toLowerCase().includes(historyFilter.toLowerCase()));
+    const filteredHistory = history.filter(h =>
+      (h.databaseName || 'duckdb_manager_workspace') === currentDatabase &&
+      h.sql.toLowerCase().includes(historyFilter.toLowerCase()));
 
     const renderViewSwitcher = () => (
         <div className="flex items-center gap-1 bg-monokai-bg/90 p-0.5 rounded-lg border border-monokai-border/70 shrink-0 select-none shadow-xs">
@@ -863,7 +948,12 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
         <div className="context-ide-sql flex flex-col h-full gap-0 overflow-hidden bg-monokai-bg relative" data-context-ide="sql">
             <SaveQueryModal
                 isOpen={showSaveModal}
-                onClose={() => setShowSaveModal(false)}
+                onClose={() => {
+                    if (isSavingQuery) return;
+                    setShowSaveModal(false);
+                    setTargetSaveTab(null);
+                    setTargetSaveDatabase(null);
+                }}
                 saveQueryName={saveQueryName}
                 setSaveQueryName={setSaveQueryName}
                 saveAsWidget={saveAsWidget}
@@ -871,6 +961,7 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
                 widgetType={widgetType}
                 setWidgetType={setWidgetType}
                 onSave={handleSaveQuery}
+                isSaving={isSavingQuery}
             />
             {/* AI 解释弹窗 */}
             {showAiExplanation && (
@@ -1105,7 +1196,14 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
                             onTabClick={setActiveTabId}
                             onTabDoubleClick={handleTitleDoubleClick}
                             onCloseTab={closeTab}
+                            onCloseOtherTabs={handleCloseOtherTabs}
+                            onCloseTabsToRight={handleCloseTabsToRight}
+                            onCloseAllTabs={handleCloseAllTabs}
                             onCreateTab={createNewTab}
+                            onDuplicateTab={handleDuplicateTab}
+                            onSaveAsQuery={handleOpenSaveModal}
+                            onSaveAsDuckdbFile={handleSaveAsDuckdbFile}
+                            onSaveAsSqlFile={handleSaveAsSqlFile}
                             onTitleChange={e => setTempTitle(e.target.value)}
                             onTitleSave={saveTitle}
                             onTitleKeyDown={e => e.key === 'Enter' && saveTitle()}
@@ -1136,7 +1234,7 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
                             onToggleMaterializeMenu={() => setShowMaterializeMenu(!showMaterializeMenu)}
                             onOpenMaterializeModal={openMaterializeModal}
                             onFormatSql={formatSql}
-                            onSaveModal={() => setShowSaveModal(true)}
+                            onSaveModal={() => handleOpenSaveModal()}
                             onClear={handleClear}
                             onToggleZen={onToggleZen}
                             onToggleLivePreview={() => setShowLivePreview(!showLivePreview)}
@@ -1172,16 +1270,18 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
                                 </div>
                             )}
                             <CodeMirror
+                                ref={executionEditorRef}
                                 key={`${activeTabId}-${Object.keys(schemaTree).join(',')}`}
                                 value={activeTab.code}
                                 height="100%"
-                                theme={monokai}
+                                theme={uiTheme === 'light' ? lightEditorTheme : monokai}
                                 onUpdate={(viewUpdate) => {
                                     const main = viewUpdate.state.selection.main;
                                     selectionRef.current = viewUpdate.state.sliceDoc(main.from, main.to);
+                                    selectionOffsetRef.current = main.from;
                                     cursorOffsetRef.current = main.head;
                                 }}
-                                extensions={[
+                                extensions={[executionHighlight,executionHighlightTheme,
                                     ...useSqlEditorExtensions({
                                         onExecute: onRun,
                                         onCancel: cancelExecution,
@@ -1189,16 +1289,18 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
                                     }),
                                     EditorView.lineWrapping,
                                     EditorView.theme({
-                                        "&": { backgroundColor: "#272822", color: "#f8f8f2", fontFamily: "'Victor Mono', 'JetBrains Mono', Consolas, Menlo, Monaco, monospace", fontSize: "12px" },
-                                        ".cm-gutters": { backgroundColor: "#272822", color: "#75715e", border: "none", fontSize: "12px" },
+                                        "&": { backgroundColor: uiTheme === 'light' ? 'var(--monokai-surface)' : '#272822', color: 'var(--monokai-fg)', fontFamily: "'Victor Mono', 'JetBrains Mono', Consolas, Menlo, Monaco, monospace", fontSize: `${SQL_EDITOR_FONT_SIZE} !important` },
+                                        ".cm-scroller": { fontFamily: "'Victor Mono', 'JetBrains Mono', Consolas, Menlo, Monaco, monospace", fontSize: `${SQL_EDITOR_FONT_SIZE} !important` },
+                                        ".cm-gutters": { backgroundColor: uiTheme === 'light' ? 'var(--monokai-sidebar)' : '#272822', color: 'var(--monokai-comment)', border: "none", fontSize: `${SQL_EDITOR_FONT_SIZE} !important` },
+                                        ".cm-tooltip": { fontSize: `${SQL_EDITOR_FONT_SIZE} !important` },
                                         ".cm-activeLine": { backgroundColor: "rgba(73, 72, 62, .15)" },
                                         ".cm-activeLineGutter": { backgroundColor: "rgba(73, 72, 62, .15)" },
-                                        ".cm-content": { fontFamily: "'Victor Mono', 'JetBrains Mono', Consolas, Menlo, Monaco, monospace", fontSize: "12px", lineHeight: "1.6", fontVariantLigatures: "none" },
-                                        ".cm-line": { fontFamily: "'Victor Mono', 'JetBrains Mono', Consolas, Menlo, Monaco, monospace", fontSize: "12px", lineHeight: "1.6" },
-                                    }, { dark: true })
+                                        ".cm-content": { fontFamily: "'Victor Mono', 'JetBrains Mono', Consolas, Menlo, Monaco, monospace", fontSize: `${SQL_EDITOR_FONT_SIZE} !important`, lineHeight: "1.6", fontVariantLigatures: "none" },
+                                        ".cm-line": { fontFamily: "'Victor Mono', 'JetBrains Mono', Consolas, Menlo, Monaco, monospace", fontSize: `${SQL_EDITOR_FONT_SIZE} !important`, lineHeight: "1.6" },
+                                    }, { dark: uiTheme !== 'light' })
                                 ]}
                                 onChange={(value) => updateActiveTab({ code: value })}
-                                className="h-full text-xs"
+                                className="h-full"
                                 basicSetup={{
                                     lineNumbers: true,
                                     foldGutter: true,
@@ -1306,10 +1408,24 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
                                         <span>动态参数与智能补全</span>
                                     </div>
                                 </div>
-                            ) : activeTab.viewMode === 'explain' ? (
-                                <SqlEditorExplainView result={activeTab.result} />
-                            ) : activeTab.viewMode === 'profiling' ? (
-                                <SqlEditorProfilingView sql={activeTab.code} />
+                            ) : activeTab.viewMode === 'explain' || activeTab.viewMode === 'profiling' ? (
+                                <ExecutionPlanView
+                                    activeSql={activeTab.code}
+                                    planText={activeTab.result?.rows?.length ? String(activeTab.result.rows[0]?.explain_value ?? activeTab.result.rows[0]?.explore_value ?? Object.values(activeTab.result.rows[0])[0] ?? '') : ''}
+                                    jsonPlan={(() => {
+                                        if (!activeTab.result?.rows?.length) return undefined;
+                                        const raw = activeTab.result.rows[0]?.explain_value ?? activeTab.result.rows[0]?.explore_value ?? Object.values(activeTab.result.rows[0])[0];
+                                        if (typeof raw === 'string' && (raw.trim().startsWith('{') || raw.trim().startsWith('['))) {
+                                            try { return JSON.parse(raw); } catch { return undefined; }
+                                        }
+                                        return typeof raw === 'object' ? raw : undefined;
+                                    })()}
+                                    initialLens={activeTab.viewMode === 'profiling' ? 'cost' : 'explain'}
+                                    executionTime={activeTab.result?.executionTime}
+                                    onSendToAi={(context) => {
+                                        ai.handleAiOptimizeProfiling(context);
+                                    }}
+                                />
                             ) : activeTab.viewMode === 'table' ? (
                                 <SqlEditorResultTable
                                     result={activeTab.result}
@@ -1352,7 +1468,7 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
                                     data={activeTab.result.rows}
                                     initialConfig={editingChartId ? activeTab.charts.find(c => c.id === editingChartId) : undefined}
                                     onCancel={() => setShowChartBuilder(false)}
-                                    onSave={(config) => {
+                                    onSave={async (config) => {
                                         let updatedCharts;
                                         const currentCharts = activeTab.charts || [];
                                         if (editingChartId) {
@@ -1360,8 +1476,44 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
                                         } else {
                                             updatedCharts = [...currentCharts, config];
                                         }
-                                        updateActiveTab({ charts: updatedCharts });
+                                        updateActiveTab({ charts: updatedCharts, chartConfig: config });
                                         setShowChartBuilder(false);
+
+                                        // Persist new charts onto the Analysis Home board (real SQL lineage)
+                                        if (!editingChartId && activeTab.code?.trim()) {
+                                            try {
+                                                const cols = (activeTab.result?.columns || []).map((c: any) =>
+                                                    typeof c === 'string' ? c : c?.name,
+                                                ).filter(Boolean);
+                                                const widgetType =
+                                                    config.type === 'counter' ? 'value' : 'chart';
+                                                const saved = enrichSavedQueryLineage({
+                                                    id: `sq-chart-${Date.now()}`,
+                                                    name: config.title || '未命名图表',
+                                                    sql: activeTab.code,
+                                                    createdAt: Date.now(),
+                                                    pinned: true,
+                                                    widgetType,
+                                                    charts: [config],
+                                                    lastResultMeta: {
+                                                        rowCount: activeTab.result?.rows?.length,
+                                                        columns: cols,
+                                                        ranAt: Date.now(),
+                                                    },
+                                                });
+                                                await dbService.saveQuery(saved);
+                                                await addSavedQueryToHomeBoard(saved.id, {
+                                                    w: widgetType === 'value' ? 3 : 4,
+                                                    h: widgetType === 'value' ? 2 : 3,
+                                                });
+                                                useAppStore.getState().bumpDashboardRefresh();
+                                                toastService.success('图表已保存并加入分析首页看板');
+                                            } catch (e: any) {
+                                                toastService.warning(
+                                                    e?.message || '图表已创建，但加入首页看板失败',
+                                                );
+                                            }
+                                        }
                                     }}
                                 />
                             )}
@@ -1433,6 +1585,16 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({ onRun, initialCode, pendin
                                         <Layout size={11} className="text-monokai-comment" />
                                         <span className="text-monokai-fg font-medium tabular-nums">{activeTab.result.columns.length} 列</span>
                                     </div>
+                                    <button type="button" className="text-monokai-cyan hover:underline" disabled={!activeTab.result.executedSql || activeTab.loading || activeTab.result.isExplain} onClick={()=>{
+                                      try {
+                                        const result=activeTab.result!;
+                                        const sql=requireAnalysisQuery(result.executedSql!);
+                                        if(result.databaseName!==useAppStore.getState().currentDatabase)throw new Error('查询所属数据库已变化，请重新执行');
+                                        useAppStore.getState().setActiveDataset({id:`sql:${activeTab.id}`,name:`查询：${activeTab.title}`,catalog:result.databaseName!,schema:result.schemaName!,
+                                          kind:'query',version:1,sql,fields:result.columns.map((name,index)=>({name,type:result.columnTypes?.[index] || result.columnTypeMap?.[name] || 'VARCHAR'}))});
+                                        useAppStore.getState().setActiveTab(Tab.ONTOLOGY);
+                                      }catch(error){toastService.error(String((error as Error).message));}
+                                    }}>在图谱中查看</button>
                                 </div>
                             )}
 

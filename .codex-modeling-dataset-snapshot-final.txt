@@ -1,0 +1,455 @@
+### Page
+- Page URL: http://localhost:5173/DuckDB_Editor_Pro/
+- Page Title: DuckDB Manager Pro
+### Snapshot
+```yaml
+- generic [ref=e3]:
+  - banner "全局工作区顶栏" [ref=e16]:
+    - generic [ref=e17]:
+      - button "🪶 DuckDB Studio PRO" [ref=e18] [cursor=pointer]:
+        - generic [ref=e19]: 🪶
+        - generic [ref=e21]:
+          - generic [ref=e22]: DuckDB Studio
+          - generic [ref=e23]: PRO
+      - navigation "业务领域大类" [ref=e25]:
+        - button "工程核心" [ref=e26] [cursor=pointer]
+        - button "分析洞察" [ref=e31] [cursor=pointer]
+        - button "知识沉淀" [ref=e36] [cursor=pointer]
+        - button "AI 认知" [ref=e41] [cursor=pointer]
+      - tablist "AI 认知功能标签页" [ref=e48]:
+        - tab "本体图谱" [selected] [ref=e49] [cursor=pointer]
+        - tab "技能" [ref=e55] [cursor=pointer]
+        - tab "能力" [ref=e60] [cursor=pointer]
+        - tab "推演" [ref=e65] [cursor=pointer]
+    - generic [ref=e70]:
+      - button "项目 Ctrl+Shift+D" [ref=e71] [cursor=pointer]:
+        - generic [ref=e74]: 项目
+        - generic [ref=e75]: Ctrl+Shift+D
+      - button "新建表" [ref=e76] [cursor=pointer]
+      - button "funds_modeling_acceptance 内存临时模式" [ref=e81] [cursor=pointer]:
+        - generic [ref=e84]: funds_modeling_acceptance
+        - generic [ref=e86]: 内存临时模式
+      - button "AI 助手 Ctrl+I" [ref=e90] [cursor=pointer]:
+        - generic [ref=e93]: AI 助手
+        - generic [ref=e94]: Ctrl+I
+      - button "⌘K" [ref=e95] [cursor=pointer]
+      - button "帮助与快捷键" [ref=e99] [cursor=pointer]
+      - button "切换为浅色模式" [ref=e102] [cursor=pointer]
+      - button "AI 模型设置" [ref=e103] [cursor=pointer]
+  - main [ref=e106]:
+    - generic [ref=e112]:
+      - generic [ref=e113]:
+        - generic [ref=e114]:
+          - button "展开本体侧栏" [ref=e115] [cursor=pointer]
+          - generic [ref=e116]: 本体知识空间 (Ontology Studio)
+        - tablist "本体视图切换" [ref=e119]:
+          - tab "知识图谱" [selected] [ref=e120] [cursor=pointer]
+          - tab "数据视图" [ref=e123] [cursor=pointer]
+          - tab "实体画布" [ref=e125] [cursor=pointer]
+        - generic [ref=e127]:
+          - button "数据切片" [ref=e128] [cursor=pointer]
+          - button "本体建模" [active] [ref=e130] [cursor=pointer]
+          - button "组合推演" [ref=e132] [cursor=pointer]
+          - button "推演定义" [ref=e134] [cursor=pointer]
+          - button "聚合洞察" [ref=e136] [cursor=pointer]
+      - generic [ref=e138]:
+        - generic [ref=e139]:
+          - generic [ref=e140]:
+            - text: "实体:"
+            - strong [ref=e141]: "19"
+          - generic [ref=e142]:
+            - text: "关系:"
+            - strong [ref=e143]: "9"
+          - generic [ref=e144]:
+            - text: "概念模式:"
+            - strong [ref=e145]: "2"
+          - generic [ref=e146]:
+            - text: "关系类型:"
+            - strong [ref=e147]: "1"
+          - generic [ref=e148]:
+            - text: "行动规则:"
+            - strong [ref=e149]: "0"
+        - generic [ref=e150]:
+          - generic [ref=e151]:
+            - generic [ref=e152]: 跳数
+            - button "1跳" [ref=e153] [cursor=pointer]
+            - button "2跳" [ref=e154] [cursor=pointer]
+            - button "3跳" [ref=e155] [cursor=pointer]
+            - button "全图" [ref=e156] [cursor=pointer]
+          - button "刷新图谱数据" [ref=e157] [cursor=pointer]
+          - generic [ref=e158]:
+            - button "补充数据" [ref=e159] [cursor=pointer]
+            - button "清除数据" [ref=e161] [cursor=pointer]
+      - generic [ref=e167]:
+        - img "知识图谱可视化（SVG D3 (矢量交互)）：78 个节点，86 条关系连线。" [ref=e168]:
+          - generic [ref=e170]:
+            - generic [ref=e171]:
+              - generic [ref=e173]:
+                - 'generic "已完成USD交易 → REL_已完成USD交易_TO_USERS → users 权重: 0.80 描述: 业务关联关系" [ref=e174] [cursor=pointer]'
+                - 'generic "已完成USD交易:fo_20250112_61590237 → membership → 已完成USD交易 权重: 0.15" [ref=e175] [cursor=pointer]'
+                - 'generic "已完成USD交易:fo_20250214_61590238 → membership → 已完成USD交易 权重: 0.15" [ref=e176] [cursor=pointer]'
+                - 'generic "已完成USD交易:fo_20250308_90317462 → membership → 已完成USD交易 权重: 0.15" [ref=e177] [cursor=pointer]'
+                - 'generic "已完成USD交易:fo_20250415_90317463 → membership → 已完成USD交易 权重: 0.15" [ref=e178] [cursor=pointer]'
+                - 'generic "已完成USD交易:fo_20250605_69248130 → membership → 已完成USD交易 权重: 0.15" [ref=e179] [cursor=pointer]'
+                - 'generic "已完成USD交易:fo_20250618_61590239 → membership → 已完成USD交易 权重: 0.15" [ref=e180] [cursor=pointer]'
+                - 'generic "已完成USD交易:fo_20250915_69248131 → membership → 已完成USD交易 权重: 0.15" [ref=e181] [cursor=pointer]'
+                - 'generic "已完成USD交易:fo_20250920_50284719 → membership → 已完成USD交易 权重: 0.15" [ref=e182] [cursor=pointer]'
+                - 'generic "已完成USD交易:fo_20251025_50284720 → membership → 已完成USD交易 权重: 0.15" [ref=e183] [cursor=pointer]'
+                - 'generic "users:784231905 → membership → users 权重: 0.15" [ref=e184] [cursor=pointer]'
+                - 'generic "users:615902374 → membership → users 权重: 0.15" [ref=e185] [cursor=pointer]'
+                - 'generic "users:903174628 → membership → users 权重: 0.15" [ref=e186] [cursor=pointer]'
+                - 'generic "users:528406193 → membership → users 权重: 0.15" [ref=e187] [cursor=pointer]'
+                - 'generic "users:846219537 → membership → users 权重: 0.15" [ref=e188] [cursor=pointer]'
+                - 'generic "users:692481305 → membership → users 权重: 0.15" [ref=e189] [cursor=pointer]'
+                - 'generic "users:438750921 → membership → users 权重: 0.15" [ref=e190] [cursor=pointer]'
+                - 'generic "users:319582046 → membership → users 权重: 0.15" [ref=e191] [cursor=pointer]'
+                - 'generic "users:502847193 → membership → users 权重: 0.15" [ref=e192] [cursor=pointer]'
+                - 'generic "users:219485730 → membership → users 权重: 0.15" [ref=e193] [cursor=pointer]'
+                - 'generic "已完成USD交易:fo_20250112_61590237 → membership → direction: deposit 权重: 0.50" [ref=e194] [cursor=pointer]'
+                - 'generic "已完成USD交易:fo_20250112_61590237 → membership → currency: USD 权重: 0.50" [ref=e195] [cursor=pointer]'
+                - 'generic "已完成USD交易:fo_20250112_61590237 → membership → amount: 50001.00 权重: 0.50" [ref=e196] [cursor=pointer]'
+                - 'generic "已完成USD交易:fo_20250214_61590238 → membership → direction: withdrawal 权重: 0.50" [ref=e197] [cursor=pointer]'
+                - 'generic "已完成USD交易:fo_20250214_61590238 → membership → currency: USD 权重: 0.50" [ref=e198] [cursor=pointer]'
+                - 'generic "已完成USD交易:fo_20250214_61590238 → membership → amount: 12000.00 权重: 0.50" [ref=e199] [cursor=pointer]'
+                - 'generic "已完成USD交易:fo_20250308_90317462 → membership → direction: deposit 权重: 0.50" [ref=e200] [cursor=pointer]'
+                - 'generic "已完成USD交易:fo_20250308_90317462 → membership → currency: USD 权重: 0.50" [ref=e201] [cursor=pointer]'
+                - 'generic "已完成USD交易:fo_20250308_90317462 → membership → amount: 1000.00 权重: 0.50" [ref=e202] [cursor=pointer]'
+                - 'generic "已完成USD交易:fo_20250415_90317463 → membership → direction: withdrawal 权重: 0.50" [ref=e203] [cursor=pointer]'
+                - 'generic "已完成USD交易:fo_20250415_90317463 → membership → currency: USD 权重: 0.50" [ref=e204] [cursor=pointer]'
+                - 'generic "已完成USD交易:fo_20250415_90317463 → membership → amount: 450.00 权重: 0.50" [ref=e205] [cursor=pointer]'
+                - 'generic "已完成USD交易:fo_20250605_69248130 → membership → direction: deposit 权重: 0.50" [ref=e206] [cursor=pointer]'
+                - 'generic "已完成USD交易:fo_20250605_69248130 → membership → currency: USD 权重: 0.50" [ref=e207] [cursor=pointer]'
+                - 'generic "已完成USD交易:fo_20250605_69248130 → membership → amount: 25000.00 权重: 0.50" [ref=e208] [cursor=pointer]'
+                - 'generic "已完成USD交易:fo_20250618_61590239 → membership → direction: withdrawal 权重: 0.50" [ref=e209] [cursor=pointer]'
+                - 'generic "已完成USD交易:fo_20250618_61590239 → membership → currency: USD 权重: 0.50" [ref=e210] [cursor=pointer]'
+                - 'generic "已完成USD交易:fo_20250618_61590239 → membership → amount: 5000.00 权重: 0.50" [ref=e211] [cursor=pointer]'
+                - 'generic "已完成USD交易:fo_20250915_69248131 → membership → direction: withdrawal 权重: 0.50" [ref=e212] [cursor=pointer]'
+                - 'generic "已完成USD交易:fo_20250915_69248131 → membership → currency: USD 权重: 0.50" [ref=e213] [cursor=pointer]'
+                - 'generic "已完成USD交易:fo_20250915_69248131 → membership → amount: 10000.00 权重: 0.50" [ref=e214] [cursor=pointer]'
+                - 'generic "已完成USD交易:fo_20250920_50284719 → membership → direction: withdrawal 权重: 0.50" [ref=e215] [cursor=pointer]'
+                - 'generic "已完成USD交易:fo_20250920_50284719 → membership → currency: USD 权重: 0.50" [ref=e216] [cursor=pointer]'
+                - 'generic "已完成USD交易:fo_20250920_50284719 → membership → amount: 800.00 权重: 0.50" [ref=e217] [cursor=pointer]'
+                - 'generic "已完成USD交易:fo_20251025_50284720 → membership → direction: withdrawal 权重: 0.50" [ref=e218] [cursor=pointer]'
+                - 'generic "已完成USD交易:fo_20251025_50284720 → membership → currency: USD 权重: 0.50" [ref=e219] [cursor=pointer]'
+                - 'generic "已完成USD交易:fo_20251025_50284720 → membership → amount: 20.00 权重: 0.50" [ref=e220] [cursor=pointer]'
+                - 'generic "users:784231905 → membership → user name: Alice Chen 权重: 0.50" [ref=e221] [cursor=pointer]'
+                - 'generic "users:784231905 → membership → country code: DE 权重: 0.50" [ref=e222] [cursor=pointer]'
+                - 'generic "users:784231905 → membership → base fiat currency: EUR 权重: 0.50" [ref=e223] [cursor=pointer]'
+                - 'generic "users:615902374 → membership → user name: Bob Miller 权重: 0.50" [ref=e224] [cursor=pointer]'
+                - 'generic "users:615902374 → membership → country code: US 权重: 0.50" [ref=e225] [cursor=pointer]'
+                - 'generic "users:615902374 → membership → base fiat currency: USD 权重: 0.50" [ref=e226] [cursor=pointer]'
+                - 'generic "users:903174628 → membership → user name: Charlie Tanaka 权重: 0.50" [ref=e227] [cursor=pointer]'
+                - 'generic "users:903174628 → membership → country code: JP 权重: 0.50" [ref=e228] [cursor=pointer]'
+                - 'generic "users:903174628 → membership → base fiat currency: USD 权重: 0.50" [ref=e229] [cursor=pointer]'
+                - 'generic "users:528406193 → membership → user name: David Smith 权重: 0.50" [ref=e230] [cursor=pointer]'
+                - 'generic "users:528406193 → membership → country code: GB 权重: 0.50" [ref=e231] [cursor=pointer]'
+                - 'generic "users:528406193 → membership → base fiat currency: GBP 权重: 0.50" [ref=e232] [cursor=pointer]'
+                - 'generic "users:846219537 → membership → user name: Elena Rostova 权重: 0.50" [ref=e233] [cursor=pointer]'
+                - 'generic "users:846219537 → membership → country code: FR 权重: 0.50" [ref=e234] [cursor=pointer]'
+                - 'generic "users:846219537 → membership → base fiat currency: EUR 权重: 0.50" [ref=e235] [cursor=pointer]'
+                - 'generic "users:692481305 → membership → user name: Fatimah Al-Sayed 权重: 0.50" [ref=e236] [cursor=pointer]'
+                - 'generic "users:692481305 → membership → country code: AE 权重: 0.50" [ref=e237] [cursor=pointer]'
+                - 'generic "users:692481305 → membership → base fiat currency: USD 权重: 0.50" [ref=e238] [cursor=pointer]'
+                - 'generic "users:438750921 → membership → user name: Gabriel Garcia 权重: 0.50" [ref=e239] [cursor=pointer]'
+                - 'generic "users:438750921 → membership → country code: BR 权重: 0.50" [ref=e240] [cursor=pointer]'
+                - 'generic "users:438750921 → membership → base fiat currency: BRL 权重: 0.50" [ref=e241] [cursor=pointer]'
+                - 'generic "users:319582046 → membership → user name: Hakan Yilmaz 权重: 0.50" [ref=e242] [cursor=pointer]'
+                - 'generic "users:319582046 → membership → country code: TR 权重: 0.50" [ref=e243] [cursor=pointer]'
+                - 'generic "users:319582046 → membership → base fiat currency: TRY 权重: 0.50" [ref=e244] [cursor=pointer]'
+                - 'generic "users:502847193 → membership → user name: Irene Jung 权重: 0.50" [ref=e245] [cursor=pointer]'
+                - 'generic "users:502847193 → membership → country code: KR 权重: 0.50" [ref=e246] [cursor=pointer]'
+                - 'generic "users:502847193 → membership → base fiat currency: USD 权重: 0.50" [ref=e247] [cursor=pointer]'
+                - 'generic "users:219485730 → membership → user name: Jonas Weber 权重: 0.50" [ref=e248] [cursor=pointer]'
+                - 'generic "users:219485730 → membership → country code: DE 权重: 0.50" [ref=e249] [cursor=pointer]'
+                - 'generic "users:219485730 → membership → base fiat currency: EUR 权重: 0.50" [ref=e250] [cursor=pointer]'
+                - 'generic "已完成USD交易:fo_20250618_61590239 → REL_已完成USD交易_TO_USERS → users:615902374 权重: 1.00 描述: 业务关联关系" [ref=e251] [cursor=pointer]'
+                - 'generic "已完成USD交易:fo_20250415_90317463 → REL_已完成USD交易_TO_USERS → users:903174628 权重: 1.00 描述: 业务关联关系" [ref=e252] [cursor=pointer]'
+                - 'generic "已完成USD交易:fo_20250915_69248131 → REL_已完成USD交易_TO_USERS → users:692481305 权重: 1.00 描述: 业务关联关系" [ref=e253] [cursor=pointer]'
+                - 'generic "已完成USD交易:fo_20251025_50284720 → REL_已完成USD交易_TO_USERS → users:502847193 权重: 1.00 描述: 业务关联关系" [ref=e254] [cursor=pointer]'
+                - 'generic "已完成USD交易:fo_20250214_61590238 → REL_已完成USD交易_TO_USERS → users:615902374 权重: 1.00 描述: 业务关联关系" [ref=e255] [cursor=pointer]'
+                - 'generic "已完成USD交易:fo_20250308_90317462 → REL_已完成USD交易_TO_USERS → users:903174628 权重: 1.00 描述: 业务关联关系" [ref=e256] [cursor=pointer]'
+                - 'generic "已完成USD交易:fo_20250605_69248130 → REL_已完成USD交易_TO_USERS → users:692481305 权重: 1.00 描述: 业务关联关系" [ref=e257] [cursor=pointer]'
+                - 'generic "已完成USD交易:fo_20250920_50284719 → REL_已完成USD交易_TO_USERS → users:502847193 权重: 1.00 描述: 业务关联关系" [ref=e258] [cursor=pointer]'
+                - 'generic "已完成USD交易:fo_20250112_61590237 → REL_已完成USD交易_TO_USERS → users:615902374 权重: 1.00 描述: 业务关联关系" [ref=e259] [cursor=pointer]'
+              - generic [ref=e261]:
+                - generic [ref=e262] [cursor=pointer]
+                - generic [ref=e263] [cursor=pointer]
+                - generic [ref=e264] [cursor=pointer]
+                - generic [ref=e265] [cursor=pointer]
+                - generic [ref=e266] [cursor=pointer]
+                - generic [ref=e267] [cursor=pointer]
+                - generic [ref=e268] [cursor=pointer]
+                - generic [ref=e269] [cursor=pointer]
+                - generic [ref=e270] [cursor=pointer]
+                - generic [ref=e271] [cursor=pointer]
+                - generic [ref=e272] [cursor=pointer]
+                - generic [ref=e273] [cursor=pointer]
+                - generic [ref=e274] [cursor=pointer]
+                - generic [ref=e275] [cursor=pointer]
+                - generic [ref=e276] [cursor=pointer]
+                - generic [ref=e277] [cursor=pointer]
+                - generic [ref=e278] [cursor=pointer]
+                - generic [ref=e279] [cursor=pointer]
+                - generic [ref=e280] [cursor=pointer]
+                - generic [ref=e281] [cursor=pointer]
+                - generic [ref=e282] [cursor=pointer]
+                - generic [ref=e283] [cursor=pointer]
+                - generic [ref=e284] [cursor=pointer]
+                - generic [ref=e285] [cursor=pointer]
+                - generic [ref=e286] [cursor=pointer]
+                - generic [ref=e287] [cursor=pointer]
+                - generic [ref=e288] [cursor=pointer]
+                - generic [ref=e289] [cursor=pointer]
+                - generic [ref=e290] [cursor=pointer]
+                - generic [ref=e291] [cursor=pointer]
+                - generic [ref=e292] [cursor=pointer]
+                - generic [ref=e293] [cursor=pointer]
+                - generic [ref=e294] [cursor=pointer]
+                - generic [ref=e295] [cursor=pointer]
+                - generic [ref=e296] [cursor=pointer]
+                - generic [ref=e297] [cursor=pointer]
+                - generic [ref=e298] [cursor=pointer]
+                - generic [ref=e299] [cursor=pointer]
+                - generic [ref=e300] [cursor=pointer]
+                - generic [ref=e301] [cursor=pointer]
+                - generic [ref=e302] [cursor=pointer]
+                - generic [ref=e303] [cursor=pointer]
+                - generic [ref=e304] [cursor=pointer]
+                - generic [ref=e305] [cursor=pointer]
+                - generic [ref=e306] [cursor=pointer]
+                - generic [ref=e307] [cursor=pointer]
+                - generic [ref=e308] [cursor=pointer]
+                - generic [ref=e309] [cursor=pointer]
+                - generic [ref=e310] [cursor=pointer]
+                - generic [ref=e311] [cursor=pointer]
+                - generic [ref=e312] [cursor=pointer]
+                - generic [ref=e313] [cursor=pointer]
+                - generic [ref=e314] [cursor=pointer]
+                - generic [ref=e315] [cursor=pointer]
+                - generic [ref=e316] [cursor=pointer]
+                - generic [ref=e317] [cursor=pointer]
+                - generic [ref=e318] [cursor=pointer]
+                - generic [ref=e319] [cursor=pointer]
+                - generic [ref=e320] [cursor=pointer]
+                - generic [ref=e321] [cursor=pointer]
+                - generic [ref=e322] [cursor=pointer]
+                - generic [ref=e323] [cursor=pointer]
+                - generic [ref=e324] [cursor=pointer]
+                - generic [ref=e325] [cursor=pointer]
+                - generic [ref=e326] [cursor=pointer]
+                - generic [ref=e327] [cursor=pointer]
+                - generic [ref=e328] [cursor=pointer]
+                - generic [ref=e329] [cursor=pointer]
+                - generic [ref=e330] [cursor=pointer]
+                - generic [ref=e331] [cursor=pointer]
+                - generic [ref=e332] [cursor=pointer]
+                - generic [ref=e333] [cursor=pointer]
+                - generic [ref=e334] [cursor=pointer]
+                - generic [ref=e335] [cursor=pointer]
+                - generic [ref=e336] [cursor=pointer]
+                - generic [ref=e337] [cursor=pointer]
+                - generic [ref=e338] [cursor=pointer]
+                - generic [ref=e339] [cursor=pointer]
+                - generic [ref=e340] [cursor=pointer]
+                - generic [ref=e341] [cursor=pointer]
+                - generic [ref=e342] [cursor=pointer]
+                - generic [ref=e343] [cursor=pointer]
+                - generic [ref=e344] [cursor=pointer]
+                - generic [ref=e345] [cursor=pointer]
+                - generic [ref=e346] [cursor=pointer]
+                - generic [ref=e347] [cursor=pointer]
+            - generic [ref=e348]:
+              - generic [ref=e349] [cursor=pointer]
+              - generic [ref=e351] [cursor=pointer]
+              - 'generic "属性 (10): fiat_order_id: \"fo_20250112_61590237\" uid: 615902374 direction: \"deposit\" currency: \"USD\" amount: \"50001.00\" ..." [ref=e353] [cursor=pointer]': "10"
+              - 'generic "属性 (10): fiat_order_id: \"fo_20250214_61590238\" uid: 615902374 direction: \"withdrawal\" currency: \"USD\" amount: \"12000.00\" ..." [ref=e355] [cursor=pointer]': "10"
+              - 'generic "属性 (10): fiat_order_id: \"fo_20250308_90317462\" uid: 903174628 direction: \"deposit\" currency: \"USD\" amount: \"1000.00\" ..." [ref=e357] [cursor=pointer]': "10"
+              - 'generic "属性 (10): fiat_order_id: \"fo_20250415_90317463\" uid: 903174628 direction: \"withdrawal\" currency: \"USD\" amount: \"450.00\" ..." [ref=e359] [cursor=pointer]': "10"
+              - 'generic "属性 (10): fiat_order_id: \"fo_20250605_69248130\" uid: 692481305 direction: \"deposit\" currency: \"USD\" amount: \"25000.00\" ..." [ref=e361] [cursor=pointer]': "10"
+              - 'generic "属性 (10): fiat_order_id: \"fo_20250618_61590239\" uid: 615902374 direction: \"withdrawal\" currency: \"USD\" amount: \"5000.00\" ..." [ref=e363] [cursor=pointer]': "10"
+              - 'generic "属性 (10): fiat_order_id: \"fo_20250915_69248131\" uid: 692481305 direction: \"withdrawal\" currency: \"USD\" amount: \"10000.00\" ..." [ref=e365] [cursor=pointer]': "10"
+              - 'generic "属性 (10): fiat_order_id: \"fo_20250920_50284719\" uid: 502847193 direction: \"withdrawal\" currency: \"USD\" amount: \"800.00\" ..." [ref=e367] [cursor=pointer]': "10"
+              - 'generic "属性 (10): fiat_order_id: \"fo_20251025_50284720\" uid: 502847193 direction: \"withdrawal\" currency: \"USD\" amount: \"20.00\" ..." [ref=e369] [cursor=pointer]': "10"
+              - 'generic "属性 (7): uid: 784231905 user_name: \"Alice Chen\" country_code: \"DE\" base_fiat_currency: \"EUR\" kyc_level: 2 ..." [ref=e371] [cursor=pointer]': "7"
+              - 'generic "属性 (7): uid: 615902374 user_name: \"Bob Miller\" country_code: \"US\" base_fiat_currency: \"USD\" kyc_level: 3 ..." [ref=e373] [cursor=pointer]': "7"
+              - 'generic "属性 (7): uid: 903174628 user_name: \"Charlie Tanaka\" country_code: \"JP\" base_fiat_currency: \"USD\" kyc_level: 1 ..." [ref=e375] [cursor=pointer]': "7"
+              - 'generic "属性 (7): uid: 528406193 user_name: \"David Smith\" country_code: \"GB\" base_fiat_currency: \"GBP\" kyc_level: 2 ..." [ref=e377] [cursor=pointer]': "7"
+              - 'generic "属性 (7): uid: 846219537 user_name: \"Elena Rostova\" country_code: \"FR\" base_fiat_currency: \"EUR\" kyc_level: 2 ..." [ref=e379] [cursor=pointer]': "7"
+              - 'generic "属性 (7): uid: 692481305 user_name: \"Fatimah Al-Sayed\" country_code: \"AE\" base_fiat_currency: \"USD\" kyc_level: 3 ..." [ref=e381] [cursor=pointer]': "7"
+              - 'generic "属性 (7): uid: 438750921 user_name: \"Gabriel Garcia\" country_code: \"BR\" base_fiat_currency: \"BRL\" kyc_level: 2 ..." [ref=e383] [cursor=pointer]': "7"
+              - 'generic "属性 (7): uid: 319582046 user_name: \"Hakan Yilmaz\" country_code: \"TR\" base_fiat_currency: \"TRY\" kyc_level: 1 ..." [ref=e385] [cursor=pointer]': "7"
+              - 'generic "属性 (7): uid: 502847193 user_name: \"Irene Jung\" country_code: \"KR\" base_fiat_currency: \"USD\" kyc_level: 2 ..." [ref=e387] [cursor=pointer]': "7"
+              - 'generic "属性 (7): uid: 219485730 user_name: \"Jonas Weber\" country_code: \"DE\" base_fiat_currency: \"EUR\" kyc_level: 0 ..." [ref=e389] [cursor=pointer]': "7"
+              - generic [ref=e391] [cursor=pointer]
+              - generic [ref=e393] [cursor=pointer]
+              - generic [ref=e395] [cursor=pointer]
+              - generic [ref=e397] [cursor=pointer]
+              - generic [ref=e399] [cursor=pointer]
+              - generic [ref=e401] [cursor=pointer]
+              - generic [ref=e403] [cursor=pointer]
+              - generic [ref=e405] [cursor=pointer]
+              - generic [ref=e407] [cursor=pointer]
+              - generic [ref=e409] [cursor=pointer]
+              - generic [ref=e411] [cursor=pointer]
+              - generic [ref=e413] [cursor=pointer]
+              - generic [ref=e415] [cursor=pointer]
+              - generic [ref=e417] [cursor=pointer]
+              - generic [ref=e419] [cursor=pointer]
+              - generic [ref=e421] [cursor=pointer]
+              - generic [ref=e423] [cursor=pointer]
+              - generic [ref=e425] [cursor=pointer]
+              - generic [ref=e427] [cursor=pointer]
+              - generic [ref=e429] [cursor=pointer]
+              - generic [ref=e431] [cursor=pointer]
+              - generic [ref=e433] [cursor=pointer]
+              - generic [ref=e435] [cursor=pointer]
+              - generic [ref=e437] [cursor=pointer]
+              - generic [ref=e439] [cursor=pointer]
+              - generic [ref=e441] [cursor=pointer]
+              - generic [ref=e443] [cursor=pointer]
+              - generic [ref=e445] [cursor=pointer]
+              - generic [ref=e447] [cursor=pointer]
+              - generic [ref=e449] [cursor=pointer]
+              - generic [ref=e451] [cursor=pointer]
+              - generic [ref=e453] [cursor=pointer]
+              - generic [ref=e455] [cursor=pointer]
+              - generic [ref=e457] [cursor=pointer]
+              - generic [ref=e459] [cursor=pointer]
+              - generic [ref=e461] [cursor=pointer]
+              - generic [ref=e463] [cursor=pointer]
+              - generic [ref=e465] [cursor=pointer]
+              - generic [ref=e467] [cursor=pointer]
+              - generic [ref=e469] [cursor=pointer]
+              - generic [ref=e471] [cursor=pointer]
+              - generic [ref=e473] [cursor=pointer]
+              - generic [ref=e475] [cursor=pointer]
+              - generic [ref=e477] [cursor=pointer]
+              - generic [ref=e479] [cursor=pointer]
+              - generic [ref=e481] [cursor=pointer]
+              - generic [ref=e483] [cursor=pointer]
+              - generic [ref=e485] [cursor=pointer]
+              - generic [ref=e487] [cursor=pointer]
+              - generic [ref=e489] [cursor=pointer]
+              - generic [ref=e491] [cursor=pointer]
+              - generic [ref=e493] [cursor=pointer]
+              - generic [ref=e495] [cursor=pointer]
+              - generic [ref=e497] [cursor=pointer]
+              - generic [ref=e499] [cursor=pointer]
+              - generic [ref=e501] [cursor=pointer]
+              - generic [ref=e503] [cursor=pointer]
+            - generic [ref=e505]:
+              - 'generic "类型: 已完成USD交易 描述: 数据集：已完成USD交易" [ref=e506] [cursor=pointer]': 已完成USD交易
+              - 'generic "类型: users 描述: 数据集：funds_modeling_acceptance.main.users" [ref=e507] [cursor=pointer]': users
+              - generic "已完成USD交易:fo_20250112_61590237" [ref=e508] [cursor=pointer]: 已完成USD交易:fo_202501…
+              - generic "已完成USD交易:fo_20250214_61590238" [ref=e509] [cursor=pointer]: 已完成USD交易:fo_202502…
+              - generic "已完成USD交易:fo_20250308_90317462" [ref=e510] [cursor=pointer]: 已完成USD交易:fo_202503…
+              - generic "已完成USD交易:fo_20250415_90317463" [ref=e511] [cursor=pointer]: 已完成USD交易:fo_202504…
+              - generic "已完成USD交易:fo_20250605_69248130" [ref=e512] [cursor=pointer]: 已完成USD交易:fo_202506…
+              - generic "已完成USD交易:fo_20250618_61590239" [ref=e513] [cursor=pointer]: 已完成USD交易:fo_202506…
+              - generic "已完成USD交易:fo_20250915_69248131" [ref=e514] [cursor=pointer]: 已完成USD交易:fo_202509…
+              - generic "已完成USD交易:fo_20250920_50284719" [ref=e515] [cursor=pointer]: 已完成USD交易:fo_202509…
+              - generic "已完成USD交易:fo_20251025_50284720" [ref=e516] [cursor=pointer]: 已完成USD交易:fo_202510…
+              - generic "users:784231905" [ref=e517] [cursor=pointer]
+              - generic "users:615902374" [ref=e518] [cursor=pointer]
+              - generic "users:903174628" [ref=e519] [cursor=pointer]
+              - generic "users:528406193" [ref=e520] [cursor=pointer]
+              - generic "users:846219537" [ref=e521] [cursor=pointer]
+              - generic "users:692481305" [ref=e522] [cursor=pointer]
+              - generic "users:438750921" [ref=e523] [cursor=pointer]
+              - generic "users:319582046" [ref=e524] [cursor=pointer]
+              - generic "users:502847193" [ref=e525] [cursor=pointer]
+              - generic "users:219485730" [ref=e526] [cursor=pointer]
+              - 'generic "direction: deposit" [ref=e527] [cursor=pointer]'
+              - 'generic "currency: USD" [ref=e528] [cursor=pointer]'
+              - 'generic "amount: 50001.00" [ref=e529] [cursor=pointer]'
+              - 'generic "direction: withdrawal" [ref=e530] [cursor=pointer]'
+              - 'generic "currency: USD" [ref=e531] [cursor=pointer]'
+              - 'generic "amount: 12000.00" [ref=e532] [cursor=pointer]'
+              - 'generic "direction: deposit" [ref=e533] [cursor=pointer]'
+              - 'generic "currency: USD" [ref=e534] [cursor=pointer]'
+              - 'generic "amount: 1000.00" [ref=e535] [cursor=pointer]'
+              - 'generic "direction: withdrawal" [ref=e536] [cursor=pointer]'
+              - 'generic "currency: USD" [ref=e537] [cursor=pointer]'
+              - 'generic "amount: 450.00" [ref=e538] [cursor=pointer]'
+              - 'generic "direction: deposit" [ref=e539] [cursor=pointer]'
+              - 'generic "currency: USD" [ref=e540] [cursor=pointer]'
+              - 'generic "amount: 25000.00" [ref=e541] [cursor=pointer]'
+              - 'generic "direction: withdrawal" [ref=e542] [cursor=pointer]'
+              - 'generic "currency: USD" [ref=e543] [cursor=pointer]'
+              - 'generic "amount: 5000.00" [ref=e544] [cursor=pointer]'
+              - 'generic "direction: withdrawal" [ref=e545] [cursor=pointer]'
+              - 'generic "currency: USD" [ref=e546] [cursor=pointer]'
+              - 'generic "amount: 10000.00" [ref=e547] [cursor=pointer]'
+              - 'generic "direction: withdrawal" [ref=e548] [cursor=pointer]'
+              - 'generic "currency: USD" [ref=e549] [cursor=pointer]'
+              - 'generic "amount: 800.00" [ref=e550] [cursor=pointer]'
+              - 'generic "direction: withdrawal" [ref=e551] [cursor=pointer]'
+              - 'generic "currency: USD" [ref=e552] [cursor=pointer]'
+              - 'generic "amount: 20.00" [ref=e553] [cursor=pointer]'
+              - 'generic "user name: Alice Chen" [ref=e554] [cursor=pointer]'
+              - 'generic "country code: DE" [ref=e555] [cursor=pointer]'
+              - 'generic "base fiat currency: EUR" [ref=e556] [cursor=pointer]'
+              - 'generic "user name: Bob Miller" [ref=e557] [cursor=pointer]'
+              - 'generic "country code: US" [ref=e558] [cursor=pointer]'
+              - 'generic "base fiat currency: USD" [ref=e559] [cursor=pointer]'
+              - 'generic "user name: Charlie Tanaka" [ref=e560] [cursor=pointer]'
+              - 'generic "country code: JP" [ref=e561] [cursor=pointer]'
+              - 'generic "base fiat currency: USD" [ref=e562] [cursor=pointer]'
+              - 'generic "user name: David Smith" [ref=e563] [cursor=pointer]'
+              - 'generic "country code: GB" [ref=e564] [cursor=pointer]'
+              - 'generic "base fiat currency: GBP" [ref=e565] [cursor=pointer]'
+              - 'generic "user name: Elena Rostova" [ref=e566] [cursor=pointer]'
+              - 'generic "country code: FR" [ref=e567] [cursor=pointer]'
+              - 'generic "base fiat currency: EUR" [ref=e568] [cursor=pointer]'
+              - 'generic "user name: Fatimah Al-Sayed" [ref=e569] [cursor=pointer]'
+              - 'generic "country code: AE" [ref=e570] [cursor=pointer]'
+              - 'generic "base fiat currency: USD" [ref=e571] [cursor=pointer]'
+              - 'generic "user name: Gabriel Garcia" [ref=e572] [cursor=pointer]'
+              - 'generic "country code: BR" [ref=e573] [cursor=pointer]'
+              - 'generic "base fiat currency: BRL" [ref=e574] [cursor=pointer]'
+              - 'generic "user name: Hakan Yilmaz" [ref=e575] [cursor=pointer]'
+              - 'generic "country code: TR" [ref=e576] [cursor=pointer]'
+              - 'generic "base fiat currency: TRY" [ref=e577] [cursor=pointer]'
+              - 'generic "user name: Irene Jung" [ref=e578] [cursor=pointer]'
+              - 'generic "country code: KR" [ref=e579] [cursor=pointer]'
+              - 'generic "base fiat currency: USD" [ref=e580] [cursor=pointer]'
+              - 'generic "user name: Jonas Weber" [ref=e581] [cursor=pointer]'
+              - 'generic "country code: DE" [ref=e582] [cursor=pointer]'
+              - 'generic "base fiat currency: EUR" [ref=e583] [cursor=pointer]'
+        - group "核心节点与关系筛选" [ref=e584] [cursor=pointer]:
+          - generic [ref=e585]: 核心节点与关系筛选 (全图 · 悬浮展开)
+        - button "控制面板" [ref=e587] [cursor=pointer]
+        - button "渲染模式切换" [ref=e589] [cursor=pointer]:
+          - generic [ref=e594]: SVG D3 (矢量交互)
+          - generic [ref=e595]: ≤500节点推荐
+        - button "信息面板" [ref=e596] [cursor=pointer]
+        - button "图例" [ref=e597] [cursor=pointer]
+        - generic [ref=e598]:
+          - button "▶" [ref=e599] [cursor=pointer]
+          - generic [ref=e600]: "⏱ 拓扑演进: 100%"
+          - slider [ref=e601] [cursor=pointer]: "100"
+          - generic [ref=e602]: (78/78 节点)
+        - generic [ref=e603]:
+          - generic [ref=e604]: 🔎
+          - textbox "搜索节点... (Alt+S)" [ref=e605]
+  - contentinfo [ref=e606]:
+    - generic [ref=e607]:
+      - generic [ref=e608]: DuckDB 1.33.1
+      - generic [ref=e611]: "|"
+      - generic [ref=e612]: funds_modeling_acceptance [MEMORY]
+      - generic [ref=e614]: "|"
+      - generic [ref=e615]: 内存库
+      - generic [ref=e617]: "|"
+      - generic [ref=e618]: 14 张表
+      - generic [ref=e620]: "|"
+      - generic [ref=e621]: 14 个活动表
+      - generic [ref=e623]: "|"
+      - generic [ref=e624]: "内存: 13.68 MB / 3.1 GiB"
+    - generic [ref=e626]:
+      - generic [ref=e627]: 引擎就绪
+      - generic [ref=e631]: "|"
+      - generic [ref=e632]: 22:47
+      - button "刷新运行时状态" [ref=e633] [cursor=pointer]
+```
+### Events
+- New console entries: .playwright-cli\console-2026-10-13T05-45-34-696Z.log#L6172-L7143

@@ -1,0 +1,327 @@
+- banner "全局工作区顶栏":
+  - button "🪶 DuckDB Studio PRO":
+    - generic: 🪶
+    - generic: DuckDB Studio
+    - generic: PRO
+  - navigation "业务领域大类":
+    - button "工程核心":
+      - generic: 工程核心
+    - button "分析洞察":
+      - generic: 分析洞察
+    - button "知识沉淀":
+      - generic: 知识沉淀
+    - button "AI 认知":
+      - generic: AI 认知
+  - tablist "AI 认知功能标签页":
+    - tab "本体图谱":
+      - generic: 本体图谱
+    - tab "技能" [active] [selected]:
+      - generic: 技能
+    - tab "能力":
+      - generic: 能力
+    - tab "推演":
+      - generic: 推演
+  - button "项目":
+    - generic: 项目
+  - button "新建表":
+    - generic: 新建表
+  - button "临时分析空间":
+    - generic: 临时分析空间
+  - button "AI 助手":
+    - generic: AI 助手
+  - button "⌘K":
+  - button "帮助与快捷键":
+  - button "切换为深色模式":
+  - button "AI 模型设置":
+- main:
+  - tablist "Skill 模式":
+    - tab "AI Skills" [selected]:
+      - generic: AI Skills
+    - tab "技能方案":
+      - generic: 技能方案
+  - generic: DUCKDB ENGINE READY
+  - heading "AI Skills 34 内置 27 官方" [level=3]:
+    - generic: AI Skills
+    - generic: 34 内置
+    - generic: 27 官方
+  - paragraph: AI 智能生成 · 意图分析 · 技能链组合
+  - generic: SELECT 查询生成·根据自然语言描述生成 SELECT 查询语句
+  - button "所有"
+  - button "🔍 探测与建模":
+    - generic: 🔍
+    - generic: 探测与建模
+  - button "🔄 清洗与转换":
+    - generic: 🔄
+    - generic: 清洗与转换
+  - button "📊 深度分析与洞察":
+    - generic: 📊
+    - generic: 深度分析与洞察
+  - button "🚀 诊断与优化":
+    - generic: 🚀
+    - generic: 诊断与优化
+  - button "🛠️ 工程与运维":
+    - generic: 🛠️
+    - generic: 工程与运维
+  - button "📖 官方手册":
+    - generic: 📖
+    - generic: 官方手册
+  - button "详情模式":
+    - text: 详情模式
+  - button "SELECT 查询生成 探测与建模 根据自然语言描述生成 SELECT 查询语句":
+    - generic: SELECT 查询生成
+    - generic: 探测与建模
+    - generic: 根据自然语言描述生成 SELECT 查询语句
+  - button "JOIN 查询生成 探测与建模 生成多表关联查询":
+    - generic: JOIN 查询生成
+    - generic: 探测与建模
+    - generic: 生成多表关联查询
+  - button "聚合查询生成 探测与建模 生成聚合函数和分组查询":
+    - generic: 聚合查询生成
+    - generic: 探测与建模
+    - generic: 生成聚合函数和分组查询
+  - button "窗口函数查询 探测与建模 生成窗口函数（OVER, PARTITION BY, RANK 等）":
+    - generic: 窗口函数查询
+    - generic: 探测与建模
+    - generic: 生成窗口函数（OVER, PARTITION BY, RANK 等）
+  - button "CTE 查询生成 探测与建模 生成 Common Table Expression（WITH 子句）":
+    - generic: CTE 查询生成
+    - generic: 探测与建模
+    - generic: 生成 Common Table Expression（WITH 子句）
+  - button "INSERT 语句生成 探测与建模 生成数据插入语句":
+    - generic: INSERT 语句生成
+    - generic: 探测与建模
+    - generic: 生成数据插入语句
+  - button "UPDATE 语句生成 探测与建模 生成数据更新语句":
+    - generic: UPDATE 语句生成
+    - generic: 探测与建模
+    - generic: 生成数据更新语句
+  - button "DELETE 语句生成 探测与建模 生成数据删除语句":
+    - generic: DELETE 语句生成
+    - generic: 探测与建模
+    - generic: 生成数据删除语句
+  - button "CREATE TABLE 生成 探测与建模 生成建表语句，支持完整表结构定义":
+    - generic: CREATE TABLE 生成
+    - generic: 探测与建模
+    - generic: 生成建表语句，支持完整表结构定义
+  - button "自然语言建表 探测与建模 用自然语言描述需求，AI 自动生成表结构":
+    - generic: 自然语言建表
+    - generic: 探测与建模
+    - generic: 用自然语言描述需求，AI 自动生成表结构
+  - button "模板建表 探测与建模 使用预置模板快速创建标准表结构":
+    - generic: 模板建表
+    - generic: 探测与建模
+    - generic: 使用预置模板快速创建标准表结构
+  - button "导入建表 探测与建模 从 JSON、CSV 或剪切板导入表结构":
+    - generic: 导入建表
+    - generic: 探测与建模
+    - generic: 从 JSON、CSV 或剪切板导入表结构
+  - button "ALTER TABLE 生成 探测与建模 生成表结构修改语句（添加/修改/删除列）":
+    - generic: ALTER TABLE 生成
+    - generic: 探测与建模
+    - generic: 生成表结构修改语句（添加/修改/删除列）
+  - button "DROP TABLE 生成 探测与建模 生成删除表语句":
+    - generic: DROP TABLE 生成
+    - generic: 探测与建模
+    - generic: 生成删除表语句
+  - button "CREATE VIEW 生成 探测与建模 生成视图创建语句":
+    - generic: CREATE VIEW 生成
+    - generic: 探测与建模
+    - generic: 生成视图创建语句
+  - button "CREATE INDEX 生成 探测与建模 生成索引创建语句":
+    - generic: CREATE INDEX 生成
+    - generic: 探测与建模
+    - generic: 生成索引创建语句
+  - button "表结构设计 探测与建模 根据业务需求设计完整的表结构（支持多表关联设计）":
+    - generic: 表结构设计
+    - generic: 探测与建模
+    - generic: 根据业务需求设计完整的表结构（支持多表关联设计）
+  - button "时间序列分析 深度分析与洞察 生成时间序列趋势分析查询":
+    - generic: 时间序列分析
+    - generic: 深度分析与洞察
+    - generic: 生成时间序列趋势分析查询
+  - button "对比分析 深度分析与洞察 生成组间对比分析查询":
+    - generic: 对比分析
+    - generic: 深度分析与洞察
+    - generic: 生成组间对比分析查询
+  - button "漏斗分析 深度分析与洞察 生成用户转化漏斗分析":
+    - generic: 漏斗分析
+    - generic: 深度分析与洞察
+    - generic: 生成用户转化漏斗分析
+  - button "留存分析 深度分析与洞察 生成用户留存率分析查询":
+    - generic: 留存分析
+    - generic: 深度分析与洞察
+    - generic: 生成用户留存率分析查询
+  - button "数据透视 清洗与转换 生成 PIVOT 语句进行行转列":
+    - generic: 数据透视
+    - generic: 清洗与转换
+    - generic: 生成 PIVOT 语句进行行转列
+  - button "逆透视 清洗与转换 生成 UNPIVOT 语句进行列转行":
+    - generic: 逆透视
+    - generic: 清洗与转换
+    - generic: 生成 UNPIVOT 语句进行列转行
+  - button "类型转换 清洗与转换 生成类型转换表达式":
+    - generic: 类型转换
+    - generic: 清洗与转换
+    - generic: 生成类型转换表达式
+  - button "字符串处理 清洗与转换 生成字符串处理函数":
+    - generic: 字符串处理
+    - generic: 清洗与转换
+    - generic: 生成字符串处理函数
+  - button "日期处理 清洗与转换 生成日期时间处理函数":
+    - generic: 日期处理
+    - generic: 清洗与转换
+    - generic: 生成日期时间处理函数
+  - button "执行计划分析 诊断与优化 生成 EXPLAIN ANALYZE 查询分析执行计划":
+    - generic: 执行计划分析
+    - generic: 诊断与优化
+    - generic: 生成 EXPLAIN ANALYZE 查询分析执行计划
+  - button "索引建议 诊断与优化 分析查询并给出索引建议":
+    - generic: 索引建议
+    - generic: 诊断与优化
+    - generic: 分析查询并给出索引建议
+  - button "查询重写优化 诊断与优化 优化和重写低效查询":
+    - generic: 查询重写优化
+    - generic: 诊断与优化
+    - generic: 优化和重写低效查询
+  - button "DuckDB 向量化与内存调优 诊断与优化 自动配置 WASM 内存限制、Threads 并行度及 PRAGMA 执行调优":
+    - generic: DuckDB 向量化与内存调优
+    - generic: 诊断与优化
+    - generic: 自动配置 WASM 内存限制、Threads 并行度及 PRAGMA 执行调优
+  - button "数据质量与 PII 自动化脱敏审计 诊断与优化 扫描表数据质量并生成敏感数据哈希/掩码与 Null 值填充 SQL":
+    - generic: 数据质量与 PII 自动化脱敏审计
+    - generic: 诊断与优化
+    - generic: 扫描表数据质量并生成敏感数据哈希/掩码与 Null 值填充 SQL
+  - button "测试数据生成 工程与运维 生成测试数据插入语句":
+    - generic: 测试数据生成
+    - generic: 工程与运维
+    - generic: 生成测试数据插入语句
+  - button "数据摘要 工程与运维 生成 SUMMARIZE 或统计摘要查询":
+    - generic: 数据摘要
+    - generic: 工程与运维
+    - generic: 生成 SUMMARIZE 或统计摘要查询
+  - button "样本查询 工程与运维 生成各种样本查询（随机抽样、分层抽样等）":
+    - generic: 样本查询
+    - generic: 工程与运维
+    - generic: 生成各种样本查询（随机抽样、分层抽样等）
+  - button "系统输出协议 — 工程手册模式 元认知层 本模块定义了所有 AI 输出的最高级结构格式，确保 DuckDB 分析结果表现为一份专业、可执行的“工程手册”。":
+    - generic: 系统输出协议 — 工程手册模式
+    - generic: 元认知层
+    - generic: 本模块定义了所有 AI 输出的最高级结构格式，确保 DuckDB 分析结果表现为一份专业、可执行的“工程手册”。
+  - button "语境与语义探针 感知层 作为 AI Agent 的“眼睛”，本模块负责构建对原始数据的初步物理与逻辑认知，不产生任何数据变更。":
+    - generic: 语境与语义探针
+    - generic: 感知层
+    - generic: 作为 AI Agent 的“眼睛”，本模块负责构建对原始数据的初步物理与逻辑认知，不产生任何数据变更。
+  - button "数据质量审计 感知层 作为 AI Agent 的“体检仪”，本模块负责深度扫描数据质量隐患，识别完整性、准确性和一致性问题。":
+    - generic: 数据质量审计
+    - generic: 感知层
+    - generic: 作为 AI Agent 的“体检仪”，本模块负责深度扫描数据质量隐患，识别完整性、准确性和一致性问题。
+  - button "时间特征探测器 感知层 作为 AI Agent 的“计步器”，本模块负责识别数据中的时序脉络、业务周期及时间轴特征，不进行数据转换。":
+    - generic: 时间特征探测器
+    - generic: 感知层
+    - generic: 作为 AI Agent 的“计步器”，本模块负责识别数据中的时序脉络、业务周期及时间轴特征，不进行数据转换。
+  - button "跨表关联感应器 感知层 作为 AI Agent 的“雷达”，本模块负责在多表环境下感知潜在的逻辑关联、外键契约及 JOIN 路径。":
+    - generic: 跨表关联感应器
+    - generic: 感知层
+    - generic: 作为 AI Agent 的“雷达”，本模块负责在多表环境下感知潜在的逻辑关联、外键契约及 JOIN 路径。
+  - button "本地化编码卫士 感知层 作为 AI Agent 的“翻译官”，本模块负责识别区域化字符特征，确保护排序、过滤在中文等环境下的物理准确性。":
+    - generic: 本地化编码卫士
+    - generic: 感知层
+    - generic: 作为 AI Agent 的“翻译官”，本模块负责识别区域化字符特征，确保护排序、过滤在中文等环境下的物理准确性。
+  - button "变更感知基准仪 感知层 作为 AI Agent 的“记忆记录仪”，本模块负责对比当前数据集与历史基准（Snapshot）的差异，识别 Schema Drift。":
+    - generic: 变更感知基准仪
+    - generic: 感知层
+    - generic: 作为 AI Agent 的“记忆记录仪”，本模块负责对比当前数据集与历史基准（Snapshot）的差异，识别 Schema Drift。
+  - button "数据治理与安全合约 决策层 作为 AI Agent 的“法律顾问”，本模块负责对感知层发现的风险点制定处理规则，并确立消费标准（SLA）。":
+    - generic: 数据治理与安全合约
+    - generic: 决策层
+    - generic: 作为 AI Agent 的“法律顾问”，本模块负责对感知层发现的风险点制定处理规则，并确立消费标准（SLA）。
+  - button "洞察建模与因果推断 决策层 作为 AI Agent 的“分析师”，本模块负责将原始字段转化为业务指标，并推断数据间的因果链条或关联模式。":
+    - generic: 洞察建模与因果推断
+    - generic: 决策层
+    - generic: 作为 AI Agent 的“分析师”，本模块负责将原始字段转化为业务指标，并推断数据间的因果链条或关联模式。
+  - button "CTE 逻辑编排引擎 决策层 作为 AI Agent 的“逻辑架构师”，本模块负责将复杂的业务逻辑拆解为清晰、解耦的 CTE 节点，确保代码的可维护性。":
+    - generic: CTE 逻辑编排引擎
+    - generic: 决策层
+    - generic: 作为 AI Agent 的“逻辑架构师”，本模块负责将复杂的业务逻辑拆解为清晰、解耦的 CTE 节点，确保代码的可维护性。
+  - button "客户端性能策略师 决策层 作为 AI Agent 的“性能顾问”，本模块负责评估 DuckDB-WASM 在浏览器环境下的资源深度约束（如 4GB 内存上限）。":
+    - generic: 客户端性能策略师
+    - generic: 决策层
+    - generic: 作为 AI Agent 的“性能顾问”，本模块负责评估 DuckDB-WASM 在浏览器环境下的资源深度约束（如 4GB 内存上限）。
+  - button "合规性与抹除策略 决策层 作为 AI Agent 的“安全官”，本模块负责在检测到 PII 后，制定最终的物理隔离与字段级抹除策略。":
+    - generic: 合规性与抹除策略
+    - generic: 决策层
+    - generic: 作为 AI Agent 的“安全官”，本模块负责在检测到 PII 后，制定最终的物理隔离与字段级抹除策略。
+  - button "指标语义工场 决策层 作为 AI Agent 的“业务分析师”，本模块负责将物理字段映射为业务指标，构建标准化的 Metric Glossary。":
+    - generic: 指标语义工场
+    - generic: 决策层
+    - generic: 作为 AI Agent 的“业务分析师”，本模块负责将物理字段映射为业务指标，构建标准化的 Metric Glossary。
+  - button "动态多租户隔离策略 决策层 作为 AI Agent 的“沙箱管理员”，本模块负责在多用户或多租户环境下，制定物理会话级别的隔离方案。":
+    - generic: 动态多租户隔离策略
+    - generic: 决策层
+    - generic: 作为 AI Agent 的“沙箱管理员”，本模块负责在多用户或多租户环境下，制定物理会话级别的隔离方案。
+  - button "SQL 自动化工程 执行层 作为 AI Agent 的“手”，本模块负责将感知层与决策层的意图落地为高性能、健壮的 DuckDB SQL。":
+    - generic: SQL 自动化工程
+    - generic: 执行层
+    - generic: 作为 AI Agent 的“手”，本模块负责将感知层与决策层的意图落地为高性能、健壮的 DuckDB SQL。
+  - button "变更防护与回滚 执行层 作为 AI Agent 的“刹车系统”，本模块负责在执行产生副作用的操作前建立安全网，并在失败时恢复状态。":
+    - generic: 变更防护与回滚
+    - generic: 执行层
+    - generic: 作为 AI Agent 的“刹车系统”，本模块负责在执行产生副作用的操作前建立安全网，并在失败时恢复状态。
+  - button "叙事报告与总结 执行层 作为 AI Agent 的“播报员”，本模块负责将所有的技术发现、SQL 结果和治理策略翻译为人可读、可感知的业务报告。":
+    - generic: 叙事报告与总结
+    - generic: 执行层
+    - generic: 作为 AI Agent 的“播报员”，本模块负责将所有的技术发现、SQL 结果和治理策略翻译为人可读、可感知的业务报告。
+  - 'button "SQL 宏封装工程 执行层 作为 AI Agent 的“模具师”，本模块负责将重复的计算逻辑封装为 DuckDB `MACRO`（自定义函数），提升代码复用与 UI 调用的一致性。"':
+    - generic: SQL 宏封装工程
+    - generic: 执行层
+    - generic: "作为 AI Agent 的“模具师”，本模块负责将重复的计算逻辑封装为 DuckDB `MACRO`（自定义函数），提升代码复用与 UI 调用的一致性。"
+  - button "物理断言验证机 执行层 作为 AI Agent 的“质检员”，本模块负责在 SQL 执行前后生成物理断言，验证数据的逻辑准确性。":
+    - generic: 物理断言验证机
+    - generic: 执行层
+    - generic: 作为 AI Agent 的“质检员”，本模块负责在 SQL 执行前后生成物理断言，验证数据的逻辑准确性。
+  - button "资源感知的存储优化 执行层 作为 AI Agent 的“仓储管理员”，本模块负责根据数据量级 and 本地资源，决定最佳的物理存储与导出策略。":
+    - generic: 资源感知的存储优化
+    - generic: 执行层
+    - generic: 作为 AI Agent 的“仓储管理员”，本模块负责根据数据量级 and 本地资源，决定最佳的物理存储与导出策略。
+  - button "自愈式 SQL 流水线 执行层 作为 AI Agent 的“急修工”，本模块负责在 SQL 报错后，结合错误堆栈实现自动化的逻辑修正。":
+    - generic: 自愈式 SQL 流水线
+    - generic: 执行层
+    - generic: 作为 AI Agent 的“急修工”，本模块负责在 SQL 报错后，结合错误堆栈实现自动化的逻辑修正。
+  - button "原子级会话快照 执行层 作为 AI Agent 的“黑匣子”，本模块负责在进行破坏性 DDL 前，建立物理级别的快照，确数据 100% 可恢复。":
+    - generic: 原子级会话快照
+    - generic: 执行层
+    - generic: 作为 AI Agent 的“黑匣子”，本模块负责在进行破坏性 DDL 前，建立物理级别的快照，确数据 100% 可恢复。
+  - button "认知对齐闭环 元认知层 作为 AI Agent 的“长期记忆体”，本模块负责捕捉用户对手动生成的 SQL 或报告的修正行为，并将其转化为持续进化的认知准则。":
+    - generic: 认知对齐闭环
+    - generic: 元认知层
+    - generic: 作为 AI Agent 的“长期记忆体”，本模块负责捕捉用户对手动生成的 SQL 或报告的修正行为，并将其转化为持续进化的认知准则。
+  - button "叙事溯源编织器 元认知层 作为 AI Agent 的“信任构建师”，本模块负责将 AI 的黑盒推导逻辑（Chain-of-Thought）结构化为可追溯的内容，向用户揭示“为什么得出这个":
+    - generic: 叙事溯源编织器
+    - generic: 元认知层
+    - generic: 作为 AI Agent 的“信任构建师”，本模块负责将 AI 的黑盒推导逻辑（Chain-of-Thought）结构化为可追溯的内容，向用户揭示“为什么得出这个
+  - button "提示词语义压缩器 元认知层 作为 AI Agent 的“效率专家”，本模块负责在 Skills 库膨胀时，通过语义路由技术仅动态加载必要的技能块，节省 Token 并提升响应速度。":
+    - generic: 提示词语义压缩器
+    - generic: 元认知层
+    - generic: 作为 AI Agent 的“效率专家”，本模块负责在 Skills 库膨胀时，通过语义路由技术仅动态加载必要的技能块，节省 Token 并提升响应速度。
+  - button "DBT 工程桥接器 元认知层 作为 AI Agent 的“工程化专家”，本模块负责将 AI 生成的 SQL 资产无缝对接至现代数据模型管理工具（如 dbt）。":
+    - generic: DBT 工程桥接器
+    - generic: 元认知层
+    - generic: 作为 AI Agent 的“工程化专家”，本模块负责将 AI 生成的 SQL 资产无缝对接至现代数据模型管理工具（如 dbt）。
+  - button "首席执行官式摘要 元认知层 作为 AI Agent 的“沟通专家”，本模块负责在最终报告的最顶层生成具备商业决策冲击力的极简摘要。":
+    - generic: 首席执行官式摘要
+    - generic: 元认知层
+    - generic: 作为 AI Agent 的“沟通专家”，本模块负责在最终报告的最顶层生成具备商业决策冲击力的极简摘要。
+  - generic: 自然语言 → SQL
+  - generic: 输入需求，AI 自动分析并生成
+  - textbox "描述你的 SQL 需求，例如：创建一个用户表"
+  - button "分析" [disabled]:
+    - text: 分析
+  - button "一键生成" [disabled]
+- contentinfo:
+  - generic: DuckDB 1.33.1
+  - generic: "|"
+  - generic: memory [MEMORY]
+  - generic: 引擎就绪
+  - generic: "|"
+  - generic: 06:38
+  - button "刷新运行时状态":

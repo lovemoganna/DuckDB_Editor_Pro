@@ -1,0 +1,367 @@
+- generic [ref=e3]:
+  - banner "全局工作区顶栏" [ref=e16]:
+    - generic [ref=e17]:
+      - button "🪶 DuckDB Studio PRO" [ref=e18] [cursor=pointer]:
+        - generic [ref=e19]: 🪶
+        - generic [ref=e21]:
+          - generic [ref=e22]: DuckDB Studio
+          - generic [ref=e23]: PRO
+      - navigation "业务领域大类" [ref=e25]:
+        - button "工程核心" [ref=e26] [cursor=pointer]
+        - button "分析洞察" [ref=e32] [cursor=pointer]
+        - button "知识沉淀" [ref=e37] [cursor=pointer]
+        - button "AI 认知" [ref=e42] [cursor=pointer]
+      - tablist "工程核心功能标签页" [ref=e48]:
+        - tab "仪表盘" [ref=e49] [cursor=pointer]:
+          - generic [aria-hidden] [ref=e1047]: "1"
+        - tab "数据" [ref=e55] [cursor=pointer]:
+          - generic [aria-hidden] [ref=e1154]: "2"
+        - tab "Schema" [ref=e61] [cursor=pointer]:
+          - generic [aria-hidden] [ref=e66]: "3"
+        - tab "SQL" [selected] [ref=e67] [cursor=pointer]
+        - tab "数据流" [ref=e73] [cursor=pointer]:
+          - generic [aria-hidden] [ref=e78]: "5"
+      - generic [ref=e1049]:
+        - generic [ref=e1052]: "表:"
+        - generic [ref=e1053]: baseline
+    - generic [ref=e79]:
+      - button "项目" [ref=e80] [cursor=pointer]
+      - button "baseline 已保存到 OPFS" [ref=e1054] [cursor=pointer]:
+        - generic [ref=e88]: baseline
+        - generic [ref=e90]: 已保存到 OPFS
+      - button "AI 助手 Ctrl+I" [ref=e94] [cursor=pointer]:
+        - generic [ref=e97]: AI 助手
+        - generic [ref=e98]: Ctrl+I
+      - button "⌘K" [ref=e99] [cursor=pointer]
+      - button "帮助与快捷键" [ref=e103] [cursor=pointer]
+      - button "切换为浅色模式" [ref=e106] [cursor=pointer]
+      - button "AI 模型设置" [ref=e107] [cursor=pointer]
+  - main [ref=e110]:
+    - generic [ref=e111]:
+      - generic [ref=e1156]:
+        - generic [ref=e1157]:
+          - generic [ref=e1159]:
+            - generic [ref=e1160]:
+              - generic [ref=e1161]: 数据资源浏览
+              - generic [ref=e1163]:
+                - button "刷新元数据" [ref=e1164] [cursor=pointer]
+                - button "隐藏左侧边栏" [ref=e1165] [cursor=pointer]
+            - textbox "搜索表、视图、文件..." [ref=e1168]
+            - generic [ref=e1169]:
+              - generic [ref=e1170]:
+                - button "打开文件" [ref=e1171] [cursor=pointer]
+                - button "附加数据库" [ref=e1173] [cursor=pointer]
+              - button "添加数据源" [ref=e1175] [cursor=pointer]
+            - generic [ref=e1177]:
+              - generic [ref=e1178]:
+                - generic [ref=e1179] [cursor=pointer]:
+                  - generic [ref=e1180]: baseline
+                  - generic [ref=e1181]: (当前)
+                - generic [ref=e1183]:
+                  - generic [ref=e1184] [cursor=pointer]: main
+                  - generic [ref=e1186]:
+                    - generic [ref=e1187]:
+                      - generic [ref=e1188]:
+                        - generic [ref=e1189] [cursor=pointer]: 表 (4)
+                        - button "一键清空所有数据表" [ref=e1191] [cursor=pointer]
+                      - generic [ref=e1192]:
+                        - generic "单击查看列画像 · 双击查询前 100 行" [ref=e1193] [cursor=pointer]:
+                          - generic [ref=e1194]: crypto_transactions
+                          - generic [ref=e1196]:
+                            - generic "引擎估算行数；精确结果请执行 COUNT(*)" [ref=e1197]: 约 25 行
+                            - button "快速查询表 crypto_transactions" [ref=e1198]
+                            - button "插入表名 crypto_transactions" [ref=e1199]
+                            - button "将表 crypto_transactions 添加到数据流画布" [ref=e1200]
+                            - button "删除表 crypto_transactions" [ref=e1201]
+                        - generic "单击查看列画像 · 双击查询前 100 行" [ref=e1202] [cursor=pointer]:
+                          - generic [ref=e1203]: exchange_rates
+                          - generic [ref=e1205]:
+                            - generic "引擎估算行数；精确结果请执行 COUNT(*)" [ref=e1206]: 约 8 行
+                            - button "快速查询表 exchange_rates" [ref=e1207]
+                            - button "插入表名 exchange_rates" [ref=e1208]
+                            - button "将表 exchange_rates 添加到数据流画布" [ref=e1209]
+                            - button "删除表 exchange_rates" [ref=e1210]
+                        - generic "单击查看列画像 · 双击查询前 100 行" [ref=e1211] [cursor=pointer]:
+                          - generic [ref=e1212]: fiat_transactions
+                          - generic [ref=e1214]:
+                            - generic "引擎估算行数；精确结果请执行 COUNT(*)" [ref=e1215]: 约 25 行
+                            - button "快速查询表 fiat_transactions" [ref=e1216]
+                            - button "插入表名 fiat_transactions" [ref=e1217]
+                            - button "将表 fiat_transactions 添加到数据流画布" [ref=e1218]
+                            - button "删除表 fiat_transactions" [ref=e1219]
+                        - generic "单击查看列画像 · 双击查询前 100 行" [ref=e1220] [cursor=pointer]:
+                          - generic [ref=e1221]: users
+                          - generic [ref=e1223]:
+                            - generic "引擎估算行数；精确结果请执行 COUNT(*)" [ref=e1224]: 约 10 行
+                            - button "快速查询表 users" [ref=e1225]
+                            - button "插入表名 users" [ref=e1226]
+                            - button "将表 users 添加到数据流画布" [ref=e1227]
+                            - button "删除表 users" [ref=e1228]
+                    - generic [ref=e1229]: 视图 (0)
+                    - generic [ref=e1233]: 宏 (Macros) (0)
+              - generic [ref=e1237]: 文件与远程源 (0)
+              - generic [ref=e1241]: 最近打开 (0)
+          - generic [ref=e1247]:
+            - generic "双击空白处新建查询" [ref=e1248]:
+              - tablist "SQL 查询标签页" [ref=e1249]:
+                - tab "query_1.sql 未保存更改 标签选项 关闭标签页" [selected] [ref=e1441] [cursor=pointer]:
+                  - generic "query_1.sql • 左键切换 • 双击重命名 • 右键更多选项 (另存为/关闭等) • 中键快速关闭" [ref=e1254]: query_1.sql
+                  - generic "未保存更改" [ref=e1442]
+                  - generic [ref=e1255]:
+                    - button "标签选项" [ref=e1256]
+                    - button "关闭标签页" [ref=e1257]
+                - button "新建查询标签页" [ref=e1258] [cursor=pointer]
+              - generic [ref=e1259]: 1 个查询
+            - toolbar "SQL 工作区工具栏" [ref=e1261]:
+              - generic [ref=e1262]:
+                - group "执行" [ref=e1263]:
+                  - generic [ref=e1265]:
+                    - button "运行" [ref=e1266] [cursor=pointer]
+                    - button "更多执行选项" [ref=e1268] [cursor=pointer]
+                  - button "停止" [disabled] [ref=e1269]
+                - group "编辑" [ref=e1271]:
+                  - button "格式化" [ref=e1272] [cursor=pointer]
+                  - button "复制当前 SQL 代码到剪贴板" [ref=e1275] [cursor=pointer]
+                  - generic "编辑器字号 10px" [ref=e1277]:
+                    - button "减小字号" [disabled] [ref=e1278]
+                    - generic [ref=e1279]: "10"
+                    - button "增大字号" [ref=e1280] [cursor=pointer]
+                - group "视图模式与流程图" [ref=e1282]:
+                  - generic [ref=e1283]:
+                    - button "流程图" [ref=e1284] [cursor=pointer]
+                    - button "流程图模式选项" [ref=e1286] [cursor=pointer]
+              - generic [ref=e1287]:
+                - group "智能助手" [ref=e1288]:
+                  - button "AI 解释" [ref=e1289] [cursor=pointer]:
+                    - generic [ref=e1290]: 解释
+                  - button "AI 分析" [ref=e1292] [cursor=pointer]:
+                    - generic [ref=e1293]: 分析
+                - button "历史 1" [ref=e1488] [cursor=pointer]:
+                  - generic [ref=e1296]: 历史
+                  - generic [ref=e1297]: "1"
+                - generic "当前目录上下文：baseline.main" [ref=e1298]:
+                  - generic [ref=e1299]: baseline
+                  - generic [ref=e1300]: .
+                  - generic [ref=e1301]: main
+            - generic [ref=e1302]:
+              - generic [ref=e1307]:
+                - generic [ref=e1633]: "1"
+                - textbox [ref=e1313]:
+                  - generic [ref=e1314]: SELECT channel, SUM(amount) AS amount FROM baseline.main.fiat_transactions WHERE currency='USD' AND status='completed' GROUP BY channel ORDER BY channel
+              - separator "拖动调整比例，双击恢复 50/50 分屏" [ref=e1315]:
+                - generic [ref=e1316]:
+                  - generic [ref=e1317]: 分隔条
+                  - generic [ref=e1320]:
+                    - generic [ref=e1321]:
+                      - generic [ref=e1322]: L
+                      - generic [ref=e1323]: "1"
+                    - generic [ref=e1324]: ·
+                    - generic [ref=e1325]:
+                      - generic [ref=e1326]: C
+                      - generic [ref=e1327]: "152"
+                - generic [ref=e1328]:
+                  - button "最大化结果" [ref=e1329] [cursor=pointer]
+                  - button "最大化代码" [ref=e1341] [cursor=pointer]
+                - generic [ref=e1343]:
+                  - generic [ref=e1344]:
+                    - generic [ref=e1345]: 双击
+                    - generic [ref=e1346]: 重置
+                  - generic [ref=e1347]:
+                    - text: "40"
+                    - generic [ref=e1348]: "%"
+              - generic [ref=e1350]:
+                - generic [ref=e1351]:
+                  - tablist "查询结果视图切换" [ref=e1353]:
+                    - tab "数据 2" [ref=e1493] [cursor=pointer]:
+                      - generic [ref=e1356]: 数据
+                      - generic [ref=e1494]: "2"
+                    - tab "图表" [selected] [ref=e1357] [cursor=pointer]
+                    - tab "透视" [ref=e1359] [cursor=pointer]
+                    - tab "执行计划" [ref=e1361] [cursor=pointer]
+                  - generic [ref=e1366]:
+                    - generic [ref=e1367]:
+                      - button "筛选" [ref=e1368] [cursor=pointer]
+                      - button "排序" [ref=e1370] [cursor=pointer]
+                      - button "分组" [ref=e1373] [cursor=pointer]
+                      - button "导出" [ref=e1376] [cursor=pointer]
+                    - generic [ref=e1378]:
+                      - generic [ref=e1379]: 待重新运行
+                      - generic [ref=e1495]:
+                        - generic "数据行数" [ref=e1496]: "2"
+                        - generic [ref=e1497]: 行
+                        - generic "字段列数" [ref=e1499]: "2"
+                        - generic [ref=e1500]: 列
+                        - generic "执行耗时" [ref=e1502]: "190"
+                        - generic [ref=e1503]: ms
+                    - button "全屏浏览结果集" [ref=e1383] [cursor=pointer]
+                - generic [ref=e1543]:
+                  - generic [ref=e1544]:
+                    - generic [ref=e1545]:
+                      - generic [ref=e1546]:
+                        - tablist "分析意图" [ref=e1547]:
+                          - tab "对比" [selected] [ref=e1548] [cursor=pointer]
+                          - tab "趋势" [ref=e1551] [cursor=pointer]
+                          - tab "构成" [ref=e1553] [cursor=pointer]
+                          - tab "相关" [ref=e1555] [cursor=pointer]
+                        - tablist "图表形态" [ref=e1558]:
+                          - tab "条形" [selected] [ref=e1559] [cursor=pointer]
+                          - tab "柱状" [ref=e1561] [cursor=pointer]
+                      - generic [ref=e1563]:
+                        - button "加入看板" [active] [ref=e1564] [cursor=pointer]
+                        - generic [ref=e1565]:
+                          - generic [ref=e1567]: 实时
+                          - generic [ref=e1568]: "2"
+                          - generic [ref=e1569]: 行
+                    - generic [ref=e1570]:
+                      - generic [ref=e1571]: 编码
+                      - generic [ref=e1572]:
+                        - generic [ref=e1573]: X 维度
+                        - combobox "X 字段" [ref=e1575] [cursor=pointer]:
+                          - option "channel" [selected]
+                          - option "amount"
+                      - button "互换字段" [ref=e1576] [cursor=pointer]
+                      - generic [ref=e1577]:
+                        - generic [ref=e1578]: Y 指标
+                        - combobox "Y 字段" [ref=e1580] [cursor=pointer]:
+                          - option "channel"
+                          - option "amount" [selected]
+                      - generic [ref=e1581]:
+                        - generic [ref=e1582]: 系列
+                        - combobox "系列拆分字段" [ref=e1584] [cursor=pointer]:
+                          - option "无拆分" [selected]
+                    - generic [ref=e1585]:
+                      - generic [ref=e1586]: 计算
+                      - tablist "聚合方式" [ref=e1587]:
+                        - tab "SUM" [selected] [ref=e1588] [cursor=pointer]
+                        - tab "AVG" [ref=e1591] [cursor=pointer]
+                        - tab "COUNT" [ref=e1593] [cursor=pointer]
+                        - tab "MIN" [ref=e1595] [cursor=pointer]
+                        - tab "MAX" [ref=e1597] [cursor=pointer]
+                      - tablist "数值模式" [ref=e1599]:
+                        - tab "绝对值" [selected] [ref=e1600] [cursor=pointer]
+                        - tab "%" [ref=e1601] [cursor=pointer]
+                      - generic [ref=e1603]: 范围
+                      - generic [ref=e1604]:
+                        - generic [ref=e1605]: Top
+                        - combobox "显示数量" [ref=e1607] [cursor=pointer]:
+                          - option "8"
+                          - option "12"
+                          - option "25" [selected]
+                          - option "50"
+                      - tablist "排序" [ref=e1608]:
+                        - tab "值↓" [selected] [ref=e1609] [cursor=pointer]
+                        - tab "值↑" [ref=e1610] [cursor=pointer]
+                        - tab "名 A→Z" [ref=e1611] [cursor=pointer]
+                        - tab "名 Z→A" [ref=e1612] [cursor=pointer]
+                      - generic [ref=e1614]: 呈现
+                      - generic [ref=e1615]:
+                        - button "图例右" [ref=e1616] [cursor=pointer]
+                        - button "图例下" [ref=e1617] [cursor=pointer]
+                        - button "隐藏" [ref=e1618] [cursor=pointer]
+                      - button "多色" [ref=e1619] [cursor=pointer]
+                      - button "标签" [ref=e1620] [cursor=pointer]
+                      - button "导出" [ref=e1621] [cursor=pointer]
+                  - generic [ref=e1625]:
+                    - generic "图表绘图区" [ref=e1626]
+                    - generic "图例" [ref=e1629]:
+                      - button "amount" [pressed] [ref=e1630] [cursor=pointer]
+                - generic [ref=e1390]:
+                  - generic [ref=e1391]:
+                    - button "第一页" [disabled] [ref=e1392]
+                    - button "上一页" [disabled] [ref=e1393]
+                    - generic [ref=e1394]: "1"
+                    - button "下一页" [disabled] [ref=e1396]
+                    - button "最后一页" [disabled] [ref=e1397]
+                    - generic [ref=e1398]: 第 1 页, 共 1 页
+                  - generic [ref=e1399]:
+                    - generic [ref=e1400]:
+                      - generic [ref=e1401]: "每页:"
+                      - combobox [ref=e1402] [cursor=pointer]:
+                        - option "25 行"
+                        - option "50 行"
+                        - option "100 行" [selected]
+                        - option "200 行"
+                        - option "500 行"
+                        - option "1000 行"
+                    - generic [ref=e1403]: 1-2 / 2 行
+                    - button "表格渲染设置" [ref=e1404] [cursor=pointer]
+          - generic [ref=e1405]:
+            - button "展开列画像" [ref=e1406] [cursor=pointer]:
+              - generic [ref=e1407]: 列画像
+            - button "展开 AI 智能助手" [ref=e1408] [cursor=pointer]:
+              - generic [ref=e1409]: AI助手
+        - generic [ref=e1410]:
+          - generic [ref=e1411]:
+            - generic [ref=e1412]:
+              - generic [ref=e1413]: db
+              - generic [ref=e1414]: baseline.main
+              - generic [ref=e1415]: (4表)
+            - button "行 1 列 153" [ref=e1538] [cursor=pointer]:
+              - generic [ref=e1417]: 行
+              - generic [ref=e1418]: "1"
+              - generic [ref=e1419]: 列
+              - generic [ref=e1420]: "153"
+            - 'generic "当前查询: query_1.sql" [ref=e1421]':
+              - generic [ref=e1422]: query_1.sql
+              - generic "未保存更改" [ref=e1484]
+            - generic "点击查看运行时状态中心" [ref=e1423] [cursor=pointer]:
+              - generic [ref=e1424]: 内存
+              - generic [ref=e1425]: 未采集
+            - generic "查看运行时状态详情" [ref=e1426] [cursor=pointer]:
+              - generic [ref=e1427]: 运行时
+              - generic [ref=e1428]: 就绪
+          - generic [ref=e1429]:
+            - generic "点击打开运行时状态中心" [ref=e1430] [cursor=pointer]:
+              - generic [ref=e1434]: 就绪
+              - generic [ref=e1541]: (190ms)
+            - button "控制" [ref=e1435] [cursor=pointer]
+            - button "反馈" [ref=e1437] [cursor=pointer]
+      - complementary "AI Copilot 侧边栏" [ref=e129]:
+        - generic "拖拽调整侧边栏宽度" [ref=e130]
+        - generic [ref=e131]:
+          - generic [ref=e132]:
+            - generic [ref=e133]: AI Copilot
+            - button "Gemini 2.0 Flash" [ref=e135] [cursor=pointer]
+          - generic [ref=e137]:
+            - button "会话历史" [ref=e138] [cursor=pointer]:
+              - generic [ref=e139]: "1"
+            - button "新建会话" [ref=e140] [cursor=pointer]
+            - button "清空会话历史" [ref=e141] [cursor=pointer]
+            - button "收起侧边栏" [ref=e142] [cursor=pointer]
+        - generic [ref=e144]:
+          - generic [ref=e145]: SQL 编辑器
+          - generic [ref=e146]: ·
+          - button "选择关注的数据表" [ref=e148] [cursor=pointer]:
+            - generic [ref=e149]: crypto_transactions
+            - generic [ref=e1439]: "1"
+        - generic [ref=e151]:
+          - paragraph [ref=e152]: 有什么想查的？
+          - paragraph [ref=e153]: 可围绕 crypto_transactions 提问、生成 SQL 或做数据探查。
+        - generic [ref=e155]:
+          - button "生成探索问题" [ref=e156] [cursor=pointer]
+          - generic [ref=e1440]: 基于 crypto_transactions
+        - generic [ref=e159]:
+          - textbox "提问、生成 SQL 或分析数据…" [ref=e160]
+          - button "发送" [disabled] [ref=e162]
+  - contentinfo [ref=e164]:
+    - generic [ref=e165]:
+      - generic [ref=e166]: DuckDB 1.33.1
+      - generic [ref=e169]: "|"
+      - generic [ref=e170]: baseline [MEMORY]
+      - generic [ref=e172]: "|"
+      - generic [ref=e173]: 持久化库
+      - generic [ref=e175]: "|"
+      - generic [ref=e176]: 4 张表
+      - generic [ref=e178]: "|"
+      - generic [ref=e179]: 4 个活动表
+      - generic [ref=e181]: "|"
+      - generic [ref=e182]: "内存: 1.62 MB / 3.1 GiB"
+    - generic [ref=e184]:
+      - generic [ref=e185]: 引擎就绪
+      - generic [ref=e189]: "|"
+      - generic [ref=e190]: 07:05
+      - button "刷新运行时状态" [ref=e191] [cursor=pointer]
+  - generic "通知列表":
+    - alert [ref=e1638]:
+      - paragraph [ref=e1641]: "Invalid Input Error: Cannot execute statement of type \"CREATE\" on database \"baseline\" which is attached in read-only mode!"
+      - button "关闭通知" [ref=e1642] [cursor=pointer]

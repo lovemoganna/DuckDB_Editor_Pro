@@ -1,0 +1,22 @@
+{
+  "userConfirmedEdit": true,
+  "view": "资金业务总览",
+  "count": "10 项分析",
+  "browse": true,
+  "values": [
+    {
+      "value": "104,270 USD",
+      "present": true
+    },
+    {
+      "value": "13,000 USDT",
+      "present": true
+    },
+    {
+      "value": "47,730 USD",
+      "present": true
+    }
+  ],
+  "removedSuccessCard": true,
+  "globalFilterAbsent": true
+}

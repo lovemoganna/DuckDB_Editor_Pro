@@ -187,7 +187,7 @@ SELECT * FROM ${cteName};`;
       <div className="flex items-center justify-between pb-3 border-b border-monokai-border">
         <div className="flex items-center gap-2">
           <Workflow className="w-4 h-4 text-monokai-cyan" />
-          <h3 className="text-xs font-bold text-white uppercase tracking-wider">
+          <h3 className="text-xs font-bold text-monokai-fg uppercase tracking-wider">
             多跳拓扑推演探查器
           </h3>
         </div>
@@ -227,12 +227,12 @@ SELECT * FROM ${cteName};`;
             placeholder="搜索起点实体..."
             value={sourceSearch}
             onChange={e => setSourceSearch(e.target.value)}
-            className="w-full bg-monokai-bg border border-monokai-border rounded-lg px-3 py-1.5 text-xs text-white placeholder-monokai-comment mb-1.5 outline-none focus:border-monokai-accent transition-colors"
+            className="w-full bg-monokai-bg border border-monokai-border rounded-lg px-3 py-1.5 text-xs text-monokai-fg placeholder-monokai-comment mb-1.5 outline-none focus:border-monokai-accent transition-colors"
           />
           <select
             value={sourceId ?? ''}
             onChange={e => setSourceId(e.target.value ? Number(e.target.value) : null)}
-            className="w-full bg-monokai-bg border border-monokai-border rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-monokai-accent transition-colors"
+            className="w-full bg-monokai-bg border border-monokai-border rounded-lg px-3 py-2 text-xs text-monokai-fg outline-none focus:border-monokai-accent transition-colors"
           >
             <option value="">-- 请选择起点实体 --</option>
             {filteredSources.map(o => (
@@ -274,12 +274,12 @@ SELECT * FROM ${cteName};`;
             placeholder="搜索目标实体..."
             value={targetSearch}
             onChange={e => setTargetSearch(e.target.value)}
-            className="w-full bg-monokai-bg border border-monokai-border rounded-lg px-3 py-1.5 text-xs text-white placeholder-monokai-comment mb-1.5 outline-none focus:border-monokai-accent transition-colors"
+            className="w-full bg-monokai-bg border border-monokai-border rounded-lg px-3 py-1.5 text-xs text-monokai-fg placeholder-monokai-comment mb-1.5 outline-none focus:border-monokai-accent transition-colors"
           />
           <select
             value={targetId ?? ''}
             onChange={e => setTargetId(e.target.value ? Number(e.target.value) : null)}
-            className="w-full bg-monokai-bg border border-monokai-border rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-monokai-accent transition-colors"
+            className="w-full bg-monokai-bg border border-monokai-border rounded-lg px-3 py-2 text-xs text-monokai-fg outline-none focus:border-monokai-accent transition-colors"
           >
             <option value="">-- 请选择目标实体 --</option>
             {filteredTargets.map(o => (
@@ -302,7 +302,7 @@ SELECT * FROM ${cteName};`;
                 className={`px-2 py-0.5 rounded text-xs font-medium transition-colors cursor-pointer ${
                   maxDepth === d
                     ? 'bg-monokai-accent text-[#102022] font-bold'
-                    : 'bg-monokai-surface text-monokai-comment hover:text-white'
+                    : 'bg-monokai-surface text-monokai-comment hover:text-monokai-fg'
                 }`}
               >
                 {d} 跳
@@ -424,7 +424,7 @@ SELECT * FROM ${cteName};`;
                 <div className="p-2.5 bg-monokai-bg rounded-lg border border-monokai-cyan/30 text-[11px] font-mono overflow-x-auto custom-scrollbar animate-in fade-in space-y-1.5">
                   <div className="flex items-center justify-between text-monokai-comment text-[10px]">
                     <span className="text-monokai-cyan font-bold">DuckDB 递归推演 CTE 语句:</span>
-                    <button onClick={() => setExpandedSqlIndex(null)} className="hover:text-white cursor-pointer px-1">×</button>
+                    <button onClick={() => setExpandedSqlIndex(null)} className="hover:text-monokai-fg cursor-pointer px-1">×</button>
                   </div>
                   <pre className="text-monokai-fg/90 whitespace-pre-wrap leading-relaxed text-[10.5px] bg-black/20 p-2 rounded border border-white/5">{cteSql}</pre>
                 </div>

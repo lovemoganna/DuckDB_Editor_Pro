@@ -1,0 +1,121 @@
+[
+  {
+    "number": 1,
+    "name": "仪表盘",
+    "health": "正常：真实汇总与图表保留",
+    "screenshot": "01-dashboard-final.jpg",
+    "note": "13 张表、96 行；USD 完成交易 104270，与只读 SQL 验证相符。未解锁或改写看板。"
+  },
+  {
+    "number": 2,
+    "name": "数据浏览",
+    "health": "正常：真实数据、长值与 NULL",
+    "screenshot": "02-data-browser-after.jpg",
+    "note": "crypto_transactions 25 行；长哈希、缺失值、滚动及目录导航可见。未执行数据编辑/删除。"
+  },
+  {
+    "number": 3,
+    "name": "Schema",
+    "health": "正常：字段与表选择",
+    "screenshot": "03-schema-final.jpg",
+    "note": "真实字段、类型与主键信息；保持原有结构工作面。"
+  },
+  {
+    "number": 4,
+    "name": "SQL",
+    "health": "已修复：高亮、响应式与导出反馈",
+    "screenshot": "04-sql-success-after.jpg",
+    "note": "成功查询 USD 104270；缺失表错误反馈独立验证。导出复用 ModalShell，Arrow 明确禁用，撤下未接入的范围、文件名、类型和压缩选项。"
+  },
+  {
+    "number": 5,
+    "name": "数据流",
+    "health": "已修复：与 SQL 共享真实工作区",
+    "screenshot": "05-dataflow-final.jpg",
+    "note": "相同 fiat_transactions 查询显示 SCAN/FILTER/AGGREGATE/RESULT 四算子；消除旧缓存 demo_sales 路径；纯注释 SQL 保持空状态。"
+  },
+  {
+    "number": 6,
+    "name": "指标",
+    "health": "正常：指标包与单位保留",
+    "screenshot": "06-metrics-final.jpg",
+    "note": "真实两套指标包；不混合货币或资产的现有口径保留。"
+  },
+  {
+    "number": 7,
+    "name": "可视化",
+    "health": "正常：已保存图表与空搜索",
+    "screenshot": "07-visualization-final.jpg",
+    "note": "真实保存图表；无匹配搜索的空状态、清空搜索路径已检查。"
+  },
+  {
+    "number": 8,
+    "name": "分析中心及六个子模式",
+    "health": "已修复：共享日期显示",
+    "screenshot": "08-analysis-final.jpg",
+    "note": "关联分析、字段体检、透视、时序、配方和 SQL 模板均导航检查；体检/透视/时序另附加载完成截图。聚合日期后缀采用共享转换，普通大数保持数字。"
+  },
+  {
+    "number": 9,
+    "name": "查询历史",
+    "health": "已修复：单条删除确认与高亮",
+    "screenshot": "09-history-final.jpg",
+    "note": "卡片、列表、详情共用删除确认；取消不删除；嵌套 Escape 只关闭顶层弹窗。检查过程发生一次误删，见事故记录。"
+  },
+  {
+    "number": 10,
+    "name": "审计",
+    "health": "正常：空状态",
+    "screenshot": "10-audit-final.jpg",
+    "note": "零审计记录状态；未为填充界面执行 DDL/DML。"
+  },
+  {
+    "number": 11,
+    "name": "知识资产",
+    "health": "已修复：正文与图谱共享主题",
+    "screenshot": "11-library-final.jpg",
+    "note": "真实 Markdown 文档、标题、列表、引用、代码、表格与嵌入图谱；通用 overflow 排版规则收敛至 markdown-body。"
+  },
+  {
+    "number": 12,
+    "name": "插件",
+    "health": "部分验证：本地列表正常",
+    "screenshot": "12-extensions-final.jpg",
+    "note": "11 个插件、筛选与就绪状态可见；远程激活、外部文件和湖仓连接未调用。活动数量随实际引擎会话变化。"
+  },
+  {
+    "number": 13,
+    "name": "本体：图谱/数据/实体画布",
+    "health": "已修复：双主题及可用性",
+    "screenshot": "13-ontology-final.jpg",
+    "note": "真实 9 节点/13 关系、数据视图和 7 实体/6 边画布；Alt+S 实际将焦点移到搜索；未接入的保存预设、边属性编辑明确禁用。"
+  },
+  {
+    "number": 14,
+    "name": "技能",
+    "health": "已修复：分类色与导入入口",
+    "screenshot": "14-skills-final.jpg",
+    "note": "实际技能卡与类别、意图色采用语义变量；未实现自定义创建禁用，JSON/文件导入路径保留。未逐个调用所有技能。"
+  },
+  {
+    "number": 15,
+    "name": "能力",
+    "health": "部分验证：本地卡片正常",
+    "screenshot": "15-capability-final.jpg",
+    "note": "实际 8 项能力和提示工作面可见；远程模型响应未验证。"
+  },
+  {
+    "number": 16,
+    "name": "组合推演",
+    "health": "正常：空输入禁用；远程未验证",
+    "screenshot": "16-deduction-final.jpg",
+    "note": "空输入不可提交；未调用远程模型，也未改写本体数据。"
+  },
+  {
+    "number": 17,
+    "name": "知识 × 本体联动",
+    "health": "已修复：共用阅读与图谱规则",
+    "screenshot": "17-tutorial-final.jpg",
+    "note": "5 篇实际发布文档、正文及关联图谱；未执行教程中的建表、插入和批量运行。"
+  }
+]

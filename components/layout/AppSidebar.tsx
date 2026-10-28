@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Activity,
   BarChart3,
+  PieChart,
   Box,
   BrainCircuit,
   ChevronDown,
@@ -79,6 +80,7 @@ const ICONS: Record<WorkspaceIconName, LucideIcon> = {
   data: Table2,
   schema: ListTree,
   metrics: BarChart3,
+  visualization: PieChart,
   logs: ScrollText,
   history: History,
   plugins: Plug,

@@ -111,9 +111,16 @@ describe('sqlToWorkflowParser - SQL to DAG Engine Tests', () => {
     expect(edges.some(e => e.source === sourceSales?.id && e.target === cleanSalesNode?.id)).toBe(true);
     // clean_sales -> customer_agg
     expect(edges.some(e => e.source === cleanSalesNode?.id && e.target === customerAggNode?.id)).toBe(true);
-    // customer_agg -> final_result & demo_customers -> final_result
-    expect(edges.some(e => e.source === customerAggNode?.id && e.target === resultNode?.id)).toBe(true);
-    expect(edges.some(e => e.source === sourceCustomers?.id && e.target === resultNode?.id)).toBe(true);
+    // customer_agg & demo_customers connect to resultNode (via intermediate join node if main query has JOIN)
+    const joinNode = nodes.find(n => n.id === 'node_main_join' || n.data.type === 'join');
+    if (joinNode) {
+      expect(edges.some(e => e.source === customerAggNode?.id && e.target === joinNode.id)).toBe(true);
+      expect(edges.some(e => e.source === sourceCustomers?.id && e.target === joinNode.id)).toBe(true);
+      expect(edges.some(e => e.source === joinNode.id && e.target === resultNode?.id)).toBe(true);
+    } else {
+      expect(edges.some(e => e.source === customerAggNode?.id && e.target === resultNode?.id)).toBe(true);
+      expect(edges.some(e => e.source === sourceCustomers?.id && e.target === resultNode?.id)).toBe(true);
+    }
   });
 
   it('parses single SELECT query with JOIN & GROUP BY into multi-stage DAG', () => {

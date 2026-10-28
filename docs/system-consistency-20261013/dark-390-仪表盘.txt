@@ -1,0 +1,59 @@
+- banner "全局工作区顶栏":
+  - button "🪶 DuckDB Studio PRO":
+    - generic: 🪶
+    - generic: DuckDB Studio
+    - generic: PRO
+  - navigation "业务领域大类":
+    - button "工程核心":
+      - generic: 工程核心
+    - button "分析洞察":
+      - generic: 分析洞察
+    - button "知识沉淀":
+      - generic: 知识沉淀
+    - button "AI 认知":
+      - generic: AI 认知
+  - tablist "工程核心功能标签页":
+    - tab "仪表盘" [active] [selected]:
+      - generic: 仪表盘
+    - tab "数据":
+      - generic: 数据
+      - generic: "2"
+    - tab "Schema":
+      - generic: Schema
+      - generic: "3"
+    - tab "SQL":
+      - generic: SQL
+      - generic: "4"
+    - tab "数据流":
+      - generic: 数据流
+      - generic: "5"
+  - button "项目":
+    - generic: 项目
+  - button "新建表":
+    - generic: 新建表
+  - button "临时分析空间":
+    - generic: 临时分析空间
+  - button "AI 助手":
+    - generic: AI 助手
+  - button "⌘K":
+  - button "帮助与快捷键":
+  - button "切换为浅色模式":
+  - button "AI 模型设置":
+- main:
+  - heading "分析范围" [level=1]
+  - generic: /
+  - button "内存库 · memory（临时）":
+    - generic: 内存库 · memory（临时）
+  - paragraph
+  - button "刷新数据":
+  - paragraph: 导入数据开始分析
+  - button "导入数据"
+  - button "查看失败查询（1）"
+- contentinfo:
+  - generic: DuckDB 1.33.1
+  - generic: "|"
+  - generic: memory [MEMORY]
+  - generic: 引擎就绪
+  - generic: "|"
+  - generic: 06:53
+  - button "刷新运行时状态":

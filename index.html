@@ -14,11 +14,8 @@
   <meta property="og:type" content="website" />
   <meta property="og:image" content="https://duckdb.org/images/logo-dl/duckdb-logo.png" />
 
-  <link
-    href="https://fonts.loli.net/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;700&display=swap"
-    rel="stylesheet">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/jetbrains-mono@5.0.21/index.css" />
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/victor-mono@5.2.5/index.css" />
+  <!-- JetBrains Mono is bundled by index.tsx. System fonts keep startup independent
+       of external font stylesheets, which can block deferred module execution. -->
   <!-- CodeMirror handled by @uiw/react-codemirror -->
   <!-- Chart.js handled by npm -->
   <!-- SQL Formatter handled by npm -->

@@ -192,7 +192,7 @@ export interface VisualConfig {
   kpiTarget?: number;
   showTrendLine?: boolean;
   highlightOutliers?: boolean;
-  pivot?: { rowKey: string; colKey: string; valKey: string; aggregation: 'sum' | 'count' | 'avg' | 'min' | 'max' };
+  pivot?: { nullDisplay?: 'dash' | 'zero' | 'empty'; rowKey: string; colKey: string; valKey: string; aggregation: 'sum' | 'count' | 'avg' | 'min' | 'max' | 'count_distinct' | 'median' };
   /** Aggregation for duplicate categories in an already fetched result. */
   aggregation?: 'none' | 'count' | 'sum' | 'avg' | 'min' | 'max';
   valueMode?: 'absolute' | 'percent';
@@ -300,8 +300,8 @@ export interface ChartSpec {
   pivotTable?: { rowKey: string; rowKeys?: string[]; colKey: string; valKey: string; rowValues: string[]; colValues: string[];
     totalsScope?: 'source'; rowLabels?: Record<string, string>; colLabels?: Record<string, string>;
     rowBindings?: Record<string, unknown>; colBindings?: Record<string, unknown>;
-    aggregation: 'sum'|'count'|'avg'|'min'|'max';
-    matrix: Record<string, Record<string, number|string>>; rowTotals: Record<string, number|string>; colTotals: Record<string, number|string>; grandTotal: number|string|null; grandCount: number; subtotals?: Record<string, Record<string, number|string>>; rowSubtotals?: Record<string, number|string>; rowLevels?: Record<string, number>; rowParents?: Record<string, string>; nullDisplay?: string };
+    aggregation: 'sum'|'count'|'avg'|'min'|'max'|'count_distinct'|'median';
+    matrix: Record<string, Record<string, number|string>>; rowTotals: Record<string, number|string>; colTotals: Record<string, number|string>; grandTotal: number|string|null; grandCount: number; subtotals?: Record<string, Record<string, number|string>>; rowSubtotals?: Record<string, number|string>; rowLevels?: Record<string, number>; rowParents?: Record<string, string>; nullDisplay?: 'dash' | 'zero' | 'empty' };
   yRightKeys?: string[];
   seriesKey?: string;
   colorKey?: string;

@@ -68,7 +68,7 @@ export const DeductionResultsPanel: React.FC<DeductionResultsPanelProps> = ({
   );
 
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-[#12141e] border-r border-white/10 p-3 text-xs">
+    <div className="flex h-full flex-col overflow-hidden bg-monokai-surface border-r border-monokai-border p-3 text-xs">
       {/* Header */}
       <div className="mb-3 shrink-0">
         <div className="flex items-center justify-between">
@@ -81,7 +81,7 @@ export const DeductionResultsPanel: React.FC<DeductionResultsPanelProps> = ({
               aria-label="Top-K 数量"
               value={topKLimit}
               onChange={e => onTopKChange(Number(e.target.value))}
-              className="rounded-lg border border-white/10 bg-[#0c0d12] px-2 py-1 text-[10px] text-monokai-fg"
+              className="rounded-lg border border-monokai-border bg-monokai-bg px-2 py-1 text-[10px] text-monokai-fg"
             >
               {[10, 20, 30, 50, 100].map(k => (
                 <option key={k} value={k}>前 {k} 条情形</option>
@@ -130,7 +130,7 @@ export const DeductionResultsPanel: React.FC<DeductionResultsPanelProps> = ({
                   className={`rounded-lg px-2 py-0.5 text-[10px] font-bold transition-all ${
                     isActive
                       ? 'border border-monokai-cyan/30 bg-monokai-cyan/20 text-monokai-cyan'
-                      : 'border border-transparent bg-white/5 text-monokai-comment hover:bg-white/10'
+                      : 'border border-transparent bg-monokai-bg text-monokai-comment hover:bg-monokai-hover hover:text-monokai-fg'
                   }`}
                 >
                   {labels[status]}
@@ -146,7 +146,7 @@ export const DeductionResultsPanel: React.FC<DeductionResultsPanelProps> = ({
               placeholder="搜索情形..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="w-full rounded-lg border border-white/10 bg-[#0c0d12] py-0.5 pl-7 pr-2 text-[10px] text-monokai-fg outline-none focus:border-monokai-accent transition-colors"
+              className="w-full rounded-lg border border-monokai-border bg-monokai-bg py-0.5 pl-7 pr-2 text-[10px] text-monokai-fg outline-none focus:border-monokai-accent transition-colors"
               aria-label="搜索推演情形"
             />
           </div>
@@ -156,12 +156,12 @@ export const DeductionResultsPanel: React.FC<DeductionResultsPanelProps> = ({
       {/* Main candidate list */}
       <div className="flex-1 space-y-2 overflow-auto pr-1">
         {!report ? (
-          <div className="flex h-48 flex-col items-center justify-center rounded-xl border border-dashed border-white/10 p-6 text-center text-monokai-comment">
+          <div className="flex h-48 flex-col items-center justify-center rounded-xl border border-dashed border-monokai-border p-6 text-center text-monokai-comment">
             <BarChart3 className="mb-2 h-8 w-8 text-monokai-cyan/30" />
             <p>点击上方「执行推演」挖掘交叉情形</p>
           </div>
         ) : filteredCandidates.length === 0 ? (
-          <div className="rounded-lg bg-black/20 p-4 text-center text-monokai-comment">
+          <div className="rounded-lg bg-monokai-bg border border-monokai-border p-4 text-center text-monokai-comment">
             没有符合筛选条件的候选情形
           </div>
         ) : (

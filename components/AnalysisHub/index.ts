@@ -5,7 +5,7 @@ export { AnalysisPivotWorkbench } from './AnalysisPivotWorkbench';
 export { AnalysisTimeSeries } from './AnalysisTimeSeries';
 export { AnalysisRecipeCenter } from './AnalysisRecipeCenter';
 export { AnalysisChartRenderer } from './AnalysisChartRenderer';
-export { analysisEngine } from './analysisEngine';
+/** Analysis queries go through `services/analysis` only — no local engine. */
 export {
   AH,
   AnalysisLoadingState,

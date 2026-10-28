@@ -3,19 +3,23 @@
  *
  * 核心架构重构：
  * 1. 顶部单行高聚合顶栏 (36px)：整合模式切换、关联查询选择器、实时联动指示与核心动作组
- * 2. 现代专业 IDE 三栏布局：
- *    - 左侧：DataFlowAssetSidebar 数据库表/视图对象树 + ETL 算子库（支持 HTML5 拖拽入画布）
- *    - 中央：极简沉浸式 DAG 画布（极简流线型节点 + 防碰撞错峰连线徽章 + 视口工具岛）
- *    - 右侧：停靠推挤式 Inspector 检查器（支持 280~560px 宽度自由拖拽，分屏模式智能降级为浮动抽屉）
- *    - 底部：DataFlowBottomDrawer 折叠控制台（平时 28px 精致状态栏，可拖拽拉伸展开）
- * 3. 修复 LiveSync 焦点锁定与日志无害化、屏蔽系统修饰键冲突
+ * 2. 布局对标【本体图谱-实体画布】：
+ *    - 左侧：DataFlowAssetSidebar（独立全屏可用）
+ *    - 中央：沉浸式 DAG 画布
+ *    - 右侧：属性详情绝对覆盖抽屉（w-80 / backdrop-blur，与实体画布属性面板一致）
+ *    - 底部：DataFlowBottomDrawer 折叠控制台
  */
 
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { readableFlowViewport } from '../../services/dataflow/logicalFlowViewport';
+import { LOGICAL_FLOW_LAYOUTS, type LogicalFlowLayoutMode } from '../../services/dataflow/logicalFlowLayout';
+import { stripSqlHeader } from '../../services/sqlScript';
 import ReactFlow, {
   Background,
   BackgroundVariant,
   useReactFlow,
+  useViewport,
+  useStore as useReactFlowStore,
   ReactFlowProvider,
   NodeMouseHandler,
   EdgeMouseHandler,
@@ -46,8 +50,6 @@ import {
   Map,
   LayoutGrid,
   Sliders,
-  PanelRightClose,
-  Sparkles,
   Workflow,
   Link2,
   Sigma,
@@ -57,13 +59,11 @@ import {
   Pause,
   StepForward,
   SkipBack,
-  Compass,
   X,
   Wrench,
 } from 'lucide-react';
 
 import { useWorkflowStore, wouldCreateCycle, type DataFlowMode } from '../../services/dataflow/workflowStore';
-import { SQL_PITFALL_PRESETS } from '../../services/dataflow/sqlToWorkflowParser';
 import {
   DATAFLOW_CENTER_NODE_EVENT,
   DATAFLOW_TRACE_FAULT_EVENT,
@@ -107,6 +107,7 @@ import {
 
 const nodeTypes = {
   dataFlowNode: DataFlowNode,
+  logicalBoundary: ({ data }: { data: { title: string } }) => <div className="h-full w-full rounded-lg border border-monokai-border bg-monokai-bg/30 pointer-events-none"><div className="px-3 py-2 text-[10px] text-monokai-comment">{data.title}</div></div>,
 };
 
 const edgeTypes = {
@@ -129,31 +130,37 @@ const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
   onSetPanMode,
   isSplitMode = false,
 }) => {
-  const { zoomIn, zoomOut, fitView, getZoom } = useReactFlow();
-  const [zoomLevel, setZoomLevel] = useState(100);
+  const { zoomIn, zoomOut, fitView, getNodes, setViewport } = useReactFlow();
+  const viewportWidth = useReactFlowStore(s => s.width);
+  const viewportHeight = useReactFlowStore(s => s.height);
+  const { zoom } = useViewport();
+  const zoomLevel = Math.round(zoom * 100);
+  const dataFlowMode = useWorkflowStore(s => s.dataFlowMode);
   const [showAddMenu, setShowAddMenu] = useState(false);
   const addMenuRef = useRef<HTMLDivElement>(null);
   const autoLayout = useWorkflowStore(s => s.autoLayout);
+  const sqlLayoutMode = useWorkflowStore(s => s.sqlLayoutMode);
+  const setSqlLayoutMode = useWorkflowStore(s => s.setSqlLayoutMode);
   const addNode = useWorkflowStore(s => s.addNode);
 
-  const syncZoom = () => {
-    const z = Math.round(getZoom() * 100);
-    setZoomLevel(z);
-  };
+  const handleZoomIn = () => zoomIn();
+  const handleZoomOut = () => zoomOut();
+  const handleFitView = () => fitView({ padding: 0.2, maxZoom: 1, duration: 400 });
 
-  const handleZoomIn = () => { zoomIn(); setTimeout(syncZoom, 50); };
-  const handleZoomOut = () => { zoomOut(); setTimeout(syncZoom, 50); };
-  const handleFitView = () => {
-    fitView({ padding: 0.2, duration: 400 });
-    setTimeout(syncZoom, 450);
-  };
-
-  const handleAutoLayout = () => {
-    autoLayout();
-    setTimeout(() => {
-      fitView({ padding: 0.2, duration: 350 });
+  const handleAutoLayout = async () => {
+    await autoLayout();
+      if (dataFlowMode === 'sql') {
+        const viewport = readableFlowViewport(getNodes(), viewportWidth, viewportHeight);
+        if (viewport) setViewport(viewport, { duration: 350 });
+      } else fitView({ padding: 0.2, maxZoom: 1, duration: 350 });
       toastService.success('已自动优化并对齐 DAG 拓扑布局');
-    }, 50);
+  };
+  const handleLayoutChange = async (mode: LogicalFlowLayoutMode) => {
+    await setSqlLayoutMode(mode);
+    const state = useWorkflowStore.getState();
+    if (state.dataFlowMode !== 'sql' || state.sqlLayoutMode !== mode) return;
+    const viewport = readableFlowViewport(state.nodes, viewportWidth, viewportHeight);
+    if (viewport) setViewport(viewport, { duration: 0 });
   };
 
   useEffect(() => {
@@ -226,6 +233,17 @@ const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
       <button type="button" onClick={handleAutoLayout} className={dfIconBtn} title="智能分层拓扑整理布局">
         <LayoutGrid className="h-3.5 w-3.5" />
       </button>
+      {dataFlowMode === 'sql' && (
+        <select
+          aria-label="流程图布局"
+          title="切换流程图布局"
+          value={sqlLayoutMode}
+          onChange={event => void handleLayoutChange(event.target.value as LogicalFlowLayoutMode)}
+          className="h-7 max-w-[82px] rounded border border-monokai-border bg-monokai-bg px-1 text-[11px] text-monokai-fg focus:outline-none focus:ring-1 focus:ring-monokai-accent"
+        >
+          {LOGICAL_FLOW_LAYOUTS.map(mode => <option key={mode.value} value={mode.value}>{mode.label}</option>)}
+        </select>
+      )}
       <button
         type="button"
         onClick={onToggleMiniMap}
@@ -235,7 +253,7 @@ const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
         <Map className="h-3.5 w-3.5" />
       </button>
 
-      {!isSplitMode && (
+      {!isSplitMode && dataFlowMode === 'custom' && (
         <>
           <div className={dfDividerV} />
           <div className="relative" ref={addMenuRef}>
@@ -294,6 +312,7 @@ export interface DataFlowCanvasProps {
   hideSubNav?: boolean;
   standalone?: boolean;
   initialMode?: DataFlowMode;
+  initialFocusTable?: string;
   onSwitchToSqlEditor?: () => void;
   onOpenInSqlEditor?: (sql: string, title?: string) => void;
   activeSql?: string;
@@ -310,6 +329,7 @@ const DataFlowCanvasInner: React.FC<DataFlowCanvasProps> = ({
   hideSubNav = false,
   standalone = false,
   initialMode,
+  initialFocusTable,
   onSwitchToSqlEditor,
   onOpenInSqlEditor,
   activeSql = '',
@@ -337,6 +357,7 @@ const DataFlowCanvasInner: React.FC<DataFlowCanvasProps> = ({
     syncExecutionResult,
     compileWorkflowToSql,
     runAll,
+    cancelSqlRun,
     deleteNode,
     deleteEdge,
     addNode,
@@ -344,8 +365,6 @@ const DataFlowCanvasInner: React.FC<DataFlowCanvasProps> = ({
     autoLayout,
     isExecuting,
     liveSyncWithSql,
-    setLiveSyncWithSql,
-    resetToDefaultDemo,
     stepperState,
     startStepping,
     stopStepping,
@@ -353,13 +372,13 @@ const DataFlowCanvasInner: React.FC<DataFlowCanvasProps> = ({
     stepPrev,
     setStepIndex,
     togglePlayStepping,
-    loadPitfallPreset,
     isReverseTracing,
     traceReverseLineage,
     clearLineageTrace,
     setInspectorTab,
     syncStatus,
     lastSyncError,
+    logicalFlowData,
     focusFaultyNode,
   } = useWorkflowStore();
 
@@ -369,17 +388,11 @@ const DataFlowCanvasInner: React.FC<DataFlowCanvasProps> = ({
   const [showMiniMap, setShowMiniMap] = useState<boolean>(false);
   const [isPanMode, setIsPanMode] = useState<boolean>(false);
   const [showToolsMenu, setShowToolsMenu] = useState<boolean>(false);
-  const [showPitfallMenu, setShowPitfallMenu] = useState<boolean>(false);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const toolsMenuRef = useRef<HTMLDivElement>(null);
 
-  // 右侧检查器：默认收起，选中节点后再打开，避免首屏三栏挤占画布
+  // 右侧属性抽屉：默认收起，选中节点后再打开（与实体画布属性侧栏一致，覆盖而非挤占画布）
   const [isInspectorOpen, setIsInspectorOpen] = useState<boolean>(false);
-  const [inspectorWidth, setInspectorWidth] = useState<number>(() => {
-    const saved = localStorage.getItem('dataflow_inspector_width');
-    return saved ? Math.max(280, Math.min(560, Number(saved))) : 300;
-  });
-  const [isDraggingInspector, setIsDraggingInspector] = useState<boolean>(false);
 
   // 左侧资产栏：默认折叠；自由编排模式自动展开，SQL/血缘模式自动收起
   const [isAssetSidebarCollapsed, setIsAssetSidebarCollapsed] = useState<boolean>(true);
@@ -388,6 +401,46 @@ const DataFlowCanvasInner: React.FC<DataFlowCanvasProps> = ({
 
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const reactFlowInstance = useReactFlow();
+
+  // Fit only when the graph's membership or mode changes, never on a field edit or drag.
+  const graphMembership = nodes.map(n => n.id).join('|');
+  const graphGeometry = nodes.map(n => `${n.id}:${n.position.x}:${n.position.y}:${n.style?.width}:${n.style?.height}`).join('|');
+  const showReadableFlow = useCallback(() => {
+    const element = reactFlowWrapper.current;
+    if (useWorkflowStore.getState().dataFlowMode !== 'sql' || !element) {
+      reactFlowInstance.fitView({ padding: .2, maxZoom: 1, duration: 250 });
+      return;
+    }
+    const viewport = readableFlowViewport(useWorkflowStore.getState().nodes, element.clientWidth, element.clientHeight);
+    if (viewport) reactFlowInstance.setViewport(viewport, { duration: 0 });
+  }, [reactFlowInstance]);
+  useEffect(() => {
+    if (!graphMembership) return;
+    const timer = window.setTimeout(() => {
+      showReadableFlow();
+    }, 100);
+    return () => window.clearTimeout(timer);
+  }, [graphMembership, graphGeometry, dataFlowMode, showReadableFlow]);
+
+  useEffect(() => {
+    const element = reactFlowWrapper.current;
+    if (!element || typeof ResizeObserver === 'undefined') return;
+    let frame = 0;
+    const observer = new ResizeObserver(() => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const store = useWorkflowStore.getState();
+        const width = Math.round(element.clientWidth);
+        if (width > 0 && Math.abs(store.canvasWidth - width) > 16) {
+          useWorkflowStore.setState({ canvasWidth: width });
+          if (store.dataFlowMode === 'sql' && store.logicalFlowData) store.autoLayout();
+        }
+        showReadableFlow();
+      });
+    });
+    observer.observe(element);
+    return () => { observer.disconnect(); cancelAnimationFrame(frame); };
+  }, [showReadableFlow]);
 
   const hasBugOrAnomaly = useMemo(() => {
     return nodes.some(n => n.data.bugInfo?.hasBug || n.data.status === 'error' || n.data.hasAnomaly);
@@ -472,74 +525,17 @@ const DataFlowCanvasInner: React.FC<DataFlowCanvasProps> = ({
     }
   }, [stepperState.isActive, stepperState.activeNodeId, nodes, reactFlowInstance]);
 
-  /** 打开右侧检查器并定位到含「运行套路」的节点（节点卡已不再内嵌展开，避免空操作） */
-  const handleShowParadigmGuide = useCallback(() => {
-    const target =
-      nodes.find(n => n.id === selectedNodeId && n.data.paradigm) ||
-      nodes.find(n => n.data.paradigm) ||
-      nodes.find(n => n.id === selectedNodeId) ||
-      nodes[0];
-
-    if (!target) {
-      toastService.info('当前流图为空，请先从 SQL 同步或加载演示流图');
-      return;
-    }
-
-    selectNode(target.id);
-    setInspectorTab('config');
-    setIsInspectorOpen(true);
-    setShowToolsMenu(false);
-
-    if (typeof reactFlowInstance?.setCenter === 'function') {
-      reactFlowInstance.setCenter(target.position.x + 112, target.position.y + 40, {
-        zoom: 1.1,
-        duration: 350,
-      });
-    }
-
-    if (target.data.paradigm) {
-      toastService.success(`已打开「${target.data.title || '当前步骤'}」的运行套路与避坑指南`);
-    } else {
-      toastService.info('已打开节点详情；该步骤暂无套路说明，可切换其他算子查看');
-    }
-  }, [nodes, selectedNodeId, selectNode, setInspectorTab, reactFlowInstance]);
-
-  // 点击菜单外部关闭「学习与工具」
+  // 点击菜单外部关闭「工具」
   useEffect(() => {
-    if (!showToolsMenu && !showPitfallMenu) return;
+    if (!showToolsMenu) return;
     const onDocClick = (e: MouseEvent) => {
       if (toolsMenuRef.current && !toolsMenuRef.current.contains(e.target as Node)) {
         setShowToolsMenu(false);
-        setShowPitfallMenu(false);
       }
     };
     document.addEventListener('mousedown', onDocClick);
     return () => document.removeEventListener('mousedown', onDocClick);
-  }, [showToolsMenu, showPitfallMenu]);
-
-  // 检查器拖拽宽度调整
-  const handleInspectorMouseDown = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    setIsDraggingInspector(true);
-    const startX = e.clientX;
-    const startWidth = inspectorWidth;
-
-    const handleMouseMove = (moveEvent: MouseEvent) => {
-      const deltaX = startX - moveEvent.clientX;
-      const nextWidth = Math.max(280, Math.min(580, startWidth + deltaX));
-      setInspectorWidth(nextWidth);
-      localStorage.setItem('dataflow_inspector_width', String(nextWidth));
-    };
-
-    const handleMouseUp = () => {
-      setIsDraggingInspector(false);
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
-
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-  }, [inspectorWidth]);
+  }, [showToolsMenu]);
 
   // 全局快捷键监听（严格过滤修饰键，防止与 Ctrl+S / Ctrl+H 冲突）
   useEffect(() => {
@@ -560,7 +556,7 @@ const DataFlowCanvasInner: React.FC<DataFlowCanvasProps> = ({
         setIsPanMode(false);
       } else if (e.key === 'h' || e.key === 'H') {
         setIsPanMode(true);
-      } else if (e.key === 'Delete' || e.key === 'Backspace') {
+      } else if ((e.key === 'Delete' || e.key === 'Backspace') && dataFlowMode === 'custom') {
         if (selectedNodeId) {
           e.preventDefault();
           const nodeTitle =
@@ -599,14 +595,13 @@ const DataFlowCanvasInner: React.FC<DataFlowCanvasProps> = ({
         setSelectedEdgeId(null);
         setIsInspectorOpen(false);
         setShowToolsMenu(false);
-        setShowPitfallMenu(false);
-        useWorkflowStore.setState({ activeSqlRange: null });
+        if (!useWorkflowStore.getState().executionSqlRange) useWorkflowStore.setState({ activeSqlRange: null });
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedNodeId, selectedEdgeId, deleteNode, deleteEdge, selectNode, nodes, confirm]);
+  }, [selectedNodeId, selectedEdgeId, deleteNode, deleteEdge, selectNode, nodes, confirm, dataFlowMode]);
 
   // 分屏模式：出现异常时强制打开诊断；异常清除后不强制关闭（尊重用户手动打开）
   useEffect(() => {
@@ -642,36 +637,94 @@ const DataFlowCanvasInner: React.FC<DataFlowCanvasProps> = ({
     setIsAssetSidebarCollapsed(dataFlowMode !== 'custom');
   }, [dataFlowMode]);
 
-  // 初始化加载
-  useEffect(() => {
-    if (standalone) {
-      if (initialMode === 'catalog' || !activeSql.trim()) {
-        void syncFromCatalog();
-      } else {
-        void loadWorkflow(activeSql, activeTabTitle);
-      }
-    } else {
-      void loadWorkflow(activeSql, activeTabTitle);
-    }
-  }, [standalone, initialMode, loadWorkflow, syncFromCatalog, activeSql, activeTabTitle]);
+  // Sole driver: current editor SQL → parse → replace graph. Never keep a static copy.
+  const lastSyncedSqlRef = useRef<string | null>(null);
+  const isSplitWorkbench = layoutMode === 'split';
 
-  // 外部 SQL 发生变化时，若处于 Live Sync 且为 SQL 模式，静默解析流图（保持当前选中态不变）
+  // Catalog deep links initialize once; later explicit mode choices remain authoritative.
   useEffect(() => {
-    if (!liveSyncWithSql || dataFlowMode !== 'sql' || !activeSql.trim()) return;
+    if (standalone && initialMode === 'catalog') {
+      void setDataFlowMode('catalog', initialFocusTable);
+    }
+  }, [standalone, initialMode, initialFocusTable, setDataFlowMode]);
+
+  useEffect(() => {
+    // Explicit modes survive editor content changes; only split view is always SQL-driven.
+    if (isSplitWorkbench) {
+      if (dataFlowMode !== 'sql' || !liveSyncWithSql) {
+        useWorkflowStore.setState({ dataFlowMode: 'sql', liveSyncWithSql: true });
+      }
+    } else if (dataFlowMode !== 'sql' || !liveSyncWithSql) {
+      return;
+    }
+
+    const sql = activeSql || '';
+    const normalized = sql;
+
+    if (
+      lastSyncedSqlRef.current === normalized &&
+      useWorkflowStore.getState().activeSql === normalized &&
+      useWorkflowStore.getState().syncStatus === 'ready' &&
+      (normalized === ''
+        ? useWorkflowStore.getState().nodes.length === 0
+        : useWorkflowStore.getState().nodes.length > 0)
+    ) {
+      return;
+    }
+
+    // When SQL changes, set syncing status without blanking existing nodes (double-buffering)
+    if (lastSyncedSqlRef.current !== null && lastSyncedSqlRef.current !== normalized) {
+      if (normalized === '') {
+        useWorkflowStore.setState({
+          nodes: [],
+          edges: [],
+          selectedNodeId: null,
+          activeSqlRange: null,
+          syncStatus: 'idle',
+        });
+      } else {
+        useWorkflowStore.setState({
+          syncStatus: 'syncing',
+        });
+      }
+    }
 
     const timer = setTimeout(() => {
-      syncFromSql(activeSql, activeTabTitle, false);
-    }, 500);
+      lastSyncedSqlRef.current = normalized;
+      if(useWorkflowStore.getState().activeSql!==sql||useWorkflowStore.getState().syncStatus!=='ready')void syncFromSql(sql, activeTabTitle, false);
+    }, 180);
 
     return () => clearTimeout(timer);
-  }, [activeSql, activeTabTitle, liveSyncWithSql, dataFlowMode, syncFromSql]);
+  }, [
+    activeSql,
+    activeTabTitle,
+    liveSyncWithSql,
+    dataFlowMode,
+    syncFromSql,
+    syncFromCatalog,
+    standalone,
+    initialMode,
+    isSplitWorkbench,
+  ]);
 
-  // SQL 工作台产生最新执行结果时，同步给对应节点
+  // Decorate graph with execution metrics only when a new result arrives —
+  // never re-apply an old result just because the editor SQL changed.
   useEffect(() => {
-    if (activeQueryResult) {
-      syncExecutionResult(activeTabTitle, activeQueryResult, activeSql);
-    }
-  }, [activeQueryResult, activeTabTitle, activeSql, syncExecutionResult]);
+    if (useWorkflowStore.getState().dataFlowMode === 'sql') return;
+    if (!activeQueryResult || (!isSplitWorkbench && useWorkflowStore.getState().dataFlowMode !== 'sql')) return;
+    const editorSql = (activeSql || '').trim();
+    let cancelled = false;
+    let fitTimer: ReturnType<typeof setTimeout> | undefined;
+    void syncExecutionResult(activeTabTitle, activeQueryResult, editorSql || undefined).then(() => {
+      if (cancelled) return;
+      // Profiling can replace positions while retaining node IDs. Fit after the actual update.
+      fitTimer = setTimeout(() => {
+        if (!cancelled) reactFlowInstance.fitView({ padding: 0.2, maxZoom: 1, duration: 250 });
+      }, 100);
+    });
+    return () => { cancelled = true; if (fitTimer) clearTimeout(fitTimer); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally ignore activeSql edits
+  }, [activeQueryResult?.resultId, activeTabTitle, syncExecutionResult]);
 
   const onNodeClick: NodeMouseHandler = useCallback(
     (_, node) => {
@@ -679,15 +732,12 @@ const DataFlowCanvasInner: React.FC<DataFlowCanvasProps> = ({
       setSelectedEdgeId(null);
       setIsInspectorOpen(true);
       setInspectorTab('config');
-      if (lastCenteredNodeRef.current !== node.id) {
-        centerOnNode(node.id, 1.05, 280);
-      }
-      if (node.data?.sqlRange) {
+      if (node.data?.sqlRange && !useWorkflowStore.getState().executionSqlRange) {
         useWorkflowStore.setState({ activeSqlRange: node.data.sqlRange });
         dispatchFocusSqlEditor({ sqlRange: node.data.sqlRange });
       }
     },
-    [selectNode, setInspectorTab, centerOnNode]
+    [selectNode, setInspectorTab]
   );
 
   const onPaneClick = useCallback(() => {
@@ -695,7 +745,7 @@ const DataFlowCanvasInner: React.FC<DataFlowCanvasProps> = ({
     setSelectedEdgeId(null);
     setIsInspectorOpen(false);
     setShowToolsMenu(false);
-    useWorkflowStore.setState({ activeSqlRange: null });
+    if (!useWorkflowStore.getState().executionSqlRange) useWorkflowStore.setState({ activeSqlRange: null });
   }, [selectNode]);
 
   const onEdgeClick: EdgeMouseHandler = useCallback(
@@ -721,7 +771,7 @@ const DataFlowCanvasInner: React.FC<DataFlowCanvasProps> = ({
     );
     if (isDuplicate) return false;
 
-    // 检查拓扑有向环
+    // 检查拓扑有向环与端点类型合法性
     const isReversed =
       connection.sourceHandle === 'input' ||
       connection.sourceHandle === 'left' ||
@@ -731,8 +781,14 @@ const DataFlowCanvasInner: React.FC<DataFlowCanvasProps> = ({
     const fromId = isReversed ? connection.target : connection.source;
     const toId = isReversed ? connection.source : connection.target;
 
+    const fromNode = nodes.find(n => n.id === fromId);
+    const toNode = nodes.find(n => n.id === toId);
+    if (fromNode?.data.type === 'export' || toNode?.data.type === 'source') {
+      return false;
+    }
+
     return !wouldCreateCycle(fromId, toId, edges);
-  }, [edges]);
+  }, [edges, nodes]);
 
   // HTML5 Drag & Drop 算子和表入画布
   const getFlowCoordinates = useCallback((clientX: number, clientY: number) => {
@@ -748,11 +804,12 @@ const DataFlowCanvasInner: React.FC<DataFlowCanvasProps> = ({
 
   const onDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
-    e.dataTransfer.dropEffect = 'copy';
-  }, []);
+    e.dataTransfer.dropEffect = dataFlowMode === 'custom' ? 'copy' : 'none';
+  }, [dataFlowMode]);
 
   const onDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
+    if (dataFlowMode !== 'custom') return;
     const table = e.dataTransfer.getData('application/duckdb-table');
     const operator = e.dataTransfer.getData('application/duckdb-operator');
     const pos = getFlowCoordinates(e.clientX, e.clientY);
@@ -764,11 +821,11 @@ const DataFlowCanvasInner: React.FC<DataFlowCanvasProps> = ({
       addNode(operator as any, pos);
       toastService.success(`已添加「${operator}」算子节点`);
     }
-  }, [getFlowCoordinates, addSourceNodeForTable, addNode]);
+  }, [getFlowCoordinates, addSourceNodeForTable, addNode, dataFlowMode]);
 
   // 手动从当前 SQL 同步
   const handleManualSyncFromSql = async () => {
-    if (!activeSql.trim()) {
+    if (!stripSqlHeader(activeSql)) {
       toastService.info('SQL 工作台中暂无查询内容');
       return;
     }
@@ -791,9 +848,12 @@ const DataFlowCanvasInner: React.FC<DataFlowCanvasProps> = ({
   // 切换到全库血缘
   const handleSwitchToCatalog = async () => {
     setIsSyncing(true);
-    await setDataFlowMode('catalog');
-    toastService.info('已同步 DuckDB 全库表与视图依赖血缘');
-    setTimeout(() => setIsSyncing(false), 500);
+    try {
+      await setDataFlowMode('catalog');
+      toastService.info('已同步 DuckDB 全库表与视图依赖血缘');
+    } catch (err) {
+      toastService.error(`血缘同步失败: ${err instanceof Error ? err.message : String(err)}`);
+    } finally { setIsSyncing(false); }
   };
 
   // 编译并反哺为 SQL 工作台查询
@@ -820,7 +880,7 @@ const DataFlowCanvasInner: React.FC<DataFlowCanvasProps> = ({
   const isSplitMode = layoutMode === 'split';
 
   return (
-    <div className={dfShell}>
+    <div className={`${dfShell} ${isSplitMode ? 'dataflow-split' : ''}`}>
       {/* 顶部三态视图导航 (当未隐藏且非独立全屏时) */}
       {!hideSubNav && !standalone && (
         <div className="flex items-center justify-between border-b border-monokai-border bg-monokai-sidebar px-3 py-1 text-2xs shrink-0">
@@ -858,7 +918,7 @@ const DataFlowCanvasInner: React.FC<DataFlowCanvasProps> = ({
       )}
 
       {/* ── 统一现代化单行高聚合顶栏 (高度严格收敛为 36px) ── */}
-      <div className="flex h-9 shrink-0 items-center justify-between border-b border-monokai-border bg-monokai-sidebar px-3 z-30 select-none gap-2 overflow-x-auto scrollbar-hide">
+      <div className="dataflow-topbar flex flex-wrap shrink-0 items-center justify-between border-b border-monokai-border bg-monokai-sidebar px-3 py-1 z-30 select-none gap-2 min-h-9">
         {/* 左侧：工作流标识 + 驱动模式切换胶囊 */}
         <div className="flex items-center gap-2 shrink-0">
           <div className="flex items-center gap-1.5 pr-2 border-r border-monokai-border/80">
@@ -877,6 +937,7 @@ const DataFlowCanvasInner: React.FC<DataFlowCanvasProps> = ({
                   await setDataFlowMode('sql');
                   if (activeSql) await syncFromSql(activeSql, activeTabTitle, true);
                 }}
+                aria-pressed={dataFlowMode === 'sql'}
                 className={dataFlowMode === 'sql' ? dfModePillActive : dfModePillIdle}
                 title="当前 SQL 查询逻辑流程图 (CTE / JOIN / GROUP BY)"
               >
@@ -887,6 +948,7 @@ const DataFlowCanvasInner: React.FC<DataFlowCanvasProps> = ({
               <button
                 type="button"
                 onClick={handleSwitchToCatalog}
+                aria-pressed={dataFlowMode === 'catalog'}
                 className={
                   dataFlowMode === 'catalog'
                     ? 'flex items-center gap-1 px-2 py-0.5 rounded bg-monokai-elevated text-monokai-cyan font-semibold shadow-xs cursor-pointer'
@@ -901,6 +963,7 @@ const DataFlowCanvasInner: React.FC<DataFlowCanvasProps> = ({
               <button
                 type="button"
                 onClick={() => setDataFlowMode('custom')}
+                aria-pressed={dataFlowMode === 'custom'}
                 className={
                   dataFlowMode === 'custom'
                     ? 'flex items-center gap-1 px-2 py-0.5 rounded bg-monokai-elevated text-monokai-yellow font-semibold shadow-xs cursor-pointer'
@@ -915,7 +978,7 @@ const DataFlowCanvasInner: React.FC<DataFlowCanvasProps> = ({
           ) : (
             <div className="flex items-center gap-1 px-2 py-0.5 rounded bg-monokai-surface/80 border border-monokai-border/60 text-3xs font-mono text-monokai-accent font-semibold">
               <Zap className="w-3 h-3 text-monokai-accent" />
-              <span>物理执行计划</span>
+              <span>Logical Relation Flow</span>
             </div>
           )}
         </div>
@@ -932,7 +995,7 @@ const DataFlowCanvasInner: React.FC<DataFlowCanvasProps> = ({
                   onSelectTab?.(e.target.value);
                   void setDataFlowMode('sql');
                 }}
-                className="h-6 px-1.5 rounded bg-monokai-surface/80 border border-monokai-border text-2xs text-monokai-fg font-mono outline-none cursor-pointer"
+                className="h-6 px-1.5 rounded-md bg-monokai-surface/90 border border-monokai-border text-2xs text-monokai-fg font-mono outline-none cursor-pointer hover:border-monokai-accent/40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-monokai-accent/60 transition-colors"
               >
                 {tabs.map(tab => (
                   <option key={tab.id} value={tab.id}>
@@ -943,24 +1006,22 @@ const DataFlowCanvasInner: React.FC<DataFlowCanvasProps> = ({
             </div>
           )}
 
-          {dataFlowMode === 'sql' && (
-            <button
-              type="button"
-              onClick={() => setLiveSyncWithSql(!liveSyncWithSql)}
-              className="flex items-center gap-1 h-6 px-1.5 rounded text-2xs font-mono text-monokai-comment hover:text-monokai-fg transition-colors cursor-pointer"
-              title="打字时静默解析并平滑更新 DAG（绝不漂移焦点）"
+          {(dataFlowMode === 'sql' || isSplitWorkbench) && (
+            <div
+              className="flex items-center gap-1 h-6 px-1.5 rounded text-2xs font-mono text-monokai-accent"
+              title="流程图始终由当前编辑器 SQL 实时生成"
             >
-              <span className={liveSyncWithSql ? dfStatusDot : dfStatusDotIdle} />
-              <span className="hidden sm:inline">{liveSyncWithSql ? '实时联动: 开' : '实时联动: 关'}</span>
-            </button>
+              <span className={dfStatusDot} />
+              <span className="hidden sm:inline">SQL 实时驱动</span>
+            </div>
           )}
 
           {nodes.length > 0 && (
             <div className="hidden lg:flex items-center gap-1 px-2 py-0.5 rounded bg-monokai-surface/50 border border-monokai-border/40 text-3xs font-mono text-monokai-comment">
-              <span>{nodes.length} 算子步骤</span>
+              <span>{nodes.filter(n=>n.type!=='logicalBoundary').length} 逻辑节点</span>
               <span>·</span>
               <span>
-                {(nodes.reduce((sum, n) => sum + (n.data.executionTimeSec ? n.data.executionTimeSec * 1000 : 0), 0)).toFixed(1)}ms
+                {nodes.some(n => n.data.executionTimeSec !== undefined) ? `${nodes.reduce((sum, n) => sum + (n.data.executionTimeSec ?? 0) * 1000, 0).toFixed(1)}ms` : '耗时未采集'}
               </span>
             </div>
           )}
@@ -1030,14 +1091,13 @@ const DataFlowCanvasInner: React.FC<DataFlowCanvasProps> = ({
                 type="button"
                 onClick={() => {
                   setShowToolsMenu(v => !v);
-                  setShowPitfallMenu(false);
                 }}
                 className={`flex items-center gap-1 h-7 px-2 rounded-md border text-xs font-medium transition-colors cursor-pointer ${
                   showToolsMenu || stepperState.isActive
                     ? 'bg-monokai-elevated border-monokai-accent/50 text-monokai-accent'
                     : 'bg-monokai-surface/70 border-monokai-border text-monokai-comment hover:text-monokai-fg hover:bg-monokai-elevated'
                 }`}
-                title="学习与诊断工具：单步推演、避坑演练、套路解析、编译为 SQL"
+                title="工具：单步推演、编译为 SQL"
                 aria-expanded={showToolsMenu}
                 aria-haspopup="menu"
               >
@@ -1049,15 +1109,16 @@ const DataFlowCanvasInner: React.FC<DataFlowCanvasProps> = ({
               {showToolsMenu && (
                 <div
                   role="menu"
-                  className="absolute right-0 top-full mt-1.5 w-56 rounded-lg border border-monokai-border bg-monokai-surface/98 p-1 shadow-2xl backdrop-blur-md z-50 text-xs flex flex-col gap-0.5 animate-in fade-in zoom-in-95 duration-100 font-sans"
+                  className="absolute right-0 top-full mt-1.5 w-56 rounded-lg border border-monokai-border bg-monokai-surface p-1 shadow-2xl backdrop-blur-md z-50 text-xs flex flex-col gap-0.5 animate-in fade-in zoom-in-95 duration-100 font-sans"
                 >
                   <div className="px-2 py-1 text-2xs font-semibold text-monokai-comment border-b border-monokai-border/60 mb-0.5">
-                    学习与诊断
+                    工具
                   </div>
 
                   <button
                     type="button"
                     role="menuitem"
+                    disabled={nodes.length === 0 || dataFlowMode === 'sql'}
                     onClick={() => {
                       if (stepperState.isActive) {
                         stopStepping();
@@ -1075,61 +1136,10 @@ const DataFlowCanvasInner: React.FC<DataFlowCanvasProps> = ({
                     )}
                   </button>
 
-                  <div className="relative">
-                    <button
-                      type="button"
-                      role="menuitem"
-                      onClick={() => setShowPitfallMenu(v => !v)}
-                      className="flex items-center gap-2 px-2 py-1.5 rounded text-monokai-fg hover:bg-monokai-elevated transition-colors text-left cursor-pointer w-full"
-                    >
-                      <Compass className="w-3.5 h-3.5 text-monokai-purple shrink-0" />
-                      <span className="flex-1">避坑演练</span>
-                      <ChevronDown className={`w-2.5 h-2.5 opacity-60 transition-transform ${showPitfallMenu ? 'rotate-180' : ''}`} />
-                    </button>
-                    {showPitfallMenu && (
-                      <div className="mt-0.5 ml-1 mr-0.5 rounded-md border border-monokai-border/80 bg-monokai-bg/90 p-1 flex flex-col gap-0.5 max-h-56 overflow-y-auto custom-scrollbar">
-                        {SQL_PITFALL_PRESETS.map(preset => (
-                          <button
-                            key={preset.id}
-                            type="button"
-                            onClick={() => {
-                              const res = loadPitfallPreset(preset.id);
-                              setShowPitfallMenu(false);
-                              setShowToolsMenu(false);
-                              if (res && onOpenInSqlEditor) {
-                                onOpenInSqlEditor(res.buggySql, `${preset.name}.sql`);
-                              }
-                            }}
-                            className="flex flex-col items-start px-2 py-1.5 rounded hover:bg-monokai-elevated transition-colors text-left cursor-pointer group"
-                          >
-                            <div className="flex items-center gap-1.5 w-full">
-                              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${preset.category === 'binder_error' || preset.category === 'groupby_violation' ? 'bg-monokai-pink' : preset.category === 'join_degradation' || preset.category === 'cartesian_blowup' ? 'bg-monokai-yellow' : 'bg-monokai-accent'}`} />
-                              <span className="font-medium text-monokai-fg group-hover:text-monokai-accent transition-colors text-2xs leading-snug">
-                                {preset.name}
-                              </span>
-                            </div>
-                            <span className="text-[10px] text-monokai-comment line-clamp-1 mt-0.5 pl-3">
-                              {preset.summary || preset.bugDescription}
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
                   <button
                     type="button"
                     role="menuitem"
-                    onClick={handleShowParadigmGuide}
-                    className="flex items-center gap-2 px-2 py-1.5 rounded text-monokai-fg hover:bg-monokai-elevated transition-colors text-left cursor-pointer"
-                  >
-                    <Sparkles className="w-3.5 h-3.5 text-monokai-yellow shrink-0" />
-                    <span>套路解析</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    role="menuitem"
+                    disabled={nodes.length === 0}
                     onClick={() => {
                       handleCompileToSql();
                       setShowToolsMenu(false);
@@ -1183,8 +1193,9 @@ const DataFlowCanvasInner: React.FC<DataFlowCanvasProps> = ({
             </button>
           )}
 
-          {/* 从 SQL 同步 */}
-          <button
+          {/* Mode-specific synchronization never replaces a custom workflow. */}
+          {dataFlowMode === 'catalog' && <button type="button" onClick={handleSwitchToCatalog} disabled={showSyncProgress} className={dfBtnSecondary}><RefreshCw className="w-3 h-3" />刷新血缘</button>}
+          {(dataFlowMode === 'sql' || isSplitMode) && <button
             type="button"
             onClick={handleManualSyncFromSql}
             disabled={showSyncProgress}
@@ -1193,21 +1204,22 @@ const DataFlowCanvasInner: React.FC<DataFlowCanvasProps> = ({
           >
             <RefreshCw className={`w-3 h-3 ${showSyncProgress ? 'animate-spin text-monokai-accent' : 'text-monokai-comment'}`} />
             <span>{showSyncProgress ? '同步中...' : '从 SQL 同步'}</span>
-          </button>
+          </button>}
 
           {/* 核心主行动：运行全流程（分屏以 SQL 执行为主，隐藏画布跑批） */}
-          {!isSplitMode && (
+          {!isSplitMode && (<>
             <button
               type="button"
               onClick={runAll}
-              disabled={isExecuting}
+              disabled={isExecuting || nodes.length === 0 || dataFlowMode === 'catalog'}
               className={dfBtnPrimary}
               title="依拓扑依赖顺序在 DuckDB 中执行当前流水线"
             >
               <Play className="w-3 h-3 fill-current" />
               <span>{isExecuting ? '执行中...' : '运行全流程'}</span>
             </button>
-          )}
+            {dataFlowMode==='sql'&&isExecuting&&<button type="button" onClick={cancelSqlRun} className={dfBtnSecondary}>停止脚本</button>}
+          </>)}
         </div>
       </div>
 
@@ -1355,16 +1367,16 @@ const DataFlowCanvasInner: React.FC<DataFlowCanvasProps> = ({
                 {syncStatus === 'error' ? <AlertCircle className="w-6 h-6" /> : <Workflow className="w-6 h-6" />}
               </div>
               <h3 className={dfEmptyTitle}>
-                {syncStatus === 'error'
+                {dataFlowMode === 'custom' ? '开始编排数据流' : dataFlowMode === 'catalog' ? '暂无表与视图血缘' : syncStatus === 'error'
                   ? '执行路径同步失败'
-                  : activeSql.trim()
+                  : stripSqlHeader(activeSql)
                     ? '等待从 SQL 生成执行路径'
                     : '执行路径画布就绪'}
               </h3>
               <p className={dfEmptyHint}>
-                {syncStatus === 'error' && lastSyncError
+                {dataFlowMode === 'custom' ? '从左侧选择数据表或添加算子，再连接节点并配置执行参数。' : dataFlowMode === 'catalog' ? '连接数据库或导入数据表后刷新血缘。' : syncStatus === 'error' && lastSyncError
                   ? lastSyncError
-                  : activeSql.trim()
+                  : stripSqlHeader(activeSql)
                     ? '检测到编辑器中已有 SQL。同步后将基于 DuckDB 执行计划生成算子路径。'
                     : '从 SQL 工作台同步 DuckDB 执行计划路径，或切换全屏模式编排流水线。'}
               </p>
@@ -1373,8 +1385,8 @@ const DataFlowCanvasInner: React.FC<DataFlowCanvasProps> = ({
                   连线：右中输出 → 左中输入
                 </p>
               )}
-              <div className="flex flex-wrap items-center justify-center gap-2 mt-2">
-                {activeSql.trim() ? (
+              {dataFlowMode !== 'custom' && <div className="flex flex-wrap items-center justify-center gap-2 mt-2">
+                {dataFlowMode === 'catalog' ? <button type="button" onClick={handleSwitchToCatalog} disabled={showSyncProgress} className={dfBtnPrimary}>刷新血缘</button> : stripSqlHeader(activeSql) ? (
                   <button
                     type="button"
                     onClick={handleManualSyncFromSql}
@@ -1403,22 +1415,11 @@ const DataFlowCanvasInner: React.FC<DataFlowCanvasProps> = ({
                     <span>回编辑器修正</span>
                   </button>
                 )}
-                {!isSplitMode && syncStatus !== 'error' && (
+                {!isSplitMode && dataFlowMode === 'sql' && syncStatus !== 'error' && (
                   <>
                     <button type="button" onClick={handleSwitchToCatalog} className={dfBtnSecondary}>
                       <Database className="w-3 h-3 text-monokai-cyan" />
                       <span>全库表血缘</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        await resetToDefaultDemo();
-                        toastService.success('已加载电商分析真实数据流');
-                      }}
-                      className={dfBtnSecondary}
-                    >
-                      <Sparkles className="w-3 h-3 text-monokai-yellow" />
-                      <span>加载演示流图</span>
                     </button>
                     <button
                       type="button"
@@ -1430,12 +1431,13 @@ const DataFlowCanvasInner: React.FC<DataFlowCanvasProps> = ({
                     </button>
                   </>
                 )}
-              </div>
+              </div>}
             </div>
           )}
 
+          {dataFlowMode==='sql'&&logicalFlowData?.diagnostics.length!==0&&logicalFlowData?.diagnostics.length&&<div role="status" className="absolute left-3 right-3 top-3 z-30 rounded border border-monokai-orange/40 bg-monokai-bg p-2 text-xs text-monokai-orange">{logicalFlowData.diagnostics.map(d=><div key={`${d.code}-${d.sourceSpan?.start}`}>{d.sourceSpan?`第 ${d.sourceSpan.startLine} 行：`:''}{d.message}</div>)}</div>}
           <ReactFlow
-            nodes={nodes.map(n => ({
+            nodes={nodes.map(n => n.type === 'logicalBoundary' ? n : ({
               ...n,
               // 固定节点盒模型，确保 React Flow handleBounds 与视觉卡片对齐（含 compact）
               width: DATAFLOW_NODE_CARD_WIDTH,
@@ -1454,6 +1456,7 @@ const DataFlowCanvasInner: React.FC<DataFlowCanvasProps> = ({
               targetHandle: e.targetHandle || e.data?.joinSide || 'input',
               selected: e.id === selectedEdgeId,
             }))}
+            nodesDraggable={dataFlowMode !== 'sql'}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
@@ -1472,14 +1475,15 @@ const DataFlowCanvasInner: React.FC<DataFlowCanvasProps> = ({
               sourceHandle: 'output',
               targetHandle: 'input',
             } as any}
-            fitView
-            fitViewOptions={{ padding: 0.2 }}
+            fitView={dataFlowMode !== 'sql'}
+            fitViewOptions={{ padding: 0.2, maxZoom: 1 }}
             minZoom={0.2}
             maxZoom={2}
-            panOnDrag={isPanMode}
+            panOnDrag={dataFlowMode === 'sql' || isPanMode}
             selectionOnDrag={!isPanMode}
             panOnScroll={false}
-            nodesConnectable
+            nodesConnectable={dataFlowMode === 'custom'}
+            deleteKeyCode={null}
             edgesUpdatable={false}
             className="dataflow-reactflow-canvas"
           >
@@ -1583,17 +1587,31 @@ const DataFlowCanvasInner: React.FC<DataFlowCanvasProps> = ({
             )}
           </ReactFlow>
 
-          {/* 检查器收起状态下，若有选中节点，悬浮唤出胶囊 */}
+          {/* 检查器收起时：右上角唤出胶囊（对齐实体画布属性入口） */}
           {!isInspectorOpen && selectedNodeId && (
             <button
               type="button"
               onClick={() => setIsInspectorOpen(true)}
-              className="absolute right-3 top-3.5 z-20 flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-monokai-border bg-monokai-surface/90 text-monokai-comment hover:text-monokai-accent hover:border-monokai-accent/40 shadow-lg backdrop-blur-md text-xs font-mono transition-all cursor-pointer select-none"
+              className={`absolute ${
+                isSplitMode ? 'right-2.5 top-2.5 !py-1 !px-2 !text-2xs' : 'right-3 top-3 px-2.5 py-1.5 text-xs'
+              } z-20 flex items-center gap-1.5 rounded-lg border border-monokai-border bg-monokai-bg/95 text-monokai-fg-muted hover:text-monokai-fg hover:border-monokai-fg-muted/40 shadow-xl backdrop-blur-md font-bold transition-all cursor-pointer select-none`}
               title="查看已选节点的属性与数据预览"
             >
               <Sliders className="w-3.5 h-3.5 text-monokai-cyan" />
               <span>属性详情</span>
             </button>
+          )}
+
+          {/* 右侧属性抽屉：绝对覆盖，分屏模式收敛为 w-72，布局与【本体图谱-实体画布】属性面板一致 */}
+          {isInspectorOpen && (
+            <div className={`absolute top-0 right-0 bottom-0 ${
+              isSplitMode ? 'w-72 max-w-full' : 'w-80 max-w-full'
+            } border-l border-monokai-border bg-monokai-bg/95 backdrop-blur-md flex flex-col h-full z-20 animate-in slide-in-from-right duration-250 shadow-2xl`}>
+              <DataFlowInspector
+                onOpenInSqlEditor={onOpenInSqlEditor}
+                onClose={() => setIsInspectorOpen(false)}
+              />
+            </div>
           )}
 
           {/* ── 底部单步推演仿真器浮动控制岛 (Floating Stepper Island) ── */}
@@ -1639,7 +1657,7 @@ const DataFlowCanvasInner: React.FC<DataFlowCanvasProps> = ({
                 <button
                   type="button"
                   onClick={togglePlayStepping}
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-monokai-accent text-monokai-bg font-semibold hover:brightness-105 active:scale-95 transition-all cursor-pointer shadow-xs"
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-monokai-accent text-[var(--dataflow-on-accent)] font-semibold hover:brightness-105 active:scale-95 transition-all cursor-pointer shadow-xs"
                   title={stepperState.isPlaying ? '暂停自动推演' : '开始自动按时序推演'}
                 >
                   {stepperState.isPlaying ? (
@@ -1682,70 +1700,6 @@ const DataFlowCanvasInner: React.FC<DataFlowCanvasProps> = ({
             </div>
           )}
         </div>
-
-        {/* ── 右侧属性面板：独立模式为停靠推挤式，分屏模式智能降级为浮动抽屉 ── */}
-        {isInspectorOpen && (
-          isSplitMode ? (
-            /* 分屏模式：降级为右上轻量浮动抽屉，避免挤扁画布 */
-            <div className="absolute right-0 top-0 bottom-0 z-30 w-[320px] max-w-[85vw] h-full border-l border-monokai-border bg-monokai-surface/95 backdrop-blur-md shadow-2xl flex flex-col animate-in slide-in-from-right duration-150">
-              <div className="flex items-center justify-between px-3 py-2 border-b border-monokai-border/80 bg-monokai-sidebar/80 text-xs">
-                <span className="font-semibold text-monokai-fg flex items-center gap-1.5 font-mono">
-                  <Sliders className="w-3.5 h-3.5 text-monokai-cyan" />
-                  <span>节点详情</span>
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setIsInspectorOpen(false)}
-                  className="p-1 rounded hover:bg-monokai-surface text-monokai-comment hover:text-monokai-fg cursor-pointer"
-                  title="收起检查器"
-                >
-                  <PanelRightClose className="w-3.5 h-3.5" />
-                </button>
-              </div>
-              <div className="flex-1 min-h-0 overflow-y-auto">
-                <DataFlowInspector onOpenInSqlEditor={onOpenInSqlEditor} />
-              </div>
-            </div>
-          ) : (
-            /* 独立大屏模式：现代专业停靠式侧栏 (Docked Panel)，支持左边缘拖拽调整宽度 */
-            <div
-              style={{ width: `${inspectorWidth}px` }}
-              className={`shrink-0 border-l border-monokai-border bg-monokai-surface flex flex-col h-full relative select-none ${
-                isDraggingInspector ? 'select-none' : ''
-              }`}
-            >
-              {/* 左边缘拖拽拉伸把手 */}
-              <div
-                onMouseDown={handleInspectorMouseDown}
-                className="absolute -left-1.5 top-0 bottom-0 w-3 cursor-ew-resize z-30 group hover:bg-monokai-accent/10 transition-colors flex items-center justify-center"
-                title="左右拖动调节面板宽度"
-              >
-                <div className="w-0.5 h-8 rounded bg-monokai-border group-hover:bg-monokai-accent transition-colors" />
-              </div>
-
-              {/* 顶部标题栏 */}
-              <div className="flex h-9 shrink-0 items-center justify-between border-b border-monokai-border px-3 bg-monokai-sidebar/80 text-xs">
-                <span className="font-semibold text-monokai-fg flex items-center gap-1.5 font-mono">
-                  <Sliders className="w-3.5 h-3.5 text-monokai-cyan" />
-                  <span>属性与执行配置</span>
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setIsInspectorOpen(false)}
-                  className="p-1 rounded hover:bg-monokai-surface text-monokai-comment hover:text-monokai-fg cursor-pointer"
-                  title="折叠检查器面板"
-                >
-                  <PanelRightClose className="w-3.5 h-3.5" />
-                </button>
-              </div>
-
-              {/* 检查器主体 */}
-              <div className="flex-1 min-h-0 overflow-y-auto">
-                <DataFlowInspector onOpenInSqlEditor={onOpenInSqlEditor} />
-              </div>
-            </div>
-          )
-        )}
       </div>
 
       {/* ── 底部可伸缩控制台抽屉（平时收拢为 28px 状态栏，分屏模式由 SQL 工作台主控制台统一接管） ── */}
@@ -1758,6 +1712,7 @@ export const DataFlowCanvas: React.FC<DataFlowCanvasProps> = ({
   hideSubNav,
   standalone,
   initialMode,
+  initialFocusTable,
   onSwitchToSqlEditor,
   onOpenInSqlEditor,
   activeSql,
@@ -1775,6 +1730,7 @@ export const DataFlowCanvas: React.FC<DataFlowCanvasProps> = ({
         hideSubNav={hideSubNav}
         standalone={standalone}
         initialMode={initialMode}
+        initialFocusTable={initialFocusTable}
         onSwitchToSqlEditor={onSwitchToSqlEditor}
         onOpenInSqlEditor={onOpenInSqlEditor}
         activeSql={activeSql}

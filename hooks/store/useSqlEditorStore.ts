@@ -33,13 +33,21 @@ import { toastService } from '../../services/toastService';
 // tabsSlice
 // ============================================================
 
-const DEFAULT_CODE = "-- Welcome to DuckDB! Try running this generator query (no tables required):\nSELECT \n    i AS id,\n    'User_' || i AS username,\n    CASE WHEN i % 2 = 0 THEN 'Active' ELSE 'Inactive' END AS status,\n    round(random() * 100, 2) AS score\nFROM range(1, 6) t(i);";
+const DEFAULT_CODE = '';
+
+function confirmDiscard(tabs: SqlTab[]): boolean {
+  const dirty = tabs.filter(tab => tab.code !== (tab.savedCode ?? ''));
+  return dirty.length === 0 || window.confirm(
+    `以下标签页有未保存的修改：${dirty.map(tab => tab.title).join('、')}。确定关闭并放弃修改吗？`
+  );
+}
 
 function createDefaultTab(): SqlTab {
   return {
-    id: 'default-tab',
+    id: crypto.randomUUID(),
     title: 'Untitled Query',
     code: DEFAULT_CODE,
+    savedCode: '',
     result: null,
     history: [],
     historyIndex: -1,
@@ -63,9 +71,10 @@ function createDefaultTab(): SqlTab {
 
 function freshTab(code: string = DEFAULT_CODE): SqlTab {
   return {
-    id: Date.now().toString(),
+    id: crypto.randomUUID(),
     title: 'Untitled Query',
     code,
+    savedCode: '',
     result: null,
     history: [],
     historyIndex: -1,
@@ -114,6 +123,10 @@ interface TabsSlice {
   setActiveTabId: (id: string) => void;
   createTab: (code?: string) => string;
   closeTab: (id: string) => void;
+  closeOtherTabs: (id: string) => void;
+  closeTabsToRight: (id: string) => void;
+  closeAllTabs: () => void;
+  duplicateTab: (id: string) => string;
   updateActiveTab: (updates: Partial<SqlTab>) => void;
   updateTabById: (id: string, updates: Partial<SqlTab>) => void;
   getActiveTab: () => SqlTab | undefined;
@@ -314,12 +327,14 @@ type Store = TabsSlice & HistorySlice & SchemaSlice & UiSlice;
 const HISTORY_KEY = 'duckdb_sql_history';
 const TABS_KEY = 'duckdb_sql_tabs';
 
+const initialTab = createDefaultTab();
+
 export const useSqlEditorStore = create<Store>()(
   persist(
     (set, get) => ({
       // ---------------- tabsSlice ----------------
-      tabs: [createDefaultTab()],
-      activeTabId: 'default-tab',
+      tabs: [initialTab],
+      activeTabId: initialTab.id,
       setTabs: (tabs) => set({ tabs }),
       setActiveTabId: (id) => set({ activeTabId: id }),
       createTab: (code) => {
@@ -329,15 +344,59 @@ export const useSqlEditorStore = create<Store>()(
       },
       closeTab: (id) => {
         const state = get();
+        const target = state.tabs.find(tab => tab.id === id);
+        if (!target || !confirmDiscard([target])) return;
         const newTabs = state.tabs.filter((t) => t.id !== id);
         if (newTabs.length === 0) {
           const fallback = createDefaultTab();
           set({ tabs: [fallback], activeTabId: fallback.id });
           return;
         }
+        const closingIdx = state.tabs.findIndex((t) => t.id === id);
         const nextActive =
-          state.activeTabId === id ? newTabs[newTabs.length - 1].id : state.activeTabId;
+          state.activeTabId === id
+            ? newTabs[Math.max(0, Math.min(closingIdx, newTabs.length - 1))].id
+            : state.activeTabId;
         set({ tabs: newTabs, activeTabId: nextActive });
+      },
+      closeOtherTabs: (id) => {
+        const state = get();
+        const target = state.tabs.find((t) => t.id === id);
+        if (!target) return;
+        if (!confirmDiscard(state.tabs.filter(tab => tab.id !== id))) return;
+        set({ tabs: [target], activeTabId: target.id });
+      },
+      closeTabsToRight: (id) => {
+        const state = get();
+        const idx = state.tabs.findIndex((t) => t.id === id);
+        if (idx === -1) return;
+        if (!confirmDiscard(state.tabs.slice(idx + 1))) return;
+        const newTabs = state.tabs.slice(0, idx + 1);
+        const nextActive = newTabs.some((t) => t.id === state.activeTabId)
+          ? state.activeTabId
+          : id;
+        set({ tabs: newTabs, activeTabId: nextActive });
+      },
+      closeAllTabs: () => {
+        if (!confirmDiscard(get().tabs)) return;
+        const fallback = createDefaultTab();
+        set({ tabs: [fallback], activeTabId: fallback.id });
+      },
+      duplicateTab: (id) => {
+        const state = get();
+        const target = state.tabs.find((t) => t.id === id);
+        if (!target) return '';
+        const idx = state.tabs.findIndex((t) => t.id === id);
+        const newTab: SqlTab = {
+          ...freshTab(target.code),
+          title: `${target.title} (副本)`,
+          viewMode: target.viewMode,
+          chartConfig: { ...target.chartConfig },
+        };
+        const nextTabs = [...state.tabs];
+        nextTabs.splice(idx + 1, 0, newTab);
+        set({ tabs: nextTabs, activeTabId: newTab.id });
+        return newTab.id;
       },
       updateActiveTab: (updates) => {
         set((s) => ({

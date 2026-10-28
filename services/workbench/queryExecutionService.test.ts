@@ -8,6 +8,32 @@ describe('QueryExecutionService', () => {
     vi.restoreAllMocks();
   });
 
+  it('does not publish an old database result after the current database changes', async () => {
+    useSqlEditorStore.getState().clearHistory();
+    let catalog = 'domain_a';
+    vi.spyOn(duckDBService, 'getRuntimeInfo').mockImplementation(() => ({ currentDatabase: catalog, persistent: true }));
+    vi.spyOn(duckDBService, 'queryWithMetadata').mockImplementation(async () => {
+      catalog = 'domain_b';
+      return { columns: ['value'], columnTypes: ['INTEGER'], columnTypeMap: { value: 'INTEGER' }, rows: [{ value: 1 }] };
+    });
+    const result = await queryExecutionService.executeQuery('stale-domain-tab', 'SELECT 1', 'old.sql');
+    expect(result.snapshot).toBeUndefined();
+    expect(result.task.status).toBe('cancelled');
+    expect(useSqlEditorStore.getState().history).toHaveLength(0);
+  });
+
+  it('rejects a stale result even when the user switches back to the same database', async () => {
+    let revision = 1;
+    vi.spyOn(duckDBService, 'getRuntimeInfo').mockImplementation(() => ({ currentDatabase: 'domain_a', databaseContextRevision: revision, persistent: true }));
+    vi.spyOn(duckDBService, 'queryWithMetadata').mockImplementation(async () => {
+      revision = 3;
+      return { columns: [], columnTypes: [], columnTypeMap: {}, rows: [] };
+    });
+    const result = await queryExecutionService.executeQuery('round-trip-domain-tab', 'SELECT 1', 'old.sql');
+    expect(result.snapshot).toBeUndefined();
+    expect(result.task.status).toBe('cancelled');
+  });
+
   it('successfully executes dynamic SQL and registers QuerySnapshot', async () => {
     const mockExecRes = {
       columns: ['num', 'title'],

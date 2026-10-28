@@ -1,0 +1,17 @@
+utils/chartFormat.ts:101:    num = new Intl.NumberFormat('zh-CN', {
+utils/chartFormat.ts:109:    num = new Intl.NumberFormat('zh-CN', {
+utils/chartFormat.ts:114:    num = new Intl.NumberFormat('zh-CN', {
+utils/chartUtils.ts:31:ChartJS.register(
+services/analysis\chartDisplay.test.ts:17:  computePivotTable,
+services/analysis\chartDisplay.test.ts:195: const result=computePivotTable([{r:'A',c:'B',v:'record'},{r:'A',c:'B',v:''},{r:'A',c:'B',v:null}], 'r','c','v','count');
+services/analysis\chartRegistry.ts:20:  computePivotTable,
+services/analysis\chartRegistry.ts:297:    pivotTable: spec.visual.pivot && { ...spec.visual.pivot, ...computePivotTable(rows, spec.visual.pivot.rowKey, spec.visual.pivot.colKey, spec.visual.pivot.valKey, spec.visual.pivot.aggregation) },
+services/analysis\pivotFilter.ts:2:import { computePivotTable } from './chartDisplay';
+services/analysis\pivotFilter.ts:7:  return {...spec,rows,pivotTable:{...pivot,...computePivotTable(rows,pivot.rowKey,pivot.colKey,pivot.valKey,pivot.aggregation)}};
+services/analysis\chartDisplay.ts:290:export function computePivotTable(
+services/analysis\aiIntent.ts:51:  return `${prefix}_${Math.random().toString(36).slice(2, 9)}`;
+services/analysis\adapters\workbenchAdapter.ts:46:  return `${prefix}_${Math.random().toString(36).slice(2, 9)}`;
+services/analysis\adapters\chartJsAdapter.test.ts:5:  computePivotTable,
+services/analysis\adapters\chartJsAdapter.test.ts:46:    const pivot = computePivotTable(visible, 'region', 'month', 'value');
+services/analysis\visualizationContract.test.ts:6:import { computeHistogramBins, computePivotTable } from './chartDisplay';
+services/analysis\visualizationContract.test.ts:110:    const pivot = computePivotTable([{ r: '__proto__', c: 'constructor', v: 5 }], 'r', 'c', 'v');

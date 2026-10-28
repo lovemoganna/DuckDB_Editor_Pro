@@ -1,0 +1,607 @@
+- banner "全局工作区顶栏":
+  - button "🪶 DuckDB Studio PRO":
+    - generic: 🪶
+    - generic: DuckDB Studio
+    - generic: PRO
+  - navigation "业务领域大类":
+    - button "工程核心":
+      - generic: 工程核心
+    - button "分析洞察":
+      - generic: 分析洞察
+    - button "知识沉淀":
+      - generic: 知识沉淀
+    - button "AI 认知":
+      - generic: AI 认知
+  - tablist "工程核心功能标签页":
+    - tab "仪表盘" [active] [selected]:
+      - generic: 仪表盘
+    - tab "数据":
+      - generic: 数据
+      - generic: "2"
+    - tab "Schema":
+      - generic: Schema
+      - generic: "3"
+    - tab "SQL":
+      - generic: SQL
+      - generic: "4"
+    - tab "数据流":
+      - generic: 数据流
+      - generic: "5"
+  - button "项目":
+    - generic: 项目
+  - button "已保存到 OPFS":
+    - generic: 已保存到 OPFS
+  - button "AI 助手":
+    - generic: AI 助手
+  - button "⌘K":
+  - button "帮助与快捷键":
+  - button "切换为浅色模式":
+  - button "AI 模型设置":
+- main:
+  - heading "数据分析" [level=1]
+  - generic: /
+  - button "持久库 · sql_funds_flow":
+    - generic: 持久库 · sql_funds_flow
+  - paragraph: 13 张表 · 96 行 · OPFS · DuckDB v1.33.1
+  - button "新建查询":
+    - generic: 新建查询
+  - button "导入数据":
+    - generic: 导入数据
+  - button "生成图表":
+    - generic: 生成图表
+  - button "继续分析":
+    - generic: 继续分析
+  - button "刷新":
+  - button "Copilot"
+  - heading "SQL 驱动的分析工作台" [level=2]
+  - text: 上传 / 更新 SQL
+  - button "上传数据库 SQL"
+  - generic: funds-flow.sql · 版本 8 · 10/2/2026, 12:29:11 AM
+  - button "从保存的 SQL 重载"
+  - button "下载 SQL 副本"
+  - generic: 13 张表 · 84 个字段 · 2 个声明或推断的关联
+  - generic "数据更新与持久化说明"
+  - text: 工作台视图
+  - combobox "工作台视图":
+    - option "资金业务总览"
+    - option "SQL 自由探索"
+    - option "分析首页" [selected]
+  - button "添加分析内容"
+  - button "重新发现数据"
+  - button "打开资金总览"
+  - button "管理视图"
+  - generic: 每次编排自动保存 · 数据变更自动重算
+  - generic "指标口径与看板说明"
+  - heading "分析首页" [level=2]
+  - generic: 8 个组件
+  - generic: 已锁定
+  - button "解锁布局":
+    - generic: 解锁布局
+  - generic "crypto_transactions · 记录数"
+  - button "刷新当前组件数据":
+  - button "全屏透视":
+  - button "配置字段 / 单位 / 图例":
+  - button "更多组件选项":
+  - paragraph: 探索口径：统计当前表全部记录；交易金额按单位分别合计，包含所有状态。
+  - generic: "25"
+  - generic "crypto_transactions · direction 分布"
+  - button "刷新当前组件数据":
+  - button "全屏透视":
+  - button "配置字段 / 单位 / 图例":
+  - button "更多组件选项":
+  - paragraph: 探索口径：统计当前表全部记录；交易金额按单位分别合计，包含所有状态。
+  - generic "crypto_transactions · created_at 趋势"
+  - button "刷新当前组件数据":
+  - button "全屏透视":
+  - button "配置字段 / 单位 / 图例":
+  - button "更多组件选项":
+  - paragraph: 探索口径：统计当前表全部记录；交易金额按单位分别合计，包含所有状态。
+  - generic "crypto_transactions · amount 分单位合计"
+  - button "刷新当前组件数据":
+  - button "全屏透视":
+  - button "配置字段 / 单位 / 图例":
+  - button "更多组件选项":
+  - paragraph: 探索口径：统计当前表全部记录；交易金额按单位分别合计，包含所有状态。
+  - textbox "筛选表格":
+    - /placeholder: 筛选表格…
+  - generic: 3 / 3 行
+  - table:
+    - rowgroup:
+      - row "按 unit 排序 按 value 排序":
+        - columnheader "按 unit 排序":
+          - button "按 unit 排序": unit
+        - columnheader "按 value 排序":
+          - button "按 value 排序": value
+    - rowgroup:
+      - row "BTC 0.10100000":
+        - cell "BTC"
+        - cell "0.10100000"
+      - row "ETH 0.70000000":
+        - cell "ETH"
+        - cell "0.70000000"
+      - row "USDT 14050.00000000":
+        - cell "USDT"
+        - cell "14050.00000000"
+  - generic "crypto_transactions · fee 分单位合计"
+  - button "刷新当前组件数据":
+  - button "全屏透视":
+  - button "配置字段 / 单位 / 图例":
+  - button "更多组件选项":
+  - paragraph: 探索口径：统计当前表全部记录；交易金额按单位分别合计，包含所有状态。
+  - textbox "筛选表格":
+    - /placeholder: 筛选表格…
+  - generic: 3 / 3 行
+  - table:
+    - rowgroup:
+      - row "按 unit 排序 按 value 排序":
+        - columnheader "按 unit 排序":
+          - button "按 unit 排序": unit
+        - columnheader "按 value 排序":
+          - button "按 value 排序": value
+    - rowgroup:
+      - row "BTC 0.00020000":
+        - cell "BTC"
+        - cell "0.00020000"
+      - row "ETH 0.00120000":
+        - cell "ETH"
+        - cell "0.00120000"
+      - row "USDT 10.90000000":
+        - cell "USDT"
+        - cell "10.90000000"
+  - generic "exchange_rates · 记录数"
+  - button "刷新当前组件数据":
+  - button "全屏透视":
+  - button "配置字段 / 单位 / 图例":
+  - button "更多组件选项":
+  - paragraph: 探索口径：统计当前表全部记录；交易金额按单位分别合计，包含所有状态。
+  - generic: "8"
+  - generic "exchange_rates · asset_name 分布"
+  - button "刷新当前组件数据":
+  - button "全屏透视":
+  - button "配置字段 / 单位 / 图例":
+  - button "更多组件选项":
+  - paragraph: 探索口径：统计当前表全部记录；交易金额按单位分别合计，包含所有状态。
+  - generic "exchange_rates · effective_date 趋势"
+  - button "刷新当前组件数据":
+  - button "全屏透视":
+  - button "配置字段 / 单位 / 图例":
+  - button "更多组件选项":
+  - paragraph: 探索口径：统计当前表全部记录；交易金额按单位分别合计，包含所有状态。
+  - generic: 发现 2 项异常
+  - button "1 条查询失败":
+    - generic: 1 条查询失败
+  - button "1 条慢查询":
+    - generic: 1 条慢查询
+  - heading "数据基础与完备度" [level=2]
+  - generic: 分析字段就绪度 55% · 扫描 13 表 · 此评分不代表业务质检或合规通过率
+  - button "展开详情":
+    - text: 展开详情
+  - button "核心指标 50":
+    - generic: 核心指标
+    - generic: "50"
+  - button "时间维度 9":
+    - generic: 时间维度
+    - generic: "9"
+  - button "分类维度 34":
+    - generic: 分类维度
+    - generic: "34"
+  - button "对比维度 32":
+    - generic: 对比维度
+    - generic: "32"
+  - button "可下钻明细 2":
+    - generic: 可下钻明细
+    - generic: "2"
+  - button "图表联动字段 10":
+    - generic: 图表联动字段
+    - generic: "10"
+  - heading "数据资产" [level=2]
+  - generic: 13 表
+  - button "全部":
+    - text: 全部
+  - generic: 行数合计 96
+  - generic: 有 PK 13
+  - generic: 体积 约 54.7 KB
+  - textbox "搜索表…"
+  - button "全部"
+  - button "高频"
+  - button "最近"
+  - list:
+    - button "crypto_transactions 100% 25 行 13 列 约 20.3 KB 度量·时间·分类 2 次查询":
+      - generic: crypto_transactions
+      - generic "有主键":
+      - generic "分析字段较完备": 100%
+      - generic: 25 行
+      - generic: 13 列
+      - generic: 约 20.3 KB
+      - generic: 度量·时间·分类
+      - text: 2 次查询
+    - button "预览 crypto_transactions":
+    - button "快速查询":
+    - button "Schema"
+    - button "分析"
+    - button "指标"
+    - button "fiat_transactions 100% 25 行 10 列 约 15.6 KB 度量·时间·分类 11 次查询":
+      - generic: fiat_transactions
+      - generic "有主键":
+      - generic "分析字段较完备": 100%
+      - generic: 25 行
+      - generic: 10 列
+      - generic: 约 15.6 KB
+      - generic: 度量·时间·分类
+      - text: 11 次查询
+    - button "预览 fiat_transactions":
+    - button "快速查询":
+    - button "Schema"
+    - button "分析"
+    - button "指标"
+    - button "users 100% 10 行 7 列 约 4.4 KB 度量·时间·分类":
+      - generic: users
+      - generic "有主键":
+      - generic "分析字段较完备": 100%
+      - generic: 10 行
+      - generic: 7 列
+      - generic: 约 4.4 KB
+      - generic: 度量·时间·分类
+    - button "预览 users":
+    - button "快速查询":
+    - button "Schema"
+    - button "分析"
+    - button "指标"
+    - button "exchange_rates 90% 8 行 8 列 约 4 KB 度量·时间·分类":
+      - generic: exchange_rates
+      - generic "有主键":
+      - generic "可下钻关联（外键/同名键）": 90%
+      - generic: 8 行
+      - generic: 8 列
+      - generic: 约 4 KB
+      - generic: 度量·时间·分类
+    - button "预览 exchange_rates":
+    - button "快速查询":
+    - button "Schema"
+    - button "分析"
+    - button "指标"
+    - button "life_canvas_state 70% 7 行 11 列 约 4.8 KB 度量·分类":
+      - generic: life_canvas_state
+      - generic "有主键":
+      - generic "时间维度；可下钻关联（外键/同名键）": 70%
+      - generic: 7 行
+      - generic: 11 列
+      - generic: 约 4.8 KB
+      - generic: 度量·分类
+    - button "预览 life_canvas_state":
+    - button "快速查询":
+    - button "Schema"
+    - button "分析"
+    - button "指标"
+    - button "life_object 55% 7 行 5 列 约 2.2 KB 分类":
+      - generic: life_object
+      - generic "有主键":
+      - generic "核心度量列（数值指标）；时间维度；可下钻关联（外键/同名键）": 55%
+      - generic: 7 行
+      - generic: 5 列
+      - generic: 约 2.2 KB
+      - generic: 分类
+    - button "预览 life_object":
+    - button "快速查询":
+    - button "Schema"
+    - button "分析"
+    - button "指标"
+    - button "life_link 35% 6 行 5 列 约 1.9 KB 度量":
+      - generic: life_link
+      - generic "有主键":
+      - generic "时间维度；分类维度；对比维度（低基数分类或时间）；可下钻关联（外键/同名键）": 35%
+      - generic: 6 行
+      - generic: 5 列
+      - generic: 约 1.9 KB
+      - generic: 度量
+    - button "预览 life_link":
+    - button "快速查询":
+    - button "Schema"
+    - button "分析"
+    - button "指标"
+    - button "life_link_type 55% 6 行 3 列 约 1.1 KB 分类":
+      - generic: life_link_type
+      - generic "有主键":
+      - generic "核心度量列（数值指标）；时间维度；可下钻关联（外键/同名键）": 55%
+      - generic: 6 行
+      - generic: 3 列
+      - generic: 约 1.1 KB
+      - generic: 分类
+    - button "预览 life_link_type":
+    - button "快速查询":
+    - button "Schema"
+    - button "分析"
+    - button "指标"
+    - button "life_object_type 55% 2 行 3 列 约 384 B 分类":
+      - generic: life_object_type
+      - generic "有主键":
+      - generic "核心度量列（数值指标）；时间维度；可下钻关联（外键/同名键）": 55%
+      - generic: 2 行
+      - generic: 3 列
+      - generic: 约 384 B
+      - generic: 分类
+    - button "预览 life_object_type":
+    - button "快速查询":
+    - button "Schema"
+    - button "分析"
+    - button "指标"
+    - button "life_action 15% 0 行 6 列 约 0 B 时间·分类":
+      - generic: life_action
+      - generic "有主键":
+      - generic "核心度量列（数值指标）；可下钻关联（外键/同名键）；表无数据行": 15%
+      - generic: 0 行
+      - generic: 6 列
+      - generic: 约 0 B
+      - generic: 时间·分类
+    - button "预览 life_action":
+    - button "快速查询":
+    - button "Schema"
+    - button "分析"
+    - button "指标"
+    - button "life_canvas_edge 10% 0 行 3 列 约 0 B 缺分析字段":
+      - generic: life_canvas_edge
+      - generic "有主键":
+      - generic "核心度量列（数值指标）；时间维度；分类维度；对比维度（低基数分类或时间）；可下钻关联（外键/同名键）；表无数据行": 10%
+      - generic: 0 行
+      - generic: 3 列
+      - generic: 约 0 B
+      - generic: 缺分析字段
+    - button "预览 life_canvas_edge":
+    - button "快速查询":
+    - button "Schema"
+    - button "分析"
+    - button "指标"
+    - button "life_insight 15% 0 行 5 列 约 0 B 时间·分类":
+      - generic: life_insight
+      - generic "有主键":
+      - generic "核心度量列（数值指标）；可下钻关联（外键/同名键）；表无数据行": 15%
+      - generic: 0 行
+      - generic: 5 列
+      - generic: 约 0 B
+      - generic: 时间·分类
+    - button "预览 life_insight":
+    - button "快速查询":
+    - button "Schema"
+    - button "分析"
+    - button "指标"
+    - button "life_introspection 15% 0 行 5 列 约 0 B 时间·分类":
+      - generic: life_introspection
+      - generic "有主键":
+      - generic "核心度量列（数值指标）；可下钻关联（外键/同名键）；表无数据行": 15%
+      - generic: 0 行
+      - generic: 5 列
+      - generic: 约 0 B
+      - generic: 时间·分类
+    - button "预览 life_introspection":
+    - button "快速查询":
+    - button "Schema"
+    - button "分析"
+    - button "指标"
+  - heading "最近查询" [level=2]
+  - generic: 14 条 · 1 异常 · 13 可可视化
+  - button "历史":
+    - text: 历史
+  - textbox "搜索 SQL…"
+  - button "全部"
+  - button "异常"
+  - button "慢"
+  - button "成功"
+  - list:
+    - button "SELECT 'USD' AS unit, SUM(amount) AS completed_amount FROM fiat_transactions WHERE status='completed' AND currency='USD';":
+      - generic: SELECT 'USD' AS unit, SUM(amount) AS completed_amount FROM fiat_transactions WHERE status='completed' AND currency='USD';
+    - generic: 79 ms
+    - generic: 02:34
+    - generic: 1 行
+    - generic: 可尝试成图
+    - generic "fiat_transactions": "表: fiat_transactions"
+    - button "执行":
+      - text: 执行
+    - button "复制":
+      - text: 复制
+    - button "生成图表":
+      - text: 生成图表
+    - button "加入仪表盘":
+      - text: 加入仪表盘
+    - button "SELECT 'USD' AS unit, SUM(amount) AS completed_amount FROM fiat_transactions WHERE status='completed' AND currency='USD';":
+      - generic: SELECT 'USD' AS unit, SUM(amount) AS completed_amount FROM fiat_transactions WHERE status='completed' AND currency='USD';
+    - generic: 85 ms
+    - generic: 02:29
+    - generic: 1 行
+    - generic: 可尝试成图
+    - generic "fiat_transactions": "表: fiat_transactions"
+    - button "执行":
+      - text: 执行
+    - button "复制":
+      - text: 复制
+    - button "生成图表":
+      - text: 生成图表
+    - button "加入仪表盘":
+      - text: 加入仪表盘
+    - button "SELECT COUNT(*) AS records FROM \"sql_funds_flow\".\"main\".\"crypto_transactions\"":
+      - generic: SELECT COUNT(*) AS records FROM "sql_funds_flow"."main"."crypto_transactions"
+    - generic: 45 ms
+    - generic: 20:44
+    - generic: 1 行
+    - generic: 可尝试成图
+    - generic "sql_funds_flow.main.crypto_transactions": "表: sql_funds_flow.main.crypto_transactions"
+    - button "执行":
+      - text: 执行
+    - button "复制":
+      - text: 复制
+    - button "生成图表":
+      - text: 生成图表
+    - button "加入仪表盘":
+      - text: 加入仪表盘
+    - button "SELECT COUNT(*) AS records FROM \"sql_funds_flow\".\"main\".\"crypto_transactions\"":
+      - generic: SELECT COUNT(*) AS records FROM "sql_funds_flow"."main"."crypto_transactions"
+    - generic: 50 ms
+    - generic: 20:44
+    - generic: 1 行
+    - generic: 可尝试成图
+    - generic "sql_funds_flow.main.crypto_transactions": "表: sql_funds_flow.main.crypto_transactions"
+    - button "执行":
+      - text: 执行
+    - button "复制":
+      - text: 复制
+    - button "生成图表":
+      - text: 生成图表
+    - button "加入仪表盘":
+      - text: 加入仪表盘
+    - button "SELECT 'USD' AS unit, SUM(amount) AS completed_amount FROM fiat_transactions WHERE status = 'completed' AND currency = 'USD';":
+      - generic: SELECT 'USD' AS unit, SUM(amount) AS completed_amount FROM fiat_transactions WHERE status = 'completed' AND currency = 'USD';
+    - generic: 49 ms
+    - generic: 20:44
+    - generic: 1 行
+    - generic: 可尝试成图
+    - generic "fiat_transactions": "表: fiat_transactions"
+    - button "执行":
+      - text: 执行
+    - button "复制":
+      - text: 复制
+    - button "生成图表":
+      - text: 生成图表
+    - button "加入仪表盘":
+      - text: 加入仪表盘
+    - button "SELECT 'USD' AS unit, SUM(amount) AS completed_amount FROM fiat_transactions WHERE status = 'completed' AND currency = 'USD';":
+      - generic: SELECT 'USD' AS unit, SUM(amount) AS completed_amount FROM fiat_transactions WHERE status = 'completed' AND currency = 'USD';
+    - generic: 111 ms
+    - generic: 20:16
+    - generic: 1 行
+    - generic: 可尝试成图
+    - generic "fiat_transactions": "表: fiat_transactions"
+    - button "执行":
+      - text: 执行
+    - button "复制":
+      - text: 复制
+    - button "生成图表":
+      - text: 生成图表
+    - button "加入仪表盘":
+      - text: 加入仪表盘
+    - button "SELECT 'USD' AS unit, SUM(amount) AS completed_amount FROM fiat_transactions WHERE status = 'completed' AND currency = 'USD';":
+      - generic: SELECT 'USD' AS unit, SUM(amount) AS completed_amount FROM fiat_transactions WHERE status = 'completed' AND currency = 'USD';
+    - generic: 141 ms
+    - generic: 20:03
+    - generic: 1 行
+    - generic: 可尝试成图
+    - generic "fiat_transactions": "表: fiat_transactions"
+    - button "执行":
+      - text: 执行
+    - button "复制":
+      - text: 复制
+    - button "生成图表":
+      - text: 生成图表
+    - button "加入仪表盘":
+      - text: 加入仪表盘
+    - button "SELECT * FROM __ui_audit_missing_table__;":
+      - generic: SELECT * FROM __ui_audit_missing_table__;
+    - generic: 失败
+    - generic: 19:17
+    - text: "Catalog Error: Table with name __ui_audit_missing_table__ does not exist! Did you mean \"pragma_database_list\"? LINE 1: SELECT * FROM __ui_audit_missing_table__; ^"
+    - button "执行":
+      - text: 执行
+    - button "复制":
+      - text: 复制
+    - button "SELECT 'USD' AS unit, SUM(amount) AS completed_amount FROM fiat_transactions WHERE status = 'completed' AND currency = 'USD';":
+      - generic: SELECT 'USD' AS unit, SUM(amount) AS completed_amount FROM fiat_transactions WHERE status = 'completed' AND currency = 'USD';
+    - generic: 85 ms
+    - generic: 19:17
+    - generic: 1 行
+    - generic: 可尝试成图
+    - generic "fiat_transactions": "表: fiat_transactions"
+    - button "执行":
+      - text: 执行
+    - button "复制":
+      - text: 复制
+    - button "生成图表":
+      - text: 生成图表
+    - button "加入仪表盘":
+      - text: 加入仪表盘
+    - button "SELECT 'USD' AS unit, SUM(amount) AS completed_amount FROM fiat_transactions WHERE status = 'completed' AND currency = 'USD';":
+      - generic: SELECT 'USD' AS unit, SUM(amount) AS completed_amount FROM fiat_transactions WHERE status = 'completed' AND currency = 'USD';
+    - generic: 191 ms
+    - generic: 21:59
+    - generic: 1 行
+    - generic: 可尝试成图
+    - generic "fiat_transactions": "表: fiat_transactions"
+    - button "执行":
+      - text: 执行
+    - button "复制":
+      - text: 复制
+    - button "生成图表":
+      - text: 生成图表
+    - button "加入仪表盘":
+      - text: 加入仪表盘
+    - button "SELECT 'USD' AS unit, SUM(amount) AS completed_amount FROM fiat_transactions WHERE status = 'completed' AND currency = 'USD';":
+      - generic: SELECT 'USD' AS unit, SUM(amount) AS completed_amount FROM fiat_transactions WHERE status = 'completed' AND currency = 'USD';
+    - generic: 18 ms
+    - generic: 04:23
+    - generic: 1 行
+    - generic: 可尝试成图
+    - generic "fiat_transactions": "表: fiat_transactions"
+    - button "执行":
+      - text: 执行
+    - button "复制":
+      - text: 复制
+    - button "生成图表":
+      - text: 生成图表
+    - button "加入仪表盘":
+      - text: 加入仪表盘
+    - button "SELECT 'USD' AS unit, SUM(amount) AS completed_amount FROM fiat_transactions WHERE status = 'completed' AND currency = 'USD';":
+      - generic: SELECT 'USD' AS unit, SUM(amount) AS completed_amount FROM fiat_transactions WHERE status = 'completed' AND currency = 'USD';
+    - generic: 81 ms
+    - generic: 04:10
+    - generic: 1 行
+    - generic: 可尝试成图
+    - generic "fiat_transactions": "表: fiat_transactions"
+    - button "执行":
+      - text: 执行
+    - button "复制":
+      - text: 复制
+    - button "生成图表":
+      - text: 生成图表
+    - button "加入仪表盘":
+      - text: 加入仪表盘
+    - button "UPDATE fiat_transactions SET amount=amount+100 WHERE fiat_order_id=(SELECT fiat_order_id FROM fiat_transactions WHERE status='completed' AND currency='USD' ORDER BY fiat_order_id LIMIT 1); SELECT SUM(amount) AS completed_usd FROM fiat_transactions WHERE status='completed' AND currency='USD';":
+      - generic: UPDATE fiat_transactions SET amount=amount+100 WHERE fiat_order_id=(SELECT fiat_order_id FROM fiat_transactions WHERE status='completed' AND currency='USD' ORDER BY fiat_order_id LIMIT 1); SELECT SUM(amount) AS completed_usd FROM fiat_transactions WHERE status='completed' AND currency='USD';
+    - generic: 128 ms
+    - generic: 00:27
+    - generic: 1 行
+    - generic: 可尝试成图
+    - generic "fiat_transactions": "表: fiat_transactions"
+    - button "执行":
+      - text: 执行
+    - button "复制":
+      - text: 复制
+    - button "生成图表":
+      - text: 生成图表
+    - button "加入仪表盘":
+      - text: 加入仪表盘
+    - button "UPDATE fiat_transactions SET amount=amount+100 WHERE fiat_order_id=(SELECT fiat_order_id FROM fiat_transactions WHERE status='completed' AND currency='USD' ORDER BY fiat_order_id LIMIT 1); SELECT SUM(amount) AS completed_usd FROM fiat_transactions WHERE status='completed' AND currency='USD';":
+      - generic: UPDATE fiat_transactions SET amount=amount+100 WHERE fiat_order_id=(SELECT fiat_order_id FROM fiat_transactions WHERE status='completed' AND currency='USD' ORDER BY fiat_order_id LIMIT 1); SELECT SUM(amount) AS completed_usd FROM fiat_transactions WHERE status='completed' AND currency='USD';
+    - generic: 208 ms
+    - generic: 00:18
+    - generic: 1 行
+    - generic: 可尝试成图
+    - generic "fiat_transactions": "表: fiat_transactions"
+    - button "执行":
+      - text: 执行
+    - button "复制":
+      - text: 复制
+    - button "生成图表":
+      - text: 生成图表
+    - button "加入仪表盘":
+      - text: 加入仪表盘
+- contentinfo:
+  - generic: DuckDB 1.33.1
+  - generic: "|"
+  - generic: sql_funds_flow [OPFS]
+  - generic: "|"
+  - generic: 持久化库
+  - generic: "|"
+  - generic: 13 张表
+  - generic: "|"
+  - generic: 13 个活动表
+  - generic: 引擎就绪
+  - generic: "|"
+  - generic: 02:38
+  - button "刷新运行时状态":

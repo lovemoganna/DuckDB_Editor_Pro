@@ -1,0 +1,11 @@
+$ vitest run --pool=threads --maxWorkers=1 --no-file-parallelism "components/Library/D3GraphView/D3GraphView.interactions.test.tsx" "components/ui/Workbench.test.tsx" "components/AnalysisHub/AnalysisHub.test.tsx"
+
+ RUN  v4.1.10 C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor
+
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+
+ Test Files  3 passed (3)
+      Tests  19 passed (19)
+   Start at  23:28:31
+   Duration  57.65s (transform 23.38s, setup 2.25s, import 39.61s, tests 5.15s, environment 9.04s)
+

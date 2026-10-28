@@ -1,0 +1,440 @@
+- banner "全局工作区顶栏":
+  - button "🪶 DuckDB Studio PRO":
+    - generic: 🪶
+    - generic: DuckDB Studio
+    - generic: PRO
+  - navigation "业务领域大类":
+    - button "工程核心":
+      - generic: 工程核心
+    - button "分析洞察":
+      - generic: 分析洞察
+    - button "知识沉淀":
+      - generic: 知识沉淀
+    - button "AI 认知":
+      - generic: AI 认知
+  - tablist "知识沉淀功能标签页":
+    - tab "知识资产" [selected]:
+      - generic: 知识资产
+    - tab "插件":
+      - generic: 插件
+    - tab "知识联动":
+      - generic: 知识联动
+  - button "项目":
+    - generic: 项目
+  - button "新建表":
+    - generic: 新建表
+  - button "临时分析空间":
+    - generic: 临时分析空间
+  - button "AI 助手":
+    - generic: AI 助手
+  - button "⌘K":
+  - button "帮助与快捷键":
+  - button "切换为深色模式":
+  - button "AI 模型设置":
+- main:
+  - button "展开知识文献库侧边栏":
+  - generic: DOC
+  - generic: /
+  - generic: Lesson 1 · DuckDB SQL 入门
+  - button "切换本体图谱面板":
+  - button "AI 润色":
+    - generic: AI 润色
+  - button "加入收藏":
+  - button "编辑资产属性":
+  - button "删除资产":
+  - generic: 最佳实践
+  - generic: "ID: duckdb-sql-lesson-1"
+  - button "一键全部运行 (13)":
+    - generic: 一键全部运行 (13)
+  - button "一键展开代码":
+    - generic: 一键展开代码
+  - button "复制 Markdown":
+    - generic: 复制 Markdown
+  - button "保存为 .md":
+    - generic: 保存为 .md
+  - button "在线编辑":
+    - generic: 在线编辑
+  - heading "Lesson 1 · DuckDB SQL 入门" [level=1]
+  - generic: 核心结论：建立“哲学概念本体”的**最小可运行宇宙**，为后续所有 DML / JOIN / 事务 / 递归查询提供唯一数据根基。
+  - text: 本体建模
+  - text: Ontology
+  - text: 哲学本体
+  - text: DuckDB
+  - text: 入门
+  - generic: 知识笔记正文
+  - generic: 支持代码高亮与公式格式化
+  - paragraph:
+    - text: 以下内容为
+    - strong: Lesson 1（L1）
+    - text: ，直接可执行，不引入任何后续未定义结构，确保
+    - strong: 最小闭环 + 可持续演进
+    - text: 。
+  - separator
+  - heading "Lesson 1 · DuckDB SQL 入门" [level=1]:
+    - generic: Lesson 1 · DuckDB SQL 入门
+  - heading "哲学知识图谱 · 本体论最小闭环" [level=2]:
+    - generic: 哲学知识图谱 · 本体论最小闭环
+  - paragraph:
+    - strong: 难度等级
+    - text: ：L1
+    - strong: 前置依赖
+    - text: ：无
+    - strong: 本课定位
+    - text: ：
+  - blockquote:
+    - paragraph:
+      - text: 建立“哲学概念本体”的
+      - strong: 最小可运行宇宙
+      - text: ，为后续所有 DML / JOIN / 事务 / 递归查询提供唯一数据根基。
+  - separator
+  - heading "一、学习目标" [level=2]:
+    - generic: 一、学习目标
+  - paragraph: 完成本课后，你将能够：
+  - list:
+    - text: 使用 DuckDB 创建一组
+    - strong: 具备哲学含义的关系型表
+    - text: 理解
+    - strong: 概念 / 思想家 / 学派
+    - text: 的本体论区分
+    - text: 建立
+    - strong: 稳定、不返工
+    - text: 的基础数据结构
+    - text: 跑通第一批
+    - strong: 可查询、可扩展
+    - text: 的哲学数据
+  - separator
+  - heading "二、哲学概念说明（本体论锚定）" [level=2]:
+    - generic: 二、哲学概念说明（本体论锚定）
+  - heading "1. 本体论三要素（最低必要）" [level=3]:
+    - generic: 1. 本体论三要素（最低必要）
+  - table:
+    - rowgroup:
+      - row "实体 哲学含义 数据库角色":
+        - columnheader "实体"
+        - columnheader "哲学含义"
+        - columnheader "数据库角色"
+    - rowgroup:
+      - row "思想家（Thinker） 概念的提出者、论证者 行为主体":
+        - cell "思想家（Thinker）"
+        - cell "概念的提出者、论证者"
+        - cell "行为主体"
+      - row "学派（School） 方法论与立场的集合 立场集合":
+        - cell "学派（School）"
+        - cell "方法论与立场的集合"
+        - cell "立场集合"
+      - row "概念（Concept） 被讨论、被使用、被演化的对象 核心节点":
+        - cell "概念（Concept）"
+        - cell "被讨论、被使用、被演化的对象"
+        - cell "核心节点"
+  - blockquote:
+    - paragraph:
+      - text: 本课
+      - strong: 只做“是什么”
+      - text: ，不涉及“如何知道”（认识论留到 Lesson 3）。
+  - separator
+  - heading "三、DuckDB 环境说明（极简）" [level=2]:
+    - generic: 三、DuckDB 环境说明（极简）
+  - list:
+    - paragraph:
+      - text: DuckDB 是
+      - strong: 嵌入式分析型数据库
+    - paragraph: SQL 标准高度兼容（Postgres 风格）
+    - paragraph: 支持：
+    - list:
+      - listitem: 外键
+      - listitem: 递归 CTE
+      - listitem: JSON
+      - listitem: 列式分析
+  - paragraph: 启动方式（任选）：
+  - generic "点击展开代码":
+    - button "展开代码块":
+    - generic: TEXT SNIPPET
+    - generic: (1 行)
+    - button "复制":
+      - generic: 复制
+    - button "展开"
+  - separator
+  - heading "四、DDL：建表（全局唯一版本）" [level=2]:
+    - generic: 四、DDL：建表（全局唯一版本）
+  - blockquote:
+    - paragraph: ⚠️ 说明：
+    - list:
+      - strong: 后续所有课程禁止重复建表
+      - text: 只允许
+      - code: ALTER TABLE
+      - text: 演进
+  - heading "1️⃣ 学派表 schools" [level=3]:
+    - text: 1️⃣ 学派表
+    - code: schools
+  - generic "点击折叠代码":
+    - button "折叠代码块":
+    - generic: SQL STATEMENT
+    - generic: (1 行)
+    - button "执行 SQL" [active]:
+      - generic: 执行 SQL
+    - button "在编辑器中运行 (发送到 SQL 编辑器)":
+      - generic: 发送到 SQL 编辑器
+    - button "格式化":
+      - generic: 格式化
+    - button "已修改 · 重置":
+      - generic: 已修改 · 重置
+    - button "复制":
+      - generic: 复制
+    - button "折叠"
+  - generic: "1"
+  - textbox:
+    - generic: SELECT 'a;b--c/*d*/' AS preserved_text;
+  - generic: 执行异常
+  - generic: (15 ms)
+  - button "收起结果":
+    - generic: 收起结果
+  - generic: 未结束的字符串或标识符
+  - separator
+  - heading "2️⃣ 思想家表 thinkers" [level=3]:
+    - text: 2️⃣ 思想家表
+    - code: thinkers
+  - generic "点击展开代码":
+    - button "展开代码块":
+    - generic: SQL STATEMENT
+    - generic: (7 行)
+    - button "执行 SQL":
+      - generic: 执行 SQL
+    - button "在编辑器中运行 (发送到 SQL 编辑器)":
+      - generic: 发送到 SQL 编辑器
+    - button "格式化":
+      - generic: 格式化
+    - button "复制":
+      - generic: 复制
+    - button "展开"
+  - separator
+  - heading "3️⃣ 思想家 ↔ 学派（多对多）" [level=3]:
+    - generic: 3️⃣ 思想家 ↔ 学派（多对多）
+  - generic "点击展开代码":
+    - button "展开代码块":
+    - generic: SQL STATEMENT
+    - generic: (7 行)
+    - button "执行 SQL":
+      - generic: 执行 SQL
+    - button "在编辑器中运行 (发送到 SQL 编辑器)":
+      - generic: 发送到 SQL 编辑器
+    - button "格式化":
+      - generic: 格式化
+    - button "复制":
+      - generic: 复制
+    - button "展开"
+  - separator
+  - heading "4️⃣ 概念表 concepts（本体核心）" [level=3]:
+    - text: 4️⃣ 概念表
+    - code: concepts
+    - text: （本体核心）
+  - generic "点击展开代码":
+    - button "展开代码块":
+    - generic: SQL STATEMENT
+    - generic: (8 行)
+    - button "执行 SQL":
+      - generic: 执行 SQL
+    - button "在编辑器中运行 (发送到 SQL 编辑器)":
+      - generic: 发送到 SQL 编辑器
+    - button "格式化":
+      - generic: 格式化
+    - button "复制":
+      - generic: 复制
+    - button "展开"
+  - separator
+  - heading "5️⃣ 概念层级表 concept_hierarchy" [level=3]:
+    - text: 5️⃣ 概念层级表
+    - code: concept_hierarchy
+  - blockquote:
+    - paragraph:
+      - text: 表达
+      - strong: genus → species（上位 / 下位）
+  - generic "点击展开代码":
+    - button "展开代码块":
+    - generic: SQL STATEMENT
+    - generic: (7 行)
+    - button "执行 SQL":
+      - generic: 执行 SQL
+    - button "在编辑器中运行 (发送到 SQL 编辑器)":
+      - generic: 发送到 SQL 编辑器
+    - button "格式化":
+      - generic: 格式化
+    - button "复制":
+      - generic: 复制
+    - button "展开"
+  - separator
+  - heading "五、DML：种子数据（第一性、不可随意改）" [level=2]:
+    - generic: 五、DML：种子数据（第一性、不可随意改）
+  - heading "1️⃣ 学派数据" [level=3]:
+    - generic: 1️⃣ 学派数据
+  - generic "点击展开代码":
+    - button "展开代码块":
+    - generic: SQL STATEMENT
+    - generic: (4 行)
+    - button "执行 SQL":
+      - generic: 执行 SQL
+    - button "在编辑器中运行 (发送到 SQL 编辑器)":
+      - generic: 发送到 SQL 编辑器
+    - button "格式化":
+      - generic: 格式化
+    - button "复制":
+      - generic: 复制
+    - button "展开"
+  - separator
+  - heading "2️⃣ 思想家数据（≥5）" [level=3]:
+    - generic: 2️⃣ 思想家数据（≥5）
+  - generic "点击展开代码":
+    - button "展开代码块":
+    - generic: SQL STATEMENT
+    - generic: (7 行)
+    - button "执行 SQL":
+      - generic: 执行 SQL
+    - button "在编辑器中运行 (发送到 SQL 编辑器)":
+      - generic: 发送到 SQL 编辑器
+    - button "格式化":
+      - generic: 格式化
+    - button "复制":
+      - generic: 复制
+    - button "展开"
+  - separator
+  - heading "3️⃣ 思想家 ↔ 学派映射" [level=3]:
+    - generic: 3️⃣ 思想家 ↔ 学派映射
+  - generic "点击展开代码":
+    - button "展开代码块":
+    - generic: SQL STATEMENT
+    - generic: (7 行)
+    - button "执行 SQL":
+      - generic: 执行 SQL
+    - button "在编辑器中运行 (发送到 SQL 编辑器)":
+      - generic: 发送到 SQL 编辑器
+    - button "格式化":
+      - generic: 格式化
+    - button "复制":
+      - generic: 复制
+    - button "展开"
+  - separator
+  - heading "4️⃣ 概念数据（≥15）" [level=3]:
+    - generic: 4️⃣ 概念数据（≥15）
+  - generic "点击展开代码":
+    - button "展开代码块":
+    - generic: SQL STATEMENT
+    - generic: (16 行)
+    - button "执行 SQL":
+      - generic: 执行 SQL
+    - button "在编辑器中运行 (发送到 SQL 编辑器)":
+      - generic: 发送到 SQL 编辑器
+    - button "格式化":
+      - generic: 格式化
+    - button "复制":
+      - generic: 复制
+    - button "展开"
+  - separator
+  - heading "5️⃣ 概念层级（示例）" [level=3]:
+    - generic: 5️⃣ 概念层级（示例）
+  - generic "点击展开代码":
+    - button "展开代码块":
+    - generic: SQL STATEMENT
+    - generic: (6 行)
+    - button "执行 SQL":
+      - generic: 执行 SQL
+    - button "在编辑器中运行 (发送到 SQL 编辑器)":
+      - generic: 发送到 SQL 编辑器
+    - button "格式化":
+      - generic: 格式化
+    - button "复制":
+      - generic: 复制
+    - button "展开"
+  - separator
+  - heading "六、即学即练（SELECT 基础）" [level=2]:
+    - generic: 六、即学即练（SELECT 基础）
+  - heading "练习 1：列出所有本体论概念" [level=3]:
+    - generic: 练习 1：列出所有本体论概念
+  - generic "点击展开代码":
+    - button "展开代码块":
+    - generic: SQL STATEMENT
+    - generic: (3 行)
+    - button "执行 SQL":
+      - generic: 执行 SQL
+    - button "在编辑器中运行 (发送到 SQL 编辑器)":
+      - generic: 发送到 SQL 编辑器
+    - button "格式化":
+      - generic: 格式化
+    - button "复制":
+      - generic: 复制
+    - button "展开"
+  - separator
+  - heading "练习 2：查询康德提出的概念" [level=3]:
+    - generic: 练习 2：查询康德提出的概念
+  - generic "点击展开代码":
+    - button "展开代码块":
+    - generic: SQL STATEMENT
+    - generic: (4 行)
+    - button "执行 SQL":
+      - generic: 执行 SQL
+    - button "在编辑器中运行 (发送到 SQL 编辑器)":
+      - generic: 发送到 SQL 编辑器
+    - button "格式化":
+      - generic: 格式化
+    - button "复制":
+      - generic: 复制
+    - button "展开"
+  - separator
+  - heading "练习 3：查询每个学派下的思想家数量" [level=3]:
+    - generic: 练习 3：查询每个学派下的思想家数量
+  - generic "点击展开代码":
+    - button "展开代码块":
+    - generic: SQL STATEMENT
+    - generic: (4 行)
+    - button "执行 SQL":
+      - generic: 执行 SQL
+    - button "在编辑器中运行 (发送到 SQL 编辑器)":
+      - generic: 发送到 SQL 编辑器
+    - button "格式化":
+      - generic: 格式化
+    - button "复制":
+      - generic: 复制
+    - button "展开"
+  - separator
+  - heading "七、小结（本课闭环）" [level=2]:
+    - generic: 七、小结（本课闭环）
+  - list:
+    - paragraph: 你已经建立：
+    - list:
+      - text: 一个
+      - strong: 哲学本体论的关系模型
+      - text: 一套
+      - strong: 可递归、可 JOIN、可事务化
+      - text: 的数据根
+    - paragraph: 当前系统满足：
+    - list:
+      - listitem: 稳定
+      - listitem: 可扩展
+      - listitem: 不返工
+  - separator
+  - heading "下一课预告（Lesson 2 · L2）" [level=2]:
+    - generic: 下一课预告（Lesson 2 · L2）
+  - paragraph:
+    - strong: 主题
+    - text: ：关系建模与 JOIN
+    - strong: 重点
+    - text: ：
+  - list:
+    - listitem: 概念 ↔ 学派 ↔ 思想家
+    - listitem: 自连接（概念谱系）
+    - listitem: 为认识论层做结构铺垫
+  - paragraph:
+    - text: 如果确认，回复：
+    - strong: “执行第二课”
+  - paragraph:
+    - link "https://chatgpt.com/c/69764572-b0f4-832c-bd51-7e34208b07c4":
+      - /url: https://chatgpt.com/c/69764572-b0f4-832c-bd51-7e34208b07c4
+      - generic: https://chatgpt.com/c/69764572-b0f4-832c-bd51-7e34208b07c4
+  - button "文章目录大纲":
+    - generic: TOC
+- contentinfo:
+  - generic: DuckDB 1.33.1
+  - generic: "|"
+  - generic: memory [MEMORY]
+  - generic: 引擎就绪
+  - generic: "|"
+  - generic: 06:46
+  - button "刷新运行时状态":

@@ -34,16 +34,25 @@ import {
   ModelingValidationIssue
 } from '../../services/ontologyModelingService';
 import { ModalShell, ActionButton } from '../ui/Workbench';
+import { emptyModelingDraft, normalizeModelingDraft, schemaProposal, diffModelingDraft, acceptModelingSuggestion,
+  deletionImpact, deleteModelingType, type ModelingSuggestion } from '../../services/ontologyModelingDraft';
+import { OntologyModelingMapping } from './OntologyModelingMapping';
+import { useOntologyDatasets } from '../../hooks/useOntologyDatasets';
+import { useAppStore } from '../../hooks/store/useAppStore';
+import { datasetModelingMapping, modelingPropertyType } from '../../services/ontologyModelingDatasets';
+import { saveQueryDataset } from '../../services/workbench/datasets';
 
 // ============================================================
 // Types & Constants
 // ============================================================
 
 type WorkbenchStep = 'input' | 'workbench' | 'commit';
-type InspectorTab = 'properties' | 'links' | 'actions' | 'verification' | 'diagnostics';
+type InspectorTab = 'properties' | 'links' | 'actions' | 'verification' | 'diagnostics' | 'mapping';
 type CanvasViewMode = 'graph' | 'table';
 
 interface Props {
+  targetContext?: { catalog: string; schema: string };
+  loadInitialDraft?: () => Promise<OntologyModelingResult>;
   onClose: () => void;
   onImport: (result: OntologyModelingResult, options?: { replace?: boolean }) => Promise<void>;
 }
@@ -92,6 +101,8 @@ function getNodeStyle(category?: string, name?: string) {
 // ============================================================
 
 interface GraphCanvasProps {
+  onCreateType?: () => void;
+  onConnect?: (from: string, to: string) => void;
   objectTypes: ModelingObjectType[];
   linkTypes: ModelingLinkType[];
   actions: ModelingAction[];
@@ -106,6 +117,7 @@ interface GraphCanvasProps {
 }
 
 const OntologyWorkbenchGraph: React.FC<GraphCanvasProps> = ({
+  onCreateType, onConnect,
   objectTypes,
   linkTypes,
   actions,
@@ -124,6 +136,7 @@ const OntologyWorkbenchGraph: React.FC<GraphCanvasProps> = ({
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const [draggingNode, setDraggingNode] = useState<string | null>(null);
+  const [connectingFrom, setConnectingFrom] = useState<string | null>(null);
 
   // Auto-fit to view function: calculates bounding box of all nodes and centers it
   const fitToView = useCallback(() => {
@@ -181,10 +194,15 @@ const OntologyWorkbenchGraph: React.FC<GraphCanvasProps> = ({
       }, 60);
       return () => clearTimeout(timer);
     }
-  }, [objectTypes.length, isInspectorCollapsed, fitToView]);
+  }, [objectTypes.length, isInspectorCollapsed]);
 
   const handleNodeMouseDown = (e: React.MouseEvent, typeName: string) => {
     e.stopPropagation();
+    if (e.shiftKey) {
+      if (connectingFrom) { onConnect?.(connectingFrom, typeName); setConnectingFrom(null); }
+      else setConnectingFrom(typeName);
+      return;
+    }
     setDraggingNode(typeName);
     onSelectType(typeName);
   };
@@ -336,6 +354,8 @@ const OntologyWorkbenchGraph: React.FC<GraphCanvasProps> = ({
       {/* SVG Canvas Body */}
       <div className="flex-1 w-full h-full overflow-hidden relative cursor-grab active:cursor-grabbing">
         <svg
+          aria-label="本体类型建模画布"
+          onDoubleClick={(e) => { if (['svg','rect'].includes((e.target as Element).tagName)) onCreateType?.(); else fitToView(); }}
           ref={svgRef}
           className="w-full h-full"
           onMouseDown={handleSvgMouseDown}
@@ -343,7 +363,6 @@ const OntologyWorkbenchGraph: React.FC<GraphCanvasProps> = ({
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
           onWheel={handleWheel}
-          onDoubleClick={fitToView}
         >
           <defs>
             <marker
@@ -471,6 +490,7 @@ const OntologyWorkbenchGraph: React.FC<GraphCanvasProps> = ({
 
               return (
                 <g
+                  data-testid={`modeling-node-${ot.name}`}
                   key={`node-${ot.name}`}
                   transform={`translate(${pos.x - cardW / 2}, ${pos.y - cardH / 2})`}
                   className="cursor-pointer"
@@ -489,7 +509,7 @@ const OntologyWorkbenchGraph: React.FC<GraphCanvasProps> = ({
                       stroke="#8be9fd"
                       strokeWidth="2.5"
                       strokeDasharray="4 2"
-                      className="animate-pulse"
+                      pointerEvents="none"
                     />
                   )}
 
@@ -590,7 +610,7 @@ const OntologyWorkbenchGraph: React.FC<GraphCanvasProps> = ({
 
         {/* Floating Quick Helper */}
         <div className="absolute bottom-2 left-3 px-2.5 py-1 rounded-md bg-black/60 backdrop-blur-sm border border-white/5 text-[10px] text-monokai-comment flex items-center gap-2 pointer-events-none">
-          <span>💡 提示：主图谱仅展示本体类型 (Schema) · 滚轮自由缩放 / 拖动画布 / 双击空白居中全貌</span>
+          <span>💡 类型画布 · 双击空白创建类型 · Shift 点击两端建立关系 · 滚轮缩放 / 拖动</span>
         </div>
       </div>
     </div>
@@ -601,7 +621,8 @@ const OntologyWorkbenchGraph: React.FC<GraphCanvasProps> = ({
 // Main Wizard Component
 // ============================================================
 
-export const OntologyModelingWizard: React.FC<Props> = ({ onClose, onImport }) => {
+export const OntologyModelingWizard: React.FC<Props> = ({ onClose, onImport, loadInitialDraft, targetContext }) => {
+  const workspace = useOntologyDatasets();
   // Step navigation
   const [step, setStep] = useState<WorkbenchStep>('input');
   const [conceptInput, setConceptInput] = useState('');
@@ -610,7 +631,49 @@ export const OntologyModelingWizard: React.FC<Props> = ({ onClose, onImport }) =
   const [error, setError] = useState<string | null>(null);
 
   // Model state
-  const [draft, setDraft] = useState<OntologyModelingResult | null>(null);
+  const [draft, setDraftState] = useState<OntologyModelingResult | null>(null);
+  const setDraft = (next: OntologyModelingResult | null) => setDraftState(next ? normalizeModelingDraft({ ...next, targetContext: targetContext || next.targetContext }) : null);
+  const [mode, setMode] = useState<'manual' | 'ai'>('ai');
+  const [suggestions, setSuggestions] = useState<ModelingSuggestion[]>([]);
+  const [pendingDelete, setPendingDelete] = useState<{ message: string; run: () => void } | null>(null);
+  const [closeRequested, setCloseRequested] = useState(false);
+  const [savedDraft, setSavedDraft] = useState<OntologyModelingResult | null>(null);
+  const dirty = !!draft && JSON.stringify(draft) !== JSON.stringify(savedDraft);
+  const requestClose = () => { if (dirty || suggestions.length) setCloseRequested(true); else onClose(); };
+  const draftRef = React.useRef(draft); draftRef.current = draft;
+  const createFromDataset = async () => {
+    if (!workspace.selected) return;
+    setIsLoading(true);
+    try {
+      let source = workspace.selected, definition = workspace.definition;
+      if (!definition) {
+        if (source.error) throw new Error(source.error);
+        source = await saveQueryDataset(workspace.owner, source.name, source.sql);
+        definition = source;
+        useAppStore.getState().setActiveDataset(source);
+      }
+      const current = draftRef.current || emptyModelingDraft();
+      const base = source.table || source.name;
+      let name = base, suffix = 2;
+      while (current.objectTypes.some(t => t.name === name)) name = `${base}_${suffix++}`;
+      const mapping = datasetModelingMapping(source, workspace.owner, definition);
+      setDraft({ ...current, objectTypes: [...current.objectTypes, { name, identifier: name, description: `数据集：${source.name}`, mapping,
+        properties: Object.fromEntries(source.fields.map(f => [f.name, { name: f.name, type: modelingPropertyType(f.type), description: `来源字段类型：${f.type}` }])) }] });
+      setSelectedTypeName(name); setInspectorTab('mapping'); setMode('manual'); setStep('workbench');
+    } catch (e) { setError(String(e)); } finally { setIsLoading(false); }
+  };
+  const previewCommit = () => {
+    if (!draft) return;
+    const next = normalizeModelingDraft(draft); setDraft(next);
+    if (next.validationIssues.some(i => i.level === 'error')) {
+      setError('校验失败，请在体检诊断中定位并修正错误。'); setInspectorTab('diagnostics'); setIsInspectorCollapsed(false); setStep('workbench');
+    } else if (suggestions.length) setError('请先逐项接受或拒绝待处理建议。');
+    else setStep('commit');
+  };
+  const propose = (next: OntologyModelingResult, base: OntologyModelingResult) => {
+    if (suggestions.length) { setError('请先处理当前建议。'); return; }
+    setSuggestions(diffModelingDraft(base, schemaProposal(next, base)));
+  };
   const [selectedTypeName, setSelectedTypeName] = useState<string | null>(null);
   const [selectedLinkIndex, setSelectedLinkIndex] = useState<number | null>(null);
   const [inspectorTab, setInspectorTab] = useState<InspectorTab>('properties');
@@ -634,7 +697,7 @@ export const OntologyModelingWizard: React.FC<Props> = ({ onClose, onImport }) =
       draft.graphLayout.nodes.forEach((node) => {
         posMap[node.id] = { x: node.x ?? 300, y: node.y ?? 200 };
       });
-      setNodePositions(posMap);
+      setNodePositions(prev => Object.fromEntries(Object.keys(posMap).map(name => [name, prev[name] || posMap[name]])));
     }
     // Set default selected type
     if (draft && draft.objectTypes.length > 0 && !selectedTypeName) {
@@ -658,7 +721,8 @@ export const OntologyModelingWizard: React.FC<Props> = ({ onClose, onImport }) =
       const res = await ontologyModelingService.modelFromConcept(textToModel, (p) => {
         setProgress(p);
       });
-      setDraft(res);
+      if (draft) propose(res, draft);
+      else setDraft(schemaProposal(res));
       if (res.objectTypes.length > 0) {
         setSelectedTypeName(res.objectTypes[0].name);
       }
@@ -682,7 +746,7 @@ export const OntologyModelingWizard: React.FC<Props> = ({ onClose, onImport }) =
     setError(null);
     try {
       const next = await ontologyModelingService.refineModel(draft, prompt);
-      setDraft(next);
+      propose(next, draft);
       setRefineInstruction('');
     } catch (err: any) {
       setError(`微调失败: ${err.message}`);
@@ -695,7 +759,7 @@ export const OntologyModelingWizard: React.FC<Props> = ({ onClose, onImport }) =
   const handleAutoFix = () => {
     if (!draft) return;
     const fixed = ontologyModelingService.autoFixIssues(draft);
-    setDraft(fixed);
+    propose(fixed, draft);
   };
 
   // 4. ObjectType CRUD & Rename (Immediate sync to graph)
@@ -707,6 +771,9 @@ export const OntologyModelingWizard: React.FC<Props> = ({ onClose, onImport }) =
   const handleRenameType = (oldName: string, newName: string) => {
     if (!draft || !newName.trim() || oldName === newName) return;
     const trimmed = newName.trim();
+    if (draft.objectTypes.some(t => t.name !== oldName && t.name.toLowerCase() === trimmed.toLowerCase())) {
+      setError('对象名称冲突，请使用唯一名称。'); return;
+    }
 
     // 1. Update ObjectTypes
     const nextTypes = draft.objectTypes.map((t) =>
@@ -779,6 +846,7 @@ export const OntologyModelingWizard: React.FC<Props> = ({ onClose, onImport }) =
     }
 
     const newType: ModelingObjectType = {
+      identifier: `type_${crypto.randomUUID()}`,
       name,
       description: '新增业务实体类型',
       category: 'Core',
@@ -790,19 +858,12 @@ export const OntologyModelingWizard: React.FC<Props> = ({ onClose, onImport }) =
     };
 
     const nextTypes = [...draft.objectTypes, newType];
-    // Add default seed verification instance
-    const newSampleObj: ModelingObject = {
-      name: `${name}_01`,
-      objectType: name,
-      properties: { id: '001', status: 'active', created_at: new Date().toISOString() },
-      annotations: '场景验证示例',
-    };
-    const nextObjects = [...draft.objects, newSampleObj];
+    const nextObjects = draft.objects;
 
     // Assign position
     setNodePositions((prev) => ({
       ...prev,
-      [name]: { x: 380 + (Math.random() * 80 - 40), y: 260 + (Math.random() * 80 - 40) },
+      [name]: { x: 200 + (draft.objectTypes.length % 3) * 240, y: 160 + Math.floor(draft.objectTypes.length / 3) * 160 },
     }));
 
     const { issues, score } = ontologyModelingService.validateModel({
@@ -825,29 +886,9 @@ export const OntologyModelingWizard: React.FC<Props> = ({ onClose, onImport }) =
 
   const handleDeleteObjectType = (typeName: string) => {
     if (!draft) return;
-    const nextTypes = draft.objectTypes.filter((t) => t.name !== typeName);
-    const nextLinkTypes = draft.linkTypes.filter((lt) => lt.fromType !== typeName && lt.toType !== typeName);
-    const nextActions = draft.actions.filter((a) => a.objectName !== typeName);
-    const nextObjects = draft.objects.filter((o) => o.objectType !== typeName);
-
-    const { issues, score } = ontologyModelingService.validateModel({
-      objectTypes: nextTypes,
-      objects: nextObjects,
-      linkTypes: nextLinkTypes,
-      links: draft.links,
-      actions: nextActions,
-    });
-
-    setDraft({
-      ...draft,
-      objectTypes: nextTypes,
-      linkTypes: nextLinkTypes,
-      actions: nextActions,
-      objects: nextObjects,
-      validationIssues: issues,
-      healthScore: score,
-    });
-    setSelectedTypeName(nextTypes[0]?.name || null);
+    const impact = deletionImpact(draft, typeName);
+    setPendingDelete({ message: `删除 ${typeName}：涉及关系 ${impact.relations.map(l => l.name).join('、') || '无'}；关联对象类型 ${impact.relatedTypes.join('、') || '无'}；${impact.objects.length} 个实例、${impact.links.length} 条实例关系、${impact.actions.length} 个行动将一并删除。${impact.externalReferences.length ? `另有 ${impact.externalReferences.length} 项反思、洞察或画布引用；保存前须先解除这些引用。` : ''}`,
+      run: () => { setDraft(deleteModelingType(draftRef.current!, typeName)); setSelectedTypeName(null); setSelectedLinkIndex(null); } });
   };
 
   // 5. Properties CRUD on Selected ObjectType
@@ -857,7 +898,9 @@ export const OntologyModelingWizard: React.FC<Props> = ({ onClose, onImport }) =
     const nextTypes = draft.objectTypes.map((t) => {
       if (t.name !== selectedTypeName) return t;
       const props = { ...(t.properties || {}) };
-      props[trimmed] = propType;
+      let name = trimmed, suffix = 2;
+      while (name in props) name = `${trimmed}_${suffix++}`;
+      props[name] = propType;
       return { ...t, properties: props };
     });
     setDraft({ ...draft, objectTypes: nextTypes });
@@ -865,18 +908,29 @@ export const OntologyModelingWizard: React.FC<Props> = ({ onClose, onImport }) =
 
   const handleUpdateProperty = (oldKey: string, newKey: string, newType: string) => {
     if (!draft || !selectedTypeName) return;
+    if (!newKey.trim() || (oldKey !== newKey && newKey in (currentSelectedType?.properties || {}))) { setError('属性名称为空或已存在。'); return; }
     const nextTypes = draft.objectTypes.map((t) => {
       if (t.name !== selectedTypeName) return t;
       const props = { ...(t.properties || {}) };
       delete props[oldKey];
-      props[newKey] = newType;
+      const previous = t.properties?.[oldKey];
+      props[newKey] = typeof previous === 'object' ? { ...previous, name: newKey, type: newType as any } : newType;
       return { ...t, properties: props };
     });
-    setDraft({ ...draft, objectTypes: nextTypes });
+    setDraft({ ...draft, objectTypes: nextTypes.map(t => {
+      if (t.name !== selectedTypeName || !t.mapping || oldKey === newKey) return t;
+      const properties = { ...t.mapping.properties }; if (properties[oldKey]) { properties[newKey] = properties[oldKey]; delete properties[oldKey]; }
+      return { ...t, mapping: { ...t.mapping, properties } };
+    }), objects: draft.objects.map(o => {
+      if (o.objectType !== selectedTypeName || oldKey === newKey) return o;
+      const properties = { ...o.properties }; if (oldKey in properties) { properties[newKey] = properties[oldKey]; delete properties[oldKey]; }
+      return { ...o, properties };
+    }) });
   };
 
   const handleDeleteProperty = (key: string) => {
     if (!draft || !selectedTypeName) return;
+    if (currentSelectedType?.mapping?.properties[key]) { setError('该属性正在使用数据映射，请先移除映射再删除。'); return; }
     const nextTypes = draft.objectTypes.map((t) => {
       if (t.name !== selectedTypeName) return t;
       const props = { ...(t.properties || {}) };
@@ -892,11 +946,12 @@ export const OntologyModelingWizard: React.FC<Props> = ({ onClose, onImport }) =
     return draft.linkTypes[selectedLinkIndex] || null;
   }, [draft, selectedLinkIndex]);
 
-  const handleAddLinkType = () => {
+  const handleAddLinkType = (connectFrom?: string, connectTo?: string) => {
     if (!draft || draft.objectTypes.length < 2) return;
-    const fromType = selectedTypeName || draft.objectTypes[0].name;
-    const toType = draft.objectTypes.find((t) => t.name !== fromType)?.name || draft.objectTypes[1].name;
-    const name = `REL_${fromType.toUpperCase()}_TO_${toType.toUpperCase()}`;
+    const fromType = connectFrom || selectedTypeName || draft.objectTypes[0].name;
+    const toType = connectTo || draft.objectTypes.find((t) => t.name !== fromType)?.name || draft.objectTypes[1].name;
+    const baseName = `REL_${fromType.toUpperCase()}_TO_${toType.toUpperCase()}`;
+    let name = baseName, n = 1; while (draft.linkTypes.some(l => l.name === name)) name = `${baseName}_${n++}`;
 
     const nextLinkTypes = [
       ...draft.linkTypes,
@@ -926,6 +981,7 @@ export const OntologyModelingWizard: React.FC<Props> = ({ onClose, onImport }) =
     if (!draft) return;
     const nextLinkTypes = [...draft.linkTypes];
     nextLinkTypes[index] = { ...nextLinkTypes[index], ...val };
+    const oldName = draft.linkTypes[index].name;
 
     const { issues, score } = ontologyModelingService.validateModel({
       objectTypes: draft.objectTypes,
@@ -935,7 +991,7 @@ export const OntologyModelingWizard: React.FC<Props> = ({ onClose, onImport }) =
       actions: draft.actions,
     });
 
-    setDraft({ ...draft, linkTypes: nextLinkTypes, validationIssues: issues, healthScore: score });
+    setDraft({ ...draft, linkTypes: nextLinkTypes, links: draft.links.map(l => l.linkType === oldName && val.name ? { ...l, linkType: val.name } : l), validationIssues: issues, healthScore: score });
   };
 
   const handleReverseLinkType = (index: number) => {
@@ -946,25 +1002,19 @@ export const OntologyModelingWizard: React.FC<Props> = ({ onClose, onImport }) =
 
   const handleDeleteLinkType = (index: number) => {
     if (!draft) return;
-    const nextLinkTypes = draft.linkTypes.filter((_, i) => i !== index);
-    const { issues, score } = ontologyModelingService.validateModel({
-      objectTypes: draft.objectTypes,
-      objects: draft.objects,
-      linkTypes: nextLinkTypes,
-      links: draft.links,
-      actions: draft.actions,
-    });
-    setDraft({ ...draft, linkTypes: nextLinkTypes, validationIssues: issues, healthScore: score });
-    setSelectedLinkIndex(null);
+    const relation = draft.linkTypes[index];
+    setPendingDelete({ message: `删除关系 ${relation.name}（${relation.fromType} → ${relation.toType}），将删除 ${draft.links.filter(l => l.linkType === relation.name).length} 条实例连线，保留端点对象。`,
+      run: () => { const current = draftRef.current!; setDraft({ ...current, linkTypes: current.linkTypes.filter(l => l.name !== relation.name), links: current.links.filter(l => l.linkType !== relation.name) }); setSelectedLinkIndex(null); } });
   };
 
   // 7. Actions CRUD
   const handleAddAction = () => {
     if (!draft || draft.objectTypes.length === 0) return;
     const target = selectedTypeName || draft.objectTypes[0].name;
+    let name = 'NewAction', n = 1; while (draft.actions.some(a => a.name === name)) name = `NewAction_${n++}`;
     const nextActions = [
       ...draft.actions,
-      { name: 'NewAction', objectName: target, description: '业务操作', targetStatus: 'completed' },
+      { name, objectName: target, description: '业务操作', targetStatus: 'completed' },
     ];
     setDraft({ ...draft, actions: nextActions });
     setInspectorTab('actions');
@@ -979,8 +1029,10 @@ export const OntologyModelingWizard: React.FC<Props> = ({ onClose, onImport }) =
 
   const handleDeleteAction = (index: number) => {
     if (!draft) return;
-    const nextActions = draft.actions.filter((_, i) => i !== index);
-    setDraft({ ...draft, actions: nextActions });
+    const action = draft.actions[index];
+    setPendingDelete({ message: `删除行动 ${action.name}，关联对象 ${action.objectName} 将保留。`, run: () => {
+      const current = draftRef.current!; setDraft({ ...current, actions: current.actions.filter(a => a.name !== action.name) });
+    } });
   };
 
   // 8. Node Merge & Local Regeneration
@@ -997,7 +1049,7 @@ export const OntologyModelingWizard: React.FC<Props> = ({ onClose, onImport }) =
     setIsRefining(true);
     try {
       const next = await ontologyModelingService.regenerateNode(draft, selectedTypeName);
-      setDraft(next);
+      propose(next, draft);
     } catch (err: any) {
       setError(`局部重新生成失败: ${err.message}`);
     } finally {
@@ -1008,6 +1060,7 @@ export const OntologyModelingWizard: React.FC<Props> = ({ onClose, onImport }) =
   // 9. Commit & Write to Ontology
   const handleCommitImport = async () => {
     if (!draft) return;
+    if (normalizeModelingDraft(draft).validationIssues.some(i => i.level === 'error') || suggestions.length) { previewCommit(); return; }
     setIsImporting(true);
     try {
       await onImport(draft, { replace: isOverwrite });
@@ -1022,9 +1075,9 @@ export const OntologyModelingWizard: React.FC<Props> = ({ onClose, onImport }) =
   return (
     <ModalShell
       open={true}
-      onClose={onClose}
+      onClose={requestClose}
       title="AI 本体建模工作台 (Ontology Modeling Studio)"
-      description="业务需求驱动 · Schema与验证解耦 · 实时拓扑交互 · 拓扑体检 · 直写正式本体"
+      description="手动与 AI 共用草案 · 实时编辑 · 真实数据映射 · 校验后确认保存"
       badge="生产级本体建模"
       icon={BrainCircuit}
       iconColor="text-monokai-cyan"
@@ -1032,7 +1085,53 @@ export const OntologyModelingWizard: React.FC<Props> = ({ onClose, onImport }) =
       size="xl"
       className="!max-w-[1680px] !w-[98vw] !h-[94vh] flex flex-col"
     >
-      <div className="flex-1 flex flex-col min-h-0 -mx-2 -my-2">
+      <div className="h-full flex flex-col min-h-0 -mx-2 -my-2">
+        <div className="flex flex-wrap gap-3 items-center px-4 py-2 border-b border-monokai-border text-xs">
+          <button aria-pressed={mode === 'manual'} className="px-3 py-1 rounded border border-monokai-border" onClick={() => {
+            setMode('manual'); if (!draft) setDraft(emptyModelingDraft()); setStep('workbench');
+          }}>手动建模</button>
+          <button aria-pressed={mode === 'ai'} className="px-3 py-1 rounded border border-monokai-border" onClick={() => { setMode('ai'); setStep(draft ? 'workbench' : 'input'); }}>AI 辅助建模</button>
+          <label className="flex items-center gap-2">当前数据集
+            <select aria-label="建模数据集" className="max-w-64 bg-monokai-bg border border-monokai-border rounded p-1" value={workspace.selected?.id || ''} onChange={e => useAppStore.getState().setActiveDataset(workspace.datasets.find(d => d.id === e.target.value) || null)}>
+              <option value="">选择工作区数据集</option>
+              {workspace.selected && !workspace.definition && <option value={workspace.selected.id}>{workspace.selected.name}（当前 SQL 查询，尚未保存为数据集）</option>}
+              {workspace.datasets.map(d => <option key={d.id} value={d.id} disabled={!!d.error}>{d.name}</option>)}
+            </select>
+          </label>
+          <button disabled={!workspace.selected || !!workspace.selected.error || isLoading} onClick={createFromDataset} className="text-monokai-cyan disabled:opacity-40">{workspace.selected && !workspace.definition ? '保存当前查询为数据集并创建类型' : '从当前数据集创建类型'}</button>
+          {targetContext && <span>保存范围：{targetContext.catalog}.{targetContext.schema}</span>}
+          {workspace.error && <span className="text-monokai-orange">数据集目录不可用：{workspace.error}</span>}
+          {!draft && loadInitialDraft && <button disabled={isLoading} onClick={async () => {
+            setIsLoading(true); setError(null);
+            try { const loaded = await loadInitialDraft(); setDraft(loaded); setSavedDraft(loaded); setStep('workbench'); setMode('manual'); }
+            catch (e) { setError(`载入失败：${String(e)}`); } finally { setIsLoading(false); }
+          }}>编辑已保存本体</button>}
+          {draft && <>
+            <span role="status">{dirty ? '草案 · 尚未保存' : '已确认版本'} · {draft.objectTypes.length} 类型 · {draft.objects.length} 真实实例 · {draft.validationIssues.filter(i => i.level === 'error').length} 项错误</span>
+            <button className="text-monokai-orange ml-auto" onClick={requestClose}>取消未保存修改</button>
+          </>}
+        </div>
+        {closeRequested && <div role="alertdialog" aria-label="放弃草案确认" className="p-4 border border-monokai-orange bg-monokai-bg text-sm space-x-4">
+          <span>放弃所有未保存修改和待处理建议？已确认的正式本体将保留。</span>
+          <button onClick={() => setCloseRequested(false)}>继续编辑</button>
+          <button onClick={onClose}>确认放弃修改</button>
+        </div>}
+        {pendingDelete && <div role="alertdialog" aria-label="删除影响范围" className="p-4 border border-monokai-orange bg-monokai-bg text-sm space-y-2">
+          <p>{pendingDelete.message}</p><button className="mr-4" onClick={() => setPendingDelete(null)}>取消删除</button>
+          <button onClick={() => { pendingDelete.run(); setPendingDelete(null); }}>确认从草案删除</button>
+        </div>}
+        {suggestions.length > 0 && <section aria-label="待确认建议" className="max-h-52 overflow-y-auto p-3 border-b border-monokai-cyan text-xs space-y-2">
+          <strong>待确认建议（{suggestions.length}）· 接受后进入草案，正式版本仍需校验保存</strong>
+          {suggestions.map(s => <div key={s.id} className="border border-monokai-border p-2 rounded">
+            <span>{s.kind} · {s.name} · {s.before ? s.after ? '修改' : '删除' : '新增'}</span>
+            <details><summary>查看具体修改</summary><pre className="whitespace-pre-wrap">{JSON.stringify({ before: s.before, after: s.after }, null, 2)}</pre></details>
+            <button className="text-monokai-green mr-4" onClick={() => {
+              try { setDraft(acceptModelingSuggestion(draftRef.current!, s)); setSuggestions(prev => prev.filter(p => p.id !== s.id)); }
+              catch (e) { setError(String(e)); }
+            }}>接受 {s.name}</button>
+            <button className="text-monokai-orange" onClick={() => setSuggestions(prev => prev.filter(p => p.id !== s.id))}>拒绝 {s.name}</button>
+          </div>)}
+        </section>}
         {/* ── TOP HEADER / BREADCRUMB PIPELINE ────────────────── */}
         <div className="h-10 px-4 border-b border-monokai-border bg-monokai-surface/40 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-6 text-xs">
@@ -1067,7 +1166,7 @@ export const OntologyModelingWizard: React.FC<Props> = ({ onClose, onImport }) =
 
             <button
               disabled={!draft}
-              onClick={() => draft && setStep('commit')}
+              onClick={previewCommit}
               className={`flex items-center gap-2 font-medium cursor-pointer transition-colors ${
                 step === 'commit' ? 'text-monokai-cyan font-bold' : draft ? 'text-monokai-comment hover:text-monokai-fg' : 'text-monokai-comment/40 cursor-not-allowed'
               }`}
@@ -1109,7 +1208,7 @@ export const OntologyModelingWizard: React.FC<Props> = ({ onClose, onImport }) =
 
               <button
                 data-testid="enter-commit-step-btn"
-                onClick={() => setStep('commit')}
+                onClick={previewCommit}
                 className="px-3 py-1 rounded bg-monokai-cyan text-monokai-bg font-bold text-xs flex items-center gap-1.5 hover:bg-monokai-cyan/90 transition-colors cursor-pointer"
               >
                 <ArrowDown className="w-3.5 h-3.5" />
@@ -1179,7 +1278,7 @@ export const OntologyModelingWizard: React.FC<Props> = ({ onClose, onImport }) =
 
             {/* Bottom Actions */}
             <div className="pt-6 border-t border-monokai-border/60 flex items-center justify-end gap-3">
-              <ActionButton variant="secondary" onClick={onClose}>
+              <ActionButton variant="secondary" onClick={requestClose}>
                 取消
               </ActionButton>
               <ActionButton
@@ -1233,10 +1332,10 @@ export const OntologyModelingWizard: React.FC<Props> = ({ onClose, onImport }) =
 
         {/* ── STEP 2: 交互式本体工作台 (Focused Workbench) ───────────── */}
         {step === 'workbench' && draft && (
-          <div className="flex-1 flex min-h-0 overflow-hidden">
+          <div className="flex-1 flex min-h-0 overflow-hidden flex-row-reverse">
             {/* ── CENTER HERO: 动态本体图谱预览 (70% or 100% width) ── */}
             <div className={`h-full p-2 min-h-0 overflow-hidden flex flex-col transition-[width] duration-200 ${
-              isInspectorCollapsed ? 'w-full' : 'w-[70%]'
+              isInspectorCollapsed ? 'w-full' : 'flex-1'
             }`}>
               {/* Quick Canvas Toolbar */}
               <div className="h-8 px-2 pb-1 flex items-center justify-between text-xs shrink-0">
@@ -1249,7 +1348,7 @@ export const OntologyModelingWizard: React.FC<Props> = ({ onClose, onImport }) =
                     <Plus className="w-3 h-3 text-monokai-cyan" /> +类型 (Type)
                   </button>
                   <button
-                    onClick={handleAddLinkType}
+                    onClick={() => handleAddLinkType()}
                     className="px-2 py-1 rounded bg-monokai-surface border border-monokai-border hover:border-monokai-amethyst text-xs text-monokai-fg flex items-center gap-1 cursor-pointer transition-colors"
                     title="新增关系类型 (Link Type)"
                   >
@@ -1291,6 +1390,8 @@ export const OntologyModelingWizard: React.FC<Props> = ({ onClose, onImport }) =
               {canvasViewMode === 'graph' ? (
                 <div className="flex-1 min-h-0">
                   <OntologyWorkbenchGraph
+                    onCreateType={handleAddObjectType}
+                    onConnect={handleAddLinkType}
                     objectTypes={draft.objectTypes}
                     linkTypes={draft.linkTypes}
                     actions={draft.actions}
@@ -1299,6 +1400,8 @@ export const OntologyModelingWizard: React.FC<Props> = ({ onClose, onImport }) =
                     onSelectType={(name) => {
                       setSelectedTypeName(name);
                       setSelectedLinkIndex(null);
+                      setInspectorTab('properties');
+                      setIsInspectorCollapsed(false);
                     }}
                     onSelectLink={(idx) => {
                       setSelectedLinkIndex(idx);
@@ -1404,7 +1507,7 @@ export const OntologyModelingWizard: React.FC<Props> = ({ onClose, onImport }) =
                 )}
               </div>
             ) : (
-              <div className="w-[30%] h-full border-l border-monokai-border bg-monokai-sidebar/40 flex flex-col min-h-0 overflow-hidden shrink-0">
+              <div className="w-[35%] max-w-[560px] min-w-[360px] h-full border-r border-monokai-border bg-monokai-sidebar/40 flex flex-col min-h-0 overflow-hidden shrink-0">
                 {/* Inspector Header Tabs */}
                 <div className="h-9 px-2 border-b border-monokai-border bg-monokai-surface/40 flex items-center justify-between gap-1 shrink-0">
                   <div className="flex-1 flex items-center gap-1 overflow-x-auto no-scrollbar">
@@ -1414,6 +1517,7 @@ export const OntologyModelingWizard: React.FC<Props> = ({ onClose, onImport }) =
                       { id: 'actions', label: '行动列表', icon: Zap, count: draft.actions.length },
                       { id: 'verification', label: '示例验证', icon: FileSpreadsheet, count: draft.objects.length },
                       { id: 'diagnostics', label: '体检诊断', icon: Activity, count: draft.validationIssues.length },
+                      { id: 'mapping', label: '数据映射', icon: Database, count: draft.objectTypes.filter(t => t.mapping).length },
                     ].map((tab) => {
                       const Icon = tab.icon;
                       const isActive = inspectorTab === tab.id;
@@ -1421,7 +1525,7 @@ export const OntologyModelingWizard: React.FC<Props> = ({ onClose, onImport }) =
                         <button
                           key={tab.id}
                           onClick={() => setInspectorTab(tab.id as InspectorTab)}
-                          className={`flex-1 flex items-center justify-center gap-1 py-1 px-1 rounded-lg text-xs transition-all cursor-pointer ${
+                          className={`shrink-0 flex items-center justify-center gap-1 py-1 px-1 rounded-lg text-xs whitespace-nowrap transition-all cursor-pointer ${
                             isActive
                               ? 'bg-monokai-cyan/15 text-monokai-cyan font-bold border border-monokai-cyan/30'
                               : 'text-monokai-comment hover:text-monokai-fg hover:bg-monokai-surface/60'
@@ -1449,6 +1553,13 @@ export const OntologyModelingWizard: React.FC<Props> = ({ onClose, onImport }) =
 
               {/* Inspector Body */}
               <div className="flex-1 p-3 space-y-3.5 overflow-y-auto custom-scrollbar min-h-0">
+                {mode === 'ai' && <section className="text-xs space-y-2 rounded border border-monokai-border p-2">
+                  <label htmlFor="modeling-ai-instruction">AI 读取当前草案并提出建议</label>
+                  <textarea id="modeling-ai-instruction" value={refineInstruction} onChange={e => setRefineInstruction(e.target.value)} placeholder="例如：为订单添加取消与退款动作" className="w-full bg-monokai-bg border border-monokai-border rounded p-2" />
+                  <button disabled={isRefining || suggestions.length > 0 || !refineInstruction.trim()} onClick={() => handleRefine()} className="text-monokai-cyan disabled:opacity-40">{isRefining ? '生成建议中…' : '生成修改建议'}</button>
+                </section>}
+                {inspectorTab === 'mapping' && <OntologyModelingMapping key="mapping" draft={draft} selectedTypeName={selectedTypeName} onChange={setDraft} datasets={workspace.datasets} owner={workspace.owner} activeDataset={workspace.selected} />}
+                <p className="text-[11px] text-monokai-comment">双击画布空白创建类型；Shift 依次点击两个节点建立关系。选中节点编辑属性，选中连线编辑关系。</p>
                 {/* Real-time Health & Auto-fix Quick Banner */}
                 <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-monokai-surface/40 border border-monokai-border/70 text-xs">
                   <div className="flex items-center gap-1.5 font-medium text-monokai-fg">
@@ -1472,6 +1583,7 @@ export const OntologyModelingWizard: React.FC<Props> = ({ onClose, onImport }) =
                         <Edit3 className="w-3.5 h-3.5 text-monokai-cyan" />
                         <span>正在编辑节点:</span>
                         <input
+                          aria-label="对象名称"
                           type="text"
                           value={currentSelectedType.name}
                           onChange={(e) => handleRenameType(currentSelectedType.name, e.target.value)}
@@ -1487,6 +1599,14 @@ export const OntologyModelingWizard: React.FC<Props> = ({ onClose, onImport }) =
                         重新推导该节点
                       </button>
                     </div>
+
+                    <label className="block text-xs">对象标识符<input aria-label="对象标识符" value={currentSelectedType.identifier ?? currentSelectedType.name}
+                      onChange={e => setDraft({ ...draft, objectTypes: draft.objectTypes.map(t => t.name === currentSelectedType.name ? { ...t, identifier: e.target.value } : t) })}
+                      className="w-full p-1 rounded bg-monokai-bg border border-monokai-border" /></label>
+                    <label className="block text-xs">对象说明<textarea aria-label="对象说明" value={currentSelectedType.description}
+                      onChange={e => setDraft({ ...draft, objectTypes: draft.objectTypes.map(t => t.name === currentSelectedType.name ? { ...t, description: e.target.value } : t) })}
+                      className="w-full p-1 rounded bg-monokai-bg border border-monokai-border" /></label>
+                    <button className="text-xs text-monokai-orange" onClick={() => handleDeleteObjectType(currentSelectedType.name)}>删除对象类型</button>
 
                     {/* Category Selector & Node Merge */}
                     <div className="grid grid-cols-2 gap-2 text-xs">
@@ -1557,6 +1677,7 @@ export const OntologyModelingWizard: React.FC<Props> = ({ onClose, onImport }) =
                             className="p-1.5 rounded-lg bg-monokai-surface/40 border border-monokai-border/70 flex items-center gap-2 text-xs"
                           >
                             <input
+                              aria-label={`属性名称 ${key}`}
                               type="text"
                               defaultValue={key}
                               onBlur={(e) => {
@@ -1567,6 +1688,7 @@ export const OntologyModelingWizard: React.FC<Props> = ({ onClose, onImport }) =
                               className="flex-1 px-1.5 py-0.5 rounded bg-black/30 border border-monokai-border text-monokai-fg font-mono text-xs focus:outline-none focus:border-monokai-cyan"
                             />
                             <select
+                              aria-label={`属性类型 ${key}`}
                               value={typeVal}
                               onChange={(e) => handleUpdateProperty(key, key, e.target.value)}
                               className="px-1.5 py-0.5 rounded bg-black/40 border border-monokai-border text-monokai-cyan font-mono text-[11px] focus:outline-none"
@@ -1578,6 +1700,9 @@ export const OntologyModelingWizard: React.FC<Props> = ({ onClose, onImport }) =
                               <option value="TIMESTAMP">TIMESTAMP</option>
                               <option value="JSON">JSON</option>
                             </select>
+                            <label className="text-[10px] flex items-center gap-1"><input type="checkbox" aria-label={`必填 ${key}`}
+                              checked={typeof propDef === 'object' && !!propDef.required} onChange={e => setDraft({ ...draft, objectTypes: draft.objectTypes.map(t => t.name === currentSelectedType.name ? { ...t,
+                                properties: { ...t.properties, [key]: { ...(typeof propDef === 'object' ? propDef : {}), name: key, type: typeVal as any, required: e.target.checked } } } : t) })} />必填</label>
                             <button
                               onClick={() => handleDeleteProperty(key)}
                               className="p-1 rounded text-monokai-comment hover:text-monokai-pink hover:bg-monokai-surface transition-colors"
@@ -1600,7 +1725,7 @@ export const OntologyModelingWizard: React.FC<Props> = ({ onClose, onImport }) =
                         本体关系连线 (Link Types)
                       </span>
                       <button
-                        onClick={handleAddLinkType}
+                        onClick={() => handleAddLinkType()}
                         className="text-[11px] text-monokai-amethyst hover:underline flex items-center gap-0.5 cursor-pointer"
                       >
                         <Plus className="w-3 h-3" /> 新建关联
@@ -1765,7 +1890,7 @@ export const OntologyModelingWizard: React.FC<Props> = ({ onClose, onImport }) =
                         <span>场景实例验证层 (Validation Data)</span>
                       </div>
                       <p className="text-[11px] text-monokai-comment leading-relaxed">
-                        实例数据仅用于验证当前 Schema 字段与关系是否合理，不污染本体主模型。确认写入时将同步持久化为测试基准数据。
+                        此处仅展示已保存的实例或 DuckDB 真实查询结果。AI 示例不会写入业务实例；数据映射预览也需确认保存。
                       </p>
                     </div>
 
@@ -1808,7 +1933,7 @@ export const OntologyModelingWizard: React.FC<Props> = ({ onClose, onImport }) =
                         </div>
                       ) : (
                         <div className="space-y-1.5 max-h-56 overflow-y-auto custom-scrollbar">
-                          {draft.validationIssues.map((issue) => (
+                    {draft.validationIssues.map((issue) => (
                             <div
                               key={issue.id}
                               className={`p-2 rounded-lg text-[11px] flex items-start gap-1.5 border ${
@@ -1830,6 +1955,13 @@ export const OntologyModelingWizard: React.FC<Props> = ({ onClose, onImport }) =
                                    issue.category === 'orphan' ? '[孤立游离节点]' : '[关系连线提示]'}
                                 </span>
                                 <span>{issue.message}</span>
+                                <p>{issue.fix || '检查该元素的名称、类型和引用关系。'}</p>
+                                <button className="underline" onClick={() => {
+                                  if (issue.element?.kind === 'linkTypes') { setSelectedLinkIndex(issue.element.index); setInspectorTab('links'); }
+                                  else if (issue.element?.kind === 'actions') setInspectorTab('actions');
+                                  else if (issue.element?.kind === 'objects' || issue.element?.kind === 'links') setInspectorTab('verification');
+                                  else { setSelectedTypeName(issue.element ? draft.objectTypes[issue.element.index]?.name || null : issue.target || null); setInspectorTab('properties'); }
+                                }}>定位元素 {issue.target}</button>
                               </div>
                             </div>
                           ))}
@@ -1876,7 +2008,7 @@ export const OntologyModelingWizard: React.FC<Props> = ({ onClose, onImport }) =
                   确认写入本体知识图谱
                 </h3>
                 <p className="text-xs text-monokai-comment">
-                  模型校验完成，准备将本体定义写入底层持久化知识表
+                  校验通过。以下草案将在确认后原子保存到正式本体，失败则回滚。
                 </p>
               </div>
 
@@ -1953,7 +2085,7 @@ export const OntologyModelingWizard: React.FC<Props> = ({ onClose, onImport }) =
               <ActionButton
                 variant="primary"
                 onClick={handleCommitImport}
-                disabled={isImporting}
+                disabled={isImporting || draft.validationIssues.some(i => i.level === 'error') || suggestions.length > 0}
                 icon={isImporting ? Loader2 : Database}
               >
                 {isImporting ? '正在写入知识表...' : '确认写入本体图谱'}

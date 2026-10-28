@@ -1,0 +1,7 @@
+- generic [ref=e3]:
+  - img "DuckDB Manager 龙形品牌标志" [ref=e6]
+  - heading "DuckDB Studio PRO" [level=1] [ref=e9]:
+    - text: DuckDB Studio
+    - generic [ref=e10]: PRO
+  - paragraph [ref=e11]: High-Performance WASM Analytics Kernel
+  - generic [ref=e12]: 正在初始化 DuckDB 工作区…

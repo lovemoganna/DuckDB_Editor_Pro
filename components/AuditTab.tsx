@@ -392,7 +392,7 @@ export const AuditTab: React.FC<AuditTabProps> = ({ auditLogs, onRefresh }) => {
       {/* 1. Page Header with Actions */}
       <PageHeader
         title="系统审计日志 (Audit Log)"
-        description="持久化追踪所有 Schema 架构演变、DDL 执行与数据表变更记录"
+        description="查看当前会话中表格编辑与 Schema 操作的审计记录；SQL 工作台执行记录请查看查询历史"
         icon={ScrollText}
         tone="accent"
         badge={
@@ -666,7 +666,7 @@ export const AuditTab: React.FC<AuditTabProps> = ({ auditLogs, onRefresh }) => {
               description={
                 isFilterActive
                   ? '请调整搜索关键词、操作类型分类或时间范围以重新筛选'
-                  : '请执行 DDL/DML 操作以自动生成审计记录'
+                  : '通过数据表格编辑或 Schema 操作生成记录；会话重开后此日志会清空'
               }
               action={
                 isFilterActive ? (

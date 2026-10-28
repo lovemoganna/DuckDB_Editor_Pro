@@ -1,5 +1,5 @@
 import React, {useEffect, useMemo, useRef, useState} from 'react';
-import {ArrowLeftRight, Plus, Trash2, Save, Download, BarChart3, Table2, SlidersHorizontal, ArrowUp, ArrowDown, FolderOpen, Link2, Unlink, AlertTriangle, Sparkles} from 'lucide-react';
+import {ArrowLeftRight, Plus, Trash2, Save, Download, BarChart3, Table2, SlidersHorizontal, ArrowUp, ArrowDown, FolderOpen, Link2, Unlink, AlertTriangle, Sparkles, Undo2, Redo2} from 'lucide-react';
 import {PivotExtractMetricModal} from './PivotExtractMetricModal';
 import type {ColumnInfo} from '../../types';
 import {useCurrentAnalysisDataset} from '../../hooks/useCurrentAnalysisDataset';
@@ -11,7 +11,7 @@ import {runAnalysis} from '../../services/analysis/pipeline';
 import type {AnalysisResult, DateTruncGrain, AnalysisAgg,ChartSpec} from '../../services/analysis/types';
 import type {AnalysisRecord} from '../../services/analysisObjects';
 import {classifySemanticType} from '../../services/analysis/semantic';
-import {defaultPivot, loadPivotRecord, listPivotRecords, deletePivotRecord, buildJoinedSource, pivotDefinitionKey, pivotQueryKey, pivotNumericType, pivotDetailSql, pivotDrafts, pivotSourceKey, pivotToSpec, savePivotRecord, validatePivotSource, type PivotDefinition, type PivotJoinConfig, type PivotDimension} from '../../services/analysis/pivotExperience';
+import {defaultPivot, loadPivotRecord, listPivotRecords, deletePivotRecord, buildJoinedSource, pivotDefinitionKey, pivotQueryKey, pivotNumericType, pivotDetailSql, pivotDrafts, pivotSourceKey, pivotToSpec, PIVOT_DEFAULT_METRIC, savePivotRecord, validatePivotSource, type PivotDefinition, type PivotJoinConfig, type PivotDimension} from '../../services/analysis/pivotExperience';
 import {mapResultToChartSpec,chartSpecToChartConfig} from '../../services/analysis/chartRegistry';
 import {compileAnalysisSql} from '../../services/analysis/sqlCompiler';
 import {quoteIdent,literalValue} from '../../services/analysis/sqlUtils';
@@ -64,7 +64,7 @@ export function PivotExperienceEntry({currentTable,initialDimension,onInsertSql}
   return <PivotEditor key={`${pivotSourceKey(loaded.definition!.source)}:${loaded.analysisId || 'draft'}`} initial={loaded.definition!} initialId={loaded.analysisId} initialSavedAt={loaded.savedAt} onInsertSql={onInsertSql}/>;
 }
 
-const AGGS:{value:AnalysisAgg;label:string}[]=[{value:'count',label:'计数'},{value:'count_distinct',label:'去重计数'},{value:'sum',label:'求和'},{value:'avg',label:'平均值'},{value:'min',label:'最小值'},{value:'max',label:'最大值'}];
+const AGGS:{value:AnalysisAgg;label:string}[]=[{value:'count',label:'计数'},{value:'count_distinct',label:'去重计数'},{value:'sum',label:'求和'},{value:'avg',label:'平均值'},{value:'min',label:'最小值'},{value:'max',label:'最大值'},{value:'median',label:'中位数'}];
 const GRAINS:{value:DateTruncGrain;label:string}[]=[{value:'day',label:'日'},{value:'week',label:'周'},{value:'month',label:'月'},{value:'quarter',label:'季度'},{value:'year',label:'年'}];
 
 export function PivotEditor({initial,initialId,initialSavedAt,onInsertSql}:{initial:PivotDefinition;initialId?:string;initialSavedAt?:number;onInsertSql?:PivotEntryProps['onInsertSql']}) {
@@ -82,7 +82,7 @@ export function PivotEditor({initial,initialId,initialSavedAt,onInsertSql}:{init
   const [result,setResult]=useState<{key:string;value:AnalysisResult}>();
   const [error,setError]=useState('');
   const [saving,setSaving]=useState(false);
-  const [configOpen,setConfigOpen]=useState(()=>typeof window==='undefined' || window.innerWidth>=1200);
+  const [configOpen,setConfigOpen]=useState(()=>typeof window==='undefined' || window.innerWidth>=768);
   const [fieldSearch,setFieldSearch]=useState('');
   const [copied,setCopied]=useState(false);
   const [publishError,setPublishError]=useState('');
@@ -140,8 +140,29 @@ export function PivotEditor({initial,initialId,initialSavedAt,onInsertSql}:{init
     const table=mapResultToChartSpec(result.value.rows,result.value.columns,tableSpec,compileAnalysisSql(tableSpec));
     if(ready)retainedTable.current=table;
     return table;
-  },[result,definition.visibleMetric,definition.decimals,JSON.stringify(definition.metrics.map(metric=>metric.decimals)),ready]);
-  const update=(patch:Partial<PivotDefinition>)=>{setError('');setDefinition(previous=>({...previous,...patch}));};
+  },[result,definition.visibleMetric,definition.nullDisplay,definition.decimals,JSON.stringify(definition.metrics.map(metric=>metric.decimals)),ready]);
+  // Configuration history: every user edit is undoable (Ctrl/⌘+Z), including destructive ones such as swapping rows/columns.
+  const definitionRef=useRef(definition);definitionRef.current=definition;
+  const history=useRef<{past:PivotDefinition[];future:PivotDefinition[];lastKey:string;lastAt:number}>({past:[],future:[],lastKey:'',lastAt:0});
+  const [historySize,setHistorySize]=useState({past:0,future:0});
+  const syncHistory=()=>setHistorySize({past:history.current.past.length,future:history.current.future.length});
+  const commit=(next:PivotDefinition,coalesce?:string)=>{
+    const h=history.current,now=Date.now(),previous=definitionRef.current;
+    if(!(coalesce && coalesce===h.lastKey && now-h.lastAt<1000)){h.past.push(previous);if(h.past.length>100)h.past.shift();}
+    h.lastKey=coalesce||'';h.lastAt=now;h.future=[];
+    definitionRef.current=next;setError('');setDefinition(next);syncHistory();
+  };
+  const update=(patch:Partial<PivotDefinition>,coalesce?:string)=>commit({...definitionRef.current,...patch},coalesce);
+  const undo=()=>{const h=history.current,previous=h.past.pop();if(!previous)return;h.future.push(definitionRef.current);h.lastKey='';definitionRef.current=previous;setError('');setDefinition(previous);syncHistory();};
+  const redo=()=>{const h=history.current,next=h.future.pop();if(!next)return;h.past.push(definitionRef.current);h.lastKey='';definitionRef.current=next;setError('');setDefinition(next);syncHistory();};
+  const onHistoryKey=(event:React.KeyboardEvent)=>{
+    if(!(event.ctrlKey||event.metaKey) || event.altKey)return;
+    const target=event.target as HTMLElement,tag=target.tagName,type=(target as HTMLInputElement).type;
+    if(tag==='TEXTAREA' || target.isContentEditable || (tag==='INPUT' && !['checkbox','radio','button'].includes(type)))return; // keep native text undo
+    const key=event.key.toLowerCase();
+    if(key==='z' && !event.shiftKey){event.preventDefault();undo();}
+    else if((key==='z' && event.shiftKey) || key==='y'){event.preventDefault();redo();}
+  };
 
   useEffect(()=>{
     void listPivotRecords().then(setSavedList).catch(()=>setSavedList([]));
@@ -316,11 +337,14 @@ export function PivotEditor({initial,initialId,initialSavedAt,onInsertSql}:{init
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5">
           <label className="font-semibold text-monokai-fg" htmlFor="pivot-row">行</label>
-          {rowDims.length > 1 && <span className="text-2xs text-monokai-comment">({rowDims.length})</span>}
+          <span className="text-2xs text-monokai-comment">纵向分组</span>
+          {rowDims.length > 1 && <span className="text-2xs text-monokai-comment">({rowDims.length} 层级)</span>}
         </div>
         <button
           type="button"
-          className={`${AH.btnGhost} text-2xs py-0.5 px-1.5`}
+          className={`${AH.btnGhost} text-2xs py-0.5 px-1.5 disabled:opacity-40`}
+          disabled={!fields.some(f => !rowDims.some(r => r.column === f.name) && f.name !== definition.column?.column)}
+          title={fields.some(f => !rowDims.some(r => r.column === f.name) && f.name !== definition.column?.column) ? "再添加一个行字段，形成分组层级" : "没有可添加的字段：其余字段已用于行或列"}
           onClick={() => {
             const avail = fields.find(f => !rowDims.some(r => r.column === f.name) && f.name !== definition.column?.column);
             if (avail) {
@@ -333,6 +357,26 @@ export function PivotEditor({initial,initialId,initialSavedAt,onInsertSql}:{init
         </button>
       </div>
       <div className="space-y-2">
+        {rowDims.length === 0 && (
+          <div className="border border-dashed border-monokai-border/60 rounded p-2 bg-monokai-bg/40 space-y-1.5">
+            <select
+              id="pivot-row"
+              className={`${AH.select} w-full min-w-0 text-xs`}
+              value=""
+              onChange={event => {
+                const field = fields.find(f => f.name === event.target.value);
+                if (!field) return;
+                updateRows([{ column: field.name, ...(classifySemanticType(field.name, field.type) === 'temporal' ? { dateTrunc: 'month' as const } : {}) }]);
+              }}
+            >
+              <option value="">不设置行分组（汇总为一行）</option>
+              {fields.map(f => (
+                <option key={f.name} value={f.name} disabled={f.name === definition.column?.column}>{f.name}</option>
+              ))}
+            </select>
+            <p className="text-2xs text-monokai-comment">行为空时，所有记录合并为「全部」一行；可从字段目录或此处添加行字段。</p>
+          </div>
+        )}
         {rowDims.map((dim, idx) => {
           const isTime = fields.find(f => f.name === dim.column && classifySemanticType(f.name, f.type) === 'temporal');
           return (
@@ -387,8 +431,8 @@ export function PivotEditor({initial,initialId,initialSavedAt,onInsertSql}:{init
                 <button
                   type="button"
                   title="移除此行维度"
-                  disabled={rowDims.length === 1}
-                  className={`${AH.dangerIconBtn} disabled:opacity-30`}
+                  aria-label={`移除行维度 ${idx + 1}`}
+                  className={AH.dangerIconBtn}
                   onClick={() => updateRows(rowDims.filter((_, i) => i !== idx))}
                 >
                   <Trash2 size={13} />
@@ -424,7 +468,10 @@ export function PivotEditor({initial,initialId,initialSavedAt,onInsertSql}:{init
     const isTime = fields.find(f => f.name === dim?.column && classifySemanticType(f.name, f.type) === 'temporal');
     return (
       <section className={`${AH.cardMuted} p-3 space-y-2`}>
-        <label className="block font-semibold" htmlFor="pivot-column">列</label>
+        <div className="flex items-center justify-between">
+          <label className="font-semibold text-monokai-fg" htmlFor="pivot-column">列</label>
+          <span className="text-2xs text-monokai-comment">横向对比 (可选)</span>
+        </div>
         <select
           id="pivot-column"
           className={`${AH.select} w-full`}
@@ -464,12 +511,12 @@ export function PivotEditor({initial,initialId,initialSavedAt,onInsertSql}:{init
     );
   };
 
-  return <div className="pivot-workspace flex h-full min-h-0 min-w-0 flex-col overflow-hidden text-sm" data-testid="pivot-editor">
+  return <div className="pivot-workspace flex h-full min-h-0 min-w-0 flex-col overflow-hidden text-sm" data-testid="pivot-editor" onKeyDown={onHistoryKey}>
     <div className="shrink-0 border-b border-monokai-border bg-monokai-surface p-3 space-y-2">
-      <div className="flex flex-wrap items-center gap-2"><label className="min-w-0 flex-1"><span className="sr-only">分析名称</span><input aria-label="分析名称" className={`${AH.input} w-full min-w-0`} value={definition.title} onChange={event=>update({title:event.target.value})}/></label>
-        <ActionButton size="sm" variant="ghost" icon={FolderOpen} onClick={()=>setManagerOpen(true)}>透视模板 ({savedList.length})</ActionButton>
-        <ActionButton size="sm" variant="secondary" icon={Sparkles} disabled={!ready} onClick={()=>setExtractMetricOpen(true)}>提取为指标</ActionButton>
+      <div className="pivot-toolbar flex flex-wrap items-center gap-2"><label className="min-w-[12rem] flex-1 basis-full sm:basis-0"><span className="sr-only">分析名称</span><input aria-label="分析名称" className={`${AH.input} w-full min-w-0`} value={definition.title} onChange={event=>update({title:event.target.value},'title')}/></label>
         <ActionButton size="sm" icon={Save} disabled={!ready || saving || !scopeValid} onClick={()=>void save()}>保存分析</ActionButton>
+        <div role="group" aria-label="配置历史" className="flex items-center gap-1"><button type="button" className={AH.btnGhost} disabled={!historySize.past} onClick={undo} title="撤销上一步配置修改 (Ctrl+Z)" aria-label="撤销配置修改"><Undo2 size={14}/>撤销</button><button type="button" className={AH.btnGhost} disabled={!historySize.future} onClick={redo} title="重做 (Ctrl+Shift+Z)" aria-label="重做配置修改"><Redo2 size={14}/>重做</button></div><ActionButton size="sm" variant="ghost" icon={FolderOpen} onClick={()=>setManagerOpen(true)}>透视模板 ({savedList.length})</ActionButton>
+        <ActionButton size="sm" variant="secondary" icon={Sparkles} disabled={!ready} onClick={()=>setExtractMetricOpen(true)}>提取为指标</ActionButton>
         <ActionButton size="sm" variant="secondary" disabled={!ready || saving || !scopeValid} onClick={()=>void save(false,true)}>保存并加入首页</ActionButton>
         {analysisId && <ActionButton size="sm" variant="ghost" disabled={!ready || saving} onClick={()=>void save(true)}>另存为</ActionButton>}
       </div>
@@ -481,32 +528,32 @@ export function PivotEditor({initial,initialId,initialSavedAt,onInsertSql}:{init
           </span>
         ) : (
           <button type="button" className={`${AH.btnGhost} text-2xs py-0.5 px-2`} onClick={()=>{if(!primaryKey && fields.length)setPrimaryKey(fields[0].name);setJoinModalOpen(true);}}><Link2 size={12}/> 关联数据表</button>
-        )}<span role="status">{saving?'正在保存…':dirty?'修改已保留在本次会话草稿':'已保存'}</span>
-        {dirty && <button className={`${AH.btnGhost} max-sm:hidden`} onClick={()=>{setDefinition(savedDefinition);setError('');}}>放弃本次修改</button>}
+        )}<span role="status">{saving?'正在保存…':dirty?'未保存 · 会话草稿':'已保存'}</span>
+        {dirty && <button className={`${AH.btnGhost} max-sm:hidden`} onClick={()=>commit(savedDefinition)}>放弃本次修改</button>}
       </div>
       {publishError && <p role="alert" className="text-monokai-orange">{publishError}<button className={AH.btnGhost} disabled={saving || !scopeValid} onClick={()=>void retryPublish()}>重试加入首页</button></p>}
-      <details className="text-monokai-comment"><summary className="cursor-pointer">来源范围与已继承条件{definition.source.catalog==='memory'?' · 临时内存库':''}</summary>{definition.source.catalog==='memory' && <p>临时内存库中的分析不会长期保留，请切换持久库后保存。</p>}<p className="py-2">在完整来源查询上聚合，追加筛选与来源条件同时生效。查询中的 LIMIT 也属于来源范围。</p><pre className="max-h-32 overflow-auto whitespace-pre-wrap break-all">{definition.source.sql}</pre>{dirty && <button className={`${AH.btnGhost} sm:hidden`} onClick={()=>{setDefinition(savedDefinition);setError('');}}>放弃本次修改</button>}</details>
-      <div className="flex flex-wrap items-center gap-2">
+      <details className="text-monokai-comment"><summary className="cursor-pointer">来源范围与已继承条件{definition.source.catalog==='memory'?' · 临时内存库':''}</summary>{definition.source.catalog==='memory' && <p>临时内存库中的分析不会长期保留，请切换持久库后保存。</p>}<p className="py-2">在完整来源查询上聚合，追加筛选与来源条件同时生效。查询中的 LIMIT 也属于来源范围。</p><pre className="max-h-32 overflow-auto whitespace-pre-wrap break-all">{definition.source.sql}</pre>{dirty && <button className={`${AH.btnGhost} sm:hidden`} onClick={()=>commit(savedDefinition)}>放弃本次修改</button>}</details>
+      <div className="pivot-toolbar flex flex-wrap items-center gap-2">
         <button className={AH.btnGhost} aria-expanded={configOpen} aria-controls="pivot-configuration" onClick={()=>setConfigOpen(!configOpen)}><SlidersHorizontal size={14}/>{configOpen?'收起配置':'配置透视表'}</button>
+        {manualApply && <button className={AH.btnPrimary} disabled={!unapplied} onClick={()=>setAppliedDefinition(definition)}>应用配置</button>}
         <div role="group" aria-label="透视结果展示方式" className={AH.segmentTrack}>{(['table','chart'] as const).map(view=><button key={view} aria-pressed={definition.view===view} className={definition.view===view?AH.segmentItemActive:AH.segmentItem} onClick={()=>update({view})}>{view==='table'?<Table2 size={14}/>:<BarChart3 size={14}/>} {view==='table'?'透视表':'图表'}</button>)}</div>
         <button className={AH.btnGhost} disabled={!ready} onClick={exportCsv} title="导出已加载组合的聚合长表，包含查找隐藏项，不含来源总计"><Download size={14}/>导出长表 CSV</button>
         <span className="text-monokai-comment max-sm:hidden">{definition.limit?`展示前 ${definition.limit} 个行列组合`:'展示全部行列组合'} · 总计按全部符合条件的来源计算</span>
       </div>
     </div>
-    <div className="pivot-body flex-1 min-h-0 min-w-0 flex overflow-hidden">
-      {configOpen && <aside id="pivot-configuration" aria-label="透视配置" className="pivot-config shrink-0 overflow-auto border-r border-monokai-border p-3 space-y-3 custom-scrollbar">
-        <details className={`${AH.cardMuted} p-3 space-y-2`}><summary className="cursor-pointer font-semibold">字段目录 · {fields.length} 个字段</summary><input aria-label="查找来源字段" className={`${AH.input} w-full`} placeholder="查找字段名称或类型…" value={fieldSearch} onChange={event=>setFieldSearch(event.target.value)}/><div className="max-h-36 overflow-auto">{fields.filter(field=>`${field.name} ${field.type}`.toLocaleLowerCase().includes(fieldSearch.toLocaleLowerCase())).map(field=><div key={field.name} className="flex items-center gap-2 py-1"><span className="min-w-0 flex-1 truncate" title={`${field.name} · ${field.type}`}>{field.name}<small className="block text-monokai-comment">{field.type}</small></span><select aria-label={`添加字段 ${field.name}`} className={AH.select} value="" onChange={event=>{
-          const slot=event.target.value;if(slot==='value')update({metrics:[...definition.metrics,{column:field.name,agg:pivotNumericType(field.type)?'sum':'count',alias:`${field.name} ${pivotNumericType(field.type)?'求和':'计数'} ${definition.metrics.length+1}`}]});
-          else if(slot==='filter')update({filters:[...definition.filters,{column:field.name,op:'=',value:''}]});
-          else if(slot==='row' || slot==='column')update({[slot]:{column:field.name},...(definition[slot==='row'?'column':'row']?.column===field.name?{[slot==='row'?'column':'row']:undefined}:{})});
-        }}><option value="">添加到…</option><option value="row">行</option><option value="column">列</option><option value="value">值</option><option value="filter">筛选</option></select></div>)}</div></details>
-        {rowDimensionsControl()}
-        <button className={`${AH.btnGhost} w-full justify-center`} disabled={!definition.column} onClick={()=>{
-          const firstRow = rowDims[0] || { column: fields[0]?.name || '' };
-          update({ rows: definition.column ? [definition.column] : [firstRow], row: definition.column || firstRow, column: firstRow });
+    <div className="pivot-body flex-1 min-h-0 min-w-0 flex flex-col overflow-hidden">
+      {configOpen && <aside id="pivot-configuration" aria-label="透视配置" className="pivot-config shrink-0 overflow-auto border-b border-monokai-border p-3 space-y-2 custom-scrollbar">
+        <div className="pivot-config-grid">
+        <div className="pivot-dimensions space-y-2">        {rowDimensionsControl()}
+        <button className={`${AH.btnGhost} w-full justify-center`} disabled={!definition.column && !rowDims.length} onClick={()=>{
+          // Either side may be empty: the first row dimension becomes the column and vice versa.
+          const nextRows = definition.column ? [definition.column, ...rowDims.slice(1)] : rowDims.slice(1);
+          update({ rows: nextRows, row: nextRows[0], column: rowDims[0] });
         }}><ArrowLeftRight size={14}/>交换行列</button>
         {columnControl()}
-        <section className={`${AH.cardMuted} p-3 space-y-3`}><h3 className="font-semibold">值</h3>
+        </div>
+        <section className={`${AH.cardMuted} p-3 space-y-3`}><div className="flex items-center justify-between"><h3 className="font-semibold">值</h3><span className="text-2xs text-monokai-comment">统计指标</span></div>
+          {definition.metrics.length===0 && <p className="text-2xs text-monokai-comment">未选择值时，按「记录数」统计每个单元格包含的记录条数。可点击下方「添加值」或在字段目录中选择字段。</p>}
           {definition.metrics.map((metric,index)=><div className="space-y-2 border-b border-monokai-border pb-3 last:border-0" key={index}>
             <label className="block">字段<select aria-label={`值 ${index+1} 字段`} className={`${AH.select} w-full mt-1`} value={metric.column || ''} onChange={event=>{
               const column=event.target.value || undefined;const field=fields.find(f=>f.name===column);
@@ -516,28 +563,50 @@ export function PivotEditor({initial,initialId,initialSavedAt,onInsertSql}:{init
               const next=[...definition.metrics];next[index]={...metric,column,agg,alias};update({metrics:next,sortMetric:definition.sortMetric===metric.alias?alias:definition.sortMetric});
             }}><option value="">整条记录</option>{fields.map(field=><option key={field.name} value={field.name}>{field.name}</option>)}</select></label>
             <div className="flex items-center gap-2"><select aria-label={`值 ${index+1} 聚合方式`} className={`${AH.select} flex-1 min-w-0`} value={metric.agg} onChange={event=>{const next=[...definition.metrics];const agg=event.target.value as AnalysisAgg;const autoName=metric.alias==='记录数' || metric.alias===`${metric.column} ${AGGS.find(a=>a.value===metric.agg)?.label}`;const alias=autoName?`${metric.column} ${AGGS.find(a=>a.value===agg)?.label}`:metric.alias;next[index]={...metric,agg,alias};update({metrics:next,sortMetric:definition.sortMetric===metric.alias?alias:definition.sortMetric});}}>{AGGS.map(agg=><option key={agg.value} value={agg.value} disabled={(!metric.column && agg.value!=='count') || (['sum','avg'].includes(agg.value) && !pivotNumericType(fields.find(f=>f.name===metric.column)?.type || ''))}>{agg.label}</option>)}</select>
-              <button aria-label={`移除值 ${index+1}`} className={AH.dangerIconBtn} disabled={definition.metrics.length===1} onClick={()=>update({metrics:definition.metrics.filter((_,i)=>i!==index),visibleMetric:0})}><Trash2 size={16}/></button></div>
-            <input aria-label={`值 ${index+1} 名称`} className={`${AH.input} w-full`} value={metric.alias} onChange={event=>{const next=[...definition.metrics];const alias=event.target.value;next[index]={...metric,alias};update({metrics:next,sortMetric:definition.sortMetric===metric.alias?alias:definition.sortMetric});}}/>
+              <button aria-label={`移除值 ${index+1}`} className={AH.dangerIconBtn} onClick={()=>update({metrics:definition.metrics.filter((_,i)=>i!==index),visibleMetric:0})}><Trash2 size={16}/></button></div>
+            <input aria-label={`值 ${index+1} 名称`} className={`${AH.input} w-full`} value={metric.alias} onChange={event=>{const next=[...definition.metrics];const alias=event.target.value;next[index]={...metric,alias};update({metrics:next,sortMetric:definition.sortMetric===metric.alias?alias:definition.sortMetric},`alias-${index}`);}}/>
             {!['count','count_distinct'].includes(metric.agg) && <label className="block">小数位<select aria-label={`值 ${index+1} 小数位`} className={`${AH.select} ml-2`} value={metric.decimals ?? definition.decimals ?? 8} onChange={event=>{const metrics=[...definition.metrics];metrics[index]={...metric,decimals:Number(event.target.value)};update({metrics});}}>{[0,2,4,8,12].map(n=><option key={n} value={n}>{n}</option>)}</select></label>}
           </div>)}
           <button className={AH.btnGhost} onClick={()=>update({metrics:[...definition.metrics,{agg:'count',alias:`记录数 ${definition.metrics.length+1}`}]})}><Plus size={14}/>添加值</button>
           {definition.metrics.length>1 && <label className="block">当前展示的值<select aria-label="当前展示的值" className={`${AH.select} w-full mt-1`} value={definition.visibleMetric} onChange={event=>update({visibleMetric:Number(event.target.value)})}>{definition.metrics.map((metric,index)=><option key={index} value={index}>{metric.alias}</option>)}</select></label>}
           {unitColumn && <div><label className="block">计量资产<input aria-label="分析计量资产" list="pivot-unit-options" placeholder="搜索或输入资产名称" className={`${AH.input} w-full mt-1`} value={definition.unit} onChange={event=>{setUnitSearch(event.target.value);update({unit:event.target.value});}}/><datalist id="pivot-unit-options">{units.map(unit=><option key={unit} value={unit}/>)}</datalist></label><span role="status" className="block text-monokai-comment mt-1">{unitLoading?'正在查找资产…':'不同资产不能混合汇总；最多显示200条候选，可继续输入查找。'}</span>{unitError && <p role="alert">资产候选读取失败，仍可输入完整名称。<button className={AH.btnGhost} onClick={()=>setUnitRetry(v=>v+1)}>重试资产列表</button></p>}</div>}
         </section>
-        <section className={`${AH.cardMuted} p-3 space-y-2`}><h3 className="font-semibold">筛选 <span className="font-normal text-monokai-comment">追加到来源条件</span></h3>
+        <section className={`${AH.cardMuted} p-3 space-y-2`}><div className="flex items-center justify-between"><h3 className="font-semibold">筛选</h3><span className="text-2xs text-monokai-comment">限定分析范围</span></div>
           {definition.filters.map((filter,index)=><div key={index} className="space-y-2 border-b border-monokai-border pb-2">
             <select aria-label={`筛选 ${index+1} 字段`} className={`${AH.select} w-full`} value={filter.column} onChange={event=>{const next=[...definition.filters];next[index]={...filter,column:event.target.value};update({filters:next});}}>{fields.map(field=><option key={field.name}>{field.name}</option>)}</select>
             <div className="flex gap-2"><select aria-label={`筛选 ${index+1} 条件`} className={`${AH.select} flex-1`} value={filter.op} onChange={event=>{const next=[...definition.filters];next[index]={...filter,op:event.target.value as typeof filter.op};update({filters:next});}}>{[['=','等于'],['!=','不等于'],['>','大于'],['>=','大于等于'],['<','小于'],['<=','小于等于'],['contains','包含'],['is_null','为空'],['not_null','非空']].map(([value,label])=><option key={value} value={value}>{label}</option>)}</select><button className={AH.dangerIconBtn} aria-label={`移除筛选 ${index+1}`} onClick={()=>update({filters:definition.filters.filter((_,i)=>i!==index)})}><Trash2 size={16}/></button></div>
-            {!['is_null','not_null'].includes(filter.op) && <input aria-label={`筛选 ${index+1} 值`} className={`${AH.input} w-full`} value={filter.value} onChange={event=>{const next=[...definition.filters];next[index]={...filter,value:event.target.value};update({filters:next});}}/>}
+            {!['is_null','not_null'].includes(filter.op) && <input aria-label={`筛选 ${index+1} 值`} className={`${AH.input} w-full`} value={filter.value} onChange={event=>{const next=[...definition.filters];next[index]={...filter,value:event.target.value};update({filters:next},`filter-${index}`);}}/>}
           </div>)}
           <button className={AH.btnGhost} onClick={()=>update({filters:[...definition.filters,{column:fields[0].name,op:'=',value:''}]})}><Plus size={14}/>添加筛选</button>
         </section>
+        </div>
+        <div className="pivot-advanced flex flex-wrap items-start gap-2">
+        <details className={`${AH.cardMuted} pivot-field-directory p-2 space-y-2`}><summary className="cursor-pointer font-semibold">字段目录 · {fields.length} 个字段</summary><input aria-label="查找来源字段" className={`${AH.input} w-full`} placeholder="查找字段名称或类型…" value={fieldSearch} onChange={event=>setFieldSearch(event.target.value)}/><div className="max-h-44 overflow-auto space-y-1">{fields.filter(field=>`${field.name} ${field.type}`.toLocaleLowerCase().includes(fieldSearch.toLocaleLowerCase())).map(field=>{
+          const sem=classifySemanticType(field.name,field.type);
+          const inRow=rowDims.some(r=>r.column===field.name);
+          const inCol=definition.column?.column===field.name;
+          const inVal=definition.metrics.some(m=>m.column===field.name);
+          const inFilter=definition.filters.some(f=>f.column===field.name);
+          const semLabel=sem==='numeric'?'数值':sem==='temporal'?'时间':sem==='categorical'?'分类':'ID';
+          const semBadgeColor=sem==='numeric'?'bg-monokai-cyan/15 text-monokai-cyan':sem==='temporal'?'bg-monokai-yellow/15 text-monokai-yellow':sem==='categorical'?'bg-monokai-green/15 text-monokai-green':'bg-monokai-border text-monokai-comment';
+          return (<div key={field.name} className="flex items-center gap-2 py-1 px-1 rounded hover:bg-monokai-bg/40">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5"><span className="truncate font-medium text-xs text-monokai-fg" title={`${field.name} · ${field.type}`}>{field.name}</span><span className={`px-1 rounded text-3xs font-mono shrink-0 ${semBadgeColor}`}>{semLabel}</span></div>
+              <div className="flex items-center gap-1 mt-0.5"><small className="text-monokai-comment text-3xs">{field.type}</small>{inRow && <span className="px-1 rounded text-3xs bg-monokai-accent/20 text-monokai-accent">行</span>}{inCol && <span className="px-1 rounded text-3xs bg-monokai-cyan/20 text-monokai-cyan">列</span>}{inVal && <span className="px-1 rounded text-3xs bg-monokai-yellow/20 text-monokai-yellow">值</span>}{inFilter && <span className="px-1 rounded text-3xs bg-monokai-orange/20 text-monokai-orange">筛选</span>}</div>
+            </div>
+            <select aria-label={`添加字段 ${field.name}`} className={`${AH.select} text-2xs py-1`} value="" onChange={event=>{
+              const slot=event.target.value;if(slot==='value')update({metrics:[...definition.metrics,{column:field.name,agg:pivotNumericType(field.type)?'sum':'count',alias:`${field.name} ${pivotNumericType(field.type)?'求和':'计数'} ${definition.metrics.length+1}`}]});
+              else if(slot==='filter')update({filters:[...definition.filters,{column:field.name,op:'=',value:''}]});
+              else if(slot==='row'){if(rowDims.some(r=>r.column===field.name))return;const next=[...rowDims,{column:field.name,...(classifySemanticType(field.name,field.type)==='temporal'?{dateTrunc:'month' as const}:{})}];update({rows:next,row:next[0],...(definition.column?.column===field.name?{column:undefined}:{})});}
+              else if(slot==='column'){const remaining=rowDims.filter(r=>r.column!==field.name);update({column:{column:field.name,...(classifySemanticType(field.name,field.type)==='temporal'?{dateTrunc:'month' as const}:{})},rows:remaining,row:remaining[0]});}
+            }}><option value="">添加到…</option><option value="row">行</option><option value="column">列</option><option value="value">值</option><option value="filter">筛选</option></select></div>);
+        })}</div></details>
         <details className={`${AH.cardMuted} p-3`}><summary className="cursor-pointer font-semibold">排序与展示</summary><div className="space-y-2 pt-3">
           <label className="flex items-center gap-2"><input aria-label="修改后手动应用" type="checkbox" checked={manualApply} onChange={event=>{setAppliedDefinition(definition);setManualApply(event.target.checked);}}/>修改后手动应用</label>
           <p className="text-monokai-comment">高基数分析可先调整多个字段，再一次计算。</p>
-          {manualApply && <button className={AH.btnPrimary} disabled={!unapplied} onClick={()=>setAppliedDefinition(definition)}>应用配置</button>}
+
           <p className="text-monokai-comment">此排序决定保留哪些行列组合；矩阵行排序在结果表头设置。</p>
-          <label className="block">组合排序依据<select aria-label="排序依据" className={`${AH.select} w-full`} value={definition.sortMetric} onChange={event=>update({sortMetric:event.target.value})}>{definition.metrics.map(metric=><option key={metric.alias}>{metric.alias}</option>)}</select></label>
+          <label className="block">组合排序依据<select aria-label="排序依据" className={`${AH.select} w-full`} value={definition.metrics.some(metric=>metric.alias===definition.sortMetric)?definition.sortMetric:(definition.metrics[0]?.alias||PIVOT_DEFAULT_METRIC.alias)} onChange={event=>update({sortMetric:event.target.value})}>{(definition.metrics.length?definition.metrics:[PIVOT_DEFAULT_METRIC]).map(metric=><option key={metric.alias}>{metric.alias}</option>)}</select></label>
           <label className="block">组合排序方向<select aria-label="排序方向" className={`${AH.select} w-full`} value={definition.sortOrder} onChange={event=>update({sortOrder:event.target.value as 'asc'|'desc'})}><option value="desc">降序</option><option value="asc">升序</option></select></label>
           <label className="block">显示小数位<select aria-label="显示小数位" className={`${AH.select} w-full`} value={definition.decimals ?? 8} onChange={event=>update({decimals:Number(event.target.value)})}>{[0,2,4,8,12].map(n=><option key={n} value={n}>{n} 位</option>)}</select><span className="text-monokai-comment">微量非零值及精确大数保留有效数字。</span></label>
           <label className="block">空单元格显示
@@ -550,11 +619,12 @@ export function PivotEditor({initial,initialId,initialSavedAt,onInsertSql}:{init
           <label className="block">展示组数<select aria-label="展示组数" className={`${AH.select} w-full`} value={definition.limit} onChange={event=>update({limit:Number(event.target.value)})}>{[10,25,50,100,0].map(limit=><option key={limit} value={limit}>{limit?`前 ${limit} 组`:'全部'}</option>)}</select></label>
           {definition.view==='chart' && <label className="block">图表类型<select aria-label="图表类型" className={`${AH.select} w-full`} value={definition.chartType} onChange={event=>update({chartType:event.target.value as PivotDefinition['chartType']})}><option value="bar">柱状图</option><option value="line">折线图</option><option value="area">面积图</option></select></label>}
         </div></details>
+        </div>
       </aside>}
       <main aria-label="透视结果" className="pivot-results flex-1 min-h-0 min-w-0 flex flex-col overflow-hidden p-3">
         {!scopeValid?<AnalysisErrorState title="数据范围已变化" message="请回到原数据库后继续编辑。"/>:<>
           {error && <div className="shrink-0 max-h-40 overflow-auto"><AnalysisErrorState title="透视计算失败" message={/Error:|LINE \d/i.test(error)?'无法执行当前配置，请检查来源字段、字段类型和筛选条件。':error} onRetry={()=>setRetry(value=>value+1)}/>{/Error:|LINE \d/i.test(error) && <details><summary>查看技术详情</summary><pre className="whitespace-pre-wrap break-all">{error}</pre></details>}</div>}
-          {!ready && !error && <div role="status" className="shrink-0 py-2 text-monokai-comment">{unapplied?'有未应用配置，请在「排序与展示」中应用；当前结果保持原口径。':result?'正在更新，当前显示上次结果；更新完成后可查看明细和保存。':'正在计算当前配置…'}</div>}
+          {!ready && !error && <div role="status" className="shrink-0 py-2 text-monokai-comment">{unapplied?'有未应用配置，请点击「应用配置」；当前结果保持原口径。':result?'正在更新，当前显示上次结果；更新完成后可查看明细和保存。':'正在计算当前配置…'}</div>}
           {result && <>
             {(definition.joinConfig?.fanOutRisk || joinRisk) && (
               <div role="alert" className="mb-2 p-2.5 rounded bg-monokai-orange/15 border border-monokai-orange/40 text-monokai-orange text-xs flex items-center gap-2">
@@ -568,7 +638,8 @@ export function PivotEditor({initial,initialId,initialSavedAt,onInsertSql}:{init
                 <button type="button" className="text-monokai-accent hover:underline ml-2" onClick={()=>update({limit:0})}>查看全部</button>
               </div>
             )}
-            <p className="mb-2 shrink-0 text-monokai-comment">{definition.metrics[definition.visibleMetric]?.alias} · {AGGS.find(agg=>agg.value===definition.metrics[definition.visibleMetric]?.agg)?.label} · 查询 {result.value.executionTimeMs} ms · {result.value.rows.length} 个已加载组合</p>
+            {/* 业务语义导读条：让没有分析经验的用户一眼看懂当前透视表在表达什么 */}
+            <div className="pivot-result-summary flex shrink-0 flex-wrap items-center justify-between gap-2 pb-2 text-monokai-comment"><span>{rowDims.length?rowDims.map(r=>r.column).join(" / "):'全部记录'}{definition.column ? ` × ${definition.column.column}` : ""} · {definition.metrics[definition.visibleMetric]?.alias || PIVOT_DEFAULT_METRIC.alias}</span><span>{result.value.rows.length} 组 · {result.value.executionTimeMs} ms · 点击数值查看明细</span></div>
             {result.value.rows.length===0?<AnalysisEmptyHint message="当前条件没有数据，请调整追加筛选或检查来源范围。"/>:<>
               <div className={`flex-1 min-h-0 ${definition.view==='table'?'':'hidden'}`}>{tableChart?.pivotTable && <PivotTableView spec={tableChart} disabled={!ready} onCell={(row,column)=>{if(ready)setDetail({row,column,page:0,spec:result.value.spec});}}/>}</div>
               {definition.view==='chart' && chart && <div className="flex-1 min-h-0 overflow-auto"><p className="text-monokai-comment">图形坐标使用近似数值；精确值请查看透视表或导出聚合长表。</p><AnalysisChartRenderer chartSpec={chart} height={360}/></div>}
@@ -580,7 +651,7 @@ export function PivotEditor({initial,initialId,initialSavedAt,onInsertSql}:{init
     <div className="shrink-0"><AnalysisSqlBar sql={ready?result!.value.sql:''} open={showSql} onToggle={()=>setShowSql(!showSql)} onCopy={()=>{if(!ready)return;if(!navigator.clipboard?.writeText){toastService.error('当前环境不支持复制，请展开 SQL 手动选择');return;}void navigator.clipboard.writeText(result!.value.sql).then(()=>{setCopied(true);setTimeout(()=>setCopied(false),2000);}).catch(()=>toastService.error('复制失败'));}} copied={copied}/>
       {showSql && ready && onInsertSql && <button className={`${AH.btnGhost} m-2`} onClick={()=>onInsertSql(result!.value.sql,false)}>在 SQL 工作台查看</button>}
     </div>
-    <DrawerShell open={!!detail} title="透视明细" description={`${definition.row.column} = ${String(detail?.row??'（空值）')}${definition.column?` · ${definition.column.column} = ${String(detail?.column??'（空值）')}`:''}`} onClose={()=>setDetail(null)} size="xl" footer={<div className="flex items-center gap-3"><button className={AH.btnGhost} disabled={!detail || detail.page===0 || detailBusy} onClick={()=>setDetail(value=>value?{...value,page:value.page-1}:null)}>上一页</button><span>{detailRows.length?`${(detail?.page||0)*50+1}–${(detail?.page||0)*50+Math.min(50,detailRows.length)} 条`:'暂无记录'}</span><button className={AH.btnGhost} disabled={detailRows.length<=50 || detailBusy || !!detailError} onClick={()=>setDetail(value=>value?{...value,page:value.page+1}:null)}>下一页</button></div>}>
+    <DrawerShell open={!!detail} title="透视明细" description={`${rowDims.length?rowDims.map(r=>r.column).join(' / '):'全部记录'} = ${String(detail?.row??'（空值）')}${definition.column?` · ${definition.column.column} = ${String(detail?.column??'（空值）')}`:''}`} onClose={()=>setDetail(null)} size="xl" footer={<div className="flex items-center gap-3"><button className={AH.btnGhost} disabled={!detail || detail.page===0 || detailBusy} onClick={()=>setDetail(value=>value?{...value,page:value.page-1}:null)}>上一页</button><span>{detailRows.length?`${(detail?.page||0)*50+1}–${(detail?.page||0)*50+Math.min(50,detailRows.length)} 条`:'暂无记录'}</span><button className={AH.btnGhost} disabled={detailRows.length<=50 || detailBusy || !!detailError} onClick={()=>setDetail(value=>value?{...value,page:value.page+1}:null)}>下一页</button></div>}>
       <p className="mb-3 text-monokai-comment">明细包含来源条件、追加筛选、计量资产及当前行列条件。按全部输出字段排序；翻页不是数据快照，实时来源变化后请重新打开。</p>
       {detailBusy?<AnalysisLoadingState message="正在读取明细…"/>:detailError?<AnalysisErrorState title="明细读取失败" message={detailError} onRetry={()=>setDetailRetry(value=>value+1)}/>:<AnalysisResultTable columns={Object.keys(detailRows[0] || {})} rows={detailRows.slice(0,50)} title="对应来源记录" maxHeightClass="max-h-[65vh]"/>}
       {detail && spec && <details className="mt-3"><summary className="cursor-pointer">查看明细条件 SQL</summary><pre className="mt-2 whitespace-pre-wrap break-all text-monokai-comment">{pivotDetailSql(detail.spec,detail.row,detail.column,detail.page)}</pre></details>}

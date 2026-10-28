@@ -1,0 +1,46 @@
+- main [ref=e3]:
+  - heading "真实数据可视化治理验收" [level=1] [ref=e4]
+  - generic [ref=e5]:
+    - generic [ref=e6]:
+      - text: 类型
+      - combobox "类型" [ref=e7]:
+        - option "柱状图" [selected]
+        - option "折线图"
+        - option "面积图"
+        - option "环形图"
+        - option "饼图"
+        - option "散点图"
+        - option "数据表"
+        - option "指标卡"
+        - option "计数器"
+        - option "漏斗图"
+        - option "瀑布图"
+        - option "直方图"
+        - option "组合图"
+        - option "透视表"
+    - generic [ref=e8]:
+      - text: 模式
+      - combobox "模式" [ref=e9]:
+        - option "normal" [selected]
+        - option "percent"
+        - option "empty"
+        - option "failure"
+    - generic [ref=e10]:
+      - text: 渠道
+      - combobox "渠道" [ref=e11]:
+        - option "全部" [selected]
+        - option "wire_transfer"
+    - generic [ref=e12]:
+      - text: 宽度
+      - spinbutton "宽度" [ref=e13]: "760"
+    - generic [ref=e14]:
+      - text: 高度
+      - spinbutton "高度" [ref=e15]: "440"
+    - button "刷新" [ref=e16] [cursor=pointer]
+    - button "全屏" [ref=e17] [cursor=pointer]
+  - status [ref=e18]: 查询中 · 0 行 · empty · 联动 —
+  - region "验收图表" [ref=e19]:
+    - generic [ref=e20]: 当前筛选无数据
+  - group [ref=e21]:
+    - generic "实际查询与引擎结果" [ref=e22] [cursor=pointer]
+    - generic [ref=e23]: "{ \"query\": \"SELECT channel,SUM(amount) amount,SUM(fee) fee FROM governance.main.fiat_transactions WHERE currency='USD' AND status='completed' GROUP BY channel ORDER BY channel\", \"rows\": [], \"spec\": { \"id\": \"widget_real-governance_bar\", \"title\": \"USD 完成订单\", \"chartType\": \"bar\", \"xKey\": \"channel\", \"yKeys\": [ \"amount\" ], \"cartesian\": { \"labels\": [], \"series\": [ { \"key\": \"amount\", \"measure\": \"amount\", \"axis\": \"y\", \"values\": [] } ] }, \"unit\": \"USD\", \"stacked\": false, \"stackMode\": \"none\", \"showLegend\": true, \"legendPosition\": \"bottom\", \"legendAlign\": \"center\", \"showValues\": true, \"labelMode\": \"auto\", \"missingValue\": \"break\", \"format\": { \"compact\": false, \"compactThreshold\": 10000, \"thousandSeparator\": true, \"decimals\": 2, \"unit\": \"USD\", \"percent\": false }, \"formatByKey\": { \"channel\": { \"unit\": \"\", \"percent\": false }, \"amount\": { \"compact\": false, \"compactThreshold\": 10000, \"thousandSeparator\": true, \"decimals\": 2, \"unit\": \"USD\", \"percent\": false } }, \"xAxisLabel\": \"channel\", \"yAxisLabel\": \"amount\", \"includeZero\": false, \"hasNegative\": false, \"rows\": [], \"columns\": [ \"channel\", \"amount\" ], \"brushField\": \"channel\", \"tooltipDims\": [ \"channel\" ], \"timeSorted\": false, \"emptyState\": \"empty\", \"emptyMessage\": \"当前筛选无数据\" } }"

@@ -1,0 +1,1242 @@
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { duckDBService, type DuckDBRuntimeInfo } from '../services/duckdbService';
+import { recentImportsService, type RecentImportItem } from '../services/recentImportsService';
+export type { RecentImportItem } from '../services/recentImportsService';
+import { useAppStore } from './store/useAppStore';
+import { useSqlEditorStore } from './store/useSqlEditorStore';
+import { Tab, QueryHistoryItem, Dashboard } from '../types';
+import { toastService } from '../services/toastService';
+import { seedDemoWorkbenchData } from '../components/Workbench/seedWorkbenchData';
+import { computeVizHint, extractTablesFromSql } from '../services/queryVizHint';
+import { getOrCreateHomeDashboard } from '../services/homeDashboardService';
+import { ensureDynamicHome } from '../services/dynamicHome';
+import { importSqlWorkspace } from '../services/sqlWorkspaceService';
+import { dbService } from '../services/dbService';
+import { resolveMemoryMetrics } from '../utils/memoryMetrics';
+import { quoteIdent } from '../services/databaseCatalog';
+
+export interface TableItemDetail {
+  metadataStatus?: 'available' | 'unavailable';
+  metadataError?: string;
+  name: string;
+  schema?: string;
+  rowCount: number;
+  formattedRowCount: string;
+  sizeBytes: number;
+  formattedSize: string;
+  updatedAt: string;
+  scannedAt?: string;
+  type?: 'table' | 'view' | 'macro' | 'temp' | 'other';
+  columnCount?: number;
+  hasPrimaryKey?: boolean;
+  columns?: Array<{
+    name: string;
+    type?: string;
+    isPrimaryKey?: boolean;
+    nullable?: boolean;
+  }>;
+}
+
+export interface RecentQueryDisplayItem {
+  id: string;
+  sql: string;
+  timestamp: string;
+  duration: string;
+  status: 'success' | 'error';
+  executionTime?: number;
+  rowCount?: number;
+  error?: string;
+  vizHint?: 'strong' | 'weak' | 'none';
+  hasChart?: boolean;
+  referencedTables?: string[];
+}
+
+export interface QualityIssueSummary {
+  status?: 'not_checked' | 'passed' | 'issues' | 'failed' | 'unavailable';
+  missingPkCount: number;
+  missingPkTables: string[];
+  nullAnomalyCount: number;
+  nullAnomalyDetails: Array<{
+    table: string;
+    column: string;
+    nullCount: number;
+    nullRate: number;
+  }>;
+  totalAnalyzedTables: number;
+  overallHealth: 'healthy' | 'warning' | 'clean';
+}
+
+export interface QueryLatencyDistribution {
+  fastCount: number; // < 50ms
+  normalCount: number; // 50-200ms
+  slowCount: number; // > 200ms
+  totalCount: number;
+}
+
+export interface TableVolumeDistribution {
+  name: string;
+  rowCount: number;
+  percentage: number;
+}
+
+export interface DashboardDbMetrics {
+  databaseName: string;
+  databaseCount: number;
+  schemaName: string;
+  tableCount: number;
+  viewCount: number;
+  totalRows: number;
+  formattedTotalRows: string;
+  dataSize: string;
+  rawSizeBytes: number;
+  totalQueries: number;
+  avgLatencyMs: number;
+  formattedAvgLatency: string;
+  successRatePct: number;
+  errorCount: number;
+  activeSessions: number;
+  memoryUsedGb: number;
+  memoryTotalGb: number;
+  memoryPercentage: number;
+  memoryPercentageDisplay?: string;
+  memoryUsageFormatted: string;
+  lastUpdated: string;
+  modeLabel: string;
+  modeTag: string;
+  isPersistent: boolean;
+  storageMode: string;
+  tableTypeDistribution: {
+    table: number;
+    view: number;
+    macro: number;
+    temp: number;
+    other: number;
+    total: number;
+  };
+  qualityIssues: QualityIssueSummary;
+  latencyDistribution: QueryLatencyDistribution;
+  topTablesByRows: TableVolumeDistribution[];
+}
+
+export interface GrowthTrendItem {
+  date: string;
+  importRows: number;
+  queryRows: number;
+  formattedSize?: string;
+  sizeBytes?: number;
+  columnCount?: number;
+  queryCount?: number;
+}
+
+export interface LatencyTrendItem {
+  date: string;
+  avgMs: number;
+  p95Ms: number;
+  sql?: string;
+  status?: 'success' | 'error';
+  timestamp?: string | number;
+}
+
+export function formatBytes(bytes: number): string {
+  if (!bytes || bytes <= 0 || isNaN(bytes)) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
+  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(k)), sizes.length - 1);
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+}
+
+export function formatNumber(num: number): string {
+  if (!num || num <= 0) return '0';
+  if (num >= 1_000_000_000) {
+    return `${(num / 1_000_000_000).toFixed(1)} B`;
+  }
+  if (num >= 1_000_000) {
+    return `${(num / 1_000_000).toFixed(1)} M`;
+  }
+  if (num >= 1_000) {
+    return `${(num / 1_000).toFixed(1)} K`;
+  }
+  return num.toLocaleString();
+}
+
+export interface DashboardWorkflowOverrides {
+  onSelectTable?: (tableName: string, filter?: string) => void | Promise<void>;
+  onSelectTableStructure?: (tableName: string, focusTab?: 'profile' | 'add' | 'ddl') => void | Promise<void>;
+  onSelectTableAnalysis?: (tableName: string) => void;
+  onSelectTableMetrics?: (tableName: string) => void;
+  onSelectTableDataFlow?: (tableName: string) => void;
+  onSelectQuery?: (sql: string, executeDirectly?: boolean) => void;
+}
+
+export function useDashboardWorkflow(
+  tables: string[],
+  onNavigate: (tab: Tab) => void,
+  runtimeInfo?: DuckDBRuntimeInfo,
+  overrides?: DashboardWorkflowOverrides,
+) {
+  const setTables = useAppStore(state => state.setTables);
+  const setCurrentTable = useAppStore(state => state.setCurrentTable);
+  const setPendingSql = useAppStore(state => state.setPendingSql);
+  const setShowCreateModal = useAppStore(state => state.setShowCreateModal);
+  const setShowImportModal = useAppStore(state => state.setShowImportModal);
+  const setShowSettingsModal = useAppStore(state => state.setShowSettingsModal);
+  const setShowExportModal = useAppStore(state => state.setShowExportModal);
+
+  // 1. Table Details
+  const [tableDetails, setTableDetails] = useState<TableItemDetail[]>([]);
+  const [loadingDetails, setLoadingDetails] = useState(false);
+  const [selectedTable, setSelectedTable] = useState<string>(tables[0] || '');
+  const [peekTableName, setPeekTableName] = useState<string | null>(null);
+  const [tableSearchTerm, setTableSearchTerm] = useState<string>('');
+
+  // 2. Views and Types
+  const [viewNames, setViewNames] = useState<string[]>([]);
+  const [databaseCount, setDatabaseCount] = useState<number>(1);
+  const [databaseName, setDatabaseName] = useState<string>('main');
+  const [schemaName, setSchemaName] = useState<string>('main');
+  const [analysisContexts, setAnalysisContexts] = useState<
+    Array<{ id: string; label: string; kind: 'schema' | 'database' | 'project'; isCurrent: boolean }>
+  >([]);
+
+  // 3. Step 02 Inner Tab: 'tables' | 'schema' | 'preview'
+  const [step02Tab, setStep02Tab] = useState<'tables' | 'schema' | 'preview'>('tables');
+  const [schemaColumns, setSchemaColumns] = useState<any[]>([]);
+  const [previewRows, setPreviewRows] = useState<any[]>([]);
+  const [previewLoading, setPreviewLoading] = useState(false);
+
+  // 4. Recent Imports
+  const [recentImports, setRecentImports] = useState<RecentImportItem[]>(() =>
+    recentImportsService.getImports(),
+  );
+
+  // 5. File Import State
+  const [importState, setImportState] = useState<{
+    status: 'idle' | 'importing' | 'error' | 'success';
+    filename?: string;
+    message?: string;
+  }>({ status: 'idle' });
+
+  // 6. Query History & Filtering
+  const [recentQueries, setRecentQueries] = useState<RecentQueryDisplayItem[]>([]);
+  const [allHistoryItems, setAllHistoryItems] = useState<QueryHistoryItem[]>([]);
+  const [querySearchTerm, setQuerySearchTerm] = useState<string>('');
+  const [queryStatusFilter, setQueryStatusFilter] = useState<'all' | 'success' | 'error'>('all');
+
+  // 7. Refresh State
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefreshedTime, setLastRefreshedTime] = useState<string>(() => new Date().toLocaleTimeString());
+
+  // 7b. Home Board
+  const [homeDashboard, setHomeDashboard] = useState<Dashboard | null>(null);
+  const [homeBoardLoading, setHomeBoardLoading] = useState(true);
+  const [homeBoardError, setHomeBoardError] = useState('');
+  const dashboardRefreshTrigger = useAppStore((s) => s.dashboardRefreshTrigger);
+  const bumpDashboardRefresh = useAppStore((s) => s.bumpDashboardRefresh);
+
+  // 8. Chart Dimensional Controls
+  const [growthMetric, setGrowthMetric] = useState<'rows' | 'size'>('rows');
+  const [growthLimit, setGrowthLimit] = useState<number>(6);
+  const [latencyFilter, setLatencyFilter] = useState<'all' | 'fast' | 'normal' | 'slow'>('all');
+
+  // 9. Memory and Size Pragma
+  const [rawPragmaMemory, setRawPragmaMemory] = useState<string>('Unknown');
+  const [rawPragmaMemoryLimit, setRawPragmaMemoryLimit] = useState<string>('Unknown');
+
+  // 10. Quality Issues Stats
+  const [qualityStats, setQualityStats] = useState<QualityIssueSummary>({
+    missingPkCount: 0,
+    missingPkTables: [],
+    nullAnomalyCount: 0,
+    nullAnomalyDetails: [],
+    totalAnalyzedTables: 0,
+    overallHealth: 'clean',
+  });
+
+  // 11. Table Type Filter (Linked with Donut Chart)
+  const [tableTypeFilter, setTableTypeFilter] = useState<'all' | 'table' | 'view'>('all');
+
+  // Sync selected table if tables change
+  useEffect(() => {
+    if (tables.length > 0 && (!selectedTable || !tables.includes(selectedTable))) {
+      setSelectedTable(tables[0]);
+    } else if (tables.length === 0 && selectedTable) {
+      setSelectedTable('');
+    }
+  }, [tables, selectedTable]);
+
+  const currentCatalog = useAppStore(state => state.currentDatabase);
+  // Load Real Table & View Details from DuckDB
+  const refreshTableDetails = useCallback(async () => {
+    const ownerAtStart = useAppStore.getState().currentDatabase;
+    if (!tables || tables.length === 0) {
+      try {
+        const scope = await duckDBService.getCurrentCatalogAndSchema();
+        if (useAppStore.getState().currentDatabase !== ownerAtStart) return;
+        setDatabaseName(scope.catalog);
+        setSchemaName(scope.schema);
+        setAnalysisContexts(await duckDBService.listAnalysisContexts());
+      } catch {
+        setDatabaseName(ownerAtStart || 'memory');
+        setAnalysisContexts([]);
+      }
+      setTableDetails([]);
+      setViewNames([]);
+      setQualityStats({
+        missingPkCount: 0,
+        missingPkTables: [],
+        nullAnomalyCount: 0,
+        nullAnomalyDetails: [],
+        totalAnalyzedTables: 0,
+        overallHealth: 'clean',
+      });
+      setLoadingDetails(false);
+      return;
+    }
+    if (duckDBService.isBatchRunning?.()) return;
+    setLoadingDetails(true);
+    try {
+      // One scope for all metadata in this snapshot.
+      const inspectionScope = await duckDBService.getCurrentCatalogAndSchema();
+      if (inspectionScope.catalog !== ownerAtStart || useAppStore.getState().currentDatabase !== ownerAtStart) return;
+      // 1. Check current database / schema and switchable contexts
+      try {
+        const cur = inspectionScope;
+        setDatabaseName(cur.catalog && cur.catalog !== 'memory' ? cur.catalog : cur.catalog || 'main');
+        setSchemaName(cur.schema || 'main');
+        const dbs = await duckDBService.readQuery(`SELECT database_name FROM duckdb_databases()`);
+        setDatabaseCount(dbs?.length || 1);
+        const contexts = await duckDBService.listAnalysisContexts();
+        setAnalysisContexts(contexts);
+      } catch {
+        setDatabaseCount(1);
+        setDatabaseName(useAppStore.getState().currentDatabase || 'memory');
+        setSchemaName('main');
+        setAnalysisContexts([]);
+      }
+
+      // 2. Check views (using standard schema_name with fallback to information_schema)
+      let foundViews: string[] = [];
+      try {
+        const viewsRes = await duckDBService.readQuery(
+          `SELECT view_name FROM duckdb_views() WHERE database_name = '${inspectionScope.catalog.replace(/'/g, "''")}' AND schema_name = '${inspectionScope.schema.replace(/'/g, "''")}'`
+        );
+        foundViews = (viewsRes || []).map((v: any) => String(v.view_name || ''));
+      } catch {
+        try {
+          const altViews = await duckDBService.readQuery(
+            `SELECT table_name FROM information_schema.tables WHERE table_type = 'VIEW' AND table_catalog = '${inspectionScope.catalog.replace(/'/g, "''")}' AND table_schema = '${inspectionScope.schema.replace(/'/g, "''")}'`
+          );
+          foundViews = (altViews || []).map((v: any) => String(v.table_name || ''));
+        } catch {
+          foundViews = [];
+        }
+      }
+      setViewNames(foundViews);
+
+      // 3. Pragma database size for real memory / storage
+      try {
+        const sizeRes = await duckDBService.readQuery(`CALL pragma_database_size()`);
+        if (sizeRes && sizeRes.length > 0) {
+          setRawPragmaMemory(String(sizeRes[0].memory_usage ?? 'Unknown'));
+          setRawPragmaMemoryLimit(String(sizeRes[0].memory_limit ?? 'Unknown'));
+        }
+      } catch {
+        setRawPragmaMemory('Unknown');
+        setRawPragmaMemoryLimit('Unknown');
+      }
+
+      // 4. Per-table inspection
+      const details: TableItemDetail[] = [];
+      let missingPks: string[] = [];
+      let nullAnomalies: Array<{ table: string; column: string; nullCount: number; nullRate: number }> = [];
+
+      for (const t of tables) {
+        if (duckDBService.isBatchRunning?.()) break;
+        const isView = foundViews.includes(t);
+        const source = [inspectionScope.catalog, inspectionScope.schema, t].map(quoteIdent).join('.');
+        let count = Number.NaN;
+        let metadataError = '';
+        try {
+          const res = await duckDBService.readQuery(`SELECT COUNT(*) as cnt FROM ${source}`);
+          if (res[0]?.cnt == null) throw new Error('查询未返回行数');
+          count = Number(res[0].cnt);
+        } catch (error) {
+          metadataError = String((error as Error).message);
+        }
+
+        let colCount = 0;
+        let hasPk = false;
+        let columns: any[] = [];
+        try {
+          const described = await duckDBService.readQuery(`DESCRIBE SELECT * FROM ${source}`);
+          columns = described.map(column => ({ name: column.column_name, type: column.column_type, pk: column.key === 'PRI', notnull: column.null === 'NO' }));
+          colCount = columns.length || 0;
+          hasPk = columns.some((c: any) => Boolean(c.pk));
+        } catch (error) { metadataError = [metadataError, String((error as Error).message)].filter(Boolean).join('；'); }
+
+        if (!hasPk && !isView) {
+          missingPks.push(t);
+        }
+
+        const estimatedBytes = Number.NaN;
+        const displaySize = '未知';
+        const now = new Date();
+        const displayUpdated = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+        details.push({
+          name: t,
+          schema: inspectionScope.schema,
+          metadataStatus: metadataError ? 'unavailable' : 'available',
+          metadataError: metadataError || undefined,
+          rowCount: count,
+          formattedRowCount: Number.isFinite(count) ? count.toLocaleString() : '未知',
+          sizeBytes: estimatedBytes,
+          formattedSize: displaySize,
+          updatedAt: '—',
+          scannedAt: displayUpdated,
+          type: isView ? 'view' : 'table',
+          columnCount: colCount,
+          hasPrimaryKey: hasPk,
+          columns: columns.map((c: any) => ({
+            name: String(c.name || ''),
+            type: String(c.type || ''),
+            isPrimaryKey: Boolean(c.pk),
+            nullable: !c.notnull,
+          })),
+        });
+      }
+
+      if (useAppStore.getState().currentDatabase !== ownerAtStart) return;
+      setTableDetails(details);
+      setQualityStats({
+        status: 'not_checked',
+        missingPkCount: missingPks.length,
+        missingPkTables: missingPks,
+        nullAnomalyCount: nullAnomalies.length,
+        nullAnomalyDetails: nullAnomalies,
+        totalAnalyzedTables: details.length,
+        overallHealth: 'clean',
+      });
+    } catch (e) {
+      console.error('[useDashboardWorkflow] Failed to load table details', e);
+    } finally {
+      setLoadingDetails(false);
+    }
+  }, [tables, currentCatalog]);
+
+  useEffect(() => {
+    refreshTableDetails();
+  }, [refreshTableDetails]);
+
+  // Load Schema for Selected Table
+  useEffect(() => {
+    if (!selectedTable) return;
+    let active = true;
+    duckDBService
+      .getTableSchema(selectedTable)
+      .then(cols => {
+        if (active) setSchemaColumns(cols || []);
+      })
+      .catch(() => {
+        if (active) setSchemaColumns([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, [selectedTable]);
+
+  // Load Preview for Selected Table
+  useEffect(() => {
+    if (!selectedTable || step02Tab !== 'preview') return;
+    let active = true;
+    setPreviewLoading(true);
+    duckDBService
+      .query(`SELECT * FROM "${selectedTable}" LIMIT 10`)
+      .then(rows => {
+        if (active) setPreviewRows(rows || []);
+      })
+      .catch(() => {
+        if (active) setPreviewRows([]);
+      })
+      .finally(() => {
+        if (active) setPreviewLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [selectedTable, step02Tab]);
+
+  // Sync Recent Imports Listener
+  useEffect(() => {
+    const handleImportsChanged = () => {
+      setRecentImports(recentImportsService.getImports());
+    };
+    window.addEventListener('duckdb-imports-updated', handleImportsChanged);
+    return () => window.removeEventListener('duckdb-imports-updated', handleImportsChanged);
+  }, []);
+
+  // Sync Schema Changed Listener
+  useEffect(() => {
+    let debounceTimer: any = null;
+    const handleSchemaChanged = () => {
+      if (duckDBService.isBatchRunning?.()) return;
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        if (!duckDBService.isBatchRunning?.()) {
+          refreshTableDetails();
+        }
+      }, 350);
+    };
+    window.addEventListener('duckdb-schema-changed', handleSchemaChanged);
+    return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      window.removeEventListener('duckdb-schema-changed', handleSchemaChanged);
+    };
+  }, [refreshTableDetails]);
+
+  const storeHistory = useSqlEditorStore(state => state.history);
+
+  // Sync Real Queries from useSqlEditorStore / localStorage
+  const refreshRecentQueries = useCallback(() => {
+    let sourceItems: QueryHistoryItem[] = [];
+    if (storeHistory && storeHistory.length > 0) {
+      sourceItems = storeHistory;
+    } else {
+      try {
+        const raw = localStorage.getItem('duckdb_sql_history');
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) sourceItems = parsed;
+        }
+      } catch {}
+    }
+
+    sourceItems = sourceItems.filter((item) => (item.databaseName || 'duckdb_manager_workspace') === currentCatalog);
+    if (sourceItems.length > 0) {
+      setAllHistoryItems(sourceItems);
+      const savedQueries = useSqlEditorStore.getState().savedQueries || [];
+      const items: RecentQueryDisplayItem[] = sourceItems.slice(0, 50).map((q: QueryHistoryItem) => {
+        const dateObj = q.timestamp ? new Date(q.timestamp) : new Date();
+        const timeFormatted = `${String(dateObj.getHours()).padStart(2, '0')}:${String(dateObj.getMinutes()).padStart(2, '0')}`;
+        
+        // Clean float precision: e.g. 12.699999988079071 ms -> 12.7 ms or 13 ms
+        let duration = '—';
+        if (typeof q.executionTime === 'number' && !isNaN(q.executionTime)) {
+          if (q.executionTime < 1) {
+            duration = `${Math.round(q.executionTime * 1000)} μs`;
+          } else if (q.executionTime < 10) {
+            duration = `${q.executionTime.toFixed(1)} ms`;
+          } else if (q.executionTime < 1000) {
+            duration = `${Math.round(q.executionTime)} ms`;
+          } else {
+            duration = `${(q.executionTime / 1000).toFixed(2)} s`;
+          }
+        }
+
+        // Clean SQL snippet: strip leading single-line or multi-line comments to show real query
+        let cleanSql = (q.sql || '').trim();
+        cleanSql = cleanSql.replace(/^(\s*(--[^\n]*\n|\/\*[\s\S]*?\*\/))+/g, '').trim();
+        if (!cleanSql) cleanSql = (q.sql || '').trim();
+
+        const referencedTables = extractTablesFromSql(cleanSql);
+        const hasChart = savedQueries.some(
+          (sq) => sq.sql?.trim() === (q.sql || '').trim() && (sq.charts?.length || sq.widgetType === 'chart'),
+        );
+        const vizHint = computeVizHint({
+          status: q.status === 'error' ? 'error' : 'success',
+          rowCount: q.affectedRows,
+          hasChart,
+        });
+
+        return {
+          id: q.id,
+          sql: cleanSql,
+          timestamp: timeFormatted,
+          duration,
+          status: q.status === 'error' ? 'error' : 'success',
+          executionTime: q.executionTime,
+          rowCount: q.affectedRows,
+          error: (q as any).error || (q.status === 'error' ? '执行遇到语法或运行时错误' : undefined),
+          vizHint,
+          hasChart,
+          referencedTables,
+        };
+      });
+      setRecentQueries(items);
+      return;
+    }
+
+    setAllHistoryItems([]);
+    setRecentQueries([]);
+  }, [storeHistory, currentCatalog]);
+
+  useEffect(() => {
+    refreshRecentQueries();
+  }, [refreshRecentQueries]);
+
+  // Real-time synchronization listeners for query executions and window focus
+  useEffect(() => {
+    const handleHistoryUpdated = () => {
+      refreshRecentQueries();
+      bumpDashboardRefresh();
+    };
+    window.addEventListener('duckdb-sql-history-updated', handleHistoryUpdated);
+    window.addEventListener('focus', handleHistoryUpdated);
+    return () => {
+      window.removeEventListener('duckdb-sql-history-updated', handleHistoryUpdated);
+      window.removeEventListener('focus', handleHistoryUpdated);
+    };
+  }, [refreshRecentQueries, bumpDashboardRefresh]);
+
+  const seedToastShownRef = useRef(false);
+  const homeEnsureInflightRef = useRef<Promise<void> | null>(null);
+  const homeEnsureCatalogRef = useRef<string | null>(null);
+  const refreshTableDetailsRef = useRef(refreshTableDetails);
+  refreshTableDetailsRef.current = refreshTableDetails;
+
+  const reloadHomeBoardOnly = useCallback(async () => {
+    try {
+      const catalog = useAppStore.getState().currentDatabase;
+      const board = await getOrCreateHomeDashboard();
+      if (useAppStore.getState().currentDatabase === catalog) setHomeDashboard(board);
+    } catch (e) {
+      console.error('[useDashboardWorkflow] Failed to reload home board', e);
+    }
+  }, []);
+
+  const refreshHomeDashboard = useCallback(async () => {
+    if (homeEnsureInflightRef.current) {
+      const previousCatalog = homeEnsureCatalogRef.current;
+      await homeEnsureInflightRef.current;
+      if (previousCatalog === useAppStore.getState().currentDatabase) return;
+    }
+
+    homeEnsureCatalogRef.current = useAppStore.getState().currentDatabase;
+
+    const run = (async () => {
+      const catalog = useAppStore.getState().currentDatabase;
+      setHomeBoardLoading(true);
+      setHomeBoardError('');
+      try {
+        const ensured = await ensureDynamicHome();
+        if (useAppStore.getState().currentDatabase !== catalog) return;
+        if (ensured.widgetsAdded > 0 && !seedToastShownRef.current) {
+          seedToastShownRef.current = true;
+          toastService.success(`已添加 ${ensured.widgetsAdded} 个可编辑分析组件`);
+        }
+        setHomeDashboard(ensured.board);
+        // Render new instances from their current source definitions.
+        if (ensured.widgetsAdded > 0) {
+          bumpDashboardRefresh();
+        }
+      } catch (e) {
+        if (useAppStore.getState().currentDatabase !== catalog) return;
+        console.error('[useDashboardWorkflow] Failed to load home dashboard', e);
+        if (useAppStore.getState().currentDatabase === catalog) setHomeBoardError(String((e as Error).message));
+        try {
+          const board = await getOrCreateHomeDashboard();
+          if (useAppStore.getState().currentDatabase === catalog) setHomeDashboard(board);
+        } catch {
+          if (useAppStore.getState().currentDatabase === catalog) setHomeDashboard(null);
+        }
+      } finally {
+        if (useAppStore.getState().currentDatabase === catalog) setHomeBoardLoading(false);
+      }
+    })();
+
+    homeEnsureInflightRef.current = run.finally(() => {
+      homeEnsureInflightRef.current = null;
+    });
+    await homeEnsureInflightRef.current;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- tables read from store; avoid re-seed loop
+  }, [bumpDashboardRefresh, setTables, setCurrentTable]);
+
+  useEffect(() => {
+    void refreshHomeDashboard();
+    // External board edits: reload snapshot only — do NOT re-run ensure/seed
+    const onBoardUpdated = () => { void reloadHomeBoardOnly(); };
+    const onQueryUpdated = () => { void reloadHomeBoardOnly(); bumpDashboardRefresh(); };
+    window.addEventListener('duckdb-home-dashboard-updated', onBoardUpdated);
+    window.addEventListener('duckdb-saved-queries-updated', onQueryUpdated);
+    const onSchema = () => { void refreshHomeDashboard(); bumpDashboardRefresh(); };
+    window.addEventListener('duckdb-schema-changed', onSchema);
+    return () => {
+      window.removeEventListener('duckdb-home-dashboard-updated', onBoardUpdated);
+      window.removeEventListener('duckdb-saved-queries-updated', onQueryUpdated);
+      window.removeEventListener('duckdb-schema-changed', onSchema);
+    };
+  }, [refreshHomeDashboard, reloadHomeBoardOnly, bumpDashboardRefresh, currentCatalog, tables.join('|')]);
+
+  const tableUsageFrequency: Array<{ name: string; count: number }> = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const q of allHistoryItems) {
+      const refs = extractTablesFromSql(q.sql || '');
+      for (const t of refs) {
+        const key = t.includes('.') ? t.split('.').pop()! : t;
+        counts[key] = (counts[key] || 0) + 1;
+      }
+    }
+    return Object.entries(counts)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count);
+  }, [allHistoryItems]);
+
+  const persistHomeDashboard = useCallback(async (board: Dashboard) => {
+    const updated = { ...board, updatedAt: Date.now() };
+    await dbService.saveDashboard(updated);
+    setHomeDashboard(updated);
+    window.dispatchEvent(new CustomEvent('duckdb-home-dashboard-updated'));
+  }, []);
+
+  // Filtered Display Tables with search & table type
+  const displayTables: TableItemDetail[] = useMemo(() => {
+    let list = tableDetails;
+    if (tableTypeFilter === 'table') {
+      list = list.filter(t => t.type !== 'view');
+    } else if (tableTypeFilter === 'view') {
+      list = list.filter(t => t.type === 'view');
+    }
+    if (!tableSearchTerm.trim()) return list;
+    const term = tableSearchTerm.trim().toLowerCase();
+    return list.filter(t => t.name.toLowerCase().includes(term));
+  }, [tableDetails, tableSearchTerm, tableTypeFilter]);
+
+  // Filtered Display Queries with search, status & latency tier
+  const displayQueries: RecentQueryDisplayItem[] = useMemo(() => {
+    return recentQueries.filter(q => {
+      if (queryStatusFilter === 'success' && q.status !== 'success') return false;
+      if (queryStatusFilter === 'error' && q.status !== 'error') return false;
+      if (latencyFilter === 'fast' && (q.executionTime ?? 0) >= 50) return false;
+      if (latencyFilter === 'normal' && ((q.executionTime ?? 0) < 50 || (q.executionTime ?? 0) > 200)) return false;
+      if (latencyFilter === 'slow' && (q.executionTime ?? 0) <= 200) return false;
+      if (querySearchTerm.trim()) {
+        const term = querySearchTerm.trim().toLowerCase();
+        if (!q.sql.toLowerCase().includes(term)) return false;
+      }
+      return true;
+    });
+  }, [recentQueries, queryStatusFilter, querySearchTerm, latencyFilter]);
+
+  // Database Metrics Computed Strictly from Real Data
+  const dbMetrics: DashboardDbMetrics = useMemo(() => {
+    const isPersistent = runtimeInfo?.persistent ?? false;
+    const storageMode = runtimeInfo?.storageMode ?? (isPersistent ? 'opfs' : 'memory');
+
+    const totalTables = tableDetails.filter(t => t.type !== 'view').length;
+    const totalViews = tableDetails.filter(t => t.type === 'view').length;
+
+    // Real sum of bytes
+    const totalRawBytes = tableDetails.reduce((acc, curr) => acc + curr.sizeBytes, 0);
+
+    // Real sum of rows
+    const totalRowsCount = tableDetails.reduce((acc, curr) => acc + curr.rowCount, 0);
+
+    // Real query count & latency from actual history
+    const totalQueriesCount = allHistoryItems.length;
+    let avgLatency = 0;
+    let successfulCount = 0;
+    let errorCount = 0;
+    let fastCount = 0;
+    let normalCount = 0;
+    let slowCount = 0;
+
+    if (totalQueriesCount > 0) {
+      let latencySum = 0;
+      let latencyEntries = 0;
+      for (const item of allHistoryItems) {
+        if (item.status === 'error') {
+          errorCount += 1;
+        } else {
+          successfulCount += 1;
+        }
+
+        if (typeof item.executionTime === 'number' && item.executionTime >= 0) {
+          latencySum += item.executionTime;
+          latencyEntries += 1;
+          if (item.executionTime < 50) {
+            fastCount += 1;
+          } else if (item.executionTime <= 200) {
+            normalCount += 1;
+          } else {
+            slowCount += 1;
+          }
+        }
+      }
+      avgLatency = latencyEntries > 0 ? Math.round(latencySum / latencyEntries) : 0;
+    }
+
+    const successRatePct = totalQueriesCount > 0 ? Math.round((successfulCount / totalQueriesCount) * 100) : 100;
+
+    // Real table type breakdown
+    const tableTypeDistribution = {
+      table: totalTables,
+      view: totalViews,
+      macro: 0,
+      temp: 0,
+      other: 0,
+      total: tableDetails.length,
+    };
+
+    const { memoryUsageFormatted, memoryUsedGb, memoryTotalGb, memoryPercentageDisplay, memoryPercentage } =
+      resolveMemoryMetrics(rawPragmaMemory, rawPragmaMemoryLimit);
+
+    // Top tables by row count
+    const topTablesByRows: TableVolumeDistribution[] = [...tableDetails]
+      .sort((a, b) => b.rowCount - a.rowCount)
+      .slice(0, 5)
+      .map(t => ({
+        name: t.name,
+        rowCount: t.rowCount,
+        percentage: totalRowsCount > 0 ? Math.round((t.rowCount / totalRowsCount) * 100) : 0,
+      }));
+
+    return {
+      databaseName,
+      databaseCount,
+      schemaName,
+      tableCount: totalTables,
+      viewCount: totalViews,
+      totalRows: totalRowsCount,
+      formattedTotalRows: Number.isFinite(totalRowsCount) ? formatNumber(totalRowsCount) : '未知',
+      dataSize: Number.isFinite(totalRawBytes) ? formatBytes(totalRawBytes) : '未知',
+      rawSizeBytes: totalRawBytes,
+      totalQueries: totalQueriesCount,
+      avgLatencyMs: avgLatency,
+      formattedAvgLatency: totalQueriesCount > 0 ? `${avgLatency} ms` : '—',
+      successRatePct,
+      errorCount,
+      activeSessions: 1, // Honest single-client browser session
+      memoryUsedGb,
+      memoryTotalGb,
+      memoryPercentage,
+      memoryPercentageDisplay,
+      memoryUsageFormatted,
+      lastUpdated: tables.length > 0 ? '已同步' : '未挂载数据',
+      modeLabel: isPersistent ? '本地持久化数据库 (OPFS)' : '内存临时数据库 (Memory)',
+      modeTag: isPersistent ? '持久化' : '内存临时',
+      isPersistent,
+      storageMode,
+      tableTypeDistribution,
+      qualityIssues: qualityStats,
+      latencyDistribution: {
+        fastCount,
+        normalCount,
+        slowCount,
+        totalCount: totalQueriesCount,
+      },
+      topTablesByRows,
+    };
+  }, [tableDetails, runtimeInfo, allHistoryItems, databaseCount, databaseName, schemaName, rawPragmaMemory, rawPragmaMemoryLimit, qualityStats, tables.length]);
+
+  // Real growth data based on metric selection and limit
+  const growthTrendData: GrowthTrendItem[] = useMemo(() => {
+    if (tableDetails.length === 0) return [];
+    const sorted = [...tableDetails];
+    if (growthMetric === 'size') {
+      sorted.sort((a, b) => b.sizeBytes - a.sizeBytes);
+    } else {
+      sorted.sort((a, b) => b.rowCount - a.rowCount);
+    }
+
+    // Count real occurrences of each table name in query history
+    const queryCounts: Record<string, number> = {};
+    for (const q of allHistoryItems) {
+      if (!q.sql) continue;
+      const lowerSql = q.sql.toLowerCase();
+      for (const t of tableDetails) {
+        if (lowerSql.includes(t.name.toLowerCase())) {
+          queryCounts[t.name] = (queryCounts[t.name] || 0) + 1;
+        }
+      }
+    }
+
+    const sliceCount = growthLimit > 0 ? growthLimit : sorted.length;
+    return sorted.slice(0, sliceCount).map(t => {
+      const qCount = queryCounts[t.name] || 0;
+      return {
+        date: t.name,
+        importRows: growthMetric === 'size' ? t.sizeBytes : t.rowCount,
+        queryRows: growthMetric === 'size'
+          ? Math.max(1, t.columnCount || 1)
+          : (qCount > 0 ? qCount : (t.columnCount || 1)),
+        formattedSize: t.formattedSize,
+        sizeBytes: t.sizeBytes,
+        columnCount: t.columnCount || 0,
+        queryCount: qCount,
+      };
+    });
+  }, [tableDetails, growthMetric, growthLimit, allHistoryItems]);
+
+  // Real latency trend data from actual recent queries with filter
+  const latencyTrendData: LatencyTrendItem[] = useMemo(() => {
+    if (allHistoryItems.length === 0) return [];
+    let filtered = allHistoryItems;
+    if (latencyFilter === 'fast') {
+      filtered = filtered.filter(q => (q.executionTime ?? 0) < 50);
+    } else if (latencyFilter === 'normal') {
+      filtered = filtered.filter(q => (q.executionTime ?? 0) >= 50 && (q.executionTime ?? 0) <= 200);
+    } else if (latencyFilter === 'slow') {
+      filtered = filtered.filter(q => (q.executionTime ?? 0) > 200);
+    }
+    return filtered.slice(0, 10).map((q, idx) => {
+      const rawMs = q.executionTime ?? 0;
+      const cleanAvg = rawMs >= 10 ? Math.round(rawMs) : Math.round(rawMs * 10) / 10;
+      const cleanP95 = cleanAvg > 0 ? (cleanAvg >= 10 ? Math.round(cleanAvg * 1.3) : Math.round(cleanAvg * 1.3 * 10) / 10) : 0;
+      return {
+        date: `#${idx + 1}`,
+        avgMs: cleanAvg,
+        p95Ms: cleanP95,
+        sql: q.sql,
+        status: q.status === 'error' ? 'error' : 'success',
+        timestamp: String(q.timestamp),
+      };
+    });
+  }, [allHistoryItems, latencyFilter]);
+
+  // Handlers
+  const handleImportFile = async (file: File) => {
+    setImportState({ status: 'importing', filename: file.name });
+    try {
+      const cleanName =
+        file.name
+          .split('.')[0]
+          .replace(/[^a-zA-Z0-9_]/g, '_')
+          .toLowerCase() || 'imported_table';
+
+      const createdTables = /\.sql$/i.test(file.name)
+        ? (await importSqlWorkspace(file)).tables
+        : await duckDBService.importFile(file, cleanName);
+      const updated = await duckDBService.getTables();
+      setTables(updated);
+      const primaryTable = (createdTables && createdTables.length > 0 && updated.includes(createdTables[0]))
+        ? createdTables[0]
+        : (updated.includes(cleanName) ? cleanName : updated[0] || cleanName);
+      setSelectedTable(primaryTable);
+      setCurrentTable(primaryTable);
+
+      recentImportsService.addImport({
+        name: file.name,
+        size: formatBytes(file.size),
+        sizeBytes: file.size,
+        importedAt: new Date().toISOString().replace('T', ' ').slice(0, 19),
+        status: 'success',
+        tableName: createdTables && createdTables.length > 1 ? createdTables.join(', ') : primaryTable,
+      });
+
+      setImportState({ status: 'success', filename: file.name });
+      if (createdTables && createdTables.length > 1) {
+        toastService.success(`已成功挂载 ${createdTables.length} 个工作表: ${createdTables.join(', ')}`);
+      } else {
+        toastService.success(`已成功挂载数据表 "${primaryTable}"`);
+      }
+      await refreshTableDetails();
+    } catch (err: any) {
+      setImportState({ status: 'error', filename: file.name, message: err?.message });
+      toastService.error(`导入失败: ${err?.message || '未知错误'}`);
+    } finally {
+      setTimeout(() => {
+        setImportState(prev => (prev.status !== 'importing' ? { status: 'idle' } : prev));
+      }, 3000);
+    }
+  };
+
+  const handleLoadDemo = async () => {
+    setImportState({ status: 'importing', filename: '示例数据集' });
+    try {
+      await seedDemoWorkbenchData();
+      recentImportsService.seedDemoImports();
+      const updated = await duckDBService.getTables();
+      setTables(updated);
+      if (updated.length > 0) {
+        setSelectedTable(updated[0]);
+        setCurrentTable(updated[0]);
+      }
+      setImportState({ status: 'idle' });
+      toastService.success('已成功载入完整示例数据集');
+      await refreshTableDetails();
+    } catch (err: any) {
+      setImportState({ status: 'error', message: err?.message });
+      toastService.error(`载入示例数据失败: ${err?.message}`);
+    }
+  };
+
+  const handleDropTable = async (tableName: string) => {
+    try {
+      await duckDBService.dropTable(tableName);
+      toastService.success(`数据表 "${tableName}" 已删除`);
+      const updated = await duckDBService.getTables();
+      setTables(updated);
+      const nextTable = updated[0] || '';
+      if (selectedTable === tableName) {
+        setSelectedTable(nextTable);
+      }
+      if (useAppStore.getState().currentTable === tableName) {
+        setCurrentTable(nextTable || null);
+      }
+      await refreshTableDetails();
+    } catch (e: any) {
+      toastService.error(`删除失败: ${e.message}`);
+    }
+  };
+
+  const handleShrinkMemory = async () => {
+    try {
+      await duckDBService.query('PRAGMA shrink_memory;');
+      try {
+        const sizeRes = await duckDBService.query(`CALL pragma_database_size()`);
+        if (sizeRes && sizeRes.length > 0) {
+          setRawPragmaMemory(String(sizeRes[0].memory_usage ?? 'Unknown'));
+          setRawPragmaMemoryLimit(String(sizeRes[0].memory_limit ?? 'Unknown'));
+        }
+      } catch {}
+      toastService.success('已触发内存收缩释放 (PRAGMA shrink_memory)');
+    } catch {
+      toastService.info('当前数据库运行正常，无需立即回收');
+    }
+  };
+
+  const handleSelectQuery = (sql: string, executeDirectly: boolean = false) => {
+    setPendingSql(sql);
+    if (overrides?.onSelectQuery) {
+      overrides.onSelectQuery(sql, executeDirectly);
+      return;
+    }
+    onNavigate(Tab.SQL);
+    if (executeDirectly) {
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('duckdb_execute_sql', { detail: { sql } }));
+      }, 60);
+      toastService.success('已在 SQL 工作台中直接执行查询');
+    } else {
+      toastService.info('已将查询载入 SQL 工作台');
+    }
+  };
+
+  const handleSelectTable = (tableName: string, filter?: string) => {
+    setSelectedTable(tableName);
+    setCurrentTable(tableName);
+    if (overrides?.onSelectTable) {
+      void overrides.onSelectTable(tableName, filter);
+      return;
+    }
+    onNavigate(Tab.DATA);
+    toastService.info(`已定位至数据表 "${tableName}"`);
+  };
+
+  const handleSelectTableWithFilter = (tableName: string, filter: string) => {
+    handleSelectTable(tableName, filter);
+  };
+
+  const handleSelectTableStructure = (tableName: string, focusTab?: 'profile' | 'add' | 'ddl') => {
+    setSelectedTable(tableName);
+    setCurrentTable(tableName);
+    if (overrides?.onSelectTableStructure) {
+      void overrides.onSelectTableStructure(tableName, focusTab);
+      return;
+    }
+    onNavigate(Tab.STRUCTURE);
+    toastService.info(`已切换至数据表 "${tableName}" 的结构管理`);
+  };
+
+  const handleSelectTableAnalysis = (tableName: string) => {
+    setSelectedTable(tableName);
+    setCurrentTable(tableName);
+    if (overrides?.onSelectTableAnalysis) {
+      overrides.onSelectTableAnalysis(tableName);
+      return;
+    }
+    onNavigate(Tab.ANALYSIS_HUB);
+    toastService.info(`已在分析中心载入表 "${tableName}"`);
+  };
+
+  const handleSelectTableMetrics = (tableName: string) => {
+    setSelectedTable(tableName);
+    setCurrentTable(tableName);
+    if (overrides?.onSelectTableMetrics) {
+      overrides.onSelectTableMetrics(tableName);
+      return;
+    }
+    onNavigate(Tab.METRICS);
+    toastService.info(`已在指标中心载入表 "${tableName}"`);
+  };
+
+  const handleSelectTableDataFlow = (tableName: string) => {
+    setSelectedTable(tableName);
+    setCurrentTable(tableName);
+    if (overrides?.onSelectTableDataFlow) {
+      overrides.onSelectTableDataFlow(tableName);
+      return;
+    }
+    onNavigate(Tab.DATAFLOW);
+    toastService.info(`已在数据流画布中定位表 "${tableName}"`);
+  };
+
+  const handleQuickQuery = (tableName: string) => {
+    const sql = `SELECT * FROM "${tableName}" LIMIT 100;`;
+    handleSelectQuery(sql, true);
+  };
+
+  const handleInspectIssue = (sql: string) => {
+    handleSelectQuery(sql, false);
+    toastService.info('已在 SQL 工作台中打开异常定位查询');
+  };
+
+  const handleSwitchAnalysisContext = async (target: {
+    id: string;
+    kind: 'schema' | 'database' | 'project';
+  }) => {
+    setIsRefreshing(true);
+    try {
+      // Clear prior domain state before switch — forbid leaking previous DB data
+      setHomeDashboard(null);
+      setTableDetails([]);
+      setViewNames([]);
+      setSelectedTable('');
+      setPeekTableName(null);
+      setTables([]);
+      setCurrentTable(null);
+
+      const next = await duckDBService.switchAnalysisContext(target);
+      setDatabaseName(next.catalog || 'main');
+      setSchemaName(next.schema || 'main');
+      useAppStore.getState().setCurrentDatabase(next.catalog || 'memory');
+
+      const updated = await duckDBService.getTables();
+      setTables(updated);
+      if (updated[0]) setSelectedTable(updated[0]);
+      await refreshTableDetails();
+      refreshRecentQueries();
+      await refreshHomeDashboard();
+      bumpDashboardRefresh();
+      setLastRefreshedTime(new Date().toLocaleTimeString());
+      toastService.success(
+        `已切换到 ${target.kind === 'database' || target.kind === 'project' ? '数据库' : 'Schema'}「${target.id}」`,
+      );
+    } catch (err: any) {
+      toastService.error(`切换失败: ${err?.message || '未知错误'}`);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      const updated = await duckDBService.getTables();
+      setTables(updated);
+      await refreshTableDetails();
+      refreshRecentQueries();
+      await refreshHomeDashboard();
+      bumpDashboardRefresh();
+      setLastRefreshedTime(new Date().toLocaleTimeString());
+      toastService.success('仪表盘数据已刷新');
+    } catch (err: any) {
+      toastService.error(`刷新失败: ${err?.message || '未知错误'}`);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const handleClearQueries = () => {
+    try {
+      localStorage.removeItem('duckdb_sql_history');
+      if (typeof useSqlEditorStore?.getState?.().clearHistory === 'function') {
+        useSqlEditorStore.getState().clearHistory();
+      }
+      setAllHistoryItems([]);
+      setRecentQueries([]);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('duckdb-sql-history-updated'));
+      }
+      toastService.success('已清空历史查询记录');
+    } catch (err: any) {
+      toastService.error(`清空失败: ${err?.message}`);
+    }
+  };
+
+  const handleOpenBlankSql = () => {
+    setPendingSql('');
+    onNavigate(Tab.SQL);
+  };
+
+  const handleOpenPeek = (tableName: string) => {
+    setPeekTableName(tableName);
+  };
+
+  const handleClosePeek = () => {
+    setPeekTableName(null);
+  };
+
+  return {
+    tables,
+    tableDetails,
+    displayTables,
+    loadingDetails,
+    selectedTable,
+    setSelectedTable,
+    peekTableName,
+    handleOpenPeek,
+    handleClosePeek,
+    tableSearchTerm,
+    setTableSearchTerm,
+    querySearchTerm,
+    setQuerySearchTerm,
+    queryStatusFilter,
+    setQueryStatusFilter,
+    isRefreshing,
+    lastRefreshedTime,
+    handleRefresh,
+    handleSwitchAnalysisContext,
+    analysisContexts,
+    handleClearQueries,
+    handleOpenBlankSql,
+    growthMetric,
+    setGrowthMetric,
+    growthLimit,
+    setGrowthLimit,
+    latencyFilter,
+    setLatencyFilter,
+    tableTypeFilter,
+    setTableTypeFilter,
+    step02Tab,
+    setStep02Tab,
+    schemaColumns,
+    previewRows,
+    previewLoading,
+    recentImports,
+    allHistoryItems,
+    recentQueries,
+    displayQueries,
+    growthTrendData,
+    latencyTrendData,
+    dbMetrics,
+    importState,
+    handleImportFile,
+    handleLoadDemo,
+    handleDropTable,
+    handleShrinkMemory,
+    handleSelectTable,
+    handleSelectTableWithFilter,
+    handleSelectTableStructure,
+    handleSelectTableAnalysis,
+    handleSelectTableMetrics,
+    handleSelectTableDataFlow,
+    handleSelectQuery,
+    handleQuickQuery,
+    handleInspectIssue,
+    refreshTableDetails,
+    refreshHomeDashboard,
+    homeDashboard,
+    setHomeDashboard,
+    persistHomeDashboard,
+    homeBoardLoading,
+    homeBoardError,
+    dashboardRefreshTrigger,
+    bumpDashboardRefresh,
+    tableUsageFrequency,
+    setShowCreateModal,
+    setShowImportModal,
+    setShowSettingsModal,
+    setShowExportModal,
+  };
+}

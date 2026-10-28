@@ -1,0 +1,117 @@
+$ vitest run --pool=threads --maxWorkers=1 --no-file-parallelism "components/Dashboard/Home/WorkspaceObjects.test.tsx" "components/Dashboard/Home/HomeBoardCanvas.audit.test.tsx" "components/Dashboard/WidgetChartConfigPanel.test.tsx" "components/DashboardWidget.requests.test.tsx"
+
+ RUN  v4.1.10 C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor
+
+Error: [vitest] No "useWorkbenchRevision" export is defined on the "../services/workbench/runtime" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+
+    at VitestMocker.createError (file:///C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/node_modules/.pnpm/vitest@4.1.10_@types+node@2_74e1bcb78d7b78d49772a5ffa3e5cfac/node_modules/vitest/dist/chunks/startVitestModuleRunner.DB-7oCpn.js:62:17)
+    at Object.get (file:///C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/node_modules/.pnpm/vitest@4.1.10_@types+node@2_74e1bcb78d7b78d49772a5ffa3e5cfac/node_modules/vitest/dist/chunks/startVitestModuleRunner.DB-7oCpn.js:327:16)
+    at DatasetFieldChartBuilder (C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/Dashboard/Home/DatasetFieldChartBuilder.tsx:29:20)
+    at renderWithHooks (C:\Users\luoyu\Desktop\Duckdb_Manager\duckdb-editor\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:15486:18)
+    at mountIndeterminateComponent (C:\Users\luoyu\Desktop\Duckdb_Manager\duckdb-editor\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:20103:13)
+    at beginWork (C:\Users\luoyu\Desktop\Duckdb_Manager\duckdb-editor\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:21626:16)
+    at HTMLUnknownElement.callCallback (C:\Users\luoyu\Desktop\Duckdb_Manager\duckdb-editor\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:4164:14)
+    at HTMLUnknownElement.callTheUserObjectsOperation (C:\Users\luoyu\Desktop\Duckdb_Manager\duckdb-editor\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\generated\idl\EventListener.js:26:30)
+    at innerInvokeEventListeners (C:\Users\luoyu\Desktop\Duckdb_Manager\duckdb-editor\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:360:16)
+    at invokeEventListeners (C:\Users\luoyu\Desktop\Duckdb_Manager\duckdb-editor\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:296:3)
+Error: [vitest] No "useWorkbenchRevision" export is defined on the "../services/workbench/runtime" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+
+    at VitestMocker.createError (file:///C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/node_modules/.pnpm/vitest@4.1.10_@types+node@2_74e1bcb78d7b78d49772a5ffa3e5cfac/node_modules/vitest/dist/chunks/startVitestModuleRunner.DB-7oCpn.js:62:17)
+    at Object.get (file:///C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/node_modules/.pnpm/vitest@4.1.10_@types+node@2_74e1bcb78d7b78d49772a5ffa3e5cfac/node_modules/vitest/dist/chunks/startVitestModuleRunner.DB-7oCpn.js:327:16)
+    at DatasetFieldChartBuilder (C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/Dashboard/Home/DatasetFieldChartBuilder.tsx:29:20)
+    at renderWithHooks (C:\Users\luoyu\Desktop\Duckdb_Manager\duckdb-editor\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:15486:18)
+    at mountIndeterminateComponent (C:\Users\luoyu\Desktop\Duckdb_Manager\duckdb-editor\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:20103:13)
+    at beginWork (C:\Users\luoyu\Desktop\Duckdb_Manager\duckdb-editor\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:21626:16)
+    at HTMLUnknownElement.callCallback (C:\Users\luoyu\Desktop\Duckdb_Manager\duckdb-editor\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:4164:14)
+    at HTMLUnknownElement.callTheUserObjectsOperation (C:\Users\luoyu\Desktop\Duckdb_Manager\duckdb-editor\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\generated\idl\EventListener.js:26:30)
+    at innerInvokeEventListeners (C:\Users\luoyu\Desktop\Duckdb_Manager\duckdb-editor\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:360:16)
+    at invokeEventListeners (C:\Users\luoyu\Desktop\Duckdb_Manager\duckdb-editor\node_modules\.pnpm\jsdom@29.1.1\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:296:3)
+stderr | components/DashboardWidget.requests.test.tsx > reports an instance configuration save failure inside the field configuration drawer
+The above error occurred in the <DatasetFieldChartBuilder> component:
+
+    at DatasetFieldChartBuilder (C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/Dashboard/Home/DatasetFieldChartBuilder.tsx:10:37)
+    at div
+    at DashboardWidget (C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/DashboardWidget.tsx:142:3)
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries.
+
+ ❯ components/DashboardWidget.requests.test.tsx (10 tests | 1 failed) 2804ms
+   × reports an instance configuration save failure inside the field configuration drawer 1080ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  components/DashboardWidget.requests.test.tsx > reports an instance configuration save failure inside the field configuration drawer
+TestingLibraryElementError: Unable to find role="button" and name "10"
+
+Ignored nodes: comments, script, style
+<body>
+  <div />
+</body>
+
+Ignored nodes: comments, script, style
+<body>
+  <div />
+</body>
+ ❯ waitForWrapper node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ components/DashboardWidget.requests.test.tsx:23:16
+     21|   const save=vi.fn().mockRejectedValue(new Error('instance storage una…
+     22|   render(<DashboardWidget {...props} item={{i:'placement',savedQueryId…
+     23|   await screen.findByRole('button',{name:'10',exact:true});
+       |                ^
+     24|   fireEvent.click(screen.getByRole('button',{name:'更多组件选项 amount'}));
+     25|   fireEvent.click(screen.getByRole('button',{name:'字段 / 单位配置'}));
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+⎯⎯⎯⎯⎯⎯ Unhandled Errors ⎯⎯⎯⎯⎯⎯
+
+Vitest caught 1 unhandled error during the test run.
+This might cause false positive tests. Resolve unhandled errors to make sure your tests are not affected.
+
+⎯⎯⎯⎯⎯ Uncaught Exception ⎯⎯⎯⎯⎯
+Error: [vitest] No "useWorkbenchRevision" export is defined on the "../services/workbench/runtime" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+
+vi.mock(import("../services/workbench/runtime"), async (importOriginal) => {
+  const actual = await importOriginal()
+  return {
+    ...actual,
+    // your mocked methods
+  }
+})
+
+ ❯ VitestMocker.createError node_modules/.pnpm/vitest@4.1.10_@types+node@2_74e1bcb78d7b78d49772a5ffa3e5cfac/node_modules/vitest/dist/chunks/startVitestModuleRunner.DB-7oCpn.js:62:17
+ ❯ Object.get node_modules/.pnpm/vitest@4.1.10_@types+node@2_74e1bcb78d7b78d49772a5ffa3e5cfac/node_modules/vitest/dist/chunks/startVitestModuleRunner.DB-7oCpn.js:327:16
+ ❯ DatasetFieldChartBuilder components/Dashboard/Home/DatasetFieldChartBuilder.tsx:29:20
+     27|   const [saving, setSaving] = useState(false);
+     28|   const generation = useRef(0);
+     29|   const revision = useWorkbenchRevision();
+       |                    ^
+     30|
+     31|   const dataset = datasets.find(d => d.id === datasetId);
+ ❯ renderWithHooks node_modules/.pnpm/react-dom@18.3.1_react@18.3.1/node_modules/react-dom/cjs/react-dom.development.js:15486:18
+ ❯ mountIndeterminateComponent node_modules/.pnpm/react-dom@18.3.1_react@18.3.1/node_modules/react-dom/cjs/react-dom.development.js:20103:13
+ ❯ beginWork node_modules/.pnpm/react-dom@18.3.1_react@18.3.1/node_modules/react-dom/cjs/react-dom.development.js:21626:16
+ ❯ beginWork$1 node_modules/.pnpm/react-dom@18.3.1_react@18.3.1/node_modules/react-dom/cjs/react-dom.development.js:27465:14
+ ❯ performUnitOfWork node_modules/.pnpm/react-dom@18.3.1_react@18.3.1/node_modules/react-dom/cjs/react-dom.development.js:26599:12
+ ❯ workLoopSync node_modules/.pnpm/react-dom@18.3.1_react@18.3.1/node_modules/react-dom/cjs/react-dom.development.js:26505:5
+ ❯ renderRootSync node_modules/.pnpm/react-dom@18.3.1_react@18.3.1/node_modules/react-dom/cjs/react-dom.development.js:26473:7
+
+This error originated in "components/DashboardWidget.requests.test.tsx" test file. It doesn't mean the error was thrown inside the file itself, but while it was running.
+The latest test that might've caused the error is "reports an instance configuration save failure inside the field configuration drawer". It might mean one of the following:
+- The error was thrown, while Vitest was running this test.
+- If the error occurred after the test had been completed, this was the last documented test before it was thrown.
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+
+ Test Files  1 failed | 3 passed (4)
+      Tests  1 failed | 23 passed (24)
+     Errors  1 error
+   Start at  17:07:25
+   Duration  41.07s (transform 9.98s, setup 1.21s, import 21.93s, tests 6.03s, environment 9.83s)
+
+[ELIFECYCLE] Command failed with exit code 1.

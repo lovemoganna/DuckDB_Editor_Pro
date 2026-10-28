@@ -11,6 +11,9 @@ const VERSIONED_FIELDS: Array<keyof MetricDefinition> = [
   'value',
   'unit',
   'category',
+  'sourceTable',
+  'calculation',
+  'governance',
 ];
 
 export interface MetricImpact {
@@ -37,6 +40,11 @@ export class SemanticMetricCatalog {
   constructor(private readonly now: () => number = Date.now) {}
 
   versionMetric(previous: MetricDefinition, next: MetricDefinition): MetricDefinition {
+    const meaningChanged = (['definition', 'formula', 'dependencies', 'unit', 'sourceTable', 'calculation'] as const)
+      .some(field => !sameValue(previous[field], next[field]));
+    if (meaningChanged && previous.governance?.reviewStatus === 'reviewed' && next.governance?.reviewStatus === 'reviewed') {
+      next = { ...next, governance: { ...next.governance, reviewStatus: 'draft' } };
+    }
     const changedFields = VERSIONED_FIELDS.filter(field =>
       !sameValue(previous[field], next[field]),
     );

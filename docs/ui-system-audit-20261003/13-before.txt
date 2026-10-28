@@ -1,0 +1,138 @@
+- banner "全局工作区顶栏":
+  - button "🪶 DuckDB Studio PRO":
+    - generic: 🪶
+    - generic: DuckDB Studio
+    - generic: PRO
+  - navigation "业务领域大类":
+    - button "工程核心":
+      - generic: 工程核心
+    - button "分析洞察":
+      - generic: 分析洞察
+    - button "知识沉淀":
+      - generic: 知识沉淀
+    - button "AI 认知":
+      - generic: AI 认知
+  - tablist "AI 认知功能标签页":
+    - tab "本体图谱" [active] [selected]:
+      - generic: 本体图谱
+    - tab "技能":
+      - generic: 技能
+    - tab "能力":
+      - generic: 能力
+    - tab "推演":
+      - generic: 推演
+  - button "项目":
+    - generic: 项目
+  - button "sql_funds_flow 已保存到 OPFS":
+    - generic: sql_funds_flow
+    - generic: 已保存到 OPFS
+  - button "AI 助手 Ctrl+I":
+    - generic: AI 助手
+    - generic: Ctrl+I
+  - button "⌘K":
+  - button "帮助与快捷键":
+  - button "切换为浅色模式":
+  - button "AI 模型设置":
+- main:
+  - button "展开本体侧栏":
+  - generic: 本体知识空间 (Ontology Studio)
+  - tablist "本体视图切换":
+    - tab "知识图谱" [selected]:
+      - generic: 知识图谱
+    - tab "数据视图":
+      - generic: 数据视图
+    - tab "实体画布":
+      - generic: 实体画布
+  - button "本体建模":
+    - generic: 本体建模
+  - button "组合推演":
+    - generic: 组合推演
+  - button "推演定义":
+    - generic: 推演定义
+  - button "聚合洞察":
+    - generic: 聚合洞察
+  - text: "实体:"
+  - strong: "7"
+  - text: "关系:"
+  - strong: "6"
+  - text: "概念模式:"
+  - strong: "2"
+  - text: "关系类型:"
+  - strong: "6"
+  - text: "行动规则:"
+  - strong: "0"
+  - text: 跳数
+  - button "1跳"
+  - button "2跳"
+  - button "3跳"
+  - button "全图"
+  - button "刷新图谱数据":
+  - button "补充数据"
+  - button "清除数据":
+    - generic: 清除数据
+  - img "知识图谱可视化（SVG D3 (矢量交互)）：9 个节点，13 条关系连线。":
+    - 'generic "做菜人·妈妈 → membership → 确凿事实 权重: 0.15"'
+    - 'generic "买菜人·我 → membership → 确凿事实 权重: 0.15"'
+    - 'generic "自做茄子 → membership → 确凿事实 权重: 0.15"'
+    - 'generic "餐馆买菜 → membership → 确凿事实 权重: 0.15"'
+    - 'generic "三人用餐 → membership → 确凿事实 权重: 0.15"'
+    - 'generic "推断·菜已带回 → membership → 推断与未知 权重: 0.15"'
+    - 'generic "未知·第三人 → membership → 推断与未知 权重: 0.15"'
+    - 'generic "做菜人·妈妈 → 亲自制作 → 自做茄子 权重: 1.00 描述: 主体在家执行烹饪制作"'
+    - 'generic "买菜人·我 → 外出采购 → 餐馆买菜 权重: 1.00 描述: 主体在餐馆执行外部购买"'
+    - 'generic "餐馆买菜 → 线索支撑 → 推断·菜已带回 权重: 0.85 描述: 采购事实为推断提供证据链"'
+    - 'generic "自做茄子 → 汇入餐食 → 三人用餐 权重: 1.00 描述: 自制菜肴汇入就餐事件"'
+    - 'generic "推断·菜已带回 → 推断汇入 → 三人用餐 权重: 0.85 描述: 高置信推断汇入共同就餐"'
+    - 'generic "三人用餐 → 暴露盲区 → 未知·第三人 权重: 0.90 描述: 就餐事件暴露出不可脑补的第三人"'
+    - 'generic "属性 (3): 身份: \"做菜人\" 地点: \"家中\" 依据: \"原文明确提及\""':
+      - generic: "3"
+    - 'generic "属性 (3): 身份: \"买菜人\" 轨迹: \"餐馆至家中\" 依据: \"原文明确提及\""':
+      - generic: "3"
+    - 'generic "属性 (3): 品类: \"茄子\" 地点: \"家中\" 确证度: \"100%已证事实\""':
+      - generic: "3"
+    - 'generic "属性 (3): 数量: \"两道菜\" 地点: \"餐馆\" 确证度: \"100%已证事实\""':
+      - generic: "3"
+    - 'generic "属性 (3): 就餐人数: 3 地点: \"家中\" 菜品总数: \"至少包含茄子\""':
+      - generic: "3"
+    - 'generic "属性 (2): 推断依据: \"买菜后回家与三人就餐\" 置信度: 0.85"':
+      - generic: "2"
+    - 'generic "属性 (2): 信息状态: \"完全未知\" 警示: \"绝不可凭常识脑补为爸爸\""':
+      - generic: "2"
+    - 'generic "类型: 确凿事实 描述: 原文直接证明的主体、事件与客观结果"': 确凿事实
+    - 'generic "类型: 推断与未知 描述: 有线索未确证的推测及不可脑补的未知盲区"': 推断与未知
+    - generic "做菜人·妈妈"
+    - generic "买菜人·我"
+    - generic "自做茄子"
+    - generic "餐馆买菜"
+    - generic "三人用餐"
+    - generic "推断·菜已带回"
+    - generic "未知·第三人"
+  - generic: 核心节点与关系筛选 (2跳·默认 · 悬浮展开)
+  - button "控制面板"
+  - button "渲染模式切换":
+    - generic: SVG D3 (矢量交互)
+    - generic: ≤500节点推荐
+  - button "信息面板"
+  - button "图例"
+  - button "▶"
+  - generic: "⏱ 拓扑演进: 100%"
+  - slider: "100"
+  - generic: (9/28 节点)
+  - generic: 🔎
+  - textbox "搜索节点... (Alt+S)"
+- contentinfo:
+  - generic: DuckDB 1.33.1
+  - generic: "|"
+  - generic: sql_funds_flow [OPFS]
+  - generic: "|"
+  - generic: 持久化库
+  - generic: "|"
+  - generic: 13 张表
+  - generic: "|"
+  - generic: 13 个活动表
+  - generic: "|"
+  - generic: "内存: 1.75 MB / 3.1 GiB"
+  - generic: 引擎就绪
+  - generic: "|"
+  - generic: 18:33
+  - button "刷新运行时状态":

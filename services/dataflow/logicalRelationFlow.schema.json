@@ -1,0 +1,641 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Logical Relation Flow Data",
+  "type": "object",
+  "required": [
+    "contractVersion",
+    "source",
+    "status",
+    "statements",
+    "effects",
+    "nodes",
+    "edges",
+    "diagnostics",
+    "relations",
+    "operators",
+    "boundaries",
+    "objects"
+  ],
+  "properties": {
+    "contractVersion": {
+      "const": "2.0"
+    },
+    "source": {
+      "$ref": "#/$defs/source"
+    },
+    "status": {
+      "enum": [
+        "complete",
+        "partial",
+        "parse_error"
+      ]
+    },
+    "statements": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/statement"
+      }
+    },
+    "effects": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/effect"
+      }
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/node"
+      }
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/edge"
+      }
+    },
+    "diagnostics": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/diagnostic"
+      }
+    },
+    "relations": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/relation"
+      }
+    },
+    "operators": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/operator"
+      }
+    },
+    "boundaries": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/boundary"
+      }
+    },
+    "objects": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/object"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "source": {
+      "type": "object",
+      "required": [
+        "sql",
+        "sourceHash",
+        "parserVersion",
+        "generatedAt"
+      ],
+      "properties": {
+        "sql": {
+          "type": "string"
+        },
+        "sourceHash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "parserVersion": {
+          "type": "string"
+        },
+        "generatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "additionalProperties": false
+    },
+    "span": {
+      "type": "object",
+      "required": [
+        "start",
+        "end",
+        "startLine",
+        "endLine"
+      ],
+      "properties": {
+        "start": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "end": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "startLine": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "endLine": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "statement": {
+      "type": "object",
+      "required": [
+        "id",
+        "sourceSpan",
+        "boundaryId",
+        "kind"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "sourceSpan": {
+          "$ref": "#/$defs/span"
+        },
+        "boundaryId": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "node": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind",
+        "statementId",
+        "sourceSpan",
+        "label"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "relation",
+            "operator",
+            "boundary",
+            "unknown",
+            "object"
+          ]
+        },
+        "statementId": {
+          "type": "string"
+        },
+        "queryId": {
+          "type": "string"
+        },
+        "boundaryId": {
+          "type": "string"
+        },
+        "sourceSpan": {
+          "$ref": "#/$defs/span"
+        },
+        "label": {
+          "type": "string"
+        },
+        "relation": {
+          "$ref": "#/$defs/relation"
+        },
+        "operator": {
+          "$ref": "#/$defs/operator"
+        },
+        "boundary": {
+          "$ref": "#/$defs/boundary"
+        },
+        "unknown": {
+          "type": "object"
+        },
+        "object": {
+          "$ref": "#/$defs/object"
+        }
+      },
+      "additionalProperties": false
+    },
+    "edge": {
+      "type": "object",
+      "required": [
+        "id",
+        "from",
+        "to",
+        "kind"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "from": {
+          "type": "string"
+        },
+        "to": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "relation_flow",
+            "reference",
+            "boundary_contains",
+            "recursive_back",
+            "object_dependency"
+          ]
+        },
+        "relationId": {
+          "type": "string"
+        },
+        "operatorId": {
+          "type": "string"
+        },
+        "effectIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "label": {
+          "type": "string"
+        },
+        "inputRole": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "effect": {
+      "type": "object",
+      "required": [
+        "id",
+        "operatorId",
+        "dimension",
+        "before",
+        "after",
+        "change"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "operatorId": {
+          "type": "string"
+        },
+        "dimension": {
+          "enum": [
+            "rows",
+            "columns",
+            "grain",
+            "order",
+            "shape",
+            "uniqueness"
+          ]
+        },
+        "before": {},
+        "after": {},
+        "change": {
+          "type": "string"
+        },
+        "evidence": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "diagnostic": {
+      "type": "object",
+      "required": [
+        "code",
+        "message",
+        "severity"
+      ],
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "severity": {
+          "enum": [
+            "error",
+            "warning",
+            "info"
+          ]
+        },
+        "sourceSpan": {
+          "$ref": "#/$defs/span"
+        }
+      },
+      "additionalProperties": false
+    },
+    "dimensionState": {
+      "type": "object",
+      "required": [
+        "before",
+        "after",
+        "change"
+      ],
+      "properties": {
+        "before": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "after": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "change": {
+          "enum": [
+            "preserve",
+            "add",
+            "remove",
+            "filter",
+            "reshape",
+            "reorder",
+            "collapse",
+            "expand",
+            "deduplicate",
+            "unknown"
+          ]
+        },
+        "evidence": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "relationState": {
+      "type": "object",
+      "required": [
+        "rows",
+        "columns",
+        "grain",
+        "order",
+        "shape",
+        "uniqueness"
+      ],
+      "properties": {
+        "rows": {
+          "$ref": "#/$defs/dimensionState"
+        },
+        "columns": {
+          "$ref": "#/$defs/dimensionState"
+        },
+        "grain": {
+          "$ref": "#/$defs/dimensionState"
+        },
+        "order": {
+          "$ref": "#/$defs/dimensionState"
+        },
+        "shape": {
+          "$ref": "#/$defs/dimensionState"
+        },
+        "uniqueness": {
+          "$ref": "#/$defs/dimensionState"
+        }
+      },
+      "additionalProperties": false
+    },
+    "relation": {
+      "type": "object",
+      "required": [
+        "id",
+        "role",
+        "sourceKind"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "role": {
+          "enum": [
+            "source",
+            "intermediate",
+            "output",
+            "result",
+            "reference"
+          ]
+        },
+        "sourceKind": {
+          "enum": [
+            "table",
+            "view",
+            "temp_table",
+            "values",
+            "table_function",
+            "table_macro",
+            "cte_reference",
+            "subquery_result",
+            "statement_object",
+            "unknown"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "alias": {
+          "type": "string"
+        },
+        "objectId": {
+          "type": "string"
+        },
+        "bindingState": {
+          "enum": [
+            "defined",
+            "unresolved"
+          ]
+        },
+        "state": {
+          "$ref": "#/$defs/relationState"
+        }
+      },
+      "additionalProperties": false
+    },
+    "operator": {
+      "type": "object",
+      "required": [
+        "id",
+        "type",
+        "inputRelationIds",
+        "outputRelationIds",
+        "effectIds",
+        "boundaryId",
+        "details"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "relation_source",
+            "filter",
+            "sample",
+            "projection",
+            "aggregate",
+            "window",
+            "object_operation",
+            "join",
+            "set_operation",
+            "reshape",
+            "output_modifier",
+            "result",
+            "unknown"
+          ]
+        },
+        "subtype": {
+          "type": "string"
+        },
+        "expression": {
+          "type": "string"
+        },
+        "inputRelationIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "outputRelationIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "effectIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "boundaryId": {
+          "type": "string"
+        },
+        "details": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
+    },
+    "boundary": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind",
+        "sourceSpan"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "statement",
+            "query",
+            "cte",
+            "subquery",
+            "recursive_cte",
+            "connection",
+            "catalog"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "parentBoundaryId": {
+          "type": "string"
+        },
+        "materialization": {
+          "enum": [
+            "materialized",
+            "not_materialized",
+            "unspecified"
+          ]
+        },
+        "recursive": {
+          "type": "boolean"
+        },
+        "sourceSpan": {
+          "$ref": "#/$defs/span"
+        }
+      },
+      "additionalProperties": false
+    },
+    "object": {
+      "type": "object",
+      "required": [
+        "id",
+        "name",
+        "objectType",
+        "scope",
+        "catalog",
+        "schema",
+        "version",
+        "definedBy",
+        "state",
+        "temporary"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "objectType": {
+          "type": "string"
+        },
+        "scope": {
+          "enum": [
+            "connection",
+            "catalog"
+          ]
+        },
+        "catalog": {
+          "type": "string"
+        },
+        "schema": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "definedBy": {
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "defined",
+            "released",
+            "unresolved"
+          ]
+        },
+        "runtimeState": {
+          "enum": [
+            "pending",
+            "defined",
+            "released",
+            "rolled_back",
+            "not_applied"
+          ]
+        },
+        "definitionSql": {
+          "type": "string"
+        },
+        "temporary": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

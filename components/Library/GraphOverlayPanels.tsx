@@ -15,14 +15,14 @@ import type { GraphNode } from './D3GraphView/D3GraphView.types';
 
 // ── Local palette (Monokai only, used sparingly) ────────────────────────────
 const C = {
-  fg:    '#f8f8f2',
-  muted: '#75715e',
-  blue:  '#66d9ef',
-  green: '#a6e22e',
-  yel:   '#e6db74',
-  orange:'#fd971f',
-  cyan:  '#66d9ef',
-  pink:  '#f92672',
+  fg:    'var(--monokai-fg)',
+  muted: 'var(--monokai-comment)',
+  blue:  'var(--monokai-cyan)',
+  green: 'var(--monokai-accent)',
+  yel:   'var(--monokai-yellow)',
+  orange:'var(--monokai-orange)',
+  cyan:  'var(--monokai-cyan)',
+  pink:  'var(--monokai-pink)',
 } as const;
 
 // ── SectionCard — bare collapsible divider, no chrome ────────────────────────
@@ -94,12 +94,12 @@ const ExportDropdown: React.FC<{
         <ChevronDown className={`w-3 h-3 ml-auto ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
-        <div className="absolute bottom-full left-0 right-0 mb-1 z-[1100] rounded border border-[#3e3d32] bg-[#272822] p-0.5">
+        <div className="absolute bottom-full left-0 right-0 mb-1 z-[1100] rounded border border-monokai-border bg-monokai-sidebar p-0.5">
           {items.map(item => (
             <button
               key={item.label}
               onClick={() => { item.act(); setOpen(false); }}
-              className="w-full text-left px-2 py-1.5 text-[10px] text-monokai-comment hover:bg-[#3e3d32] hover:text-monokai-fg rounded"
+              className="w-full text-left px-2 py-1.5 text-[10px] text-monokai-comment hover:bg-monokai-hover hover:text-monokai-fg rounded"
             >
               {item.label}
             </button>
@@ -805,30 +805,30 @@ export const GraphContextMenu: React.FC<GraphContextMenuProps> = ({
   return (
     <div style={{
       position: 'fixed', top: y, left: x,
-      background: '#272822', border: '1px solid #3e3d32',
+      background: 'var(--monokai-sidebar)', border: '1px solid var(--monokai-border)',
       borderRadius: 4,
       padding: '3px 0', zIndex: 9999, minWidth: 140,
     }}>
       <button onClick={onFocusMode} style={btnStyle}
-        onMouseEnter={e => (e.currentTarget.style.background = 'rgba(62,61,50,0.4)')}
+        onMouseEnter={e => (e.currentTarget.style.background = 'var(--monokai-hover)')}
         onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
         焦点模式
       </button>
       <button onClick={onExpandNeighbors} style={{ ...btnStyle, color: C.blue }}
-        onMouseEnter={e => (e.currentTarget.style.background = 'rgba(62,61,50,0.4)')}
+        onMouseEnter={e => (e.currentTarget.style.background = 'var(--monokai-hover)')}
         onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
         展开邻近
       </button>
       <button onClick={onToggleCollapse}
         style={{ ...btnStyle, color: isCollapsed ? C.orange : C.fg }}
-        onMouseEnter={e => (e.currentTarget.style.background = 'rgba(62,61,50,0.4)')}
+        onMouseEnter={e => (e.currentTarget.style.background = 'var(--monokai-hover)')}
         onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
         {isCollapsed ? '展开' : '折叠'}子网
       </button>
       {node.group === 'typeHub' && (
         <button onClick={onToggleTypeHubCollapse}
           style={{ ...btnStyle, color: isTypeHubCollapsed ? C.orange : C.cyan }}
-          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(62,61,50,0.4)')}
+          onMouseEnter={e => (e.currentTarget.style.background = 'var(--monokai-hover)')}
           onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
           {isTypeHubCollapsed ? '展开' : '折叠'}实例 ({(node as any)._instanceCount || 0})
         </button>

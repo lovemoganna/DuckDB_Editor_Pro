@@ -8,7 +8,7 @@ import {
 import { duckDBService } from '../services/duckdbService';
 import { toastService } from '../services/toastService';
 import { buildExtensionLoadSql } from '../services/extensionPolicy';
-import { PageHeader, SearchInput, ActionButton, IconButton, EmptyState, SegmentedTabs } from './ui/Workbench';
+import { PageHeader, SearchInput, ActionButton, IconButton, EmptyState, SegmentedTabs, ModalShell, FormInput } from './ui/Workbench';
 import { CodeHighlightBlock } from './ui/CodeHighlightBlock';
 
 export interface Extension {
@@ -599,8 +599,8 @@ export const Extensions: React.FC<ExtensionsProps> = ({ onTryExtension }) => {
                             {/* Status Beacon */}
                             <div className="shrink-0 flex items-center">
                               {ext.loaded ? (
-                                <span className="inline-flex items-center gap-1 text-[10px] font-mono font-semibold text-emerald-400 bg-emerald-500/10 border border-monokai-border-subtle px-1.5 py-0.5 rounded">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                                <span className="inline-flex items-center gap-1 text-[10px] font-mono font-semibold text-monokai-green bg-monokai-green/10 border border-monokai-green/30 px-1.5 py-0.5 rounded">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-monokai-green" />
                                   Active
                                 </span>
                               ) : (
@@ -862,193 +862,163 @@ export const Extensions: React.FC<ExtensionsProps> = ({ onTryExtension }) => {
       )}
 
       {/* ── Lakehouse Remote File Loader Modal (Upgraded) ────────────── */}
-      {showLakehouseModal && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label="Lakehouse 远程文件与数据湖直连向导"
-          className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-[fadeIn_0.2s_ease-out]"
-          onClick={() => setShowLakehouseModal(false)}
-        >
-          <div
-            className="bg-monokai-sidebar border border-monokai-border rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden relative flex flex-col animate-[scaleUp_0.2s_ease-out]"
-            onClick={e => e.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <div className="p-5 border-b border-monokai-border bg-monokai-sidebar flex items-start justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-monokai-surface border border-monokai-border flex items-center justify-center text-monokai-accent shrink-0">
-                  <Cloud size={22} />
-                </div>
-                <div>
-                  <h3 className="text-base font-semibold text-monokai-fg">
-                    Lakehouse 远程文件与数据湖直连向导
-                  </h3>
-                  <p className="text-xs text-monokai-comment mt-0.5">
-                    基于 DuckDB HTTPFS/Parquet 引擎零复制直连远程 Parquet / CSV / JSON 云端数据源
-                  </p>
-                </div>
-              </div>
+      <ModalShell
+        open={showLakehouseModal}
+        onClose={() => setShowLakehouseModal(false)}
+        title="Lakehouse 远程文件与数据湖直连向导"
+        description="基于 DuckDB HTTPFS/Parquet 引擎零复制直连远程 Parquet / CSV / JSON 云端数据源"
+        icon={Cloud}
+        iconColor="text-monokai-accent"
+        size="md"
+        footer={
+          <div className="flex items-center justify-between gap-3 w-full">
+            <ActionButton
+              variant="ghost"
+              onClick={() => setShowLakehouseModal(false)}
+            >
+              取消
+            </ActionButton>
 
-              <IconButton
-                label="关闭弹窗"
-                icon={X}
-                size="sm"
-                onClick={() => setShowLakehouseModal(false)}
-              />
-            </div>
-
-            {/* Modal Body */}
-            <div className="p-5 space-y-4 text-xs font-sans max-h-[70vh] overflow-y-auto custom-scrollbar">
-              {/* Presets Bar */}
-              <div>
-                <label className="block text-monokai-fg font-medium mb-1.5 flex items-center justify-between">
-                  <span className="flex items-center gap-1">
-                    <Sparkles size={12} className="text-monokai-accent" />
-                    推荐预设示例 (一键填充):
-                  </span>
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {LAKEHOUSE_PRESETS.map((preset, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => handleApplyPreset(preset)}
-                      className={`p-2 rounded-lg border text-left transition-all cursor-pointer ${
-                        remoteUrl === preset.url
-                          ? 'bg-monokai-surface border-monokai-accent/70 text-monokai-fg shadow-xs'
-                          : 'bg-monokai-surface/60 border-monokai-border text-monokai-comment hover:text-monokai-fg hover:border-monokai-border/90'
-                      }`}
-                    >
-                      <div className="font-medium text-xs text-monokai-fg flex items-center justify-between">
-                        <span className="truncate">{preset.name}</span>
-                        <span className="font-mono text-[9px] uppercase px-1 py-0.2 rounded bg-monokai-bg border border-monokai-border text-monokai-fg-muted">
-                          {preset.format}
-                        </span>
-                      </div>
-                      <div className="text-[10px] text-monokai-comment truncate mt-0.5">
-                        {preset.description}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Data Format Selector */}
-              <div>
-                <label className="block text-monokai-fg font-medium mb-1.5">
-                  数据格式 (Data Format)
-                </label>
-                <div className="flex gap-2">
-                  {(['parquet', 'csv', 'json', 'iceberg'] as const).map(fmt => (
-                    <button
-                      key={fmt}
-                      type="button"
-                      onClick={() => setRemoteFormat(fmt)}
-                      className={`flex-1 py-1.5 rounded-lg font-mono text-xs uppercase border transition-all cursor-pointer font-semibold ${
-                        remoteFormat === fmt
-                          ? 'bg-monokai-accent text-monokai-bg border-monokai-accent shadow-xs'
-                          : 'bg-monokai-surface text-monokai-comment border-monokai-border hover:text-monokai-fg hover:border-monokai-border/90'
-                      }`}
-                    >
-                      {fmt}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Remote URL Input */}
-              <div>
-                <label className="block text-monokai-fg font-medium mb-1.5">
-                  远程文件 URL (HTTPS / S3 / GitHub Raw URL)
-                </label>
-                <input
-                  type="text"
-                  value={remoteUrl}
-                  onChange={e => {
-                    setRemoteUrl(e.target.value);
-                    setLakehouseError(null);
-                  }}
-                  placeholder="https://example.com/lakehouse_data.parquet"
-                  className="w-full bg-monokai-surface border border-monokai-border focus:border-monokai-accent text-monokai-fg px-3 py-2 rounded-lg outline-none text-xs font-mono transition-colors"
-                />
-              </div>
-
-              {/* Target Table Name Input */}
-              <div>
-                <label className="block text-monokai-fg font-medium mb-1.5">
-                  持久化目标表名 (Target Table Name)
-                </label>
-                <input
-                  type="text"
-                  value={targetTableName}
-                  onChange={e => setTargetTableName(e.target.value)}
-                  placeholder="remote_lakehouse_table"
-                  className="w-full bg-monokai-surface border border-monokai-border focus:border-monokai-accent text-monokai-fg px-3 py-2 rounded-lg outline-none text-xs font-mono transition-colors"
-                />
-              </div>
-
-              {/* Generated SQL Code Block */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[10px] text-monokai-comment font-semibold uppercase">
-                    生成的 DuckDB 执行 SQL
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => handleCopyCode(generatedRemoteSql)}
-                    className="text-[10px] text-monokai-comment hover:text-monokai-fg flex items-center gap-1 cursor-pointer"
-                  >
-                    <Copy size={10} /> 复制
-                  </button>
-                </div>
-                <div className="p-3 bg-monokai-bg rounded-lg border border-monokai-border font-mono text-xs text-monokai-fg-muted break-all select-text">
-                  <code>{generatedRemoteSql}</code>
-                </div>
-              </div>
-
-              {/* Error Box if any */}
-              {lakehouseError && (
-                <div className="p-3 bg-monokai-surface border border-rose-500/20 rounded-lg flex items-start gap-2 text-rose-400 text-xs">
-                  <AlertCircle size={15} className="shrink-0 mt-0.5" />
-                  <div className="break-all">{lakehouseError}</div>
-                </div>
-              )}
-            </div>
-
-            {/* Modal Footer */}
-            <div className="p-4 border-t border-monokai-border bg-monokai-sidebar flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
               <ActionButton
-                variant="ghost"
-                onClick={() => setShowLakehouseModal(false)}
+                variant="secondary"
+                onClick={() => {
+                  onTryExtension(generatedRemoteSql);
+                  setShowLakehouseModal(false);
+                  toastService.info('已将远程查询载入 SQL 编辑器');
+                }}
               >
-                取消
+                在 SQL 编辑器试用
               </ActionButton>
-
-              <div className="flex items-center gap-2">
-                <ActionButton
-                  variant="secondary"
-                  onClick={() => {
-                    onTryExtension(generatedRemoteSql);
-                    setShowLakehouseModal(false);
-                    toastService.info('已将远程查询载入 SQL 编辑器');
-                  }}
-                >
-                  在 SQL 编辑器试用
-                </ActionButton>
-                <ActionButton
-                  variant="primary"
-                  icon={Table2}
-                  loading={isImportingLakehouse}
-                  onClick={handleCreateRemoteTable}
-                >
-                  {isImportingLakehouse ? '正在拉取创建...' : '一键导入为持久化数据表'}
-                </ActionButton>
-              </div>
+              <ActionButton
+                variant="primary"
+                icon={Table2}
+                loading={isImportingLakehouse}
+                onClick={handleCreateRemoteTable}
+              >
+                {isImportingLakehouse ? '正在拉取创建...' : '一键导入为持久化数据表'}
+              </ActionButton>
             </div>
           </div>
+        }
+      >
+        <div className="space-y-4 text-xs font-sans">
+          {/* Presets Bar */}
+          <div>
+            <label className="block text-monokai-fg font-medium mb-1.5 flex items-center justify-between">
+              <span className="flex items-center gap-1">
+                <Sparkles size={12} className="text-monokai-accent" />
+                推荐预设示例 (一键填充):
+              </span>
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {LAKEHOUSE_PRESETS.map((preset, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => handleApplyPreset(preset)}
+                  className={`p-2 rounded-lg border text-left transition-all cursor-pointer ${
+                    remoteUrl === preset.url
+                      ? 'bg-monokai-surface border-monokai-accent/70 text-monokai-fg shadow-xs'
+                      : 'bg-monokai-surface/60 border-monokai-border text-monokai-comment hover:text-monokai-fg hover:border-monokai-border/90'
+                  }`}
+                >
+                  <div className="font-medium text-xs text-monokai-fg flex items-center justify-between">
+                    <span className="truncate">{preset.name}</span>
+                    <span className="font-mono text-[9px] uppercase px-1 py-0.2 rounded bg-monokai-bg border border-monokai-border text-monokai-fg-muted">
+                      {preset.format}
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-monokai-comment truncate mt-0.5">
+                    {preset.description}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Data Format Selector */}
+          <div>
+            <label className="block text-monokai-fg font-medium mb-1.5">
+              数据格式 (Data Format)
+            </label>
+            <div className="flex gap-2">
+              {(['parquet', 'csv', 'json', 'iceberg'] as const).map(fmt => (
+                <button
+                  key={fmt}
+                  type="button"
+                  onClick={() => setRemoteFormat(fmt)}
+                  className={`flex-1 py-1.5 rounded-lg font-mono text-xs uppercase border transition-all cursor-pointer font-semibold ${
+                    remoteFormat === fmt
+                      ? 'bg-monokai-accent text-monokai-bg border-monokai-accent shadow-xs'
+                      : 'bg-monokai-surface text-monokai-comment border-monokai-border hover:text-monokai-fg hover:border-monokai-border/90'
+                  }`}
+                >
+                  {fmt}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Remote URL Input */}
+          <div>
+            <label className="block text-monokai-fg font-medium mb-1.5">
+              远程文件 URL (HTTPS / S3 / GitHub Raw URL)
+            </label>
+            <FormInput
+              type="text"
+              value={remoteUrl}
+              onChange={e => {
+                setRemoteUrl(e.target.value);
+                setLakehouseError(null);
+              }}
+              placeholder="https://example.com/lakehouse_data.parquet"
+              fontVariant="mono"
+            />
+          </div>
+
+          {/* Target Table Name Input */}
+          <div>
+            <label className="block text-monokai-fg font-medium mb-1.5">
+              持久化目标表名 (Target Table Name)
+            </label>
+            <FormInput
+              type="text"
+              value={targetTableName}
+              onChange={e => setTargetTableName(e.target.value)}
+              placeholder="remote_lakehouse_table"
+              fontVariant="mono"
+            />
+          </div>
+
+          {/* Generated SQL Code Block */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[10px] text-monokai-comment font-semibold uppercase">
+                生成的 DuckDB 执行 SQL
+              </span>
+              <button
+                type="button"
+                onClick={() => handleCopyCode(generatedRemoteSql)}
+                className="text-[10px] text-monokai-comment hover:text-monokai-fg flex items-center gap-1 cursor-pointer"
+              >
+                <Copy size={10} /> 复制
+              </button>
+            </div>
+            <div className="p-3 bg-monokai-bg rounded-lg border border-monokai-border font-mono text-xs text-monokai-fg-muted break-all select-text">
+              <code>{generatedRemoteSql}</code>
+            </div>
+          </div>
+
+          {/* Error Box if any */}
+          {lakehouseError && (
+            <div className="p-3 bg-monokai-surface border border-rose-500/20 rounded-lg flex items-start gap-2 text-rose-400 text-xs">
+              <AlertCircle size={15} className="shrink-0 mt-0.5" />
+              <div className="break-all">{lakehouseError}</div>
+            </div>
+          )}
         </div>
-      )}
+      </ModalShell>
     </div>
   );
 };

@@ -1,0 +1,81 @@
+### Error
+dialog.accept: Cannot accept dialog which is already handled!
+    at _Page.<anonymous> (evalmachine.<anonymous>:3:40)
+### Page
+- Page URL: http://localhost:5173/DuckDB_Editor_Pro/
+- Page Title: DuckDB Manager Pro
+- Console: 0 errors, 1 warnings
+### Snapshot
+```yaml
+- generic [ref=f5e3]:
+  - banner "全局工作区顶栏" [ref=f5e4]:
+    - generic [ref=f5e5]:
+      - button "🪶 DuckDB Studio PRO" [ref=f5e6] [cursor=pointer]:
+        - generic [ref=f5e7]: 🪶
+        - generic [ref=f5e9]:
+          - generic [ref=f5e10]: DuckDB Studio
+          - generic [ref=f5e11]: PRO
+      - navigation "业务领域大类" [ref=f5e13]:
+        - button "工程核心" [ref=f5e14] [cursor=pointer]
+        - button "分析洞察" [ref=f5e20] [cursor=pointer]
+        - button "知识沉淀" [ref=f5e25] [cursor=pointer]
+        - button "AI 认知" [ref=f5e30] [cursor=pointer]
+      - tablist "工程核心功能标签页" [ref=f5e36]:
+        - tab "仪表盘" [selected] [ref=f5e37] [cursor=pointer]
+        - tab "数据" [ref=f5e43] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f5e48]: "2"
+        - tab "Schema" [ref=f5e49] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f5e54]: "3"
+        - tab "SQL" [ref=f5e55] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f5e60]: "4"
+        - tab "数据流" [ref=f5e61] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f5e66]: "5"
+    - generic [ref=f5e67]:
+      - button "项目 Ctrl+Shift+D" [ref=f5e68] [cursor=pointer]:
+        - generic [ref=f5e71]: 项目
+        - generic [ref=f5e72]: Ctrl+Shift+D
+      - button "新建表" [ref=f5e73] [cursor=pointer]
+      - button "memory 临时分析空间" [ref=f5e78] [cursor=pointer]:
+        - generic [ref=f5e81]: memory
+        - generic [ref=f5e83]: 临时分析空间
+      - button "AI 助手 Ctrl+I" [ref=f5e87] [cursor=pointer]:
+        - generic [ref=f5e90]: AI 助手
+        - generic [ref=f5e91]: Ctrl+I
+      - button "⌘K" [ref=f5e92] [cursor=pointer]
+      - button "帮助与快捷键" [ref=f5e96] [cursor=pointer]
+      - button "切换为浅色模式" [ref=f5e99] [cursor=pointer]
+      - button "AI 模型设置" [ref=f5e100] [cursor=pointer]
+  - main [ref=f5e103]:
+    - generic [ref=f5e109]:
+      - generic [ref=f5e110]:
+        - generic [ref=f5e111]:
+          - generic [ref=f5e112]:
+            - heading "分析范围" [level=1] [ref=f5e113]
+            - generic [ref=f5e114]: /
+            - button "内存库 · memory（临时）" [ref=f5e115] [cursor=pointer]
+          - paragraph
+        - button "刷新数据" [ref=f5e118] [cursor=pointer]
+      - generic [ref=f5e119]:
+        - paragraph [ref=f5e120]: 导入数据开始分析
+        - button "导入数据" [ref=f5e121] [cursor=pointer]
+  - contentinfo [ref=f5e122]:
+    - generic [ref=f5e123]:
+      - generic [ref=f5e124]: DuckDB 1.33.1
+      - generic [ref=f5e127]: "|"
+      - generic [ref=f5e128]: memory [MEMORY]
+      - generic [ref=f5e130]: "|"
+      - generic [ref=f5e131]: 内存库
+      - generic [ref=f5e133]: "|"
+      - generic [ref=f5e134]: 0 张表
+      - generic [ref=f5e136]: "|"
+      - generic [ref=f5e137]: 暂无表
+      - generic [ref=f5e139]: "|"
+      - generic [ref=f5e140]: "内存: 0.00 MB / 3.1 GiB"
+    - generic [ref=f5e142]:
+      - generic [ref=f5e143]: 引擎就绪
+      - generic [ref=f5e147]: "|"
+      - generic [ref=f5e148]: 16:15
+      - button "刷新运行时状态" [ref=f5e149] [cursor=pointer]
+```
+### Events
+- New console entries: .playwright-cli\console-2026-10-12T23-06-26-417Z.log#L9448-L9674

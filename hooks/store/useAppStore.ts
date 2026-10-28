@@ -11,9 +11,16 @@
 
 import { create } from 'zustand';
 import { Tab } from '../../types';
+import type { DatasetDefinition, AnalysisFilter } from '../../services/workbench/analysisTypes';
 import { aiConfigStore, AIProvider } from '../../services/aiConfigStore';
 
+export interface CurrentDatasetContext extends DatasetDefinition {
+  origin?: 'home' | 'data' | 'sql';
+  appliedFilters?: AnalysisFilter[];
+}
 interface AppState {
+  activeDataset: CurrentDatasetContext | null;
+  setActiveDataset: (dataset: CurrentDatasetContext | null) => void;
   // Navigation & Workspace Mode
   activeTab: Tab;
   setActiveTab: (tab: Tab) => void;
@@ -26,16 +33,25 @@ interface AppState {
   setTables: (tables: string[]) => void;
   currentTable: string | null;
   setCurrentTable: (name: string | null) => void;
+  /** Active DuckDB catalog (current_database()) — analysis domain isolation */
+  currentDatabase: string;
+  setCurrentDatabase: (name: string) => void;
 
   // Cross-Tab Communication (AI Skills → SQL Editor)
   pendingSql: string;
   setPendingSql: (sql: string) => void;
+  pendingNewQuery: boolean;
+  setPendingNewQuery: (value: boolean) => void;
   pendingChartConfig: any;
   setPendingChartConfig: (config: any) => void;
   /** Open Workbench AI panel after navigating to SQL (e.g. from Dashboard). */
   pendingAiPanel: 'explain' | 'analyze' | null;
   setPendingAiPanel: (panel: 'explain' | 'analyze' | null) => void;
   clearPending: () => void;
+
+  /** Bumped when SQL succeeds so Home Board widgets re-run */
+  dashboardRefreshTrigger: number;
+  bumpDashboardRefresh: () => void;
 
   // Modals
   showCreateModal: boolean;
@@ -48,6 +64,8 @@ interface AppState {
   setShowSettingsModal: (v: boolean) => void;
   showExportModal: boolean;
   setShowExportModal: (v: boolean) => void;
+  showProjectManagerModal: boolean;
+  setShowProjectManagerModal: (v: boolean) => void;
 
   // AI Config
   aiProvider: string;
@@ -70,6 +88,8 @@ let notifCounter = 0;
 const initialAIConfig = aiConfigStore.getConfig();
 
 export const useAppStore = create<AppState>((set, get) => ({
+  activeDataset: null,
+  setActiveDataset: activeDataset => set({activeDataset}),
   // Navigation & Workspace Mode
   activeTab: Tab.DASHBOARD,
   setActiveTab: (tab) => set({ activeTab: tab }),
@@ -79,18 +99,35 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   // Database
   tables: [],
-  setTables: (tables) => set({ tables }),
+  setTables: (tables) => set(state => {
+    const removedSelection = state.currentTable !== null && !tables.includes(state.currentTable);
+    const removedDataset = removedSelection && state.activeDataset?.kind === 'table'
+      && state.activeDataset.table === state.currentTable;
+    return {
+      tables,
+      ...(removedSelection ? { currentTable: null } : {}),
+      ...(removedDataset ? { activeDataset: null } : {}),
+    };
+  }),
   currentTable: null,
-  setCurrentTable: (name) => set({ currentTable: name }),
+  setCurrentTable: (name) => set(state => ({ currentTable: name, ...(name !== state.currentTable ? {activeDataset:null} : {}) })),
+  currentDatabase: 'memory',
+  setCurrentDatabase: (name) => set(state => ({ currentDatabase: name || 'memory', ...(state.currentDatabase !== (name || 'memory') ? {activeDataset:null,currentTable:null} : {}) })),
 
   // Cross-Tab
   pendingSql: '',
+  pendingNewQuery: false,
+  setPendingNewQuery: (value) => set({ pendingNewQuery: value }),
   pendingChartConfig: null,
   pendingAiPanel: null,
   setPendingSql: (sql) => set({ pendingSql: sql }),
   setPendingChartConfig: (config) => set({ pendingChartConfig: config }),
   setPendingAiPanel: (panel) => set({ pendingAiPanel: panel }),
-  clearPending: () => set({ pendingSql: '', pendingChartConfig: null, pendingAiPanel: null }),
+  clearPending: () => set({ pendingSql: '', pendingNewQuery: false, pendingChartConfig: null, pendingAiPanel: null }),
+
+  dashboardRefreshTrigger: 0,
+  bumpDashboardRefresh: () =>
+    set((state) => ({ dashboardRefreshTrigger: state.dashboardRefreshTrigger + 1 })),
 
   // Modals
   showCreateModal: false,
@@ -103,6 +140,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   setShowSettingsModal: (v) => set({ showSettingsModal: v }),
   showExportModal: false,
   setShowExportModal: (v) => set({ showExportModal: v }),
+  showProjectManagerModal: false,
+  setShowProjectManagerModal: (v) => set({ showProjectManagerModal: v }),
 
   // AI Config
   aiProvider: initialAIConfig.provider,

@@ -1,0 +1,11 @@
+Already up to date
+Done in 287ms using pnpm v11.13.0
+
+ RUN  v4.1.10 C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor
+
+
+ Test Files  3 passed (3)
+      Tests  20 passed (20)
+   Start at  11:00:24
+   Duration  34.69s (transform 10.11s, setup 787ms, import 23.50s, tests 2.85s, environment 6.25s)
+

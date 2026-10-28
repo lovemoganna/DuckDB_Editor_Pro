@@ -1,0 +1,87 @@
+async (page) => {
+  const source = await page.evaluate(async () => {
+    const db = window.__duckDBService;
+    await db.query("DELETE FROM life_canvas_state WHERE id='modeling-reference-test'");
+    await db.query('CREATE SCHEMA IF NOT EXISTS modeling_qa');
+    await db.query("CREATE TABLE IF NOT EXISTS modeling_qa.customers AS SELECT * FROM (VALUES (1, 'Ada'), (2, 'Lin')) t(id, name)");
+    await db.query('CREATE TABLE IF NOT EXISTS modeling_qa.orders AS SELECT * FROM (VALUES (10, 1), (11, 1), (12, 2)) t(id, customer_id)');
+    return (await db.query('SELECT current_database() AS catalog'))[0].catalog;
+  });
+  await page.getByRole('button', { name: '本体建模', exact: true }).click();
+  await page.getByRole('button', { name: '编辑已保存本体', exact: true }).click();
+  for (const [type, table] of [['Customer','customers'], ['Order','orders']]) {
+    await page.getByTestId(`modeling-node-${type}`).click();
+    await page.getByRole('button', { name: /^数据映射/ }).click();
+    await page.getByLabel('数据库', { exact: true }).selectOption(source);
+    await page.getByLabel('数据集 / Schema', { exact: true }).selectOption('modeling_qa');
+    await page.getByLabel('表 / 视图', { exact: true }).selectOption(table);
+    await page.getByLabel('对象标识字段', { exact: true }).selectOption('id');
+    await page.getByLabel('属性 id 来源字段', { exact: true }).selectOption('id');
+  }
+  await page.getByLabel('REL_CUSTOMER_TO_ORDER 来源连接字段', { exact: true }).selectOption('id');
+  await page.getByLabel('REL_CUSTOMER_TO_ORDER 目标连接字段', { exact: true }).selectOption('customer_id');
+  await page.getByRole('button', { name: '查询并预览真实实例', exact: true }).click();
+  await page.getByRole('status').filter({ hasText: '5 真实实例' }).waitFor();
+  await page.screenshot({ path: 'docs/modeling-data-mapping.png', fullPage: true });
+  await page.getByTestId('enter-commit-step-btn').click();
+  await page.getByRole('button', { name: '确认写入本体图谱', exact: true }).click();
+  await page.getByRole('dialog').waitFor({ state: 'hidden' });
+  const report = await page.evaluate(async () => {
+    const db = window.__duckDBService;
+    const { loadModelingDraft, saveModelingDraft } = await import('/DuckDB_Editor_Pro/services/ontologyModelingPersistence.ts');
+    const { queryModelingInstances, normalizeModelingDraft } = await import('/DuckDB_Editor_Pro/services/ontologyModelingDraft.ts');
+    const mapping = { objectTypeTable:'life_object_type', objectTable:'life_object', linkTypeTable:'life_link_type', linkTable:'life_link', actionTable:'life_action' };
+    const query = db.query.bind(db);
+    const loaded = await loadModelingDraft(query, mapping);
+    if (loaded.objects.length !== 5 || loaded.links.length !== 3 || !loaded.objects.every(o => o.provenance)) throw new Error('Instance/provenance reload failed');
+    const replay = await queryModelingInstances(loaded, query);
+    if (replay.objects.length !== 5 || replay.links.length !== 3) throw new Error('Query replay duplicates instances or edges');
+    const changed = structuredClone(loaded); changed.objectTypes[0].mapping.idField = 'name';
+    if (!normalizeModelingDraft(changed).validationIssues.some(i => i.id === 'mapping-stale')) throw new Error('Stale mapping accepted');
+    await query("INSERT INTO modeling_qa.customers VALUES (1, 'duplicate-test')");
+    let duplicateBlocked = false;
+    try { await queryModelingInstances(loaded, query); } catch (e) { duplicateBlocked = String(e).includes('重复'); }
+    await query("DELETE FROM modeling_qa.customers WHERE name='duplicate-test'");
+    if (!duplicateBlocked) throw new Error('Duplicate identities accepted');
+    const before = JSON.stringify(await query('SELECT * FROM life_object_type ORDER BY id'));
+    const patch = structuredClone(loaded); patch.objectTypes[0].description = 'MUST ROLLBACK';
+    let rollbackObserved = false;
+    try {
+      await saveModelingDraft({ query, executeTransaction: cb => db.executeTransaction(async scoped => cb(async sql => {
+        if (sql.startsWith('INSERT OR REPLACE INTO')) throw new Error('intentional final-write failure');
+        return scoped(sql);
+      })) }, mapping, patch);
+    } catch (e) { rollbackObserved = String(e).includes('intentional'); }
+    if (!rollbackObserved || JSON.stringify(await query('SELECT * FROM life_object_type ORDER BY id')) !== before) throw new Error('Transaction rollback failed');
+    await query(`UPDATE life_object_type SET description='concurrent edit ${Date.now()}' WHERE name='Customer'`);
+    let conflictBlocked = false;
+    try { await saveModelingDraft(db, mapping, loaded); } catch (e) { conflictBlocked = String(e).includes('正式本体已变化'); }
+    if (!conflictBlocked) throw new Error('Concurrent formal edit overwritten');
+    const objectId = (await query('SELECT id FROM life_object ORDER BY id LIMIT 1'))[0].id;
+    await query(`INSERT INTO life_canvas_state (id,object_id,title) VALUES ('modeling-reference-test',${objectId},'reference test')`);
+    const referenced = await loadModelingDraft(query, mapping);
+    const { deleteModelingType } = await import('/DuckDB_Editor_Pro/services/ontologyModelingDraft.ts');
+    const referencedType = referenced.objects.find(o => o.sourceId === Number(objectId)).objectType;
+    let referenceBlocked = false;
+    try { await saveModelingDraft(db, mapping, deleteModelingType(referenced, referencedType)); }
+    catch (e) { referenceBlocked = String(e).includes('解除引用'); if (!referenceBlocked) throw e; }
+    if (!referenceBlocked) throw new Error('Canvas reference deletion accepted');
+    await query("DELETE FROM life_canvas_state WHERE id='modeling-reference-test'");
+    await query(`INSERT INTO life_action (id,object_id,name,description,status,execute_at) VALUES (999,${objectId},'MoveToType','transition test','executed',DATE '2026-10-12')`);
+    const beforeTransition = await loadModelingDraft(query, mapping);
+    beforeTransition.actions.find(a => a.sourceId === 999).description = 'edited action';
+    await saveModelingDraft(db, mapping, beforeTransition);
+    const actionRow = (await query('SELECT status,execute_at IS NOT NULL AS has_date FROM life_action WHERE id=999'))[0];
+    if (actionRow.status !== 'executed' || !actionRow.has_date) throw new Error('Existing action execution state lost');
+    const transitioned = await loadModelingDraft(query, mapping);
+    transitioned.actions.find(a => a.sourceId === 999).objectName = referencedType;
+    await saveModelingDraft(db, mapping, transitioned);
+    if ((await query('SELECT * FROM life_action WHERE id=999')).length) throw new Error('Instance action leaked after type transition');
+    const final = await loadModelingDraft(query, mapping);
+    if (!final.actions.some(a => a.name === 'MoveToType' && a.objectName === referencedType && a.sourceId === undefined)) throw new Error('Type action transition lost');
+    return { verdict:'PASS', realEngine:'DuckDB WASM', sourceRows:5, instanceNodes:loaded.objects.length, instanceEdges:loaded.links.length,
+      sourceTables:['modeling_qa.customers','modeling_qa.orders'], join:'customers.id = orders.customer_id', duplicateBlocked, rollbackObserved, conflictBlocked, referenceBlocked,
+      checks:['UI database/schema/table/field selection','real query graph','mapping/provenance persistence','query replay idempotency','stale mapping blocked','duplicate identity blocked','atomic rollback','optimistic conflict detection','external canvas reference protection','existing action execution state retained','instance action to type action transition'] };
+  });
+  return report;
+}

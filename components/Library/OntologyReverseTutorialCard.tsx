@@ -143,7 +143,7 @@ export const OntologyReverseTutorialCard: React.FC<OntologyReverseTutorialCardPr
                 <span className="font-mono text-[9.5px] px-1 py-0.2 rounded bg-monokai-bg text-monokai-comment border border-monokai-border/60 uppercase">
                   {item.type}
                 </span>
-                <span className="text-[11px] font-semibold text-monokai-fg-muted group-hover:text-white truncate">
+                <span className="text-[11px] font-semibold text-monokai-fg-muted group-hover:text-monokai-fg truncate">
                   {item.title}
                 </span>
               </div>

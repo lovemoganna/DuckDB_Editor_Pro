@@ -1,0 +1,244 @@
+- banner "全局工作区顶栏":
+  - button "🪶 DuckDB Studio PRO":
+    - generic: 🪶
+    - generic: DuckDB Studio
+    - generic: PRO
+  - navigation "业务领域大类":
+    - button "工程核心":
+      - generic: 工程核心
+    - button "分析洞察":
+      - generic: 分析洞察
+    - button "知识沉淀":
+      - generic: 知识沉淀
+    - button "AI 认知":
+      - generic: AI 认知
+  - tablist "AI 认知功能标签页":
+    - tab "本体图谱" [selected]:
+      - generic: 本体图谱
+    - tab "技能":
+      - generic: 技能
+    - tab "能力":
+      - generic: 能力
+    - tab "推演":
+      - generic: 推演
+  - button "项目":
+    - generic: 项目
+  - button "已保存到 OPFS":
+    - generic: 已保存到 OPFS
+  - button "AI 助手":
+    - generic: AI 助手
+  - button "⌘K":
+  - button "帮助与快捷键":
+  - button "切换为深色模式":
+  - button "AI 模型设置":
+- main:
+  - button "展开本体侧栏":
+  - generic: 本体知识空间 (Ontology Studio)
+  - tablist "本体视图切换":
+    - tab "知识图谱":
+      - generic: 知识图谱
+    - tab "数据视图":
+      - generic: 数据视图
+    - tab "实体画布" [active] [selected]:
+      - generic: 实体画布
+  - button "本体建模":
+    - generic: 本体建模
+  - button "组合推演":
+    - generic: 组合推演
+  - button "推演定义":
+    - generic: 推演定义
+  - button "聚合洞察":
+    - generic: 聚合洞察
+  - text: "实体:"
+  - strong: "7"
+  - text: "关系:"
+  - strong: "6"
+  - text: "概念模式:"
+  - strong: "2"
+  - text: "关系类型:"
+  - strong: "6"
+  - text: "行动规则:"
+  - strong: "0"
+  - button "刷新图谱数据":
+  - button "补充数据"
+  - button "清除数据":
+    - generic: 清除数据
+  - textbox "搜索实体..."
+  - button "撤销 (Ctrl+Z)" [disabled]:
+  - button "重做 (Ctrl+Y)" [disabled]:
+  - button "进入聚焦模式":
+  - button "锁定所有节点":
+  - button "自动布局":
+  - button "缩小":
+  - generic: 51%
+  - button "放大":
+  - button "适应视图":
+  - button "隐藏网格":
+  - button "隐藏小地图":
+  - button "进入只读模式":
+  - button "导出":
+    - generic: 导出
+  - button "高级":
+    - generic: 高级
+  - generic: 亲自制作
+  - generic: 外出采购
+  - generic: 线索支撑
+  - generic: 汇入餐食
+  - generic: 推断汇入
+  - generic: 暴露盲区
+  - 'button "做菜人·妈妈 确凿事实 身份: \"做菜人\" 地点: \"家中\" 依据: \"原文明确提及\" 0 | 1 收起"':
+    - button "锁定节点":
+    - button "编辑设置":
+    - button "删除节点":
+    - generic "做菜人·妈妈"
+    - generic: 确凿事实
+    - generic "身份": "身份:"
+    - generic: "\"做菜人\""
+    - generic "地点": "地点:"
+    - generic: "\"家中\""
+    - generic "依据": "依据:"
+    - generic: "\"原文明确提及\""
+    - 'generic "上游依赖数/入度: 0"':
+      - generic: "0"
+    - generic: "|"
+    - 'generic "下游影响数/出度: 1"':
+      - generic: "1"
+    - button "收起":
+      - generic: 收起
+  - 'button "买菜人·我 确凿事实 身份: \"买菜人\" 轨迹: \"餐馆至家中\" 依据: \"原文明确提及\" 0 | 1 收起"':
+    - button "锁定节点":
+    - button "编辑设置":
+    - button "删除节点":
+    - generic "买菜人·我"
+    - generic: 确凿事实
+    - generic "身份": "身份:"
+    - generic: "\"买菜人\""
+    - generic "轨迹": "轨迹:"
+    - generic: "\"餐馆至家中\""
+    - generic "依据": "依据:"
+    - generic: "\"原文明确提及\""
+    - 'generic "上游依赖数/入度: 0"':
+      - generic: "0"
+    - generic: "|"
+    - 'generic "下游影响数/出度: 1"':
+      - generic: "1"
+    - button "收起":
+      - generic: 收起
+  - 'button "自做茄子 确凿事实 品类: \"茄子\" 地点: \"家中\" 确证度: \"100%已证事实\" 1 | 1 收起"':
+    - button "锁定节点":
+    - button "编辑设置":
+    - button "删除节点":
+    - generic "自做茄子"
+    - generic: 确凿事实
+    - generic "品类": "品类:"
+    - generic: "\"茄子\""
+    - generic "地点": "地点:"
+    - generic: "\"家中\""
+    - generic "确证度": "确证度:"
+    - generic: "\"100%已证事实\""
+    - 'generic "上游依赖数/入度: 1"':
+      - generic: "1"
+    - generic: "|"
+    - 'generic "下游影响数/出度: 1"':
+      - generic: "1"
+    - button "收起":
+      - generic: 收起
+  - 'button "餐馆买菜 确凿事实 数量: \"两道菜\" 地点: \"餐馆\" 确证度: \"100%已证事实\" 1 | 1 收起"':
+    - button "锁定节点":
+    - button "编辑设置":
+    - button "删除节点":
+    - generic "餐馆买菜"
+    - generic: 确凿事实
+    - generic "数量": "数量:"
+    - generic: "\"两道菜\""
+    - generic "地点": "地点:"
+    - generic: "\"餐馆\""
+    - generic "确证度": "确证度:"
+    - generic: "\"100%已证事实\""
+    - 'generic "上游依赖数/入度: 1"':
+      - generic: "1"
+    - generic: "|"
+    - 'generic "下游影响数/出度: 1"':
+      - generic: "1"
+    - button "收起":
+      - generic: 收起
+  - 'button "三人用餐 确凿事实 就餐人数: 3 数字 地点: \"家中\" 菜品总数: \"至少包含茄子\" 2 | 1 收起"':
+    - button "锁定节点":
+    - button "编辑设置":
+    - button "删除节点":
+    - generic "三人用餐"
+    - generic: 确凿事实
+    - generic "就餐人数": "就餐人数:"
+    - generic: "3"
+    - generic: 数字
+    - generic "地点": "地点:"
+    - generic: "\"家中\""
+    - generic "菜品总数": "菜品总数:"
+    - generic: "\"至少包含茄子\""
+    - 'generic "上游依赖数/入度: 2"':
+      - generic: "2"
+    - generic: "|"
+    - 'generic "下游影响数/出度: 1"':
+      - generic: "1"
+    - button "收起":
+      - generic: 收起
+  - 'button "推断·菜已带回 推断与未知 推断依据: \"买菜后回家与三人就餐\" 置信度: 0.85 数字 1 | 1 收起"':
+    - button "锁定节点":
+    - button "编辑设置":
+    - button "删除节点":
+    - generic "推断·菜已带回"
+    - generic: 推断与未知
+    - generic "推断依据": "推断依据:"
+    - generic: "\"买菜后回家与三人就餐\""
+    - generic "置信度": "置信度:"
+    - generic: "0.85"
+    - generic: 数字
+    - 'generic "上游依赖数/入度: 1"':
+      - generic: "1"
+    - generic: "|"
+    - 'generic "下游影响数/出度: 1"':
+      - generic: "1"
+    - button "收起":
+      - generic: 收起
+  - 'button "未知·第三人 推断与未知 信息状态: \"完全未知\" 警示: \"绝不可凭常识脑补为爸爸\" 1 | 0 收起"':
+    - button "锁定节点":
+    - button "编辑设置":
+    - button "删除节点":
+    - generic "未知·第三人"
+    - generic: 推断与未知
+    - generic "信息状态": "信息状态:"
+    - generic: "\"完全未知\""
+    - generic "警示": "警示:"
+    - generic: "\"绝不可凭常识脑补为爸爸\""
+    - 'generic "上游依赖数/入度: 1"':
+      - generic: "1"
+    - generic: "|"
+    - 'generic "下游影响数/出度: 0"':
+      - generic: "0"
+    - button "收起":
+      - generic: 收起
+  - img "React Flow mini map"
+  - button "zoom in":
+  - button "zoom out":
+  - button "fit view":
+  - link "React Flow attribution":
+    - /url: https://reactflow.dev
+    - text: React Flow
+  - button "排版微调":
+    - generic: 排版微调
+    - generic: 正交网格
+    - generic: 100/200
+- contentinfo:
+  - generic: DuckDB 1.33.1
+  - generic: "|"
+  - generic: sql_funds_flow [OPFS]
+  - generic: "|"
+  - generic: 持久化库
+  - generic: "|"
+  - generic: 13 张表
+  - generic: "|"
+  - generic: 13 个活动表
+  - generic: 引擎就绪
+  - generic: "|"
+  - generic: 20:00
+  - button "刷新运行时状态":

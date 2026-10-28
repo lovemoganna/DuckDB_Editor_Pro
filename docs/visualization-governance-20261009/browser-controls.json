@@ -1,0 +1,608 @@
+{
+  "checks": 4,
+  "evidence": [
+    {
+      "case": "histogram width and percentage configuration",
+      "query": "SELECT fiat_order_id record,channel,status,amount,fee FROM governance.main.fiat_transactions WHERE currency='USD' AND status='completed' ORDER BY created_at",
+      "rows": [
+        {
+          "record": "fo_20250112_61590237",
+          "channel": "wire_transfer",
+          "status": "completed",
+          "amount": "50000.00",
+          "fee": "15.00"
+        },
+        {
+          "record": "fo_20250214_61590238",
+          "channel": "wire_transfer",
+          "status": "completed",
+          "amount": "12000.00",
+          "fee": "25.00"
+        },
+        {
+          "record": "fo_20250308_90317462",
+          "channel": "ach",
+          "status": "completed",
+          "amount": "1000.00",
+          "fee": "0.00"
+        },
+        {
+          "record": "fo_20250415_90317463",
+          "channel": "ach",
+          "status": "completed",
+          "amount": "450.00",
+          "fee": "2.00"
+        },
+        {
+          "record": "fo_20250605_69248130",
+          "channel": "wire_transfer",
+          "status": "completed",
+          "amount": "25000.00",
+          "fee": "15.00"
+        },
+        {
+          "record": "fo_20250618_61590239",
+          "channel": "wire_transfer",
+          "status": "completed",
+          "amount": "5000.00",
+          "fee": "25.00"
+        },
+        {
+          "record": "fo_20250915_69248131",
+          "channel": "wire_transfer",
+          "status": "completed",
+          "amount": "10000.00",
+          "fee": "25.00"
+        },
+        {
+          "record": "fo_20250920_50284719",
+          "channel": "ach",
+          "status": "completed",
+          "amount": "800.00",
+          "fee": "2.00"
+        },
+        {
+          "record": "fo_20251025_50284720",
+          "channel": "ach",
+          "status": "completed",
+          "amount": "20.00",
+          "fee": "1.00"
+        }
+      ],
+      "spec": {
+        "id": "widget_real-governance_histogram",
+        "title": "USD 完成订单",
+        "chartType": "histogram",
+        "xKey": "record",
+        "yKeys": [
+          "amount"
+        ],
+        "cartesian": {
+          "labels": [
+            "fo_20250112_61590237",
+            "fo_20250214_61590238",
+            "fo_20250308_90317462",
+            "fo_20250415_90317463",
+            "fo_20250605_69248130",
+            "fo_20250618_61590239",
+            "fo_20250915_69248131",
+            "fo_20250920_50284719",
+            "fo_20251025_50284720"
+          ],
+          "series": [
+            {
+              "key": "amount",
+              "measure": "amount",
+              "axis": "y",
+              "values": [
+                50000,
+                12000,
+                1000,
+                450,
+                25000,
+                5000,
+                10000,
+                800,
+                20
+              ]
+            }
+          ]
+        },
+        "unit": "USD",
+        "stacked": false,
+        "stackMode": "none",
+        "showLegend": true,
+        "legendPosition": "bottom",
+        "legendAlign": "center",
+        "showValues": true,
+        "labelMode": "auto",
+        "missingValue": "break",
+        "format": {
+          "compact": false,
+          "compactThreshold": 10000,
+          "thousandSeparator": true,
+          "decimals": 2,
+          "unit": "USD",
+          "percent": false
+        },
+        "formatByKey": {
+          "record": {
+            "unit": "",
+            "percent": false
+          },
+          "channel": {
+            "unit": "",
+            "percent": false
+          },
+          "status": {
+            "unit": "",
+            "percent": false
+          },
+          "amount": {
+            "compact": false,
+            "compactThreshold": 10000,
+            "thousandSeparator": true,
+            "decimals": 2,
+            "unit": "USD",
+            "percent": false
+          },
+          "fee": {
+            "unit": "",
+            "percent": false
+          }
+        },
+        "xAxisLabel": "record",
+        "yAxisLabel": "amount",
+        "includeZero": true,
+        "hasNegative": false,
+        "rows": [
+          {
+            "record": "20 USD–10,020 USD",
+            "amount": 6,
+            "占比": 66.66666666666666
+          },
+          {
+            "record": "10,020 USD–20,020 USD",
+            "amount": 1,
+            "占比": 11.11111111111111
+          },
+          {
+            "record": "20,020 USD–30,020 USD",
+            "amount": 1,
+            "占比": 11.11111111111111
+          },
+          {
+            "record": "30,020 USD–40,020 USD",
+            "amount": 0,
+            "占比": 0
+          },
+          {
+            "record": "40,020 USD–50,020 USD",
+            "amount": 1,
+            "占比": 11.11111111111111
+          }
+        ],
+        "columns": [
+          "record",
+          "channel",
+          "status",
+          "amount",
+          "fee"
+        ],
+        "brushField": "amount",
+        "tooltipDims": [
+          "record"
+        ],
+        "timeSorted": false,
+        "emptyState": "ok",
+        "histogramBins": [
+          {
+            "label": "20 USD–10,020 USD",
+            "count": 6,
+            "percent": 66.66666666666666,
+            "from": 20,
+            "to": 10020
+          },
+          {
+            "label": "10,020 USD–20,020 USD",
+            "count": 1,
+            "percent": 11.11111111111111,
+            "from": 10020,
+            "to": 20020
+          },
+          {
+            "label": "20,020 USD–30,020 USD",
+            "count": 1,
+            "percent": 11.11111111111111,
+            "from": 20020,
+            "to": 30020
+          },
+          {
+            "label": "30,020 USD–40,020 USD",
+            "count": 0,
+            "percent": 0,
+            "from": 30020,
+            "to": 40020
+          },
+          {
+            "label": "40,020 USD–50,020 USD",
+            "count": 1,
+            "percent": 11.11111111111111,
+            "from": 40020,
+            "to": 50020
+          }
+        ],
+        "histogramValueMode": "percent"
+      }
+    },
+    {
+      "case": "waterfall explicit role configuration",
+      "query": "SELECT CAST(DATE_TRUNC('month',created_at) AS VARCHAR) period,SUM(CASE WHEN direction='withdrawal' THEN -amount ELSE amount END) amount,SUM(fee) fee,COUNT(*) orders,CASE WHEN ROW_NUMBER() OVER (ORDER BY period)=1 THEN 'start' ELSE 'change' END node_role FROM governance.main.fiat_transactions WHERE currency='USD' AND status='completed' GROUP BY 1 ORDER BY 1",
+      "rows": [
+        {
+          "period": "2025-01-01",
+          "amount": "50000.00",
+          "fee": "15.00",
+          "orders": 1,
+          "node_role": "start"
+        },
+        {
+          "period": "2025-02-01",
+          "amount": "-12000.00",
+          "fee": "25.00",
+          "orders": 1,
+          "node_role": "change"
+        },
+        {
+          "period": "2025-03-01",
+          "amount": "1000.00",
+          "fee": "0.00",
+          "orders": 1,
+          "node_role": "change"
+        },
+        {
+          "period": "2025-04-01",
+          "amount": "-450.00",
+          "fee": "2.00",
+          "orders": 1,
+          "node_role": "change"
+        },
+        {
+          "period": "2025-06-01",
+          "amount": "20000.00",
+          "fee": "40.00",
+          "orders": 2,
+          "node_role": "change"
+        },
+        {
+          "period": "2025-09-01",
+          "amount": "-10800.00",
+          "fee": "27.00",
+          "orders": 2,
+          "node_role": "change"
+        },
+        {
+          "period": "2025-10-01",
+          "amount": "-20.00",
+          "fee": "1.00",
+          "orders": 1,
+          "node_role": "change"
+        }
+      ],
+      "spec": {
+        "id": "widget_real-governance_waterfall",
+        "title": "USD 完成订单",
+        "chartType": "waterfall",
+        "xKey": "period",
+        "yKeys": [
+          "amount"
+        ],
+        "cartesian": {
+          "labels": [
+            "2025-01-01",
+            "2025-02-01",
+            "2025-03-01",
+            "2025-04-01",
+            "2025-06-01",
+            "2025-09-01",
+            "2025-10-01"
+          ],
+          "series": [
+            {
+              "key": "amount",
+              "measure": "amount",
+              "axis": "y",
+              "values": [
+                50000,
+                -12000,
+                1000,
+                -450,
+                20000,
+                -10800,
+                -20
+              ]
+            }
+          ]
+        },
+        "unit": "USD",
+        "stacked": false,
+        "stackMode": "none",
+        "showLegend": true,
+        "legendPosition": "bottom",
+        "legendAlign": "center",
+        "showValues": true,
+        "labelMode": "auto",
+        "missingValue": "break",
+        "format": {
+          "compact": false,
+          "compactThreshold": 10000,
+          "thousandSeparator": true,
+          "decimals": 2,
+          "unit": "USD",
+          "percent": false
+        },
+        "formatByKey": {
+          "period": {
+            "unit": "",
+            "percent": false
+          },
+          "amount": {
+            "compact": false,
+            "compactThreshold": 10000,
+            "thousandSeparator": true,
+            "decimals": 2,
+            "unit": "USD",
+            "percent": false
+          },
+          "fee": {
+            "unit": "",
+            "percent": false
+          },
+          "orders": {
+            "unit": "笔",
+            "percent": false
+          },
+          "node_role": {
+            "unit": "",
+            "percent": false
+          }
+        },
+        "xAxisLabel": "period",
+        "yAxisLabel": "amount",
+        "includeZero": true,
+        "hasNegative": true,
+        "rows": [
+          {
+            "period": "2025-01-01",
+            "amount": "50000.00",
+            "fee": "15.00",
+            "orders": 1,
+            "node_role": "start"
+          },
+          {
+            "period": "2025-02-01",
+            "amount": "-12000.00",
+            "fee": "25.00",
+            "orders": 1,
+            "node_role": "change"
+          },
+          {
+            "period": "2025-03-01",
+            "amount": "1000.00",
+            "fee": "0.00",
+            "orders": 1,
+            "node_role": "change"
+          },
+          {
+            "period": "2025-04-01",
+            "amount": "-450.00",
+            "fee": "2.00",
+            "orders": 1,
+            "node_role": "change"
+          },
+          {
+            "period": "2025-06-01",
+            "amount": "20000.00",
+            "fee": "40.00",
+            "orders": 2,
+            "node_role": "change"
+          },
+          {
+            "period": "2025-09-01",
+            "amount": "-10800.00",
+            "fee": "27.00",
+            "orders": 2,
+            "node_role": "change"
+          },
+          {
+            "period": "2025-10-01",
+            "amount": "-20.00",
+            "fee": "1.00",
+            "orders": 1,
+            "node_role": "change"
+          }
+        ],
+        "columns": [
+          "period",
+          "amount",
+          "fee",
+          "orders",
+          "node_role"
+        ],
+        "brushField": "period",
+        "tooltipDims": [
+          "period"
+        ],
+        "timeSorted": true,
+        "timeSummary": {
+          "latestVal": -20,
+          "avgVal": 6818.571428571428,
+          "maxVal": 50000,
+          "totalGrowthPct": -100.03999999999999
+        },
+        "emptyState": "ok",
+        "waterfall": {
+          "labels": [
+            "2025-01-01",
+            "2025-02-01",
+            "2025-03-01",
+            "2025-04-01",
+            "2025-06-01",
+            "2025-09-01",
+            "2025-10-01"
+          ],
+          "bases": [
+            0,
+            38000,
+            38000,
+            38550,
+            38550,
+            47750,
+            47730
+          ],
+          "deltas": [
+            50000,
+            12000,
+            1000,
+            450,
+            20000,
+            10800,
+            20
+          ],
+          "kinds": [
+            "total",
+            "decrease",
+            "increase",
+            "decrease",
+            "increase",
+            "decrease",
+            "decrease"
+          ],
+          "roles": [
+            "start",
+            "change",
+            "change",
+            "change",
+            "change",
+            "change",
+            "change"
+          ]
+        }
+      }
+    },
+    {
+      "case": "KPI real value against configured target",
+      "query": "SELECT SUM(amount) amount FROM governance.main.fiat_transactions WHERE currency='USD' AND status='completed'",
+      "rows": [
+        {
+          "amount": "104270.00"
+        }
+      ],
+      "spec": {
+        "id": "widget_real-governance_kpi",
+        "title": "USD 完成订单",
+        "chartType": "kpi",
+        "xKey": "channel",
+        "yKeys": [
+          "amount"
+        ],
+        "cartesian": {
+          "labels": [
+            "—"
+          ],
+          "series": [
+            {
+              "key": "amount",
+              "measure": "amount",
+              "axis": "y",
+              "values": [
+                104270
+              ]
+            }
+          ]
+        },
+        "unit": "USD",
+        "stacked": false,
+        "stackMode": "none",
+        "showLegend": false,
+        "legendPosition": "bottom",
+        "legendAlign": "center",
+        "showValues": true,
+        "labelMode": "auto",
+        "missingValue": "break",
+        "format": {
+          "compact": false,
+          "compactThreshold": 10000,
+          "thousandSeparator": true,
+          "decimals": 2,
+          "unit": "USD",
+          "percent": false
+        },
+        "formatByKey": {
+          "amount": {
+            "compact": false,
+            "compactThreshold": 10000,
+            "thousandSeparator": true,
+            "decimals": 2,
+            "unit": "USD",
+            "percent": false
+          }
+        },
+        "xAxisLabel": "channel",
+        "yAxisLabel": "amount",
+        "includeZero": true,
+        "hasNegative": false,
+        "rows": [
+          {
+            "amount": "104270.00"
+          }
+        ],
+        "columns": [
+          "amount"
+        ],
+        "brushField": "channel",
+        "tooltipDims": [
+          "channel"
+        ],
+        "timeSorted": false,
+        "emptyState": "ok",
+        "kpiValue": 104270,
+        "kpiLabel": "amount",
+        "kpiUnit": "USD",
+        "kpiCompare": [
+          {
+            "key": "target",
+            "label": "目标差值",
+            "baseline": "较目标 (104,000 USD)",
+            "value": 270,
+            "formatted": "270 USD"
+          }
+        ],
+        "kpiCards": [
+          {
+            "key": "amount",
+            "label": "amount",
+            "value": 104270,
+            "formatted": "104,270 USD",
+            "unit": "USD"
+          }
+        ]
+      }
+    },
+    {
+      "case": "native scatter pointer drag",
+      "status": "真实查询完成 · 9 行 · ok · 联动 record IN (fo_20250112_61590237,fo_20250214_61590238,fo_20250605_69248130,fo_20250618_61590239,fo_20250915_69248131,fo_20250308_90317462,fo_20250415_90317463,fo_20250920_50284719,fo_20251025_50284720)",
+      "records": [
+        "fo_20250112_61590237",
+        "fo_20250214_61590238",
+        "fo_20250308_90317462",
+        "fo_20250415_90317463",
+        "fo_20250605_69248130",
+        "fo_20250618_61590239",
+        "fo_20250915_69248131",
+        "fo_20250920_50284719",
+        "fo_20251025_50284720"
+      ]
+    }
+  ]
+}

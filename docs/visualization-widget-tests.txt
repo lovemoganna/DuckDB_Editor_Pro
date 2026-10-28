@@ -1,0 +1,10 @@
+$ vitest run --pool=threads --maxWorkers=1 --no-file-parallelism "components/DashboardWidget.requests.test.tsx"
+
+ RUN  v4.1.10 C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor
+
+
+ Test Files  1 passed (1)
+      Tests  5 passed (5)
+   Start at  18:05:05
+   Duration  6.07s (transform 3.07s, setup 119ms, import 4.70s, tests 362ms, environment 740ms)
+

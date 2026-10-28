@@ -1,0 +1,9 @@
+
+ RUN  v4.1.10 C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor
+
+
+ Test Files  3 passed (3)
+      Tests  23 passed (23)
+   Start at  18:36:49
+   Duration  9.85s (transform 3.55s, setup 309ms, import 5.66s, tests 1.09s, environment 2.26s)
+

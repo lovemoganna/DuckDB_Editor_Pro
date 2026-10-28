@@ -30,6 +30,7 @@ vi.mock('@duckdb/duckdb-wasm', () => ({
         return arr;
       };
       return {
+        useUnsafe: (callback: (bindings: unknown, connectionId: number) => unknown) => callback(this, 1),
         query: vi.fn(async (sql: string) => {
           if (sql.includes('readiness_check')) {
             return mockResult([{ readiness_check: 42 }]);

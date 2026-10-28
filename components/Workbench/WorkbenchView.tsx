@@ -7,7 +7,6 @@ import { WorkbenchStatusBar } from './WorkbenchStatusBar';
 import { WorkbenchFeedbackModal } from './WorkbenchFeedbackModal';
 import { RuntimeCenterModal } from './RuntimeCenterModal';
 import { CommandPaletteModal } from './CommandPaletteModal';
-import { KeyboardShortcutsModal } from './KeyboardShortcutsModal';
 import { WorkspaceRecoveryModal } from './WorkspaceRecoveryModal';
 import { duckDBService, type DuckDBRuntimeInfo } from '../../services/duckdbService';
 import { queryExecutionService } from '../../services/workbench/queryExecutionService';
@@ -36,6 +35,8 @@ import {
 } from 'lucide-react';
 import { toastService } from '../../services/toastService';
 import { useAppStore } from '../../hooks/store/useAppStore';
+import {datasetFromQueryResult} from '../../services/workbench/currentDataset';
+import { dbService } from '../../services/dbService';
 import { useWorkflowStore } from '../../services/dataflow/workflowStore';
 
 interface WorkbenchViewProps {
@@ -51,6 +52,7 @@ interface WorkbenchViewProps {
   profileData?: any;
   initialDataFlowActive?: boolean;
   onNavigateToDataFlow?: () => void;
+  onWorkspaceChange?: (tabs: SqlQueryTab[], activeTabId: string) => void;
 }
 
 export const WorkbenchView: React.FC<WorkbenchViewProps> = ({
@@ -65,6 +67,7 @@ export const WorkbenchView: React.FC<WorkbenchViewProps> = ({
   schema = [],
   initialDataFlowActive = false,
   onNavigateToDataFlow,
+  onWorkspaceChange,
 }) => {
   // DataFlow Canvas integration within SQL tab (split mode)
   const [isDataFlowActive, setIsDataFlowActive] = useState<boolean>(initialDataFlowActive);
@@ -116,6 +119,7 @@ export const WorkbenchView: React.FC<WorkbenchViewProps> = ({
 
   // Global Store integration
   const pendingSql = useAppStore(s => s.pendingSql);
+  const pendingNewQuery = useAppStore(s => s.pendingNewQuery);
   const setPendingSql = useAppStore(s => s.setPendingSql);
   const pendingAiPanel = useAppStore(s => s.pendingAiPanel);
   const setPendingAiPanel = useAppStore(s => s.setPendingAiPanel);
@@ -133,9 +137,27 @@ export const WorkbenchView: React.FC<WorkbenchViewProps> = ({
 
   // Catalog & Schema context
   const [catalogContext, setCatalogContext] = useState<{ catalog: string; schema: string }>({
-    catalog: 'duckdb_manager_workspace',
+    catalog: 'memory',
     schema: 'main',
   });
+  const activeCatalog = useAppStore((state) => state.currentDatabase);
+  const catalogGeneration = useRef(0);
+  const executionRequestRef=useRef(0);
+
+  useEffect(() => {
+    catalogGeneration.current += 1;
+    querySnapshotManager.clearAll();
+    setIsRunning(false);
+    setCatalogContext({ catalog: activeCatalog || 'memory', schema: 'main' });
+    setQueryResults({});
+    setPreviousResults({});
+    setViewingPreviousByTab({});
+    setSelectedObjectRef(null);
+    setSelectedColumnName(null);
+    setActiveTableProfile(null);
+    setColumnAiProfiles(new Map());
+    profileCallIdRef.current += 1;
+  }, [activeCatalog]);
 
   // Workspace Recovery Dialog state (silent by default, manually summonable if needed)
   const [showRecoveryDialog, setShowRecoveryDialog] = useState<boolean>(false);
@@ -153,37 +175,39 @@ export const WorkbenchView: React.FC<WorkbenchViewProps> = ({
   const [showFeedbackModal, setShowFeedbackModal] = useState<boolean>(false);
 
   // Query Tabs state
-  const [tabs, setTabs] = useState<SqlQueryTab[]>(() => {
-    try {
-      const snapJson = localStorage.getItem('workbench_workspace_snapshot');
-      if (snapJson) {
-        const snap = JSON.parse(snapJson);
-        if (Array.isArray(snap.tabs) && snap.tabs.length > 0) {
-          return snap.tabs;
+  const [tabs, setTabs] = useState<SqlQueryTab[]>([{ id: 'tab-1', title: 'query_1.sql', sql: '', isDirty: false }]);
+  const [activeTabId, setActiveTabId] = useState<string>('tab-1');
+  const [loadedCatalog, setLoadedCatalog] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    setLoadedCatalog(null);
+    setTabs([{ id: 'tab-1', title: 'query_1.sql', sql: '', isDirty: false }]);
+    setActiveTabId('tab-1');
+    void dbService.getDomainSetting<{ tabs: SqlQueryTab[]; activeTabId: string }>('workbench-workspace', activeCatalog)
+      .then(async (saved) => {
+        if (!active) return;
+        let workspace = saved;
+        if (!workspace && activeCatalog === 'duckdb_manager_workspace') {
+          try {
+            const legacy = JSON.parse(localStorage.getItem('workbench_workspace_snapshot') || 'null');
+            if (Array.isArray(legacy?.tabs) && legacy.tabs.length) {
+              workspace = { tabs: legacy.tabs, activeTabId: legacy.activeTabId || legacy.tabs[0].id };
+              await dbService.saveDomainSetting('workbench-workspace', workspace, activeCatalog);
+            }
+          } catch { /* legacy draft remains untouched */ }
         }
-      }
-    } catch {}
-    return [
-      {
-        id: 'tab-1',
-        title: 'query_1.sql',
-        sql: `-- DuckDB Studio SQL 工作台\n-- 输入 SQL 并按 Ctrl+Enter 执行查询\nSELECT \n    'DuckDB WASM Ready' AS status,\n    version() AS engine_version,\n    current_timestamp AS connected_at;`,
-        isDirty: false,
-      },
-    ];
-  });
-  const [activeTabId, setActiveTabId] = useState<string>(() => {
-    try {
-      const snapJson = localStorage.getItem('workbench_workspace_snapshot');
-      if (snapJson) {
-        const snap = JSON.parse(snapJson);
-        if (snap.activeTabId && typeof snap.activeTabId === 'string') {
-          return snap.activeTabId;
+        if (!active) return;
+        if (workspace?.tabs?.length) {
+          const cleanTabs = workspace.tabs.map((tab) => ({ ...tab, result: null }));
+          setTabs(cleanTabs);
+          setActiveTabId(cleanTabs.some((tab) => tab.id === workspace!.activeTabId) ? workspace.activeTabId : cleanTabs[0].id);
         }
-      }
-    } catch {}
-    return 'tab-1';
-  });
+      })
+      .catch((error) => console.warn('[Workbench] Saved workspace could not be loaded', error))
+      .finally(() => { if (active) setLoadedCatalog(activeCatalog); });
+    return () => { active = false; };
+  }, [activeCatalog]);
 
   // Execution state & Results
   const [isRunning, setIsRunning] = useState<boolean>(false);
@@ -211,10 +235,7 @@ export const WorkbenchView: React.FC<WorkbenchViewProps> = ({
     }
   }, []);
 
-  // Modals for Shortcuts
-  const [showShortcutsModal, setShowShortcutsModal] = useState<boolean>(false);
-
-  // Global Shortcuts: Ctrl+K, ?, open-keyboard-shortcuts
+  // Global Shortcuts: Ctrl+K, ?
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
@@ -227,7 +248,7 @@ export const WorkbenchView: React.FC<WorkbenchViewProps> = ({
       }
       if (e.key === '?' && !['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName)) {
         e.preventDefault();
-        setShowShortcutsModal(prev => !prev);
+        window.dispatchEvent(new CustomEvent('open-keyboard-shortcuts'));
       }
       if (e.key === 'Escape' && window.innerWidth < 768) {
         if (!isRightCollapsed) {
@@ -242,33 +263,37 @@ export const WorkbenchView: React.FC<WorkbenchViewProps> = ({
       }
     };
 
-    const handleOpenShortcuts = () => setShowShortcutsModal(true);
-
     window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('open-keyboard-shortcuts', handleOpenShortcuts);
-
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('open-keyboard-shortcuts', handleOpenShortcuts);
     };
   }, [isLeftCollapsed, isRightCollapsed]);
 
-  // Auto-persist workspace snapshot (FR-13 Workspace Recovery)
+  // Publish live drafts for the standalone DataFlow route before persistence debounce.
   useEffect(() => {
-    try {
-      const snapshot = {
-        tabs: tabs.map(t => ({ id: t.id, title: t.title, sql: t.sql, isDirty: t.isDirty })),
+    if (loadedCatalog === activeCatalog) onWorkspaceChange?.(tabs, activeTabId);
+  }, [tabs, activeTabId, loadedCatalog, activeCatalog, onWorkspaceChange]);
+
+  useEffect(() => {
+    const selectTab = (event: Event) => {
+      const tabId = (event as CustomEvent<{ tabId: string }>).detail?.tabId;
+      if (tabs.some(tab => tab.id === tabId)) setActiveTabId(tabId);
+    };
+    window.addEventListener('workbench_select_tab', selectTab);
+    return () => window.removeEventListener('workbench_select_tab', selectTab);
+  }, [tabs]);
+
+  // Draft SQL tabs belong to the current DuckDB catalog and travel with its file.
+  useEffect(() => {
+    if (loadedCatalog !== activeCatalog) return;
+    const timer = setTimeout(() => {
+      void dbService.saveDomainSetting('workbench-workspace', {
+        tabs: tabs.map(t => ({ id: t.id, title: t.title, sql: t.sql, isDirty: t.isDirty, savedSql: t.savedSql })),
         activeTabId,
-        leftWidth,
-        rightWidth,
-        selectedColumnName,
-        currentTable,
-        catalogContext,
-        savedAt: new Date().toISOString(),
-      };
-      localStorage.setItem('workbench_workspace_snapshot', JSON.stringify(snapshot));
-    } catch {}
-  }, [tabs, activeTabId, leftWidth, rightWidth, selectedColumnName, currentTable, catalogContext]);
+      }, activeCatalog).catch((error) => console.warn('[Workbench] Draft workspace could not be saved', error));
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [tabs, activeTabId, activeCatalog, loadedCatalog]);
 
   // T-06: Auto-trigger AI column profile when selectedColumnName changes (debounce 500ms)
   useEffect(() => {
@@ -361,24 +386,45 @@ export const WorkbenchView: React.FC<WorkbenchViewProps> = ({
   }, [activeTabId, tabs, activeQueryResult]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Execute SQL query via Backend QueryExecutionService
-  const handleExecuteQuery = useCallback(async (sqlToRun: string, explain = false, isProfile = false, targetTabId?: string, customTitle?: string) => {
+  const handleExecuteQuery = useCallback(async (sqlToRun: string, explain = false, isProfile = false, targetTabId?: string, customTitle?: string, baseOffset = 0) => {
     if (!sqlToRun.trim()) return;
+    const request=++executionRequestRef.current;
+    const generation = catalogGeneration.current;
+    const catalog = duckDBService.getRuntimeInfo().currentDatabase;
+    const contextRevision=duckDBService.getRuntimeInfo().databaseContextRevision;
+    const stillCurrent = () => request===executionRequestRef.current && generation === catalogGeneration.current && duckDBService.getRuntimeInfo().databaseContextRevision === contextRevision;
     const tabId = targetTabId || activeTabId;
     setIsRunning(true);
     setViewingPreviousByTab(prev => ({ ...prev, [tabId]: false }));
     const currentTabObj = tabs.find(t => t.id === tabId);
     const title = customTitle || currentTabObj?.title || '查询结果';
+    const publishQueryError=(error:string)=>{
+      const app=useAppStore.getState();
+      if(stillCurrent() && app.activeDataset?.id===`sql:${tabId}`)app.setActiveDataset({...app.activeDataset,error});
+    };
 
     try {
-      const { snapshot, task } = await queryExecutionService.executeQuery(tabId, sqlToRun, title, { explain, isProfile });
+      if(!explain && !isProfile) {
+        try {const dataset=datasetFromQueryResult({executedSql:sqlToRun,databaseName:catalog,schemaName:catalogContext.schema,columns:[],rows:[],executionTime:0},tabId,title);
+          useAppStore.getState().setActiveDataset({...dataset,error:'正在执行当前查询，请稍候'});
+        }catch { /* Mutation scripts have no reusable dataset context. */ }
+      }
+      const documentSql = currentTabObj?.sql || sqlToRun;
+      const { snapshot: rawSnapshot, task } = await queryExecutionService.executeQuery(tabId, sqlToRun, title, { explain, isProfile, executionContext: { tabId, documentSql, baseOffset } });
+      if (!stillCurrent()) return;
+      if(useWorkflowStore.getState().activeSql!==documentSql)return;
+      const snapshot=rawSnapshot ? {...rawSnapshot,executedSql:sqlToRun,executedDocumentSql:documentSql,databaseName:catalog,schemaName:catalogContext.schema} : undefined;
       if (snapshot) {
         setQueryResults(prev => ({ ...prev, [tabId]: snapshot }));
         // Keep last successful snapshot for error recovery ("view previous")
         if (!snapshot.error) {
           setPreviousResults(prev => ({ ...prev, [tabId]: snapshot }));
+          if(!explain && !isProfile) {
+            try {useAppStore.getState().setActiveDataset(datasetFromQueryResult(snapshot,tabId,title));}catch { /* Non-read queries are not reusable datasets. */ }
+          }
         }
         setTabs(prev =>
-          prev.map(t => (t.id === tabId ? { ...t, isDirty: false, result: snapshot } : t))
+          prev.map(t => (t.id === tabId ? { ...t, result: snapshot } : t))
         );
         if (snapshot.columns.length > 0 && !snapshot.columns.includes(selectedColumnName)) {
           setSelectedColumnName(snapshot.columns[0]);
@@ -386,6 +432,7 @@ export const WorkbenchView: React.FC<WorkbenchViewProps> = ({
         // Sync live query execution result to DataFlow Canvas with real DuckDB intermediate materialization
         useWorkflowStore.getState().syncExecutionResult(title, snapshot, sqlToRun);
       } else if (task.status === 'failed' && task.error) {
+        publishQueryError(task.error);
         const errorResult: QueryResult = {
           resultId: `err_${Date.now()}`,
           queryTitle: title,
@@ -397,8 +444,12 @@ export const WorkbenchView: React.FC<WorkbenchViewProps> = ({
         };
         setQueryResults(prev => ({ ...prev, [tabId]: errorResult }));
         useWorkflowStore.getState().syncExecutionResult(title, errorResult, sqlToRun);
+      } else if(task.status==='cancelled') {
+        publishQueryError('当前查询已取消，请重新执行');
       }
     } catch (err: any) {
+      if (!stillCurrent()) return;
+      publishQueryError(err.message || String(err));
       const errorResult: QueryResult = {
         resultId: `err_${Date.now()}`,
         queryTitle: title,
@@ -411,16 +462,16 @@ export const WorkbenchView: React.FC<WorkbenchViewProps> = ({
       setQueryResults(prev => ({ ...prev, [tabId]: errorResult }));
       useWorkflowStore.getState().syncExecutionResult(title, errorResult, sqlToRun);
     } finally {
-      setIsRunning(false);
+      if (stillCurrent()) setIsRunning(false);
     }
-  }, [activeTabId, tabs, selectedColumnName, onRefreshTables]);
+  }, [activeTabId, tabs, selectedColumnName, onRefreshTables, activeCatalog, catalogContext.schema]);
 
-  const handleExecuteSelection = useCallback(async (selectedSql?: string) => {
+  const handleExecuteSelection = useCallback(async (selectedSql?: string, baseOffset = 0) => {
     const active = tabs.find(t => t.id === activeTabId);
     if (!active) return;
-    const sqlToRun = selectedSql && selectedSql.trim() ? selectedSql.trim() : active.sql;
+    const sqlToRun = selectedSql && selectedSql.trim() ? selectedSql : active.sql;
     const title = selectedSql && selectedSql.trim() ? `[选中] ${active.title}` : active.title;
-    await handleExecuteQuery(sqlToRun, false, false, activeTabId, title);
+    await handleExecuteQuery(sqlToRun, false, false, activeTabId, title, baseOffset);
   }, [tabs, activeTabId, handleExecuteQuery]);
 
   const handleStopQuery = () => {
@@ -446,9 +497,8 @@ export const WorkbenchView: React.FC<WorkbenchViewProps> = ({
     toastService.info(`正在为列 "${selectedColumnName}" 重新生成 AI 解读…`);
   }, [selectedColumnName, profileCurrentColumn]);
 
-  // Seed demo data on mount and execute initial live query
+  // Read the active DuckDB Catalog for the workbench context.
   useEffect(() => {
-    let isMounted = true;
     const initializeWorkbench = async () => {
       try {
         await updateCatalogContext();
@@ -457,15 +507,16 @@ export const WorkbenchView: React.FC<WorkbenchViewProps> = ({
       }
     };
     initializeWorkbench();
-    return () => {
-      isMounted = false;
-    };
   }, [updateCatalogContext]);
 
   const handleUpdateTabSql = (tabId: string, sql: string) => {
     querySnapshotManager.markTabStale(tabId, true);
     setTabs(prev =>
-      prev.map(t => (t.id === tabId ? { ...t, sql, isDirty: true } : t))
+      prev.map(t => {
+        if (t.id !== tabId) return t;
+        const savedSql = t.savedSql ?? (t.isDirty ? '' : t.sql);
+        return { ...t, sql, savedSql, isDirty: sql !== savedSql };
+      })
     );
   };
 
@@ -485,8 +536,9 @@ export const WorkbenchView: React.FC<WorkbenchViewProps> = ({
     const newTab: SqlQueryTab = {
       id: newId,
       title: customTitle || `查询 ${tabs.length + 1}`,
-      sql: initialSql || (tables[0] ? `SELECT * FROM ${tables[0]} LIMIT 100;` : `SELECT version(), current_timestamp;`),
-      isDirty: false,
+      sql: initialSql || '',
+      savedSql: '',
+      isDirty: Boolean(initialSql),
     };
     setTabs(prev => [...prev, newTab]);
     setActiveTabId(newId);
@@ -497,17 +549,38 @@ export const WorkbenchView: React.FC<WorkbenchViewProps> = ({
     }
   }, [tabs.length, handleExecuteQuery]);
 
+  useEffect(() => {
+    if (loadedCatalog !== activeCatalog || !pendingNewQuery) return;
+    useAppStore.getState().setPendingNewQuery(false);
+    handleAddTab();
+  }, [loadedCatalog, activeCatalog, pendingNewQuery, handleAddTab]);
+
   // Sync and consume pendingSql from other tabs/navigation.
   // When paired with pendingAiPanel (Dashboard → AI 解释), load SQL without auto-run
   // so the user can read the explanation without a noisy re-execution (esp. failed queries).
+  // When pendingChartConfig is set (Analysis Home → 生成图表), auto-run then open chart tab.
   useEffect(() => {
-    if (pendingSql && pendingSql.trim()) {
+    if (loadedCatalog === activeCatalog && pendingSql && pendingSql.trim()) {
       const sqlToInject = pendingSql;
       const openForAi = Boolean(useAppStore.getState().pendingAiPanel);
+      const openForChart = Boolean(useAppStore.getState().pendingChartConfig);
       setPendingSql('');
-      handleAddTab(sqlToInject, openForAi ? '待解释查询' : '注入查询', !openForAi);
+      handleAddTab(
+        sqlToInject,
+        openForChart ? '可视化查询' : openForAi ? '待解释查询' : '注入查询',
+        !openForAi,
+      );
+      if (openForChart) {
+        useAppStore.getState().setPendingChartConfig(null);
+        // Wait for query result panel to mount, then switch to chart subtab
+        setTimeout(() => {
+          window.dispatchEvent(
+            new CustomEvent('duckdb_switch_subtab', { detail: { subTab: 'chart' } }),
+          );
+        }, 450);
+      }
     }
-  }, [pendingSql, setPendingSql, handleAddTab]);
+  }, [pendingSql, setPendingSql, handleAddTab, loadedCatalog, activeCatalog]);
 
   // Consume pending AI panel intent from Dashboard / other surfaces
   useEffect(() => {
@@ -602,12 +675,80 @@ export const WorkbenchView: React.FC<WorkbenchViewProps> = ({
   }, [handleAddTab, onRefreshTables, updateCatalogContext]);
 
   const handleCloseTab = (tabId: string) => {
-    if (tabs.length <= 1) return;
+    if (!tabs.some(tab => tab.id === tabId)) return;
     const remaining = tabs.filter(t => t.id !== tabId);
+    if (remaining.length === 0) {
+      const newId = `tab-${Date.now()}`;
+      const defaultTab: SqlQueryTab = {
+        id: newId,
+        title: '查询 1',
+        sql: '',
+        savedSql: '',
+        isDirty: false,
+      };
+      setTabs([defaultTab]);
+      setActiveTabId(newId);
+      toastService.info('已关闭并重置为初始查询');
+      return;
+    }
     setTabs(remaining);
     if (activeTabId === tabId) {
-      setActiveTabId(remaining[0].id);
+      const closingIdx = tabs.findIndex(t => t.id === tabId);
+      const nextActive = remaining[Math.max(0, Math.min(closingIdx, remaining.length - 1))].id;
+      setActiveTabId(nextActive);
     }
+  };
+
+  const handleCloseOtherTabs = (tabId: string) => {
+    const target = tabs.find(t => t.id === tabId);
+    if (!target) return;
+    setTabs([target]);
+    setActiveTabId(target.id);
+    toastService.info('已关闭其他标签页');
+  };
+
+  const handleCloseTabsToRight = (tabId: string) => {
+    const idx = tabs.findIndex(t => t.id === tabId);
+    if (idx === -1) return;
+    const remaining = tabs.slice(0, idx + 1);
+    setTabs(remaining);
+    if (!remaining.some(t => t.id === activeTabId)) {
+      setActiveTabId(tabId);
+    }
+    toastService.info('已关闭右侧标签页');
+  };
+
+  const handleCloseAllTabs = () => {
+    const newId = `tab-${Date.now()}`;
+    const defaultTab: SqlQueryTab = {
+      id: newId,
+      title: '查询 1',
+      sql: '',
+      savedSql: '',
+      isDirty: false,
+    };
+    setTabs([defaultTab]);
+    setActiveTabId(newId);
+    toastService.info('已关闭所有标签页并重置');
+  };
+
+  const handleDuplicateTab = (tabId: string) => {
+    const target = tabs.find(t => t.id === tabId);
+    if (!target) return;
+    const newId = `tab-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    const newTab: SqlQueryTab = {
+      id: newId,
+      title: `${target.title} (副本)`,
+      sql: target.sql,
+      savedSql: '',
+      isDirty: Boolean(target.sql),
+    };
+    const targetIdx = tabs.findIndex(t => t.id === tabId);
+    const nextTabs = [...tabs];
+    nextTabs.splice(targetIdx + 1, 0, newTab);
+    setTabs(nextTabs);
+    setActiveTabId(newId);
+    toastService.info('已复制为新标签页');
   };
 
   const handleRenameTab = (tabId: string, title: string) => {
@@ -844,23 +985,14 @@ export const WorkbenchView: React.FC<WorkbenchViewProps> = ({
     toastService.success(`已添加 ${columnName} 到 SELECT`);
   };
 
-  const handleRestoreWorkspace = () => {
+  const handleRestoreWorkspace = async () => {
     try {
-      const snapJson = localStorage.getItem('workbench_workspace_snapshot');
-      if (snapJson) {
-        const snap = JSON.parse(snapJson);
-        if (Array.isArray(snap.tabs) && snap.tabs.length > 0) {
-          setTabs(snap.tabs);
-        }
-        if (snap.activeTabId) {
-          setActiveTabId(snap.activeTabId);
-        }
-        if (typeof snap.leftWidth === 'number') setLeftWidth(Math.max(280, Math.min(480, snap.leftWidth)));
-        if (typeof snap.rightWidth === 'number') setRightWidth(snap.rightWidth);
-        if (snap.selectedColumnName) setSelectedColumnName(snap.selectedColumnName);
-        if (snap.currentTable) onSelectTable(snap.currentTable);
+      const snap = await dbService.getDomainSetting<{ tabs: SqlQueryTab[]; activeTabId: string }>('workbench-workspace', activeCatalog);
+      if (snap?.tabs?.length) {
+        setTabs(snap.tabs.map((tab) => ({ ...tab, result: null })));
+        setActiveTabId(snap.activeTabId);
       }
-    } catch {}
+    } catch (error) { console.warn('[Workbench] Workspace recovery failed', error); }
     setShowRecoveryDialog(false);
     sessionStorage.setItem('workbench_recovery_dismissed', 'true');
     toastService.success('工作区现场已完全恢复');
@@ -989,8 +1121,16 @@ export const WorkbenchView: React.FC<WorkbenchViewProps> = ({
               handleAddTab(sql, title, autoRun);
             }}
             onCloseTab={handleCloseTab}
+            onCloseOtherTabs={handleCloseOtherTabs}
+            onCloseTabsToRight={handleCloseTabsToRight}
+            onCloseAllTabs={handleCloseAllTabs}
+            onDuplicateTab={handleDuplicateTab}
             onUpdateTabSql={handleUpdateTabSql}
             onRenameTab={handleRenameTab}
+            onTabSaved={(tabId, sql) => {
+              setTabs(prev => prev.map(tab => tab.id === tabId
+                ? { ...tab, savedSql: sql, isDirty: false } : tab));
+            }}
             onExecuteQuery={(sql, explain, profile) => handleExecuteQuery(sql, explain, profile)}
             onExecuteSelection={handleExecuteSelection}
             onStopQuery={handleStopQuery}
@@ -1186,12 +1326,6 @@ export const WorkbenchView: React.FC<WorkbenchViewProps> = ({
         onNewTab={() => handleAddTab()}
         onExportParquet={() => handleExportParquet()}
         hasActiveSql={Boolean(tabs.find(t => t.id === activeTabId)?.sql?.trim())}
-      />
-
-      {/* Keyboard Shortcuts Modal (?) - 已抽取为独立组件 */}
-      <KeyboardShortcutsModal
-        open={showShortcutsModal}
-        onClose={() => setShowShortcutsModal(false)}
       />
     </div>
   );

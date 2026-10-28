@@ -50,7 +50,7 @@ export const UniversalImporter: React.FC<UniversalImporterProps> = ({ onImportSu
       const extension = file.name.split('.').pop()?.toLowerCase();
 
       if (extension === 'xlsx' || extension === 'xls') {
-        const createdTables = await duckDBService.importFile(file, tableName);
+        const createdTables = await duckDBService.importFile(file, rawBase || 'imported_table');
         if (!createdTables || createdTables.length === 0) {
           throw new Error('Excel 文件中未发现包含数据的工作表');
         }
@@ -112,7 +112,29 @@ export const UniversalImporter: React.FC<UniversalImporterProps> = ({ onImportSu
           }
         };
         reader.readAsArrayBuffer(file);
-      } else if (extension === 'json' || extension === 'jsonl' || extension === 'parquet' || extension === 'duckdb') {
+      } else if (extension === 'duckdb') {
+        const createdTables = await duckDBService.importFile(file, tableName);
+        if (!createdTables || createdTables.length === 0) {
+          throw new Error('DuckDB 文件中未发现包含数据的数据表');
+        }
+        createdTables.forEach(tName => {
+          recentImportsService.addImport({
+            name: `${file.name} [${tName}]`,
+            size: formatBytes(file.size),
+            sizeBytes: file.size,
+            importedAt: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+            status: 'success',
+            tableName: tName,
+          });
+        });
+        notifySuccess(
+          createdTables[0],
+          createdTables.length === 1
+            ? `成功导入 DuckDB 数据表: ${createdTables[0]}`
+            : `成功导入 DuckDB 全部 ${createdTables.length} 个数据表: ${createdTables.join(', ')}`
+        );
+        setLoading(false);
+      } else if (extension === 'json' || extension === 'jsonl' || extension === 'parquet') {
         // Use duckdb-wasm native loaders
         await duckDBService.importFile(file, tableName);
         notifySuccess(tableName, `成功导入 ${extension.toUpperCase()} 为数据表: ${tableName}`, { name: file.name, size: file.size });

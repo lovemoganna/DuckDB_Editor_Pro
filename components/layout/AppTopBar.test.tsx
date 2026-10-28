@@ -41,9 +41,9 @@ describe('AppTopBar Domain Cluster Navigation Tabs', () => {
     expect(screen.queryByText('方案 05')).toBeNull();
     expect(screen.getByText('项目')).toBeTruthy();
     expect(screen.getByText('memory')).toBeTruthy();
-    expect(screen.getByText('内存临时模式')).toBeTruthy();
+    expect(screen.getByText('临时分析空间')).toBeTruthy();
 
-    fireEvent.click(screen.getByTitle('系统与 AI 首选项设置'));
+    fireEvent.click(screen.getByTitle('AI 模型设置'));
     expect(setShowSettingsModal).toHaveBeenCalledWith(true);
 
     // Domain cluster tabs and Tier 2 tabs are persistently available on DASHBOARD
@@ -67,6 +67,7 @@ describe('AppTopBar Domain Cluster Navigation Tabs', () => {
     render(
       <AppTopBar
         activeTab={Tab.DATA}
+        activeDatabase="sales_domain"
         currentTable="customers"
         tables={['customers', 'orders', 'products']}
         setActiveTab={setActiveTab}
@@ -109,10 +110,10 @@ describe('AppTopBar Domain Cluster Navigation Tabs', () => {
 
     // 3. Check Toolbar Actions
     expect(screen.getByText('项目')).toBeTruthy();
-    expect(screen.getByText('memory')).toBeTruthy();
+    expect(screen.getByText('sales_domain')).toBeTruthy();
     expect(screen.getByText('已保存到 OPFS')).toBeTruthy();
 
-    fireEvent.click(screen.getByTitle('系统与 AI 首选项设置'));
+    fireEvent.click(screen.getByTitle('AI 模型设置'));
     expect(setShowSettingsModal).toHaveBeenCalledWith(true);
 
     // Verify that dropdown chevron buttons have been removed from topbar tabs
@@ -251,6 +252,7 @@ describe('AppTopBar Domain Cluster Navigation Tabs', () => {
     render(
       <AppTopBar
         activeTab={Tab.DASHBOARD}
+        activeDatabase="legacy_workspace"
         currentTable={null}
         tables={[]}
         setActiveTab={vi.fn()}
@@ -316,6 +318,102 @@ describe('AppTopBar Domain Cluster Navigation Tabs', () => {
     fireEvent.click(copilotBtn);
     expect(useCopilotStore.getState().isOpen).toBe(false);
   });
+
+  it('does not render AI Copilot tool button when activeTab is HISTORY or AUDIT', () => {
+    const defaultProps = {
+      currentTable: null,
+      tables: [],
+      setActiveTab: vi.fn(),
+      handleTableSelect: vi.fn(),
+      handleCreateDemo: vi.fn(),
+      setShowCreateModal: vi.fn(),
+      setShowImportModal: vi.fn(),
+      setShowExportModal: vi.fn(),
+      setShowSettingsModal: vi.fn(),
+      fetchTableData: vi.fn(),
+      refreshAudit: vi.fn(),
+      runtimeInfo: {
+        version: '1.0.0',
+        storageMode: 'memory' as const,
+        persistent: false,
+        ready: true,
+      },
+    };
+
+    const { rerender } = render(
+      <AppTopBar
+        {...defaultProps}
+        activeTab={Tab.HISTORY}
+      />,
+    );
+    expect(screen.queryByTitle(/AI 助手/)).not.toBeInTheDocument();
+
+    rerender(
+      <AppTopBar
+        {...defaultProps}
+        activeTab={Tab.AUDIT}
+      />,
+    );
+    expect(screen.queryByTitle(/AI 助手/)).not.toBeInTheDocument();
+  });
+
+  it('renders consistent switchable database list in dropdown and triggers onSwitchAnalysisContext', () => {
+    const onSwitchAnalysisContext = vi.fn();
+    const mockContexts = [
+      { id: 'duckdb_demo', label: '持久库 · duckdb_demo', kind: 'database' as const, isCurrent: true },
+      { id: 'memory', label: '内存库 · memory（临时）', kind: 'database' as const, isCurrent: false },
+      { id: 'analytics', label: 'Schema · duckdb_demo.analytics', kind: 'schema' as const, isCurrent: false },
+    ];
+
+    render(
+      <AppTopBar
+        activeTab={Tab.DASHBOARD}
+        activeDatabase="duckdb_demo"
+        analysisContexts={mockContexts}
+        onSwitchAnalysisContext={onSwitchAnalysisContext}
+        currentTable={null}
+        tables={[]}
+        setActiveTab={vi.fn()}
+        handleTableSelect={vi.fn()}
+        handleCreateDemo={vi.fn()}
+        setShowCreateModal={vi.fn()}
+        setShowImportModal={vi.fn()}
+        setShowExportModal={vi.fn()}
+        setShowSettingsModal={vi.fn()}
+        fetchTableData={vi.fn()}
+        refreshAudit={vi.fn()}
+        runtimeInfo={{
+          version: '1.0.0',
+          storageMode: 'opfs',
+          persistent: true,
+          ready: true,
+        }}
+      />,
+    );
+
+    // Click the database dropdown trigger
+    fireEvent.click(screen.getByText('duckdb_demo'));
+
+    // Check header
+    expect(screen.getByText('切换分析数据库')).toBeTruthy();
+    expect(screen.getByText('3 个可用目标')).toBeTruthy();
+
+    // Check options
+    expect(screen.getByText('持久库 · duckdb_demo')).toBeTruthy();
+    expect(screen.getByText('内存库 · memory（临时）')).toBeTruthy();
+    expect(screen.getByText('Schema · duckdb_demo.analytics')).toBeTruthy();
+
+    // Check actions
+    expect(screen.getByText('管理数据库（创建 / 挂载 / 卸载）…')).toBeTruthy();
+    expect(screen.getByText('导入数据表文件 (CSV / Parquet / Excel)...')).toBeTruthy();
+
+    // Click memory context to switch
+    fireEvent.click(screen.getByText('内存库 · memory（临时）'));
+    expect(onSwitchAnalysisContext).toHaveBeenCalledWith({
+      id: 'memory',
+      label: '内存库 · memory（临时）',
+      kind: 'database',
+      isCurrent: false,
+    });
+  });
 });
-
-

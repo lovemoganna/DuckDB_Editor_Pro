@@ -1,0 +1,72 @@
+- banner "全局工作区顶栏":
+  - button "🪶 DuckDB Studio PRO":
+    - generic: 🪶
+    - generic: DuckDB Studio
+    - generic: PRO
+  - navigation "业务领域大类":
+    - button "工程核心":
+      - generic: 工程核心
+    - button "分析洞察":
+      - generic: 分析洞察
+    - button "知识沉淀":
+      - generic: 知识沉淀
+    - button "AI 认知":
+      - generic: AI 认知
+  - tablist "工程核心功能标签页":
+    - tab "仪表盘":
+      - generic: 仪表盘
+      - generic: "1"
+    - tab "数据":
+      - generic: 数据
+      - generic: "2"
+    - tab "Schema" [active] [selected]:
+      - generic: Schema
+    - tab "SQL":
+      - generic: SQL
+      - generic: "4"
+    - tab "数据流":
+      - generic: 数据流
+      - generic: "5"
+  - button "项目 Ctrl+Shift+D":
+    - generic: 项目
+    - generic: Ctrl+Shift+D
+  - button "新建表":
+    - generic: 新建表
+  - button "memory 临时分析空间":
+    - generic: memory
+    - generic: 临时分析空间
+  - button "AI 助手 Ctrl+I":
+    - generic: AI 助手
+    - generic: Ctrl+I
+  - button "⌘K":
+  - button "帮助与快捷键":
+  - button "切换为深色模式":
+  - button "AI 模型设置":
+- main:
+  - main:
+    - heading "未找到可分析的数据表" [level=3]
+    - paragraph: 请导入或创建一张数据表以探索 Schema 结构与 ER 拓扑关系，或使用下方快捷动作开始。
+    - button "加载示例数据":
+      - generic: 加载示例数据
+    - button "新建数据表":
+      - generic: 新建数据表
+    - button "导入数据文件":
+      - generic: 导入数据文件
+    - button "返回仪表盘":
+      - generic: 返回仪表盘
+- contentinfo:
+  - generic: DuckDB 1.33.1
+  - generic: "|"
+  - generic: memory [MEMORY]
+  - generic: "|"
+  - generic: 内存库
+  - generic: "|"
+  - generic: 0 张表
+  - generic: "|"
+  - generic: 暂无表
+  - generic: "|"
+  - generic: "内存: 0.00 MB / 3.1 GiB"
+  - generic: 引擎就绪
+  - generic: "|"
+  - generic: 06:37
+  - button "刷新运行时状态":

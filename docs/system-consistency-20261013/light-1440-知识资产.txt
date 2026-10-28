@@ -1,0 +1,630 @@
+- banner "全局工作区顶栏":
+  - button "🪶 DuckDB Studio PRO":
+    - generic: 🪶
+    - generic: DuckDB Studio
+    - generic: PRO
+  - navigation "业务领域大类":
+    - button "工程核心":
+      - generic: 工程核心
+    - button "分析洞察":
+      - generic: 分析洞察
+    - button "知识沉淀":
+      - generic: 知识沉淀
+    - button "AI 认知":
+      - generic: AI 认知
+  - tablist "知识沉淀功能标签页":
+    - tab "知识资产" [active] [selected]:
+      - generic: 知识资产
+    - tab "插件":
+      - generic: 插件
+    - tab "知识联动":
+      - generic: 知识联动
+  - button "项目 Ctrl+Shift+D":
+    - generic: 项目
+    - generic: Ctrl+Shift+D
+  - button "新建表":
+    - generic: 新建表
+  - button "memory 临时分析空间":
+    - generic: memory
+    - generic: 临时分析空间
+  - button "AI 助手 Ctrl+I":
+    - generic: AI 助手
+    - generic: Ctrl+I
+  - button "⌘K":
+  - button "帮助与快捷键":
+  - button "切换为深色模式":
+  - button "AI 模型设置":
+- main:
+  - complementary "知识沉淀导航栏":
+    - heading "知识文献库" [level=2]
+    - generic: 5 篇文档 / 讲义
+    - button "新建":
+      - generic: 新建
+    - button "折叠隐藏侧边栏":
+    - searchbox "筛选标题或标签... (Ctrl+/)"
+    - button "Ontology 05":
+      - generic: Ontology
+      - generic: "05"
+    - list:
+      - button "Lesson 1 · DuckDB SQL 入门":
+        - generic: Lesson 1 · DuckDB SQL 入门
+      - button "DuckDB SQL 完整使用教程 (交易所资金流向与业务风控全局体系)":
+        - generic: DuckDB SQL 完整使用教程 (交易所资金流向与业务风控全局体系)
+      - button "用 DuckDB 建模 Palantir Ontology 元结构：企业协同与研发生态核心四元组":
+        - generic: 用 DuckDB 建模 Palantir Ontology 元结构：企业协同与研发生态核心四元组
+      - button "用 DuckDB 建模 Palantir Ontology 元结构：智能航空航线与机队调度动态图谱":
+        - generic: 用 DuckDB 建模 Palantir Ontology 元结构：智能航空航线与机队调度动态图谱
+      - button "Lesson 2 · 电商供应链本体建模":
+        - generic: Lesson 2 · 电商供应链本体建模
+    - button "载入 docs 目录文档":
+      - generic: 载入 docs 目录文档
+    - button "导入 .md":
+      - generic: 导入 .md
+    - button "导出全部":
+      - generic: 导出全部
+    - button "绑定本地 .md 目录":
+      - generic: 绑定本地 .md 目录
+  - generic: DOC
+  - generic: /
+  - generic: Lesson 1 · DuckDB SQL 入门
+  - generic: ·
+  - generic: "更新: 2026-09-27"
+  - button "切换本体图谱面板":
+    - generic: 本体图谱
+  - button "AI 润色":
+    - generic: AI 润色
+  - button "加入收藏":
+  - button "编辑资产属性":
+  - button "删除资产":
+  - generic: 最佳实践
+  - generic: "ID: duckdb-sql-lesson-1"
+  - button "一键全部运行 (13)":
+    - generic: 一键全部运行 (13)
+  - button "一键展开代码":
+    - generic: 一键展开代码
+  - button "复制 Markdown":
+    - generic: 复制 Markdown
+  - button "保存为 .md":
+    - generic: 保存为 .md
+  - button "在线编辑":
+    - generic: 在线编辑
+  - heading "Lesson 1 · DuckDB SQL 入门" [level=1]
+  - generic: 核心结论：建立“哲学概念本体”的**最小可运行宇宙**，为后续所有 DML / JOIN / 事务 / 递归查询提供唯一数据根基。
+  - text: 本体建模
+  - text: Ontology
+  - text: 哲学本体
+  - text: DuckDB
+  - text: 入门
+  - generic: 知识笔记正文
+  - generic: 支持代码高亮与公式格式化
+  - paragraph:
+    - text: 以下内容为
+    - strong: Lesson 1（L1）
+    - text: ，直接可执行，不引入任何后续未定义结构，确保
+    - strong: 最小闭环 + 可持续演进
+    - text: 。
+  - separator
+  - heading "Lesson 1 · DuckDB SQL 入门" [level=1]:
+    - generic: Lesson 1 · DuckDB SQL 入门
+  - heading "哲学知识图谱 · 本体论最小闭环" [level=2]:
+    - generic: 哲学知识图谱 · 本体论最小闭环
+  - paragraph:
+    - strong: 难度等级
+    - text: ：L1
+    - strong: 前置依赖
+    - text: ：无
+    - strong: 本课定位
+    - text: ：
+  - blockquote:
+    - paragraph:
+      - text: 建立“哲学概念本体”的
+      - strong: 最小可运行宇宙
+      - text: ，为后续所有 DML / JOIN / 事务 / 递归查询提供唯一数据根基。
+  - separator
+  - heading "一、学习目标" [level=2]:
+    - generic: 一、学习目标
+  - paragraph: 完成本课后，你将能够：
+  - list:
+    - text: 使用 DuckDB 创建一组
+    - strong: 具备哲学含义的关系型表
+    - text: 理解
+    - strong: 概念 / 思想家 / 学派
+    - text: 的本体论区分
+    - text: 建立
+    - strong: 稳定、不返工
+    - text: 的基础数据结构
+    - text: 跑通第一批
+    - strong: 可查询、可扩展
+    - text: 的哲学数据
+  - separator
+  - heading "二、哲学概念说明（本体论锚定）" [level=2]:
+    - generic: 二、哲学概念说明（本体论锚定）
+  - heading "1. 本体论三要素（最低必要）" [level=3]:
+    - generic: 1. 本体论三要素（最低必要）
+  - table:
+    - rowgroup:
+      - row "实体 哲学含义 数据库角色":
+        - columnheader "实体"
+        - columnheader "哲学含义"
+        - columnheader "数据库角色"
+    - rowgroup:
+      - row "思想家（Thinker） 概念的提出者、论证者 行为主体":
+        - cell "思想家（Thinker）"
+        - cell "概念的提出者、论证者"
+        - cell "行为主体"
+      - row "学派（School） 方法论与立场的集合 立场集合":
+        - cell "学派（School）"
+        - cell "方法论与立场的集合"
+        - cell "立场集合"
+      - row "概念（Concept） 被讨论、被使用、被演化的对象 核心节点":
+        - cell "概念（Concept）"
+        - cell "被讨论、被使用、被演化的对象"
+        - cell "核心节点"
+  - blockquote:
+    - paragraph:
+      - text: 本课
+      - strong: 只做“是什么”
+      - text: ，不涉及“如何知道”（认识论留到 Lesson 3）。
+  - separator
+  - heading "三、DuckDB 环境说明（极简）" [level=2]:
+    - generic: 三、DuckDB 环境说明（极简）
+  - list:
+    - paragraph:
+      - text: DuckDB 是
+      - strong: 嵌入式分析型数据库
+    - paragraph: SQL 标准高度兼容（Postgres 风格）
+    - paragraph: 支持：
+    - list:
+      - listitem: 外键
+      - listitem: 递归 CTE
+      - listitem: JSON
+      - listitem: 列式分析
+  - paragraph: 启动方式（任选）：
+  - generic "点击展开代码":
+    - button "展开代码块":
+    - generic: TEXT SNIPPET
+    - generic: (1 行)
+    - generic: duckdb philosophy.db
+    - button "复制":
+      - generic: 复制
+    - button "展开"
+  - separator
+  - heading "四、DDL：建表（全局唯一版本）" [level=2]:
+    - generic: 四、DDL：建表（全局唯一版本）
+  - blockquote:
+    - paragraph: ⚠️ 说明：
+    - list:
+      - strong: 后续所有课程禁止重复建表
+      - text: 只允许
+      - code: ALTER TABLE
+      - text: 演进
+  - heading "1️⃣ 学派表 schools" [level=3]:
+    - text: 1️⃣ 学派表
+    - code: schools
+  - generic "点击展开代码":
+    - button "展开代码块":
+    - generic: SQL STATEMENT
+    - generic: (5 行)
+    - generic: CREATE TABLE schools ( ...
+    - button "执行 SQL":
+      - generic: 执行 SQL
+    - button "在编辑器中运行 (发送到 SQL 编辑器)":
+      - generic: 发送到 SQL 编辑器
+    - button "格式化":
+      - generic: 格式化
+    - button "复制":
+      - generic: 复制
+    - button "展开"
+  - separator
+  - heading "2️⃣ 思想家表 thinkers" [level=3]:
+    - text: 2️⃣ 思想家表
+    - code: thinkers
+  - generic "点击展开代码":
+    - button "展开代码块":
+    - generic: SQL STATEMENT
+    - generic: (7 行)
+    - generic: CREATE TABLE thinkers ( ...
+    - button "执行 SQL":
+      - generic: 执行 SQL
+    - button "在编辑器中运行 (发送到 SQL 编辑器)":
+      - generic: 发送到 SQL 编辑器
+    - button "格式化":
+      - generic: 格式化
+    - button "复制":
+      - generic: 复制
+    - button "展开"
+  - separator
+  - heading "3️⃣ 思想家 ↔ 学派（多对多）" [level=3]:
+    - generic: 3️⃣ 思想家 ↔ 学派（多对多）
+  - generic "点击展开代码":
+    - button "展开代码块":
+    - generic: SQL STATEMENT
+    - generic: (7 行)
+    - generic: CREATE TABLE thinker_schools ( ...
+    - button "执行 SQL":
+      - generic: 执行 SQL
+    - button "在编辑器中运行 (发送到 SQL 编辑器)":
+      - generic: 发送到 SQL 编辑器
+    - button "格式化":
+      - generic: 格式化
+    - button "复制":
+      - generic: 复制
+    - button "展开"
+  - separator
+  - heading "4️⃣ 概念表 concepts（本体核心）" [level=3]:
+    - text: 4️⃣ 概念表
+    - code: concepts
+    - text: （本体核心）
+  - generic "点击展开代码":
+    - button "展开代码块":
+    - generic: SQL STATEMENT
+    - generic: (8 行)
+    - generic: CREATE TABLE concepts ( ...
+    - button "执行 SQL":
+      - generic: 执行 SQL
+    - button "在编辑器中运行 (发送到 SQL 编辑器)":
+      - generic: 发送到 SQL 编辑器
+    - button "格式化":
+      - generic: 格式化
+    - button "复制":
+      - generic: 复制
+    - button "展开"
+  - separator
+  - heading "5️⃣ 概念层级表 concept_hierarchy" [level=3]:
+    - text: 5️⃣ 概念层级表
+    - code: concept_hierarchy
+  - blockquote:
+    - paragraph:
+      - text: 表达
+      - strong: genus → species（上位 / 下位）
+  - generic "点击展开代码":
+    - button "展开代码块":
+    - generic: SQL STATEMENT
+    - generic: (7 行)
+    - generic: CREATE TABLE concept_hierarchy ( ...
+    - button "执行 SQL":
+      - generic: 执行 SQL
+    - button "在编辑器中运行 (发送到 SQL 编辑器)":
+      - generic: 发送到 SQL 编辑器
+    - button "格式化":
+      - generic: 格式化
+    - button "复制":
+      - generic: 复制
+    - button "展开"
+  - separator
+  - heading "五、DML：种子数据（第一性、不可随意改）" [level=2]:
+    - generic: 五、DML：种子数据（第一性、不可随意改）
+  - heading "1️⃣ 学派数据" [level=3]:
+    - generic: 1️⃣ 学派数据
+  - generic "点击展开代码":
+    - button "展开代码块":
+    - generic: SQL STATEMENT
+    - generic: (4 行)
+    - generic: INSERT INTO schools VALUES ...
+    - button "执行 SQL":
+      - generic: 执行 SQL
+    - button "在编辑器中运行 (发送到 SQL 编辑器)":
+      - generic: 发送到 SQL 编辑器
+    - button "格式化":
+      - generic: 格式化
+    - button "复制":
+      - generic: 复制
+    - button "展开"
+  - separator
+  - heading "2️⃣ 思想家数据（≥5）" [level=3]:
+    - generic: 2️⃣ 思想家数据（≥5）
+  - generic "点击展开代码":
+    - button "展开代码块":
+    - generic: SQL STATEMENT
+    - generic: (7 行)
+    - generic: INSERT INTO thinkers VALUES ...
+    - button "执行 SQL":
+      - generic: 执行 SQL
+    - button "在编辑器中运行 (发送到 SQL 编辑器)":
+      - generic: 发送到 SQL 编辑器
+    - button "格式化":
+      - generic: 格式化
+    - button "复制":
+      - generic: 复制
+    - button "展开"
+  - separator
+  - heading "3️⃣ 思想家 ↔ 学派映射" [level=3]:
+    - generic: 3️⃣ 思想家 ↔ 学派映射
+  - generic "点击展开代码":
+    - button "展开代码块":
+    - generic: SQL STATEMENT
+    - generic: (7 行)
+    - generic: INSERT INTO thinker_schools VALUES ...
+    - button "执行 SQL":
+      - generic: 执行 SQL
+    - button "在编辑器中运行 (发送到 SQL 编辑器)":
+      - generic: 发送到 SQL 编辑器
+    - button "格式化":
+      - generic: 格式化
+    - button "复制":
+      - generic: 复制
+    - button "展开"
+  - separator
+  - heading "4️⃣ 概念数据（≥15）" [level=3]:
+    - generic: 4️⃣ 概念数据（≥15）
+  - generic "点击展开代码":
+    - button "展开代码块":
+    - generic: SQL STATEMENT
+    - generic: (16 行)
+    - generic: INSERT INTO concepts VALUES ...
+    - button "执行 SQL":
+      - generic: 执行 SQL
+    - button "在编辑器中运行 (发送到 SQL 编辑器)":
+      - generic: 发送到 SQL 编辑器
+    - button "格式化":
+      - generic: 格式化
+    - button "复制":
+      - generic: 复制
+    - button "展开"
+  - separator
+  - heading "5️⃣ 概念层级（示例）" [level=3]:
+    - generic: 5️⃣ 概念层级（示例）
+  - generic "点击展开代码":
+    - button "展开代码块":
+    - generic: SQL STATEMENT
+    - generic: (6 行)
+    - generic: INSERT INTO concept_hierarchy VALUES ...
+    - button "执行 SQL":
+      - generic: 执行 SQL
+    - button "在编辑器中运行 (发送到 SQL 编辑器)":
+      - generic: 发送到 SQL 编辑器
+    - button "格式化":
+      - generic: 格式化
+    - button "复制":
+      - generic: 复制
+    - button "展开"
+  - separator
+  - heading "六、即学即练（SELECT 基础）" [level=2]:
+    - generic: 六、即学即练（SELECT 基础）
+  - heading "练习 1：列出所有本体论概念" [level=3]:
+    - generic: 练习 1：列出所有本体论概念
+  - generic "点击展开代码":
+    - button "展开代码块":
+    - generic: SQL STATEMENT
+    - generic: (3 行)
+    - generic: SELECT name, definition ...
+    - button "执行 SQL":
+      - generic: 执行 SQL
+    - button "在编辑器中运行 (发送到 SQL 编辑器)":
+      - generic: 发送到 SQL 编辑器
+    - button "格式化":
+      - generic: 格式化
+    - button "复制":
+      - generic: 复制
+    - button "展开"
+  - separator
+  - heading "练习 2：查询康德提出的概念" [level=3]:
+    - generic: 练习 2：查询康德提出的概念
+  - generic "点击展开代码":
+    - button "展开代码块":
+    - generic: SQL STATEMENT
+    - generic: (4 行)
+    - generic: SELECT c.name ...
+    - button "执行 SQL":
+      - generic: 执行 SQL
+    - button "在编辑器中运行 (发送到 SQL 编辑器)":
+      - generic: 发送到 SQL 编辑器
+    - button "格式化":
+      - generic: 格式化
+    - button "复制":
+      - generic: 复制
+    - button "展开"
+  - separator
+  - heading "练习 3：查询每个学派下的思想家数量" [level=3]:
+    - generic: 练习 3：查询每个学派下的思想家数量
+  - generic "点击展开代码":
+    - button "展开代码块":
+    - generic: SQL STATEMENT
+    - generic: (4 行)
+    - generic: SELECT s.name, COUNT(*) AS thinker_count ...
+    - button "执行 SQL":
+      - generic: 执行 SQL
+    - button "在编辑器中运行 (发送到 SQL 编辑器)":
+      - generic: 发送到 SQL 编辑器
+    - button "格式化":
+      - generic: 格式化
+    - button "复制":
+      - generic: 复制
+    - button "展开"
+  - separator
+  - heading "七、小结（本课闭环）" [level=2]:
+    - generic: 七、小结（本课闭环）
+  - list:
+    - paragraph: 你已经建立：
+    - list:
+      - text: 一个
+      - strong: 哲学本体论的关系模型
+      - text: 一套
+      - strong: 可递归、可 JOIN、可事务化
+      - text: 的数据根
+    - paragraph: 当前系统满足：
+    - list:
+      - listitem: 稳定
+      - listitem: 可扩展
+      - listitem: 不返工
+  - separator
+  - heading "下一课预告（Lesson 2 · L2）" [level=2]:
+    - generic: 下一课预告（Lesson 2 · L2）
+  - paragraph:
+    - strong: 主题
+    - text: ：关系建模与 JOIN
+    - strong: 重点
+    - text: ：
+  - list:
+    - listitem: 概念 ↔ 学派 ↔ 思想家
+    - listitem: 自连接（概念谱系）
+    - listitem: 为认识论层做结构铺垫
+  - paragraph:
+    - text: 如果确认，回复：
+    - strong: “执行第二课”
+  - paragraph:
+    - link "https://chatgpt.com/c/69764572-b0f4-832c-bd51-7e34208b07c4":
+      - /url: https://chatgpt.com/c/69764572-b0f4-832c-bd51-7e34208b07c4
+      - generic: https://chatgpt.com/c/69764572-b0f4-832c-bd51-7e34208b07c4
+  - button "文章目录大纲":
+    - generic: TOC
+  - generic "拖拽调整教程与本体图谱宽度":
+  - generic: 本体图谱实时渲染
+  - generic: 待执行代码驱动
+  - text: 跳数
+  - button "1跳"
+  - button "2跳"
+  - button "3跳"
+  - button "全图"
+  - button "执行驱动":
+    - generic: 执行驱动
+  - button "收起图谱面板":
+  - img "知识图谱可视化（SVG D3 (矢量交互)）：27 个节点，43 条关系连线。":
+    - 'generic "理性主义 → membership → Schools 权重: 0.15"'
+    - 'generic "经验主义 → membership → Schools 权重: 0.15"'
+    - 'generic "现象学 → membership → Schools 权重: 0.15"'
+    - 'generic "柏拉图 → membership → Thinkers 权重: 0.15"'
+    - 'generic "亚里士多德 → membership → Thinkers 权重: 0.15"'
+    - 'generic "笛卡尔 → membership → Thinkers 权重: 0.15"'
+    - 'generic "休谟 → membership → Thinkers 权重: 0.15"'
+    - 'generic "康德 → membership → Thinkers 权重: 0.15"'
+    - 'generic "胡塞尔 → membership → Thinkers 权重: 0.15"'
+    - 'generic "理念 → membership → Concepts 权重: 0.15"'
+    - 'generic "实体 → membership → Concepts 权重: 0.15"'
+    - 'generic "形式 → membership → Concepts 权重: 0.15"'
+    - 'generic "理性 → membership → Concepts 权重: 0.15"'
+    - 'generic "经验 → membership → Concepts 权重: 0.15"'
+    - 'generic "先验 → membership → Concepts 权重: 0.15"'
+    - 'generic "现象 → membership → Concepts 权重: 0.15"'
+    - 'generic "物自身 → membership → Concepts 权重: 0.15"'
+    - 'generic "意识 → membership → Concepts 权重: 0.15"'
+    - 'generic "意向性 → membership → Concepts 权重: 0.15"'
+    - 'generic "存在 → membership → Concepts 权重: 0.15"'
+    - 'generic "本质 → membership → Concepts 权重: 0.15"'
+    - 'generic "感性 → membership → Concepts 权重: 0.15"'
+    - 'generic "知性 → membership → Concepts 权重: 0.15"'
+    - 'generic "理念论 → membership → Concepts 权重: 0.15"'
+    - 'generic "理念 → introduced_by → 柏拉图 权重: 1.00 描述: 概念由思想家/主体提出并确立 (Concept -> Thinker)"'
+    - 'generic "实体 → introduced_by → 亚里士多德 权重: 1.00 描述: 概念由思想家/主体提出并确立 (Concept -> Thinker)"'
+    - 'generic "形式 → introduced_by → 亚里士多德 权重: 1.00 描述: 概念由思想家/主体提出并确立 (Concept -> Thinker)"'
+    - 'generic "理性 → introduced_by → 笛卡尔 权重: 1.00 描述: 概念由思想家/主体提出并确立 (Concept -> Thinker)"'
+    - 'generic "经验 → introduced_by → 休谟 权重: 1.00 描述: 概念由思想家/主体提出并确立 (Concept -> Thinker)"'
+    - 'generic "先验 → introduced_by → 康德 权重: 1.00 描述: 概念由思想家/主体提出并确立 (Concept -> Thinker)"'
+    - 'generic "现象 → introduced_by → 康德 权重: 1.00 描述: 概念由思想家/主体提出并确立 (Concept -> Thinker)"'
+    - 'generic "物自身 → introduced_by → 康德 权重: 1.00 描述: 概念由思想家/主体提出并确立 (Concept -> Thinker)"'
+    - 'generic "柏拉图 → belongs_to → 理性主义 权重: 1.00 描述: 主体归属/隶属于学术流派、部门或组织 (Thinker/Member/Task -> School/Dept/Project)"'
+    - 'generic "笛卡尔 → belongs_to → 理性主义 权重: 1.00 描述: 主体归属/隶属于学术流派、部门或组织 (Thinker/Member/Task -> School/Dept/Project)"'
+    - 'generic "休谟 → belongs_to → 经验主义 权重: 1.00 描述: 主体归属/隶属于学术流派、部门或组织 (Thinker/Member/Task -> School/Dept/Project)"'
+    - 'generic "康德 → belongs_to → 理性主义 权重: 1.00 描述: 主体归属/隶属于学术流派、部门或组织 (Thinker/Member/Task -> School/Dept/Project)"'
+    - 'generic "康德 → belongs_to → 经验主义 权重: 1.00 描述: 主体归属/隶属于学术流派、部门或组织 (Thinker/Member/Task -> School/Dept/Project)"'
+    - 'generic "胡塞尔 → belongs_to → 现象学 权重: 1.00 描述: 主体归属/隶属于学术流派、部门或组织 (Thinker/Member/Task -> School/Dept/Project)"'
+    - 'generic "存在 → belongs_to → 实体 权重: 1.00 描述: 主体归属/隶属于学术流派、部门或组织 (Thinker/Member/Task -> School/Dept/Project)"'
+    - 'generic "实体 → belongs_to → 本质 权重: 1.00 描述: 主体归属/隶属于学术流派、部门或组织 (Thinker/Member/Task -> School/Dept/Project)"'
+    - 'generic "意识 → belongs_to → 意向性 权重: 1.00 描述: 主体归属/隶属于学术流派、部门或组织 (Thinker/Member/Task -> School/Dept/Project)"'
+    - 'generic "先验 → belongs_to → 现象 权重: 1.00 描述: 主体归属/隶属于学术流派、部门或组织 (Thinker/Member/Task -> School/Dept/Project)"'
+    - 'generic "理念 → belongs_to → 理念论 权重: 1.00 描述: 主体归属/隶属于学术流派、部门或组织 (Thinker/Member/Task -> School/Dept/Project)"'
+    - 'generic "属性 (9): school_id: 1 name: \"理性主义\" description: \"强调理性与先天结构\" _displayName: \"理性主义\" _domainType: \"ent-schools\" ..."':
+      - generic: "9"
+    - 'generic "属性 (9): school_id: 2 name: \"经验主义\" description: \"强调感官经验\" _displayName: \"经验主义\" _domainType: \"ent-schools\" ..."':
+      - generic: "9"
+    - 'generic "属性 (9): school_id: 3 name: \"现象学\" description: \"研究意识如何呈现对象\" _displayName: \"现象学\" _domainType: \"ent-schools\" ..."':
+      - generic: "9"
+    - 'generic "属性 (11): thinker_id: 1 name: \"柏拉图\" birth_year: -427 death_year: -347 era: \"古典\" ..."':
+      - generic: "11"
+    - 'generic "属性 (11): thinker_id: 2 name: \"亚里士多德\" birth_year: -384 death_year: -322 era: \"古典\" ..."':
+      - generic: "11"
+    - 'generic "属性 (11): thinker_id: 3 name: \"笛卡尔\" birth_year: 1596 death_year: 1650 era: \"近代\" ..."':
+      - generic: "11"
+    - 'generic "属性 (11): thinker_id: 4 name: \"休谟\" birth_year: 1711 death_year: 1776 era: \"近代\" ..."':
+      - generic: "11"
+    - 'generic "属性 (11): thinker_id: 5 name: \"康德\" birth_year: 1724 death_year: 1804 era: \"近代\" ..."':
+      - generic: "11"
+    - 'generic "属性 (11): thinker_id: 6 name: \"胡塞尔\" birth_year: 1859 death_year: 1938 era: \"现代\" ..."':
+      - generic: "11"
+    - 'generic "属性 (11): concept_id: 1 name: \"理念\" definition: \"独立于感官世界的永恒实体\" domain: \"本体论\" introduced_by: 1 ..."':
+      - generic: "11"
+    - 'generic "属性 (11): concept_id: 2 name: \"实体\" definition: \"独立存在的存在者\" domain: \"本体论\" introduced_by: 2 ..."':
+      - generic: "11"
+    - 'generic "属性 (11): concept_id: 3 name: \"形式\" definition: \"事物的结构与本质\" domain: \"本体论\" introduced_by: 2 ..."':
+      - generic: "11"
+    - 'generic "属性 (11): concept_id: 4 name: \"理性\" definition: \"认识的先天能力\" domain: \"认识论\" introduced_by: 3 ..."':
+      - generic: "11"
+    - 'generic "属性 (11): concept_id: 5 name: \"经验\" definition: \"来自感官的认识来源\" domain: \"认识论\" introduced_by: 4 ..."':
+      - generic: "11"
+    - 'generic "属性 (11): concept_id: 6 name: \"先验\" definition: \"经验之前的认识条件\" domain: \"认识论\" introduced_by: 5 ..."':
+      - generic: "11"
+    - 'generic "属性 (11): concept_id: 7 name: \"现象\" definition: \"对象对主体的显现方式\" domain: \"认识论\" introduced_by: 5 ..."':
+      - generic: "11"
+    - 'generic "属性 (11): concept_id: 8 name: \"物自身\" definition: \"不依赖主体的真实存在\" domain: \"本体论\" introduced_by: 5 ..."':
+      - generic: "11"
+    - 'generic "属性 (11): concept_id: 9 name: \"意识\" definition: \"一切显现的场域\" domain: \"认识论\" introduced_by: 6 ..."':
+      - generic: "11"
+    - 'generic "属性 (11): concept_id: 10 name: \"意向性\" definition: \"意识指向对象的结构\" domain: \"认识论\" introduced_by: 6 ..."':
+      - generic: "11"
+    - 'generic "属性 (11): concept_id: 11 name: \"存在\" definition: \"作为存在者之存在\" domain: \"本体论\" introduced_by: 2 ..."':
+      - generic: "11"
+    - 'generic "属性 (11): concept_id: 12 name: \"本质\" definition: \"决定对象是什么的规定性\" domain: \"本体论\" introduced_by: 2 ..."':
+      - generic: "11"
+    - 'generic "属性 (11): concept_id: 13 name: \"感性\" definition: \"直观的能力\" domain: \"认识论\" introduced_by: 5 ..."':
+      - generic: "11"
+    - 'generic "属性 (11): concept_id: 14 name: \"知性\" definition: \"概念化的能力\" domain: \"认识论\" introduced_by: 5 ..."':
+      - generic: "11"
+    - 'generic "属性 (11): concept_id: 15 name: \"理念论\" definition: \"理念高于感性世界\" domain: \"形而上学\" introduced_by: 1 ..."':
+      - generic: "11"
+    - 'generic "类型: Schools 描述: 哲学思想方法论与理论立场的集合。"': Schools
+    - 'generic "类型: Thinkers 描述: 概念的提出者、论证者与思想流派核心主体。"': Thinkers
+    - 'generic "类型: Concepts 描述: 被讨论、被定义、被演化的抽象本体论范畴对象。"': Concepts
+    - generic "理性主义"
+    - generic "经验主义"
+    - generic "现象学"
+    - generic "柏拉图"
+    - generic "亚里士多德"
+    - generic "笛卡尔"
+    - generic "休谟"
+    - generic "康德"
+    - generic "胡塞尔"
+    - generic "理念"
+    - generic "实体"
+    - generic "形式"
+    - generic "理性"
+    - generic "经验"
+    - generic "先验"
+    - generic "现象"
+    - generic "物自身"
+    - generic "意识"
+    - generic "意向性"
+    - generic "存在"
+    - generic "本质"
+    - generic "感性"
+    - generic "知性"
+    - generic "理念论"
+  - group "核心节点与关系筛选":
+    - generic: 核心节点与关系筛选 (2跳·默认 · 悬浮展开)
+  - button "控制面板"
+  - button "渲染模式切换":
+    - generic: SVG D3 (矢量交互)
+    - generic: ≤500节点推荐
+  - button "信息面板"
+  - button "图例"
+  - button "▶"
+  - generic: "⏱ 拓扑演进: 100%"
+  - slider: "100"
+  - generic: (27/96 节点)
+  - generic: 🔎
+  - textbox "搜索节点... (Alt+S)"
+- contentinfo:
+  - generic: DuckDB 1.33.1
+  - generic: "|"
+  - generic: memory [MEMORY]
+  - generic: "|"
+  - generic: 内存库
+  - generic: "|"
+  - generic: 0 张表
+  - generic: "|"
+  - generic: 暂无表
+  - generic: "|"
+  - generic: "内存: 0.00 MB / 3.1 GiB"
+  - generic: 引擎就绪
+  - generic: "|"
+  - generic: 06:37
+  - button "刷新运行时状态":

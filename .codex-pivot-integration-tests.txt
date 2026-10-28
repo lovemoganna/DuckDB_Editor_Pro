@@ -1,0 +1,55 @@
+Already up to date
+Done in 371ms using pnpm v11.13.0
+$ vitest run --pool=threads --maxWorkers=1 --no-file-parallelism "components/Dashboard/MissionControl/DataIdeMissionControl.test.tsx" "services/workbench/queryCompiler.test.ts" "services/analysis/pivotExperience.test.ts" "components/AnalysisHub/PivotEditor.test.tsx"
+
+ RUN  v4.1.10 C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor
+
+ReferenceError: ResizeObserver is not defined
+    at C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/DashboardGrid.tsx:89:28
+    at commitHookEffectListMount (C:\Users\luoyu\Desktop\Duckdb_Manager\duckdb-editor\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:23189:26)
+    at commitPassiveMountOnFiber (C:\Users\luoyu\Desktop\Duckdb_Manager\duckdb-editor\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:24970:11)
+    at commitPassiveMountEffects_complete (C:\Users\luoyu\Desktop\Duckdb_Manager\duckdb-editor\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:24930:9)
+    at commitPassiveMountEffects_begin (C:\Users\luoyu\Desktop\Duckdb_Manager\duckdb-editor\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:24917:7)
+    at commitPassiveMountEffects (C:\Users\luoyu\Desktop\Duckdb_Manager\duckdb-editor\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:24905:3)
+    at flushPassiveEffectsImpl (C:\Users\luoyu\Desktop\Duckdb_Manager\duckdb-editor\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:27078:3)
+    at flushPassiveEffects (C:\Users\luoyu\Desktop\Duckdb_Manager\duckdb-editor\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:27023:14)
+    at commitRootImpl (C:\Users\luoyu\Desktop\Duckdb_Manager\duckdb-editor\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:26974:5)
+    at commitRoot (C:\Users\luoyu\Desktop\Duckdb_Manager\duckdb-editor\node_modules\.pnpm\react-dom@18.3.1_react@18.3.1\node_modules\react-dom\cjs\react-dom.development.js:26721:5)
+⎯⎯⎯⎯⎯⎯ Unhandled Errors ⎯⎯⎯⎯⎯⎯
+
+Vitest caught 1 unhandled error during the test run.
+This might cause false positive tests. Resolve unhandled errors to make sure your tests are not affected.
+
+⎯⎯⎯⎯⎯ Uncaught Exception ⎯⎯⎯⎯⎯
+ReferenceError: ResizeObserver is not defined
+ ❯ components/DashboardGrid.tsx:89:28
+     87|     if (!containerRef.current) return;
+     88|     const el = containerRef.current;
+     89|     const resizeObserver = new ResizeObserver((entries) => {
+       |                            ^
+     90|       for (const entry of entries) {
+     91|         const next = Math.floor(entry.contentRect.width);
+ ❯ commitHookEffectListMount node_modules/.pnpm/react-dom@18.3.1_react@18.3.1/node_modules/react-dom/cjs/react-dom.development.js:23189:26
+ ❯ commitPassiveMountOnFiber node_modules/.pnpm/react-dom@18.3.1_react@18.3.1/node_modules/react-dom/cjs/react-dom.development.js:24970:11
+ ❯ commitPassiveMountEffects_complete node_modules/.pnpm/react-dom@18.3.1_react@18.3.1/node_modules/react-dom/cjs/react-dom.development.js:24930:9
+ ❯ commitPassiveMountEffects_begin node_modules/.pnpm/react-dom@18.3.1_react@18.3.1/node_modules/react-dom/cjs/react-dom.development.js:24917:7
+ ❯ commitPassiveMountEffects node_modules/.pnpm/react-dom@18.3.1_react@18.3.1/node_modules/react-dom/cjs/react-dom.development.js:24905:3
+ ❯ flushPassiveEffectsImpl node_modules/.pnpm/react-dom@18.3.1_react@18.3.1/node_modules/react-dom/cjs/react-dom.development.js:27078:3
+ ❯ flushPassiveEffects node_modules/.pnpm/react-dom@18.3.1_react@18.3.1/node_modules/react-dom/cjs/react-dom.development.js:27023:14
+ ❯ commitRootImpl node_modules/.pnpm/react-dom@18.3.1_react@18.3.1/node_modules/react-dom/cjs/react-dom.development.js:26974:5
+ ❯ commitRoot node_modules/.pnpm/react-dom@18.3.1_react@18.3.1/node_modules/react-dom/cjs/react-dom.development.js:26721:5
+
+This error originated in "components/Dashboard/MissionControl/DataIdeMissionControl.test.tsx" test file. It doesn't mean the error was thrown inside the file itself, but while it was running.
+The latest test that might've caused the error is "keeps saved analyses reachable when queries do not need physical tables". It might mean one of the following:
+- The error was thrown, while Vitest was running this test.
+- If the error occurred after the test had been completed, this was the last documented test before it was thrown.
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+
+ Test Files  4 passed (4)
+      Tests  33 passed (33)
+     Errors  1 error
+   Start at  12:14:25
+   Duration  54.56s (transform 17.34s, setup 1.70s, import 31.79s, tests 3.70s, environment 14.84s)
+
+[ELIFECYCLE] Command failed with exit code 1.

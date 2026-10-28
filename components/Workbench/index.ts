@@ -10,4 +10,4 @@ export { RuntimeCenterModal } from './RuntimeCenterModal';
 export { CommandPaletteModal } from './CommandPaletteModal';
 export { KeyboardShortcutsModal } from './KeyboardShortcutsModal';
 export { WorkspaceRecoveryModal } from './WorkspaceRecoveryModal';
-export { seedDemoWorkbenchData, DEFAULT_WORKBENCH_SQL } from './seedWorkbenchData';
+export { seedDemoWorkbenchData, DEFAULT_WORKBENCH_SQL, resetDemoSeedPromise } from './seedWorkbenchData';

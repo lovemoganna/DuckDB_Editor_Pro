@@ -1,0 +1,419 @@
+$ vitest run --pool=threads --maxWorkers=1 --no-file-parallelism "components/AnalysisHub/AnalysisHub.test.tsx" "components/Workbench/ResultSection.test.tsx" "components/Workbench/WorkbenchView.test.tsx" "components/Library/D3GraphView" "components/Library/OntologyCanvas" "components/DataFlow/DataFlowCanvas.test.tsx" "services/dataflow/logicalFlowResponsive.test.ts" "services/dataflow/logicalFlowLayouts.test.ts" "services/dataflow/logicalFlowGovernance.test.ts"
+
+ RUN  v4.1.10 C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor
+
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+ ❯ components/Workbench/ResultSection.test.tsx (13 tests | 2 failed) 747ms
+     × switches to Explain Analyze subtab and displays empty state when no explain plan exists 35ms
+     × switches to Explain Analyze subtab and displays graphical plan tree when plan is available 50ms
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  components/Workbench/ResultSection.test.tsx > ResultSection (BRD index8.md & Target Mockup Flow) > switches to Explain Analyze subtab and displays empty state when no explain plan exists
+TestingLibraryElementError: Unable to find an element with the text: 图形. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <div
+      class="flex h-full w-full min-h-0 flex-col overflow-auto bg-monokai-bg select-none text-monokai-fg font-sans "
+    >
+      <div
+        class="flex min-h-11 flex-wrap py-1 whitespace-nowrap shrink-0 items-center justify-between border-b border-monokai-border bg-gradient-to-b from-monokai-surface/95 via-monokai-surface/85 to-monokai-surface/70 px-3 gap-3 text-xs select-none relative z-10 font-sans"
+      >
+        <span
+          class="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-monokai-cyan/20 to-transparent"
+        />
+        <div
+          class="flex flex-wrap items-center gap-2.5 min-w-0 max-w-full"
+        >
+          <div
+            aria-label="查询结果视图切换"
+            class="inline-flex shrink-0 items-center gap-0.5 rounded-lg bg-gradient-to-b from-monokai-sidebar/85 to-monokai-sidebar/70 font-sans border border-monokai-border/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] h-7.5 p-0.5 "
+            role="tablist"
+          >
+            <button
+              aria-selected="false"
+              class="group relative inline-flex items-center gap-1 rounded-md font-medium cursor-pointer transition-all duration-150 select-none h-6.5 px-2.5 text-[10px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-monokai-accent/70 focus-visible:ring-offset-1 focus-visible:ring-offset-monokai-bg text-monokai-comment/80 hover:bg-monokai-surface/50 hover:text-monokai-fg border border-transparent"
+              role="tab"
+              tabindex="-1"
+              type="button"
+            >
+              <svg
+                aria-hidden="true"
+                class="lucide lucide-table h-3.5 w-3.5 shrink-0 transition-colors text-monokai-comment group-hover:text-monokai-fg"
+                fill="none"
+                height="24"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+                width="24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M12 3v18"
+                />
+                <rect
+                  height="18"
+                  rx="2"
+                  width="18"
+                  x="3"
+                  y="3"
+                />
+                <path
+                  d="M3 9h18"
+                />
+                <path
+                  d="M3 15h18"
+                />
+              </svg>
+              <span
+                class="tracking-tight"
+              >
+                数据
+              </span>
+              <span
+                class="ml-0.5 rounded px-1 py-0.2 text-[9px] font-mono font-bold bg-monokai-sidebar text-monokai-comment/70"
+              >
+                2
+              </span>
+            </button>
+            <button
+              aria-selected="false"
+              class="group relative inline-flex items-center gap-1 rounded-md font-medium cursor-pointer transition-all duration-150 select-none h-6.5 px-2.5 text-[10px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-monokai-accent/70 focus-visible:ring-offset-1 focus-visible:ring-offset-monokai-bg text-monokai-comment/80 hover:bg-monokai-surface/50 hover:text-monokai-fg border border-transparent"
+              role="tab"
+              tabindex="-1"
+              type="button"
+            >
+              <svg
+                aria-hidden="true"
+                class="lucide lucide-chart-no-axes-column h-3.5 w-3.5 shrink-0 transition-colors text-monokai-comment group-hover:text-monokai-fg"
+                fill="none"
+                height="24"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+                width="24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M5 21v-6"
+                />
+                <path
+                  d="M12 21V3"
+                />
+                <path
+                  d="M19 21V9"
+                />
+              </svg>
+              <span
+                class="tracking-tight"
+              >
+                图表
+              </span>
+            </button>
+            <button
+              aria-selected="false"
+              class="group relative inline-flex items-center gap-1 rounded-md font-medium cursor-pointer transition-all duration-150 select-none h-6.5 px-2.5 text-[10px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-monokai-accent/70 focus-visible:ring-offset-1 focus-visible:ring-offset-monokai-bg text-monokai-comment/80 hover:bg-monokai-surface/50 hover:text-monokai-fg border border-transparent"
+              role="tab"
+              tabindex="-1"
+              type="button"
+            >
+              <svg
+                aria-hidden="true"
+                class="lucide lucide-table-properties h-3.5 w-3.5 shrink-0 transition-colors text-monokai-comment group-hover:text-monokai-fg"
+                fill="none"
+                height="24"
+                stroke="currentColor"
+     ...
+ ❯ Object.getElementError node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ ❯ node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ ❯ node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ components/Workbench/ResultSection.test.tsx:173:19
+    171|     fireEvent.click(screen.getByText('执行计划'));
+    172|
+    173|     expect(screen.getByText('图形')).toBeTruthy();
+       |                   ^
+    174|     expect(screen.getByText(/还没有执行步骤|暂无物理执行计划/)).toBeTruthy();
+    175|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  components/Workbench/ResultSection.test.tsx > ResultSection (BRD index8.md & Target Mockup Flow) > switches to Explain Analyze subtab and displays graphical plan tree when plan is available
+TestingLibraryElementError: Unable to find an element with the text: 图形. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <div
+      class="flex h-full w-full min-h-0 flex-col overflow-auto bg-monokai-bg select-none text-monokai-fg font-sans "
+    >
+      <div
+        class="flex min-h-11 flex-wrap py-1 whitespace-nowrap shrink-0 items-center justify-between border-b border-monokai-border bg-gradient-to-b from-monokai-surface/95 via-monokai-surface/85 to-monokai-surface/70 px-3 gap-3 text-xs select-none relative z-10 font-sans"
+      >
+        <span
+          class="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-monokai-cyan/20 to-transparent"
+        />
+        <div
+          class="flex flex-wrap items-center gap-2.5 min-w-0 max-w-full"
+        >
+          <div
+            aria-label="查询结果视图切换"
+            class="inline-flex shrink-0 items-center gap-0.5 rounded-lg bg-gradient-to-b from-monokai-sidebar/85 to-monokai-sidebar/70 font-sans border border-monokai-border/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] h-7.5 p-0.5 "
+            role="tablist"
+          >
+            <button
+              aria-selected="false"
+              class="group relative inline-flex items-center gap-1 rounded-md font-medium cursor-pointer transition-all duration-150 select-none h-6.5 px-2.5 text-[10px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-monokai-accent/70 focus-visible:ring-offset-1 focus-visible:ring-offset-monokai-bg text-monokai-comment/80 hover:bg-monokai-surface/50 hover:text-monokai-fg border border-transparent"
+              role="tab"
+              tabindex="-1"
+              type="button"
+            >
+              <svg
+                aria-hidden="true"
+                class="lucide lucide-table h-3.5 w-3.5 shrink-0 transition-colors text-monokai-comment group-hover:text-monokai-fg"
+                fill="none"
+                height="24"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+                width="24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M12 3v18"
+                />
+                <rect
+                  height="18"
+                  rx="2"
+                  width="18"
+                  x="3"
+                  y="3"
+                />
+                <path
+                  d="M3 9h18"
+                />
+                <path
+                  d="M3 15h18"
+                />
+              </svg>
+              <span
+                class="tracking-tight"
+              >
+                数据
+              </span>
+              <span
+                class="ml-0.5 rounded px-1 py-0.2 text-[9px] font-mono font-bold bg-monokai-sidebar text-monokai-comment/70"
+              >
+                1
+              </span>
+            </button>
+            <button
+              aria-selected="false"
+              class="group relative inline-flex items-center gap-1 rounded-md font-medium cursor-pointer transition-all duration-150 select-none h-6.5 px-2.5 text-[10px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-monokai-accent/70 focus-visible:ring-offset-1 focus-visible:ring-offset-monokai-bg text-monokai-comment/80 hover:bg-monokai-surface/50 hover:text-monokai-fg border border-transparent"
+              role="tab"
+              tabindex="-1"
+              type="button"
+            >
+              <svg
+                aria-hidden="true"
+                class="lucide lucide-chart-no-axes-column h-3.5 w-3.5 shrink-0 transition-colors text-monokai-comment group-hover:text-monokai-fg"
+                fill="none"
+                height="24"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+                width="24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M5 21v-6"
+                />
+                <path
+                  d="M12 21V3"
+                />
+                <path
+                  d="M19 21V9"
+                />
+              </svg>
+              <span
+                class="tracking-tight"
+              >
+                图表
+              </span>
+            </button>
+            <button
+              aria-selected="false"
+              class="group relative inline-flex items-center gap-1 rounded-md font-medium cursor-pointer transition-all duration-150 select-none h-6.5 px-2.5 text-[10px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-monokai-accent/70 focus-visible:ring-offset-1 focus-visible:ring-offset-monokai-bg text-monokai-comment/80 hover:bg-monokai-surface/50 hover:text-monokai-fg border border-transparent"
+              role="tab"
+              tabindex="-1"
+              type="button"
+            >
+              <svg
+                aria-hidden="true"
+                class="lucide lucide-table-properties h-3.5 w-3.5 shrink-0 transition-colors text-monokai-comment group-hover:text-monokai-fg"
+                fill="none"
+                height="24"
+                stroke="currentColor"
+     ...
+ ❯ Object.getElementError node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ ❯ node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ ❯ node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ components/Workbench/ResultSection.test.tsx:198:19
+    196|     fireEvent.click(screen.getByText('执行计划'));
+    197|
+    198|     expect(screen.getByText('图形')).toBeTruthy();
+       |                   ^
+    199|     expect(screen.getAllByText(/整理要输出的列|整理输出列/).length).toBeGreaterTha…
+    200|     expect(screen.getAllByText(/连接两路数据|内连接/).length).toBeGreaterThan(0…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed | 22 passed (23)
+      Tests  2 failed | 665 passed (667)
+   Start at  17:53:47
+   Duration  52.45s (transform 4.62s, setup 2.11s, import 15.79s, tests 14.14s, environment 17.05s)
+
+[ELIFECYCLE] Command failed with exit code 1.

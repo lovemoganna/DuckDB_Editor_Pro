@@ -1,0 +1,10 @@
+$ vitest run --pool=threads --maxWorkers=1 --no-file-parallelism "components/Library/OntologyModelingWizard.test.tsx" "services/ontologyModelingDraft.test.ts" "services/ontologyModelingService.test.ts"
+
+ RUN  v4.1.10 C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor
+
+
+ Test Files  3 passed (3)
+      Tests  16 passed (16)
+   Start at  15:49:17
+   Duration  15.31s (transform 569ms, setup 992ms, import 2.27s, tests 4.13s, environment 6.67s)
+

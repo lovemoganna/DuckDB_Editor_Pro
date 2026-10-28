@@ -70,9 +70,9 @@ describe('DuckDB Studio End-to-End Workflow Validation', () => {
         const tableNames = Object.keys(mockTableData);
         return toDuckResult(tableNames.map(name => ({ table_name: name, name })));
       }
-      if (sql.includes('PRAGMA table_info')) {
-        const match = sql.match(/PRAGMA table_info\('([^']+)'\)/);
-        const tableName = match ? match[1] : '';
+      if (sql.includes('PRAGMA table_info') || sql.includes('pragma_table_info')) {
+        const match = sql.match(/(?:PRAGMA table_info|pragma_table_info)\('([^']+)'\)/i);
+        const tableName = match ? match[1].split('.').pop()!.replace(/"/g,'') : '';
         const table = mockTableData[tableName];
         return toDuckResult(table ? table.schema : []);
       }

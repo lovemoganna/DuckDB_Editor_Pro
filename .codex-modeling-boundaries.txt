@@ -1,0 +1,16 @@
+$ vitest run --pool=threads --maxWorkers=1 --no-file-parallelism "components/Library/D3GraphView" "services/ontologyModelingDraft.test.ts" "components/Library/OntologyModelingWizard.test.tsx" "services/duckdbService.persistence.test.ts"
+
+ RUN  v4.1.10 C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor
+
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+
+ Test Files  13 passed (13)
+      Tests  103 passed (103)
+   Start at  16:00:54
+   Duration  96.99s (transform 2.01s, setup 6.95s, import 19.00s, tests 11.68s, environment 50.19s)
+

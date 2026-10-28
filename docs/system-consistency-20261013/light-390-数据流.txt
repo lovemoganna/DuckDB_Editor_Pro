@@ -1,0 +1,115 @@
+- banner "全局工作区顶栏":
+  - button "🪶 DuckDB Studio PRO":
+    - generic: 🪶
+    - generic: DuckDB Studio
+    - generic: PRO
+  - navigation "业务领域大类":
+    - button "工程核心":
+      - generic: 工程核心
+    - button "分析洞察":
+      - generic: 分析洞察
+    - button "知识沉淀":
+      - generic: 知识沉淀
+    - button "AI 认知":
+      - generic: AI 认知
+  - tablist "工程核心功能标签页":
+    - tab "仪表盘":
+      - generic: 仪表盘
+      - generic: "1"
+    - tab "数据":
+      - generic: 数据
+      - generic: "2"
+    - tab "Schema":
+      - generic: Schema
+      - generic: "3"
+    - tab "SQL":
+      - generic: SQL
+      - generic: "4"
+    - tab "数据流" [active] [selected]:
+      - generic: 数据流
+  - button "项目":
+    - generic: 项目
+  - button "新建表":
+    - generic: 新建表
+  - button "临时分析空间":
+    - generic: 临时分析空间
+  - button "AI 助手":
+    - generic: AI 助手
+  - button "⌘K":
+  - button "帮助与快捷键":
+  - button "切换为深色模式":
+  - button "AI 模型设置":
+- main:
+  - button "当前 SQL 流图" [pressed]:
+    - generic: 当前 SQL 流图
+  - button "全库表与视图血缘":
+    - generic: 全库表与视图血缘
+  - button "自由编排":
+    - generic: 自由编排
+  - combobox "关联查询":
+    - option "query_1.sql" [selected]
+  - generic "流程图始终由当前编辑器 SQL 实时生成"
+  - button "进入 SQL 工作台":
+  - button "工具：单步推演、编译为 SQL":
+  - button "从最终结果/选中节点一键反向追溯至底层原始数据源 (RESULT ← ... ← SCAN)":
+  - button "从 SQL 同步":
+    - generic: 从 SQL 同步
+  - button "运行全流程":
+    - generic: 运行全流程
+  - button "展开左侧资产与算子库":
+  - button "数据表与血缘对象":
+  - button "ETL 算子库":
+  - 'button "选择模式 (快捷键: S)"':
+  - 'button "平移画布 (快捷键: H)"':
+  - button "缩小画布":
+  - generic: 100%
+  - button "放大画布":
+  - button "全图自适应居中 (Fit View)":
+  - button "智能分层拓扑整理布局":
+  - combobox "流程图布局":
+    - option "自动" [selected]
+    - option "横向"
+    - option "纵向"
+    - option "树形"
+    - option "力导向"
+  - button "切换全景小地图 (MiniMap)":
+  - button "Single row — 42 AS answer, '审查长文本验证' AS label —":
+    - generic "Single row"
+    - generic: —
+    - generic "42 AS answer, '审查长文本验证' AS label":
+      - generic: 42 AS answer, '审查长文本验证' AS label
+    - generic: —
+  - button "SELECT — 42 AS answer, '审查长文本验证' AS label —":
+    - generic "SELECT"
+    - generic: —
+    - generic "42 AS answer, '审查长文本验证' AS label":
+      - generic: 42 AS answer, '审查长文本验证' AS label
+    - generic: —
+  - button "Result — SELECT 42 AS answer, '审查长文本验证' AS label — 反向追溯":
+    - generic "Result"
+    - generic: —
+    - generic "SELECT 42 AS answer, '审查长文本验证' AS label":
+      - generic: SELECT 42 AS answer, '审查长文本验证' AS label
+    - generic: —
+    - button "反向追溯":
+      - generic: 反向追溯
+  - button "属性详情":
+    - generic: 属性详情
+  - button "运行日志 1":
+    - generic: 运行日志
+    - generic: "1"
+  - button "节点历史 Result":
+    - generic: 节点历史
+    - generic "Result"
+  - button "数据采样":
+    - generic: 数据采样
+  - button "展开控制台":
+    - generic: 展开控制台
+- contentinfo:
+  - generic: DuckDB 1.33.1
+  - generic: "|"
+  - generic: memory [MEMORY]
+  - generic: 引擎就绪
+  - generic: "|"
+  - generic: 06:38
+  - button "刷新运行时状态":

@@ -1,0 +1,104 @@
+- banner "全局工作区顶栏":
+  - button "🪶 DuckDB Studio PRO":
+    - generic: 🪶
+    - generic: DuckDB Studio
+    - generic: PRO
+  - navigation "业务领域大类":
+    - button "工程核心":
+      - generic: 工程核心
+    - button "分析洞察":
+      - generic: 分析洞察
+    - button "知识沉淀":
+      - generic: 知识沉淀
+    - button "AI 认知":
+      - generic: AI 认知
+  - tablist "分析洞察功能标签页":
+    - tab "指标":
+      - generic: 指标
+    - tab "可视化" [active] [selected]:
+      - generic: 可视化
+    - tab "分析":
+      - generic: 分析
+    - tab "历史":
+      - generic: 历史
+    - tab "审计":
+      - generic: 审计
+  - button "项目 Ctrl+Shift+D":
+    - generic: 项目
+    - generic: Ctrl+Shift+D
+  - button "新建表":
+    - generic: 新建表
+  - button "memory 临时分析空间":
+    - generic: memory
+    - generic: 临时分析空间
+  - button "AI 助手 Ctrl+I":
+    - generic: AI 助手
+    - generic: Ctrl+I
+  - button "⌘K":
+  - button "帮助与快捷键":
+  - button "切换为深色模式":
+  - button "AI 模型设置":
+- main:
+  - heading "多维数据可视化中心" [level=1]
+  - generic: 共 0 张图表
+  - generic: "指标衍生: 0"
+  - generic: "即席图谱: 0"
+  - paragraph: 集中沉淀指标图表、即席探索图谱与数据资产可视化。支持一键在 SQL 编辑器调试、指标血缘下钻与仪表盘联动固定。
+  - button "首页仪表盘":
+    - generic: 首页仪表盘
+  - button "刷新数据" [disabled]:
+    - generic: 刷新数据
+  - button "从指标生成":
+    - generic: 从指标生成
+  - button "新建图表":
+    - generic: 新建图表
+  - tablist "图表分类筛选":
+    - tab "全部图表 0" [selected]:
+      - generic: 全部图表
+      - generic: "0"
+    - tab "指标衍生 0":
+      - generic: 指标衍生
+      - generic: "0"
+    - tab "即席图谱 0":
+      - generic: 即席图谱
+      - generic: "0"
+    - tab "已固定首页 0":
+      - generic: 已固定首页
+      - generic: "0"
+  - generic: "关联表:"
+  - combobox "关联数据表筛选":
+    - option "全部数据表" [selected]
+  - generic: "图表类型:"
+  - combobox "图表类型筛选":
+    - option "全部类型" [selected]
+    - option "柱状图"
+    - option "折线图"
+    - option "面积图"
+    - option "环形图"
+    - option "饼图"
+    - option "散点图"
+    - option "数据表"
+    - option "指标卡"
+    - option "漏斗图"
+    - option "瀑布图"
+    - option "直方图"
+    - option "组合图"
+  - textbox "搜索图表名称、指标或 SQL..."
+  - status:
+    - generic: 正在载入可视化资产…
+- contentinfo:
+  - generic: DuckDB 1.33.1
+  - generic: "|"
+  - generic: memory [MEMORY]
+  - generic: "|"
+  - generic: 内存库
+  - generic: "|"
+  - generic: 0 张表
+  - generic: "|"
+  - generic: 暂无表
+  - generic: "|"
+  - generic: "内存: 0.00 MB / 3.1 GiB"
+  - generic: 引擎就绪
+  - generic: "|"
+  - generic: 06:37
+  - button "刷新运行时状态":

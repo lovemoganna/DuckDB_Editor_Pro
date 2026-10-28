@@ -1,8 +1,15 @@
+import { extractTablesFromSql } from './queryVizHint';
+import { executeAnalysisQuery, requireAnalysisQuery } from './analysis/readQuery';
 import { aiService } from './aiService';
 import { dbService } from './dbService';
 import { duckDBService } from './duckdbService';
 import { MetricDefinition, MetricPackage, MetricChart, ChartConfig } from '../types';
 import { semanticMetricCatalog } from './semanticMetricCatalog';
+import { activeAnalysisDatabase, readMetricAssets, writeMetricAssets, dismissAutomaticObject } from './metricAssetStorage';
+import { quoteIdent, quoteTable } from './analysis/sqlUtils';
+import { compileMetricSql, metricSource, metricCalculationFields } from './metricSql';
+import { METRIC_AUTHORING_RULES } from './metricAuthoring';
+import { pinChartToHome, syncLinkedChart } from './homeDashboardService';
 
 /**
  * 指标告警配置类型
@@ -116,7 +123,7 @@ class MetricAnalyzerService {
         const schema = await duckDBService.getTableSchema(table);
         
         // 获取行数
-        const countQuery = `SELECT COUNT(*) as cnt FROM "${table}"`;
+        const countQuery = `SELECT COUNT(*) as cnt FROM ${quoteTable(table)}`;
         const countResult = await duckDBService.query(countQuery);
         const rowCount = countResult[0]?.cnt || 0;
 
@@ -169,7 +176,8 @@ ${tableDescriptions}
     "value": "价值说明（为什么这个指标重要）",
     "definition": "指标定义（精确的业务含义，用中文描述）",
     "formula": "计算公式（如：SUM(amount) 或 COUNT(DISTINCT user_id)）",
-    "example": "典型案例（如：2024年1月GMV为100万元）",
+    "example": "核验方法（不编造实际结果）",
+    "sourceTable": "真实来源表名",
     "dependencies": ["依赖的列名数组"],
     "unit": "单位（如：元、个、%）",
     "category": "分类（如：流量类、转化类、营收类）",
@@ -178,11 +186,12 @@ ${tableDescriptions}
 ]
 
 要求：
-1. 每个表至少生成3-5个有价值的指标
+1. 只生成元数据支持且口径明确的指标，不强制数量
 2. 指标要有业务意义，不是简单的列名
 3. dependencies必须填写依赖的列名
 4. sqlValidation必须是有效的DuckDB SQL语句，用于验证或计算该指标
-5. 只返回JSON数组，不要其他内容`;
+5. 只返回JSON数组，不要其他内容
+${METRIC_AUTHORING_RULES}`;
   }
 
   /**
@@ -192,29 +201,24 @@ ${tableDescriptions}
     const validMetrics: MetricDefinition[] = [];
     const now = Date.now();
 
-    for (const m of metrics) {
-      // 验证必填字段
-      if (!m.name || !m.scenario || !m.characteristics || 
-          !m.value || !m.definition || !m.formula || !m.example) {
-        console.warn('Invalid metric, missing required fields:', m);
-        continue;
-      }
-
+    for (const raw of metrics) {
+      // Keep incomplete suggestions editable. Missing prose must not erase SQL,
+      // source bindings, or structured calculation parameters.
+      const m = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
+      const text = (field: string) => typeof m[field] === 'string' ? m[field].trim() : '';
+      const strings = (value: unknown): string[] => Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string').map(item => item.trim()).filter(Boolean) : [];
+      const calculation = m.calculation && typeof m.calculation === 'object' && !Array.isArray(m.calculation)
+        ? { ...m.calculation, ...(m.calculation.groupBy !== undefined ? {groupBy: strings(m.calculation.groupBy)} : {}) } : undefined;
+      const governance = m.governance && typeof m.governance === 'object' && !Array.isArray(m.governance) ? m.governance : {};
       validMetrics.push({
         id: `metric_${now}_${Math.random().toString(36).substr(2, 9)}`,
-        name: m.name,
-        scenario: m.scenario,
-        characteristics: m.characteristics,
-        value: m.value,
-        definition: m.definition,
-        formula: m.formula,
-        example: m.example,
-        dependencies: m.dependencies || [],
-        unit: m.unit,
-        category: m.category,
-        sqlValidation: m.sqlValidation || '',
-        isValid: undefined,
-        createdAt: now
+        name: text('name'), scenario: text('scenario'), characteristics: text('characteristics'),
+        value: text('value'), definition: text('definition'), formula: text('formula'), example: text('example'),
+        dependencies: Array.isArray(m.dependencies) ? strings(m.dependencies) : calculation ? metricCalculationFields({ calculation } as MetricDefinition) : [],
+        unit: text('unit'), category: text('category'), sourceTable: text('sourceTable') || undefined,
+        calculation,
+        governance: { ...governance, reviewStatus: 'draft' },
+        sqlValidation: text('sqlValidation'), isValid: undefined, createdAt: now,
       });
     }
 
@@ -226,8 +230,10 @@ ${tableDescriptions}
    */
   async analyzeMetrics(
     tables: string[],
-    onChunk?: (chunk: string) => void
+    onChunk?: (chunk: string) => void,
+    businessContext = ''
   ): Promise<MetricDefinition[]> {
+    const database = activeAnalysisDatabase();
     // 1. 收集表结构
     const tableInfos = await this.collectTableSchema(tables);
     
@@ -236,7 +242,7 @@ ${tableDescriptions}
     }
 
     // 2. 构建提示词
-    const prompt = this.buildPrompt(tableInfos);
+    const prompt = `${this.buildPrompt(tableInfos)}\n用户业务问题与决策用途：${businessContext.trim() || '未提供；仅生成待确认候选，不宣称业务价值'}`;
 
     // 3. 调用AI
     const systemInstruction = `你是一个资深数据分析师，擅长从数据表结构中提炼出有价值的业务指标。你的输出必须是有效的JSON数组。`;
@@ -265,7 +271,10 @@ ${tableDescriptions}
       }
 
       // 5. 验证并转换
-      return this.validateMetrics(metricsData as any[]);
+      if (activeAnalysisDatabase() !== database) throw new Error('数据库已切换，请在当前数据库重新生成指标');
+      return this.validateMetrics(metricsData as any[]).map(metric => ({ ...metric,
+        sourceTable: metric.sourceTable || (tableInfos.length === 1 ? tableInfos[0].tableName : undefined),
+      }));
     } catch (error) {
       console.error('AI analysis failed:', error);
       throw error;
@@ -285,37 +294,32 @@ ${tableDescriptions}
       packages.push(pkg);
     }
 
-    localStorage.setItem(this.STORAGE_KEY, JSON.stringify(packages));
+    writeMetricAssets(this.STORAGE_KEY, packages, 'duckdb-metrics-updated');
   }
 
   /**
    * 保存所有指标包
    */
   saveAllPackages(packages: MetricPackage[]): void {
-    localStorage.setItem(this.STORAGE_KEY, JSON.stringify(packages));
+    writeMetricAssets(this.STORAGE_KEY, packages, 'duckdb-metrics-updated');
   }
 
   /**
    * 从localStorage加载所有指标包
    */
   loadMetricPackages(): MetricPackage[] {
-    try {
-      const data = localStorage.getItem(this.STORAGE_KEY);
-      if (data) {
-        return JSON.parse(data);
-      }
-    } catch (error) {
-      console.error('Error loading metric packages:', error);
-    }
-    return [];
+    return readMetricAssets<MetricPackage>(this.STORAGE_KEY)
+      .filter(pkg => pkg.databaseName === activeAnalysisDatabase());
   }
 
   /**
    * 删除指标包
    */
   deleteMetricPackage(id: string): void {
+    dismissAutomaticObject('package', id);
     const packages = this.loadMetricPackages().filter(p => p.id !== id);
-    localStorage.setItem(this.STORAGE_KEY, JSON.stringify(packages));
+    writeMetricAssets(this.STORAGE_KEY, packages, 'duckdb-metrics-updated');
+    // Preserve references so downstream modules can explain a deleted definition.
   }
 
   /**
@@ -337,6 +341,7 @@ ${tableDescriptions}
     const now = Date.now();
     return {
       id: `pkg_${now}_${Math.random().toString(36).substr(2, 9)}`,
+      databaseName: activeAnalysisDatabase(),
       name,
       description,
       sourceTables,
@@ -359,12 +364,31 @@ ${tableDescriptions}
     if (index < 0) return null;
 
     const normalizedUpdates = { ...updates };
+    const changedMetricIds = new Set<string>();
 
     // SemanticMetricCatalog owns immutable version and history semantics.
     if (updates.metrics) {
+      const previous = packages[index];
+      if (id.startsWith('discovered:') || id.startsWith('executive:')) normalizedUpdates.dismissedMetricIds = [...new Set([
+        ...(previous.dismissedMetricIds || []), ...previous.metrics.filter(metric => !updates.metrics!.some(item => item.id === metric.id)).map(metric => metric.id),
+      ])];
+      const nextMetrics = updates.metrics.map(metric => {
+        const before = previous.metrics.find(item => item.id === metric.id);
+        const formulaChanged = before && before.formula !== metric.formula;
+        const changed = before && (formulaChanged || before.sourceTable !== metric.sourceTable
+          || JSON.stringify(before.calculation) !== JSON.stringify(metric.calculation) || before.sqlValidation !== metric.sqlValidation
+          || JSON.stringify(before.dependencies) !== JSON.stringify(metric.dependencies));
+        if (!changed) return metric;
+        changedMetricIds.add(metric.id);
+        const freshlyValidated = metric.isValid === true && metric.lastValidated !== before.lastValidated
+          && metric.validationDatabase === activeAnalysisDatabase();
+        if (freshlyValidated) return metric;
+        return { ...metric, isValid: undefined, lastValidated: undefined, validationError: undefined, validationResult: undefined,
+          sqlValidation: formulaChanged && before.sqlValidation === metric.sqlValidation ? undefined : metric.sqlValidation };
+      });
       normalizedUpdates.metrics = semanticMetricCatalog.versionMetrics(
         packages[index].metrics,
-        updates.metrics,
+        nextMetrics,
       );
     }
 
@@ -374,7 +398,24 @@ ${tableDescriptions}
       updatedAt: Date.now()
     };
 
-    localStorage.setItem(this.STORAGE_KEY, JSON.stringify(packages));
+    writeMetricAssets(this.STORAGE_KEY, packages, 'duckdb-metrics-updated');
+    // Advance linked queries with the definition, even if the new SQL fails validation.
+    // A failed query must never keep displaying the previous metric's value.
+    for (const chart of this.loadMetricCharts().filter(chart => chart.metricPackageId === id)) {
+      const metric = packages[index].metrics.find(metric => metric.id === chart.metricId);
+      if (!metric) {
+        const invalid = this.updateMetricChart(chart.id, { sql: "SELECT error('关联指标已删除，请在指标模块重新选择定义')" });
+        if (invalid) void syncLinkedChart(invalid).catch(console.error);
+      } else if (changedMetricIds.has(metric.id)) {
+        const sourceTable = metricSource(metric, packages[index].sourceTables);
+        let sql: string;
+        try { sql = compileMetricSql(metric, sourceTable); }
+        catch { sql = "SELECT error('指标口径无效：请在指标模块修正只读查询')"; }
+        const updated = this.updateMetricChart(chart.id, { sql, sourceTable, metricName: metric.name,
+          chartConfig: { ...chart.chartConfig, title: metric.name, metricName: metric.name, unit: metric.unit } });
+        if (updated) void syncLinkedChart(updated).catch(console.error);
+      }
+    }
     return packages[index];
   }
 
@@ -386,51 +427,15 @@ ${tableDescriptions}
     metric: MetricDefinition,
     sourceTable: string
   ): Promise<string> {
-    try {
-      // 获取表结构
-      const schema = await duckDBService.getTableSchema(sourceTable);
-      const columnNames = schema.map((col: any) => col.name.toLowerCase());
-      
-      // 从dependencies中查找存在的列
-      const validDeps = (metric.dependencies || []).filter(dep => 
-        columnNames.includes(dep.toLowerCase())
-      );
-
-      if (validDeps.length === 0) {
-        // 如果没有匹配的依赖，尝试查找相似的列名
-        const allCols = schema.map((col: any) => col.name);
-        return `-- 无法找到匹配的列，请检查指标定义
--- 可用列: ${allCols.join(', ')}
-SELECT '需要手动设置' as status;`;
-      }
-
-      // 生成SQL - 基于formula生成计算SQL
-      let sql = metric.formula || '';
-      
-      // 如果formula包含聚合函数，直接使用
-      if (sql.toUpperCase().includes('SUM') || 
-          sql.toUpperCase().includes('COUNT') || 
-          sql.toUpperCase().includes('AVG') ||
-          sql.toUpperCase().includes('MAX') ||
-          sql.toUpperCase().includes('MIN')) {
-        // 替换表名
-        sql = sql.replace(/FROM\s+(\w+)/gi, `FROM "${sourceTable}"`);
-        
-        // 如果没有FROM子句，添加
-        if (!sql.toUpperCase().includes('FROM')) {
-          const firstCol = validDeps[0];
-          sql = `SELECT ${sql} FROM "${sourceTable}"`;
-        }
-      } else {
-        // 简单的列计算
-        sql = `SELECT ${sql} as ${metric.name} FROM "${sourceTable}" LIMIT 1`;
-      }
-
-      return sql;
-    } catch (error) {
-      console.error('Error generating validation SQL:', error);
-      return `-- 生成SQL失败: ${(error as Error).message}`;
-    }
+    sourceTable = metric.sourceTable || sourceTable;
+    const sql = compileMetricSql(metric, sourceTable);
+    if (!metric.calculation && /^(?:select|with|values)\b/i.test(metric.formula.replace(/^\s*(?:(?:--[^\n]*(?:\n|$))|(?:\/\*[\s\S]*?\*\/))*/g, '').trim())) return sql;
+    const schema = await duckDBService.getTableSchema(sourceTable);
+    const columnNames = new Set(schema.map((col: any) => String(col.name).toLowerCase()));
+    const required = metricCalculationFields(metric);
+    const missing = required.filter(dep => !columnNames.has(dep.toLowerCase()));
+    if (missing.length) throw new Error(`数据源缺少指标依赖字段: ${missing.join(', ')}`);
+    return sql;
   }
 
   /**
@@ -440,30 +445,22 @@ SELECT '需要手动设置' as status;`;
   async validateMetric(
     metric: MetricDefinition,
     sourceTable: string
-  ): Promise<{ isValid: boolean; error?: string; result?: any }> {
-    const sql = metric.sqlValidation || await this.generateValidationSql(metric, sourceTable);
-    
-    if (!sql || sql.includes('需要手动设置')) {
-      return { 
-        isValid: false, 
-        error: 'SQL语句无效或无法生成' 
-      };
-    }
-
+  ): Promise<{ isValid: boolean; error?: string; result?: any[]; sql?: string; database?: string }> {
     try {
-      // 尝试执行SQL
-      const result = await duckDBService.query(sql);
-      
-      return {
-        isValid: true,
-        result: result
-      };
+      const database = activeAnalysisDatabase();
+      const sql = await this.generateValidationSql(metric, sourceTable);
+      const sources = extractTablesFromSql(sql);
+      if (sources.some(table => table.split('.').length >= 3 && table.split('.')[0] !== database)) {
+        throw new Error('指标 SQL 引用了其他数据库，请切换到来源数据库后验证');
+      }
+      const result = await executeAnalysisQuery(sql);
+      if (activeAnalysisDatabase() !== database) throw new Error('数据库已切换，请重新验证指标');
+      if (!result.length) throw new Error('指标查询未返回结果，请核对筛选条件和统计粒度');
+      if (metric.calculation && result.some(row => !Object.prototype.hasOwnProperty.call(row, 'value')
+        || (row.value !== null && !Number.isFinite(Number(row.value))))) throw new Error('指标结果缺少有效数值列 value');
+      return { isValid: true, result, sql, database };
     } catch (error) {
-      const errorMsg = (error as Error).message;
-      return {
-        isValid: false,
-        error: errorMsg
-      };
+      return { isValid: false, error: (error as Error).message };
     }
   }
 
@@ -535,36 +532,22 @@ SELECT '需要手动设置' as status;`;
     metricPackageId: string,
     sourceTable: string
   ): Promise<MetricChart> {
+    const catalog = activeAnalysisDatabase();
     const now = Date.now();
     const chartId = `metric_chart_${now}_${Math.random().toString(36).substr(2, 9)}`;
     
     // 使用指标的 sqlValidation 或生成默认SQL
-    let sql = metric.sqlValidation;
-    if (!sql) {
-      sql = await this.generateValidationSql(metric, sourceTable);
-    }
-
-    // 执行SQL获取数据
-    let data: any[] = [];
-    let columns: string[] = [];
-    
-    try {
-      // 如果SQL包含多个语句，只取第一个SELECT
-      const firstSelect = sql.split(';').find(s => s.trim().toUpperCase().startsWith('SELECT'));
-      if (firstSelect) {
-        const result = await duckDBService.query(firstSelect.trim());
-        data = result;
-        if (data.length > 0) {
-          columns = Object.keys(data[0]);
-        }
-      }
-    } catch (error) {
-      console.error('Error executing SQL for chart:', error);
-      // 即使SQL执行失败，也创建图表配置（可能数据为空）
-    }
+    const validation = await this.validateMetric(metric, sourceTable);
+    if (!validation.isValid) throw new Error(validation.error || '指标验证失败');
+    const sql = validation.sql!;
+    const data = validation.result!;
+    if (!data.length) throw new Error('指标查询没有返回数据，无法生成有效图表');
+    const columns = Object.keys(data[0]);
+    if (activeAnalysisDatabase() !== catalog) throw new Error('数据库已切换，请在当前数据库重新生成图表');
+    const existing = this.getChartByMetric(metric.id);
 
     // 分析数据特点，自动生成图表配置
-    const chartConfig = this.analyzeAndGenerateChartConfig(metric, data, columns);
+    const chartConfig = metric.presentation ? { ...metric.presentation } : this.analyzeAndGenerateChartConfig(metric, data, columns);
     
     // 标记图表来源为指标
     chartConfig.source = 'metric';
@@ -573,19 +556,21 @@ SELECT '需要手动设置' as status;`;
     chartConfig.metricName = metric.name;
 
     const metricChart: MetricChart = {
-      id: chartId,
+      id: existing?.id || chartId,
+      databaseName: activeAnalysisDatabase(),
       metricId: metric.id,
       metricPackageId,
       metricName: metric.name,
-      sourceTable,
+      sourceTable: extractTablesFromSql(sql)[0] || sourceTable,
       chartConfig,
       sql: sql || '',
-      createdAt: now,
+      createdAt: existing?.createdAt || now,
       updatedAt: now
     };
 
     // 保存到存储
     this.saveMetricChart(metricChart);
+    await syncLinkedChart(metricChart);
 
     return metricChart;
   }
@@ -610,7 +595,8 @@ SELECT '需要手动设置' as status;`;
       yKeys: [],
       aggregation: 'none',
       showLegend: true,
-      showValues: true
+      showValues: true,
+      unit: metric.unit || '',
     };
 
     if (data.length === 0) {
@@ -622,59 +608,29 @@ SELECT '需要手动设置' as status;`;
 
     // 分析列类型
     const columnTypes = this.analyzeColumnTypes(data, columns);
-    
-    // 根据指标特点选择图表类型
-    const characteristics = metric.characteristics?.toLowerCase() || '';
-    
-    if (characteristics.includes('计数') || characteristics.includes('count')) {
-      // 计数型指标 - 可能是单值（counter）
-      if (data.length === 1 && columns.length <= 2) {
-        config.type = 'counter';
-        config.yKeys = columns.filter(c => c !== 'count' && c !== 'cnt');
-        if (config.yKeys.length === 0) {
-          config.yKeys = columns;
-        }
-      } else {
-        config.type = 'bar';
-        // 假设第一列是维度，第二列是值
-        config.xKey = columns[0];
-        config.yKeys = columns.slice(1).length > 0 ? [columns[1]] : [columns[0]];
-        config.aggregation = 'sum';
-      }
-    } else if (characteristics.includes('趋势') || characteristics.includes('time') || characteristics.includes('时间')) {
-      // 趋势型指标 - 使用折线图
-      config.type = 'line';
-      config.xKey = columns.find(c => c.toLowerCase().includes('date') || c.toLowerCase().includes('time') || c.toLowerCase().includes('month') || c.toLowerCase().includes('year')) || columns[0];
-      config.yKeys = columns.filter(c => c !== config.xKey);
-      if (config.yKeys.length === 0) {
-        config.yKeys = [columns[columns.length - 1]];
-      }
-    } else if (characteristics.includes('比率') || characteristics.includes('比例') || characteristics.includes('rate') || characteristics.includes('ratio')) {
-      // 比率型指标 - 使用饼图或柱状图
-      if (data.length <= 6) {
-        config.type = 'pie';
-      } else {
-        config.type = 'bar';
-      }
-      config.xKey = columns[0];
-      config.yKeys = columns.slice(1).length > 0 ? [columns[1]] : [columns[0]];
-    } else if (characteristics.includes('累加') || characteristics.includes('sum') || characteristics.includes('总量')) {
-      // 累加型 - 柱状图
-      config.type = 'bar';
-      config.xKey = columns[0];
-      config.yKeys = columns.slice(1).length > 0 ? [columns[1]] : [columns[0]];
-      config.aggregation = 'sum';
-    } else {
-      // 默认使用柱状图
-      config.type = 'bar';
-      config.xKey = columns[0];
-      config.yKeys = columns.slice(1).length > 0 ? [columns[1]] : [columns[columns.length - 1]];
+    if (metric.calculation) {
+      if (metric.calculation.grain) return { ...config, type: 'line', xKey: 'period', yKeys: ['value'], groupBy: metric.calculation.groupBy?.[0] };
+      if (metric.calculation.groupBy?.length) return { ...config, type: 'bar', xKey: metric.calculation.groupBy[0], yKeys: ['value'], groupBy: metric.calculation.groupBy[1] };
+      return { ...config, type: 'counter', yKeys: ['value'] };
     }
-
-    // 设置单位
-    if (metric.unit) {
-      config.yAxisLabel = metric.unit;
+    if (data.length === 1 && columns.length === 1 && columnTypes[columns[0]] === 'number') {
+      return { ...config, type: 'counter', yKeys: [columns[0]] };
     }
+    // Pick measures from actual numeric output, never from a fixed column position.
+    const temporal = columns.find(column => columnTypes[column] === 'date'
+      || /date|time|_at$|_on$|^period$|日期|时间/i.test(column));
+    const category = columns.find(column => column !== temporal && columnTypes[column] === 'string');
+    const numeric = columns.filter(column => columnTypes[column] === 'number' && column !== temporal
+      && !/^(?:id)$|_id$/i.test(column));
+    const explicitValue = columns.includes('value') && (columnTypes.value === 'number' || data.every(row => row.value == null));
+    if (!numeric.length && !explicitValue) throw new Error('指标查询没有可绘制的数值字段，请检查计算口径');
+    config.yKeys = explicitValue ? ['value'] : numeric.includes('metric_value') ? ['metric_value'] : numeric;
+    config.xKey = temporal || category || columns[0];
+    config.type = temporal ? 'line' : category ? 'bar' : data.length === 1 ? 'counter' : 'table';
+    config.groupBy = temporal && category ? category : undefined;
+    // The metric SQL already defines its aggregation; do not re-aggregate it in the chart.
+    config.aggregation = 'none';
+    if (metric.unit) config.yAxisLabel = metric.unit;
 
     return config;
   }
@@ -726,22 +682,20 @@ SELECT '需要手动设置' as status;`;
       charts.push(chart);
     }
 
-    localStorage.setItem(this.CHART_STORAGE_KEY, JSON.stringify(charts));
+    writeMetricAssets(this.CHART_STORAGE_KEY, charts, 'duckdb-metric-charts-updated');
   }
 
   /**
    * 从 localStorage 加载所有指标图表
    */
   loadMetricCharts(): MetricChart[] {
-    try {
-      const data = localStorage.getItem(this.CHART_STORAGE_KEY);
-      if (data) {
-        return JSON.parse(data);
-      }
-    } catch (error) {
-      console.error('Error loading metric charts:', error);
-    }
-    return [];
+    return readMetricAssets<MetricChart>(this.CHART_STORAGE_KEY)
+      .filter(chart => chart.databaseName === activeAnalysisDatabase())
+      .map(chart => {
+        const metric = this.loadMetricPackages().flatMap(pkg => pkg.metrics).find(metric => metric.id === chart.metricId);
+        const sql = chart.metricId && !metric ? "SELECT error('关联指标已删除，请重新选择定义')" : metric?.sqlValidation || chart.sql;
+        return { ...chart, sql, metricName: metric?.name || chart.metricName, sourceTable: extractTablesFromSql(sql)[0] || chart.sourceTable };
+      });
   }
 
   /**
@@ -762,8 +716,9 @@ SELECT '需要手动设置' as status;`;
    * 删除指标图表
    */
   deleteMetricChart(chartId: string): void {
+    dismissAutomaticObject('chart', chartId);
     const charts = this.loadMetricCharts().filter(c => c.id !== chartId);
-    localStorage.setItem(this.CHART_STORAGE_KEY, JSON.stringify(charts));
+    writeMetricAssets(this.CHART_STORAGE_KEY, charts, 'duckdb-metric-charts-updated');
   }
 
   /**
@@ -781,7 +736,7 @@ SELECT '需要手动设置' as status;`;
       updatedAt: Date.now()
     };
 
-    localStorage.setItem(this.CHART_STORAGE_KEY, JSON.stringify(charts));
+    writeMetricAssets(this.CHART_STORAGE_KEY, charts, 'duckdb-metric-charts-updated');
     return charts[index];
   }
 
@@ -790,24 +745,7 @@ SELECT '需要手动设置' as status;`;
    * 这样可以添加到 Dashboard 中
    */
   async convertToSavedQuery(chart: MetricChart): Promise<string> {
-    const { v4: uuidv4 } = await import('uuid');
-    
-    const savedQuery = {
-      id: uuidv4(),
-      name: `[指标] ${chart.metricName}`,
-      sql: chart.sql,
-      desc: `自动从指标 "${chart.metricName}" 生成的图表`,
-      createdAt: Date.now(),
-      charts: [chart.chartConfig],
-      widgetType: 'chart' as const,
-      // 标记这是从指标生成的
-      metricChartId: chart.id
-    };
-
-    // 导入 dbService 并保存
-    await dbService.saveQuery(savedQuery);
-
-    return savedQuery.id;
+    return pinChartToHome(chart);
   }
 
   /**

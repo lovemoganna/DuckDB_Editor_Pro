@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { duckDBService } from '../../services/duckdbService';
 import { useDataViewStore } from './useDataViewStore';
+import { useAppStore } from './useAppStore';
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -14,6 +15,8 @@ function deferred<T>() {
 
 describe('useDataViewStore public state contract', () => {
   beforeEach(() => {
+    vi.spyOn(duckDBService,'getCurrentCatalogAndSchema').mockResolvedValue({catalog:'memory',schema:'main'});
+    useAppStore.setState({currentDatabase:'memory',currentTable:null,activeDataset:null});
     useDataViewStore.setState({
       tableData: [],
       tableColumns: [],
@@ -103,5 +106,20 @@ describe('useDataViewStore public state contract', () => {
       filterQuery: '',
       loadingData: false,
     });
+  });
+
+  it('shares applied filters across modules without limiting the dataset to the current grid page',async()=>{
+    useAppStore.setState({currentTable:'orders'});
+    vi.spyOn(duckDBService,'query').mockResolvedValue([{c:9}]);
+    vi.spyOn(duckDBService,'getTableSchema').mockResolvedValue([{name:'id',type:'INTEGER',notnull:true,dflt_value:null,pk:true}]);
+    vi.spyOn(duckDBService,'readQuery').mockResolvedValue([{id:8}]);
+    await useDataViewStore.getState().fetchTableData('orders',5,1,[],"status='completed'");
+    expect(useAppStore.getState().activeDataset?.sql).toBe('SELECT * FROM "memory"."main"."orders" WHERE status=\'completed\'');
+    expect(useAppStore.getState().activeDataset?.error).toBeUndefined();
+    expect(useDataViewStore.getState().pagination.total).toBe(9);
+    vi.mocked(duckDBService.query).mockRejectedValue(new Error('missing field'));
+    await expect(useDataViewStore.getState().fetchTableData('orders',0,1,[],'missing=1')).rejects.toThrow();
+    expect(useAppStore.getState().activeDataset?.error).toContain('missing field');
+    expect(useAppStore.getState().activeDataset?.sql).toContain('missing=1');
   });
 });

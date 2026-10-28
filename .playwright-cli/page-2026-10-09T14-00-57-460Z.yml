@@ -1,0 +1,833 @@
+- generic [ref=e3]:
+  - generic [ref=e192]:
+    - banner [ref=e193]:
+      - generic [ref=e194]:
+        - generic [ref=e197]: DuckDB
+        - generic [ref=e198]: "|"
+        - heading "数据导入 Import Data" [level=1] [ref=e199]:
+          - generic [ref=e200]: 数据导入
+          - generic [ref=e201]: Import Data
+        - button "收起配置面板" [ref=e202] [cursor=pointer]:
+          - generic [ref=e203]: 收起侧栏
+      - generic [ref=e204]:
+        - button "SQL 预览" [ref=e205] [cursor=pointer]
+        - button "导入历史" [ref=e207] [cursor=pointer]
+        - button "使用帮助" [ref=e209] [cursor=pointer]
+        - button "关闭" [ref=e211] [cursor=pointer]
+    - generic [ref=e212]:
+      - complementary [ref=e213]:
+        - generic [ref=e214]:
+          - generic [ref=e215]:
+            - generic [ref=e216]: 导入配置面板
+            - generic [ref=e217]: Config
+          - button "收起" [ref=e218] [cursor=pointer]
+        - generic [ref=e220]:
+          - heading "1. 数据来源 Source" [level=2] [ref=e221]:
+            - generic [ref=e222]: 1. 数据来源
+            - generic [ref=e223]: Source
+          - generic [ref=e224]:
+            - button "本地文件" [ref=e225] [cursor=pointer]
+            - button "远程 URL" [ref=e227] [cursor=pointer]
+            - button "粘贴文本" [ref=e229] [cursor=pointer]
+          - generic [ref=e367]:
+            - generic [ref=e368]:
+              - generic [ref=e371]:
+                - paragraph [ref=e372]: baseline.duckdb
+                - paragraph [ref=e373]: baseline.duckdb
+              - button "移除文件" [ref=e374] [cursor=pointer]
+            - generic [ref=e375]:
+              - generic [ref=e376]: "大小: 4 MB"
+              - generic [ref=e377]: "行数: 136"
+              - generic [ref=e378]: "修改时间: 2026-10-01 17:22"
+            - generic [ref=e379]:
+              - generic [ref=e380]: "提示: 可直接挂载为独立数据库"
+              - button "挂载为独立库 (ATTACH)" [disabled] [ref=e381] [cursor=pointer]
+        - generic [ref=e235]:
+          - generic [ref=e236]:
+            - heading "2. 文件解析设置 Parse Options" [level=2] [ref=e237]:
+              - generic [ref=e238]: 2. 文件解析设置
+              - generic [ref=e239]: Parse Options
+            - button "自动识别配置" [ref=e240] [cursor=pointer]
+          - generic [ref=e242]:
+            - generic [ref=e243]: 文件格式
+            - generic [ref=e244]:
+              - button "CSV" [ref=e245] [cursor=pointer]
+              - button "TSV" [ref=e246] [cursor=pointer]
+              - button "JSON" [ref=e247] [cursor=pointer]
+              - button "Parquet" [ref=e248] [cursor=pointer]
+              - button "Excel (.xlsx)" [ref=e249] [cursor=pointer]
+              - button "DuckDB (.duckdb)" [ref=e250] [cursor=pointer]
+          - generic [ref=e251]: DuckDB 数据库文件自动解析全部数据表结构与类型，无需配置分隔符。
+          - generic [ref=e260]:
+            - generic [ref=e261]: 首行是否表头
+            - generic [ref=e262]:
+              - switch [checked] [ref=e263] [cursor=pointer]
+              - generic [ref=e265]: 是，使用第一行作为列名
+          - generic [ref=e266]:
+            - generic [ref=e267]: 字符编码
+            - combobox "字符编码" [ref=e269] [cursor=pointer]:
+              - option "UTF-8" [selected]
+              - option "GBK / GB18030"
+              - option "ISO-8859-1"
+              - option "Windows-1252"
+          - button "高级选项 (跳过行数与日期格式)" [ref=e271] [cursor=pointer]
+        - generic [ref=e273]:
+          - heading "3. 目标表设置 Target Table" [level=2] [ref=e274]:
+            - generic [ref=e275]: 3. 目标表设置
+            - generic [ref=e276]: Target Table
+          - generic [ref=e277]:
+            - generic [ref=e278]:
+              - generic [ref=e279]: Schema
+              - generic [ref=e280]:
+                - combobox "Schema" [ref=e281] [cursor=pointer]:
+                  - option "main" [selected]
+                  - option "__studio"
+                - button "刷新 Schema 列表" [ref=e282] [cursor=pointer]
+            - generic [ref=e283]:
+              - generic [ref=e284]: 基础表名 *
+              - textbox "基础表名 *" [ref=e383]:
+                - /placeholder: "例如: raw_events_imported"
+                - text: baseline_imported
+            - generic [ref=e385]:
+              - button "各工作表目标表名映射 (8 个)" [ref=e386] [cursor=pointer]
+              - generic [ref=e388]: 已选 8/8
+        - generic [ref=e287]:
+          - heading "4. 同名表冲突策略 Conflict Strategy" [level=2] [ref=e288]:
+            - generic [ref=e289]: 4. 同名表冲突策略
+            - generic [ref=e290]: Conflict Strategy
+          - generic [ref=e291]:
+            - button [ref=e292] [cursor=pointer]:
+              - generic [ref=e293]:
+                - paragraph [ref=e296]: 覆盖替换
+                - paragraph [ref=e297]: Drop & Replace
+              - paragraph [ref=e298]: 如果表已存在，先删除后创建
+            - button [ref=e299] [cursor=pointer]:
+              - generic [ref=e300]:
+                - paragraph [ref=e302]: 追加行数据
+                - paragraph [ref=e303]: Append Rows
+              - paragraph [ref=e304]: 在现有表中追加新数据
+            - button [ref=e305] [cursor=pointer]:
+              - generic [ref=e306]:
+                - paragraph [ref=e308]: 存在即报错
+                - paragraph [ref=e309]: Fail If Exists
+              - paragraph [ref=e310]: 如果表已存在，则导入失败
+      - main [ref=e311]:
+        - generic [ref=e312]:
+          - heading "5. 数据预览 Preview" [level=2] [ref=e313]:
+            - generic [ref=e314]: 5. 数据预览
+            - generic [ref=e315]: Preview
+          - generic [ref=e316]: 已自动识别文件结构，修改左侧配置可实时更新预览
+        - generic [ref=e390]:
+          - generic [ref=e391]:
+            - generic [ref=e392]:
+              - generic [ref=e393]: 工作表列表 (Sheets)
+              - generic [ref=e394]: 已选 8/8 个工作表
+            - generic [ref=e395]:
+              - button "全选" [ref=e396] [cursor=pointer]
+              - generic [ref=e397]: "|"
+              - button "仅选非空表" [ref=e398] [cursor=pointer]
+              - generic [ref=e399]: "|"
+              - button "取消全选" [ref=e400] [cursor=pointer]
+          - generic [ref=e401]:
+            - generic [ref=e402] [cursor=pointer]:
+              - checkbox "勾选导入此工作表" [checked] [ref=e403]
+              - generic [ref=e404]: main.crypto_transactions
+              - generic [ref=e405]: 25 行 · 13 列
+            - generic [ref=e406] [cursor=pointer]:
+              - checkbox "勾选导入此工作表" [checked] [ref=e407]
+              - generic [ref=e408]: main.exchange_rates
+              - generic [ref=e409]: 8 行 · 8 列
+            - generic [ref=e410] [cursor=pointer]:
+              - checkbox "勾选导入此工作表" [checked] [ref=e411]
+              - generic [ref=e412]: main.fiat_transactions
+              - generic [ref=e413]: 25 行 · 10 列
+            - generic [ref=e414] [cursor=pointer]:
+              - checkbox "勾选导入此工作表" [checked] [ref=e415]
+              - generic [ref=e416]: main.users
+              - generic [ref=e417]: 10 行 · 7 列
+            - generic [ref=e418] [cursor=pointer]:
+              - checkbox "勾选导入此工作表" [checked] [ref=e419]
+              - generic [ref=e420]: lab_baseline.crypto_transactions
+              - generic [ref=e421]: 25 行 · 13 列
+            - generic [ref=e422] [cursor=pointer]:
+              - checkbox "勾选导入此工作表" [checked] [ref=e423]
+              - generic [ref=e424]: lab_baseline.exchange_rates
+              - generic [ref=e425]: 8 行 · 8 列
+            - generic [ref=e426] [cursor=pointer]:
+              - checkbox "勾选导入此工作表" [checked] [ref=e427]
+              - generic [ref=e428]: lab_baseline.fiat_transactions
+              - generic [ref=e429]: 25 行 · 10 列
+            - generic [ref=e430] [cursor=pointer]:
+              - checkbox "勾选导入此工作表" [checked] [ref=e431]
+              - generic [ref=e432]: lab_baseline.users
+              - generic [ref=e433]: 10 行 · 7 列
+        - generic [ref=e320]:
+          - generic [ref=e321]: 文件信息与识别结果
+          - generic [ref=e323]:
+            - generic [ref=e324]: baseline.duckdb
+            - generic [ref=e327]:
+              - generic [ref=e328]:
+                - generic [ref=e329]: 格式
+                - text: DuckDB
+              - generic [ref=e330]:
+                - generic [ref=e331]: 大小
+                - text: 4 MB
+              - generic [ref=e434]:
+                - generic [ref=e435]: 工作表
+                - generic [ref=e436]: 8/8 个
+              - generic [ref=e332]:
+                - generic [ref=e333]: 当前工作表行数
+                - text: "25"
+              - generic [ref=e334]:
+                - generic [ref=e335]: 列数
+                - text: "13"
+              - generic [ref=e336]:
+                - generic [ref=e337]: 编码
+                - text: UTF-8
+              - generic [ref=e338]:
+                - generic [ref=e339]: 首行表头
+                - text: 是
+        - generic [ref=e340]:
+          - generic [ref=e341]:
+            - generic [ref=e342]:
+              - generic [ref=e343]: 字段映射与类型推断
+              - generic [ref=e344]: (共 13 列)
+            - generic [ref=e437]:
+              - textbox "过滤字段名/类型..." [ref=e439]
+              - button "转小写" [ref=e440] [cursor=pointer]
+              - button "转蛇形" [ref=e441] [cursor=pointer]
+              - button "重置映射" [ref=e442] [cursor=pointer]
+          - table [ref=e443]:
+            - rowgroup [ref=e444]:
+              - row [ref=e445]:
+                - columnheader "#" [ref=e446]
+                - columnheader "源列名" [ref=e447]
+                - columnheader "目标列名" [ref=e448]
+                - columnheader "推断类型" [ref=e449]
+                - columnheader "可空" [ref=e450]
+                - columnheader "示例值" [ref=e451]
+            - rowgroup [ref=e452]:
+              - row [ref=e453]:
+                - cell "1" [ref=e454]
+                - cell "crypto_order_id" [ref=e455]
+                - cell [ref=e456]:
+                  - textbox [ref=e457]: crypto_order_id
+                - cell [ref=e458]:
+                  - button "VARCHAR" [ref=e460] [cursor=pointer]
+                - cell [ref=e461]:
+                  - generic [ref=e462] [cursor=pointer]
+                - cell "co_20250110_78423190" [ref=e464]
+              - row [ref=e465]:
+                - cell "2" [ref=e466]
+                - cell "uid" [ref=e467]
+                - cell [ref=e468]:
+                  - textbox [ref=e469]: uid
+                - cell [ref=e470]:
+                  - button "BIGINT" [ref=e472] [cursor=pointer]
+                - cell [ref=e473]:
+                  - generic [ref=e474] [cursor=pointer]
+                - cell "784231905" [ref=e476]
+              - row [ref=e477]:
+                - cell "3" [ref=e478]
+                - cell "direction" [ref=e479]
+                - cell [ref=e480]:
+                  - textbox [ref=e481]: direction
+                - cell [ref=e482]:
+                  - button "VARCHAR" [ref=e484] [cursor=pointer]
+                - cell [ref=e485]:
+                  - generic [ref=e486] [cursor=pointer]
+                - cell "deposit" [ref=e488]
+              - row [ref=e489]:
+                - cell "4" [ref=e490]
+                - cell "asset" [ref=e491]
+                - cell [ref=e492]:
+                  - textbox [ref=e493]: asset
+                - cell [ref=e494]:
+                  - button "VARCHAR" [ref=e496] [cursor=pointer]
+                - cell [ref=e497]:
+                  - generic [ref=e498] [cursor=pointer]
+                - cell "USDT" [ref=e500]
+              - row [ref=e501]:
+                - cell "5" [ref=e502]
+                - cell "network" [ref=e503]
+                - cell [ref=e504]:
+                  - textbox [ref=e505]: network
+                - cell [ref=e506]:
+                  - button "VARCHAR" [ref=e508] [cursor=pointer]
+                - cell [ref=e509]:
+                  - generic [ref=e510] [cursor=pointer]
+                - cell "TRON" [ref=e512]
+              - row [ref=e513]:
+                - cell "6" [ref=e514]
+                - cell "amount" [ref=e515]
+                - cell [ref=e516]:
+                  - textbox [ref=e517]: amount
+                - cell [ref=e518]:
+                  - button "DECIMAL(18,8)" [ref=e520] [cursor=pointer]
+                - cell [ref=e521]:
+                  - generic [ref=e522] [cursor=pointer]
+                - cell "1500.00000000" [ref=e524]
+              - row [ref=e525]:
+                - cell "7" [ref=e526]
+                - cell "fee" [ref=e527]
+                - cell [ref=e528]:
+                  - textbox [ref=e529]: fee
+                - cell [ref=e530]:
+                  - button "DECIMAL(18,8)" [ref=e532] [cursor=pointer]
+                - cell [ref=e533]:
+                  - generic [ref=e534] [cursor=pointer]
+                - cell "0.00000000" [ref=e536]
+              - row [ref=e537]:
+                - cell "8" [ref=e538]
+                - cell "tx_hash" [ref=e539]
+                - cell [ref=e540]:
+                  - textbox [ref=e541]: tx_hash
+                - cell [ref=e542]:
+                  - button "VARCHAR" [ref=e544] [cursor=pointer]
+                - cell "YES" [ref=e545]
+                - cell "63dd1029e5ca5cf984c2ed338bcba077d3efff2b5d25c543d129490e2588a375" [ref=e549]
+              - row [ref=e550]:
+                - cell "9" [ref=e551]
+                - cell "address" [ref=e552]
+                - cell [ref=e553]:
+                  - textbox [ref=e554]: address
+                - cell [ref=e555]:
+                  - button "VARCHAR" [ref=e557] [cursor=pointer]
+                - cell [ref=e558]:
+                  - generic [ref=e559] [cursor=pointer]
+                - cell "TZTs2kMxqhLKQUqAiRBqgv1EbiBPk7w2UB" [ref=e561]
+              - row [ref=e562]:
+                - cell "10" [ref=e563]
+                - cell "status" [ref=e564]
+                - cell [ref=e565]:
+                  - textbox [ref=e566]: status
+                - cell [ref=e567]:
+                  - button "VARCHAR" [ref=e569] [cursor=pointer]
+                - cell [ref=e570]:
+                  - generic [ref=e571] [cursor=pointer]
+                - cell "completed" [ref=e573]
+              - row [ref=e574]:
+                - cell "11" [ref=e575]
+                - cell "confirmations" [ref=e576]
+                - cell [ref=e577]:
+                  - textbox [ref=e578]: confirmations
+                - cell [ref=e579]:
+                  - button "INTEGER" [ref=e581] [cursor=pointer]
+                - cell [ref=e582]:
+                  - generic [ref=e583] [cursor=pointer]
+                - cell "26" [ref=e585]
+              - row [ref=e586]:
+                - cell "12" [ref=e587]
+                - cell "created_at" [ref=e588]
+                - cell [ref=e589]:
+                  - textbox [ref=e590]: created_at
+                - cell [ref=e591]:
+                  - button "TIMESTAMP" [ref=e593] [cursor=pointer]
+                - cell [ref=e594]:
+                  - generic [ref=e595] [cursor=pointer]
+                - cell "1736508000000" [ref=e597]
+              - row [ref=e598]:
+                - cell "13" [ref=e599]
+                - cell "completed_at" [ref=e600]
+                - cell [ref=e601]:
+                  - textbox [ref=e602]: completed_at
+                - cell [ref=e603]:
+                  - button "TIMESTAMP" [ref=e605] [cursor=pointer]
+                - cell "YES" [ref=e606]
+                - cell "1736510820000" [ref=e610]
+        - generic [ref=e347]:
+          - generic [ref=e348]:
+            - generic [ref=e349]:
+              - generic [ref=e350]: 数据预览
+              - generic [ref=e351]: Data Preview (前 100 行样本)
+            - generic [ref=e352]:
+              - generic [ref=e353]: 共 136 行 | 显示前 25 行
+              - button "刷新预览" [ref=e354] [cursor=pointer]
+          - table [ref=e611]:
+            - rowgroup [ref=e612]:
+              - row [ref=e613]:
+                - columnheader "#" [ref=e614]
+                - columnheader "crypto_order_id" [ref=e615] [cursor=pointer]
+                - columnheader "uid" [ref=e618] [cursor=pointer]
+                - columnheader "direction" [ref=e621] [cursor=pointer]
+                - columnheader "asset" [ref=e624] [cursor=pointer]
+                - columnheader "network" [ref=e627] [cursor=pointer]
+                - columnheader "amount" [ref=e630] [cursor=pointer]
+                - columnheader "fee" [ref=e633] [cursor=pointer]
+                - columnheader "tx_hash" [ref=e636] [cursor=pointer]
+                - columnheader "address" [ref=e639] [cursor=pointer]
+                - columnheader "status" [ref=e642] [cursor=pointer]
+                - columnheader "confirmations" [ref=e645] [cursor=pointer]
+                - columnheader "created_at" [ref=e648] [cursor=pointer]
+                - columnheader "completed_at" [ref=e651] [cursor=pointer]
+            - rowgroup [ref=e654]:
+              - row [ref=e655]:
+                - cell "1" [ref=e656]
+                - cell "co_20250110_78423190" [ref=e657]
+                - cell "784231905" [ref=e658]
+                - cell "deposit" [ref=e659]
+                - cell "USDT" [ref=e660]
+                - cell "TRON" [ref=e661]
+                - cell "1500.00000000" [ref=e662]
+                - cell "0.00000000" [ref=e663]
+                - cell "63dd1029e5ca5cf984c2ed338bcba077d3efff2b5d25c543d129490e2588a375" [ref=e664]
+                - cell "TZTs2kMxqhLKQUqAiRBqgv1EbiBPk7w2UB" [ref=e665]
+                - cell "completed" [ref=e666]
+                - cell "26" [ref=e667]
+                - cell "1736508000000" [ref=e668]
+                - cell "1736510820000" [ref=e669]
+              - row [ref=e670]:
+                - cell "2" [ref=e671]
+                - cell "co_20250222_78423191" [ref=e672]
+                - cell "784231905" [ref=e673]
+                - cell "withdrawal" [ref=e674]
+                - cell "USDT" [ref=e675]
+                - cell "TRON" [ref=e676]
+                - cell "500.00000000" [ref=e677]
+                - cell "1.00000000" [ref=e678]
+                - cell "0e641a560a1d663bc5dbc993d5e46d584a2f72554fb1109d97388c553bb651e2" [ref=e679]
+                - cell "TBE1SbTMMmmgvA6RbYPBJxmSf2Ytz1xz9L" [ref=e680]
+                - cell "completed" [ref=e681]
+                - cell "20" [ref=e682]
+                - cell "1740247800000" [ref=e683]
+                - cell "1740251340000" [ref=e684]
+              - row [ref=e685]:
+                - cell "3" [ref=e686]
+                - cell "co_20250605_78423192" [ref=e687]
+                - cell "784231905" [ref=e688]
+                - cell "deposit" [ref=e689]
+                - cell "ETH" [ref=e690]
+                - cell "ETHEREUM" [ref=e691]
+                - cell "0.20000000" [ref=e692]
+                - cell "0.00000000" [ref=e693]
+                - cell "0x697857752aaa8607d1961ddfecb3ec44d9fd3cc4c45097ad44c9beff38b5f6a2" [ref=e694]
+                - cell "0xc453f38ebdb4343a3242b060779e7531c69454bc" [ref=e695]
+                - cell "completed" [ref=e696]
+                - cell "25" [ref=e697]
+                - cell "1749109500000" [ref=e698]
+                - cell "1749113760000" [ref=e699]
+              - row [ref=e700]:
+                - cell "4" [ref=e701]
+                - cell "co_20250320_61590237" [ref=e702]
+                - cell "615902374" [ref=e703]
+                - cell "deposit" [ref=e704]
+                - cell "BTC" [ref=e705]
+                - cell "BITCOIN" [ref=e706]
+                - cell "0.05000000" [ref=e707]
+                - cell "0.00000000" [ref=e708]
+                - cell "b39506e732fd1f7a288a1ff4338028b098dc9bb0eb37d9145e48440f70849bf5" [ref=e709]
+                - cell "bc1q09h5eeyq6xkqfxz35sjdasv4r0uwu7sty56j3q" [ref=e710]
+                - cell "completed" [ref=e711]
+                - cell "15" [ref=e712]
+                - cell "1742472300000" [ref=e713]
+                - cell "1742473260000" [ref=e714]
+              - row [ref=e715]:
+                - cell "5" [ref=e716]
+                - cell "co_20250801_61590238" [ref=e717]
+                - cell "615902374" [ref=e718]
+                - cell "withdrawal" [ref=e719]
+                - cell "BTC" [ref=e720]
+                - cell "BITCOIN" [ref=e721]
+                - cell "0.02000000" [ref=e722]
+                - cell "0.00020000" [ref=e723]
+                - cell "3aad3f0cdb66295a3bd2cc2a65eb900b3d1662a4388bbf093fb4593da315fad8" [ref=e724]
+                - cell "bc1q3glu088led8nf7j4puhy6sj4x63tfz0vypclkn" [ref=e725]
+                - cell "completed" [ref=e726]
+                - cell "14" [ref=e727]
+                - cell "1754065800000" [ref=e728]
+                - cell "1754066340000" [ref=e729]
+              - row [ref=e730]:
+                - cell "6" [ref=e731]
+                - cell "co_20250815_61590239" [ref=e732]
+                - cell "615902374" [ref=e733]
+                - cell "deposit" [ref=e734]
+                - cell "USDT" [ref=e735]
+                - cell "BSC" [ref=e736]
+                - cell "600.00000000" [ref=e737]
+                - cell "0.00000000" [ref=e738]
+                - cell "0xa19ab825bc70785a4762c5d0704d338de601f635364658929267aa7365da4400" [ref=e739]
+                - cell "0x6e0a0adb598ac01b4a24cca74747862290c52668" [ref=e740]
+                - cell "completed" [ref=e741]
+                - cell "25" [ref=e742]
+                - cell "1755248700000" [ref=e743]
+                - cell "1755250920000" [ref=e744]
+              - row [ref=e745]:
+                - cell "7" [ref=e746]
+                - cell "co_20250212_90317462" [ref=e747]
+                - cell "903174628" [ref=e748]
+                - cell "deposit" [ref=e749]
+                - cell "USDT" [ref=e750]
+                - cell "ARBITRUM" [ref=e751]
+                - cell "400.00000000" [ref=e752]
+                - cell "0.00000000" [ref=e753]
+                - cell "0xb933b56829a298cdc0afd793e79c16011ac1fb6fa5fa00ffe25f4e971e59dfbd" [ref=e754]
+                - cell "0xdc3487818cfda4ea4a05c495791f680aecf9d8b3" [ref=e755]
+                - cell "completed" [ref=e756]
+                - cell "26" [ref=e757]
+                - cell "1739367600000" [ref=e758]
+                - cell "1739368140000" [ref=e759]
+              - row [ref=e760]:
+                - cell "8" [ref=e761]
+                - cell "co_20250902_90317463" [ref=e762]
+                - cell "903174628" [ref=e763]
+                - cell "withdrawal" [ref=e764]
+                - cell "USDT" [ref=e765]
+                - cell "BSC" [ref=e766]
+                - cell "300.00000000" [ref=e767]
+                - cell "0.80000000" [ref=e768]
+                - cell "0xea0f2bd3d9dc5ed8def5298f1c68cbe8782ec64d7e6815d0c7e018d73345af38" [ref=e769]
+                - cell "0x4413ae3344245ba4bd12d2b473b9c642132ce2e5" [ref=e770]
+                - cell "completed" [ref=e771]
+                - cell "17" [ref=e772]
+                - cell "1756808400000" [ref=e773]
+                - cell "1756812180000" [ref=e774]
+              - row [ref=e775]:
+                - cell "9" [ref=e776]
+                - cell "co_20251220_90317464" [ref=e777]
+                - cell "903174628" [ref=e778]
+                - cell "withdrawal" [ref=e779]
+                - cell "USDT" [ref=e780]
+                - cell "ARBITRUM" [ref=e781]
+                - cell "250.00000000" [ref=e782]
+                - cell "0.30000000" [ref=e783]
+                - cell "NULL" [ref=e784]
+                - cell "0x3b13a19c9377fe05031c01098a19ac18966a548f" [ref=e785]
+                - cell "processing" [ref=e786]
+                - cell "0" [ref=e787]
+                - cell "1766261400000" [ref=e788]
+                - cell "NULL" [ref=e789]
+              - row [ref=e790]:
+                - cell "10" [ref=e791]
+                - cell "co_20250407_52840619" [ref=e792]
+                - cell "528406193" [ref=e793]
+                - cell "withdrawal" [ref=e794]
+                - cell "USDT" [ref=e795]
+                - cell "ETHEREUM" [ref=e796]
+                - cell "1500.00000000" [ref=e797]
+                - cell "5.00000000" [ref=e798]
+                - cell "0x76dee5dcb35703c649a43288fc14e2cf692bc9821031877df211823bd509e148" [ref=e799]
+                - cell "0x49d045820e74c6588e1a0c26757aaef2476c22ff" [ref=e800]
+                - cell "completed" [ref=e801]
+                - cell "23" [ref=e802]
+                - cell "1744060500000" [ref=e803]
+                - cell "1744060920000" [ref=e804]
+              - row [ref=e805]:
+                - cell "11" [ref=e806]
+                - cell "co_20250420_52840620" [ref=e807]
+                - cell "528406193" [ref=e808]
+                - cell "deposit" [ref=e809]
+                - cell "USDT" [ref=e810]
+                - cell "TRON" [ref=e811]
+                - cell "700.00000000" [ref=e812]
+                - cell "0.00000000" [ref=e813]
+                - cell "e1bd98dde29c160c154b642a90fc3cc5fa29ffd2da05c2fa35d35fb8bee1e5a3" [ref=e814]
+                - cell "TBGKnRW9K5wiLmhUDSLsUXJuK5ETvC83xM" [ref=e815]
+                - cell "completed" [ref=e816]
+                - cell "23" [ref=e817]
+                - cell "1745138700000" [ref=e818]
+                - cell "1745143380000" [ref=e819]
+              - row [ref=e820]:
+                - cell "12" [ref=e821]
+                - cell "co_20251111_52840621" [ref=e822]
+                - cell "528406193" [ref=e823]
+                - cell "withdrawal" [ref=e824]
+                - cell "USDT" [ref=e825]
+                - cell "TRON" [ref=e826]
+                - cell "300.00000000" [ref=e827]
+                - cell "1.00000000" [ref=e828]
+                - cell "b0b316bd299eee088bcdf1ae9328dd1c899294f77a63ab6a4887817e91c53ed3" [ref=e829]
+                - cell "TMn9NxEKnutzexB6W3kKLbfzsLuRw9ocut" [ref=e830]
+                - cell "completed" [ref=e831]
+                - cell "21" [ref=e832]
+                - cell "1762866300000" [ref=e833]
+                - cell "1762866540000" [ref=e834]
+              - row [ref=e835]:
+                - cell "13" [ref=e836]
+                - cell "co_20250105_84621953" [ref=e837]
+                - cell "846219537" [ref=e838]
+                - cell "deposit" [ref=e839]
+                - cell "ETH" [ref=e840]
+                - cell "ETHEREUM" [ref=e841]
+                - cell "0.40000000" [ref=e842]
+                - cell "0.00000000" [ref=e843]
+                - cell "0x0d28c056661be39b220f2c211e59a5ee51db5186d5ab9629d69ee2cc89d6dfb0" [ref=e844]
+                - cell "0x099c0e97614fd374d7e546dc2fcbdd52df00224a" [ref=e845]
+                - cell "completed" [ref=e846]
+                - cell "15" [ref=e847]
+                - cell "1736058300000" [ref=e848]
+                - cell "1736063160000" [ref=e849]
+              - row [ref=e850]:
+                - cell "14" [ref=e851]
+                - cell "co_20250505_84621954" [ref=e852]
+                - cell "846219537" [ref=e853]
+                - cell "withdrawal" [ref=e854]
+                - cell "ETH" [ref=e855]
+                - cell "ETHEREUM" [ref=e856]
+                - cell "0.10000000" [ref=e857]
+                - cell "0.00120000" [ref=e858]
+                - cell "0xea497e8d88ee3ee055bd364c2e146246bb96deb5dc86f9c5505c3b292eb85b80" [ref=e859]
+                - cell "0x41108ae1113dc504a0f34c39d731ac814c343b9b" [ref=e860]
+                - cell "completed" [ref=e861]
+                - cell "26" [ref=e862]
+                - cell "1746465300000" [ref=e863]
+                - cell "1746467820000" [ref=e864]
+              - row [ref=e865]:
+                - cell "15" [ref=e866]
+                - cell "co_20251010_84621955" [ref=e867]
+                - cell "846219537" [ref=e868]
+                - cell "deposit" [ref=e869]
+                - cell "USDT" [ref=e870]
+                - cell "TRON" [ref=e871]
+                - cell "1000.00000000" [ref=e872]
+                - cell "0.00000000" [ref=e873]
+                - cell "6417aedbf3a07badbd672209b43886240cf096b9015d44cc53ca179b33577279" [ref=e874]
+                - cell "TSEdPbLdvpu7xY9sKwGuRPLpU5BuaCqjza" [ref=e875]
+                - cell "completed" [ref=e876]
+                - cell "27" [ref=e877]
+                - cell "1760086800000" [ref=e878]
+                - cell "1760089740000" [ref=e879]
+              - row [ref=e880]:
+                - cell "16" [ref=e881]
+                - cell "co_20250107_69248130" [ref=e882]
+                - cell "692481305" [ref=e883]
+                - cell "deposit" [ref=e884]
+                - cell "USDT" [ref=e885]
+                - cell "TRON" [ref=e886]
+                - cell "2000.00000000" [ref=e887]
+                - cell "0.00000000" [ref=e888]
+                - cell "360e42a95096a44553f9b6ac51a889d7355a8a472968bbc6865573e9ced82456" [ref=e889]
+                - cell "TzSQmX1NuEsYWRaskDpkqVxaUtRMQ3Hrqf" [ref=e890]
+                - cell "completed" [ref=e891]
+                - cell "21" [ref=e892]
+                - cell "1736260200000" [ref=e893]
+                - cell "1736262300000" [ref=e894]
+              - row [ref=e895]:
+                - cell "17" [ref=e896]
+                - cell "co_20250318_69248131" [ref=e897]
+                - cell "692481305" [ref=e898]
+                - cell "withdrawal" [ref=e899]
+                - cell "USDT" [ref=e900]
+                - cell "TRON" [ref=e901]
+                - cell "600.00000000" [ref=e902]
+                - cell "1.00000000" [ref=e903]
+                - cell "d62970a686c4901f7776dd175ff0053d1af520e991121a082a88f51bcdde9637" [ref=e904]
+                - cell "TdwuvV9ytQqruGcwsJcaR2SHdztSJAfztM" [ref=e905]
+                - cell "completed" [ref=e906]
+                - cell "22" [ref=e907]
+                - cell "1742298000000" [ref=e908]
+                - cell "1742302860000" [ref=e909]
+              - row [ref=e910]:
+                - cell "18" [ref=e911]
+                - cell "co_20250709_69248132" [ref=e912]
+                - cell "692481305" [ref=e913]
+                - cell "deposit" [ref=e914]
+                - cell "BTC" [ref=e915]
+                - cell "BITCOIN" [ref=e916]
+                - cell "0.03000000" [ref=e917]
+                - cell "0.00000000" [ref=e918]
+                - cell "b811a6d96346cb2407724c1b86fac4357b0bb24a64938fff77c0214f00389e0b" [ref=e919]
+                - cell "bc1q76tcqtgmgd0gdw7v0ujpnt4w929j8kc5kznj9e" [ref=e920]
+                - cell "completed" [ref=e921]
+                - cell "7" [ref=e922]
+                - cell "1752089100000" [ref=e923]
+                - cell "1752094080000" [ref=e924]
+              - row [ref=e925]:
+                - cell "19" [ref=e926]
+                - cell "co_20250801_69248133" [ref=e927]
+                - cell "692481305" [ref=e928]
+                - cell "deposit" [ref=e929]
+                - cell "USDT" [ref=e930]
+                - cell "BSC" [ref=e931]
+                - cell "500.00000000" [ref=e932]
+                - cell "0.00000000" [ref=e933]
+                - cell "0x33aeea111548a4bef60d04849b6326c2562a08a7de68b0f248e8e3f9de93af63" [ref=e934]
+                - cell "0x29c14b9b9823aa3754bc21f9c4dfbe252491d85e" [ref=e935]
+                - cell "confirming" [ref=e936]
+                - cell "5" [ref=e937]
+                - cell "1754035800000" [ref=e938]
+                - cell "NULL" [ref=e939]
+              - row [ref=e940]:
+                - cell "20" [ref=e941]
+                - cell "co_20251201_69248134" [ref=e942]
+                - cell "692481305" [ref=e943]
+                - cell "withdrawal" [ref=e944]
+                - cell "USDT" [ref=e945]
+                - cell "BSC" [ref=e946]
+                - cell "300.00000000" [ref=e947]
+                - cell "0.80000000" [ref=e948]
+                - cell "NULL" [ref=e949]
+                - cell "0xe0b6b8387d822451eca3c2173d974ef5bf2c6fbb" [ref=e950]
+                - cell "failed" [ref=e951]
+                - cell "0" [ref=e952]
+                - cell "1764573600000" [ref=e953]
+                - cell "NULL" [ref=e954]
+              - row [ref=e955]:
+                - cell "21" [ref=e956]
+                - cell "co_20241231_43875092" [ref=e957]
+                - cell "438750921" [ref=e958]
+                - cell "deposit" [ref=e959]
+                - cell "USDT" [ref=e960]
+                - cell "TRON" [ref=e961]
+                - cell "300.00000000" [ref=e962]
+                - cell "0.00000000" [ref=e963]
+                - cell "233ee1f098f65a8b6832253005919d0086745c9ec55a04c7c4f8fd1b01b46b52" [ref=e964]
+                - cell "TvcdwQMYE3CJ1uBT2jN5cSfNmwwyGz4syK" [ref=e965]
+                - cell "completed" [ref=e966]
+                - cell "26" [ref=e967]
+                - cell "1735688400000" [ref=e968]
+                - cell "1735689300000" [ref=e969]
+              - row [ref=e970]:
+                - cell "22" [ref=e971]
+                - cell "co_20250101_43875093" [ref=e972]
+                - cell "438750921" [ref=e973]
+                - cell "deposit" [ref=e974]
+                - cell "USDT" [ref=e975]
+                - cell "TRON" [ref=e976]
+                - cell "500.00000000" [ref=e977]
+                - cell "0.00000000" [ref=e978]
+                - cell "a604c6354367ee9df63fa4a8e4c9ac51a954ea3e2b9bf929c991345fcd6c4fc8" [ref=e979]
+                - cell "T9gb744yUqjdkiaJCGLnugKmjXSsUpCb4r" [ref=e980]
+                - cell "completed" [ref=e981]
+                - cell "25" [ref=e982]
+                - cell "1767226500000" [ref=e983]
+                - cell "1767228720000" [ref=e984]
+              - row [ref=e985]:
+                - cell "23" [ref=e986]
+                - cell "co_20251229_43875094" [ref=e987]
+                - cell "438750921" [ref=e988]
+                - cell "deposit" [ref=e989]
+                - cell "USDT" [ref=e990]
+                - cell "TRON" [ref=e991]
+                - cell "1000.00000000" [ref=e992]
+                - cell "0.00000000" [ref=e993]
+                - cell "7d0161907f296b3ab768712f56095ba777ac7536d241896d3a7b53fbaaa460b6" [ref=e994]
+                - cell "Tvtb4VirWCMnbBktzqaCvboDmo9rSzo7nh" [ref=e995]
+                - cell "completed" [ref=e996]
+                - cell "25" [ref=e997]
+                - cell "1766999400000" [ref=e998]
+                - cell "1767000780000" [ref=e999]
+              - row [ref=e1000]:
+                - cell "24" [ref=e1001]
+                - cell "co_20251231_43875095" [ref=e1002]
+                - cell "438750921" [ref=e1003]
+                - cell "withdrawal" [ref=e1004]
+                - cell "USDT" [ref=e1005]
+                - cell "TRON" [ref=e1006]
+                - cell "1800.00000000" [ref=e1007]
+                - cell "1.00000000" [ref=e1008]
+                - cell "219361f01e2a7c60f65ca604af06a392872684ff230241b3823a9540e645df54" [ref=e1009]
+                - cell "TVSzNFcdNHjGcWNzbVi7movAKU9vDEUg3J" [ref=e1010]
+                - cell "completed" [ref=e1011]
+                - cell "34" [ref=e1012]
+                - cell "1767183300000" [ref=e1013]
+                - cell "1767186360000" [ref=e1014]
+              - row [ref=e1015]:
+                - cell "25" [ref=e1016]
+                - cell "co_20251105_31958204" [ref=e1017]
+                - cell "319582046" [ref=e1018]
+                - cell "deposit" [ref=e1019]
+                - cell "BTC" [ref=e1020]
+                - cell "BITCOIN" [ref=e1021]
+                - cell "0.00100000" [ref=e1022]
+                - cell "0.00000000" [ref=e1023]
+                - cell "e48440f70849bf5b39506e732fd1f7a288a1ff4338028b098dc9bb0eb37d9145" [ref=e1024]
+                - cell "bc1q9d846392019485720192847291048572019283" [ref=e1025]
+                - cell "completed" [ref=e1026]
+                - cell "6" [ref=e1027]
+                - cell "1762351800000" [ref=e1028]
+                - cell "1762354500000" [ref=e1029]
+    - contentinfo [ref=e358]:
+      - generic [ref=e359]:
+        - generic [ref=e361]: 写入中
+        - generic [ref=e362]: 正在将数据库文件挂载到 Catalog...
+      - generic [ref=e363]:
+        - button "取消" [disabled] [ref=e364] [cursor=pointer]
+        - button "批量导入选中的 8 个工作表" [disabled] [ref=e1030]
+  - banner "全局工作区顶栏" [ref=e16]:
+    - generic [ref=e17]:
+      - button "🪶 DuckDB Studio PRO" [ref=e18] [cursor=pointer]:
+        - generic [ref=e19]: 🪶
+        - generic [ref=e21]:
+          - generic [ref=e22]: DuckDB Studio
+          - generic [ref=e23]: PRO
+      - navigation "业务领域大类" [ref=e25]:
+        - button "工程核心" [ref=e26] [cursor=pointer]
+        - button "分析洞察" [ref=e32] [cursor=pointer]
+        - button "知识沉淀" [ref=e37] [cursor=pointer]
+        - button "AI 认知" [ref=e42] [cursor=pointer]
+      - tablist "工程核心功能标签页" [ref=e48]:
+        - tab "仪表盘" [selected] [ref=e49] [cursor=pointer]
+        - tab "数据" [ref=e55] [cursor=pointer]:
+          - generic [aria-hidden] [ref=e60]: "2"
+        - tab "Schema" [ref=e61] [cursor=pointer]:
+          - generic [aria-hidden] [ref=e66]: "3"
+        - tab "SQL" [ref=e67] [cursor=pointer]:
+          - generic [aria-hidden] [ref=e72]: "4"
+        - tab "数据流" [ref=e73] [cursor=pointer]:
+          - generic [aria-hidden] [ref=e78]: "5"
+    - generic [ref=e79]:
+      - button "项目" [ref=e80] [cursor=pointer]
+      - button "baseline 内存临时模式" [ref=e1034] [cursor=pointer]:
+        - generic [ref=e88]: baseline
+        - generic [ref=e90]: 内存临时模式
+      - button "AI 助手 Ctrl+I" [ref=e94] [cursor=pointer]:
+        - generic [ref=e97]: AI 助手
+        - generic [ref=e98]: Ctrl+I
+      - button "⌘K" [ref=e99] [cursor=pointer]
+      - button "帮助与快捷键" [ref=e103] [cursor=pointer]
+      - button "切换为浅色模式" [ref=e106] [cursor=pointer]
+      - button "AI 模型设置" [ref=e107] [cursor=pointer]
+  - main [ref=e110]:
+    - generic [ref=e111]:
+      - generic [ref=e1036]:
+        - generic [ref=e1037]:
+          - generic [ref=e1038]:
+            - generic [ref=e1039]:
+              - heading "分析范围" [level=1] [ref=e1040]
+              - generic [ref=e1041]: /
+              - button "main / main" [ref=e1042] [cursor=pointer]
+            - paragraph
+          - button "刷新" [ref=e1045] [cursor=pointer]
+        - status [ref=e1046]: 加载分析…
+      - complementary "AI Copilot 侧边栏" [ref=e129]:
+        - generic "拖拽调整侧边栏宽度" [ref=e130]
+        - generic [ref=e131]:
+          - generic [ref=e132]:
+            - generic [ref=e133]: AI Copilot
+            - button "Gemini 2.0 Flash" [ref=e135] [cursor=pointer]
+          - generic [ref=e137]:
+            - button "会话历史" [ref=e138] [cursor=pointer]:
+              - generic [ref=e139]: "1"
+            - button "新建会话" [ref=e140] [cursor=pointer]
+            - button "清空会话历史" [ref=e141] [cursor=pointer]
+            - button "收起侧边栏" [ref=e142] [cursor=pointer]
+        - generic [ref=e144]:
+          - generic [ref=e145]: 仪表盘
+          - generic [ref=e146]: ·
+          - button "选择关注的数据表" [ref=e148] [cursor=pointer]:
+            - generic [ref=e149]: 所有表
+        - generic [ref=e151]:
+          - paragraph [ref=e152]: 有什么想查的？
+          - paragraph [ref=e153]: 直接提问、生成 SQL，或先选关注表再探索。
+        - button "生成探索问题" [ref=e156] [cursor=pointer]
+        - generic [ref=e159]:
+          - textbox "提问、生成 SQL 或分析数据…" [ref=e160]
+          - button "发送" [disabled] [ref=e162]
+  - contentinfo [ref=e164]:
+    - generic [ref=e165]:
+      - generic [ref=e166]: DuckDB 1.33.1
+      - generic [ref=e169]: "|"
+      - generic [ref=e170]: baseline [MEMORY]
+      - generic [ref=e172]: "|"
+      - generic [ref=e173]: 内存库
+      - generic [ref=e175]: "|"
+      - generic [ref=e176]: 0 张表
+      - generic [ref=e178]: "|"
+      - generic [ref=e179]: 暂无表
+      - generic [ref=e181]: "|"
+      - generic [ref=e182]: "内存: 未采集"
+    - generic [ref=e184]:
+      - generic [ref=e185]: 引擎就绪
+      - generic [ref=e189]: "|"
+      - generic [ref=e190]: 07:00
+      - button "刷新运行时状态" [ref=e191] [cursor=pointer]

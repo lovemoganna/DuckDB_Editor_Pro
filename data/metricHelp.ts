@@ -35,7 +35,7 @@ export const METRIC_CATEGORY_HELP: Record<MetricCategoryKey, MetricCategoryHelp>
     ],
     commonErrors: [
       '公式中使用列名占位符（如 amount_col），未替换为实际字段名',
-      '混用 MySQL 聚合语法（如 GROUP_CONCAT），在 DuckDB 中报错',
+      '使用其他数据库专有函数或不兼容的参数写法，未按 DuckDB 方言核对',
       '比率类指标未处理分母为零（应使用 NULLIF 防除零）',
       '趋势类指标未指定时间粒度，导致聚合结果失去时序意义',
       '依赖字段（dependencies）填写表名而非列名',
@@ -55,14 +55,14 @@ export const METRIC_CATEGORY_HELP: Record<MetricCategoryKey, MetricCategoryHelp>
     ],
     bestPractices: [
       '指标名称使用 snake_case（如 daily_active_users），保持一致性',
-      '每个指标必须填写单位（个/元/次/%），便于图表轴标签',
+      '明确单位与倍率；百分数按 0–100 输出，比例按 0–1 输出',
       '公式中明确写出聚合粒度（如：按 user_id 去重）',
       '复杂公式优先写成 CTE 形式，便于后续验证与维护',
     ],
     formulaExamples: [
       { name: 'DAU（日活用户数）', formula: 'COUNT(DISTINCT user_id)', note: '配合 WHERE date_trunc 过滤日期' },
       { name: '订单金额总计', formula: 'SUM(order_amount)', note: '注意过滤已取消订单' },
-      { name: '用户渗透率', formula: 'COUNT(DISTINCT user_id) * 1.0 / NULLIF(total_users, 0)', note: '用 NULLIF 防分母为零' },
+      { name: '用户渗透率', formula: 'COUNT(DISTINCT user_id) * 100.0 / NULLIF(COUNT(DISTINCT eligible_user_id), 0)', note: '仅适用于两字段已按同一主体对齐的资格总体；事件转化应使用方法模板' },
     ],
   },
   metricValidation: {
@@ -77,7 +77,7 @@ export const METRIC_CATEGORY_HELP: Record<MetricCategoryKey, MetricCategoryHelp>
     commonErrors: [
       '验证时未选择数据源表，导致 SQL 执行缺失 FROM 目标',
       '指标公式为纯聚合表达式（如 SUM(amount)），需补全 SELECT...FROM 结构',
-      '字段名大小写不匹配（DuckDB 默认不区分大小写，但双引号内区分）',
+      '字段不存在或标识符未正确引用（DuckDB 对引号内的标识符也不区分大小写）',
       '公式引用的列已被重命名或删除，验证失败但错误信息不明确',
       '批量验证时并发触发过多 AI 请求，导致限流失败',
     ],
@@ -91,11 +91,11 @@ export const METRIC_CATEGORY_HELP: Record<MetricCategoryKey, MetricCategoryHelp>
       '1. 进入指标包详情页',
       '2. 点击指标卡片的「验证（▶）」按钮进行单个验证',
       '3. 若出现红色「验证失败」标签，点击「修复」',
-      '4. AI 修复完成后自动重新验证，直到出现绿色「已验证」标签',
+      '4. 修复后重新验证，并核对业务含义；执行通过仍需业务审核',
       '5. 全部验证通过后点击顶部「验证全部」进行批量确认',
     ],
     bestPractices: [
-      '公式中使用 LIMIT 1 或 COUNT(*) 等轻量操作验证，而非完整聚合扫描',
+      '执行实际指标公式并独立对账；LIMIT 1 不会消除聚合扫描，也不能替代完整口径验证',
       '验证前确认左侧数据源表已正确导入且有数据',
       '修复后建议对比原公式与修复版本，确认业务含义未改变',
       '验证通过的指标及时打上「收藏」标记，便于后续快速检索',
@@ -103,7 +103,7 @@ export const METRIC_CATEGORY_HELP: Record<MetricCategoryKey, MetricCategoryHelp>
     formulaExamples: [
       { name: '防除零写法', formula: 'SUM(revenue) / NULLIF(COUNT(*), 0)', note: '避免分母为 0 导致运行时错误' },
       { name: '安全类型转换', formula: 'TRY_CAST(amount_str AS DOUBLE)', note: '字段类型不匹配时安全转换，失败返回 NULL' },
-      { name: '空值处理', formula: 'COALESCE(SUM(amount), 0)', note: '当表无数据时返回 0 而非 NULL' },
+      { name: '空值处理', formula: 'COALESCE(SUM(amount), 0)', note: '仅在业务确认空集合应解释为零时使用；不要掩盖未知或缺失' },
     ],
   },
   metricAnalysis: {
@@ -148,7 +148,7 @@ export const METRIC_CATEGORY_HELP: Record<MetricCategoryKey, MetricCategoryHelp>
   },
   chartGeneration: {
     title: '图表生成 / 可视化',
-    description: '适用于从指标公式自动推断图表类型（折线/柱状/饼图等）并生成可在 SQL 编辑器中展示的图表配置，无需手动配置图表参数。',
+    description: '适用于根据实际查询结果和已声明维度生成数值卡、趋势或分组图，可在 SQL 编辑器进一步调整图表配置。',
     scenarios: [
       '趋势类指标（日/周/月聚合）自动生成折线图',
       '构成类指标（各类别占比）自动生成饼图或柱状图',
@@ -157,7 +157,7 @@ export const METRIC_CATEGORY_HELP: Record<MetricCategoryKey, MetricCategoryHelp>
     ],
     commonErrors: [
       '数据源表未连接或无数据，生成图表时 SQL 返回空结果',
-      '指标公式为纯标量（如 COUNT(*)），无时间维度，系统无法推断 X 轴',
+      '纯标量指标适合数值卡；趋势或分组图必须有对应维度',
       '图表类型推断错误，需手动调整图表配置',
       '批量生成时因 AI 调用频繁导致超时，部分指标图表生成失败',
     ],
@@ -203,8 +203,8 @@ export const METRIC_CATEGORY_HELP: Record<MetricCategoryKey, MetricCategoryHelp>
     aiHints: [
       '重新分析前先导出当前指标包作为备份，防止分析结果覆盖手动调整内容',
       '导入外部指标包后，逐一检查公式中的表名是否与当前项目一致',
-      '版本号大于 1 的指标可点击展开历史记录，查看各版本变更字段',
-      '血缘追踪（lineage）字段由 AI 分析时自动填充，可辅助理解指标依赖关系',
+      '定义变更记录版本与变更字段，可通过导出的 JSON 核对历史',
+      '血缘来自已登记的来源表、依赖字段与指标引用；应核对实际 SQL，不能把推断关联当作声明约束',
     ],
     quickStart: [
       '1. 在指标包列表页点击「导入」上传 JSON 文件',
@@ -221,7 +221,7 @@ export const METRIC_CATEGORY_HELP: Record<MetricCategoryKey, MetricCategoryHelp>
     formulaExamples: [
       { name: '导出指标包', formula: '点击包列表「⬇」图标 → 保存 .json', note: '包含所有指标定义与元数据' },
       { name: '导入指标包', formula: '包列表页右上角「导入」→ 选择 .json 文件', note: '系统自动生成新 ID 避免冲突' },
-      { name: '版本查看', formula: '指标卡片展开 → 查看 history 字段变更记录', note: '保留最近 N 版修改历史' },
+      { name: '版本查看', formula: '导出指标包 JSON → 查看 history 字段变更记录', note: '保留最近 N 版修改历史' },
     ],
   },
 };

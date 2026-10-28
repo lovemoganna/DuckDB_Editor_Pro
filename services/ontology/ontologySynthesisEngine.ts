@@ -23,6 +23,7 @@ import {
 import { MECELayer } from '../../types/ontology';
 import type { LifeObject, LifeObjectType, LifeLinkType, LifeLink, LifeAction } from '../../hooks/useOntologyStore';
 import { extractSqlBlocksFromMarkdown } from '../../components/KnowledgeHub/services/snippetMarkdownParser';
+import { splitSqlScript } from '../dataflow/sqlStructure';
 
 export interface SqlBlockExecutionResult {
   index: number;
@@ -346,26 +347,21 @@ export async function executeAllSqlBlocks(
       const rawSql = sqlBlocks[i];
       if (onProgress) onProgress(i + 1, sqlBlocks.length);
 
-      // 清洗单行与多行注释后再按分号分割，避免以注释开头的语句被整个丢弃
-      const cleanSql = rawSql
-        .replace(/--.*$/gm, '')
-        .replace(/\/\*[\s\S]*?\*\//g, '');
-
-      const statements = cleanSql
-        .split(';')
-        .map(s => s.trim())
-        .filter(s => s.length > 0);
-
       const blockStart = performance.now();
       let blockSuccess = true;
       let blockRows: any[] = [];
       let blockCols: string[] = [];
       let blockError: string | undefined;
 
-      if (statements.length === 0) {
-        // 纯注释或空白代码块直接视为安全通过
-        blockSuccess = true;
-      } else {
+      let statements: string[] = [];
+      try {
+        statements = splitSqlScript(rawSql).map(statement => statement.sql);
+      } catch (err: any) {
+        blockSuccess = false;
+        blockError = err?.message || String(err);
+      }
+
+      if (blockSuccess) {
         for (const cleanStmt of statements) {
           try {
             let timeoutHandle: any;

@@ -1,0 +1,105 @@
+{
+  "scope": "首页仪表盘及其直接相关模块",
+  "page_count": 1,
+  "page_scanned": 1,
+  "subviews": 11,
+  "components": {
+    "components/Dashboard.tsx": [
+      "Dashboard"
+    ],
+    "components/Dashboard/MissionControl/DataIdeMissionControl.tsx": [
+      "DataIdeMissionControl"
+    ],
+    "components/Dashboard/Home/HomeHeader.tsx": [
+      "HomeHeader"
+    ],
+    "components/Dashboard/Home/HomeBoardCanvas.tsx": [
+      "HomeBoardCanvas"
+    ],
+    "components/Dashboard/Home/WorkspaceObjects.tsx": [
+      "WorkspaceObjects"
+    ],
+    "components/Dashboard/Home/WorkbenchControls.tsx": [
+      "FilterEditor",
+      "DashboardContextControls",
+      "DatasetComposer",
+      "DatasetWidgetBuilder",
+      "WidgetInstanceEditor"
+    ],
+    "components/Dashboard/Home/DatasetFieldChartBuilder.tsx": [
+      "DatasetFieldChartBuilder"
+    ],
+    "components/Dashboard/Home/DatasetPreview.tsx": [
+      "DatasetPreview"
+    ],
+    "components/DashboardGrid.tsx": [
+      "DashboardGrid"
+    ],
+    "components/DashboardWidget.tsx": [
+      "DashboardWidget"
+    ],
+    "components/Dashboard/WidgetChartConfigPanel.tsx": [
+      "WidgetChartConfigPanel"
+    ],
+    "components/Dashboard/StudioBottomBar.tsx": [
+      "StudioBottomBar"
+    ]
+  },
+  "interfaces": {
+    "services/duckdbService.ts": [
+      "getTables",
+      "getCurrentCatalogAndSchema",
+      "listAnalysisContexts",
+      "readQuery",
+      "readQueryWithParams",
+      "readQueryBatchWithParams",
+      "importFile",
+      "switchAnalysisContext",
+      "getRuntimeInfo",
+      "isBatchRunning"
+    ],
+    "services/dbService.ts": [
+      "getDashboards",
+      "saveDashboard",
+      "updateDashboard",
+      "getQueries",
+      "saveQuery",
+      "getDomainSetting",
+      "saveDomainSetting"
+    ],
+    "services/homeDashboardService.ts": [
+      "getOrCreateHomeDashboard",
+      "createHomeView",
+      "selectHomeView",
+      "addObjectToDashboard"
+    ],
+    "services/workbench/datasets.ts": [
+      "loadDatasets",
+      "saveQueryDataset"
+    ],
+    "services/workbench/queryCompiler.ts": [
+      "compileAnalysis",
+      "validateFilters",
+      "analysisSqlForEditor"
+    ],
+    "services/workbench/runtime.ts": [
+      "executeWidget"
+    ],
+    "services/workbench/datasetGuards.ts": [
+      "validateUniqueKeys"
+    ],
+    "services/analysisObjects.ts": [
+      "listAnalysisObjects",
+      "resolveAnalysisObject",
+      "updateObjectPresentation"
+    ],
+    "services/databaseAnalysis.ts": [
+      "refreshDatabaseAnalysis"
+    ],
+    "services/dynamicHome.ts": [
+      "ensureDynamicHome"
+    ]
+  },
+  "local_interface_count": 33,
+  "http_business_api_count": 0
+}

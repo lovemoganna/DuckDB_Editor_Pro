@@ -1,0 +1,11 @@
+### Result
+{"skillLoaded":true,"importNarrowHeader":true}
+### Ran Playwright code
+```js
+await (async page => { await page.getByRole('button',{name:'AI 认知',exact:true}).click(); await page.getByRole('tablist',{name:'AI 认知功能标签页'}).getByRole('tab',{name:'技能',exact:true}).click(); await page.getByRole('tablist',{name:'Skill 模式'}).waitFor(); await page.screenshot({path:'docs/system-consistency-20261012/skills-narrow-after.png'}); await page.getByRole('button',{name:/已保存到 OPFS|临时分析空间/}).click(); await page.getByRole('button',{name:/导入数据表文件/}).click(); await page.getByRole('dialog',{name:'数据导入',exact:true}).waitFor(); await page.screenshot({path:'docs/system-consistency-20261012/import-dialog-after.png'}); return {skillLoaded:true,importNarrowHeader:true}; })(page);
+```
+### Page
+- Page URL: http://localhost:5173/DuckDB_Editor_Pro/
+- Page Title: DuckDB Manager Pro
+### Events
+- New console entries: .playwright-cli\console-2026-10-13T08-17-22-204Z.log#L1415-L1437

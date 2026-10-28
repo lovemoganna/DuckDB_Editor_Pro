@@ -226,6 +226,11 @@ export interface CatalogTreeResult {
 }
 
 export interface QueryResult {
+  executedSql?: string;
+  executedDocumentSql?: string;
+  isStale?: boolean;
+  databaseName?: string;
+  schemaName?: string;
   resultId?: string;
   queryTitle?: string;
   sourceType?: 'query' | 'table_preview' | 'table_sample';
@@ -277,6 +282,7 @@ export interface Notification {
 
 export interface QueryHistoryItem {
   id: string;
+  databaseName?: string;
   sql: string;
   timestamp: number;
   status: 'success' | 'error';
@@ -287,7 +293,21 @@ export interface QueryHistoryItem {
   table?: string;
 }
 
-export type ChartType = 'bar' | 'line' | 'area' | 'pie' | 'doughnut' | 'scatter' | 'counter' | 'pivot';
+export type ChartType =
+  | 'bar'
+  | 'line'
+  | 'area'
+  | 'pie'
+  | 'doughnut'
+  | 'scatter'
+  | 'counter'
+  | 'kpi'
+  | 'pivot'
+  | 'table'
+  | 'funnel'
+  | 'waterfall'
+  | 'histogram'
+  | 'combo';
 
 export interface ChartConfig {
   id: string;
@@ -297,18 +317,107 @@ export interface ChartConfig {
   yKeys: string[];
   yRightKeys?: string[];
   groupBy?: string;
+  sizeKey?: string;
+  showTrendLine?: boolean;
+  highlightOutliers?: boolean;
+  colorKey?: string;
+  labelKey?: string;
+  binCount?: number;
+  binWidth?: number;
+  waterfallRoleKey?: string;
+  kpiBaselineKey?: string;
+  kpiTarget?: number;
+  valueMode?: 'absolute' | 'percent';
   aggregation?: 'none' | 'count' | 'sum' | 'avg' | 'min' | 'max';
+  categorySort?: 'none' | 'label_asc' | 'label_desc' | 'value_asc' | 'value_desc';
+  topN?: number;
   stacked?: boolean;
   horizontal?: boolean;
   showLegend?: boolean;
   showValues?: boolean;
+  /** Explicit measurement unit shown on KPI / axis / tooltip (e.g. ¥, 笔, %). */
+  unit?: string;
+  xAxisLabel?: string;
   yAxisLabel?: string;
+  /** Default: bottom */
+  legendPosition?: 'top' | 'bottom' | 'left' | 'right';
+  /** Default: center */
+  legendAlign?: 'start' | 'center' | 'end';
   colors?: string[];
+  // --- Analysis Chart Spec display bridge (engine → renderer) ---
+  stackMode?: 'none' | 'stack' | 'percent';
+  missingValue?: 'break' | 'zero' | 'forward_fill';
+  labelMode?: 'auto' | 'always' | 'never';
+  includeZero?: boolean;
+  hasNegative?: boolean;
+  format?: {
+    unit?: string;
+    compact?: boolean;
+    compactThreshold?: number;
+    decimals?: number;
+    percent?: boolean;
+    thousandSeparator?: boolean;
+    prefix?: string;
+    suffix?: string;
+  };
+  formatByKey?: Record<string, ChartConfig['format'] & object>;
+  unitRight?: string;
+  yRightAxisLabel?: string;
+  sliceLabels?: Array<{ key: string; value: number; percent: number; label: string }>;
+  arcLabelWindow?: { from:number; to:number };
+  /** Doughnut center KPI — rendered by doughnutCenter Chart.js plugin */
+  centerTotal?: number | null;
+  centerLabel?: string;
+  brushField?: string;
+  tooltipDims?: string[];
+  emptyState?: 'ok' | 'empty' | 'all_null' | 'error';
+  /** Preserve semantic chart type from ChartSpec (funnel/waterfall/…) */
+  semanticType?: ChartType;
+  histogramBins?: Array<{
+    label: string;
+    count: number;
+    percent: number;
+    from: number;
+    to: number;
+  }>;
+  histogramValueMode?: 'absolute' | 'percent';
+  waterfall?: {
+    labels: string[];
+    bases: number[];
+    deltas: number[];
+    kinds: Array<'increase' | 'decrease' | 'total'>;
+    roles?: Array<'start' | 'change' | 'end' | 'total'>;
+  };
+  scatterPoints?: Array<{
+    x: number;
+    y: number;
+    r?: number;
+    label?: string;
+    raw?: Record<string, unknown>;
+  }>;
+  kpiCards?: Array<{
+    key: string;
+    label: string;
+    value: number | null;
+    formatted: string;
+    unit?: string;
+  }>;
+  kpiValue?: number | string | null;
+  kpiLabel?: string;
+  kpiUnit?: string;
+  kpiCompare?: Array<{
+    key: string;
+    label: string;
+    baseline: string;
+    value: number | null;
+    formatted: string | null;
+  }>;
   // 透视表维度配置
+  nullDisplay?: 'dash' | 'zero' | 'empty';
   rowKey?: string;
   colKey?: string;
   valKey?: string;
-  aggFunc?: 'sum' | 'count' | 'avg' | 'min' | 'max';
+  aggFunc?: 'sum' | 'count' | 'avg' | 'min' | 'max' | 'count_distinct' | 'median';
   // 指标关联字段
   metricId?: string;           // 关联的指标ID
   metricPackageId?: string;    // 关联的指标包ID
@@ -327,6 +436,8 @@ export interface SqlTab {
   id: string;
   title: string;
   code: string;
+  /** SQL last explicitly saved; local draft persistence does not clear this baseline. */
+  savedCode?: string;
   result?: QueryResult;
   history: string[];
   historyIndex: number;
@@ -338,8 +449,22 @@ export interface SqlTab {
   filterTerm: string;
 }
 
+export interface SavedQueryResultMeta {
+  rowCount?: number;
+  columns?: string[];
+  ranAt?: number;
+}
+
+export type VizHint = 'strong' | 'weak' | 'none';
+
 export interface SavedQuery {
+  datasetId?: string;
+  querySpec?: import('./services/workbench/analysisTypes').WidgetQuerySpec;
+  /** Resolve the original object at execution time; never execute a stale copy. */
+  analysisRef?: { kind: 'metric' | 'chart' | 'analysis'; id: string };
   id: string;
+  /** Owning DuckDB catalog. Legacy unscoped queries belong to memory. */
+  databaseName?: string;
   name: string;
   sql: string;
   desc?: string;
@@ -350,9 +475,16 @@ export interface SavedQuery {
   widgetType?: 'value' | 'table' | 'chart' | 'pivot';
   // 标记是否来自指标图表
   metricChartId?: string;
+  /** Tables referenced by SQL (lineage) */
+  referencedTables?: string[];
+  /** Schemas inferred from qualified table refs */
+  referencedSchemas?: string[];
+  lastResultMeta?: SavedQueryResultMeta;
+  vizHint?: VizHint;
 }
 
 export interface DashboardItem {
+  settings?: import('./services/workbench/analysisTypes').WidgetSettings;
   i: string;
   savedQueryId: string;
   x: number;
@@ -362,6 +494,8 @@ export interface DashboardItem {
 }
 
 export interface Dashboard {
+  formatVersion?: number;
+  context?: import('./services/workbench/analysisTypes').DashboardContext;
   id: string;
   name: string;
   description?: string;
@@ -371,6 +505,10 @@ export interface Dashboard {
   tags?: string[];
   theme?: string;
   template?: string;
+  /** When true, widget x/y/w/h are frozen — window resize must not rewrite layout. */
+  layoutLocked?: boolean;
+  /** DuckDB catalog this board belongs to — isolates dashboards across databases */
+  databaseName?: string;
 }
 
 
@@ -490,8 +628,7 @@ export enum Tab {
   EXTENSIONS = 'extensions',
   TUTORIALS = 'tutorials',
   ANALYSIS_HUB = 'analysis_hub',   // Abstraction + SchemaGenerator merged
-  METRICS = 'metrics',
-  AI_SKILLS = 'ai_skills',
+  METRICS = 'metrics',  VISUALIZATION = 'visualization',  AI_SKILLS = 'ai_skills',
   LIBRARY = 'library',
   AI_CAPABILITIES = 'ai_capabilities', // Standalone AI Capability Hub
   ONTOLOGY = 'ontology',
@@ -561,6 +698,13 @@ export interface MetricScorecard {
 
 // 新增：指标定义（AI分析生成）
 export interface MetricDefinition {
+  sourceTable?: string;
+  calculation?: import('./types/metric').MetricCalculation;
+  governance?: import('./types/metric').MetricGovernance;
+  validationResult?: Record<string, any>[];
+  validationDatabase?: string;
+  /** Explicit presentation for unit-aware business definitions. */
+  presentation?: ChartConfig;
   id: string;
   name: string;           // 指标名称
   scenario: string;       // 指标场景（用于什么业务分析）
@@ -593,11 +737,15 @@ export interface MetricDefinition {
     downstream: string[]; // 下游依赖此指标的指标
     transformSteps?: string[]; // 数据转换步骤
   };
+  isFavorite?: boolean;   // 是否收藏
 }
 
 // 新增：指标包（包含多个指标定义）
 export interface MetricPackage {
+  /** Deleted automatic proposals stay dismissed across database refreshes. */
+  dismissedMetricIds?: string[];
   id: string;
+  databaseName?: string;
   name: string;           // 指标包名称
   description: string;    // 描述
   sourceTables: string[]; // 依赖的数据表
@@ -609,14 +757,17 @@ export interface MetricPackage {
 // 新增：指标图表（自动从指标生成）
 export interface MetricChart {
   id: string;
-  metricId: string;           // 关联的指标ID
-  metricPackageId: string;    // 关联的指标包ID
-  metricName: string;         // 指标名称
-  sourceTable: string;        // 数据源表
+  databaseName?: string;
+  /** Existing SQL/home asset; edits preserve the saved query identity. */
+  savedQueryId?: string;
+  metricId?: string;           // 关联的指标ID（可选）
+  metricPackageId?: string;    // 关联的指标包ID（可选）
+  metricName: string;         // 指标名称或图表标题
+  sourceTable?: string;        // 数据源表（可选）
   chartConfig: ChartConfig;   // 图表配置
   sql: string;               // 执行的SQL语句
   createdAt: number;
-  updatedAt: number;
+  updatedAt?: number;
 }
 
 // M1: Issue-007 Anomaly Result
@@ -723,24 +874,6 @@ export interface DeepInsight {
   observation: string;
   evidence: string;
   sql: string;
-}
-
-export interface DashboardItem {
-  i: string; // Layout ID for react-grid-layout
-  savedQueryId: string;
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
-
-export interface Dashboard {
-  id: string;
-  name: string;
-  description?: string;
-  items: DashboardItem[];
-  createdAt: number;
-  updatedAt: number;
 }
 
 // ============================================

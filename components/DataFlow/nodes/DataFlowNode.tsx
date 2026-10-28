@@ -35,7 +35,7 @@ import {
   dispatchFocusSqlEditor,
 } from '../../../services/dataflow/dataflowEvents';
 import type { DataFlowNodeData } from '../../../services/dataflow/workflowTypes';
-import { DF_COLOR } from '../dataflowUi';
+import { DF_COLOR, DF_STATUS_LABEL } from '../dataflowUi';
 
 export const DATAFLOW_NODE_CARD_WIDTH = 224;
 export const DATAFLOW_NODE_CARD_HEIGHT = 74;
@@ -70,10 +70,16 @@ export const DataFlowNode: React.FC<NodeProps<DataFlowNodeData>> = memo(({ id, d
 
   const isSelected = !!selected || selectedNodeId === id || selectedNodeId === data.id;
   const isCompact = zoom < COMPACT_ZOOM_THRESHOLD;
+  const vertical = data.flowDirection === 'DOWN';
+  const inputPosition = vertical ? Position.Top : Position.Left;
+  const outputPosition = vertical ? Position.Bottom : Position.Right;
+  const anchorStyle = (output = false, fraction = '50%'): React.CSSProperties => vertical
+    ? { left: fraction, top: output ? undefined : -4, bottom: output ? -4 : undefined, transform: 'translateX(-50%)' }
+    : { left: output ? undefined : -4, right: output ? -4 : undefined, top: fraction, transform: 'translateY(-50%)' };
 
   useEffect(() => {
     updateNodeInternals(id);
-  }, [id, data.type, updateNodeInternals]);
+  }, [id, data.type, data.flowDirection, isCompact, updateNodeInternals]);
 
   const {
     type,
@@ -170,8 +176,9 @@ export const DataFlowNode: React.FC<NodeProps<DataFlowNodeData>> = memo(({ id, d
   const isDimmed = highlightState === 'dimmed';
   const hasBug = !!bugInfo?.hasBug || status === 'error';
   const isWarning = !!hasAnomaly || bugInfo?.severity === 'warning';
-  const isStepActive = !!data.isStepActive;
-  const isStepCompleted = !!data.isStepCompleted;
+  const isStepActive = data.executionStatus==='running'||!!data.isStepActive;
+  const isStepCompleted = data.executionStatus==='success'&&!data.rolledBack||!!data.isStepCompleted;
+  const executionLabel=data.rolledBack?'已回滚':({queued:'等待',running:'执行中',success:'成功',failed:'失败',cancelled:'已取消',skipped:'已跳过'} as const)[data.executionStatus!]||'就绪';
 
   let borderStyle = `1px solid ${DF_COLOR.border}`;
   let boxShadow: string | undefined;
@@ -211,7 +218,9 @@ export const DataFlowNode: React.FC<NodeProps<DataFlowNodeData>> = memo(({ id, d
           height: DATAFLOW_NODE_CARD_HEIGHT,
         }}
         className="group relative rounded-lg bg-monokai-surface/95 px-2.5 text-monokai-fg backdrop-blur-md transition-all duration-150 select-none flex items-center justify-between gap-1.5 cursor-pointer"
-        title={`${stepIndex ? `[Step ${stepIndex}] ` : ''}${title}\n${hasBug ? '异常' : isWarning ? '逻辑告警' : '就绪'}`}
+        data-execution-status={data.executionStatus || status}
+        data-statement-id={data.statementId}
+        title={`${title} ${executionLabel}`}
       >
         <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded border ${getIconBg()}`}>
           {getNodeIcon()}
@@ -229,7 +238,7 @@ export const DataFlowNode: React.FC<NodeProps<DataFlowNodeData>> = memo(({ id, d
             </span>
           </div>
           <div className="text-3xs text-monokai-comment font-mono truncate">
-            {rowCount !== undefined ? `${formatRows(rowCount)} 行` : type}
+            {data.rolledBack?'已回滚':data.executionStatus==='running'?'执行中':data.executionStatus==='queued'?'等待':rowCount !== undefined ? `${formatRows(rowCount)} 行` : data.executionStatus?executionLabel:type}
           </div>
         </div>
 
@@ -245,20 +254,21 @@ export const DataFlowNode: React.FC<NodeProps<DataFlowNodeData>> = memo(({ id, d
           )}
         </div>
 
-        {type !== 'source' && (
+        {(type !== 'source' || data.logicalKind) && (
           <Handle
             type="target"
-            position={Position.Left}
+            position={inputPosition}
             id="input"
-            style={{ ...HANDLE_VISIBLE, left: -4, top: '50%', transform: 'translateY(-50%)' }}
+            style={{ ...HANDLE_VISIBLE, ...anchorStyle() }}
           />
         )}
+        {type === 'join' && data.logicalKind && ['left','right'].map((handle,index)=><Handle key={handle} type="target" position={inputPosition} id={handle} style={{...HANDLE_VISIBLE,...anchorStyle(false,index?'65%':'35%')}}/>)}
         {type !== 'export' && (
           <Handle
             type="source"
-            position={Position.Right}
+            position={outputPosition}
             id="output"
-            style={{ ...HANDLE_VISIBLE, right: -4, top: '50%', transform: 'translateY(-50%)' }}
+            style={{ ...HANDLE_VISIBLE, ...anchorStyle(true) }}
           />
         )}
       </div>
@@ -273,16 +283,18 @@ export const DataFlowNode: React.FC<NodeProps<DataFlowNodeData>> = memo(({ id, d
         boxShadow,
         opacity: isDimmed ? 0.35 : 1,
         width: DATAFLOW_NODE_CARD_WIDTH,
-        minHeight: DATAFLOW_NODE_CARD_HEIGHT,
+        height: DATAFLOW_NODE_CARD_HEIGHT,
       }}
-      className={`group relative rounded-xl bg-monokai-surface/95 text-monokai-fg backdrop-blur-md transition-all duration-150 select-none shadow-md flex flex-col p-2 gap-1.5 cursor-pointer ${
+      data-execution-status={data.executionStatus || status}
+      data-statement-id={data.statementId}
+      className={`group relative rounded-md bg-monokai-surface/95 text-monokai-fg backdrop-blur-md transition-all duration-150 select-none shadow-md flex flex-col justify-between p-2 cursor-pointer ${
         !isSelected && !isAncestor && !isDescendant && !hasBug && !isWarning
           ? 'hover:border-monokai-accent/40 hover:bg-monokai-elevated/90'
           : ''
       } ${hasBug ? 'ring-1 ring-monokai-pink/40' : ''}`}
     >
       {/* 行 1：步骤序号 + 算子类型/表名 + 状态指示 */}
-      <div className="flex items-center justify-between gap-1.5 min-w-0">
+      <div className="flex h-5 items-center justify-between gap-1.5 min-w-0">
         <div className="flex items-center gap-1.5 min-w-0 flex-1">
           <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border ${getIconBg()}`}>
             {getNodeIcon()}
@@ -311,10 +323,14 @@ export const DataFlowNode: React.FC<NodeProps<DataFlowNodeData>> = memo(({ id, d
               <Zap className="w-2.5 h-2.5 fill-current" />
               <span>{data.config.costPercent}%</span>
             </span>
+          ) : data.executionStatus ? (
+            <span className={`text-3xs font-mono ${isStepActive ? 'text-monokai-yellow' : 'text-monokai-comment'}`}>{executionLabel}</span>
           ) : isStepActive ? (
             <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-3xs font-mono font-bold bg-monokai-yellow/20 text-monokai-yellow border border-monokai-yellow/50">
               <Play className="w-2 h-2 fill-current" />
             </span>
+          ) : ['running', 'queued', 'dirty', 'blocked', 'cancelled'].includes(status) ? (
+            <span className={`text-2xs font-mono ${status === 'running' ? 'text-monokai-accent' : 'text-monokai-orange'}`}>{DF_STATUS_LABEL[status]}</span>
           ) : executionTimeSec !== undefined ? (
             <span className="text-3xs font-mono text-monokai-comment">
               {(executionTimeSec * 1000).toFixed(0)}ms
@@ -329,10 +345,10 @@ export const DataFlowNode: React.FC<NodeProps<DataFlowNodeData>> = memo(({ id, d
         </div>
       </div>
 
-      {/* 行 2：核心条件 / 谓词 / 关键表达式 */}
+      {/* 行 2：核心条件 / 谓词 / 关键表达式 (稳定 h-[18px]) */}
       {(data.predicate || data.joinSummary || data.groupBySummary || clauseSnippet) ? (
         <div
-          className="rounded bg-monokai-bg/80 border border-monokai-border px-1.5 py-0.5 text-3xs font-mono text-monokai-fg-muted truncate leading-relaxed flex items-center gap-1"
+          className="h-[18px] w-full rounded bg-monokai-bg/80 border border-monokai-border px-1.5 text-3xs font-mono text-monokai-fg-muted truncate leading-none flex items-center gap-1 min-w-0"
           title={data.predicate || data.joinSummary || data.groupBySummary || clauseSnippet}
         >
           {data.predicate ? (
@@ -358,22 +374,22 @@ export const DataFlowNode: React.FC<NodeProps<DataFlowNodeData>> = memo(({ id, d
           )}
         </div>
       ) : (
-        <div className="text-3xs font-mono text-monokai-comment truncate px-1">
-          {data.tableName ? `数据表: ${data.tableName}` : (paradigm?.stageName || data.subtitle || type)}
+        <div className="h-[18px] text-3xs font-mono text-monokai-comment truncate px-1 flex items-center min-w-0">
+          <span className="truncate">{data.tableName ? `数据表: ${data.tableName}` : (paradigm?.stageName || data.subtitle || type)}</span>
         </div>
       )}
 
-      {/* 行 3：吞吐 / 异常可操作 CTA */}
-      <div className="flex items-center justify-between text-3xs font-mono text-monokai-comment pt-0.5 border-t border-monokai-border">
-        <div className="flex items-center gap-1">
+      {/* 行 3：吞吐 / 异常可操作 CTA (带 min-w-0 截断保护) */}
+      <div className="flex h-[18px] items-center justify-between text-3xs font-mono text-monokai-comment border-t border-monokai-border/70 pt-0.5 min-w-0">
+        <div className="flex items-center gap-1 min-w-0 truncate mr-1">
           {inputRowCount !== undefined && (
-            <span>{formatRows(inputRowCount)} ➔</span>
+            <span className="truncate shrink-0">{formatRows(inputRowCount)} ➔</span>
           )}
-          <span className="font-semibold text-monokai-fg">
+          <span className="font-semibold text-monokai-fg truncate shrink-0">
             {rowCount !== undefined ? `${formatRows(rowCount)} 行` : '—'}
           </span>
           {filterRatio !== undefined && (
-            <span className={`text-3xs font-bold px-1 rounded ${filterRatio >= 0 ? 'bg-monokai-accent/15 text-monokai-accent' : 'bg-monokai-pink/15 text-monokai-pink'}`}>
+            <span className={`text-3xs font-bold px-1 rounded shrink-0 ${filterRatio >= 0 ? 'bg-monokai-accent/15 text-monokai-accent' : 'bg-monokai-pink/15 text-monokai-pink'}`}>
               {filterRatio >= 0 ? `↓${filterRatio}%` : `↑${Math.abs(filterRatio)}%`}
             </span>
           )}
@@ -391,7 +407,7 @@ export const DataFlowNode: React.FC<NodeProps<DataFlowNodeData>> = memo(({ id, d
                   focusSql: false,
                 });
               }}
-              className="text-3xs font-sans px-1.5 py-0.5 rounded bg-monokai-elevated hover:bg-monokai-border text-monokai-fg font-semibold transition-colors cursor-pointer border border-monokai-border"
+              className="text-3xs font-sans px-1.5 py-0.2 rounded bg-monokai-elevated hover:bg-monokai-border text-monokai-fg font-semibold transition-colors cursor-pointer border border-monokai-border"
               title="打开右侧诊断详情"
             >
               诊断
@@ -404,7 +420,7 @@ export const DataFlowNode: React.FC<NodeProps<DataFlowNodeData>> = memo(({ id, d
                   useWorkflowStore.setState({ activeSqlRange: data.sqlRange || null });
                   dispatchFocusSqlEditor({ sqlRange: data.sqlRange });
                 }}
-                className="text-3xs font-sans px-1.5 py-0.5 rounded bg-monokai-pink/20 hover:bg-monokai-pink/30 text-monokai-pink font-semibold transition-colors cursor-pointer border border-monokai-pink/40"
+                className="text-3xs font-sans px-1.5 py-0.2 rounded bg-monokai-pink/20 hover:bg-monokai-pink/30 text-monokai-pink font-semibold transition-colors cursor-pointer border border-monokai-pink/40"
                 title={`返回 SQL 第 ${data.sqlRange.startLine} 行修正`}
               >
                 回 SQL
@@ -418,41 +434,41 @@ export const DataFlowNode: React.FC<NodeProps<DataFlowNodeData>> = memo(({ id, d
               e.stopPropagation();
               useWorkflowStore.getState().traceReverseLineage(id);
             }}
-            className="text-3xs font-sans px-1.5 py-0.2 rounded bg-monokai-accent/15 hover:bg-monokai-accent/25 text-monokai-accent font-semibold transition-colors cursor-pointer border border-monokai-accent/30 flex items-center gap-0.5"
+            className="text-3xs font-sans px-1.5 py-0.2 rounded bg-monokai-accent/15 hover:bg-monokai-accent/25 text-monokai-accent font-semibold transition-colors cursor-pointer border border-monokai-accent/30 flex items-center gap-0.5 shrink-0"
             title="一键从最终结果反向追溯至所有底层输入数据源"
           >
             <Compass className="w-2.5 h-2.5" />
             <span>反向追溯</span>
           </button>
         ) : columnCount !== undefined ? (
-          <span className="text-3xs text-monokai-comment">
+          <span className="text-3xs text-monokai-comment shrink-0">
             {columnCount}列
           </span>
         ) : null}
       </div>
 
       {/* 端口 Handles：export 为终端节点，不暴露输出端口 */}
-      {type !== 'source' && (
+      {(type !== 'source' || data.logicalKind) && (
         <>
           <Handle
             type="target"
-            position={Position.Left}
+            position={inputPosition}
             id="input"
-            style={{ ...HANDLE_VISIBLE, left: -5, top: '50%', transform: 'translateY(-50%)' }}
+            style={{ ...HANDLE_VISIBLE, ...anchorStyle() }}
             className="dataflow-node-handle"
           />
           <Handle
             type="target"
-            position={Position.Left}
+            position={inputPosition}
             id="left"
-            style={{ ...HANDLE_ALIAS, left: -5, top: '50%', transform: 'translateY(-50%)' }}
+            style={{ ...HANDLE_ALIAS, ...anchorStyle(false, data.logicalKind ? '35%' : '50%') }}
             className="dataflow-node-handle"
           />
           <Handle
             type="target"
-            position={Position.Left}
+            position={inputPosition}
             id="right"
-            style={{ ...HANDLE_ALIAS, left: -5, top: '50%', transform: 'translateY(-50%)' }}
+            style={{ ...HANDLE_ALIAS, ...anchorStyle(false, data.logicalKind ? '65%' : '50%') }}
             className="dataflow-node-handle"
           />
         </>
@@ -461,9 +477,9 @@ export const DataFlowNode: React.FC<NodeProps<DataFlowNodeData>> = memo(({ id, d
       {type !== 'export' && (
         <Handle
           type="source"
-          position={Position.Right}
+          position={outputPosition}
           id="output"
-          style={{ ...HANDLE_VISIBLE, right: -5, top: '50%', transform: 'translateY(-50%)' }}
+          style={{ ...HANDLE_VISIBLE, ...anchorStyle(true) }}
           className="dataflow-node-handle"
         />
       )}

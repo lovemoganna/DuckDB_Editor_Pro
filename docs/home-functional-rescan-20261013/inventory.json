@@ -1,0 +1,259 @@
+{
+  "modules": [
+    "components/Dashboard.tsx",
+    "components/Dashboard/MissionControl/DataIdeMissionControl.tsx",
+    "components/Dashboard/Home/HomeHeader.tsx",
+    "components/Dashboard/Home/HomeBoardCanvas.tsx",
+    "components/Dashboard/Home/WorkspaceObjects.tsx",
+    "components/Dashboard/Home/WorkbenchControls.tsx",
+    "components/Dashboard/Home/DatasetFieldChartBuilder.tsx",
+    "components/Dashboard/Home/DatasetPreview.tsx",
+    "components/DashboardGrid.tsx",
+    "components/DashboardWidget.tsx",
+    "components/Dashboard/WidgetChartConfigPanel.tsx",
+    "components/Dashboard/QuickTablePeekDrawer.tsx",
+    "hooks/useDashboardWorkflow.ts"
+  ],
+  "service_boundaries": [
+    {
+      "name": "getTables",
+      "file": "services/duckdbService.ts",
+      "line": 1047,
+      "signature": "  async getTables(): Promise<string[]> {\n      const rows = await this.query(`\n        SELECT table_name"
+    },
+    {
+      "name": "getCurrentCatalogAndSchema",
+      "file": "services/duckdbService.ts",
+      "line": 3560,
+      "signature": "  async getCurrentCatalogAndSchema(): Promise<{ catalog: string; schema: string }> {\n    const res = await this.query('SELECT current_database() as db, current_schema() as sch');\n    if (!res[0]?.db) throw new Error('DuckDB 未返回当前数据库');"
+    },
+    {
+      "name": "listAnalysisContexts",
+      "file": "services/duckdbService.ts",
+      "line": 3570,
+      "signature": "  async listAnalysisContexts(): Promise<\n    Array<{ id: string; label: string; kind: 'schema' | 'database' | 'project'; isCurrent: boolean }>\n  > {"
+    },
+    {
+      "name": "switchAnalysisContext",
+      "file": "services/duckdbService.ts",
+      "line": 3649,
+      "signature": "  async switchAnalysisContext(target: {\n    id: string;\n    kind: 'schema' | 'database' | 'project';"
+    },
+    {
+      "name": "readQuery",
+      "file": "services/duckdbService.ts",
+      "line": 839,
+      "signature": "  async readQuery(sql: string): Promise<any[]> {\n    await this.waitForInit();\n    if (!this.readConn || this.readConn === this.conn || this.currentDatabaseName === MEMORY_DATABASE_NAME || /\\bmemory\\b/i.test(sql)) {"
+    },
+    {
+      "name": "readQueryWithParams",
+      "file": "services/duckdbService.ts",
+      "line": 3138,
+      "signature": "  async readQueryWithParams(sql: string, params: (string | number | boolean | null)[]): Promise<any[]> {\n    return this.runInQueue(async () => {\n      await this.waitForInit();"
+    },
+    {
+      "name": "readQueryBatchWithParams",
+      "file": "services/duckdbService.ts",
+      "line": 3149,
+      "signature": "  async readQueryBatchWithParams(statements: {sql: string; params: (string | number | boolean | null)[]}[]): Promise<any[][]> {\n    const queries = statements.map(statement => {\n      const describe = /^\\s*DESCRIBE\\s+/i.exec(statement.sql);"
+    },
+    {
+      "name": "query",
+      "file": "services/duckdbService.ts",
+      "line": 759,
+      "signature": "  async query(sql: string): Promise<any[]> {\n    if(splitSqlScript(sql).length>1){const result=await this.queryWithMetadata(sql);if(result.error)throw new Error(result.error);return result.rows;}\n    return this.runInQueue(async () => {"
+    },
+    {
+      "name": "getTableSchema",
+      "file": "services/duckdbService.ts",
+      "line": 1294,
+      "signature": "  async getTableSchema(tableName: string): Promise<any[]> {\n    // This runtime exposes PRAGMA's TINYINT flags inconsistently through Arrow.\n    // Cast them inside DuckDB before materialization so non-PK fields stay measures/dimensions."
+    },
+    {
+      "name": "importFile",
+      "file": "services/duckdbService.ts",
+      "line": 1427,
+      "signature": "  async importFile(file: File, tableName: string, options?: ImportOptions): Promise<string[]> {\n    if (file.name.toLowerCase().endsWith('.sql')) return this.importSqlScript(await file.text());\n    if (file.name.toLowerCase().endsWith('.duckdb')) {"
+    },
+    {
+      "name": "getRuntimeInfo",
+      "file": "services/duckdbService.ts",
+      "line": 140,
+      "signature": "  getRuntimeInfo = (): DuckDBRuntimeInfo => {\n    return {\n      ready: this.isInitialized,"
+    },
+    {
+      "name": "isBatchRunning",
+      "file": "services/duckdbService.ts",
+      "line": 136,
+      "signature": "  isBatchRunning(): boolean {\n    return this.isBatchExecuting || this.isVirtualBootstrapping;\n  }"
+    },
+    {
+      "name": "getDashboards",
+      "file": "services/dbService.ts",
+      "line": 224,
+      "signature": "  async getDashboards(databaseName?: string): Promise<any[]> {\n    const { normalizeDashboard } = await import('./workbench/dashboardFormat');\n    return (await this.objects<any>('dashboard', databaseName)).map(normalizeDashboard);"
+    },
+    {
+      "name": "saveDashboard",
+      "file": "services/dbService.ts",
+      "line": 206,
+      "signature": "  async saveDashboard(dashboard: Dashboard): Promise<void> {\n    const catalog = await this.catalog(dashboard.databaseName);\n    await this.queueDashboardWrite(catalog, dashboard.id, () => this.putObject('dashboard', { ...dashboard, databaseName: catalog }));"
+    },
+    {
+      "name": "updateDashboard",
+      "file": "services/dbService.ts",
+      "line": 212,
+      "signature": "  async updateDashboard(id: string, catalog: string, edit: (current: Dashboard) => Dashboard): Promise<Dashboard> {\n    return this.queueDashboardWrite(catalog, id, async () => {\n      const current = (await this.getDashboards(catalog)).find(board => board.id === id);"
+    },
+    {
+      "name": "getQueries",
+      "file": "services/dbService.ts",
+      "line": 184,
+      "signature": "  async getQueries(databaseName?: string): Promise<SavedQuery[]> {\n    return this.objects<SavedQuery>('query', databaseName);\n  }"
+    },
+    {
+      "name": "saveQuery",
+      "file": "services/dbService.ts",
+      "line": 179,
+      "signature": "  async saveQuery(query: SavedQuery): Promise<void> {\n    await this.putObject('query', query);\n    if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('duckdb-saved-queries-updated'));"
+    },
+    {
+      "name": "getDomainSetting",
+      "file": "services/dbService.ts",
+      "line": 239,
+      "signature": "  async getDomainSetting<T>(key: string, databaseName?: string): Promise<T | null> {\n    const catalog = await this.catalog(databaseName);\n    const table = await this.ensureMetadata(catalog);"
+    },
+    {
+      "name": "saveDomainSetting",
+      "file": "services/dbService.ts",
+      "line": 233,
+      "signature": "  async saveDomainSetting<T>(key: string, value: T, databaseName?: string): Promise<void> {\n    const catalog = await this.catalog(databaseName);\n    const table = await this.ensureMetadata(catalog);"
+    },
+    {
+      "name": "getOrCreateHomeDashboard",
+      "file": "services/homeDashboardService.ts",
+      "line": 52,
+      "signature": "export async function getOrCreateHomeDashboard(): Promise<Dashboard> {\n  const catalog = await resolveActiveCatalog();\n  const homeId = homeDashboardIdForCatalog(catalog);"
+    },
+    {
+      "name": "createHomeView",
+      "file": "services/homeDashboardService.ts",
+      "line": 205,
+      "signature": "export async function createHomeView(name: string): Promise<Dashboard> {\n  const catalog = await resolveActiveCatalog();\n  if (!name.trim()) throw new Error('请输入视图名称');"
+    },
+    {
+      "name": "selectHomeView",
+      "file": "services/homeDashboardService.ts",
+      "line": 217,
+      "signature": "export async function selectHomeView(id: string, catalog: string): Promise<void> {\n  const board = (await dbService.getDashboards(catalog)).find((board: Dashboard) => board.id === id);\n  if (!board) throw new Error('此工作台视图不存在');"
+    },
+    {
+      "name": "addObjectToDashboard",
+      "file": "services/homeDashboardService.ts",
+      "line": 194,
+      "signature": "export async function addObjectToDashboard(object: Pick<AnalysisObject, 'kind' | 'id' | 'name' | 'chartConfig'>, target?: Dashboard): Promise<Dashboard> {\n  const board = target || await getOrCreateHomeDashboard();\n  const query = await saveObjectReference(object, board.databaseName!);"
+    },
+    {
+      "name": "listAnalysisObjects",
+      "file": "services/analysisObjects.ts",
+      "line": 22,
+      "signature": "export async function listAnalysisObjects(database: string): Promise<AnalysisObject[]> {\n  const definitions = metricAnalyzer.loadMetricPackages().flatMap(pkg => pkg.metrics);\n  const metricReason = (id?: string) => {"
+    },
+    {
+      "name": "saveObjectReference",
+      "file": "services/analysisObjects.ts",
+      "line": 85,
+      "signature": "export async function saveObjectReference(object: Pick<AnalysisObject, 'kind' | 'id' | 'name'>, database: string): Promise<SavedQuery> {\n  const id = objectReferenceQueryId(object);\n  const existing = (await dbService.getQueries(database)).find(query => query.id === id);"
+    },
+    {
+      "name": "resolveAnalysisObject",
+      "file": "services/analysisObjects.ts",
+      "line": 43,
+      "signature": "export async function resolveAnalysisObject(query: SavedQuery): Promise<SavedQuery> {\n  if (!query.analysisRef && !query.metricChartId) return query;\n  const ref = query.analysisRef || { kind: 'chart' as const, id: query.metricChartId! };"
+    },
+    {
+      "name": "updateObjectPresentation",
+      "file": "services/analysisObjects.ts",
+      "line": 95,
+      "signature": "export async function updateObjectPresentation(query: SavedQuery, config: ChartConfig): Promise<void> {\n  const ref = query.analysisRef;\n  if (!ref) { await dbService.saveQuery({ ...query, charts: [config], widgetType: 'chart' }); return; }"
+    },
+    {
+      "name": "ensureDynamicHome",
+      "file": "services/dynamicHome.ts",
+      "line": 7,
+      "signature": "export async function ensureDynamicHome() {\n  const database = activeAnalysisDatabase();\n  const model = await refreshDatabaseAnalysis();"
+    },
+    {
+      "name": "refreshDatabaseAnalysis",
+      "file": "services/databaseAnalysis.ts",
+      "line": 85,
+      "signature": "export async function refreshDatabaseAnalysis(): Promise<AnalyticalCatalog> {\n  const scope = await duckDBService.getCurrentCatalogAndSchema();\n  const key = `${scope.catalog}.${scope.schema}`;"
+    },
+    {
+      "name": "loadDatasets",
+      "file": "services/workbench/datasets.ts",
+      "line": 8,
+      "signature": "export async function loadDatasets(owner: string): Promise<DatasetDefinition[]> {\n  const rows = await duckDBService.readQuery(`SELECT database_name, schema_name, table_name FROM duckdb_tables() WHERE NOT internal AND schema_name <> '__studio' UNION SELECT database_name, schema_name, view_name AS table_name FROM duckdb_views() WHERE NOT internal AND schema_name <> '__studio'`);\n  console.warn('[loadDatasets] rows found:', rows.length, JSON.stringify(rows));"
+    },
+    {
+      "name": "saveQueryDataset",
+      "file": "services/workbench/datasets.ts",
+      "line": 50,
+      "signature": "export async function saveQueryDataset(owner: string, name: string, sql: string, uniqueKeys?:DatasetDefinition['uniqueKeys'], existingId?:string): Promise<DatasetDefinition> {\n  if (!name.trim()) throw new Error('请输入数据集名称');\n  const scope = await duckDBService.getCurrentCatalogAndSchema();"
+    },
+    {
+      "name": "executeWidget",
+      "file": "services/workbench/runtime.ts",
+      "line": 20,
+      "signature": "export async function executeWidget(input: {\n  query: SavedQuery; settings?: WidgetSettings; datasets: DatasetDefinition[];\n  context?: DashboardContext; brush?: {column:string;value:string;values?:string[];range?:{from:number;to:number;includeTo:boolean};temporalRange?:{from:string;to:string};bindings?:Record<string,string>} | null;"
+    },
+    {
+      "name": "compileAnalysis",
+      "file": "services/workbench/queryCompiler.ts",
+      "line": 111,
+      "signature": "export function compileAnalysis(input: {\n  sql: string; catalog: string; schema: string; datasets: DatasetDefinition[];\n  globalFilters?: AnalysisFilter[]; localFilters?: AnalysisFilter[]; spec?: WidgetQuerySpec;"
+    },
+    {
+      "name": "validateFilters",
+      "file": "services/workbench/queryCompiler.ts",
+      "line": 86,
+      "signature": "export function validateFilters(filters: AnalysisFilter[], datasets: DatasetDefinition[]) {\n  for (const filter of filters) {\n    if (!Object.keys(filter.bindings).length) throw new Error(`筛选 ${filter.field} 至少需要一个数据集绑定`);"
+    },
+    {
+      "name": "validateUniqueKeys",
+      "file": "services/workbench/datasetGuards.ts",
+      "line": 6,
+      "signature": "export async function validateUniqueKeys(keys:{sql:string;key:string}[]) {\n  for(const guard of keys) {\n    const key=quoteIdent(guard.key);"
+    },
+    {
+      "name": "importSqlWorkspace",
+      "file": "services/sqlWorkspaceService.ts",
+      "line": 33,
+      "signature": "export async function importSqlWorkspace(file: File): Promise<SqlSource> {\n  await duckDBService.init();\n  const content = await file.text();"
+    },
+    {
+      "name": "getImports",
+      "file": "services/recentImportsService.ts",
+      "line": 17,
+      "signature": "  getImports(): RecentImportItem[] {\n    try {\n      const raw = localStorage.getItem(RECENT_IMPORTS_KEY);"
+    },
+    {
+      "name": "addImport",
+      "file": "services/recentImportsService.ts",
+      "line": 32,
+      "signature": "  addImport(item: Omit<RecentImportItem, 'id'>): RecentImportItem {\n    const fullItem: RecentImportItem = {\n      ...item,"
+    },
+    {
+      "name": "exportCsv",
+      "file": "utils/sqlExporter.ts",
+      "line": 45,
+      "signature": "export function exportCsv(result: QueryResult, options: CsvExportOptions = {}): Blob {\n  const { bom = true, columns } = options;\n  const cols = columns ?? result.columns;"
+    },
+    {
+      "name": "openExecutiveWorkspace",
+      "file": "services/executiveWorkspace.ts",
+      "line": 9,
+      "signature": "export async function openExecutiveWorkspace(): Promise<Dashboard> {\n  const { catalog, schema } = await duckDBService.getCurrentCatalogAndSchema();\n  const pkg = metricAnalyzer.getMetricPackage(`executive:${catalog}:${schema}`);"
+    }
+  ]
+}

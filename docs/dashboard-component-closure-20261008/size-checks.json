@@ -1,0 +1,82 @@
+[
+  {
+    "width": 1280,
+    "dimensions": {
+      "canvases": [
+        {
+          "height": 302,
+          "width": 591
+        },
+        {
+          "height": 302,
+          "width": 591
+        }
+      ],
+      "pageWidth": 1280,
+      "scrollWidth": 1280
+    },
+    "preview": true,
+    "values": true,
+    "items": true
+  },
+  {
+    "width": 1024,
+    "dimensions": {
+      "canvases": [
+        {
+          "height": 302,
+          "width": 463
+        },
+        {
+          "height": 302,
+          "width": 463
+        }
+      ],
+      "pageWidth": 1024,
+      "scrollWidth": 1024
+    },
+    "preview": true,
+    "values": true,
+    "items": true
+  },
+  {
+    "width": 768,
+    "dimensions": {
+      "canvases": [
+        {
+          "height": 302,
+          "width": 708
+        },
+        {
+          "height": 302,
+          "width": 708
+        }
+      ],
+      "pageWidth": 768,
+      "scrollWidth": 768
+    },
+    "preview": true,
+    "values": true,
+    "items": true
+  },
+  {
+    "width": 390,
+    "dimensions": {
+      "canvases": [
+        {
+          "height": 262,
+          "width": 380
+        },
+        {
+          "height": 262,
+          "width": 338
+        }
+      ],
+      "pageWidth": 390,
+      "scrollWidth": 390
+    },
+    "preview": true,
+    "values": true,
+    "items": true
+  }
+]

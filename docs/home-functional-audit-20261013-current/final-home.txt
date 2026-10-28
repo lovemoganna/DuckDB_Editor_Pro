@@ -1,0 +1,102 @@
+- banner "全局工作区顶栏":
+  - button "🪶 DuckDB Studio PRO":
+    - generic: 🪶
+    - generic: DuckDB Studio
+    - generic: PRO
+  - navigation "业务领域大类":
+    - button "工程核心":
+      - generic: 工程核心
+    - button "分析洞察":
+      - generic: 分析洞察
+    - button "知识沉淀":
+      - generic: 知识沉淀
+    - button "AI 认知":
+      - generic: AI 认知
+  - tablist "工程核心功能标签页":
+    - tab "仪表盘" [selected]:
+      - generic: 仪表盘
+    - tab "数据":
+      - generic: 数据
+      - generic: "2"
+    - tab "Schema":
+      - generic: Schema
+      - generic: "3"
+    - tab "SQL":
+      - generic: SQL
+      - generic: "4"
+    - tab "数据流":
+      - generic: 数据流
+      - generic: "5"
+  - button "项目 Ctrl+Shift+D":
+    - generic: 项目
+    - generic: Ctrl+Shift+D
+  - button "新建表":
+    - generic: 新建表
+  - button "memory 临时分析空间":
+    - generic: memory
+    - generic: 临时分析空间
+  - button "AI 助手 Ctrl+I":
+    - generic: AI 助手
+    - generic: Ctrl+I
+  - button "⌘K":
+  - button "帮助与快捷键":
+  - button "切换为浅色模式":
+  - button "AI 模型设置":
+- main:
+  - heading "分析范围" [level=1]
+  - generic: /
+  - button "内存库 · memory（临时）":
+    - generic: 内存库 · memory（临时）
+  - paragraph: 1 个数据集 · 61 行 · 数据规模未应用筛选
+  - button "导入数据":
+    - generic: 导入数据
+  - button "刷新数据":
+  - generic: 工作台
+  - combobox "工作台视图":
+    - option "分析首页" [selected]
+    - option "首页核验副本"
+  - button "添加分析":
+    - generic: 添加分析
+  - button "创建图表":
+    - generic: 创建图表
+  - button "新建查询":
+    - text: 新建查询
+  - generic: 数据集
+  - combobox "浏览数据集":
+    - option "选择数据集" [selected]
+    - option "memory.main.home_audit_20261013"
+    - option "首页核验只读数据集"
+  - button "筛选（1）":
+    - generic: 筛选（1）
+  - generic: category
+  - generic: 等于
+  - generic: A
+  - button "视图设置":
+    - generic: 视图设置
+  - generic: 1 项分析组件
+  - button "编辑布局":
+    - text: 编辑布局
+  - generic "首页核验记录数"
+  - button "更多组件选项 首页核验记录数":
+  - generic: 首页核验记录数
+  - generic: "31"
+  - navigation "数据状态与详情":
+    - button "管理数据"
+    - button "查看 Schema"
+    - button "查看数据检查"
+- contentinfo:
+  - generic: DuckDB 1.33.1
+  - generic: "|"
+  - generic: memory [MEMORY]
+  - generic: "|"
+  - generic: 内存库
+  - generic: "|"
+  - generic: 1 张表
+  - generic: "|"
+  - generic: 1 个活动表
+  - generic: "|"
+  - generic: "内存: 0.00 MB / 3.1 GiB"
+  - generic: 引擎就绪
+  - generic: "|"
+  - generic: 18:47
+  - button "刷新运行时状态":

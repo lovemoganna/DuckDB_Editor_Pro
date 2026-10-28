@@ -10,8 +10,7 @@ export default {
         "./types.ts",
         "./App.tsx"
     ],
-    // Product is dark-only via :root Monokai vars. Keep 'class' for Tailwind dark:
-    // utilities if needed, but do not ship a parallel light theme without :root tokens.
+    // Both themes share :root Monokai semantic tokens; uiTheme owns the dark class.
     darkMode: 'class',
     theme: {
         extend: {
@@ -66,18 +65,27 @@ export default {
                     red: 'var(--monokai-pink)',
                 }
             },
+            // Legacy text-monokai-bg means text on a filled accent, not the page background.
+            textColor: {
+                'monokai-bg': 'var(--monokai-on-accent)',
+                'monokai-on-accent': 'var(--monokai-on-accent)',
+            },
+            boxShadow: {
+                xs: 'var(--shadow-sm)',
+                '2xs': 'var(--shadow-sm)',
+            },
             fontFamily: {
                 mono: ['var(--font-mono)'],
                 sans: ['var(--font-sans)'],
             },
             fontSize: {
-                // Compact scale: body default = xs (12px)
+                // Compact scale: body default = xs (12px), meta/caption = 11px
                 '3xs': ['8px',  { lineHeight: '12px' }],
                 '2xs': ['10px', { lineHeight: '14px' }],
-                'xs':  ['12px', { lineHeight: '16px' }],
-                'sm':  ['14px', { lineHeight: '20px' }],
-                'md':  ['16px', { lineHeight: '24px' }],
                 'meta': ['11px', { lineHeight: '14px' }],
+                'xs':  ['12px', { lineHeight: '16px' }],
+                'sm':  ['13px', { lineHeight: '18px' }],
+                'md':  ['15px', { lineHeight: '22px' }],
             },
             backgroundColor: {
                 'monokai-bg': 'var(--monokai-bg)',
@@ -87,6 +95,10 @@ export default {
                 'monokai-hover': 'var(--monokai-hover)',
             },
             spacing: {
+                '0.2': '0.05rem',
+                '4.5': '1.125rem',
+                '6.5': '1.625rem',
+                '7.5': '1.875rem',
                 'ds-1': 'var(--space-1)',
                 'ds-2': 'var(--space-2)',
                 'ds-3': 'var(--space-3)',

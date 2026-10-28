@@ -74,6 +74,7 @@ export function arrowTypeToDuckDBType(type: any): string {
 
   const cName = type.constructor?.name || '';
   const typeStr = typeof type.toString === 'function' ? type.toString() : '';
+  if (type.typeId === 15 && type.byteWidth === 16) return 'HUGEINT';
 
   if (cName === 'Int8') return 'TINYINT';
   if (cName === 'Int16') return 'SMALLINT';
@@ -134,7 +135,8 @@ export function arrowTypeToDuckDBType(type: any): string {
 /**
  * Format a Date object into YYYY-MM-DD HH:mm:ss[.SSS]
  */
-function formatDateObject(d: Date): string {
+function formatDateObject(d: Date, wallClock = false): string {
+  if (wallClock && Number.isFinite(d.getTime())) return d.toISOString().replace('T',' ').replace(/(?:\.000)?Z$/, '');
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
@@ -149,10 +151,10 @@ function formatDateObject(d: Date): string {
 /**
  * Format timestamp values (number / Date / ISO string) to `YYYY-MM-DD HH:mm:ss[.SSS]`
  */
-export function formatTimestamp(val: any): string {
+export function formatTimestamp(val: any, wallClock = false): string {
   if (val === null || val === undefined) return '';
   if (val instanceof Date) {
-    return formatDateObject(val);
+    return formatDateObject(val, wallClock);
   }
 
   if (typeof val === 'number') {
@@ -166,7 +168,7 @@ export function formatTimestamp(val: any): string {
     }
     const d = new Date(ms);
     if (!isNaN(d.getTime())) {
-      return formatDateObject(d);
+      return formatDateObject(d, wallClock);
     }
     return String(val);
   }
@@ -175,7 +177,7 @@ export function formatTimestamp(val: any): string {
     const trimmed = val.trim();
     if (/^-?\d+(\.\d+)?$/.test(trimmed)) {
       const num = Number(trimmed);
-      if (!isNaN(num)) return formatTimestamp(num);
+      if (!isNaN(num)) return formatTimestamp(num, wallClock);
     }
 
     if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(\.\d+)?$/.test(trimmed)) {
@@ -184,7 +186,7 @@ export function formatTimestamp(val: any): string {
 
     const d = new Date(trimmed);
     if (!isNaN(d.getTime())) {
-      return formatDateObject(d);
+      return formatDateObject(d, wallClock);
     }
     return trimmed;
   }
@@ -192,15 +194,15 @@ export function formatTimestamp(val: any): string {
   if (typeof val === 'bigint') {
     if (val > 100000000000000000n || val < -100000000000000000n) {
       // Nanoseconds: divide by 1_000_000n
-      return formatTimestamp(Number(val / 1000000n));
+      return formatTimestamp(Number(val / 1000000n), wallClock);
     }
     if (val > 100000000000000n || val < -100000000000000n) {
       // Microseconds: divide by 1000n
-      return formatTimestamp(Number(val / 1000n));
+      return formatTimestamp(Number(val / 1000n), wallClock);
     }
     const num = Number(val);
     if (num <= Number.MAX_SAFE_INTEGER && num >= Number.MIN_SAFE_INTEGER) {
-      return formatTimestamp(num);
+      return formatTimestamp(num, wallClock);
     }
   }
 
@@ -213,9 +215,9 @@ export function formatTimestamp(val: any): string {
 export function formatDate(val: any): string {
   if (val === null || val === undefined) return '';
   if (val instanceof Date) {
-    const y = val.getFullYear();
-    const m = String(val.getMonth() + 1).padStart(2, '0');
-    const day = String(val.getDate()).padStart(2, '0');
+    const y = val.getUTCFullYear();
+    const m = String(val.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(val.getUTCDate()).padStart(2, '0');
     return `${y}-${m}-${day}`;
   }
 
@@ -236,9 +238,9 @@ export function formatDate(val: any): string {
     }
     const d = new Date(val);
     if (!isNaN(d.getTime())) {
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
+      const y = d.getUTCFullYear();
+      const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+      const day = String(d.getUTCDate()).padStart(2, '0');
       return `${y}-${m}-${day}`;
     }
   }
@@ -250,9 +252,9 @@ export function formatDate(val: any): string {
     }
     const d = new Date(trimmed);
     if (!isNaN(d.getTime())) {
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
+      const y = d.getUTCFullYear();
+      const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+      const day = String(d.getUTCDate()).padStart(2, '0');
       return `${y}-${m}-${day}`;
     }
     return trimmed;
@@ -378,6 +380,8 @@ export function formatCellValue(
       return formatBoolean(value);
 
     case 'TIMESTAMP':
+      // Arrow encodes a timezone-free DuckDB wall clock as epoch milliseconds.
+      return formatTimestamp(value, true);
     case 'TIMESTAMPTZ':
       return formatTimestamp(value);
 

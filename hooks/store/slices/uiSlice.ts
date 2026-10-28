@@ -29,6 +29,8 @@ export interface UISlice {
   setShowSettingsModal: (v: boolean) => void;
   showExportModal: boolean;
   setShowExportModal: (v: boolean) => void;
+  showProjectManagerModal: boolean;
+  setShowProjectManagerModal: (v: boolean) => void;
 
   // Notifications
   notifications: NotificationEntry[];
@@ -59,6 +61,8 @@ export const createUISlice = (set: (partial: Partial<UISlice> | ((state: UISlice
   setShowSettingsModal: (v) => set({ showSettingsModal: v }),
   showExportModal: false,
   setShowExportModal: (v) => set({ showExportModal: v }),
+  showProjectManagerModal: false,
+  setShowProjectManagerModal: (v) => set({ showProjectManagerModal: v }),
 
   // Notifications
   notifications: [],

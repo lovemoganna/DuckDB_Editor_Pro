@@ -1,0 +1,14 @@
+Running
+PASS same connection temp table + sequential statement events
+PASS PREPARE / EXECUTE / DEALLOCATE lifecycle
+PASS VIEW and TABLE MACRO definitions evaluate on reference
+PASS ATTACH / USE / DETACH retain the same connection
+PASS batch rollback + failure stops subsequent SQL
+PASS explicit transaction executes original SQL and reports rollback
+PASS existing transaction is not wrapped
+PASS cancel waits current engine response and stops next statement
+PASS side effects are executed once
+PASS real CSV + Parquet sources + verifiable sample
+PASS SELECT JSON cross-validation without evaluation
+PASS Glossary + attachment structure and deterministic compound layout
+TOTAL 12 passed, 0 failed

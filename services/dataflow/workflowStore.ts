@@ -1,3 +1,7 @@
+import { layoutLogicalFlow, type LogicalFlowLayoutMode } from './logicalFlowLayout';
+import { cancelStatementExecution, subscribeStatementExecution, type StatementExecutionEvent } from './sqlScriptExecution';
+import { hashSql } from './sqlHash';
+import { stripSqlHeader } from '../sqlScript';
 /**
  * DataFlow Workflow Store (Zustand)
  *
@@ -28,18 +32,10 @@ import type {
   PipelineStepperState,
   SqlPitfallPreset,
 } from './workflowTypes';
-import {
-  getInitialEcommerceNodes,
-  getInitialEcommerceEdges,
-  getInitialEcommerceLogs,
-  ensureEcommerceDatabaseTables,
-  populateInitialNodesWithDuckDB,
-} from './seedEcommerceWorkflow';
 import { WorkflowExecutor } from './workflowExecutor';
 import { duckDBService } from '../duckdbService';
 import { toastService } from '../toastService';
 import {
-  parseSqlToWorkflow,
   parseCatalogToWorkflow,
   compileWorkflowToFullSql,
   calculateDagLayout,
@@ -64,8 +60,14 @@ import {
   dispatchDataflowTraceFault,
   dispatchFocusSqlEditor,
 } from './dataflowEvents';
+import { logicalFlowToCanvas, parseLogicalRelationFlow } from './logicalRelationFlowParser';
+import type { FlowData } from './logicalRelationFlowTypes';
 
 const STORAGE_KEY = 'duckdb_workflow_state_v3';
+
+/** Monotonic token so stale async EXPLAIN/syncFromSql completions cannot overwrite newer SQL. */
+let sqlSyncGeneration = 0;
+let sqlLayoutGeneration = 0;
 
 export type WorkflowSyncStatus = 'idle' | 'syncing' | 'error' | 'ready';
 
@@ -94,6 +96,17 @@ let logSequence = 0;
 const generateWorkflowLogId = () =>
   `log_${Date.now()}_${++logSequence}_${Math.random().toString(36).substring(2, 7)}`;
 
+function applyObjectRuntime(flow:FlowData,event:StatementExecutionEvent):FlowData {
+  const changed=flow.objects.filter(o=>o.definedBy===event.statementId);
+  const same=(a:FlowData['objects'][number],b:FlowData['objects'][number])=>a.catalog===b.catalog&&a.schema===b.schema&&a.name===b.name;
+  return {...flow,objects:flow.objects.map(object=>{
+    if(object.definedBy===event.statementId)return {...object,runtimeState:event.rolledBack?'rolled_back':event.status==='queued'||event.status==='running'?'pending':event.status==='success'?object.state==='released'?'released':'defined':'not_applied'};
+    const release=changed.find(o=>o.state==='released'&&o.version===object.version&&same(o,object));
+    if(release&&event.status==='success')return {...object,runtimeState:event.rolledBack?'defined':'released'};
+    return object;
+  })};
+}
+
 export type DataFlowMode = 'sql' | 'catalog' | 'custom';
 
 interface WorkflowState {
@@ -108,6 +121,8 @@ interface WorkflowState {
   inspectorTab: 'config' | 'preview' | 'records';
   isBottomDrawerOpen: boolean;
   viewport: { x: number; y: number; zoom: number };
+  canvasWidth: number;
+  sqlLayoutMode: LogicalFlowLayoutMode;
   lastSavedAt: string | null;
 
   // ── SQL 工作台双向实时打通状态 ──
@@ -119,6 +134,12 @@ interface WorkflowState {
   /** SQL → 流图同步生命周期，供画布空/错/加载态展示 */
   syncStatus: WorkflowSyncStatus;
   lastSyncError: string | null;
+  logicalFlowData: FlowData | null;
+  bindingVersion: number;
+  activeDocumentId: string;
+  activeRunId: string | null;
+  executionSqlRange: import('./logicalRelationFlowTypes').SourceSpan | null;
+  applyExecutionEvent: (event: StatementExecutionEvent) => void;
 
   // React Flow Handlers
   onNodesChange: (changes: NodeChange[]) => void;
@@ -136,13 +157,15 @@ interface WorkflowState {
   deleteNode: (nodeId: string) => void;
   deleteEdge: (edgeId: string) => void;
   refreshAvailableTables: () => Promise<void>;
-  autoLayout: () => void;
+  resetDatabaseContext: () => void;
+  autoLayout: () => Promise<void>;
+  setSqlLayoutMode: (mode: LogicalFlowLayoutMode) => Promise<void>;
 
   // ── 双向联动操作 ──
-  setDataFlowMode: (mode: DataFlowMode) => Promise<void>;
+  setDataFlowMode: (mode: DataFlowMode, focusTableName?: string) => Promise<void>;
   setLiveSyncWithSql: (enabled: boolean) => void;
-  syncFromSql: (sql: string, tabTitle?: string, isManual?: boolean) => Promise<void>;
-  syncFromCatalog: () => Promise<void>;
+  syncFromSql: (sql: string, tabTitle?: string, isManual?: boolean, documentId?: string) => Promise<void>;
+  syncFromCatalog: (focusTableName?: string) => Promise<void>;
   syncExecutionResult: (tabTitle: string, result: any, executedSql?: string) => Promise<void>;
   syncCursorLine: (lineNumber: number) => void;
   compileWorkflowToSql: () => string;
@@ -151,6 +174,7 @@ interface WorkflowState {
   runNode: (nodeId: string) => Promise<void>;
   runSingleCte: (nodeId: string) => Promise<void>;
   runAll: () => Promise<void>;
+  cancelSqlRun:()=>void;
 
   // UI state setters
   setAutoScrollLogs: (val: boolean) => void;
@@ -369,6 +393,8 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   inspectorTab: 'config',
   isBottomDrawerOpen: false,
   viewport: { x: 0, y: 0, zoom: 1 },
+  canvasWidth: 1000,
+  sqlLayoutMode: 'auto',
   lastSavedAt: null,
 
   // 单步推演仿真器状态
@@ -388,9 +414,14 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   liveSyncWithSql: true,
   syncStatus: 'idle',
   lastSyncError: null,
+  logicalFlowData: null,
+  bindingVersion:0, activeDocumentId: '',
+      activeRunId: null,
+      executionSqlRange: null,
   isReverseTracing: false,
 
   onNodesChange: (changes: NodeChange[]) => {
+    if(get().dataFlowMode==='sql')changes=changes.filter(c=>c.type==='dimensions'||c.type==='select');
     const removedNodeIds = changes
       .filter((c): c is NodeChange & { type: 'remove'; id: string } => c.type === 'remove')
       .map(c => c.id);
@@ -418,6 +449,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   },
 
   onEdgesChange: (changes: EdgeChange[]) => {
+    if(get().dataFlowMode==='sql')changes=changes.filter(c=>c.type==='select');
     const nextEdges = applyEdgeChanges(changes, get().edges) as DataFlowEdge[];
     set({ edges: nextEdges });
     if (get().dataFlowMode === 'custom' && changes.some(c => c.type === 'remove')) {
@@ -426,6 +458,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   },
 
   onConnect: (connection: Connection) => {
+    if(get().dataFlowMode==='sql')return;
     const { nodes, edges } = get();
     if (!connection.source || !connection.target) return;
     if (connection.source === connection.target) return;
@@ -549,6 +582,28 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
     }
   },
 
+  applyExecutionEvent: (event) => {
+    const current = get();
+    if(event.bindingVersion!==undefined&&event.bindingVersion!==current.bindingVersion)return;
+    if (current.dataFlowMode !== 'sql' || event.documentVersion !== hashSql(current.activeSql) || event.tabId !== current.activeDocumentId) return;
+    if (event.status !== 'queued' && current.activeRunId && event.runId !== current.activeRunId) return;
+    const statuses = { queued: 'queued', running: 'running', success: 'success', failed: 'error', cancelled: 'cancelled', skipped: 'blocked' } as const;
+    const running = event.status === 'running';
+    const result = event.result as any;
+    set({
+      activeRunId: event.runId,
+      logicalFlowData:current.logicalFlowData?applyObjectRuntime(current.logicalFlowData,event):null,
+      isExecuting: !event.terminal,
+      executionSqlRange: running || event.status === 'failed' ? event.sourceSpan : event.terminal ? null : current.executionSqlRange,
+      activeSqlRange: running || event.status === 'failed' ? event.sourceSpan : event.terminal ? null : current.activeSqlRange,
+      nodes: current.nodes.map(node => node.data.statementId !== event.statementId ? node : ({ ...node, data: { ...node.data, runId: event.runId, status: statuses[event.status], executionStatus: event.status, rolledBack: event.rolledBack ?? node.data.rolledBack,
+        ...(event.status === 'queued' ? { executionResult: undefined, rowCount: undefined, columnCount: undefined, executionTimeSec: undefined, rolledBack: false, isStepActive: false, isStepCompleted: false, error: undefined } : {}),
+        ...(result && node.data.acceptsStatementOutput ? { rowCount: result.rows?.length, columnCount: result.columns?.length, executionTimeSec: (event.durationMs || 0) / 1000, executionResult: { status: statuses[event.status], executionTimeSec: (event.durationMs || 0) / 1000, rowCount: result.rows?.length || 0, columnCount: result.columns?.length || 0, columns: (result.columns || []).map((name: string, i: number) => ({ name, type: result.columnTypes?.[i] || 'unknown' })), rows: result.rows || [], outputRelation: 'statement result' } } : {}),
+        ...(event.rolledBack ? { executionResult: undefined, rowCount: undefined, columnCount: undefined } : {}),
+      } })),
+      edges: current.edges.map(edge => ({ ...edge, data: { ...edge.data, isStepActive: running && current.nodes.some(n => n.id === edge.target && n.data.statementId === event.statementId) } })),
+    });
+  },
   selectNode: (nodeId: string | null) => {
     const { nodes, edges } = get();
     const node = nodeId ? nodes.find(n => n.id === nodeId) : null;
@@ -565,7 +620,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
       }));
       set({
         selectedNodeId: null,
-        activeSqlRange: null,
+        activeSqlRange: get().executionSqlRange,
         nodes: clearedNodes,
         edges: clearedEdges,
       });
@@ -642,7 +697,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
 
     set({
       selectedNodeId: nodeId,
-      activeSqlRange: node?.data.sqlRange || null,
+      activeSqlRange: get().executionSqlRange || node?.data.sqlRange || null,
       nodes: nextNodes,
       edges: nextEdges,
     });
@@ -675,7 +730,30 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
     return target.id;
   },
 
-  autoLayout: () => {
+  setSqlLayoutMode: async (mode) => {
+    set({ sqlLayoutMode: mode });
+    await get().autoLayout();
+  },
+
+  autoLayout: async () => {
+    if (get().dataFlowMode === 'sql' && get().logicalFlowData) {
+      const flow = get().logicalFlowData!, generation = sqlSyncGeneration, width = get().canvasWidth, mode = get().sqlLayoutMode;
+      const layoutGeneration = ++sqlLayoutGeneration;
+      const sizes=new Map(get().nodes.filter(n=>n.type!=='logicalBoundary').map(n=>[n.id,{width:n.width||224,height:n.height||74}]));
+      try {
+        const canvas = await layoutLogicalFlow(flow, sizes, width, mode);
+        if (layoutGeneration === sqlLayoutGeneration && generation === sqlSyncGeneration && get().dataFlowMode === 'sql' && get().logicalFlowData?.source.sourceHash === flow.source.sourceHash && width === get().canvasWidth && mode === get().sqlLayoutMode) {
+          const latest = get();
+          set({
+            nodes: canvas.nodes.map(n => { const old = latest.nodes.find(o => o.id === n.id); return { ...n, selected: old?.selected, data: { ...n.data, ...old?.data, flowDirection: n.data.flowDirection } }; }),
+            edges: canvas.edges.map(e => { const old = latest.edges.find(o => o.id === e.id); return { ...e, selected: old?.selected, data: { ...old?.data, ...e.data } }; }),
+          });
+        }
+      } catch (error) {
+        if (layoutGeneration === sqlLayoutGeneration && generation === sqlSyncGeneration) toastService.error(`布局失败：${error instanceof Error ? error.message : String(error)}`);
+      }
+      return;
+    }
     const { nodes, edges } = get();
     if (nodes.length === 0) return;
     const laidOut = calculateDagLayout(nodes, edges);
@@ -694,6 +772,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   },
 
   updateNodeConfig: (nodeId: string, configPatch: any) => {
+    if(get().dataFlowMode==='sql')return;
     const { nodes, edges, dataFlowMode, activeSql, activeTabTitle } = get();
     const updatedNodes = nodes.map(n => {
       if (n.id === nodeId) {
@@ -744,6 +823,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   },
 
   addNode: (type: WorkflowNodeType, position?: { x: number; y: number }) => {
+    if(get().dataFlowMode==='sql')return;
     const { nodes, edges, selectedNodeId } = get();
     const id = `node_${type}_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 6)}`;
     const selectedNode = selectedNodeId ? nodes.find(n => n.id === selectedNodeId) : null;
@@ -889,6 +969,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   },
 
   deleteNode: (nodeId: string) => {
+    if(get().dataFlowMode==='sql')return;
     const { nodes, edges, selectedNodeId } = get();
     const nextNodes = nodes.filter(n => n.id !== nodeId);
     const nextEdges = edges.filter(e => e.source !== nodeId && e.target !== nodeId);
@@ -902,6 +983,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   },
 
   deleteEdge: (edgeId: string) => {
+    if(get().dataFlowMode==='sql')return;
     const { nodes, edges } = get();
     const targetEdge = edges.find(e => e.id === edgeId);
     const nextEdges = edges.filter(e => e.id !== edgeId);
@@ -915,8 +997,10 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   },
 
   refreshAvailableTables: async () => {
+    const catalog = duckDBService.getRuntimeInfo().currentDatabase;
     try {
       const tbls = await duckDBService.getTables();
+      if (duckDBService.getRuntimeInfo().currentDatabase !== catalog) return;
       const filtered = tbls.filter(t => !t.startsWith('_df_view_') && !t.startsWith('_sys_'));
       set({ availableTables: filtered });
     } catch (e) {
@@ -924,10 +1008,22 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
     }
   },
 
-  setDataFlowMode: async (mode: DataFlowMode) => {
-    set({ dataFlowMode: mode });
+  resetDatabaseContext: () => {
+    ++sqlSyncGeneration;
+    if (stepperTimer) { clearInterval(stepperTimer); stepperTimer = null; }
+    set((state) => ({
+      nodes: [], edges: [], selectedNodeId: null, runLogs: [], availableTables: [],bindingVersion:sqlSyncGeneration,logicalFlowData:null,activeRunId:null,executionSqlRange:null,activeDocumentId:'',
+      isExecuting: false, activeSql: '', activeTabTitle: '', activeSqlRange: null,
+      syncStatus: 'idle', lastSyncError: null,
+      stepperState: { ...state.stepperState, isActive: false, isPlaying: false, activeNodeId: null },
+    }));
+  },
+
+  setDataFlowMode: async (mode: DataFlowMode, focusTableName?: string) => {
+    ++sqlSyncGeneration; // Discard in-flight SQL work before changing the source of the graph.
+    set({ dataFlowMode: mode, liveSyncWithSql: mode === 'sql' });
     if (mode === 'catalog') {
-      await get().syncFromCatalog();
+      await get().syncFromCatalog(focusTableName);
     } else if (mode === 'sql' && get().activeSql) {
       await get().syncFromSql(get().activeSql, get().activeTabTitle, true);
     }
@@ -940,10 +1036,15 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   /**
    * 从 SQL 工作台的当前 SQL 语句实时解析并生成 DAG
    */
-  syncFromSql: async (sql: string, tabTitle?: string, isManual: boolean = false) => {
-    if (!sql || !sql.trim()) {
+  syncFromSql: async (sql: string, tabTitle?: string, isManual: boolean = false, documentId?: string) => {
+    const generation = ++sqlSyncGeneration;
+    set({bindingVersion:generation});
+
+    if (!stripSqlHeader(sql || '')) {
+      if (generation !== sqlSyncGeneration) return;
       set({
         activeSql: '',
+        logicalFlowData: null, activeRunId: null, executionSqlRange: null, isExecuting: false, activeDocumentId: documentId ?? get().activeDocumentId,
         activeTabTitle: tabTitle || get().activeTabTitle,
         nodes: [],
         edges: [],
@@ -951,42 +1052,58 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
         activeSqlRange: null,
         syncStatus: 'idle',
         lastSyncError: null,
+        dataFlowMode: 'sql',
       });
       return;
     }
 
+    const trimmedSql = sql;
+
+    // 切换 Tab/查询时立即清空旧图；在同一 Tab 内编辑时双缓冲保留旧节点防白屏闪烁
+    const currentTab = get().activeTabTitle;
+
     set({
-      activeSql: sql,
-      activeTabTitle: tabTitle || get().activeTabTitle,
+      activeSql: trimmedSql,
+      activeDocumentId: documentId ?? get().activeDocumentId,
+      activeTabTitle: tabTitle || currentTab,
       syncStatus: 'syncing',
       lastSyncError: null,
+      logicalFlowData: null,
+      activeRunId: null,
+      executionSqlRange: null,
+      isExecuting: false,
+      dataFlowMode: 'sql',
+      liveSyncWithSql: true,
+      // The current SQL is the only source of truth: invalidate the previous
+      // graph immediately, including edits within the same tab.
+      nodes: [],
+      edges: [],
+      selectedNodeId: null,
+      activeSqlRange: null,
     });
 
+    // Keep the invalidated state observable for the editor frame before
+    // parsing the replacement SQL.
+    await Promise.resolve();
+    if (generation !== sqlSyncGeneration) return;
+
     try {
-      // 优先从真实 DuckDB 读取 EXPLAIN 物理执行计划
-      let planText = '';
-      let executionError: string | undefined;
-      try {
-        const planRes = await duckDBService.getExplainPlan(sql, false);
-        if (planRes.planText?.startsWith('Error explaining query:')) {
-          executionError = planRes.planText.replace(/^Error explaining query:\s*/, '');
-        } else {
-          planText = planRes.physicalPlanText || planRes.planText || '';
-        }
-      } catch (err: any) {
-        executionError = err?.message || String(err);
+      const context=await duckDBService.getLogicalFlowContext().catch(()=>({}));
+      if(generation!==sqlSyncGeneration)return;
+      const flow = parseLogicalRelationFlow(trimmedSql,context);
+      if (generation !== sqlSyncGeneration) return;
+      let width = get().canvasWidth, mode = get().sqlLayoutMode;
+      let canvas = await layoutLogicalFlow(flow, new Map(), width, mode);
+      while (generation === sqlSyncGeneration && (width !== get().canvasWidth || mode !== get().sqlLayoutMode)) {
+        width = get().canvasWidth; mode = get().sqlLayoutMode;
+        canvas = await layoutLogicalFlow(flow, new Map(), width, mode);
       }
+      if (generation !== sqlSyncGeneration) return;
+      const realNodes = canvas.nodes;
+      const realEdges = canvas.edges;
+      const faultyNodeId = flow.status === 'parse_error' ? realNodes.find(node => node.data.bugInfo?.hasBug)?.id : undefined;
 
-      const res = buildRealExecutionWorkflow({
-        sql,
-        planText: planText && planText.trim() ? planText : undefined,
-        executionError,
-        tabTitle: tabTitle || get().activeTabTitle,
-      });
-
-      const realNodes = res.nodes;
-      const realEdges = res.edges;
-      const faultyNodeId = res.faultyNodeId;
+      if (generation !== sqlSyncGeneration) return;
 
       if (realNodes.length === 0) {
         set({
@@ -994,8 +1111,9 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
           edges: [],
           selectedNodeId: null,
           activeSqlRange: null,
-          syncStatus: 'error',
-          lastSyncError: executionError || '未能从当前 SQL 生成执行路径，请检查语法后重试',
+          syncStatus: flow.status === 'parse_error' ? 'error' : 'ready',
+          lastSyncError: flow.diagnostics[0]?.message || null,
+          logicalFlowData: flow,
         });
         return;
       }
@@ -1015,21 +1133,24 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
         runId: `run_${Date.now().toString(36)}`,
         nodeId: targetSelectedId || 'global',
         nodeName: tabTitle || 'SQL 执行路径构建',
-        nodeType: 'DuckDB 物理计划',
+        nodeType: 'Logical Relation Flow',
         status: faultyNodeId ? 'error' : 'success',
         rows: realNodes[realNodes.length - 1]?.data.rowCount || 0,
-        duration: '0.01s',
-        message: `已基于真实 DuckDB 执行计划生成 ${realNodes.length} 个执行步骤与 ${realEdges.length} 条数据流连线`,
+        duration: '—',
+        message: `已基于当前 SQL 生成 ${realNodes.length} 个逻辑节点与 ${realEdges.length} 条关系连线`,
       };
 
       set(state => ({
         dataFlowMode: 'sql',
+        activeSql: trimmedSql,
+      activeDocumentId: documentId ?? get().activeDocumentId,
         nodes: realNodes,
         edges: realEdges,
         selectedNodeId: targetSelectedId,
         activeSqlRange: faultyNode?.data.sqlRange || state.activeSqlRange,
-        syncStatus: 'ready',
-        lastSyncError: null,
+        syncStatus: flow.status === 'parse_error' ? 'error' : 'ready',
+        lastSyncError: flow.diagnostics.find(d => d.severity !== 'info')?.message || null,
+        logicalFlowData: flow,
         runLogs: isManual || state.runLogs.length === 0
           ? [newLog, ...state.runLogs]
           : state.runLogs,
@@ -1037,10 +1158,13 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
 
       if (faultyNodeId && isManual) {
         queueMicrotask(() => {
-          get().focusFaultyNode(faultyNodeId);
+          if (generation === sqlSyncGeneration) {
+            get().focusFaultyNode(faultyNodeId);
+          }
         });
       }
     } catch (err: any) {
+      if (generation !== sqlSyncGeneration) return;
       const message = err?.message || String(err);
       console.error('[syncFromSql] parse failed:', err);
       set({
@@ -1054,6 +1178,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
    * 双向联动：根据 CodeMirror 编辑器当前光标行号，自动反向聚焦对应 CTE 节点
    */
   syncCursorLine: (lineNumber: number) => {
+    if (get().executionSqlRange) return;
     const { nodes, selectedNodeId } = get();
     const matchedNode = nodes.find(n => {
       const range = n.data.sqlRange;
@@ -1075,6 +1200,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
    * 就地对单个 CTE 节点进行独立试跑并获取前 50 行数据样本
    */
   runSingleCte: async (nodeId: string) => {
+    if (get().dataFlowMode === 'sql') { toastService.info('SQL 逻辑阶段不能独立执行；请执行完整 Statement'); return; }
     const { nodes, edges } = get();
     const node = nodes.find(n => n.id === nodeId);
     if (!node) return;
@@ -1121,7 +1247,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   /**
    * 从 DuckDB 数据库 Catalog (已存在 Tables 与 Views) 同步血缘图
    */
-  syncFromCatalog: async () => {
+  syncFromCatalog: async (focusTableName?: string) => {
     try {
       const allTables = await duckDBService.getTables();
       const tables = allTables.filter(t => !t.startsWith('_df_view_') && !t.startsWith('_sys_'));
@@ -1154,6 +1280,10 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
       const parsed = parseCatalogToWorkflow(catalogItems);
       const enrichedNodes = await enrichNodesWithDuckDB(parsed.nodes, parsed.edges);
 
+      const targetNode = focusTableName
+        ? enrichedNodes.find(n => n.data.title.toLowerCase() === focusTableName.toLowerCase())
+        : null;
+
       const newLog: WorkflowRunLog = {
         id: generateWorkflowLogId(),
         timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
@@ -1170,7 +1300,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
       set(state => ({
         nodes: enrichedNodes,
         edges: parsed.edges,
-        selectedNodeId: enrichedNodes[0]?.id || null,
+        selectedNodeId: targetNode ? targetNode.id : (enrichedNodes[0]?.id || null),
         runLogs: [newLog, ...state.runLogs],
       }));
     } catch (e) {
@@ -1183,146 +1313,15 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
    */
   syncExecutionResult: async (tabTitle: string, result: any, executedSql?: string) => {
     if (!result) return;
-    const currentSql = executedSql || get().activeSql;
-
-    // 0. 立即同步更新当前画布节点状态（确保非 await 调用能即时同步获得最新输出行数、列数与状态）
-    const currNodes = get().nodes;
-    const currEdges = get().edges;
-    if (currNodes.length > 0) {
-      const rowCount = result.rows ? result.rows.length : (result.totalRowCount ?? 0);
-      const colCount = result.columns ? result.columns.length : (result.columnTypes ? result.columnTypes.length : 0);
-      const resultNode = currNodes.find(n => n.data.type === 'result') || currNodes[currNodes.length - 1];
-
-      if (result.error) {
-        locateAndDecorateErrorNode(currNodes, currEdges, result.error, currentSql);
-        set({ nodes: [...currNodes], edges: [...currEdges] });
-      } else if (resultNode) {
-        resultNode.data.rowCount = rowCount;
-        resultNode.data.columnCount = colCount;
-        resultNode.data.status = 'success';
-        resultNode.data.executionResult = {
-          status: 'success',
-          executionTimeSec: Number(((result.executionTime || 0) / 1000).toFixed(4)),
-          rowCount,
-          columnCount: colCount,
-          columns: (result.columns || []).map((c: any) => typeof c === 'string' ? { name: c, type: 'VARCHAR' } : c),
-          rows: result.rows || [],
-          outputRelation: 'query_result',
-        };
-        set({ nodes: [...currNodes], edges: [...currEdges] });
-      }
-    }
-
-    // 1. 若执行失败报错，精准定位 Bug 发生步骤并进行溯源
-    if (result.error) {
-      const { nodes: bugNodes, edges: bugEdges, faultyNodeId } = buildRealExecutionWorkflow({
-        sql: currentSql,
-        executionError: result.error,
-        tabTitle: tabTitle || get().activeTabTitle,
-      });
-
-      const targetId = faultyNodeId || (bugNodes.find(n => n.data.type === 'result') || bugNodes[bugNodes.length - 1])?.id;
-      const targetNode = bugNodes.find(n => n.id === targetId);
-
-      const errorLog: WorkflowRunLog = {
-        id: generateWorkflowLogId(),
-        timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
-        runId: `run_${Date.now().toString(36)}`,
-        nodeId: targetId || 'error_step',
-        nodeName: targetNode?.data.title || 'SQL 异常节点',
-        nodeType: targetNode?.data.type || 'error',
-        status: 'error',
-        rows: 0,
-        duration: `${((result.executionTime || 0) / 1000).toFixed(2)}s`,
-        message: `[异常点位已锁定] ${targetNode?.data.bugInfo?.title || result.error}`,
-        error: result.error,
-      };
-
-      set(state => ({
-        nodes: bugNodes,
-        edges: bugEdges,
-        selectedNodeId: targetId,
-        activeSqlRange: targetNode?.data.sqlRange || null,
-        syncStatus: 'ready',
-        lastSyncError: null,
-        runLogs: [errorLog, ...state.runLogs],
-      }));
-
-      toastService.error(`已高亮最可能出现问题的节点「${targetNode?.data.title || '执行步骤'}」: ${targetNode?.data.bugInfo?.title || result.error}`);
-
-      if (targetId) {
-        queueMicrotask(() => {
-          get().focusFaultyNode(targetId);
-        });
-      }
+    const currentSql = (executedSql || get().activeSql || '').trim();
+    // Ignore stale result sync when the editor SQL has already moved on
+    if (executedSql && get().activeSql.trim() && get().activeSql.trim() !== currentSql) {
       return;
     }
+    const generationAtStart = sqlSyncGeneration;
 
-    // 2. 执行成功：若获取到 DuckDB EXPLAIN ANALYZE 物理计划，异步升级为真实执行拓扑
-    try {
-      let planText = '';
-      try {
-        const planRes = await duckDBService.getExplainPlan(currentSql, true);
-        planText = planRes.physicalPlanText || planRes.planText || '';
-      } catch (err) {
-        // EXPLAIN 异常时优雅降级
-      }
-
-      if (planText && planText.trim()) {
-        const { nodes: realNodes, edges: realEdges, resultNodeId } = buildRealExecutionWorkflow({
-          sql: currentSql,
-          planText,
-          queryResult: result,
-          tabTitle: tabTitle || get().activeTabTitle,
-        });
-
-        const rowCount = result.rows?.length || result.totalRowCount || 0;
-        const currentSelectedId = get().selectedNodeId;
-        const targetSelectedId = (currentSelectedId && realNodes.some(n => n.id === currentSelectedId))
-          ? currentSelectedId
-          : resultNodeId || realNodes[realNodes.length - 1]?.id || null;
-
-        const successLog: WorkflowRunLog = {
-          id: generateWorkflowLogId(),
-          timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
-          runId: `run_${Date.now().toString(36)}`,
-          nodeId: targetSelectedId || 'all',
-          nodeName: tabTitle || '查询执行',
-          nodeType: 'SQL 真实执行链路',
-          status: 'success',
-          rows: rowCount,
-          duration: `${((result.executionTime || 0) / 1000).toFixed(2)}s`,
-          message: `DuckDB 物理执行完成，返回 ${rowCount} 行，已同步完整执行路径与真实算子画像`,
-        };
-
-        set(state => ({
-          nodes: realNodes,
-          edges: realEdges,
-          selectedNodeId: targetSelectedId,
-          runLogs: [successLog, ...state.runLogs],
-        }));
-      } else {
-        const rowCount = result.rows?.length || result.totalRowCount || 0;
-        const currentSelectedId = get().selectedNodeId;
-        const successLog: WorkflowRunLog = {
-          id: generateWorkflowLogId(),
-          timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
-          runId: `run_${Date.now().toString(36)}`,
-          nodeId: currentSelectedId || 'all',
-          nodeName: tabTitle || '查询执行',
-          nodeType: 'SQL 执行',
-          status: 'success',
-          rows: rowCount,
-          duration: `${((result.executionTime || 0) / 1000).toFixed(2)}s`,
-          message: `执行完成，返回 ${rowCount} 行`,
-        };
-        set(state => ({
-          runLogs: [successLog, ...state.runLogs],
-        }));
-      }
-    } catch (err) {
-      console.warn('[syncExecutionResult] error:', err);
-    }
+    // SQL graphs are immutable projections. Execution events attach measured output only.
+    if (get().dataFlowMode === 'sql') return;
   },
 
   /**
@@ -1403,6 +1402,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   },
 
   runNode: async (nodeId: string) => {
+    if (get().dataFlowMode === 'sql') { toastService.info('请在编辑器执行完整 Statement'); return; }
     const { nodes, edges, isExecuting } = get();
     if (isExecuting) return;
 
@@ -1426,14 +1426,30 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
 
       // 执行成功后派发全局事件，通知 SQL 工作台与对象树自动发现新视图
       window.dispatchEvent(new CustomEvent('duckdb-schema-changed'));
+      const ranNode = get().nodes.find(n => n.id === nodeId);
+      if (ranNode?.data.status === 'success') {
+        toastService.success(`节点「${ranNode.data.title}」执行成功`);
+      } else if (ranNode?.data.status === 'error') {
+        toastService.error(`节点「${ranNode.data.title}」执行失败，请在右侧检查配置或 SQL`);
+      }
     } catch (err: any) {
       console.error('[runNode error]:', err);
+      toastService.error(`执行出错: ${err?.message || String(err)}`);
     } finally {
       set({ isExecuting: false });
     }
   },
 
+  cancelSqlRun:()=>{const runId=get().activeRunId;if(runId)cancelStatementExecution(runId);},
   runAll: async () => {
+    if (get().dataFlowMode === 'sql') {
+      const sql = get().activeSql;
+      if (get().isExecuting || !sql.trim()) return;
+      await get().syncFromSql(sql, get().activeTabTitle, false, get().activeDocumentId);
+      const result = await duckDBService.queryWithMetadata(sql, { tabId: get().activeDocumentId, documentSql: sql, baseOffset: 0, bindingVersion:get().bindingVersion });
+      if (result.error) toastService.error(result.error);
+      return;
+    }
     const { nodes, edges, isExecuting } = get();
     if (isExecuting || nodes.length === 0) return;
 
@@ -1503,17 +1519,10 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
     }));
   },
 
+  /** Never persist graph structure — Flow is always rebuilt from current SQL. */
   saveWorkflow: () => {
-    const { nodes, edges, viewport, dataFlowMode } = get();
-    const data = {
-      nodes,
-      edges,
-      viewport,
-      dataFlowMode,
-      updatedAt: new Date().toISOString(),
-    };
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      localStorage.removeItem(STORAGE_KEY);
       set({ lastSavedAt: new Date().toLocaleTimeString() });
     } catch (e) {
       console.error('[saveWorkflow error]:', e);
@@ -1523,8 +1532,8 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   loadWorkflow: async (initialSql?: string, tabTitle?: string) => {
     await get().refreshAvailableTables();
 
-    // 优先 1：如果外部传入了活动 SQL，或 store 中已有活动 SQL，直接以此生成实时数据流
-    const sqlToLoad = (initialSql && initialSql.trim()) ? initialSql : get().activeSql;
+    // Sole source of truth: current SQL. Never resurrect localStorage mock/demo graphs.
+    const sqlToLoad = initialSql !== undefined ? initialSql : get().activeSql;
     const titleToUse = tabTitle || get().activeTabTitle || 'SQL 查询';
 
     if (sqlToLoad && sqlToLoad.trim()) {
@@ -1532,52 +1541,12 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
       return;
     }
 
-    // 优先 2：检查本地是否存在自由编排模式下的草稿，若有则完整恢复
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (
-          Array.isArray(parsed.nodes) &&
-          parsed.nodes.length > 0 &&
-          (parsed.dataFlowMode === 'custom' || get().dataFlowMode === 'custom')
-        ) {
-          set({
-            nodes: parsed.nodes,
-            edges: parsed.edges || [],
-            viewport: parsed.viewport || { x: 0, y: 0, zoom: 1 },
-            dataFlowMode: 'custom',
-            selectedNodeId: parsed.nodes[0]?.id || null,
-          });
-          return;
-        }
-      }
-    } catch (e) {
-      console.warn('[loadWorkflow] restore saved workflow failed:', e);
-    }
-
-    // 优先 3：仅当用户明确切换至全库 catalog 模式且没有活动 SQL 时，才同步全库表血缘
-    if (get().dataFlowMode === 'catalog') {
-      const tables = await duckDBService.getTables();
-      if (tables.length > 0) {
-        await get().syncFromCatalog();
-        return;
-      }
-    }
-
-    // 默认保持就绪空白画布，避免加载无关表
-    set({
-      nodes: [],
-      edges: [],
-      selectedNodeId: null,
-      activeSqlRange: null,
-      runLogs: [],
-      dataFlowMode: 'sql',
-    });
+    await get().syncFromSql('', titleToUse);
   },
 
   // ── 单步仿真推演步进器实现 ──
   startStepping: () => {
+    if(get().dataFlowMode==='sql')return;
     const { nodes } = get();
     if (nodes.length === 0) return;
     const sorted = [...nodes].sort((a, b) => (a.data.stepIndex || 0) - (b.data.stepIndex || 0));
@@ -1630,6 +1599,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   },
 
   setStepIndex: (stepIndex: number) => {
+    if(get().dataFlowMode==='sql')return;
     const { nodes, edges } = get();
     const sorted = [...nodes].sort((a, b) => (a.data.stepIndex || 0) - (b.data.stepIndex || 0));
     const maxStep = sorted[sorted.length - 1]?.data.stepIndex || sorted.length;
@@ -1736,25 +1706,35 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   loadPitfallPreset: (presetId: string) => {
     const preset = SQL_PITFALL_PRESETS.find(p => p.id === presetId);
     if (!preset) return null;
+    // Preset only injects SQL text; graph must still be derived via syncFromSql (no static nodes).
     void get().syncFromSql(preset.buggySql, preset.name, true);
-    toastService.info(`已加载演练场景：「${preset.name}」`);
+    toastService.info(`已加载演练 SQL：「${preset.name}」，流程图已按该 SQL 重建`);
     return { buggySql: preset.buggySql, preset };
   },
 
+  /** Rebuild from current SQL only — never inject hardcoded ecommerce demo nodes. */
   resetToDefaultDemo: async () => {
     localStorage.removeItem(STORAGE_KEY);
-    await ensureEcommerceDatabaseTables();
     await get().refreshAvailableTables();
-    const initialNodes = getInitialEcommerceNodes();
+    const sql = get().activeSql;
+    if (sql.trim()) {
+      await get().syncFromSql(sql, get().activeTabTitle || 'SQL 查询', true);
+      toastService.success('已根据当前 SQL 重建流程图');
+      return;
+    }
     set({
-      nodes: initialNodes,
-      edges: getInitialEcommerceEdges(),
-      selectedNodeId: 'node-aggregate',
-      runLogs: getInitialEcommerceLogs(),
-      dataFlowMode: 'custom',
+      nodes: [],
+      edges: [],
+      selectedNodeId: null,
+      activeSqlRange: null,
+      runLogs: [],
+      dataFlowMode: 'sql',
+      liveSyncWithSql: true,
+      syncStatus: 'idle',
+      lastSyncError: null,
     });
-    populateInitialNodesWithDuckDB(initialNodes).then(populated => {
-      set({ nodes: [...populated] });
-    });
+    toastService.info('编辑器无 SQL：流程图已清空，请输入查询后自动生成');
   },
 }));
+
+subscribeStatementExecution(event => useWorkflowStore.getState().applyExecutionEvent(event));

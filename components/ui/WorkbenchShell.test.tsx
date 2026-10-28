@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { WorkbenchShell } from './WorkbenchShell';
 
 const originalInnerWidth = window.innerWidth;
@@ -14,10 +14,34 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  vi.restoreAllMocks();
   Object.defineProperty(window, 'innerWidth', { configurable: true, value: originalInnerWidth });
 });
 
 describe('WorkbenchShell', () => {
+  it('uses the container width when surrounding panels leave less space than the window', () => {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      width: 850, height: 800, top: 0, left: 0, right: 850, bottom: 800, x: 0, y: 0, toJSON: () => ({}),
+    });
+    render(<WorkbenchShell featureId="history" right={<div>上下文信息</div>}>历史</WorkbenchShell>);
+    expect(screen.queryByText('上下文信息')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: '展开右侧上下文' }));
+    expect(screen.getByText('上下文信息')).toBeTruthy();
+  });
+  it('recovers usable panes from malformed saved layout values', () => {
+    window.localStorage.setItem('duckdb-workbench-layout:v1:sql', JSON.stringify({
+      leftWidth: 'wide', rightWidth: -20, bottomHeight: 'NaN',
+      leftOpen: 'false', rightOpen: false, bottomOpen: null,
+    }));
+    render(<WorkbenchShell featureId="sql" left={<div>资源</div>} right={<div>上下文</div>} bottom={<div>结果</div>}>
+      编辑器
+    </WorkbenchShell>);
+    expect(screen.getByText('资源')).toBeTruthy();
+    expect(screen.queryByText('上下文')).toBeNull();
+    expect(screen.getByText('结果')).toBeTruthy();
+    expect(screen.getByRole('separator', { name: '调整左侧窗格宽度' }).getAttribute('aria-valuenow')).toBe('260');
+    expect(screen.getByRole('separator', { name: '调整底部面板高度' }).getAttribute('aria-valuenow')).toBe('36');
+  });
   it('renders all dock regions and persists pane visibility per feature', () => {
     const { unmount } = render(
       <WorkbenchShell

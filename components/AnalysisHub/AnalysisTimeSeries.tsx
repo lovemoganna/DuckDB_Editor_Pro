@@ -1,4 +1,8 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { formatValueBySpec } from '../../utils/chartFormat';
+import { useAnalysisUnit } from './AnalysisUnitSelector';
+import { openAnalysis } from '../../hooks/store/useAnalysisWorkspace';
+import { activeAnalysisDatabase } from '../../services/metricAssetStorage';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   TrendingUp,
   TrendingDown,
@@ -7,10 +11,14 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import {
-  analysisEngine,
   classifySemanticType,
+  timeSeriesConfigToSpec,
+  runAnalysis,
+  resolveDefaultAgg,
   type TimeSeriesConfig,
-} from './analysisEngine';
+  type AnalysisFieldCatalog,
+  type ChartSpec,
+} from '../../services/analysis';
 import { AnalysisChartRenderer } from './AnalysisChartRenderer';
 import type { ColumnInfo, ChartConfig } from '../../types';
 import { toastService } from '../../services/toastService';
@@ -30,6 +38,7 @@ import {
 interface AnalysisTimeSeriesProps {
   currentTable: string;
   schema: ColumnInfo[];
+  fieldCatalog?: AnalysisFieldCatalog | null;
   initialTimeColumn?: string;
   onInsertSql?: (sql: string, executeDirectly?: boolean) => void;
 }
@@ -37,19 +46,27 @@ interface AnalysisTimeSeriesProps {
 export const AnalysisTimeSeries: React.FC<AnalysisTimeSeriesProps> = ({
   currentTable,
   schema,
+  fieldCatalog,
   initialTimeColumn,
   onInsertSql,
 }) => {
-  const dateColumns = useMemo(
-    () => schema.filter(c => classifySemanticType(c.name, c.type) === 'temporal').map(c => c.name),
-    [schema],
-  );
+  const dateColumns = useMemo(() => {
+    if (fieldCatalog?.timeFields?.length) {
+      return fieldCatalog.timeFields.map((f) => f.column);
+    }
+    return schema.filter(c => classifySemanticType(c.name, c.type) === 'temporal').map(c => c.name);
+  }, [schema, fieldCatalog]);
 
-  const numericColumns = useMemo(
-    () => schema.filter(c => classifySemanticType(c.name, c.type) === 'numeric').map(c => c.name),
-    [schema],
-  );
+  const numericColumns = useMemo(() => {
+    if (fieldCatalog?.measures?.length) {
+      return fieldCatalog.measures.map((f) => f.column);
+    }
+    return schema.filter(c => classifySemanticType(c.name, c.type) === 'numeric').map(c => c.name);
+  }, [schema, fieldCatalog]);
 
+  const queryVersion = useRef(0);
+  useEffect(() => () => { queryVersion.current++; }, []);
+  const { column: unitColumn, unit: selectedUnit, selector: unitSelector } = useAnalysisUnit(currentTable, schema);
   const [timeColumn, setTimeColumn] = useState('');
   const [valueColumn, setValueColumn] = useState('');
   const [granularity, setGranularity] = useState<TimeSeriesConfig['granularity']>('month');
@@ -61,12 +78,8 @@ export const AnalysisTimeSeries: React.FC<AnalysisTimeSeriesProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rows, setRows] = useState<any[]>([]);
-  const [summary, setSummary] = useState({
-    latestVal: 0,
-    avgVal: 0,
-    maxVal: 0,
-    totalGrowthPct: 0,
-  });
+  const [chartConfig, setChartConfig] = useState<ChartConfig | null>(null);
+  const [chartSpec, setChartSpec] = useState<ChartSpec | null>(null);
   const [generatedSql, setGeneratedSql] = useState('');
   const [executionTimeMs, setExecutionTimeMs] = useState(0);
   const [copied, setCopied] = useState(false);
@@ -82,12 +95,15 @@ export const AnalysisTimeSeries: React.FC<AnalysisTimeSeriesProps> = ({
       selectedDateCol;
     setTimeColumn(selectedDateCol);
     setValueColumn(selectedValCol);
+    setAggFunc(resolveDefaultAgg(fieldCatalog, selectedValCol, 'sum') as TimeSeriesConfig['aggFunc']);
     setError(null);
-  }, [currentTable, schema, dateColumns, numericColumns, initialTimeColumn]);
+  }, [currentTable, schema, dateColumns, numericColumns, initialTimeColumn, fieldCatalog]);
 
   const handleExecute = useCallback(async () => {
     if (!currentTable || !timeColumn || !valueColumn) return;
+    const request = ++queryVersion.current;
     setLoading(true);
+    setRows([]);setChartConfig(null);setChartSpec(null);
     setError(null);
     try {
       const config: TimeSeriesConfig = {
@@ -98,21 +114,55 @@ export const AnalysisTimeSeries: React.FC<AnalysisTimeSeriesProps> = ({
         aggFunc,
         windowMode,
       };
-      const res = await analysisEngine.executeTimeSeries(config);
+      let spec = timeSeriesConfigToSpec(config, {
+        chartType: chartType === 'pie' ? 'line' : chartType,
+        title: `${currentTable} 时序走势 (${windowMode.toUpperCase()})`,
+      });
+      if (fieldCatalog) {
+        spec = {
+          ...spec,
+          fields: fieldCatalog.fields.map((f) => ({
+            column: f.column,
+            physicalType: f.physicalType,
+            role: f.role,
+            unitHint: f.unitHint,
+            defaultAgg: f.defaultAgg,
+          })),
+        };
+      }
+      if (unitColumn) {
+        if (!selectedUnit) return;
+        spec.filters.global = [...spec.filters.global.filter(f => f.column !== unitColumn), { column: unitColumn, op: '=', value: selectedUnit }];
+        const money = !['count', 'count_distinct'].includes(aggFunc) && /amount|fee|price|revenue|balance/i.test(valueColumn);
+        spec.visual.format = { ...spec.visual.format, unit: money ? selectedUnit : '', decimals: 8 };
+        const percentageKeys = spec.calcs.filter(calc => calc.kind === 'mom' || calc.kind === 'yoy' || calc.kind === 'ratio').map(calc => calc.alias);
+        if (percentageKeys.length) {
+          spec.visual.encoding = { ...spec.visual.encoding, y: spec.metrics.map(metric => metric.alias), yRight: percentageKeys };
+          spec.visual.unitRight = '%';
+          spec.visual.formatByKey = Object.fromEntries(percentageKeys.map(key => [key, { unit: '%', percent: true, decimals: 2 }]));
+        }
+      }
+      const res = await runAnalysis(spec, { skipDatasetResolve: true });
+      if (request !== queryVersion.current) return;
       setGeneratedSql(res.sql);
       setRows(res.rows);
-      setSummary(res.summary);
       setExecutionTimeMs(res.executionTimeMs);
+      setChartConfig(res.chartConfig);
+      setChartSpec(res.chart);
+
     } catch (err: unknown) {
+      if (request !== queryVersion.current) return;
       console.error('[AnalysisTimeSeries] Calculation failed:', err);
       const msg = err instanceof Error ? err.message : String(err);
       setError(msg);
       setRows([]);
+      setChartConfig(null);
+      setChartSpec(null);
       toastService.error(`时序计算失败: ${msg}`);
     } finally {
-      setLoading(false);
+      if (request === queryVersion.current) setLoading(false);
     }
-  }, [currentTable, timeColumn, valueColumn, granularity, aggFunc, windowMode]);
+  }, [currentTable, timeColumn, valueColumn, granularity, aggFunc, windowMode, chartType, fieldCatalog, unitColumn, selectedUnit]);
 
   useEffect(() => {
     if (timeColumn && valueColumn) {
@@ -159,19 +209,6 @@ export const AnalysisTimeSeries: React.FC<AnalysisTimeSeriesProps> = ({
     toastService.success('已导出 CSV');
   };
 
-  const chartConfig: ChartConfig = useMemo(() => {
-    const cols = rows.length > 0 ? Object.keys(rows[0]) : [];
-    return {
-      id: 'timeseries_chart',
-      title: `${currentTable} 时序走势 (${windowMode.toUpperCase()})`,
-      type: chartType,
-      xKey: cols[0] || '时间周期',
-      yKeys: cols.slice(1),
-      showLegend: true,
-      showValues: false,
-    };
-  }, [currentTable, rows, windowMode, chartType]);
-
   if (!currentTable || schema.length === 0) {
     return (
       <div className={AH.pane}>
@@ -182,9 +219,12 @@ export const AnalysisTimeSeries: React.FC<AnalysisTimeSeriesProps> = ({
     );
   }
 
+  const summary = chartSpec?.timeSummary || { latestVal: null, avgVal: null, maxVal: null, totalGrowthPct: null };
+  const formatSummary = (value: number | null) => formatValueBySpec(value, chartSpec?.formatByKey?.[chartSpec.yKeys[0]] || chartSpec?.format);
   return (
     <div className={AH.pane}>
       <div className={AH.configBar}>
+        <div className="flex gap-4 items-center mb-2">{unitSelector}<button type="button" disabled={!generatedSql || loading || Boolean(error)} className="text-xs text-monokai-cyan disabled:opacity-40" onClick={() => openAnalysis({ databaseName: activeAnalysisDatabase(), title: chartConfig?.title || '自定义分析', sql: generatedSql, chartConfig: chartConfig || undefined, sourceTables: [currentTable] })}>保存与复用本次分析</button></div>
         <AnalysisSubViewHeader
           icon={TrendingUp}
           iconTone="cyan"
@@ -291,38 +331,21 @@ export const AnalysisTimeSeries: React.FC<AnalysisTimeSeriesProps> = ({
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 px-3 pt-2.5">
-        <AnalysisKpiTile label="最新周期" value={summary.latestVal.toLocaleString()} />
+        <AnalysisKpiTile label="最新周期" value={formatSummary(summary.latestVal)} />
         <AnalysisKpiTile
           label="全周期均值"
-          value={summary.avgVal.toLocaleString()}
+          value={formatSummary(summary.avgVal)}
           valueClassName="text-monokai-cyan"
         />
         <AnalysisKpiTile
           label="历史峰值"
-          value={summary.maxVal.toLocaleString()}
+          value={formatSummary(summary.maxVal)}
           valueClassName="text-monokai-yellow"
         />
-        <AnalysisKpiTile
-          label="首末增长率"
-          value={
-            <span className="flex items-center gap-1">
-              <span
-                className={
-                  summary.totalGrowthPct >= 0 ? 'text-monokai-green' : 'text-monokai-pink'
-                }
-              >
-                {summary.totalGrowthPct >= 0
-                  ? `+${summary.totalGrowthPct}%`
-                  : `${summary.totalGrowthPct}%`}
-              </span>
-              {summary.totalGrowthPct >= 0 ? (
-                <TrendingUp className="h-3.5 w-3.5 text-monokai-green" aria-hidden="true" />
-              ) : (
-                <TrendingDown className="h-3.5 w-3.5 text-monokai-pink" aria-hidden="true" />
-              )}
-            </span>
-          }
-        />
+        {summary.totalGrowthPct != null && <AnalysisKpiTile
+          label="较首个周期增长率"
+          value={formatValueBySpec(summary.totalGrowthPct, { unit: '%', percent: true, decimals: 2 })}
+        />}
       </div>
 
       <div className={`${AH.scrollBody} flex flex-col gap-2.5`}>
@@ -332,12 +355,15 @@ export const AnalysisTimeSeries: React.FC<AnalysisTimeSeriesProps> = ({
           <AnalysisLoadingState message="正在计算时序窗口函数…" />
         ) : (
           <>
-            <AnalysisChartRenderer
-              data={rows}
-              config={chartConfig}
-              height={AH.chartHeight}
-              onChartTypeChange={setChartType}
-            />
+            {chartConfig && (
+              <AnalysisChartRenderer
+                data={rows}
+                config={chartConfig}
+                chartSpec={chartSpec}
+                height={AH.chartHeight}
+                onChartTypeChange={setChartType}
+              />
+            )}
             <AnalysisResultTable
               columns={rows.length > 0 ? Object.keys(rows[0]) : []}
               rows={rows}

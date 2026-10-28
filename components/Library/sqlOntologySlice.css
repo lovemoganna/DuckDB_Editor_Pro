@@ -1,0 +1,6 @@
+.sql-ontology-slice .slice-editor { width:100%; padding:8px; border:1px solid var(--monokai-border); border-radius:6px; background:var(--monokai-bg); color:inherit; font-family:monospace; font-size:11px; }
+.sql-ontology-slice .slice-editor:focus-visible, .sql-ontology-slice .slice-chip:focus-visible { outline:2px solid currentColor; outline-offset:2px; }
+.sql-ontology-slice .slice-chip { padding:4px 8px; border:1px solid currentColor; border-radius:6px; font-size:11px; }
+.sql-ontology-slice .slice-chip:hover { opacity:.75; }
+.sql-ontology-slice .slice-filter { padding: 8px; border: 1px solid var(--monokai-border); border-radius: 6px; background: var(--monokai-bg); }
+.sql-ontology-slice fieldset:disabled { opacity: .55; }

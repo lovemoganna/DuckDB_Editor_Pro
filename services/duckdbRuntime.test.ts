@@ -3,6 +3,7 @@ import { DuckDBAccessMode } from '@duckdb/duckdb-wasm';
 import {
   createWorkspaceOpenConfig,
   DuckDBRuntime,
+  duckDBResultToRows,
   openWorkspaceDatabase,
   verifyDuckDBReadiness,
   WORKSPACE_DATABASE_PATH,
@@ -130,5 +131,48 @@ describe('DuckDBRuntime execution contracts', () => {
       'INSERT INTO values_table VALUES (1)',
       'ROLLBACK',
     ]);
+  });
+});
+
+
+describe('Arrow decimal result decoding', () => {
+  it('decodes signed HUGEINT exactly while preserving ordinary binary cells', () => {
+    const bytes = (value: bigint) => { let n=BigInt.asUintN(128,value);const out=new Uint8Array(16);for(let i=0;i<16;i++){out[i]=Number(n&255n);n>>=8n;}return out; };
+    const blob=bytes(42n);
+    const result={schema:{fields:[{name:'total',type:{typeId:15,byteWidth:16}},{name:'blob',type:{typeId:4}}]},toArray:()=>[{total:bytes(104270n),blob},{total:bytes(-7n),blob},{total:bytes(9007199254740993n),blob}]};
+    const rows=duckDBResultToRows(result, value => value);
+    expect(rows.map(row=>row.total)).toEqual([104270,-7,'9007199254740993']);
+    expect(rows[0].blob).toEqual(blob);
+  });
+
+  it('opens the prepared writable VFS path after registering the primary file', async () => {
+    const order: string[] = [];
+    const open = vi.fn(async () => { order.push('open'); });
+    const prepare = vi.fn(async () => { order.push('register'); return 'duckdb_manager_workspace.duckdb'; });
+    expect(await openWorkspaceDatabase({ open }, true, prepare)).toEqual({ mode: 'opfs' });
+    expect(order).toEqual(['register', 'open']);
+    expect(open).toHaveBeenCalledWith(expect.objectContaining({ path: 'duckdb_manager_workspace.duckdb', accessMode: DuckDBAccessMode.READ_WRITE }));
+  });
+  it('uses column scale for fractional and signed decimal128 cells without losing precision', () => {
+    const result = {
+      schema: { fields: [
+        { name: 'crypto', type: { typeId: 7, scale: 8 } },
+        { name: 'negative', type: { typeId: 7, scale: 2 } },
+        { name: 'large', type: { typeId: 7, scale: 2 } },
+        { name: 'empty', type: { typeId: 7, scale: 8 } },
+        { name: 'blob', type: { typeId: 4 } },
+      ] },
+      toArray: () => [{ toJSON: () => ({
+        crypto: new Uint32Array([2000000, 0, 0, 0]),
+        negative: new Uint32Array([0xffffff85, 0xffffffff, 0xffffffff, 0xffffffff]),
+        large: 900719925474099301n,
+        empty: null,
+        blob: 'unchanged',
+      }) }],
+    };
+    expect(duckDBResultToRows(result)).toEqual([{
+      crypto: '0.02000000', negative: '-1.23', large: '9007199254740993.01',
+      empty: null, blob: 'unchanged',
+    }]);
   });
 });

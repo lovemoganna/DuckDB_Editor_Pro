@@ -46,7 +46,7 @@ describe('LiveQueryStream Component', () => {
       />
     );
 
-    expect(screen.getByText('最近查询动态')).toBeInTheDocument();
+    expect(screen.getByText('最近查询')).toBeInTheDocument();
     expect(screen.getByText('SELECT * FROM users;')).toBeInTheDocument();
     expect(screen.getByText('12.5 ms')).toBeInTheDocument();
     expect(screen.getAllByText('成功').length).toBeGreaterThan(0);

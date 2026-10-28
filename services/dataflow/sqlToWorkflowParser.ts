@@ -1,3 +1,4 @@
+import { splitSqlScript } from './sqlStructure';
 /**
  * SQL to Workflow Parser & DAG Generator
  *
@@ -308,107 +309,7 @@ export function stripLeadingComments(sql: string): string {
 /**
  * 按分号拆分多条 SQL 语句（正确跳过字符串、单行注释、多行注释中的分号）
  */
-export function splitSqlStatements(sql: string): string[] {
-  const statements: string[] = [];
-  let current = '';
-  let inSingleQuote = false;
-  let inDoubleQuote = false;
-  let inLineComment = false;
-  let inBlockComment = false;
-
-  for (let i = 0; i < sql.length; i++) {
-    const char = sql[i];
-    const nextChar = i + 1 < sql.length ? sql[i + 1] : '';
-
-    if (inLineComment) {
-      current += char;
-      if (char === '\n') {
-        inLineComment = false;
-      }
-      continue;
-    }
-
-    if (inBlockComment) {
-      current += char;
-      if (char === '*' && nextChar === '/') {
-        current += '/';
-        i++;
-        inBlockComment = false;
-      }
-      continue;
-    }
-
-    if (inSingleQuote) {
-      current += char;
-      if (char === "'") {
-        if (nextChar === "'") {
-          current += "'";
-          i++; // Escaped quote
-        } else {
-          inSingleQuote = false;
-        }
-      }
-      continue;
-    }
-
-    if (inDoubleQuote) {
-      current += char;
-      if (char === '"') {
-        if (nextChar === '"') {
-          current += '"';
-          i++;
-        } else {
-          inDoubleQuote = false;
-        }
-      }
-      continue;
-    }
-
-    // Check for comment starts
-    if (char === '-' && nextChar === '-') {
-      inLineComment = true;
-      current += '--';
-      i++;
-      continue;
-    }
-    if (char === '/' && nextChar === '*') {
-      inBlockComment = true;
-      current += '/*';
-      i++;
-      continue;
-    }
-
-    if (char === "'") {
-      inSingleQuote = true;
-      current += char;
-      continue;
-    }
-
-    if (char === '"') {
-      inDoubleQuote = true;
-      current += char;
-      continue;
-    }
-
-    if (char === ';') {
-      const trimmed = current.trim();
-      if (trimmed) {
-        statements.push(trimmed);
-      }
-      current = '';
-      continue;
-    }
-
-    current += char;
-  }
-
-  const finalTrimmed = current.trim();
-  if (finalTrimmed) {
-    statements.push(finalTrimmed);
-  }
-
-  return statements;
-}
+export function splitSqlStatements(sql: string): string[] { return splitSqlScript(sql).map(statement => statement.sql); }
 
 /**
  * 括号匹配提取 CTE 定义
@@ -1269,8 +1170,56 @@ function buildWorkflowFromCtes(
   };
   nodes.push(resultNode);
 
-  // 连线主查询与上游 CTE 或物理表
-  mainQueryTables.forEach(upstreamName => {
+  // 4. 若主查询包含 JOIN，创建专职 Join 节点并连接至最终 Result
+  const isMainJoin = finalInfo.type === 'join' && mainQueryTables.length >= 2;
+  const targetForMainTables = isMainJoin ? 'node_main_join' : 'node_final_result';
+
+  if (isMainJoin) {
+    const joinNode: DataFlowNode = {
+      id: 'node_main_join',
+      type: 'dataFlowNode',
+      position: { x: 0, y: 0 },
+      data: {
+        id: 'node_main_join',
+        type: 'join',
+        title: '表连接',
+        subtitle: finalInfo.subtitle,
+        status: 'configured',
+        stepIndex: ctes.length + 2,
+        sqlStage: 'join',
+        paradigm: getSqlParadigm('join'),
+        predicate: finalInfo.predicate,
+        joinSummary: finalInfo.joinSummary,
+        groupBySummary: finalInfo.groupBySummary,
+        sqlSnippet: finalInfo.sqlSnippet,
+        config: finalInfo.config,
+        sqlRange: {
+          startLine: ctes.length > 0 ? (ctes[ctes.length - 1].endLine || 1) + 1 : 1,
+          endLine: ctes.length > 0 ? (ctes[ctes.length - 1].endLine || 1) + mainQuery.split('\n').length : mainQuery.split('\n').length,
+          cteName: 'main_query_join',
+        },
+      },
+    };
+    nodes.push(joinNode);
+
+    edges.push({
+      id: 'edge_node_main_join_node_final_result',
+      source: 'node_main_join',
+      sourceHandle: 'output',
+      target: 'node_final_result',
+      targetHandle: 'input',
+      type: 'dataFlowEdge',
+      data: {
+        sourceHandle: 'output',
+        targetHandle: 'input',
+        label: '最终输出',
+        relationType: 'data',
+      },
+    });
+  }
+
+  // 连线主查询（或 Join 节点）与上游 CTE 或物理表
+  mainQueryTables.forEach((upstreamName, idx) => {
     let sourceId = '';
     if (cteNames.has(upstreamName)) {
       sourceId = `node_cte_${upstreamName}`;
@@ -1279,31 +1228,34 @@ function buildWorkflowFromCtes(
     }
 
     if (sourceId) {
+      const joinSide = isMainJoin ? (idx === 0 ? 'left' as const : 'right' as const) : undefined;
+      const targetHandle = isMainJoin ? joinSide! : 'input';
       edges.push({
-        id: `edge_${sourceId}_node_final_result`,
+        id: `edge_${sourceId}_${targetForMainTables}`,
         source: sourceId,
         sourceHandle: 'output',
-        target: 'node_final_result',
-        targetHandle: 'input',
+        target: targetForMainTables,
+        targetHandle,
         type: 'dataFlowEdge',
         data: {
           sourceHandle: 'output',
-          targetHandle: 'input',
-          label: '最终输出',
-          relationType: 'data',
+          targetHandle,
+          joinSide,
+          label: isMainJoin ? (joinSide === 'left' ? '左表' : '右表') : '最终输出',
+          relationType: isMainJoin ? 'join' : 'data',
         },
       });
     }
   });
 
   // 如果主查询没有明确来源，但存在 CTE，连接最后一个 CTE 到主查询
-  if (edges.filter(e => e.target === 'node_final_result').length === 0 && ctes.length > 0) {
+  if (edges.filter(e => e.target === targetForMainTables).length === 0 && ctes.length > 0) {
     const lastCte = ctes[ctes.length - 1];
     edges.push({
-      id: `edge_node_cte_${lastCte.name}_node_final_result`,
+      id: `edge_node_cte_${lastCte.name}_${targetForMainTables}`,
       source: `node_cte_${lastCte.name}`,
       sourceHandle: 'output',
-      target: 'node_final_result',
+      target: targetForMainTables,
       targetHandle: 'input',
       type: 'dataFlowEdge',
       data: {

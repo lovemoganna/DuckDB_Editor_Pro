@@ -1,0 +1,455 @@
+- banner "全局工作区顶栏":
+  - button "🪶 DuckDB Studio PRO":
+    - generic: 🪶
+    - generic: DuckDB Studio
+    - generic: PRO
+  - navigation "业务领域大类":
+    - button "工程核心":
+      - generic: 工程核心
+    - button "分析洞察":
+      - generic: 分析洞察
+    - button "知识沉淀":
+      - generic: 知识沉淀
+    - button "AI 认知":
+      - generic: AI 认知
+  - tablist "分析洞察功能标签页":
+    - tab "指标":
+      - generic: 指标
+    - tab "可视化":
+      - generic: 可视化
+    - tab "分析" [selected]:
+      - generic: 分析
+    - tab "历史":
+      - generic: 历史
+    - tab "审计":
+      - generic: 审计
+  - button "项目":
+    - generic: 项目
+  - button "sql_funds_flow 已保存到 OPFS":
+    - generic: sql_funds_flow
+    - generic: 已保存到 OPFS
+  - button "AI 助手 Ctrl+I":
+    - generic: AI 助手
+    - generic: Ctrl+I
+  - button "⌘K":
+  - button "帮助与快捷键":
+  - button "切换为浅色模式":
+  - button "AI 模型设置":
+- main:
+  - heading "分析中心" [level=1]
+  - paragraph: 多维透视 · 时序走势 · 业务配方 · SQL 模板 · DuckDB 本地内核
+  - button "仪表盘":
+    - generic: 仪表盘
+  - generic: 上下文
+  - combobox "切换分析库或 Schema":
+    - option "内存库 · memory（临时）"
+    - option "持久库 · duckdb_manager_workspace"
+    - option "持久库 · sql_funds_flow" [selected]
+    - option "Schema · sql_funds_flow.__studio"
+  - generic: 分析表
+  - combobox "选择分析表":
+    - option "crypto_transactions" [selected]
+    - option "exchange_rates"
+    - option "fiat_transactions"
+    - option "life_action"
+    - option "life_canvas_edge"
+    - option "life_canvas_state"
+    - option "life_insight"
+    - option "life_introspection"
+    - option "life_link"
+    - option "life_link_type"
+    - option "life_object"
+    - option "life_object_type"
+    - option "users"
+  - button "刷新表列表":
+  - button "数据网格":
+    - generic: 数据网格
+  - button "表结构":
+    - generic: 表结构
+  - tablist "分析工具模式":
+    - tab "关联分析" [active] [selected]:
+      - generic: 关联分析
+    - tab "数据体检":
+      - generic: 数据体检
+    - tab "透视聚合":
+      - generic: 透视聚合
+    - tab "时序分析":
+      - generic: 时序分析
+    - tab "场景配方":
+      - generic: 场景配方
+    - tab "SQL 模板":
+      - generic: SQL 模板
+  - heading "关联分析" [level=2]
+  - paragraph: 数据 → 指标定义 → 查询结果 → 可视化 → 分析笔记
+  - button "重新计算" [disabled]:
+    - generic: 重新计算
+  - paragraph: 从首页业务指标、指标卡片或图表进入，也可打开下方保存的分析。
+  - heading "已保存的分析 · 50 · sql_funds_flow" [level=3]
+  - textbox "搜索已保存分析":
+    - /placeholder: 搜索标题或笔记
+  - button "crypto_transactions · 记录数"
+  - paragraph: 10/1/2026, 10:56:47 PM
+  - paragraph: 数据概况：25 条记录，13 个字段。存在空值的字段：tx_hash (8%)、completed_at (12%)。交易合计包含所有状态，不等同于已完成交易额。统计基于当前数据。
+  - button "加入首页":
+    - generic: 加入首页
+  - button "删除分析 crypto_transactions · 记录数":
+    - generic: 删除
+  - button "crypto_transactions · direction 分布"
+  - paragraph: 10/1/2026, 10:56:47 PM
+  - paragraph: 数据概况：25 条记录，13 个字段。存在空值的字段：tx_hash (8%)、completed_at (12%)。交易合计包含所有状态，不等同于已完成交易额。统计基于当前数据。
+  - button "加入首页":
+    - generic: 加入首页
+  - button "删除分析 crypto_transactions · direction 分布":
+    - generic: 删除
+  - button "crypto_transactions · created_at 趋势"
+  - paragraph: 10/1/2026, 10:56:47 PM
+  - paragraph: 数据概况：25 条记录，13 个字段。存在空值的字段：tx_hash (8%)、completed_at (12%)。交易合计包含所有状态，不等同于已完成交易额。统计基于当前数据。
+  - button "加入首页":
+    - generic: 加入首页
+  - button "删除分析 crypto_transactions · created_at 趋势":
+    - generic: 删除
+  - button "crypto_transactions · amount 分单位合计"
+  - paragraph: 10/1/2026, 10:56:47 PM
+  - paragraph: 数据概况：25 条记录，13 个字段。存在空值的字段：tx_hash (8%)、completed_at (12%)。交易合计包含所有状态，不等同于已完成交易额。统计基于当前数据。
+  - button "加入首页":
+    - generic: 加入首页
+  - button "删除分析 crypto_transactions · amount 分单位合计":
+    - generic: 删除
+  - button "crypto_transactions · fee 分单位合计"
+  - paragraph: 10/1/2026, 10:56:47 PM
+  - paragraph: 数据概况：25 条记录，13 个字段。存在空值的字段：tx_hash (8%)、completed_at (12%)。交易合计包含所有状态，不等同于已完成交易额。统计基于当前数据。
+  - button "加入首页":
+    - generic: 加入首页
+  - button "删除分析 crypto_transactions · fee 分单位合计":
+    - generic: 删除
+  - button "exchange_rates · 记录数"
+  - paragraph: 10/1/2026, 10:56:47 PM
+  - paragraph: 数据概况：8 条记录，8 个字段。已扫描字段未发现空值。统计基于当前数据。
+  - button "加入首页":
+    - generic: 加入首页
+  - button "删除分析 exchange_rates · 记录数":
+    - generic: 删除
+  - button "exchange_rates · asset_name 分布"
+  - paragraph: 10/1/2026, 10:56:47 PM
+  - paragraph: 数据概况：8 条记录，8 个字段。已扫描字段未发现空值。统计基于当前数据。
+  - button "加入首页":
+    - generic: 加入首页
+  - button "删除分析 exchange_rates · asset_name 分布":
+    - generic: 删除
+  - button "exchange_rates · effective_date 趋势"
+  - paragraph: 10/1/2026, 10:56:47 PM
+  - paragraph: 数据概况：8 条记录，8 个字段。已扫描字段未发现空值。统计基于当前数据。
+  - button "加入首页":
+    - generic: 加入首页
+  - button "删除分析 exchange_rates · effective_date 趋势":
+    - generic: 删除
+  - button "fiat_transactions · direction 分布"
+  - paragraph: 10/1/2026, 10:56:47 PM
+  - paragraph: 数据概况：25 条记录，10 个字段。存在空值的字段：completed_at (12%)。交易合计包含所有状态，不等同于已完成交易额。统计基于当前数据。
+  - button "加入首页":
+    - generic: 加入首页
+  - button "删除分析 fiat_transactions · direction 分布":
+    - generic: 删除
+  - button "fiat_transactions · created_at 趋势"
+  - paragraph: 10/1/2026, 10:56:47 PM
+  - paragraph: 数据概况：25 条记录，10 个字段。存在空值的字段：completed_at (12%)。交易合计包含所有状态，不等同于已完成交易额。统计基于当前数据。
+  - button "加入首页":
+    - generic: 加入首页
+  - button "删除分析 fiat_transactions · created_at 趋势":
+    - generic: 删除
+  - button "fiat_transactions · amount 分单位合计"
+  - paragraph: 10/1/2026, 10:56:47 PM
+  - paragraph: 数据概况：25 条记录，10 个字段。存在空值的字段：completed_at (12%)。交易合计包含所有状态，不等同于已完成交易额。统计基于当前数据。
+  - button "加入首页":
+    - generic: 加入首页
+  - button "删除分析 fiat_transactions · amount 分单位合计":
+    - generic: 删除
+  - button "fiat_transactions · fee 分单位合计"
+  - paragraph: 10/1/2026, 10:56:47 PM
+  - paragraph: 数据概况：25 条记录，10 个字段。存在空值的字段：completed_at (12%)。交易合计包含所有状态，不等同于已完成交易额。统计基于当前数据。
+  - button "加入首页":
+    - generic: 加入首页
+  - button "删除分析 fiat_transactions · fee 分单位合计":
+    - generic: 删除
+  - button "users · 记录数"
+  - paragraph: 10/1/2026, 10:56:47 PM
+  - paragraph: 数据概况：10 条记录，7 个字段。已扫描字段未发现空值。统计基于当前数据。
+  - button "加入首页":
+    - generic: 加入首页
+  - button "删除分析 users · 记录数":
+    - generic: 删除
+  - button "users · user_name 分布"
+  - paragraph: 10/1/2026, 10:56:47 PM
+  - paragraph: 数据概况：10 条记录，7 个字段。已扫描字段未发现空值。统计基于当前数据。
+  - button "加入首页":
+    - generic: 加入首页
+  - button "删除分析 users · user_name 分布":
+    - generic: 删除
+  - button "users · created_at 趋势"
+  - paragraph: 10/1/2026, 10:56:47 PM
+  - paragraph: 数据概况：10 条记录，7 个字段。已扫描字段未发现空值。统计基于当前数据。
+  - button "加入首页":
+    - generic: 加入首页
+  - button "删除分析 users · created_at 趋势":
+    - generic: 删除
+  - button "fiat_transactions · 记录数"
+  - paragraph: 10/1/2026, 11:23:23 PM
+  - paragraph: 25 笔法币交易；完成时间存在空值，需按交易状态进一步核对。
+  - button "加入首页":
+    - generic: 加入首页
+  - button "删除分析 fiat_transactions · 记录数":
+    - generic: 删除
+  - button "USD 完成交易总额"
+  - paragraph: 10/2/2026, 12:04:52 AM
+  - paragraph: 指标口径：完成入金与出金金额之和，仅 USD，不扣手续费。结果实时计算；可追溯原始订单，不复制参考看板的结论。
+  - button "加入首页":
+    - generic: 加入首页
+  - button "删除分析 USD 完成交易总额":
+    - generic: 删除
+  - button "USDT 完成交易总额"
+  - paragraph: 10/2/2026, 12:04:52 AM
+  - paragraph: 指标口径：完成入金与出金数量之和，仅 USDT，不换算其他资产。结果实时计算；可追溯原始订单，不复制参考看板的结论。
+  - button "加入首页":
+    - generic: 加入首页
+  - button "删除分析 USDT 完成交易总额":
+    - generic: 删除
+  - button "交易完成率"
+  - paragraph: 10/2/2026, 12:04:52 AM
+  - paragraph: 指标口径：法币与加密交易的 completed 订单数 / 全部订单数；空数据无完成率。结果实时计算；可追溯原始订单，不复制参考看板的结论。
+  - button "加入首页":
+    - generic: 加入首页
+  - button "删除分析 交易完成率":
+    - generic: 删除
+  - button "USD 净流入"
+  - paragraph: 10/2/2026, 12:04:52 AM
+  - paragraph: 指标口径：已完成 USD 入金减出金，不扣手续费，非账户余额。结果实时计算；可追溯原始订单，不复制参考看板的结论。
+  - button "加入首页":
+    - generic: 加入首页
+  - button "删除分析 USD 净流入":
+    - generic: 删除
+  - button "分资产资金流动"
+  - paragraph: 10/2/2026, 12:04:52 AM
+  - paragraph: 指标口径：按资产分别统计已完成订单；不同单位不相加。结果实时计算；可追溯原始订单，不复制参考看板的结论。
+  - button "加入首页":
+    - generic: 加入首页
+  - button "删除分析 分资产资金流动":
+    - generic: 删除
+  - button "月度流入与流出"
+  - paragraph: 10/2/2026, 12:04:52 AM
+  - paragraph: 指标口径：按订单创建月份、资产分别统计已完成交易；使用实际数据月份。结果实时计算；可追溯原始订单，不复制参考看板的结论。
+  - button "加入首页":
+    - generic: 加入首页
+  - button "删除分析 月度流入与流出":
+    - generic: 删除
+  - button "USD 月度资金趋势"
+  - paragraph: 10/2/2026, 12:04:52 AM
+  - paragraph: 指标口径：只统计已完成 USD；以实际 USD 订单创建日期范围补齐无交易月份，净流入为入金减出金。结果实时计算；可追溯原始订单，不复制参考看板的结论。
+  - button "加入首页":
+    - generic: 加入首页
+  - button "删除分析 USD 月度资金趋势":
+    - generic: 删除
+  - button "USDT 公链流动"
+  - paragraph: 10/2/2026, 12:04:52 AM
+  - paragraph: 指标口径：仅已完成 USDT 订单，按公链对比入金和出金。结果实时计算；可追溯原始订单，不复制参考看板的结论。
+  - button "加入首页":
+    - generic: 加入首页
+  - button "删除分析 USDT 公链流动":
+    - generic: 删除
+  - button "渠道完成情况"
+  - paragraph: 10/2/2026, 12:04:52 AM
+  - paragraph: 指标口径：渠道订单数和完成率，按资产分别统计。结果实时计算；可追溯原始订单，不复制参考看板的结论。
+  - button "加入首页":
+    - generic: 加入首页
+  - button "删除分析 渠道完成情况":
+    - generic: 删除
+  - button "未完成交易追踪"
+  - paragraph: 10/2/2026, 12:04:52 AM
+  - paragraph: 指标口径：仅展示原始状态与金额，未完成不等于失败，不推断故障原因。结果实时计算；可追溯原始订单，不复制参考看板的结论。
+  - button "加入首页":
+    - generic: 加入首页
+  - button "删除分析 未完成交易追踪":
+    - generic: 删除
+  - button "业务规则待核对"
+  - paragraph: 10/2/2026, 12:04:52 AM
+  - paragraph: 指标口径：业务规则核对项，不等同于数据完整度评分或已确认风控故障。结果实时计算；可追溯原始订单，不复制参考看板的结论。
+  - button "加入首页":
+    - generic: 加入首页
+  - button "删除分析 业务规则待核对":
+    - generic: 删除
+  - button "汇率来源与有效日期"
+  - paragraph: 10/2/2026, 12:04:52 AM
+  - paragraph: 指标口径：原始历史汇率快照，不代表实时价格；未按历史汇率换算交易金额。结果实时计算；可追溯原始订单，不复制参考看板的结论。
+  - button "加入首页":
+    - generic: 加入首页
+  - button "删除分析 汇率来源与有效日期":
+    - generic: 删除
+  - button "life_action · 记录数"
+  - paragraph: 10/2/2026, 4:24:40 AM
+  - paragraph: 数据概况：0 条记录，6 个字段。已扫描字段未发现空值。统计基于当前数据。
+  - button "加入首页":
+    - generic: 加入首页
+  - button "删除分析 life_action · 记录数":
+    - generic: 删除
+  - button "life_action · name 分布"
+  - paragraph: 10/2/2026, 4:24:40 AM
+  - paragraph: 数据概况：0 条记录，6 个字段。已扫描字段未发现空值。统计基于当前数据。
+  - button "加入首页":
+    - generic: 加入首页
+  - button "删除分析 life_action · name 分布":
+    - generic: 删除
+  - button "life_action · execute_at 趋势"
+  - paragraph: 10/2/2026, 4:24:40 AM
+  - paragraph: 数据概况：0 条记录，6 个字段。已扫描字段未发现空值。统计基于当前数据。
+  - button "加入首页":
+    - generic: 加入首页
+  - button "删除分析 life_action · execute_at 趋势":
+    - generic: 删除
+  - button "life_canvas_edge · 记录数"
+  - paragraph: 10/2/2026, 4:24:40 AM
+  - paragraph: 数据概况：0 条记录，3 个字段。已扫描字段未发现空值。统计基于当前数据。
+  - button "加入首页":
+    - generic: 加入首页
+  - button "删除分析 life_canvas_edge · 记录数":
+    - generic: 删除
+  - button "life_canvas_state · 记录数"
+  - paragraph: 10/2/2026, 4:24:40 AM
+  - paragraph: 数据概况：7 条记录，11 个字段。存在空值的字段：space_id (100%)。统计基于当前数据。
+  - button "加入首页":
+    - generic: 加入首页
+  - button "删除分析 life_canvas_state · 记录数":
+    - generic: 删除
+  - button "life_canvas_state · title 分布"
+  - paragraph: 10/2/2026, 4:24:40 AM
+  - paragraph: 数据概况：7 条记录，11 个字段。存在空值的字段：space_id (100%)。统计基于当前数据。
+  - button "加入首页":
+    - generic: 加入首页
+  - button "删除分析 life_canvas_state · title 分布":
+    - generic: 删除
+  - button "life_canvas_state · x 合计"
+  - paragraph: 10/2/2026, 4:24:40 AM
+  - paragraph: 数据概况：7 条记录，11 个字段。存在空值的字段：space_id (100%)。统计基于当前数据。
+  - button "加入首页":
+    - generic: 加入首页
+  - button "删除分析 life_canvas_state · x 合计":
+    - generic: 删除
+  - button "life_canvas_state · y 合计"
+  - paragraph: 10/2/2026, 4:24:40 AM
+  - paragraph: 数据概况：7 条记录，11 个字段。存在空值的字段：space_id (100%)。统计基于当前数据。
+  - button "加入首页":
+    - generic: 加入首页
+  - button "删除分析 life_canvas_state · y 合计":
+    - generic: 删除
+  - button "life_insight · 记录数"
+  - paragraph: 10/2/2026, 4:24:40 AM
+  - paragraph: 数据概况：0 条记录，5 个字段。已扫描字段未发现空值。统计基于当前数据。
+  - button "加入首页":
+    - generic: 加入首页
+  - button "删除分析 life_insight · 记录数":
+    - generic: 删除
+  - button "life_insight · insight 分布"
+  - paragraph: 10/2/2026, 4:24:40 AM
+  - paragraph: 数据概况：0 条记录，5 个字段。已扫描字段未发现空值。统计基于当前数据。
+  - button "加入首页":
+    - generic: 加入首页
+  - button "删除分析 life_insight · insight 分布":
+    - generic: 删除
+  - button "life_insight · created_at 趋势"
+  - paragraph: 10/2/2026, 4:24:40 AM
+  - paragraph: 数据概况：0 条记录，5 个字段。已扫描字段未发现空值。统计基于当前数据。
+  - button "加入首页":
+    - generic: 加入首页
+  - button "删除分析 life_insight · created_at 趋势":
+    - generic: 删除
+  - button "life_introspection · 记录数"
+  - paragraph: 10/2/2026, 4:24:40 AM
+  - paragraph: 数据概况：0 条记录，5 个字段。已扫描字段未发现空值。统计基于当前数据。
+  - button "加入首页":
+    - generic: 加入首页
+  - button "删除分析 life_introspection · 记录数":
+    - generic: 删除
+  - button "life_introspection · question 分布"
+  - paragraph: 10/2/2026, 4:24:40 AM
+  - paragraph: 数据概况：0 条记录，5 个字段。已扫描字段未发现空值。统计基于当前数据。
+  - button "加入首页":
+    - generic: 加入首页
+  - button "删除分析 life_introspection · question 分布":
+    - generic: 删除
+  - button "life_introspection · created_at 趋势"
+  - paragraph: 10/2/2026, 4:24:40 AM
+  - paragraph: 数据概况：0 条记录，5 个字段。已扫描字段未发现空值。统计基于当前数据。
+  - button "加入首页":
+    - generic: 加入首页
+  - button "删除分析 life_introspection · created_at 趋势":
+    - generic: 删除
+  - button "life_link · 记录数"
+  - paragraph: 10/2/2026, 4:24:40 AM
+  - paragraph: 数据概况：6 条记录，5 个字段。已扫描字段未发现空值。统计基于当前数据。
+  - button "加入首页":
+    - generic: 加入首页
+  - button "删除分析 life_link · 记录数":
+    - generic: 删除
+  - button "life_link · weight 合计"
+  - paragraph: 10/2/2026, 4:24:40 AM
+  - paragraph: 数据概况：6 条记录，5 个字段。已扫描字段未发现空值。统计基于当前数据。
+  - button "加入首页":
+    - generic: 加入首页
+  - button "删除分析 life_link · weight 合计":
+    - generic: 删除
+  - button "life_link_type · 记录数"
+  - paragraph: 10/2/2026, 4:24:40 AM
+  - paragraph: 数据概况：6 条记录，3 个字段。已扫描字段未发现空值。统计基于当前数据。
+  - button "加入首页":
+    - generic: 加入首页
+  - button "删除分析 life_link_type · 记录数":
+    - generic: 删除
+  - button "life_link_type · name 分布"
+  - paragraph: 10/2/2026, 4:24:40 AM
+  - paragraph: 数据概况：6 条记录，3 个字段。已扫描字段未发现空值。统计基于当前数据。
+  - button "加入首页":
+    - generic: 加入首页
+  - button "删除分析 life_link_type · name 分布":
+    - generic: 删除
+  - button "life_object · 记录数"
+  - paragraph: 10/2/2026, 4:24:40 AM
+  - paragraph: 数据概况：7 条记录，5 个字段。已扫描字段未发现空值。统计基于当前数据。
+  - button "加入首页":
+    - generic: 加入首页
+  - button "删除分析 life_object · 记录数":
+    - generic: 删除
+  - button "life_object · name 分布"
+  - paragraph: 10/2/2026, 4:24:40 AM
+  - paragraph: 数据概况：7 条记录，5 个字段。已扫描字段未发现空值。统计基于当前数据。
+  - button "加入首页":
+    - generic: 加入首页
+  - button "删除分析 life_object · name 分布":
+    - generic: 删除
+  - button "life_object_type · 记录数"
+  - paragraph: 10/2/2026, 4:24:40 AM
+  - paragraph: 数据概况：2 条记录，3 个字段。已扫描字段未发现空值。统计基于当前数据。
+  - button "加入首页":
+    - generic: 加入首页
+  - button "删除分析 life_object_type · 记录数":
+    - generic: 删除
+  - button "life_object_type · name 分布"
+  - paragraph: 10/2/2026, 4:24:40 AM
+  - paragraph: 数据概况：2 条记录，3 个字段。已扫描字段未发现空值。统计基于当前数据。
+  - button "加入首页":
+    - generic: 加入首页
+  - button "删除分析 life_object_type · name 分布":
+    - generic: 删除
+- contentinfo:
+  - generic: DuckDB 1.33.1
+  - generic: "|"
+  - generic: sql_funds_flow [OPFS]
+  - generic: "|"
+  - generic: 持久化库
+  - generic: "|"
+  - generic: 13 张表
+  - generic: "|"
+  - generic: 13 个活动表
+  - generic: "|"
+  - generic: "内存: 1.75 MB / 3.1 GiB"
+  - generic: 引擎就绪
+  - generic: "|"
+  - generic: 02:23
+  - button "刷新运行时状态":

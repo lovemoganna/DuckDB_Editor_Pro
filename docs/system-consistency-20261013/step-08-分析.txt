@@ -1,0 +1,177 @@
+- banner "全局工作区顶栏":
+  - button "🪶 DuckDB Studio PRO":
+    - generic: 🪶
+    - generic: DuckDB Studio
+    - generic: PRO
+  - navigation "业务领域大类":
+    - button "工程核心":
+      - generic: 工程核心
+    - button "分析洞察":
+      - generic: 分析洞察
+    - button "知识沉淀":
+      - generic: 知识沉淀
+    - button "AI 认知":
+      - generic: AI 认知
+  - tablist "分析洞察功能标签页":
+    - tab "指标":
+      - generic: 指标
+    - tab "可视化":
+      - generic: 可视化
+    - tab "分析" [active] [selected]:
+      - generic: 分析
+    - tab "历史":
+      - generic: 历史
+    - tab "审计":
+      - generic: 审计
+  - button "项目 Ctrl+Shift+D":
+    - generic: 项目
+    - generic: Ctrl+Shift+D
+  - button "新建表":
+    - generic: 新建表
+  - button "memory 临时分析空间":
+    - generic: memory
+    - generic: 临时分析空间
+  - button "AI 助手 Ctrl+I":
+    - generic: AI 助手
+    - generic: Ctrl+I
+  - button "⌘K":
+  - button "帮助与快捷键":
+  - button "切换为浅色模式":
+  - button "AI 模型设置":
+- main:
+  - heading "分析中心" [level=1]
+  - paragraph: 多维透视 · 时序走势 · 业务配方 · SQL 模板 · DuckDB 本地内核
+  - button "仪表盘":
+    - generic: 仪表盘
+  - generic: 上下文
+  - combobox "切换分析库或 Schema":
+    - option "内存库 · memory（临时）" [selected]
+    - option "持久库 · duckdb_manager_workspace"
+    - option "Schema · memory.__studio"
+  - tablist "分析工具模式":
+    - tab "关联分析":
+      - generic: 关联分析
+    - tab "数据体检":
+      - generic: 数据体检
+    - tab "透视聚合":
+      - generic: 透视聚合
+    - tab "时序分析":
+      - generic: 时序分析
+    - tab "场景配方":
+      - generic: 场景配方
+    - tab "SQL 模板" [selected]:
+      - generic: SQL 模板
+  - heading "SQL 模板" [level=2]
+  - paragraph: 精选高频业务场景。先在看板快速寻找，挑选后再深入配置与带入执行。
+  - button "资产统计 (44)":
+    - generic: 资产统计 (44)
+  - button "导出":
+    - generic: 导出
+  - button "新建模板":
+    - generic: 新建模板
+  - button "全部 (44)"
+  - button "自定义 (0)":
+    - generic: 自定义 (0)
+  - button "DuckDB 2026 WASM 原生黑科技(7)":
+    - text: DuckDB 2026 WASM 原生黑科技
+    - generic: (7)
+  - button "基础查询(4)":
+    - text: 基础查询
+    - generic: (4)
+  - button "条件过滤(4)":
+    - text: 条件过滤
+    - generic: (4)
+  - combobox:
+    - option "更多分类 (9) ▼" [disabled] [selected]
+    - option "字符串与日期处理 (5)"
+    - option "聚合统计 (5)"
+    - option "窗口分析 (3)"
+    - option "JOIN 关联 (4)"
+    - option "多表与集合操作 (3)"
+    - option "CSV/JSON/Parquet 读取 (2)"
+    - option "数据导出 (2)"
+    - option "建表与数据修改 (2)"
+    - option "元数据查询 (3)"
+  - textbox "搜索场景名称或用途..."
+  - heading "HTTP Parquet 免全量下载 Range 极速流式查询 预设" [level=3]:
+    - text: HTTP Parquet 免全量下载 Range 极速流式查询
+    - generic: 预设
+  - generic: DuckDB 2026 WASM 原生黑科技
+  - text: 利用 DuckDB 引擎 HTTP Range 分片加载，零延迟检索远端 GB 级 Parquet 文件。
+  - generic: "#read_parquet"
+  - button "进入详细内容":
+    - generic: 进入详细内容
+  - heading "PIVOT ... ON 动态列透视交叉分析表 预设" [level=3]:
+    - text: PIVOT ... ON 动态列透视交叉分析表
+    - generic: 预设
+  - generic: DuckDB 2026 WASM 原生黑科技
+  - text: 一行语法替代繁琐的 CASE WHEN 交叉表拼接，支持自动列扩展。
+  - generic: "#PIVOT"
+  - button "进入详细内容":
+    - generic: 进入详细内容
+  - heading "UNNEST 嵌套 List 与 Struct 字段展开解构 预设" [level=3]:
+    - text: UNNEST 嵌套 List 与 Struct 字段展开解构
+    - generic: 预设
+  - generic: DuckDB 2026 WASM 原生黑科技
+  - text: 原生拆解 JSON/Map/Array 嵌套结构为平铺行流数据。
+  - generic: "#UNNEST"
+  - button "进入详细内容":
+    - generic: 进入详细内容
+  - heading "EXPLAIN ANALYZE 物理执行计划与算子耗时剖析 预设" [level=3]:
+    - text: EXPLAIN ANALYZE 物理执行计划与算子耗时剖析
+    - generic: 预设
+  - generic: DuckDB 2026 WASM 原生黑科技
+  - text: 输出内存算子执行树、扫描成本与 HashJoin 耗时，帮助诊断 SQL 性能瓶颈。
+  - generic: "#EXPLAIN ANALYZE"
+  - button "进入详细内容":
+    - generic: 进入详细内容
+  - heading "CREATE MACRO 一键定义 DuckDB 自定义重用宏函数 预设" [level=3]:
+    - text: CREATE MACRO 一键定义 DuckDB 自定义重用宏函数
+    - generic: 预设
+  - generic: DuckDB 2026 WASM 原生黑科技
+  - text: 将复杂逻辑封装为 SQL 宏，像原生内建函数一样直接调用。
+  - generic: "#CREATE MACRO"
+  - button "进入详细内容":
+    - generic: 进入详细内容
+  - heading "array_cosine_similarity 向量相似度余弦计算 预设" [level=3]:
+    - text: array_cosine_similarity 向量相似度余弦计算
+    - generic: 预设
+  - generic: DuckDB 2026 WASM 原生黑科技
+  - text: 用于 AI Embedding 向量相似度快速比对检索。
+  - generic: "#AI 向量检索"
+  - button "进入详细内容":
+    - generic: 进入详细内容
+  - heading "ST_Point & ST_Distance 地理空间经纬度距离计算 预设" [level=3]:
+    - text: ST_Point & ST_Distance 地理空间经纬度距离计算
+    - generic: 预设
+  - generic: DuckDB 2026 WASM 原生黑科技
+  - text: 利用地理空间函数快速计算坐标间的空间距离。
+  - generic: "#Spatial"
+  - button "进入详细内容":
+    - generic: 进入详细内容
+  - heading "SELECT 无表计算与版本自检 预设" [level=3]:
+    - text: SELECT 无表计算与版本自检
+    - generic: 预设
+  - generic: 基础查询
+  - text: 无需指定 FROM 表，直接进行数学计算或验证当前 DuckDB 引擎版本号。
+  - generic: "#SELECT"
+  - button "进入详细内容":
+    - generic: 进入详细内容
+  - button "展开更多场景 (已展示 8 / 44 项)":
+    - generic: 展开更多场景 (已展示 8 / 44 项)
+- contentinfo:
+  - generic: DuckDB 1.33.1
+  - generic: "|"
+  - generic: memory [MEMORY]
+  - generic: "|"
+  - generic: 内存库
+  - generic: "|"
+  - generic: 0 张表
+  - generic: "|"
+  - generic: 暂无表
+  - generic: "|"
+  - generic: "内存: 2.39 MB / 3.1 GiB"
+  - generic: 引擎就绪
+  - generic: "|"
+  - generic: 07:09
+  - button "刷新运行时状态":

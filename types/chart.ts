@@ -2,33 +2,8 @@
 // Chart & Visualization Types
 // ============================================
 
-export type ChartType = 'bar' | 'line' | 'area' | 'pie' | 'doughnut' | 'scatter' | 'counter';
-
-export interface ChartConfig {
-  id: string;
-  title: string;
-  type: ChartType;
-  xKey: string;
-  yKeys: string[];
-  yRightKeys?: string[];
-  groupBy?: string;
-  aggregation?: 'none' | 'count' | 'sum' | 'avg' | 'min' | 'max';
-  stacked?: boolean;
-  horizontal?: boolean;
-  showLegend?: boolean;
-  showValues?: boolean;
-  yAxisLabel?: string;
-  colors?: string[];
-  metricId?: string;
-  metricPackageId?: string;
-  metricName?: string;
-  source?: 'metric' | 'manual';
-  drillDownConfig?: {
-    enabled: boolean;
-    drillDownSql?: string;
-    drillDownColumn?: string;
-  };
-}
+export type { ChartType, ChartConfig } from '../types';
+import type { ChartConfig } from '../types';
 
 // ============================================
 // SQL Editor Tab
@@ -62,6 +37,10 @@ export interface SavedQuery {
   charts?: ChartConfig[];
   widgetType?: 'value' | 'table' | 'chart';
   metricChartId?: string;
+  referencedTables?: string[];
+  referencedSchemas?: string[];
+  lastResultMeta?: { rowCount?: number; columns?: string[]; ranAt?: number };
+  vizHint?: 'strong' | 'weak' | 'none';
 }
 
 export interface DashboardItem {
@@ -83,5 +62,6 @@ export interface Dashboard {
   tags?: string[];
   theme?: string;
   template?: string;
+  /** When true (default), widget x/y/w/h are frozen — window resize must not rewrite layout. */
+  layoutLocked?: boolean;
 }
-

@@ -1,0 +1,109 @@
+- banner "全局工作区顶栏":
+  - button "🪶 DuckDB Studio PRO":
+    - generic: 🪶
+    - generic: DuckDB Studio
+    - generic: PRO
+  - navigation "业务领域大类":
+    - button "工程核心":
+      - generic: 工程核心
+    - button "分析洞察":
+      - generic: 分析洞察
+    - button "知识沉淀":
+      - generic: 知识沉淀
+    - button "AI 认知":
+      - generic: AI 认知
+  - tablist "工程核心功能标签页":
+    - tab "仪表盘":
+      - generic: 仪表盘
+      - generic: "1"
+    - tab "数据":
+      - generic: 数据
+      - generic: "2"
+    - tab "Schema":
+      - generic: Schema
+      - generic: "3"
+    - tab "SQL":
+      - generic: SQL
+      - generic: "4"
+    - tab "数据流" [active] [selected]:
+      - generic: 数据流
+  - button "项目":
+    - generic: 项目
+  - button "sql_funds_flow 已保存到 OPFS":
+    - generic: sql_funds_flow
+    - generic: 已保存到 OPFS
+  - button "AI 助手 Ctrl+I":
+    - generic: AI 助手
+    - generic: Ctrl+I
+  - button "⌘K":
+  - button "帮助与快捷键":
+  - button "切换为浅色模式":
+  - button "AI 模型设置":
+- main:
+  - generic: SQL 流程图
+  - button "当前 SQL 流图" [pressed]:
+    - generic: 当前 SQL 流图
+  - button "全库表与视图血缘":
+    - generic: 全库表与视图血缘
+  - button "自由编排":
+    - generic: 自由编排
+  - generic: "关联:"
+  - combobox "关联查询":
+    - option "查询 1" [selected]
+  - generic "流程图始终由当前编辑器 SQL 实时生成":
+    - generic: SQL 实时驱动
+  - button "SQL 工作台":
+    - generic: SQL 工作台
+  - button "工具":
+    - generic: 工具
+  - button "从 SQL 同步":
+    - generic: 从 SQL 同步
+  - button "运行全流程" [disabled]:
+    - generic: 运行全流程
+  - button "展开左侧资产与算子库":
+  - button "数据表与血缘对象":
+  - button "ETL 算子库":
+  - 'button "选择模式 (快捷键: S)"':
+  - 'button "平移画布 (快捷键: H)"':
+  - button "缩小画布":
+  - generic: 100%
+  - button "放大画布":
+  - button "全图自适应居中 (Fit View)":
+  - button "智能分层拓扑整理布局":
+  - button "切换全景小地图 (MiniMap)":
+  - heading "等待从 SQL 生成执行路径" [level=3]
+  - paragraph: 检测到编辑器中已有 SQL。同步后将基于 DuckDB 执行计划生成算子路径。
+  - paragraph: 连线：右中输出 → 左中输入
+  - button "从当前 SQL 同步":
+    - generic: 从当前 SQL 同步
+  - button "全库表血缘":
+    - generic: 全库表血缘
+  - button "进入自由编排":
+    - generic: 进入自由编排
+  - button "运行日志":
+    - generic: 运行日志
+  - button "节点历史":
+    - generic: 节点历史
+  - button "数据采样":
+    - generic: 数据采样
+  - generic: 流程待运行
+  - generic: 0 个节点
+  - generic: 0 条数据流
+  - button "展开控制台":
+    - generic: 展开控制台
+- contentinfo:
+  - generic: DuckDB 1.33.1
+  - generic: "|"
+  - generic: sql_funds_flow [OPFS]
+  - generic: "|"
+  - generic: 持久化库
+  - generic: "|"
+  - generic: 13 张表
+  - generic: "|"
+  - generic: 13 个活动表
+  - generic: "|"
+  - generic: "内存: 1.75 MB / 3.1 GiB"
+  - generic: 引擎就绪
+  - generic: "|"
+  - generic: 18:32
+  - button "刷新运行时状态":

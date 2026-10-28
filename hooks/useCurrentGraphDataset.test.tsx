@@ -1,0 +1,53 @@
+import {act,cleanup,renderHook,waitFor} from '@testing-library/react';
+import {afterEach,beforeEach,expect,it,vi} from 'vitest';
+const api=vi.hoisted(()=>({scope:vi.fn(),read:vi.fn(),load:vi.fn(),revision:0}));
+vi.mock('../services/duckdbService',()=>({duckDBService:{getCurrentCatalogAndSchema:api.scope,readQuery:api.read}}));
+vi.mock('../services/workbench/datasets',()=>({loadDatasets:api.load}));
+vi.mock('../services/workbench/runtime',()=>({useWorkbenchRevision:()=>api.revision}));
+import {useAppStore} from './store/useAppStore';
+import {useCurrentGraphDataset} from './useCurrentGraphDataset';
+const dataset={id:'query:1',name:'已完成交易',catalog:'memory',schema:'main',kind:'query' as const,version:1,sql:"SELECT id FROM orders WHERE status='completed'",fields:[]};
+beforeEach(()=>{vi.clearAllMocks();api.revision=0;api.scope.mockResolvedValue({catalog:'memory',schema:'main'});api.read.mockResolvedValue([{column_name:'id',column_type:'INTEGER'}]);useAppStore.setState({currentDatabase:'memory',currentTable:null,activeDataset:null});});
+afterEach(cleanup);
+it('resolves the selected dataset query rather than substituting a physical table',async()=>{
+  useAppStore.setState({currentTable:'unrelated',activeDataset:dataset});
+  const {result}=renderHook(useCurrentGraphDataset);
+  await waitFor(()=>expect(result.current.pending).toBe(false));
+  expect(result.current.dataset?.sql).toBe(dataset.sql);expect(result.current.dataset?.fields).toEqual([{name:'id',type:'INTEGER'}]);
+  expect(api.load).not.toHaveBeenCalled();
+});
+it('clears the old dataset synchronously and ignores its late metadata response',async()=>{
+  let finish:(value:any)=>void=()=>{};
+  api.read.mockImplementationOnce(()=>new Promise(resolve=>finish=resolve));
+  useAppStore.setState({activeDataset:dataset});
+  const {result}=renderHook(useCurrentGraphDataset);
+  await waitFor(()=>expect(api.read).toHaveBeenCalledTimes(1));
+  act(()=>useAppStore.getState().setActiveDataset({...dataset,id:'query:2',sql:'SELECT id FROM users'}));
+  expect(result.current.dataset).toBeNull();
+  await waitFor(()=>expect(result.current.dataset?.id).toBe('query:2'));
+  await act(async()=>finish([{column_name:'old',column_type:'VARCHAR'}]));
+  expect(result.current.dataset?.fields[0].name).toBe('id');
+});
+it('fails closed on a changed Schema and never queries an old database source',async()=>{
+  useAppStore.setState({activeDataset:{...dataset,schema:'other'}});
+  const {result}=renderHook(useCurrentGraphDataset);
+  await waitFor(()=>expect(result.current.error).toContain('Schema'));
+  expect(result.current.dataset).toBeNull();expect(api.read).not.toHaveBeenCalled();
+  act(()=>useAppStore.getState().setCurrentDatabase('next'));
+  expect(useAppStore.getState().activeDataset).toBeNull();expect(useAppStore.getState().currentTable).toBeNull();
+});
+it('refreshes a Home dataset definition while preserving its explicitly bound business filters',async()=>{
+  const definition={...dataset,sql:'SELECT id,status FROM memory.main.orders',fields:[{name:'id',type:'INTEGER'},{name:'status',type:'VARCHAR'}]};
+  api.load.mockResolvedValue([definition]);
+  useAppStore.setState({activeDataset:{...dataset,origin:'home',appliedFilters:[{id:'status-filter',field:'status',operator:'eq',value:'completed',bindings:{[dataset.id]:'status'}}]}});
+  const {result,rerender}=renderHook(useCurrentGraphDataset);
+  await waitFor(()=>expect(result.current.pending).toBe(false));
+  expect(result.current.dataset?.sql).toContain("'completed'");
+  api.load.mockResolvedValue([{...definition,version:2,sql:'SELECT id,status FROM memory.main.latest_orders'}]);
+  api.revision++;rerender();
+  await waitFor(()=>expect(result.current.pending).toBe(false));
+  expect(result.current.dataset?.sql).toContain('latest_orders');expect(result.current.dataset?.sql).toContain("'completed'");
+  api.load.mockResolvedValue([]);api.revision++;rerender();
+  await waitFor(()=>expect(result.current.error).toContain('已移除'));
+  expect(result.current.dataset).toBeNull();
+});

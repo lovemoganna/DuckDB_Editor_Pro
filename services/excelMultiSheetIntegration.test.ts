@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { workbookIO } from './workbookIO';
 import { dataImportService } from './dataImportService';
 import { duckDBService } from './duckdbService';
+import { allocateExcelTableNames } from './importTableNames';
 
 describe('Excel Multi-Sheet Comprehensive Integration Pipeline', () => {
   it('parses and imports all sheets while handling empty, header-only, and distinct schema sheets', async () => {
@@ -67,6 +68,9 @@ describe('Excel Multi-Sheet Comprehensive Integration Pipeline', () => {
     expect(sheetEmpty).toBeDefined();
     expect(sheetEmpty?.isEmpty).toBe(true);
 
+    // Workbook parsing registers virtual files; the browser engine is outside this fixture.
+    vi.spyOn(duckDBService, 'registerFileText').mockResolvedValue(undefined);
+    vi.spyOn(duckDBService, 'query').mockResolvedValue([]);
     // 3. Test dataImportService.sniffSource
     const sniffResult = await dataImportService.sniffSource(
       'local',
@@ -88,11 +92,11 @@ describe('Excel Multi-Sheet Comprehensive Integration Pipeline', () => {
 
     const customersMeta = sniffResult.sheets?.find(s => s.name === 'Customers');
     expect(customersMeta?.selected).toBe(true);
-    expect(customersMeta?.targetTableName).toContain('Customers');
+    expect(customersMeta?.targetTableName).toBe('Customers');
 
     const ordersMeta = sniffResult.sheets?.find(s => s.name === 'Orders');
     expect(ordersMeta?.selected).toBe(true);
-    expect(ordersMeta?.targetTableName).toContain('Orders');
+    expect(ordersMeta?.targetTableName).toBe('Orders');
 
     const emptyMeta = sniffResult.sheets?.find(s => s.name === 'Empty_Logs');
     expect(emptyMeta?.selected).toBe(false);
@@ -113,6 +117,10 @@ describe('Excel Multi-Sheet Comprehensive Integration Pipeline', () => {
         return [{ row_count: 0, cnt: 0 }];
       }
       return [];
+    });
+    vi.spyOn(duckDBService, 'executeTransaction').mockImplementation(async statements => {
+      if (!Array.isArray(statements)) throw new Error('Expected SQL transaction statements');
+      for (const sql of statements) await duckDBService.query(sql);
     });
 
     const batchRes = await dataImportService.executeBatchImport(
@@ -149,4 +157,86 @@ describe('Excel Multi-Sheet Comprehensive Integration Pipeline', () => {
     const orderRows = await duckDBService.query('SELECT count(*) as cnt FROM dept_orders');
     expect(Number(orderRows[0].cnt)).toBe(2);
   });
+
+  it('allocates clean Excel table names without prepending workbook prefix', () => {
+    // 1. Multi-sheet workbook uses sheet names directly without file prefix
+    const multiNames = allocateExcelTableNames(
+      [{ name: 'Customers' }, { name: 'Orders' }, { name: 'Products' }],
+      'company_2026_annual_report.xlsx'
+    );
+    expect(multiNames).toEqual(['Customers', 'Orders', 'Products']);
+
+    // 2. Collision resolution in multi-sheet workbook
+    const collisionNames = allocateExcelTableNames(
+      [{ name: 'Orders' }, { name: 'orders' }, { name: 'orders_2' }],
+      'store.xlsx'
+    );
+    expect(collisionNames).toEqual(['Orders', 'orders_3', 'orders_2']);
+
+    // 3. Single-sheet with generic default sheet name uses clean file name without _imported
+    const singleGenericNames = allocateExcelTableNames(
+      [{ name: 'Sheet1' }],
+      'sales_data_2026.xlsx'
+    );
+    expect(singleGenericNames).toEqual(['sales_data_2026']);
+
+    const singleChineseGenericNames = allocateExcelTableNames(
+      [{ name: '工作表1' }],
+      '客户清单.xlsx'
+    );
+    expect(singleChineseGenericNames).toEqual(['客户清单']);
+
+    // 4. Single-sheet with custom sheet name uses custom sheet name without file prefix
+    const singleCustomNames = allocateExcelTableNames(
+      [{ name: 'vip_users' }],
+      'raw_export_2026.xlsx'
+    );
+    expect(singleCustomNames).toEqual(['vip_users']);
+
+    // 5. Sheet names starting with numbers are sanitized to valid SQL identifiers
+    const numericNames = allocateExcelTableNames(
+      [{ name: '2025' }, { name: '2026' }],
+      'financials.xlsx'
+    );
+    expect(numericNames).toEqual(['_2025', '_2026']);
+  });
+
+  it('sniffs single-sheet Excel workbook and assigns clean targetTableName without file prefix or _imported', async () => {
+    const singleBuffer = await workbookIO.createWorkbookBuffer([
+      {
+        name: 'Sheet1',
+        headers: ['id', 'name'],
+        rows: [[1, 'Item 1']],
+      },
+    ]);
+
+    const singleFile = new File([singleBuffer], 'inventory_list.xlsx', {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+
+    vi.spyOn(duckDBService, 'registerFileText').mockResolvedValue(undefined);
+    vi.spyOn(duckDBService, 'query').mockImplementation(async (sql: string) => {
+      if (sql.includes('DESCRIBE')) {
+        return [{ column_name: 'id', column_type: 'BIGINT', null: 'NO' }];
+      }
+      if (sql.includes('LIMIT 100')) {
+        return [{ id: 1, name: 'Item 1' }];
+      }
+      return [];
+    });
+
+    const result = await dataImportService.sniffSource(
+      'local',
+      singleFile,
+      '',
+      '',
+      { format: 'Excel', delimiter: ',', quote: '"', header: true, encoding: 'UTF-8' }
+    );
+
+    expect(result.sheets).toHaveLength(1);
+    expect(result.sheets![0].targetTableName).toBe('inventory_list');
+    expect(result.sheets![0].targetTableName).not.toContain('imported');
+    expect(result.sheets![0].targetTableName).not.toContain('Sheet1');
+  });
 });
+

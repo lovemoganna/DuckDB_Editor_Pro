@@ -1,0 +1,22 @@
+[
+  {
+    "file": "components/Dashboard/Home/HomeBoardCanvas.tsx",
+    "before_sha256": "70bf6e80fd088f29aa8d843ab1a172a210e99b07b9352cdcfc801eb0db27493c",
+    "after_sha256": "0fe338289563578c9e507c101369048ff99ca1ba1218cd288aa69fb089e8829a"
+  },
+  {
+    "file": "components/Dashboard/Home/WorkspaceObjects.tsx",
+    "before_sha256": "3f3972a02137176cd261518f2049fe38a46c5241544c6f435b971ad692572d82",
+    "after_sha256": "41c95c06fd0aa73af1fe6988b2d48aabe4ded19302c853406ffb0e22c4215600"
+  },
+  {
+    "file": "components/Dashboard/WidgetChartConfigPanel.tsx",
+    "before_sha256": "3f2e57d8e9ea4a5bd91638663ebb32dd7098195d8bb946d009bb93dbf3e74663",
+    "after_sha256": "e893ae673696a7e03cd796baa0c1882bd4bdaebb0a50b3b42716b89843416442"
+  },
+  {
+    "file": "components/DashboardWidget.tsx",
+    "before_sha256": "a03a152b6681eea9dbfb946fd98718682f881e6ada663ba0c4925aefc452c38c",
+    "after_sha256": "f706cc7011898e5183371ca2031ad3306b7395e61a4daa75b86f67069dffd30f"
+  }
+]

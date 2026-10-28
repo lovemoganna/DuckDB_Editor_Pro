@@ -104,8 +104,8 @@ export const SkillComparison: React.FC<SkillComparisonProps> = ({
                       <div
                         className="w-8 h-8 flex items-center justify-center border"
                         style={{
-                          background: `${design?.colors.primary}20`,
-                          borderColor: `${design?.colors.primary}40`,
+                          background: `color-mix(in srgb, ${design?.colors.primary} 12.55%, transparent)`,
+                          borderColor: `color-mix(in srgb, ${design?.colors.primary} 25.1%, transparent)`,
                         }}
                       >
                         <Icon className="w-4 h-4" style={{ color: design?.colors.primary }} />

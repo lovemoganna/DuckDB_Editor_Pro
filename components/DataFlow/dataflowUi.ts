@@ -54,7 +54,7 @@ export const dfTextarea =
 
 /** 按钮 — primary = accent green，与 Workbench ActionButton 一致 */
 export const dfBtnPrimary =
-  `inline-flex items-center justify-center gap-1.5 h-7 rounded-md bg-monokai-accent px-2.5 text-xs font-semibold text-monokai-bg hover:bg-monokai-accent-hover active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-all shadow-sm ${dfFocus}`;
+  `inline-flex items-center justify-center gap-1.5 h-7 rounded-md bg-monokai-accent px-2.5 text-xs font-semibold text-[var(--dataflow-on-accent)] hover:bg-monokai-accent-hover active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-all shadow-sm ${dfFocus}`;
 
 export const dfBtnSecondary =
   `inline-flex items-center justify-center gap-1 h-7 rounded-md border border-monokai-border bg-monokai-surface/70 px-2 text-xs text-monokai-fg hover:bg-monokai-elevated cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${dfFocus}`;
@@ -70,7 +70,7 @@ export const dfBtnWarn =
 
 /** 下拉菜单项 */
 export const dfMenuPanel =
-  'absolute z-50 mt-1.5 flex flex-col gap-0.5 rounded-md border border-monokai-border bg-monokai-surface/98 p-1 shadow-2xl backdrop-blur-md animate-in fade-in zoom-in-95 duration-100 font-sans text-xs';
+  'absolute z-50 mt-1.5 flex flex-col gap-0.5 rounded-md border border-monokai-border bg-monokai-surface p-1 shadow-2xl backdrop-blur-md animate-in fade-in zoom-in-95 duration-100 font-sans text-xs';
 
 export const dfMenuItem =
   `flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-monokai-fg hover:bg-monokai-elevated transition-colors cursor-pointer ${dfFocus}`;
@@ -79,6 +79,14 @@ export const dfMenuItem =
 export const dfSection = 'space-y-2';
 export const dfSectionTitle =
   'text-2xs font-semibold text-monokai-comment tracking-wide';
+
+/** 属性抽屉分区标题（对齐本体图谱实体画布属性面板） */
+export const dfDrawerSectionLabel =
+  'text-meta text-monokai-comment font-semibold';
+
+/** 属性抽屉快捷操作格 */
+export const dfDrawerActionTile =
+  `flex flex-col items-center justify-center gap-1 p-2 text-xs bg-monokai-sidebar hover:bg-monokai-surface text-monokai-fg-muted font-bold rounded-lg transition-colors border border-monokai-border cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${dfFocus}`;
 
 export const dfCard =
   'rounded-md border border-monokai-border bg-monokai-bg/70 p-2';
@@ -153,3 +161,9 @@ export const DF_COLOR = {
   edgeMuted: 'var(--monokai-edge-muted)',
   handleRing: 'var(--monokai-handle-ring)',
 } as const;
+
+/** Shared status wording for node cards, inspector, and execution feedback. */
+export const DF_STATUS_LABEL: Record<string, string> = {
+  idle: '待配置', configured: '待执行', dirty: '需重跑', queued: '排队中',
+  running: '执行中', success: '已执行', error: '失败', blocked: '依赖阻塞', cancelled: '已取消',
+};

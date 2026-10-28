@@ -152,6 +152,9 @@ export function compileNodeSql(
       if (src?.tableName) {
         return { sql: `SELECT * FROM "${src.tableName}"` };
       }
+      if (node.data.tableName) {
+        return { sql: `SELECT * FROM "${node.data.tableName}"` };
+      }
       if (src?.filePath) {
         if (src.fileType === 'parquet' || src.filePath.endsWith('.parquet')) {
           return { sql: `SELECT * FROM read_parquet('${src.filePath}')` };
@@ -174,6 +177,16 @@ export function compileNodeSql(
       if (!upstream) {
         return { sql: '', error: '缺少上游数据输入' };
       }
+      let predicate = (node.data.predicate || '').trim().replace(/^where\s*:\s*/i, '').replace(/;\s*$/, '').trim();
+      if (!predicate && node.data.clauseSnippet) {
+        const snippet = node.data.clauseSnippet.trim();
+        if (/^WHERE\s+/i.test(snippet)) {
+          predicate = snippet.replace(/^WHERE\s+/i, '').replace(/;\s*$/, '').trim();
+        }
+      }
+      if (predicate) {
+        return { sql: `SELECT * FROM "${upstream}" WHERE ${predicate}` };
+      }
       return { sql: `SELECT * FROM "${upstream}"` };
     }
 
@@ -181,6 +194,14 @@ export function compileNodeSql(
       const upstream = inputs.primary;
       const sqlCfg = config as SqlTransformNodeConfig;
       let rawSql = (sqlCfg?.sql || '').trim();
+
+      // 若未设置自定义 SQL，尝试从生成的 sqlSnippet / clauseSnippet 获取
+      if ((!rawSql || rawSql === 'SELECT * FROM {{input}}') && node.data.sqlSnippet) {
+        const snippet = node.data.sqlSnippet.trim();
+        if (/^SELECT\b/i.test(snippet)) {
+          rawSql = snippet;
+        }
+      }
 
       if (!upstream) {
         // If there's no upstream but rawSql is provided and valid (e.g. self-contained SELECT), use it!
@@ -190,7 +211,13 @@ export function compileNodeSql(
         return { sql: '', error: '缺少上游数据输入' };
       }
 
-      if (!rawSql) {
+      if (!rawSql || rawSql === 'SELECT * FROM {{input}}') {
+        if (node.data.clauseSnippet && /^ORDER\s+BY\b/i.test(node.data.clauseSnippet.trim())) {
+          return { sql: `SELECT * FROM "${upstream}" ${node.data.clauseSnippet.trim()}` };
+        }
+        if (node.data.predicate) {
+          return { sql: `SELECT * FROM "${upstream}" WHERE ${node.data.predicate.trim()}` };
+        }
         return { sql: `SELECT * FROM "${upstream}"` };
       }
 
@@ -229,7 +256,14 @@ export function compileNodeSql(
       }
 
       if (!onClause) {
-        onClause = '1 = 1';
+        if (node.data.joinSummary && node.data.joinSummary.trim()) {
+          onClause = node.data.joinSummary.trim();
+        } else if (node.data.clauseSnippet && /\bON\s+(.+)$/i.test(node.data.clauseSnippet)) {
+          const m = node.data.clauseSnippet.match(/\bON\s+(.+)$/i);
+          if (m && m[1]) onClause = m[1].trim();
+        } else {
+          onClause = '1 = 1';
+        }
       }
 
       // 仅排除右表中已在连接键中且左右同名的字段，杜绝写死特定业务字段名
@@ -322,7 +356,7 @@ export function compileNodeSql(
 
       // 如果有主查询完整 SQL，优先运行主查询
       if (resCfg.sql && resCfg.sql.trim() && /SELECT\b/i.test(resCfg.sql)) {
-        let raw = resCfg.sql.trim();
+        let raw = resCfg.sql.trim().replace(/;\s*$/, '').trim();
         if (upstream && raw.includes('{{input}}')) {
           raw = raw.replace(/\{\{input\}\}/g, `"${upstream}"`);
         }

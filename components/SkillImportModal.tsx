@@ -51,7 +51,7 @@ interface SkillImportModalProps {
   onImport?: (skill: AISkill) => void;
 }
 
-type ImportTab = 'json' | 'file' | 'url' | 'github' | 'marketplace' | 'custom';
+type ImportTab = 'json' | 'file' | 'url' | 'github' | 'marketplace';
 
 export const SkillImportModal: React.FC<SkillImportModalProps> = ({ 
   isOpen, 
@@ -313,7 +313,6 @@ export const SkillImportModal: React.FC<SkillImportModalProps> = ({
               { id: 'url' as const, label: 'URL导入', icon: Link },
               { id: 'github' as const, label: 'GitHub', icon: Github },
               { id: 'marketplace' as const, label: '技能市场', icon: ShoppingCart },
-              { id: 'custom' as const, label: '自定义创建', icon: PlusCircle }
             ].map(tab => (
               <button
                 key={tab.id}
@@ -672,28 +671,7 @@ export const SkillImportModal: React.FC<SkillImportModalProps> = ({
             </div>
           )}
 
-          {/* Custom Tab */}
-          {activeTab === 'custom' && (
-            <div className="space-y-4">
-              <div className="p-4 bg-monokai-amethyst/10 rounded-lg border border-monokai-amethyst/30">
-                <div className="flex items-center gap-2 mb-2">
-                  <Sparkles className="w-4 h-4 text-monokai-amethyst" />
-                  <h4 className="font-medium text-monokai-amethyst text-sm">创建自定义技能</h4>
-                </div>
-                <p className="text-xs text-monokai-comment">
-                  使用内置的编辑器创建您自己的AI技能。自定义技能可以保存到本地并在以后使用。
-                </p>
-              </div>
 
-              <div className="text-center py-8">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-xl bg-monokai-sidebar flex items-center justify-center">
-                  <Settings className="w-8 h-8 text-monokai-comment" />
-                </div>
-                <p className="text-monokai-comment">自定义技能编辑器开发中...</p>
-                <p className="text-xs text-monokai-comment mt-2">请先使用JSON或文件方式导入技能</p>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Footer */}

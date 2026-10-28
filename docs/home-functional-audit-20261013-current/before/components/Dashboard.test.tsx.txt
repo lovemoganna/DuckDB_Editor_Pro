@@ -1,0 +1,281 @@
+// @vitest-environment jsdom
+
+import React from 'react';
+import { act, cleanup, fireEvent, render, renderHook, screen, waitFor, within } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ConfirmDialogProvider } from './ui/ConfirmDialog';
+import { Dashboard } from './Dashboard';
+import { Tab } from '../types';
+import { useAppStore } from '../hooks/store/useAppStore';
+import { useSqlEditorStore } from '../hooks/store/useSqlEditorStore';
+import { useDashboardWorkflow } from '../hooks/useDashboardWorkflow';
+import { duckDBService } from '../services/duckdbService';
+
+const mocks = vi.hoisted(() => ({
+  query: vi.fn(),
+  getTables: vi.fn(),
+  getTableSchema: vi.fn(),
+  importFile: vi.fn(),
+  dropTable: vi.fn(),
+  seedDemoWorkbenchData: vi.fn(),
+  getDashboards: vi.fn(),
+  saveDashboard: vi.fn(),
+  getQueries: vi.fn(),
+  saveQuery: vi.fn(),
+}));
+
+vi.mock('../services/duckdbService', () => ({
+  duckDBService: {
+    getRuntimeInfo: () => ({ storageMode: 'opfs' }),
+    query: mocks.query,
+    getCurrentCatalogAndSchema: vi.fn().mockResolvedValue({catalog:'memory',schema:'main'}),
+    readQuery: mocks.query,
+    getTables: mocks.getTables,
+    getTableSchema: mocks.getTableSchema,
+    importFile: mocks.importFile,
+    dropTable: mocks.dropTable,
+  },
+}));
+
+vi.mock('../services/dbService', () => ({
+  dbService: {
+    getDashboards: mocks.getDashboards,
+    saveDashboard: mocks.saveDashboard,
+    getQueries: mocks.getQueries,
+    saveQuery: mocks.saveQuery,
+    deleteQuery: vi.fn(),
+    getDomainSetting: vi.fn().mockResolvedValue(null),
+    saveDomainSetting: vi.fn().mockResolvedValue(undefined),
+  },
+}));
+
+vi.mock('../hooks/useAnalyticalCatalog', () => ({
+  useAnalyticalCatalog: () => ({
+    catalog: {
+      builtAt: Date.now(),
+      tableCount: 0,
+      tables: [],
+      coreMetrics: [],
+      timeDimensions: [],
+      categoryDimensions: [],
+      comparisonDimensions: [],
+      drillPaths: [],
+      linkageFields: [],
+      workspaceGaps: [],
+      overallReadinessScore: 0,
+    },
+    loading: false,
+    error: null,
+    refresh: vi.fn(),
+  }),
+}));
+
+vi.mock('../services/dynamicHome', () => ({
+  ensureDynamicHome: vi.fn(async () => ({
+    board: {
+      id: 'home-default-board',
+      name: '分析首页',
+      items: [],
+      createdAt: 0,
+      updatedAt: 0,
+    },
+    seededData: false,
+    widgetsAdded: 0,
+    tableNames: [],
+  })),
+}));
+
+vi.mock('./Workbench/seedWorkbenchData', () => ({
+  seedDemoWorkbenchData: mocks.seedDemoWorkbenchData,
+}));
+
+vi.mock('../services/toastService', () => ({
+  toastService: {
+    info: vi.fn(),
+    success: vi.fn(),
+    error: vi.fn(),
+    warning: vi.fn(),
+    show: vi.fn(),
+  },
+}));
+
+const runtimeInfo = {
+  ready: true,
+  persistent: false,
+  version: '1.33.1',
+  persistenceError: null,
+};
+
+const renderDashboard = (
+  tables: string[] = ['orders', 'customers'],
+  onNavigate = vi.fn(),
+  extraProps: Partial<React.ComponentProps<typeof Dashboard>> = {},
+) =>
+  render(
+    <ConfirmDialogProvider>
+      <Dashboard tables={tables} onNavigate={onNavigate} runtimeInfo={runtimeInfo} {...extraProps} />
+    </ConfirmDialogProvider>,
+  );
+
+/** Wait until Analysis Home asset list has loaded real table names. */
+async function waitForAssetTables(...names: string[]) {
+  await waitFor(() => {
+    for (const name of names) {
+      expect(screen.getAllByText(name).length).toBeGreaterThan(0);
+    }
+  });
+}
+
+beforeEach(() => {
+  mocks.query.mockImplementation(async (sql: string) => {
+    if (sql.includes('COUNT(*)')) {
+      return [{ cnt: 4892 }];
+    }
+    if (sql.includes('LIMIT 10')) {
+      return [
+        { id: 1, name: 'Alice', amount: 120 },
+        { id: 2, name: 'Bob', amount: 340 },
+      ];
+    }
+    return [];
+  });
+  mocks.getTables.mockResolvedValue(['orders', 'customers']);
+  mocks.getTableSchema.mockResolvedValue([
+    { name: 'id', type: 'INTEGER', pk: true },
+    { name: 'name', type: 'VARCHAR', pk: false },
+    { name: 'amount', type: 'DOUBLE', pk: false },
+  ]);
+  mocks.seedDemoWorkbenchData.mockResolvedValue(undefined);
+  mocks.getDashboards.mockResolvedValue([]);
+  mocks.saveDashboard.mockResolvedValue(undefined);
+  mocks.getQueries.mockResolvedValue([]);
+  mocks.saveQuery.mockResolvedValue(undefined);
+  localStorage.clear();
+  useSqlEditorStore.setState({ tabs: [], activeTabId: '', history: [] });
+  useAppStore.getState().setCurrentTable(null as any);
+});
+
+afterEach(() => {
+  cleanup();
+  vi.clearAllMocks();
+});
+
+describe('DuckDB Analysis Home Dashboard', () => {
+  it('renders analysis header with identity, primary CTA, and import', async () => {
+    const onNavigate = vi.fn();
+    renderDashboard(['orders', 'customers'], onNavigate);
+
+    expect(screen.getByRole('heading', {name:'分析范围'})).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(screen.getByText(/个数据集/)).toBeInTheDocument();
+    });
+
+    expect(screen.getAllByRole('button', { name: '导入数据', exact: true })).toHaveLength(1);
+    expect(screen.queryByRole('button', {name:'继续分析',exact:true})).toBeNull();
+  });
+
+  it('renders board empty state without metric strip or performance wall', async () => {
+    renderDashboard(['orders', 'customers']);
+
+    expect(screen.queryByTestId('studio-metric-strip')).not.toBeInTheDocument();
+    expect(screen.queryByText('系统健康')).not.toBeInTheDocument();
+    expect(screen.queryByText('更多去向')).not.toBeInTheDocument();
+    expect(screen.queryByText('性能趋势')).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: '开始分析' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: '新建查询' })).toBeInTheDocument();
+    });
+  });
+
+  it('keeps a compact data status without the duplicated asset catalog', async () => {
+    renderDashboard(['orders', 'customers']);
+
+    expect(await screen.findByRole('navigation', {name:'数据状态与详情'})).toBeInTheDocument();
+    expect(screen.queryByText('数据资产')).toBeNull();
+    expect(screen.queryByText('数据来源与检查')).toBeNull();
+    expect(screen.queryByText('最近查询')).not.toBeInTheDocument();
+  });
+
+  it('opens data management from the compact state area', async () => {
+    const onNavigate = vi.fn(); renderDashboard(['orders', 'customers'], onNavigate);
+    fireEvent.click(await screen.findByRole('button',{name:'管理数据'}));
+    expect(onNavigate).toHaveBeenCalledWith(Tab.DATA);
+  });
+
+  it('opens Schema from the compact state area', async () => {
+    const onNavigate = vi.fn(); renderDashboard(['orders'], onNavigate);
+    fireEvent.click(await screen.findByRole('button',{name:'查看 Schema'}));
+    expect(onNavigate).toHaveBeenCalledWith(Tab.STRUCTURE);
+  });
+
+  it('renders honest empty states when there are no tables or queries', async () => {
+    renderDashboard([]);
+
+    await waitFor(() => expect(screen.getByText('导入数据开始分析')).toBeInTheDocument());
+    expect(screen.getAllByRole('button', { name: '导入数据', exact: true })).toHaveLength(1);
+    expect(screen.queryByText('最近查询')).toBeNull();
+    expect(screen.queryByText('event_log')).not.toBeInTheDocument();
+  });
+
+  it('handles Ctrl+Enter keyboard shortcut to navigate to SQL tab', async () => {
+    const onNavigate = vi.fn();
+    renderDashboard(['orders', 'customers'], onNavigate);
+
+    fireEvent.keyDown(window, { key: 'Enter', ctrlKey: true });
+    expect(onNavigate).toHaveBeenCalledWith(Tab.SQL);
+  });
+
+  it('triggers manual refresh when clicking 刷新 button', async () => {
+    renderDashboard(['orders', 'customers']);
+
+    fireEvent.click(screen.getByRole('button', { name: /刷新/ }));
+
+    await waitFor(() => {
+      expect(mocks.getTables).toHaveBeenCalled();
+    });
+  });
+
+  it('selects a real table when opening data checks', async () => {
+    const onNavigate = vi.fn();
+    renderDashboard(['orders', 'customers'], onNavigate);
+
+    fireEvent.click(await screen.findByRole('button',{name:'查看数据检查'}));
+
+    expect(useAppStore.getState().currentTable).toBe('orders');
+    expect(onNavigate).toHaveBeenCalledWith(Tab.ANALYSIS_HUB);
+  });
+
+  it('has one add-analysis entry after tables load', async () => {
+    renderDashboard(['orders']);
+    await waitFor(() => expect(screen.getByRole('button', {name:'添加分析',exact:true})).toBeInTheDocument());
+    expect(screen.queryByRole('button', {name:'生成图表',exact:true})).toBeNull();
+  });
+
+  it('prevents overlapping file drops and permits a new import after completion', async () => {
+    let finish!: (tables: string[]) => void;
+    mocks.importFile.mockReturnValueOnce(new Promise(resolve => { finish = resolve; }));
+    const view = renderDashboard([]);
+    const root = view.container.firstElementChild!;
+    const file = new File(['id\n1'], 'audit.csv', {type:'text/csv'});
+    fireEvent.drop(root, {dataTransfer:{files:[file]}});
+    fireEvent.drop(root, {dataTransfer:{files:[file]}});
+    expect(mocks.importFile).toHaveBeenCalledTimes(1);
+    await act(async () => finish(['audit']));
+    mocks.importFile.mockResolvedValueOnce(['audit']);
+    fireEvent.drop(root, {dataTransfer:{files:[file]}});
+    await waitFor(() => expect(mocks.importFile).toHaveBeenCalledTimes(2));
+  });
+  it('escapes a quoted table name when forwarding a quick query', () => {
+    const onSelectQuery=vi.fn();
+    const {result}=renderHook(()=>useDashboardWorkflow([],vi.fn(),runtimeInfo,{onSelectQuery}));
+    act(()=>result.current.handleQuickQuery('quoted"table'));
+    expect(onSelectQuery).toHaveBeenCalledWith('SELECT * FROM "quoted""table" LIMIT 100;',true);
+  });
+  it('reports a failed metadata snapshot without claiming there are no datasets',async()=>{
+    vi.mocked(duckDBService.getCurrentCatalogAndSchema).mockRejectedValueOnce(new Error('catalog unavailable'));
+    renderDashboard(['orders']);
+    await waitFor(()=>expect(screen.getByRole('alert')).toHaveTextContent('catalog unavailable'));
+    expect(screen.queryByText('导入数据开始分析')).toBeNull();
+  });
+});

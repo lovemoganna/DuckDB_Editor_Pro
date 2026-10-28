@@ -1,0 +1,65 @@
+- banner "全局工作区顶栏":
+  - button "🪶 DuckDB Studio PRO":
+    - generic: 🪶
+    - generic: DuckDB Studio
+    - generic: PRO
+  - navigation "业务领域大类":
+    - button "工程核心":
+      - generic: 工程核心
+    - button "分析洞察":
+      - generic: 分析洞察
+    - button "知识沉淀":
+      - generic: 知识沉淀
+    - button "AI 认知":
+      - generic: AI 认知
+  - tablist "分析洞察功能标签页":
+    - tab "指标" [active] [selected]:
+      - generic: 指标
+    - tab "可视化":
+      - generic: 可视化
+    - tab "分析":
+      - generic: 分析
+    - tab "历史":
+      - generic: 历史
+    - tab "审计":
+      - generic: 审计
+  - button "项目":
+    - generic: 项目
+  - button "新建表":
+    - generic: 新建表
+  - button "临时分析空间":
+    - generic: 临时分析空间
+  - button "AI 助手":
+    - generic: AI 助手
+  - button "⌘K":
+  - button "帮助与快捷键":
+  - button "切换为浅色模式":
+  - button "AI 模型设置":
+- main:
+  - heading "指标库" [level=1]
+  - generic: 0 个指标包
+  - button "仪表盘":
+    - generic: 仪表盘
+  - button "从真实字段生成" [disabled]:
+    - generic: 从真实字段生成
+  - button "导入指标包":
+    - generic: 导入指标包
+  - button "新建指标包":
+    - generic: 新建指标包
+  - button "指标建模工具":
+    - generic: 指标建模工具
+  - textbox "搜索指标包名称或描述..."
+  - heading "暂无指标包" [level=3]
+  - paragraph: 导入真实数据后可从字段生成基础指标，也可以手动创建业务指标包。
+  - button "从真实字段生成" [disabled]:
+    - generic: 从真实字段生成
+  - button "新建指标包":
+    - generic: 新建指标包
+- contentinfo:
+  - generic: DuckDB 1.33.1
+  - generic: "|"
+  - generic: memory [MEMORY]
+  - generic: 引擎就绪
+  - generic: "|"
+  - generic: 06:53
+  - button "刷新运行时状态":

@@ -1,0 +1,16 @@
+$ vitest run --pool=threads --maxWorkers=1 --no-file-parallelism "services/ontologyModelingDatasets.test.ts" "services/ontologyModelingDraft.test.ts" "services/ontologyModelingService.test.ts" "components/Library/OntologyModelingWizard.test.tsx" "components/Library/OntologyModelingMapping.test.tsx" "components/Dashboard/Home/HomeLifecycle.test.tsx" "components/Dashboard.test.tsx" "services/workbench/datasets.test.ts" "services/workbench/fundsBaseline.integration.test.ts" "services/workbench/queryCompiler.test.ts" "services/workbench/runtime.test.ts" "hooks/useOntologyStore.crud.test.ts" "components/Library/OntologyPanel.test.tsx" "components/Library/D3GraphView" "services/workbench/currentDataset.test.ts" "hooks/useCurrentGraphDataset.test.tsx" "services/duckdbService.persistence.test.ts"
+
+ RUN  v4.1.10 C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor
+
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+
+ Test Files  26 passed (26)
+      Tests  195 passed (195)
+   Start at  22:44:17
+   Duration  60.68s (transform 5.83s, setup 2.87s, import 16.40s, tests 14.44s, environment 22.45s)
+

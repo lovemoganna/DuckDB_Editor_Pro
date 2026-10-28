@@ -1,0 +1,146 @@
+[
+  {
+    "group": "工程核心",
+    "route": "Schema",
+    "name": "列表视图",
+    "screenshot": "docs/system-consistency-20261012/subviews/01.png",
+    "selected": "true",
+    "text": "Schema 架构体系\n\n数据模型定义 · 字段类型约束 · 关系 ER 图谱 · 在线 DDL 演变\n\n仪表盘\n新建表\n列表视图\nER 关系图谱\n克隆表\n删除表\nusers\ncrypto_transactions\nexchange_rates\nfiat_transactions\nusers\n7 / 7 字段\n已设主键\n复制 DDL\n数据网格 ↗\n分析中心 ↗\n指标建模 ↗\nSQL 查询 ↗\n字段名称 (COLUMN)\t数据类型 (TYPE)\t约束与默认值 (CONSTRAINTS)\t操作 (ACTIONS)\n\nuid\n\tINT BIGINT\t\nPK\nNOT NULL\n\t\n画像\n编辑\n\n\nuser_name\n\tTXT VARCHAR\t\nNOT NULL\n\t\n画像\n编辑\n\n\ncountry_code\n\tTXT VARCHAR\t\nNOT NULL\n\t\n画像\n编辑\n\n\nbase_fiat_currency\n\tTXT VARCHAR\t\nNOT NULL\n\t\n画像\n编辑\n\n\nkyc_level\n\tINT INTEGER\t\nNOT NULL\n\t\n画像\n编辑\n\n\naccount_status\n\tTXT VARCHAR\t\nNOT NULL\n\t\n画像\n编辑\n\n\ncreated_at\n\tTIME TIMESTAMP\t\nNOT NULL\n\t\n画像\n编辑\n字段画像\n添加字段\nDDL 脚本\n未选中字段画像\n"
+  },
+  {
+    "group": "工程核心",
+    "route": "Schema",
+    "name": "ER 关系图谱",
+    "screenshot": "docs/system-consistency-20261012/subviews/02.png",
+    "selected": "true",
+    "text": "Schema 架构体系\n\n数据模型定义 · 字段类型约束 · 关系 ER 图谱 · 在线 DDL 演变\n\n仪表盘\n新建表\n列表视图\nER 关系图谱\n100%\n4 张表 · 0 条关联拓扑\nPK 主键\nFK 关联\ncrypto_transactions\n13 列\ncrypto_order_id\nVARCHAR\nINT\nuid\nBIGINT\nTXT\ndirection\nVARCHAR\nTXT\nasset\nVARCHAR\nTXT\nnetwork\nVARCHAR\nINT\namount\nDECIMAL(18,8)\nINT\nfee\nDECIMAL(18,8)\nTXT\ntx_hash\nVARCHAR\nTXT\naddress\nVARCHAR\nTXT\nstatus\nVARCHAR\nINT\nconfirmations\nINTEGER\nTIME\ncreated_at\nTIMESTAMP\nTIME\ncompleted_at\nTIMESTAMP\n主键: crypto_order_id\n详情\nexchange_rates\n8 列\nasset\nVARCHAR\nTXT\nasset_name\nVARCHAR\nTXT\nasset_type\nVARCHAR\nquote_currency\nVARCHAR\nINT\nrate_to_usdt\nDOUBLE\nINT\nusdt_to_asset_rate\nDOUBLE\neffec"
+  },
+  {
+    "group": "工程核心",
+    "route": "SQL",
+    "name": "数据",
+    "screenshot": "docs/system-consistency-20261012/subviews/03.png",
+    "selected": "true",
+    "text": "数据资源浏览\n新建表\n打开文件\n附加数据库\n添加数据源\nbaseline\n(当前)\nmain\n表 (4)\ncrypto_transactions\n约 25 行\nexchange_rates\n约 8 行\nfiat_transactions\n约 25 行\nusers\n约 10 行\n视图 (0)\n宏 (Macros) (0)\n文件与远程源 (0)\n最近打开 (0)\nquery_1.sql\n1 个查询\n运行\n格式化\n10\n流程图\n解释\n分析\n历史\n0\nbaseline\n.\nmain\n1\n\n\n分隔条\nL\n1\n·\nC\n0\n最大化结果\n最大化代码\n双击\n重置\n40\n%\n数据\n图表\n透视\n执行计划\n筛选\n排序\n分组\n导出\n就绪待命\n\n等待执行查询\n\n按 Ctrl+Enter 运行 SQL。结果可在上方切换数据、图表、透视与执行计划。\n\n1\n第 1 页, 共 1 页\n每页:\n25 行\n50 行\n100 行\n200 行\n500 行\n1000 行\n0 / 0 行\n列画像\nAI助手\nDB\nbaseline.main\n(4表)\n行\n1\n列\n1\nquery_1.sql\n内存\n未采集\n运行时\n就绪\n就绪\n控制\n反馈"
+  },
+  {
+    "group": "工程核心",
+    "route": "SQL",
+    "name": "图表",
+    "screenshot": "docs/system-consistency-20261012/subviews/04.png",
+    "selected": "true",
+    "text": "数据资源浏览\n新建表\n打开文件\n附加数据库\n添加数据源\nbaseline\n(当前)\nmain\n表 (4)\ncrypto_transactions\n约 25 行\nexchange_rates\n约 8 行\nfiat_transactions\n约 25 行\nusers\n约 10 行\n视图 (0)\n宏 (Macros) (0)\n文件与远程源 (0)\n最近打开 (0)\nquery_1.sql\n1 个查询\n运行\n格式化\n10\n流程图\n解释\n分析\n历史\n0\nbaseline\n.\nmain\n1\n\n\n分隔条\nL\n1\n·\nC\n0\n最大化结果\n最大化代码\n双击\n重置\n40\n%\n数据\n图表\n透视\n执行计划\n筛选\n排序\n分组\n导出\n就绪待命\n对比\n趋势\n构成\n相关\n条形\n柱状\n加入看板\n实时\n0\n行\n编码\nX 维度\nY 指标\n系列\n无拆分\n计算\nSUM\nAVG\nCOUNT\nMIN\nMAX\n绝对值\n%\n范围\nTop\n8\n12\n25\n50\n值↓\n值↑\n名 A→Z\n名 Z→A\n呈现\n图例右\n图例下\n隐藏\n多色\n标签\n导出\n暂无可可视化的数据行\n执行 SQL 查询后将自动生成图表\n1\n第 1 页, 共 1 页\n每页:\n25 行\n50 行\n100 行\n200 行\n500 行\n1000 行\n0 / 0 行\n列画像\nAI助手\nDB\nbaseline.main\n(4表)\n行\n1\n列\n1\nquery_1.sql\n内存\n未采集"
+  },
+  {
+    "group": "工程核心",
+    "route": "SQL",
+    "name": "透视",
+    "screenshot": "docs/system-consistency-20261012/subviews/05.png",
+    "selected": "true",
+    "text": "数据资源浏览\n新建表\n打开文件\n附加数据库\n添加数据源\nbaseline\n(当前)\nmain\n表 (4)\ncrypto_transactions\n约 25 行\nexchange_rates\n约 8 行\nfiat_transactions\n约 25 行\nusers\n约 10 行\n视图 (0)\n宏 (Macros) (0)\n文件与远程源 (0)\n最近打开 (0)\nquery_1.sql\n1 个查询\n运行\n格式化\n10\n流程图\n解释\n分析\n历史\n0\nbaseline\n.\nmain\n1\n\n\n分隔条\nL\n1\n·\nC\n0\n最大化结果\n最大化代码\n双击\n重置\n40\n%\n数据\n图表\n透视\n执行计划\n筛选\n排序\n分组\n导出\n就绪待命\n多维透视表\n当前结果集即时交叉表（非分组 SQL 编排）\n样本\n0\n·\n—\n维\n·\nSUM(—)\n复制\n生成 SQL\n行维度\n列维度\n值\nSUM\nAVG\nCOUNT\n当前无查询结果集，请先执行 SQL 后再做透视汇总。\n1\n第 1 页, 共 1 页\n每页:\n25 行\n50 行\n100 行\n200 行\n500 行\n1000 行\n0 / 0 行\n列画像\nAI助手\nDB\nbaseline.main\n(4表)\n行\n1\n列\n1\nquery_1.sql\n内存\n未采集\n运行时\n就绪\n就绪\n控制\n反馈"
+  },
+  {
+    "group": "工程核心",
+    "route": "SQL",
+    "name": "执行计划",
+    "screenshot": "docs/system-consistency-20261012/subviews/06.png",
+    "selected": "true",
+    "text": "数据资源浏览\n新建表\n打开文件\n附加数据库\n添加数据源\nbaseline\n(当前)\nmain\n表 (4)\ncrypto_transactions\n约 25 行\nexchange_rates\n约 8 行\nfiat_transactions\n约 25 行\nusers\n约 10 行\n视图 (0)\n宏 (Macros) (0)\n文件与远程源 (0)\n最近打开 (0)\nquery_1.sql\n1 个查询\n运行\n格式化\n10\n流程图\n解释\n分析\n历史\n0\nbaseline\n.\nmain\n1\n\n\n分隔条\nL\n1\n·\nC\n0\n最大化结果\n最大化代码\n双击\n重置\n40\n%\n数据\n图表\n透视\n执行计划\n筛选\n排序\n分组\n导出\n就绪待命\nExplain\nData\nCost\n横向\n测耗时\n原始数据\n还没有执行步骤\n在上方编辑器输入 SQL 后将自动展现执行计划拓扑\n列画像\nAI助手\nDB\nbaseline.main\n(4表)\n行\n1\n列\n1\nquery_1.sql\n内存\n未采集\n运行时\n就绪\n就绪\n控制\n反馈"
+  },
+  {
+    "group": "分析洞察",
+    "route": "分析",
+    "name": "关联分析",
+    "screenshot": "docs/system-consistency-20261012/subviews/07.png",
+    "selected": "true",
+    "text": "分析中心\n\n多维透视 · 时序走势 · 业务配方 · SQL 模板 · DuckDB 本地内核\n\n仪表盘\n分析表\ncrypto_transactions\nexchange_rates\nfiat_transactions\nusers\n数据网格\n表结构\n关联分析\n数据体检\n透视聚合\n时序分析\n场景配方\nSQL 模板\n关联分析\n\n数据 → 指标定义 → 查询结果 → 可视化 → 分析笔记\n\n重新计算\n\n从首页业务指标、指标卡片或图表进入，也可打开下方保存的分析。\n\n已保存的分析 · 23 · baseline\ncrypto_transactions · 记录数\n\n10/12/2026, 11:38:04 PM\n\n数据概况：25 条记录，13 个字段。统计口径：crypto_transactions 的记录数；统计原始记录，不代表有效业务事件或主体数。字段含义、单位与业务用途需确认。\n\n加入首页\n删除\ncrypto_transactions · direction 分布\n\n10/12/2026, 11:38:04 PM\n\n数据概况：25 条记录，13 个字段。统计口径：crypto_transactions 的direction 分布；统计原始记录，不代表有效业务事件或主体数。字段含义、单位与业务用途需确认。\n\n加入首页\n删除\ncrypto_transactions · created_a"
+  },
+  {
+    "group": "分析洞察",
+    "route": "分析",
+    "name": "数据体检",
+    "screenshot": "docs/system-consistency-20261012/subviews/08.png",
+    "selected": "true",
+    "text": "分析中心\n\n多维透视 · 时序走势 · 业务配方 · SQL 模板 · DuckDB 本地内核\n\n仪表盘\n上下文\n内存库 · memory（临时）\n持久库 · baseline\n持久库 · duckdb_manager_workspace\nSchema · baseline.__studio\nSchema · baseline.lab_baseline\n分析表\ncrypto_transactions\nexchange_rates\nfiat_transactions\nusers\n数据网格\n表结构\n关联分析\n数据体检\n透视聚合\n时序分析\n场景配方\nSQL 模板\n数据体检与字段画像\n\n完备率 · 基数 · 极值 · 空值观察 · 跳转透视或时序\n\n全部\n数值\n维度\n时间\nID/键\n数据检查\n执行数据检查\n\n未检查\n\n验证已声明的非空、唯一及外键约束；可空字段的空值仅作为观察。未声明约束不计为异常。\n\n验证字段唯一性\n不增加规则\nuid\nuser_name\ncountry_code\nbase_fiat_currency\nkyc_level\naccount_status\ncreated_at\n总记录行数\n10\n当前表；未应用筛选\n物理字段数\n7\n主键: uid\n数据完备率\n100%\nuid\n候选键\nBIGINT\n·\n基数 10 (100%)\n缺失率\n0%\n取值范围\n\"219485730\" ~"
+  },
+  {
+    "group": "分析洞察",
+    "route": "分析",
+    "name": "透视聚合",
+    "screenshot": "docs/system-consistency-20261012/subviews/09.png",
+    "selected": "true",
+    "text": "分析中心\n\n多维透视 · 时序走势 · 业务配方 · SQL 模板 · DuckDB 本地内核\n\n仪表盘\n上下文\n内存库 · memory（临时）\n持久库 · baseline\n持久库 · duckdb_manager_workspace\nSchema · baseline.__studio\nSchema · baseline.lab_baseline\n分析表\ncrypto_transactions\nexchange_rates\nfiat_transactions\nusers\n数据网格\n表结构\n关联分析\n数据体检\n透视聚合\n时序分析\n场景配方\nSQL 模板\n保存与复用本次分析\n多维透视与切片聚合\n\n分组计算 · 多度量筛选 · DuckDB 本地直出\n\n图表\n数据表\n导出 CSV\n打开 SQL\n行分组维度\n1~2\nuid (BIGINT)\nuser_name (VARCHAR)\ncountry_code (VARCHAR)\nbase_fiat_currency (VARCHAR)\nkyc_level (INTEGER)\naccount_status (VARCHAR)\ncreated_at (TIMESTAMP)\n添加交叉维度\n度量指标\n新增\nCOUNT\nDISTINCT\nSUM\nAVG\nMIN\nMAX\nkyc_level\nCOUNT\nDISTINCT\nSUM\nAVG\nMIN\nMA"
+  },
+  {
+    "group": "分析洞察",
+    "route": "分析",
+    "name": "时序分析",
+    "screenshot": "docs/system-consistency-20261012/subviews/10.png",
+    "selected": "true",
+    "text": "分析中心\n\n多维透视 · 时序走势 · 业务配方 · SQL 模板 · DuckDB 本地内核\n\n仪表盘\n上下文\n内存库 · memory（临时）\n持久库 · baseline\n持久库 · duckdb_manager_workspace\nSchema · baseline.__studio\nSchema · baseline.lab_baseline\n分析表\ncrypto_transactions\nexchange_rates\nfiat_transactions\nusers\n数据网格\n表结构\n关联分析\n数据体检\n透视聚合\n时序分析\n场景配方\nSQL 模板\n保存与复用本次分析\n时序走势与波动分析\n\n时间窗口对齐 · 环比 · 移动均线 · 累计总额\n\n导出 CSV\n打开 SQL\n时间字段\nuid (BIGINT)\nuser_name (VARCHAR)\ncountry_code (VARCHAR)\nbase_fiat_currency (VARCHAR)\nkyc_level (INTEGER)\naccount_status (VARCHAR)\ncreated_at (TIMESTAMP)\n时间粒度\n按日\n按周\n按月\n按季\n按年\n观测指标\nkyc_level\n聚合函数\nSUM\nAVG\nCOUNT\nMAX\nMIN\n窗口模式\n原生趋势\n环比增长 (LAG)\n7 周期移动均线\n累计总和\n最"
+  },
+  {
+    "group": "分析洞察",
+    "route": "分析",
+    "name": "场景配方",
+    "screenshot": "docs/system-consistency-20261012/subviews/11.png",
+    "selected": "true",
+    "text": "分析中心\n\n多维透视 · 时序走势 · 业务配方 · SQL 模板 · DuckDB 本地内核\n\n仪表盘\n上下文\n内存库 · memory（临时）\n持久库 · baseline\n持久库 · duckdb_manager_workspace\nSchema · baseline.__studio\nSchema · baseline.lab_baseline\n分析表\ncrypto_transactions\nexchange_rates\nfiat_transactions\nusers\n数据网格\n表结构\n关联分析\n数据体检\n透视聚合\n时序分析\n场景配方\nSQL 模板\n保存与复用本次分析\n业务分析场景配方\n\n自动映射字段 · 帕累托 / RFM / IQR / 分箱 / 留存\n\n导出 CSV\n打开 SQL\n价值集中度\n帕累托 80/20 分析\n客户价值 / 爆款 SKU / 资源倾斜\n用户画像\nRFM 价值分层\n精准营销 / 流失预警\n数据清洗\nIQR 异常值检测\n数据清洗 / 欺诈侦测 / 极值风控\n分布密度\n等宽分箱频次分布\n客单价分布 / 年龄段分布 / 停留时长分档\n生命周期\n同期群留存矩阵\n用户留存 / 复购率衰减 / 队列流失\n映射 [users]\n实体字段\nuid (BIGINT)\nuser_name (VARCHAR)\ncountry_code (VARCHAR)\nbase_f"
+  },
+  {
+    "group": "分析洞察",
+    "route": "分析",
+    "name": "SQL 模板",
+    "screenshot": "docs/system-consistency-20261012/subviews/12.png",
+    "selected": "true",
+    "text": "分析中心\n\n多维透视 · 时序走势 · 业务配方 · SQL 模板 · DuckDB 本地内核\n\n仪表盘\n上下文\n内存库 · memory（临时）\n持久库 · baseline\n持久库 · duckdb_manager_workspace\nSchema · baseline.__studio\nSchema · baseline.lab_baseline\n分析表\ncrypto_transactions\nexchange_rates\nfiat_transactions\nusers\n数据网格\n表结构\n关联分析\n数据体检\n透视聚合\n时序分析\n场景配方\nSQL 模板\nSQL 模板\n\n精选高频业务场景。先在看板快速寻找，挑选后再深入配置与带入执行。 · 绑定表 users\n\n资产统计 (44)\n导出\n新建模板\n全部 (44)\n自定义 (0)\nDuckDB 2026 WASM 原生黑科技(7)\n基础查询(4)\n条件过滤(4)\n更多分类 (9) ▼\n字符串与日期处理 (5)\n聚合统计 (5)\n窗口分析 (3)\nJOIN 关联 (4)\n多表与集合操作 (3)\nCSV/JSON/Parquet 读取 (2)\n数据导出 (2)\n建表与数据修改 (2)\n元数据查询 (3)\nHTTP Parquet 免全量下载 Range 极速流式查询\n预设\nDuckDB 2026 WASM 原生黑科技\n利用 DuckDB"
+  },
+  {
+    "group": "分析洞察",
+    "route": "审计",
+    "name": "高危/删除",
+    "screenshot": "docs/system-consistency-20261012/subviews/13.png",
+    "selected": "true",
+    "text": "系统审计日志 (Audit Log)\n0 条记录\n\n查看当前会话中表格编辑与 Schema 操作的审计记录；SQL 工作台执行记录请查看查询历史\n\n刷新\n导出日志\n操作总计 (Total)\n0\nDDL 结构演进\n0\nDML 数据变更\n0\n累计受影响行\n0\n涉及数据表\n0 个表\n全部\n0\nDDL 架构\n0\nDML 变更\n0\n高危/删除\n全部数据表 (0)\n全部时间\n今日日志\n最近 7 天\n最近 30 天\n重置筛选\n已匹配 0 / 0 条\n未找到符合条件的审计记录\n\n请调整搜索关键词、操作类型分类或时间范围以重新筛选\n\n重置所有筛选"
+  },
+  {
+    "group": "AI 认知",
+    "route": "本体图谱",
+    "name": "知识图谱",
+    "screenshot": "docs/system-consistency-20261012/subviews/14.png",
+    "selected": "true",
+    "text": "本体知识空间 (Ontology Studio)\n知识图谱\n数据视图\n实体画布\n数据切片\n本体建模\n组合推演\n推演定义\n聚合洞察\n本体论未初始化\n一键初始化\n跳数\n1跳\n2跳\n3跳\n全图\n核心节点与关系筛选 (2跳·默认 · 悬浮展开)\n控制面板\nSVG D3 (矢量交互)\n≤500节点推荐\n信息面板\n图例\n🔎"
+  },
+  {
+    "group": "AI 认知",
+    "route": "本体图谱",
+    "name": "数据视图",
+    "screenshot": "docs/system-consistency-20261012/subviews/15.png",
+    "selected": "true",
+    "text": "本体知识空间 (Ontology Studio)\n知识图谱\n数据视图\n实体画布\n数据切片\n本体建模\n组合推演\n推演定义\n聚合洞察\n本体论未初始化\n一键初始化\n类型 (Type)\n实例 (Instance)\n关系定义\n关系库\n行动记录\n反思 (Introspection)\n洞察 (Insight)\n场景说明\n新增\n导入示例\n\n类型总数\n\n0\n\n平均实例/类型\n\n0\n\n最近3条\n\n0\n\n\t\nID\n\t\n类型名称\n\t\n结构描述\n\t操作\n\n\n当前表域无数据记录\n\n点击上方导入示例注入数据\n\n已开启虚拟化滚动 | 共 0 条记录\n类型 (Type)"
+  },
+  {
+    "group": "AI 认知",
+    "route": "本体图谱",
+    "name": "实体画布",
+    "screenshot": "docs/system-consistency-20261012/subviews/16.png",
+    "selected": "true",
+    "text": "本体知识空间 (Ontology Studio)\n知识图谱\n数据视图\n实体画布\n数据切片\n本体建模\n组合推演\n推演定义\n聚合洞察\n本体论未初始化\n一键初始化\n100%\n导出\n高级\n开始构建本体知识图谱\n\n本体画布用于可视化建模实体与关系，生成 DuckDB 数据库结构与 CTE 分析流水线。\n\n新建节点\n双击画布创建\n反向工程\n从数据库还原\n导入物理表\n选择单张表\n\n提示：右上角「操作」菜单可访问 MECE 排版、CTE 编译等功能\n\nN\n新建节点\n双击\n快速创建\n?\n快捷键帮助\n右键\n上下文菜单\nReact Flow\n排版微调\n正交网格\n100/200"
+  },
+  {
+    "group": "AI 认知",
+    "route": "技能",
+    "name": "AI Skills",
+    "screenshot": "docs/system-consistency-20261012/subviews/17.png",
+    "selected": "true",
+    "text": "AI Skills\n技能方案\nDUCKDB ENGINE READY\nAI Skills\n34 内置\n27 官方\n\nAI 智能生成 · 意图分析 · 技能链组合\n\nSELECT 查询生成·根据自然语言描述生成 SELECT 查询语句\n所有\n🔍\n探测与建模\n🔄\n清洗与转换\n📊\n深度分析与洞察\n🚀\n诊断与优化\n🛠️\n工程与运维\n📖\n官方手册\n详情模式\nSELECT 查询生成\n探测与建模\n根据自然语言描述生成 SELECT 查询语句\nJOIN 查询生成\n探测与建模\n生成多表关联查询\n聚合查询生成\n探测与建模\n生成聚合函数和分组查询\n窗口函数查询\n探测与建模\n生成窗口函数（OVER, PARTITION BY, RANK 等）\nCTE 查询生成\n探测与建模\n生成 Common Table Expression（WITH 子句）\nINSERT 语句生成\n探测与建模\n生成数据插入语句\nUPDATE 语句生成\n探测与建模\n生成数据更新语句\nDELETE 语句生成\n探测与建模\n生成数据删除语句\nCREATE TABLE 生成\n探测与建模\n生成建表语句，支持完整表结构定义\n自然语言建表\n探测与建模\n用自然语言描述需求，AI 自动生成表结构\n模板建表\n探测与建模\n使用预置模板快速创建标准表结构\n导入建表\n探测与建模\n从 JSON、CSV 或剪切板导入表结构\nALTER TABLE 生成\n探"
+  },
+  {
+    "group": "AI 认知",
+    "route": "技能",
+    "name": "技能方案",
+    "screenshot": "docs/system-consistency-20261012/subviews/18.png",
+    "selected": "true",
+    "text": "AI Skills\n技能方案\nDUCKDB ENGINE READY\nAI Skills\n\n智能技能库\n\n管道模式\n默认\n表\n列\n收藏\n全部 0\n🔍\n探测与建模\n(0)\n📊\n深度分析与洞察\n(0)\n🔄\n清洗与转换\n(0)\n🚀\n诊断与优化\n(0)\n🛠️\n工程与运维\n(0)\n📖\n官方手册\n(0)\n\n未找到匹配的技能\n\n导入技能\n0 技能\n0\n等待选择技能\n\n请从左侧选择一个 AI 技能以开始生成 SQL\n\n输出终端OUTPUT_TERMINAL\n>\nREADY_FOR_EXECUTION\n>\n选择技能并配置参数..."
+  }
+]

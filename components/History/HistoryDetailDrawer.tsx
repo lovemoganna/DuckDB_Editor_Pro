@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { QueryHistoryItem } from '../../types';
 import { X, Copy, Play, Check, Star, Trash2, Zap, Code2, AlertTriangle, FileCode2 } from 'lucide-react';
 import { highlightSql } from '../../utils';
 import { format } from 'sql-formatter';
 import { CodeHighlightBlock } from '../ui/CodeHighlightBlock';
+import { useOverlayFocus } from '../ui/useOverlayFocus';
 
 interface HistoryDetailDrawerProps {
   item: QueryHistoryItem | null;
@@ -34,50 +35,7 @@ export const HistoryDetailDrawer: React.FC<HistoryDetailDrawerProps> = ({
   const [isFormatted, setIsFormatted] = useState(true);
   const [copied, setCopied] = useState(false);
   const drawerRef = useRef<HTMLElement>(null);
-  const closeButtonRef = useRef<HTMLButtonElement>(null);
-  const previousFocusRef = useRef<HTMLElement | null>(null);
-  const onCloseRef = useRef(onClose);
-
-  useEffect(() => {
-    onCloseRef.current = onClose;
-  }, [onClose]);
-
-  useEffect(() => {
-    if (!item) return;
-    previousFocusRef.current = document.activeElement as HTMLElement | null;
-    const focusTimer = window.setTimeout(() => closeButtonRef.current?.focus(), 0);
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        onCloseRef.current();
-        return;
-      }
-      if (e.key !== 'Tab' || !drawerRef.current) return;
-      const focusable = Array.from(
-        drawerRef.current.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])'),
-      );
-      if (focusable.length === 0) {
-        e.preventDefault();
-        drawerRef.current.focus();
-        return;
-      }
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.clearTimeout(focusTimer);
-      window.removeEventListener('keydown', handleKeyDown);
-      previousFocusRef.current?.focus();
-    };
-  }, [item]);
+  useOverlayFocus(Boolean(item), drawerRef, onClose);
 
   if (!item) return null;
 
@@ -163,7 +121,7 @@ export const HistoryDetailDrawer: React.FC<HistoryDetailDrawerProps> = ({
 
               {/* Close */}
               <button
-                ref={closeButtonRef}
+                autoFocus
                 type="button"
                 aria-label="关闭详情抽屉"
                 onClick={onClose}

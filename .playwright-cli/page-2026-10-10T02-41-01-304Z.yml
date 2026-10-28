@@ -1,0 +1,214 @@
+- generic [ref=f3e3]:
+  - generic [ref=f3e149]:
+    - banner [ref=f3e150]:
+      - generic [ref=f3e151]:
+        - generic [ref=f3e154]: DuckDB
+        - generic [ref=f3e155]: "|"
+        - heading "数据导入 Import Data" [level=1] [ref=f3e156]:
+          - generic [ref=f3e157]: 数据导入
+          - generic [ref=f3e158]: Import Data
+        - button "收起配置面板" [ref=f3e159] [cursor=pointer]:
+          - generic [ref=f3e160]: 收起侧栏
+      - generic [ref=f3e161]:
+        - button "SQL 预览" [ref=f3e162] [cursor=pointer]
+        - button "导入历史" [ref=f3e164] [cursor=pointer]
+        - button "使用帮助" [ref=f3e166] [cursor=pointer]
+        - button "关闭" [ref=f3e168] [cursor=pointer]
+    - generic [ref=f3e169]:
+      - complementary [ref=f3e170]:
+        - generic [ref=f3e171]:
+          - generic [ref=f3e172]:
+            - generic [ref=f3e173]: 导入配置面板
+            - generic [ref=f3e174]: Config
+          - button "收起" [ref=f3e175] [cursor=pointer]
+        - generic [ref=f3e177]:
+          - heading "1. 数据来源 Source" [level=2] [ref=f3e178]:
+            - generic [ref=f3e179]: 1. 数据来源
+            - generic [ref=f3e180]: Source
+          - generic [ref=f3e181]:
+            - button "本地文件" [ref=f3e182] [cursor=pointer]
+            - button "远程 URL" [ref=f3e184] [cursor=pointer]
+            - button "粘贴文本" [ref=f3e186] [cursor=pointer]
+          - generic [ref=f3e324]:
+            - generic [ref=f3e325]:
+              - generic [ref=f3e328]:
+                - paragraph [ref=f3e329]: acceptance.duckdb
+                - paragraph [ref=f3e330]: acceptance.duckdb
+              - button "移除文件" [ref=f3e331] [cursor=pointer]
+            - generic [ref=f3e332]:
+              - generic [ref=f3e333]: "大小: 780 KB"
+              - generic [ref=f3e334]: "行数: 未知"
+              - generic [ref=f3e335]: "修改时间: 10/9/2026, 7:38:58 PM"
+            - generic [ref=f3e336]:
+              - generic [ref=f3e337]: "提示: 可直接挂载为独立数据库"
+              - button "挂载为独立库 (ATTACH)" [disabled] [ref=f3e338] [cursor=pointer]
+        - generic [ref=f3e192]:
+          - generic [ref=f3e193]:
+            - heading "2. 文件解析设置 Parse Options" [level=2] [ref=f3e194]:
+              - generic [ref=f3e195]: 2. 文件解析设置
+              - generic [ref=f3e196]: Parse Options
+            - button "自动识别配置" [ref=f3e197] [cursor=pointer]
+          - generic [ref=f3e199]:
+            - generic [ref=f3e200]: 文件格式
+            - generic [ref=f3e201]:
+              - button "CSV" [ref=f3e202] [cursor=pointer]
+              - button "TSV" [ref=f3e203] [cursor=pointer]
+              - button "JSON" [ref=f3e204] [cursor=pointer]
+              - button "Parquet" [ref=f3e205] [cursor=pointer]
+              - button "Excel (.xlsx)" [ref=f3e206] [cursor=pointer]
+              - button "DuckDB (.duckdb)" [ref=f3e207] [cursor=pointer]
+          - generic [ref=f3e208]: DuckDB 数据库文件自动解析全部数据表结构与类型，无需配置分隔符。
+          - generic [ref=f3e217]:
+            - generic [ref=f3e218]: 首行是否表头
+            - generic [ref=f3e219]:
+              - switch [checked] [ref=f3e220] [cursor=pointer]
+              - generic [ref=f3e222]: 是，使用第一行作为列名
+          - generic [ref=f3e223]:
+            - generic [ref=f3e224]: 字符编码
+            - combobox "字符编码" [ref=f3e226] [cursor=pointer]:
+              - option "UTF-8" [selected]
+              - option "GBK / GB18030"
+              - option "ISO-8859-1"
+              - option "Windows-1252"
+          - button "高级选项 (跳过行数与日期格式)" [ref=f3e228] [cursor=pointer]
+        - generic [ref=f3e230]:
+          - heading "3. 目标表设置 Target Table" [level=2] [ref=f3e231]:
+            - generic [ref=f3e232]: 3. 目标表设置
+            - generic [ref=f3e233]: Target Table
+          - generic [ref=f3e234]:
+            - generic [ref=f3e235]:
+              - generic [ref=f3e236]: Schema
+              - generic [ref=f3e237]:
+                - combobox "Schema" [ref=f3e238] [cursor=pointer]:
+                  - option "main" [selected]
+                  - option "__studio"
+                - button "刷新 Schema 列表" [ref=f3e239] [cursor=pointer]
+            - generic [ref=f3e240]:
+              - generic [ref=f3e241]: 表名 *
+              - textbox "表名 *" [ref=f3e243]:
+                - /placeholder: "例如: raw_events_imported"
+        - generic [ref=f3e244]:
+          - heading "4. 同名表冲突策略 Conflict Strategy" [level=2] [ref=f3e245]:
+            - generic [ref=f3e246]: 4. 同名表冲突策略
+            - generic [ref=f3e247]: Conflict Strategy
+          - generic [ref=f3e248]:
+            - button [ref=f3e249] [cursor=pointer]:
+              - generic [ref=f3e250]:
+                - paragraph [ref=f3e253]: 覆盖替换
+                - paragraph [ref=f3e254]: Drop & Replace
+              - paragraph [ref=f3e255]: 如果表已存在，先删除后创建
+            - button [ref=f3e256] [cursor=pointer]:
+              - generic [ref=f3e257]:
+                - paragraph [ref=f3e259]: 追加行数据
+                - paragraph [ref=f3e260]: Append Rows
+              - paragraph [ref=f3e261]: 在现有表中追加新数据
+            - button [ref=f3e262] [cursor=pointer]:
+              - generic [ref=f3e263]:
+                - paragraph [ref=f3e265]: 存在即报错
+                - paragraph [ref=f3e266]: Fail If Exists
+              - paragraph [ref=f3e267]: 如果表已存在，则导入失败
+      - main [ref=f3e268]:
+        - generic [ref=f3e269]:
+          - heading "5. 数据预览 Preview" [level=2] [ref=f3e270]:
+            - generic [ref=f3e271]: 5. 数据预览
+            - generic [ref=f3e272]: Preview
+          - generic [ref=f3e273]: 正在解析数据源...
+        - generic [ref=f3e277]:
+          - generic [ref=f3e278]: 文件信息与识别结果
+          - generic [ref=f3e280]:
+            - generic [ref=f3e281]: acceptance.duckdb
+            - generic [ref=f3e284]:
+              - generic [ref=f3e285]:
+                - generic [ref=f3e286]: 格式
+                - text: DuckDB
+              - generic [ref=f3e287]:
+                - generic [ref=f3e288]: 大小
+                - text: 780 KB
+              - generic [ref=f3e289]:
+                - generic [ref=f3e290]: 总行数
+                - text: "0"
+              - generic [ref=f3e291]:
+                - generic [ref=f3e292]: 列数
+                - text: "0"
+              - generic [ref=f3e293]:
+                - generic [ref=f3e294]: 编码
+                - text: UTF-8
+              - generic [ref=f3e295]:
+                - generic [ref=f3e296]: 首行表头
+                - text: 是
+        - generic [ref=f3e297]:
+          - generic [ref=f3e299]:
+            - generic [ref=f3e300]: 字段映射与类型推断
+            - generic [ref=f3e301]: (共 0 列)
+          - generic [ref=f3e302]: 等待选择或上传数据文件，嗅探后将在此展示列结构映射
+        - generic [ref=f3e304]:
+          - generic [ref=f3e305]:
+            - generic [ref=f3e306]:
+              - generic [ref=f3e307]: 数据预览
+              - generic [ref=f3e308]: Data Preview (前 100 行样本)
+            - generic [ref=f3e309]:
+              - generic [ref=f3e310]: 共 0 行 | 显示前 0 行
+              - button "刷新预览" [disabled] [ref=f3e311] [cursor=pointer]
+          - generic [ref=f3e313]: 暂无数据预览，请先在左侧选择文件或解析数据源
+    - contentinfo [ref=f3e315]:
+      - generic [ref=f3e316]:
+        - generic [ref=f3e318]: 解析中
+        - generic [ref=f3e319]: 正在解析文件结构与推断列类型...
+      - generic [ref=f3e320]:
+        - button "取消" [ref=f3e321] [cursor=pointer]
+        - button "开始导入 Import" [disabled] [ref=f3e322]
+  - banner "全局工作区顶栏" [ref=f3e16]:
+    - generic [ref=f3e17]:
+      - button "🪶 DuckDB Studio PRO" [ref=f3e18] [cursor=pointer]:
+        - generic [ref=f3e19]: 🪶
+        - generic [ref=f3e21]:
+          - generic [ref=f3e22]: DuckDB Studio
+          - generic [ref=f3e23]: PRO
+      - navigation "业务领域大类" [ref=f3e25]:
+        - button "工程核心" [ref=f3e26] [cursor=pointer]
+        - button "分析洞察" [ref=f3e32] [cursor=pointer]
+        - button "知识沉淀" [ref=f3e37] [cursor=pointer]
+        - button "AI 认知" [ref=f3e42] [cursor=pointer]
+      - tablist "工程核心功能标签页" [ref=f3e48]:
+        - tab "仪表盘" [selected] [ref=f3e49] [cursor=pointer]
+        - tab "数据" [ref=f3e55] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f3e60]: "2"
+        - tab "Schema" [ref=f3e61] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f3e66]: "3"
+        - tab "SQL" [ref=f3e67] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f3e72]: "4"
+        - tab "数据流" [ref=f3e73] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f3e78]: "5"
+    - generic [ref=f3e79]:
+      - button "项目" [ref=f3e80] [cursor=pointer]
+      - button "临时分析空间" [ref=f3e85] [cursor=pointer]
+      - button "AI 助手" [ref=f3e93] [cursor=pointer]
+      - button "⌘K" [ref=f3e97] [cursor=pointer]
+      - button "帮助与快捷键" [ref=f3e101] [cursor=pointer]
+      - button "切换为浅色模式" [ref=f3e104] [cursor=pointer]
+      - button "AI 模型设置" [ref=f3e105] [cursor=pointer]
+  - main [ref=f3e108]:
+    - generic [ref=f3e114]:
+      - generic [ref=f3e115]:
+        - generic [ref=f3e116]:
+          - generic [ref=f3e117]:
+            - heading "分析范围" [level=1] [ref=f3e118]
+            - generic [ref=f3e119]: /
+            - button "内存库 · memory（临时）" [ref=f3e120] [cursor=pointer]
+          - paragraph
+        - button "刷新" [ref=f3e123] [cursor=pointer]
+      - status [ref=f3e340]: 加载分析…
+  - contentinfo [ref=f3e127]:
+    - generic [ref=f3e128]:
+      - generic [ref=f3e129]: DuckDB 1.33.1
+      - generic [ref=f3e132]: "|"
+      - generic [ref=f3e133]: memory [MEMORY]
+      - generic [ref=f3e135]: "|"
+      - generic [ref=f3e136]: 内存库
+      - generic [ref=f3e138]: "|"
+      - generic [ref=f3e139]: 1 张表
+    - generic [ref=f3e141]:
+      - generic [ref=f3e142]: 引擎就绪
+      - generic [ref=f3e146]: "|"
+      - generic [ref=f3e147]: 19:40
+      - button "刷新运行时状态" [ref=f3e148] [cursor=pointer]

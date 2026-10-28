@@ -1,0 +1,87 @@
+[
+  {
+    "height": 1000,
+    "pageWidth": 1440,
+    "plots": [
+      {
+        "h": 318,
+        "scrollW": 687,
+        "w": 687
+      },
+      {
+        "h": 318,
+        "scrollW": 687,
+        "w": 687
+      }
+    ],
+    "width": 1440
+  },
+  {
+    "height": 1000,
+    "pageWidth": 1280,
+    "plots": [
+      {
+        "h": 318,
+        "scrollW": 607,
+        "w": 607
+      },
+      {
+        "h": 318,
+        "scrollW": 607,
+        "w": 607
+      }
+    ],
+    "width": 1280
+  },
+  {
+    "height": 1000,
+    "pageWidth": 1024,
+    "plots": [
+      {
+        "h": 318,
+        "scrollW": 479,
+        "w": 479
+      },
+      {
+        "h": 318,
+        "scrollW": 479,
+        "w": 479
+      }
+    ],
+    "width": 1024
+  },
+  {
+    "height": 1000,
+    "pageWidth": 768,
+    "plots": [
+      {
+        "h": 318,
+        "scrollW": 724,
+        "w": 724
+      },
+      {
+        "h": 318,
+        "scrollW": 724,
+        "w": 724
+      }
+    ],
+    "width": 768
+  },
+  {
+    "height": 1000,
+    "pageWidth": 390,
+    "plots": [
+      {
+        "h": 278,
+        "scrollW": 380,
+        "w": 354
+      },
+      {
+        "h": 278,
+        "scrollW": 354,
+        "w": 354
+      }
+    ],
+    "width": 390
+  }
+]

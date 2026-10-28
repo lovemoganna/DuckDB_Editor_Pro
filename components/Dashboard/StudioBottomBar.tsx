@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, Folder, Database, Layers, Cpu, CheckCircle } from 'lucide-react';
-import { type DuckDBRuntimeInfo } from '../../services/duckdbService';
+import { RefreshCw, Folder, Database, Layers, Cpu } from 'lucide-react';
+import { duckDBService, type DuckDBRuntimeInfo } from '../../services/duckdbService';
 import { useAppStore } from '../../hooks/store/useAppStore';
 
 interface StudioBottomBarProps {
@@ -18,8 +18,22 @@ export const StudioBottomBar: React.FC<StudioBottomBarProps> = ({
   onRefresh,
 }) => {
   const tables = useAppStore(state => state.tables);
-  const [timeStr, setTimeStr] = useState<string>('16:30');
+  const [timeStr, setTimeStr] = useState<string>(() => new Date().toTimeString().slice(0, 5));
   const [isRotating, setIsRotating] = useState(false);
+  const [memoryDisplay, setMemoryDisplay] = useState('未采集');
+
+  useEffect(() => {
+    let active = true;
+    setMemoryDisplay(runtimeInfo?.memoryUsage || '未采集');
+    if (runtimeInfo?.ready && !runtimeInfo.memoryUsage) {
+      duckDBService.getDatabaseDiagnostics().then(info => {
+        if (!active || !info.memoryUsage || /unknown/i.test(info.memoryUsage)) return;
+        setMemoryDisplay(info.memoryLimit && !/unknown/i.test(info.memoryLimit)
+          ? `${info.memoryUsage} / ${info.memoryLimit}` : info.memoryUsage);
+      }).catch(() => {});
+    }
+    return () => { active = false; };
+  }, [runtimeInfo?.ready, runtimeInfo?.currentDatabase, runtimeInfo?.memoryUsage, isRotating]);
 
   useEffect(() => {
     const update = () => {
@@ -40,17 +54,17 @@ export const StudioBottomBar: React.FC<StudioBottomBarProps> = ({
   };
 
   const tableCount = tables.length;
-  const dbVersion = runtimeInfo?.version || '1.33.1';
+  const dbVersion = runtimeInfo?.version || '—';
   const storageMode = runtimeInfo?.storageMode ? runtimeInfo.storageMode.toUpperCase() : 'WASM';
-  const memoryDisplay = runtimeInfo?.memoryUsage || '2.1 GB / 16 GB';
+  const ready = runtimeInfo?.ready === true;
 
   return (
-    <footer className="h-7 w-full shrink-0 bg-monokai-surface border-t border-monokai-border px-4 flex items-center justify-between text-meta font-mono text-monokai-comment select-none z-30 text-xs">
+    <footer className="h-7 w-full shrink-0 bg-monokai-surface border-t border-monokai-border px-4 flex items-center justify-between text-meta font-mono text-monokai-comment select-none z-30 text-xs whitespace-nowrap">
       {/* Left items matching reference design */}
       <div className="flex items-center gap-3.5 min-w-0 overflow-x-auto no-scrollbar">
         {/* Version */}
-        <div className="flex items-center gap-1.5 font-medium text-monokai-fg">
-          <span className="w-1.5 h-1.5 rounded-full bg-monokai-green" />
+        <div className="flex shrink-0 items-center gap-1.5 font-medium text-monokai-fg">
+          <span className="w-1.5 h-1.5 rounded-full bg-monokai-accent" />
           <span>DuckDB {dbVersion}</span>
         </div>
 
@@ -59,7 +73,7 @@ export const StudioBottomBar: React.FC<StudioBottomBarProps> = ({
         {/* Directory / Mode */}
         <div className="flex items-center gap-1 text-monokai-comment hover:text-monokai-fg transition-colors">
           <Folder className="w-3 h-3 text-monokai-comment" />
-          <span className="truncate max-w-[120px]">/workspace [{storageMode}]</span>
+          <span className="truncate max-w-[180px]">{runtimeInfo?.currentDatabase || '待连接'} [{storageMode}]</span>
         </div>
 
         <span className="text-monokai-border hidden sm:inline">|</span>
@@ -67,7 +81,7 @@ export const StudioBottomBar: React.FC<StudioBottomBarProps> = ({
         {/* DB count */}
         <div className="hidden sm:flex items-center gap-1">
           <Database className="w-3 h-3 text-monokai-comment" />
-          <span>{runtimeInfo?.persistent ? '持久化库' : '内存库'}</span>
+          <span>{runtimeInfo ? (runtimeInfo.persistent ? '持久化库' : '内存库') : '模式未知'}</span>
         </div>
 
         <span className="text-monokai-border hidden md:inline">|</span>
@@ -96,12 +110,11 @@ export const StudioBottomBar: React.FC<StudioBottomBarProps> = ({
 
       {/* Right items: ● 运行正常 | 16:30 | Refresh */}
       <div className="flex items-center gap-3 shrink-0">
-        <div className="flex items-center gap-1.5 text-monokai-green font-medium font-sans">
+        <div className={`flex items-center gap-1.5 ${ready ? 'text-monokai-green' : 'text-monokai-comment'} font-medium font-sans`}>
           <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-monokai-green opacity-75" />
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-monokai-green" />
+            <span className={`relative inline-flex rounded-full h-2 w-2 ${ready ? 'bg-monokai-green' : 'bg-monokai-comment'}`} />
           </span>
-          <span>运行正常</span>
+          <span>{ready ? '引擎就绪' : '等待连接'}</span>
         </div>
 
         <span className="text-monokai-border">|</span>

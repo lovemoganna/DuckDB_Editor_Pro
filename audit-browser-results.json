@@ -1,0 +1,433 @@
+{
+  "timestamp": "2026-10-28T04:50:54.476Z",
+  "runs": [
+    {
+      "domain": "工程核心",
+      "tab": "仪表盘",
+      "config": "desktop-1440-dark",
+      "switched": true
+    },
+    {
+      "domain": "工程核心",
+      "tab": "数据",
+      "config": "desktop-1440-dark",
+      "switched": true
+    },
+    {
+      "domain": "工程核心",
+      "tab": "Schema",
+      "config": "desktop-1440-dark",
+      "switched": true
+    },
+    {
+      "domain": "工程核心",
+      "tab": "SQL",
+      "config": "desktop-1440-dark",
+      "switched": true
+    },
+    {
+      "domain": "工程核心",
+      "tab": "数据流",
+      "config": "desktop-1440-dark",
+      "switched": true
+    },
+    {
+      "domain": "分析洞察",
+      "tab": "指标",
+      "config": "desktop-1440-dark",
+      "switched": true
+    },
+    {
+      "domain": "分析洞察",
+      "tab": "可视化",
+      "config": "desktop-1440-dark",
+      "switched": true
+    },
+    {
+      "domain": "分析洞察",
+      "tab": "分析",
+      "config": "desktop-1440-dark",
+      "switched": true
+    },
+    {
+      "domain": "分析洞察",
+      "tab": "历史",
+      "config": "desktop-1440-dark",
+      "switched": true
+    },
+    {
+      "domain": "分析洞察",
+      "tab": "审计",
+      "config": "desktop-1440-dark",
+      "switched": true
+    },
+    {
+      "domain": "知识沉淀",
+      "tab": "知识资产",
+      "config": "desktop-1440-dark",
+      "switched": true
+    },
+    {
+      "domain": "知识沉淀",
+      "tab": "插件",
+      "config": "desktop-1440-dark",
+      "switched": true
+    },
+    {
+      "domain": "知识沉淀",
+      "tab": "知识联动",
+      "config": "desktop-1440-dark",
+      "switched": true
+    },
+    {
+      "domain": "AI 认知",
+      "tab": "本体图谱",
+      "config": "desktop-1440-dark",
+      "switched": true
+    },
+    {
+      "domain": "AI 认知",
+      "tab": "技能",
+      "config": "desktop-1440-dark",
+      "switched": true
+    },
+    {
+      "domain": "AI 认知",
+      "tab": "能力",
+      "config": "desktop-1440-dark",
+      "switched": true
+    },
+    {
+      "domain": "AI 认知",
+      "tab": "推演",
+      "config": "desktop-1440-dark",
+      "switched": true
+    },
+    {
+      "domain": "工程核心",
+      "tab": "仪表盘",
+      "config": "desktop-1440-light",
+      "switched": true
+    },
+    {
+      "domain": "工程核心",
+      "tab": "数据",
+      "config": "desktop-1440-light",
+      "switched": true
+    },
+    {
+      "domain": "工程核心",
+      "tab": "Schema",
+      "config": "desktop-1440-light",
+      "switched": true
+    },
+    {
+      "domain": "工程核心",
+      "tab": "SQL",
+      "config": "desktop-1440-light",
+      "switched": true
+    },
+    {
+      "domain": "工程核心",
+      "tab": "数据流",
+      "config": "desktop-1440-light",
+      "switched": true
+    },
+    {
+      "domain": "分析洞察",
+      "tab": "指标",
+      "config": "desktop-1440-light",
+      "switched": true
+    },
+    {
+      "domain": "分析洞察",
+      "tab": "可视化",
+      "config": "desktop-1440-light",
+      "switched": true
+    },
+    {
+      "domain": "分析洞察",
+      "tab": "分析",
+      "config": "desktop-1440-light",
+      "switched": true
+    },
+    {
+      "domain": "分析洞察",
+      "tab": "历史",
+      "config": "desktop-1440-light",
+      "switched": true
+    },
+    {
+      "domain": "分析洞察",
+      "tab": "审计",
+      "config": "desktop-1440-light",
+      "switched": true
+    },
+    {
+      "domain": "知识沉淀",
+      "tab": "知识资产",
+      "config": "desktop-1440-light",
+      "switched": true
+    },
+    {
+      "domain": "知识沉淀",
+      "tab": "插件",
+      "config": "desktop-1440-light",
+      "switched": true
+    },
+    {
+      "domain": "知识沉淀",
+      "tab": "知识联动",
+      "config": "desktop-1440-light",
+      "switched": true
+    },
+    {
+      "domain": "AI 认知",
+      "tab": "本体图谱",
+      "config": "desktop-1440-light",
+      "switched": true
+    },
+    {
+      "domain": "AI 认知",
+      "tab": "技能",
+      "config": "desktop-1440-light",
+      "switched": true
+    },
+    {
+      "domain": "AI 认知",
+      "tab": "能力",
+      "config": "desktop-1440-light",
+      "switched": true
+    },
+    {
+      "domain": "AI 认知",
+      "tab": "推演",
+      "config": "desktop-1440-light",
+      "switched": true
+    },
+    {
+      "domain": "工程核心",
+      "tab": "仪表盘",
+      "config": "mobile-390-light",
+      "switched": true
+    },
+    {
+      "domain": "工程核心",
+      "tab": "数据",
+      "config": "mobile-390-light",
+      "switched": true
+    },
+    {
+      "domain": "工程核心",
+      "tab": "Schema",
+      "config": "mobile-390-light",
+      "switched": true
+    },
+    {
+      "domain": "工程核心",
+      "tab": "SQL",
+      "config": "mobile-390-light",
+      "switched": true
+    },
+    {
+      "domain": "工程核心",
+      "tab": "数据流",
+      "config": "mobile-390-light",
+      "switched": true
+    },
+    {
+      "domain": "分析洞察",
+      "tab": "指标",
+      "config": "mobile-390-light",
+      "switched": true
+    },
+    {
+      "domain": "分析洞察",
+      "tab": "可视化",
+      "config": "mobile-390-light",
+      "switched": true
+    },
+    {
+      "domain": "分析洞察",
+      "tab": "分析",
+      "config": "mobile-390-light",
+      "switched": true
+    },
+    {
+      "domain": "分析洞察",
+      "tab": "历史",
+      "config": "mobile-390-light",
+      "switched": true
+    },
+    {
+      "domain": "分析洞察",
+      "tab": "审计",
+      "config": "mobile-390-light",
+      "switched": true
+    },
+    {
+      "domain": "知识沉淀",
+      "tab": "知识资产",
+      "config": "mobile-390-light",
+      "switched": true
+    },
+    {
+      "domain": "知识沉淀",
+      "tab": "插件",
+      "config": "mobile-390-light",
+      "switched": true
+    },
+    {
+      "domain": "知识沉淀",
+      "tab": "知识联动",
+      "config": "mobile-390-light",
+      "switched": true
+    },
+    {
+      "domain": "AI 认知",
+      "tab": "本体图谱",
+      "config": "mobile-390-light",
+      "switched": true
+    },
+    {
+      "domain": "AI 认知",
+      "tab": "技能",
+      "config": "mobile-390-light",
+      "switched": true
+    },
+    {
+      "domain": "AI 认知",
+      "tab": "能力",
+      "config": "mobile-390-light",
+      "switched": true
+    },
+    {
+      "domain": "AI 认知",
+      "tab": "推演",
+      "config": "mobile-390-light",
+      "switched": true
+    },
+    {
+      "domain": "工程核心",
+      "tab": "仪表盘",
+      "config": "mobile-390-dark",
+      "switched": true
+    },
+    {
+      "domain": "工程核心",
+      "tab": "数据",
+      "config": "mobile-390-dark",
+      "switched": true
+    },
+    {
+      "domain": "工程核心",
+      "tab": "Schema",
+      "config": "mobile-390-dark",
+      "switched": true
+    },
+    {
+      "domain": "工程核心",
+      "tab": "SQL",
+      "config": "mobile-390-dark",
+      "switched": true
+    },
+    {
+      "domain": "工程核心",
+      "tab": "数据流",
+      "config": "mobile-390-dark",
+      "switched": true
+    },
+    {
+      "domain": "分析洞察",
+      "tab": "指标",
+      "config": "mobile-390-dark",
+      "switched": true
+    },
+    {
+      "domain": "分析洞察",
+      "tab": "可视化",
+      "config": "mobile-390-dark",
+      "switched": true
+    },
+    {
+      "domain": "分析洞察",
+      "tab": "分析",
+      "config": "mobile-390-dark",
+      "switched": true
+    },
+    {
+      "domain": "分析洞察",
+      "tab": "历史",
+      "config": "mobile-390-dark",
+      "switched": true
+    },
+    {
+      "domain": "分析洞察",
+      "tab": "审计",
+      "config": "mobile-390-dark",
+      "switched": true
+    },
+    {
+      "domain": "知识沉淀",
+      "tab": "知识资产",
+      "config": "mobile-390-dark",
+      "switched": true
+    },
+    {
+      "domain": "知识沉淀",
+      "tab": "插件",
+      "config": "mobile-390-dark",
+      "switched": true
+    },
+    {
+      "domain": "知识沉淀",
+      "tab": "知识联动",
+      "config": "mobile-390-dark",
+      "switched": true
+    },
+    {
+      "domain": "AI 认知",
+      "tab": "本体图谱",
+      "config": "mobile-390-dark",
+      "switched": true
+    },
+    {
+      "domain": "AI 认知",
+      "tab": "技能",
+      "config": "mobile-390-dark",
+      "switched": true
+    },
+    {
+      "domain": "AI 认知",
+      "tab": "能力",
+      "config": "mobile-390-dark",
+      "switched": true
+    },
+    {
+      "domain": "AI 认知",
+      "tab": "推演",
+      "config": "mobile-390-dark",
+      "switched": true
+    }
+  ],
+  "consoleErrors": [],
+  "unnamedButtons": [],
+  "overflowIssues": [],
+  "modalChecks": [
+    {
+      "name": "ImportModal",
+      "found": false
+    },
+    {
+      "name": "ShortcutsModal",
+      "triggerKey": "?",
+      "opened": true,
+      "text": "快捷键速查指南\nCheat Sheet\n\n高效操作 DuckDB Studio 的键盘快捷键映射\n\n全局通用快捷键\n打开命令面板\nCtrl\n+\nK\n快捷键指南\nShift\n+\n?\n关闭当前浮层 / 取",
+      "closedWithEsc": true
+    }
+  ],
+  "sqlChecks": [
+    {}
+  ],
+  "uncaughtErrors": []
+}

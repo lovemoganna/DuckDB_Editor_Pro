@@ -1,0 +1,413 @@
+- generic [ref=f3e3]:
+  - generic [ref=f3e149]:
+    - banner [ref=f3e150]:
+      - generic [ref=f3e151]:
+        - generic [ref=f3e154]: DuckDB
+        - generic [ref=f3e155]: "|"
+        - heading "数据导入 Import Data" [level=1] [ref=f3e156]:
+          - generic [ref=f3e157]: 数据导入
+          - generic [ref=f3e158]: Import Data
+        - button "收起配置面板" [ref=f3e159] [cursor=pointer]:
+          - generic [ref=f3e160]: 收起侧栏
+      - generic [ref=f3e161]:
+        - button "SQL 预览" [ref=f3e162] [cursor=pointer]
+        - button "导入历史" [ref=f3e164] [cursor=pointer]
+        - button "使用帮助" [ref=f3e166] [cursor=pointer]
+        - button "关闭" [ref=f3e168] [cursor=pointer]
+    - generic [ref=f3e169]:
+      - complementary [ref=f3e170]:
+        - generic [ref=f3e171]:
+          - generic [ref=f3e172]:
+            - generic [ref=f3e173]: 导入配置面板
+            - generic [ref=f3e174]: Config
+          - button "收起" [ref=f3e175] [cursor=pointer]
+        - generic [ref=f3e177]:
+          - heading "1. 数据来源 Source" [level=2] [ref=f3e178]:
+            - generic [ref=f3e179]: 1. 数据来源
+            - generic [ref=f3e180]: Source
+          - generic [ref=f3e181]:
+            - button "本地文件" [ref=f3e182] [cursor=pointer]
+            - button "远程 URL" [ref=f3e184] [cursor=pointer]
+            - button "粘贴文本" [ref=f3e186] [cursor=pointer]
+          - generic [ref=f3e324]:
+            - generic [ref=f3e325]:
+              - generic [ref=f3e328]:
+                - paragraph [ref=f3e329]: acceptance.duckdb
+                - paragraph [ref=f3e330]: acceptance.duckdb
+              - button "移除文件" [ref=f3e331] [cursor=pointer]
+            - generic [ref=f3e332]:
+              - generic [ref=f3e333]: "大小: 780 KB"
+              - generic [ref=f3e334]: "行数: 17"
+              - generic [ref=f3e335]: "修改时间: 2026-10-09 19:38"
+            - generic [ref=f3e336]:
+              - generic [ref=f3e337]: "提示: 可直接挂载为独立数据库"
+              - button "挂载为独立库 (ATTACH)" [disabled] [ref=f3e338] [cursor=pointer]
+        - generic [ref=f3e192]:
+          - generic [ref=f3e193]:
+            - heading "2. 文件解析设置 Parse Options" [level=2] [ref=f3e194]:
+              - generic [ref=f3e195]: 2. 文件解析设置
+              - generic [ref=f3e196]: Parse Options
+            - button "自动识别配置" [ref=f3e197] [cursor=pointer]
+          - generic [ref=f3e199]:
+            - generic [ref=f3e200]: 文件格式
+            - generic [ref=f3e201]:
+              - button "CSV" [ref=f3e202] [cursor=pointer]
+              - button "TSV" [ref=f3e203] [cursor=pointer]
+              - button "JSON" [ref=f3e204] [cursor=pointer]
+              - button "Parquet" [ref=f3e205] [cursor=pointer]
+              - button "Excel (.xlsx)" [ref=f3e206] [cursor=pointer]
+              - button "DuckDB (.duckdb)" [ref=f3e207] [cursor=pointer]
+          - generic [ref=f3e208]: DuckDB 数据库文件自动解析全部数据表结构与类型，无需配置分隔符。
+          - generic [ref=f3e217]:
+            - generic [ref=f3e218]: 首行是否表头
+            - generic [ref=f3e219]:
+              - switch [checked] [ref=f3e220] [cursor=pointer]
+              - generic [ref=f3e222]: 是，使用第一行作为列名
+          - generic [ref=f3e223]:
+            - generic [ref=f3e224]: 字符编码
+            - combobox "字符编码" [ref=f3e226] [cursor=pointer]:
+              - option "UTF-8" [selected]
+              - option "GBK / GB18030"
+              - option "ISO-8859-1"
+              - option "Windows-1252"
+          - button "高级选项 (跳过行数与日期格式)" [ref=f3e228] [cursor=pointer]
+        - generic [ref=f3e230]:
+          - heading "3. 目标表设置 Target Table" [level=2] [ref=f3e231]:
+            - generic [ref=f3e232]: 3. 目标表设置
+            - generic [ref=f3e233]: Target Table
+          - generic [ref=f3e234]:
+            - generic [ref=f3e235]:
+              - generic [ref=f3e236]: Schema
+              - generic [ref=f3e237]:
+                - combobox "Schema" [ref=f3e238] [cursor=pointer]:
+                  - option "main" [selected]
+                  - option "__studio"
+                - button "刷新 Schema 列表" [ref=f3e239] [cursor=pointer]
+            - generic [ref=f3e240]:
+              - generic [ref=f3e241]: 基础表名 *
+              - textbox "基础表名 *" [ref=f3e341]:
+                - /placeholder: "例如: raw_events_imported"
+                - text: acceptance_imported
+            - generic [ref=f3e343]:
+              - button "各工作表目标表名映射 (2 个)" [ref=f3e344] [cursor=pointer]
+              - generic [ref=f3e346]: 已选 2/2
+        - generic [ref=f3e244]:
+          - heading "4. 同名表冲突策略 Conflict Strategy" [level=2] [ref=f3e245]:
+            - generic [ref=f3e246]: 4. 同名表冲突策略
+            - generic [ref=f3e247]: Conflict Strategy
+          - generic [ref=f3e248]:
+            - button [ref=f3e249] [cursor=pointer]:
+              - generic [ref=f3e250]:
+                - paragraph [ref=f3e253]: 覆盖替换
+                - paragraph [ref=f3e254]: Drop & Replace
+              - paragraph [ref=f3e255]: 如果表已存在，先删除后创建
+            - button [ref=f3e256] [cursor=pointer]:
+              - generic [ref=f3e257]:
+                - paragraph [ref=f3e259]: 追加行数据
+                - paragraph [ref=f3e260]: Append Rows
+              - paragraph [ref=f3e261]: 在现有表中追加新数据
+            - button [ref=f3e262] [cursor=pointer]:
+              - generic [ref=f3e263]:
+                - paragraph [ref=f3e265]: 存在即报错
+                - paragraph [ref=f3e266]: Fail If Exists
+              - paragraph [ref=f3e267]: 如果表已存在，则导入失败
+      - main [ref=f3e268]:
+        - generic [ref=f3e269]:
+          - heading "5. 数据预览 Preview" [level=2] [ref=f3e270]:
+            - generic [ref=f3e271]: 5. 数据预览
+            - generic [ref=f3e272]: Preview
+          - generic [ref=f3e273]: 已自动识别文件结构，修改左侧配置可实时更新预览
+        - generic [ref=f3e348]:
+          - generic [ref=f3e349]:
+            - generic [ref=f3e350]:
+              - generic [ref=f3e351]: 工作表列表 (Sheets)
+              - generic [ref=f3e352]: 已选 2/2 个工作表
+            - generic [ref=f3e353]:
+              - button "全选" [ref=f3e354] [cursor=pointer]
+              - generic [ref=f3e355]: "|"
+              - button "仅选非空表" [ref=f3e356] [cursor=pointer]
+              - generic [ref=f3e357]: "|"
+              - button "取消全选" [ref=f3e358] [cursor=pointer]
+          - generic [ref=f3e359]:
+            - generic [ref=f3e360] [cursor=pointer]:
+              - checkbox "勾选导入此工作表" [checked] [ref=f3e361]
+              - generic [ref=f3e362]: dataset_a
+              - generic [ref=f3e363]: 11 行 · 5 列
+            - generic [ref=f3e364] [cursor=pointer]:
+              - checkbox "勾选导入此工作表" [checked] [ref=f3e365]
+              - generic [ref=f3e366]: dataset_b
+              - generic [ref=f3e367]: 6 行 · 5 列
+        - generic [ref=f3e277]:
+          - generic [ref=f3e278]: 文件信息与识别结果
+          - generic [ref=f3e280]:
+            - generic [ref=f3e281]: acceptance.duckdb
+            - generic [ref=f3e284]:
+              - generic [ref=f3e285]:
+                - generic [ref=f3e286]: 格式
+                - text: DuckDB
+              - generic [ref=f3e287]:
+                - generic [ref=f3e288]: 大小
+                - text: 780 KB
+              - generic [ref=f3e368]:
+                - generic [ref=f3e369]: 工作表
+                - generic [ref=f3e370]: 2/2 个
+              - generic [ref=f3e289]:
+                - generic [ref=f3e290]: 当前工作表行数
+                - text: "11"
+              - generic [ref=f3e291]:
+                - generic [ref=f3e292]: 列数
+                - text: "5"
+              - generic [ref=f3e293]:
+                - generic [ref=f3e294]: 编码
+                - text: UTF-8
+              - generic [ref=f3e295]:
+                - generic [ref=f3e296]: 首行表头
+                - text: 是
+        - generic [ref=f3e297]:
+          - generic [ref=f3e298]:
+            - generic [ref=f3e299]:
+              - generic [ref=f3e300]: 字段映射与类型推断
+              - generic [ref=f3e301]: (共 5 列)
+            - generic [ref=f3e371]:
+              - textbox "过滤字段名/类型..." [ref=f3e373]
+              - button "转小写" [ref=f3e374] [cursor=pointer]
+              - button "转蛇形" [ref=f3e375] [cursor=pointer]
+              - button "重置映射" [ref=f3e376] [cursor=pointer]
+          - table [ref=f3e377]:
+            - rowgroup [ref=f3e378]:
+              - row [ref=f3e379]:
+                - columnheader "#" [ref=f3e380]
+                - columnheader "源列名" [ref=f3e381]
+                - columnheader "目标列名" [ref=f3e382]
+                - columnheader "推断类型" [ref=f3e383]
+                - columnheader "可空" [ref=f3e384]
+                - columnheader "示例值" [ref=f3e385]
+            - rowgroup [ref=f3e386]:
+              - row [ref=f3e387]:
+                - cell "1" [ref=f3e388]
+                - cell "channel" [ref=f3e389]
+                - cell [ref=f3e390]:
+                  - textbox [ref=f3e391]: channel
+                - cell [ref=f3e392]:
+                  - button "VARCHAR" [ref=f3e394] [cursor=pointer]
+                - cell "YES" [ref=f3e395]
+                - cell "wire_transfer" [ref=f3e399]
+              - row [ref=f3e400]:
+                - cell "2" [ref=f3e401]
+                - cell "amount" [ref=f3e402]
+                - cell [ref=f3e403]:
+                  - textbox [ref=f3e404]: amount
+                - cell [ref=f3e405]:
+                  - button "DECIMAL(18,2)" [ref=f3e407] [cursor=pointer]
+                - cell "YES" [ref=f3e408]
+                - cell "50000.00" [ref=f3e412]
+              - row [ref=f3e413]:
+                - cell "3" [ref=f3e414]
+                - cell "status" [ref=f3e415]
+                - cell [ref=f3e416]:
+                  - textbox [ref=f3e417]: status
+                - cell [ref=f3e418]:
+                  - button "VARCHAR" [ref=f3e420] [cursor=pointer]
+                - cell "YES" [ref=f3e421]
+                - cell "completed" [ref=f3e425]
+              - row [ref=f3e426]:
+                - cell "4" [ref=f3e427]
+                - cell "currency" [ref=f3e428]
+                - cell [ref=f3e429]:
+                  - textbox [ref=f3e430]: currency
+                - cell [ref=f3e431]:
+                  - button "VARCHAR" [ref=f3e433] [cursor=pointer]
+                - cell "YES" [ref=f3e434]
+                - cell "USD" [ref=f3e438]
+              - row [ref=f3e439]:
+                - cell "5" [ref=f3e440]
+                - cell "fiat_order_id" [ref=f3e441]
+                - cell [ref=f3e442]:
+                  - textbox [ref=f3e443]: fiat_order_id
+                - cell [ref=f3e444]:
+                  - button "VARCHAR" [ref=f3e446] [cursor=pointer]
+                - cell "YES" [ref=f3e447]
+                - cell "fo_20250112_61590237" [ref=f3e451]
+        - generic [ref=f3e304]:
+          - generic [ref=f3e305]:
+            - generic [ref=f3e306]:
+              - generic [ref=f3e307]: 数据预览
+              - generic [ref=f3e308]: Data Preview (前 100 行样本)
+            - generic [ref=f3e309]:
+              - generic [ref=f3e310]: 共 17 行 | 显示前 11 行
+              - button "刷新预览" [ref=f3e311] [cursor=pointer]
+          - table [ref=f3e452]:
+            - rowgroup [ref=f3e453]:
+              - row [ref=f3e454]:
+                - columnheader "#" [ref=f3e455]
+                - columnheader "channel" [ref=f3e456] [cursor=pointer]
+                - columnheader "amount" [ref=f3e459] [cursor=pointer]
+                - columnheader "status" [ref=f3e462] [cursor=pointer]
+                - columnheader "currency" [ref=f3e465] [cursor=pointer]
+                - columnheader "fiat_order_id" [ref=f3e468] [cursor=pointer]
+            - rowgroup [ref=f3e471]:
+              - row [ref=f3e472]:
+                - cell "1" [ref=f3e473]
+                - cell "wire_transfer" [ref=f3e474]
+                - cell "50000.00" [ref=f3e475]
+                - cell "completed" [ref=f3e476]
+                - cell "USD" [ref=f3e477]
+                - cell "fo_20250112_61590237" [ref=f3e478]
+              - row [ref=f3e479]:
+                - cell "2" [ref=f3e480]
+                - cell "wire_transfer" [ref=f3e481]
+                - cell "12000.00" [ref=f3e482]
+                - cell "completed" [ref=f3e483]
+                - cell "USD" [ref=f3e484]
+                - cell "fo_20250214_61590238" [ref=f3e485]
+              - row [ref=f3e486]:
+                - cell "3" [ref=f3e487]
+                - cell "wire_transfer" [ref=f3e488]
+                - cell "5000.00" [ref=f3e489]
+                - cell "completed" [ref=f3e490]
+                - cell "USD" [ref=f3e491]
+                - cell "fo_20250618_61590239" [ref=f3e492]
+              - row [ref=f3e493]:
+                - cell "4" [ref=f3e494]
+                - cell "wire_transfer" [ref=f3e495]
+                - cell "10000.00" [ref=f3e496]
+                - cell "pending" [ref=f3e497]
+                - cell "USD" [ref=f3e498]
+                - cell "fo_20250720_61590240" [ref=f3e499]
+              - row [ref=f3e500]:
+                - cell "5" [ref=f3e501]
+                - cell "ach" [ref=f3e502]
+                - cell "1000.00" [ref=f3e503]
+                - cell "completed" [ref=f3e504]
+                - cell "USD" [ref=f3e505]
+                - cell "fo_20250308_90317462" [ref=f3e506]
+              - row [ref=f3e507]:
+                - cell "6" [ref=f3e508]
+                - cell "ach" [ref=f3e509]
+                - cell "450.00" [ref=f3e510]
+                - cell "completed" [ref=f3e511]
+                - cell "USD" [ref=f3e512]
+                - cell "fo_20250415_90317463" [ref=f3e513]
+              - row [ref=f3e514]:
+                - cell "7" [ref=f3e515]
+                - cell "ach" [ref=f3e516]
+                - cell "200.00" [ref=f3e517]
+                - cell "cancelled" [ref=f3e518]
+                - cell "USD" [ref=f3e519]
+                - cell "fo_20250502_90317464" [ref=f3e520]
+              - row [ref=f3e521]:
+                - cell "8" [ref=f3e522]
+                - cell "wire_transfer" [ref=f3e523]
+                - cell "25000.00" [ref=f3e524]
+                - cell "completed" [ref=f3e525]
+                - cell "USD" [ref=f3e526]
+                - cell "fo_20250605_69248130" [ref=f3e527]
+              - row [ref=f3e528]:
+                - cell "9" [ref=f3e529]
+                - cell "wire_transfer" [ref=f3e530]
+                - cell "10000.00" [ref=f3e531]
+                - cell "completed" [ref=f3e532]
+                - cell "USD" [ref=f3e533]
+                - cell "fo_20250915_69248131" [ref=f3e534]
+              - row [ref=f3e535]:
+                - cell "10" [ref=f3e536]
+                - cell "ach" [ref=f3e537]
+                - cell "800.00" [ref=f3e538]
+                - cell "completed" [ref=f3e539]
+                - cell "USD" [ref=f3e540]
+                - cell "fo_20250920_50284719" [ref=f3e541]
+              - row [ref=f3e542]:
+                - cell "11" [ref=f3e543]
+                - cell "ach" [ref=f3e544]
+                - cell "20.00" [ref=f3e545]
+                - cell "completed" [ref=f3e546]
+                - cell "USD" [ref=f3e547]
+                - cell "fo_20251025_50284720" [ref=f3e548]
+    - contentinfo [ref=f3e315]:
+      - generic [ref=f3e316]:
+        - generic [ref=f3e318]: 写入中
+        - generic [ref=f3e319]: 正在将数据库文件挂载到 Catalog...
+      - generic [ref=f3e320]:
+        - button "取消" [disabled] [ref=f3e321] [cursor=pointer]
+        - button "批量导入选中的 2 个工作表" [disabled] [ref=f3e549]
+  - banner "全局工作区顶栏" [ref=f3e16]:
+    - generic [ref=f3e17]:
+      - button "🪶 DuckDB Studio PRO" [ref=f3e18] [cursor=pointer]:
+        - generic [ref=f3e19]: 🪶
+        - generic [ref=f3e21]:
+          - generic [ref=f3e22]: DuckDB Studio
+          - generic [ref=f3e23]: PRO
+      - navigation "业务领域大类" [ref=f3e25]:
+        - button "工程核心" [ref=f3e26] [cursor=pointer]
+        - button "分析洞察" [ref=f3e32] [cursor=pointer]
+        - button "知识沉淀" [ref=f3e37] [cursor=pointer]
+        - button "AI 认知" [ref=f3e42] [cursor=pointer]
+      - tablist "工程核心功能标签页" [ref=f3e48]:
+        - tab "仪表盘" [selected] [ref=f3e49] [cursor=pointer]
+        - tab "数据" [ref=f3e55] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f3e60]: "2"
+        - tab "Schema" [ref=f3e61] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f3e66]: "3"
+        - tab "SQL" [ref=f3e67] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f3e72]: "4"
+        - tab "数据流" [ref=f3e73] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f3e78]: "5"
+    - generic [ref=f3e79]:
+      - button "项目" [ref=f3e80] [cursor=pointer]
+      - button "临时分析空间" [ref=f3e85] [cursor=pointer]
+      - button "AI 助手" [ref=f3e93] [cursor=pointer]
+      - button "⌘K" [ref=f3e97] [cursor=pointer]
+      - button "帮助与快捷键" [ref=f3e101] [cursor=pointer]
+      - button "切换为浅色模式" [ref=f3e104] [cursor=pointer]
+      - button "AI 模型设置" [ref=f3e105] [cursor=pointer]
+  - main [ref=f3e108]:
+    - generic [ref=f3e114]:
+      - generic [ref=f3e115]:
+        - generic [ref=f3e116]:
+          - generic [ref=f3e117]:
+            - heading "分析范围" [level=1] [ref=f3e118]
+            - generic [ref=f3e119]: /
+            - button "内存库 · memory（临时）" [ref=f3e120] [cursor=pointer]
+          - paragraph [ref=f3e550]: 1 个数据集 · 未知 行 · 数据规模未应用筛选
+        - generic [ref=f3e122]:
+          - button "导入数据" [ref=f3e589] [cursor=pointer]
+          - button "刷新" [ref=f3e123] [cursor=pointer]
+      - status [ref=f3e591]: 加载分析…
+      - generic [ref=f3e592]:
+        - generic [ref=f3e594]:
+          - generic [ref=f3e595]:
+            - text: 工作台
+            - combobox "工作台视图" [ref=f3e596]
+          - button "添加分析" [ref=f3e597] [cursor=pointer]
+          - button "新建查询" [ref=f3e599] [cursor=pointer]
+          - generic [ref=f3e600]:
+            - text: 数据集
+            - combobox "浏览数据集" [ref=f3e601]:
+              - option "选择数据集" [selected]
+          - button "筛选" [ref=f3e603] [cursor=pointer]
+          - button "视图设置" [ref=f3e605] [cursor=pointer]
+        - generic [ref=f3e607]: 尚未添加分析
+        - heading "开始分析" [level=2] [ref=f3e610]
+      - navigation "数据状态与详情" [ref=f3e611]:
+        - button "管理数据" [ref=f3e612] [cursor=pointer]
+        - button "查看 Schema" [ref=f3e613] [cursor=pointer]
+        - button "查看数据检查" [ref=f3e614] [cursor=pointer]
+      - alert [ref=f3e615]:
+        - text: 1 个数据集的元数据未完整获取，无法获取的统计标为未知。
+        - button "重新读取元数据" [ref=f3e616] [cursor=pointer]
+        - group [ref=f3e617]:
+          - generic "查看失败原因" [ref=f3e618] [cursor=pointer]
+  - contentinfo [ref=f3e127]:
+    - generic [ref=f3e128]:
+      - generic [ref=f3e129]: DuckDB 1.33.1
+      - generic [ref=f3e132]: "|"
+      - generic [ref=f3e133]: memory [MEMORY]
+      - generic [ref=f3e135]: "|"
+      - generic [ref=f3e136]: 内存库
+      - generic [ref=f3e138]: "|"
+      - generic [ref=f3e139]: 1 张表
+    - generic [ref=f3e141]:
+      - generic [ref=f3e142]: 引擎就绪
+      - generic [ref=f3e146]: "|"
+      - generic [ref=f3e147]: 19:41
+      - button "刷新运行时状态" [ref=f3e148] [cursor=pointer]

@@ -1,0 +1,4 @@
+### Error
+Error: page.evaluate: Error: Transaction rollback failed
+    at eval (eval at evaluate (:368:30), <anonymous>:27:122)
+    at async <anonymous>:394:30

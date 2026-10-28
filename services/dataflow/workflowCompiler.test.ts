@@ -6,8 +6,21 @@ import {
   getNodeViewName,
 } from './workflowCompiler';
 import type { DataFlowNode, DataFlowEdge } from './workflowTypes';
+import { buildRealExecutionWorkflow } from './sqlExecutionPlanParser';
 
 describe('Workflow Compiler & DAG Tests', () => {
+  it('preserves a long multiline SQL filter and aggregate when executing a fallback diagram', () => {
+    const description = 'x'.repeat(140);
+    const query = `SELECT 'USD' AS unit, SUM(amount) AS completed_amount\nFROM fiat_transactions\nWHERE status = 'completed'\nAND currency = 'USD' AND description <> '${description}';`;
+    const workflow = buildRealExecutionWorkflow({ sql: query });
+    const filter = workflow.nodes.find(node => node.data.type === 'schema')!;
+    const aggregate = workflow.nodes.find(node => node.data.type === 'aggregate')!;
+    const inputs = { primary: '_df_view_input', all: ['_df_view_input'] };
+    const filteredSql = compileNodeSql(filter, inputs).sql;
+    expect(filteredSql).toBe(`SELECT * FROM "_df_view_input" WHERE status = 'completed'\nAND currency = 'USD' AND description <> '${description}'`);
+    expect(compileNodeSql(aggregate, inputs).sql).toBe(query.slice(0, -1));
+  });
+
   it('correctly sorts DAG in topological order', () => {
     const nodes: DataFlowNode[] = [
       { id: 'source-1', type: 'dataFlowNode', position: { x: 0, y: 0 }, data: { id: 'source-1', type: 'source', title: 'Src', status: 'idle', config: {} } },
@@ -110,5 +123,56 @@ describe('Workflow Compiler & DAG Tests', () => {
     expect(sql).toContain('FROM "_df_view_sales" AS l');
     expect(sql).toContain('INNER JOIN "_df_view_customers" AS r');
     expect(sql).toContain('l."customer_id" = r."customer_id"');
+  });
+
+  it('compiles Schema node with predicate and clauseSnippet into valid SQL', () => {
+    const node: DataFlowNode = {
+      id: 'filter-node',
+      type: 'dataFlowNode',
+      position: { x: 0, y: 0 },
+      data: {
+        id: 'filter-node',
+        type: 'schema',
+        title: 'FILTER (初筛)',
+        status: 'configured',
+        predicate: 'sales_amount > 100',
+        clauseSnippet: 'WHERE sales_amount > 100',
+        config: {},
+      },
+    };
+
+    const inputs = {
+      primary: '_df_view_raw_sales',
+      all: ['_df_view_raw_sales'],
+    };
+
+    const { sql, error } = compileNodeSql(node, inputs);
+    expect(error).toBeUndefined();
+    expect(sql).toBe('SELECT * FROM "_df_view_raw_sales" WHERE sales_amount > 100');
+  });
+
+  it('compiles Sort and snippet SQL transforms seamlessly', () => {
+    const node: DataFlowNode = {
+      id: 'sort-node',
+      type: 'dataFlowNode',
+      position: { x: 0, y: 0 },
+      data: {
+        id: 'sort-node',
+        type: 'sql_transform',
+        title: 'SORT & LIMIT',
+        status: 'configured',
+        clauseSnippet: 'ORDER BY total_amount DESC LIMIT 10',
+        config: {},
+      },
+    };
+
+    const inputs = {
+      primary: '_df_view_aggregated',
+      all: ['_df_view_aggregated'],
+    };
+
+    const { sql, error } = compileNodeSql(node, inputs);
+    expect(error).toBeUndefined();
+    expect(sql).toBe('SELECT * FROM "_df_view_aggregated" ORDER BY total_amount DESC LIMIT 10');
   });
 });

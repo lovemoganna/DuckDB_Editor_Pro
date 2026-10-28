@@ -157,9 +157,9 @@ export const RuleBuilderPanel: React.FC<RuleBuilderPanelProps> = ({
   };
 
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-[#12141e] border-r border-white/10 p-3 text-xs">
+    <div className="flex h-full flex-col overflow-hidden bg-monokai-surface border-r border-monokai-border p-3 text-xs">
       {/* Rule selector header */}
-      <div className="mb-3 shrink-0 border-b border-white/10 pb-3">
+      <div className="mb-3 shrink-0 border-b border-monokai-border pb-3">
         <div className="flex items-center justify-between">
           <h2 className="flex items-center gap-1.5 font-black text-monokai-fg">
             <GitBranch className="h-4 w-4 text-monokai-amethyst" />
@@ -176,19 +176,19 @@ export const RuleBuilderPanel: React.FC<RuleBuilderPanelProps> = ({
 
         {/* Create new rule inline box */}
         {isCreating && (
-          <div className="mt-2 flex items-center gap-1.5 rounded-lg bg-black/30 p-2">
+          <div className="mt-2 flex items-center gap-1.5 rounded-lg bg-monokai-bg border border-monokai-border p-2">
             <input
               type="text"
               placeholder="新规则中文名称..."
               value={newRuleName}
               onChange={e => setNewRuleName(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') handleCreate(); }}
-              className="flex-1 rounded bg-black/40 px-2 py-1 text-xs text-monokai-fg border border-white/10 outline-none focus:border-monokai-accent"
+              className="flex-1 rounded bg-monokai-surface px-2 py-1 text-xs text-monokai-fg border border-monokai-border outline-none focus:border-monokai-accent"
             />
             <button
               type="button"
               onClick={handleCreate}
-              className="rounded bg-monokai-amethyst px-2 py-1 text-[10px] font-bold text-black"
+              className="rounded bg-monokai-amethyst px-2 py-1 text-[10px] font-bold text-white shadow-xs"
             >
               确定
             </button>
@@ -207,7 +207,7 @@ export const RuleBuilderPanel: React.FC<RuleBuilderPanelProps> = ({
                 className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[10px] font-bold transition-all ${
                   isActive
                     ? 'border border-monokai-amethyst/40 bg-monokai-amethyst/20 text-monokai-amethyst'
-                    : 'border border-transparent bg-white/5 text-monokai-comment hover:bg-white/10'
+                    : 'border border-transparent bg-monokai-bg text-monokai-comment hover:bg-monokai-hover hover:text-monokai-fg'
                 }`}
               >
                 <span>{rule.name}</span>
@@ -222,7 +222,7 @@ export const RuleBuilderPanel: React.FC<RuleBuilderPanelProps> = ({
       {activeRule ? (
         <div className="flex flex-1 flex-col overflow-hidden space-y-3">
           {/* Active Rule Metadata & Action Bar */}
-          <div className="flex items-center justify-between rounded-lg bg-black/20 p-2 text-[11px]">
+          <div className="flex items-center justify-between rounded-lg bg-monokai-bg border border-monokai-border p-2 text-[11px]">
             <div>
               <span className="font-bold text-monokai-fg">{activeRule.name}</span>
               <span className="ml-2 text-monokai-comment">ID: {activeRule.logicalId}</span>

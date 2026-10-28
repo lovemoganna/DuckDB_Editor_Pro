@@ -1,0 +1,10 @@
+$ vitest run --pool=threads --maxWorkers=1 --no-file-parallelism "components/ImportWizard.test.tsx" "components/ui/Workbench.test.tsx" "components/Library/OntologyPanel.test.tsx"
+
+ RUN  v4.1.10 C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor
+
+
+ Test Files  3 passed (3)
+      Tests  18 passed (18)
+   Start at  23:35:42
+   Duration  54.41s (transform 18.25s, setup 1.80s, import 32.49s, tests 5.93s, environment 12.49s)
+

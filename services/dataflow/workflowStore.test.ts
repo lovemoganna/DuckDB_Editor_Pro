@@ -1,22 +1,86 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { duckDBService } from '../duckdbService';
 import { useWorkflowStore } from './workflowStore';
+import {
+  getInitialEcommerceNodes,
+  getInitialEcommerceEdges,
+} from './seedEcommerceWorkflow';
+
+/** Custom-mode fixture only — production paths must never inject this graph. */
+function seedCustomGraphFixture() {
+  useWorkflowStore.setState({
+    nodes: getInitialEcommerceNodes(),
+    edges: getInitialEcommerceEdges(),
+    selectedNodeId: 'node-aggregate',
+    dataFlowMode: 'custom',
+    liveSyncWithSql: false,
+    activeSql: '',
+    activeTabTitle: '',
+    syncStatus: 'ready',
+    lastSyncError: null,
+    activeSqlRange: null,
+  });
+}
 
 describe('Workflow Store & State Machine Tests', () => {
-  beforeEach(async () => {
-    await useWorkflowStore.getState().resetToDefaultDemo();
+  it('attaches execution results without profiling and executing SQL for a second time',async()=>{
+    const plan=vi.spyOn(duckDBService,'getExplainPlan').mockResolvedValue({planText:'Error explaining query: multi statement'});
+    const sql='UPDATE users SET kyc_level=2; SELECT COUNT(*) FROM users';
+    try {
+      useWorkflowStore.setState({activeSql:sql});
+      await useWorkflowStore.getState().syncExecutionResult('一次执行',{rows:[{count:10}],columns:['count']},sql);
+      expect(plan).not.toHaveBeenCalled();
+    } finally { plan.mockRestore(); }
+  });
+  it('clears source graphs, previews and SQL when switching databases', () => {
+    seedCustomGraphFixture();
+    useWorkflowStore.setState({ activeSql: 'SELECT * FROM old_table', availableTables: ['old_table'] });
+    useWorkflowStore.getState().resetDatabaseContext();
+    expect(useWorkflowStore.getState().nodes).toEqual([]);
+    expect(useWorkflowStore.getState().edges).toEqual([]);
+    expect(useWorkflowStore.getState().activeSql).toBe('');
+    expect(useWorkflowStore.getState().availableTables).toEqual([]);
+  });
+  beforeEach(() => {
+    localStorage.removeItem('duckdb_workflow_state_v3');
+    useWorkflowStore.setState({
+      nodes: [],
+      edges: [],
+      selectedNodeId: null,
+      activeSql: '',
+      activeTabTitle: '',
+      runLogs: [],
+      dataFlowMode: 'sql',
+      liveSyncWithSql: true,
+      syncStatus: 'idle',
+      lastSyncError: null,
+      activeSqlRange: null,
+    });
   });
 
-  it('provides ecommerce demo workflow when resetToDefaultDemo is invoked', () => {
-    const { nodes, edges, selectedNodeId } = useWorkflowStore.getState();
-    expect(nodes.length).toBe(9);
-    expect(edges.length).toBe(8);
-    expect(selectedNodeId).toBe('node-aggregate');
+  it('resetToDefaultDemo clears graph when no active SQL (never injects ecommerce demo)', async () => {
+    seedCustomGraphFixture();
+    useWorkflowStore.setState({ activeSql: '' });
+    await useWorkflowStore.getState().resetToDefaultDemo();
+    const { nodes, edges, selectedNodeId, dataFlowMode, liveSyncWithSql } = useWorkflowStore.getState();
+    expect(nodes).toEqual([]);
+    expect(edges).toEqual([]);
+    expect(selectedNodeId).toBeNull();
+    expect(dataFlowMode).toBe('sql');
+    expect(liveSyncWithSql).toBe(true);
+  });
 
-    const aggNode = nodes.find(n => n.id === 'node-aggregate');
-    expect(aggNode).toBeDefined();
-    expect(aggNode?.data.title).toBe('聚合统计');
-    expect(aggNode?.data.rowCount).toBe(6);
-    expect(aggNode?.data.columnCount).toBe(5);
+  it('resetToDefaultDemo rebuilds graph from activeSql only', async () => {
+    useWorkflowStore.setState({
+      activeSql: 'SELECT country, SUM(amount) AS total FROM sales GROUP BY country',
+      activeTabTitle: '区域汇总',
+    });
+    await useWorkflowStore.getState().resetToDefaultDemo();
+    const { nodes, edges, activeSql } = useWorkflowStore.getState();
+    expect(activeSql.toLowerCase()).toContain('sales');
+    expect(nodes.length).toBeGreaterThan(0);
+    expect(edges.length).toBeGreaterThanOrEqual(1);
+    expect(nodes.some(n => n.id === 'node-aggregate')).toBe(false);
   });
 
   it('loadWorkflow initializes clean empty state when no tables exist and no SQL provided, avoiding fake data injection', async () => {
@@ -47,6 +111,7 @@ describe('Workflow Store & State Machine Tests', () => {
   });
 
   it('propagates dirty state to downstream nodes when config changes', () => {
+    seedCustomGraphFixture();
     const store = useWorkflowStore.getState();
 
     // 修改 SQL Transform 节点配置
@@ -70,6 +135,7 @@ describe('Workflow Store & State Machine Tests', () => {
   });
 
   it('can add and delete nodes cleanly', () => {
+    useWorkflowStore.setState({dataFlowMode:'custom'});
     const store = useWorkflowStore.getState();
     const initialCount = store.nodes.length;
 
@@ -128,7 +194,8 @@ describe('Workflow Store & State Machine Tests', () => {
       executionTime: 42,
     };
 
-    store.syncExecutionResult('快速探查', mockResult);
+    const flow=useWorkflowStore.getState().logicalFlowData!;
+    store.applyExecutionEvent({runId:'actual',tabId:useWorkflowStore.getState().activeDocumentId,documentVersion:flow.source.sourceHash,connectionId:'writer',statementId:flow.statements[0].id,sourceSpan:flow.statements[0].sourceSpan,status:'success',result:mockResult,durationMs:42,terminal:true});
 
     const updatedNodes = useWorkflowStore.getState().nodes;
     const finalNode = updatedNodes.find(n => n.data.type === 'result') || updatedNodes[updatedNodes.length - 1];
@@ -157,6 +224,7 @@ describe('Workflow Store & State Machine Tests', () => {
   });
 
   it('selectNode calculates ancestor and descendant lineage highlights', () => {
+    seedCustomGraphFixture();
     const store = useWorkflowStore.getState();
     // 选中中间节点 node-join
     store.selectNode('node-join');
@@ -177,6 +245,7 @@ describe('Workflow Store & State Machine Tests', () => {
   });
 
   it('autoLayout rearranges nodes without errors', () => {
+    seedCustomGraphFixture();
     const store = useWorkflowStore.getState();
     store.autoLayout();
     const { nodes } = useWorkflowStore.getState();
@@ -197,13 +266,14 @@ describe('Workflow Store & State Machine Tests', () => {
     ]);
 
     const logs = useWorkflowStore.getState().runLogs;
-    expect(logs.length).toBe(4);
+    expect(logs.length).toBe(0);
     const logIds = logs.map(l => l.id);
     const uniqueIds = new Set(logIds);
     expect(uniqueIds.size).toBe(logs.length);
   });
 
   it('connects nodes in standard direction (source -> target)', () => {
+    seedCustomGraphFixture();
     const store = useWorkflowStore.getState();
     const initialEdges = store.edges.length;
 
@@ -224,6 +294,7 @@ describe('Workflow Store & State Machine Tests', () => {
   });
 
   it('automatically inverts reversed drag connections (target -> source)', () => {
+    seedCustomGraphFixture();
     const store = useWorkflowStore.getState();
     const initialEdges = store.edges.length;
 
@@ -245,6 +316,7 @@ describe('Workflow Store & State Machine Tests', () => {
   });
 
   it('intelligently assigns left and right handles for Join node', () => {
+    useWorkflowStore.setState({dataFlowMode:'custom'});
     const store = useWorkflowStore.getState();
     // Add two source nodes and a join node without pre-selection
     store.selectNode(null);
@@ -283,6 +355,7 @@ describe('Workflow Store & State Machine Tests', () => {
   });
 
   it('prevents cyclic DAG connections and self-loops', () => {
+    seedCustomGraphFixture();
     const store = useWorkflowStore.getState();
     const initialEdges = store.edges.length;
 
@@ -315,6 +388,7 @@ describe('Workflow Store & State Machine Tests', () => {
   });
 
   it('allows disconnecting edges cleanly via deleteEdge and marks downstream dirty', () => {
+    seedCustomGraphFixture();
     const store = useWorkflowStore.getState();
     const edgeToDelete = store.edges[0];
     const targetNodeId = edgeToDelete.target;
@@ -330,7 +404,8 @@ describe('Workflow Store & State Machine Tests', () => {
 
   it('clears graph when syncFromSql receives empty SQL', async () => {
     const store = useWorkflowStore.getState();
-    expect(store.nodes.length).toBeGreaterThan(0);
+    await store.syncFromSql('SELECT 1 AS n', '有查询');
+    expect(useWorkflowStore.getState().nodes.length).toBeGreaterThan(0);
 
     await store.syncFromSql('   ', '空查询');
 
@@ -341,6 +416,90 @@ describe('Workflow Store & State Machine Tests', () => {
     expect(state.activeSqlRange).toBeNull();
     expect(state.syncStatus).toBe('idle');
     expect(state.lastSyncError).toBeNull();
+  });
+
+  it('loadWorkflow with explicit empty SQL does not resurrect previous store SQL', async () => {
+    const store = useWorkflowStore.getState();
+    await store.syncFromSql('SELECT 42 AS n', '旧查询');
+    expect(useWorkflowStore.getState().activeSql).toContain('42');
+
+    await store.loadWorkflow('', '新标签');
+    const state = useWorkflowStore.getState();
+    expect(state.activeSql).toBe('');
+    expect(state.nodes).toEqual([]);
+  });
+
+  it('newer syncFromSql wins over a slower older call', async () => {
+    const store = useWorkflowStore.getState();
+    const slow = store.syncFromSql(
+      `SELECT c.customer_name, SUM(oi.amount) AS revenue
+       FROM orders o
+       JOIN order_items oi ON o.order_id = oi.order_id
+       JOIN customers c ON o.customer_id = c.customer_id
+       GROUP BY 1`,
+      '慢查询',
+    );
+    await store.syncFromSql(
+      `SELECT ROUND(SUM(oi.amount) / NULLIF(COUNT(DISTINCT o.order_id), 0), 2) AS aov
+       FROM orders o JOIN order_items oi ON o.order_id = oi.order_id`,
+      '客单价',
+    );
+    await slow;
+    const state = useWorkflowStore.getState();
+    expect(state.activeTabTitle).toBe('客单价');
+    expect(state.activeSql.toLowerCase()).toContain('aov');
+    expect(state.activeSql.toLowerCase()).not.toContain('customer_name');
+  });
+
+  it('SQL A → 流程 A；切换 SQL B 后流程 A 完全消失', async () => {
+    const store = useWorkflowStore.getState();
+
+    const sqlA = `SELECT customer_name FROM customers WHERE region = 'west'`;
+    await store.syncFromSql(sqlA, '查询 A');
+    const afterA = useWorkflowStore.getState();
+    expect(afterA.nodes.length).toBeGreaterThan(0);
+    expect(afterA.activeSql).toContain('customer_name');
+    const snapshotA = afterA.nodes.map(n => ({
+      title: n.data.title,
+      table: n.data.tableName,
+      predicate: n.data.predicate,
+      subtitle: n.data.subtitle,
+    }));
+
+    const sqlB = `SELECT ROUND(SUM(amount), 2) AS total FROM order_items`;
+    const pending = store.syncFromSql(sqlB, '查询 B');
+    // 切换瞬间旧图必须被清空，不能短暂叠留流程 A
+    expect(useWorkflowStore.getState().nodes).toEqual([]);
+    expect(useWorkflowStore.getState().edges).toEqual([]);
+    expect(useWorkflowStore.getState().activeSql).toBe(sqlB);
+    await pending;
+    const afterB = useWorkflowStore.getState();
+
+    expect(afterB.activeSql).toBe(sqlB);
+    expect(afterB.activeTabTitle).toBe('查询 B');
+    expect(afterB.nodes.length).toBeGreaterThan(0);
+
+    // 流程 A 的业务语义不得残留
+    const blobB = afterB.nodes
+      .map(n => [n.data.title, n.data.tableName, n.data.predicate, n.data.subtitle, n.data.sqlSnippet].join(' '))
+      .join('\n')
+      .toLowerCase();
+    expect(blobB).not.toContain('customer_name');
+    expect(blobB).not.toContain('customers');
+    expect(blobB).not.toContain('region');
+    expect(blobB).toMatch(/order_items|amount|sum|aggregate|scan|result/);
+
+    // 整图快照必须变化（不是在旧图上叠加）
+    const snapshotB = afterB.nodes.map(n => ({
+      title: n.data.title,
+      table: n.data.tableName,
+      predicate: n.data.predicate,
+      subtitle: n.data.subtitle,
+    }));
+    expect(snapshotB).not.toEqual(snapshotA);
+
+    // 未真实跑过查询时，节点不得冒充已成功
+    expect(afterB.nodes.every(n => n.data.status === 'idle' || n.data.status === 'error')).toBe(true);
   });
 
   it('focusFaultyNode sets activeSqlRange and selectedNodeId', () => {
@@ -376,7 +535,7 @@ describe('Workflow Store & State Machine Tests', () => {
     expect(useWorkflowStore.getState().activeSqlRange).toEqual({ startLine: 4, endLine: 4 });
   });
 
-  it('syncExecutionResult error path writes activeSqlRange from faulty node', async () => {
+  it('does not attach legacy error results to a current SQL graph', async () => {
     useWorkflowStore.setState({
       nodes: [
         {
@@ -402,10 +561,9 @@ describe('Workflow Store & State Machine Tests', () => {
     }, 'SELECT bad_col FROM orders');
 
     const state = useWorkflowStore.getState();
-    expect(state.selectedNodeId).toBeTruthy();
-    expect(state.nodes.some(n => n.data.status === 'error' || n.data.bugInfo?.hasBug)).toBe(true);
+    expect(state.selectedNodeId).toBeNull();
+    expect(state.nodes.some(n => n.data.status === 'error' || n.data.bugInfo?.hasBug)).toBe(false);
     // focusFaultyNode / buildRealExecutionWorkflow should surface a sqlRange when possible
-    expect(state.syncStatus).toBe('ready');
+    expect(state.syncStatus).toBe('idle');
   });
 });
-

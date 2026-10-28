@@ -1,0 +1,45 @@
+{
+  "same": true,
+  "reopened": [
+    {
+      "style": "transform: translate(244px, 0px); width: 358px; height: 264px; position: absolute;",
+      "title": "USD 完成交易总额"
+    },
+    {
+      "style": "transform: translate(244px, 272px); width: 236px; height: 196px; position: absolute;",
+      "title": "USDT 完成交易总额"
+    },
+    {
+      "style": "transform: translate(488px, 272px); width: 236px; height: 196px; position: absolute;",
+      "title": "USD 净流入"
+    },
+    {
+      "style": "transform: translate(0px, 476px); width: 480px; height: 400px; position: absolute;",
+      "title": "USD 月度资金趋势"
+    },
+    {
+      "style": "transform: translate(488px, 476px); width: 480px; height: 400px; position: absolute;",
+      "title": "USDT 公链流动"
+    },
+    {
+      "style": "transform: translate(0px, 884px); width: 724px; height: 400px; position: absolute;",
+      "title": "分资产资金流动"
+    },
+    {
+      "style": "transform: translate(732px, 884px); width: 724px; height: 468px; position: absolute;",
+      "title": "渠道完成情况"
+    },
+    {
+      "style": "transform: translate(0px, 1292px); width: 724px; height: 332px; position: absolute;",
+      "title": "未完成交易追踪"
+    },
+    {
+      "style": "transform: translate(732px, 1360px); width: 724px; height: 332px; position: absolute;",
+      "title": "业务规则待核对"
+    },
+    {
+      "style": "transform: translate(0px, 1700px); width: 1456px; height: 400px; position: absolute;",
+      "title": "汇率来源与有效日期"
+    }
+  ]
+}

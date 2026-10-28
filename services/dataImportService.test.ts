@@ -12,6 +12,7 @@ describe('dataImportService unit & logic tests', () => {
     expect(detectFormatFromName('dataset.tab')).toBe('TSV');
     expect(detectFormatFromName('sheet.xlsx')).toBe('Excel');
     expect(detectFormatFromName('raw.csv')).toBe('CSV');
+    expect(detectFormatFromName('backup.duckdb')).toBe('DuckDB');
     expect(detectFormatFromName('unknown.txt')).toBe('CSV');
   });
 
@@ -227,8 +228,8 @@ describe('dataImportService unit & logic tests', () => {
     expect(result.sheets).toHaveLength(2);
     expect(result.sheets![0].name).toBe('users');
     expect(result.sheets![1].name).toBe('transactions');
-    expect(result.sheets![0].targetTableName).toBe('exchange_funds_flow_dataset_users');
-    expect(result.sheets![1].targetTableName).toBe('exchange_funds_flow_dataset_transactions');
+    expect(result.sheets![0].targetTableName).toBe('users');
+    expect(result.sheets![1].targetTableName).toBe('transactions');
     expect(result.columns).toHaveLength(2);
     expect(result.previewRows).toHaveLength(1);
 
@@ -273,5 +274,54 @@ describe('dataImportService unit & logic tests', () => {
     expect(batchRes.results).toHaveLength(2);
     expect(batchRes.totalRows).toBe(10);
     expect(batchRes.createdTables).toEqual(['ecommerce_customers', 'ecommerce_orders']);
+  });
+
+  it('sniffSource processes DuckDB files correctly', async () => {
+    const header = new Uint8Array(32);
+    header[8] = 68;
+    header[9] = 85;
+    header[10] = 67;
+    header[11] = 75;
+    const fakeFile = new File([header], 'analytics.duckdb', { type: 'application/octet-stream' });
+
+    vi.spyOn(duckDBService, 'registerFileBuffer').mockResolvedValue(undefined);
+    vi.spyOn(duckDBService, 'query').mockImplementation(async (sql: string) => {
+      if (sql.includes('information_schema.tables')) {
+        return [
+          { table_schema: 'main', table_name: 'users' },
+          { table_schema: 'main', table_name: 'logs' },
+        ];
+      }
+      if (sql.includes('DESCRIBE SELECT * FROM')) {
+        return [
+          { column_name: 'id', column_type: 'BIGINT', null: 'NO' },
+          { column_name: 'name', column_type: 'VARCHAR', null: 'YES' },
+        ];
+      }
+      if (sql.includes('LIMIT 100')) {
+        return [{ id: 1, name: 'Alice' }];
+      }
+      if (sql.includes('count(*) as cnt')) {
+        return [{ cnt: 42 }];
+      }
+      return [];
+    });
+
+    const result = await dataImportService.sniffSource('local', fakeFile, '', '', {
+      format: 'DuckDB',
+      delimiter: ',',
+      quote: '"',
+      header: true,
+      encoding: 'UTF-8',
+    });
+
+    expect(result.format).toBe('DuckDB');
+    expect(result.fileName).toBe('analytics.duckdb');
+    expect(result.sheets).toHaveLength(2);
+    expect(result.sheets?.[0].name).toBe('users');
+    expect(result.sheets?.[0].rowCount).toBe(42);
+    expect(result.sheets?.[1].name).toBe('logs');
+    expect(result.columns).toHaveLength(2);
+    expect(result.columns[0].sourceName).toBe('id');
   });
 });

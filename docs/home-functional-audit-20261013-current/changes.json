@@ -1,0 +1,44 @@
+[
+  {
+    "issue": "H01",
+    "path": "hooks/useDashboardWorkflow.ts",
+    "before": "before\\hooks\\useDashboardWorkflow.ts.txt",
+    "before_sha256": "8f3ecd413dee9d17b77f98e50f0e79c7ac8f3ba988a6cc70befed52ab05ab6f5",
+    "after_sha256": "e91ede00029f4d3923e761c9c4a1c926eb7d168a83624999ab40e14f48ac5888"
+  },
+  {
+    "issue": "H01",
+    "path": "components/Dashboard.test.tsx",
+    "before": "before\\components\\Dashboard.test.tsx.txt",
+    "before_sha256": "b70fbe92a6b1c8c5451984844a6159206c87c90b108b463ff8b202b1ce92b30b",
+    "after_sha256": "e8a42c58a83e9043a757bd668389118c6a698eeaa415f52a7388113e048695a7"
+  },
+  {
+    "issue": "H02",
+    "path": "components/Dashboard/Home/HomeBoardCanvas.tsx",
+    "before": "before\\components\\Dashboard\\Home\\HomeBoardCanvas.tsx.txt",
+    "before_sha256": "0fe338289563578c9e507c101369048ff99ca1ba1218cd288aa69fb089e8829a",
+    "after_sha256": "78a8744d611e15cda9d4c36552954d514c0793f0c6d38564eaa0dc5a9822d270"
+  },
+  {
+    "issue": "H02",
+    "path": "components/Dashboard/Home/HomeBoardCanvas.audit.test.tsx",
+    "before": "before\\components\\Dashboard\\Home\\HomeBoardCanvas.audit.test.tsx.txt",
+    "before_sha256": "ef75571413e4f6eaf652c5814ec987a24d78f7fa6df271aa49c0a0b8ee82108b",
+    "after_sha256": "7a0a05589a5ad695532baeef5e201496752d4aa08f00053222f501a5e04e30e5"
+  },
+  {
+    "issue": "H03",
+    "path": "components/Dashboard/Home/DatasetPreview.tsx",
+    "before": "before\\components\\Dashboard\\Home\\DatasetPreview.tsx.txt",
+    "before_sha256": "d3bc21c0a9bef6f037bb83e1312bdffe51132ac9e838cccd71c743f29bc498b3",
+    "after_sha256": "106adeae5e7358e1f2d7a1ed9cfbec11d21a9e7c0c922d11a4a53b331c8333c9"
+  },
+  {
+    "issue": "H03",
+    "path": "components/Dashboard/Home/DatasetPreview.requests.test.tsx",
+    "before": "before\\components\\Dashboard\\Home\\DatasetPreview.requests.test.tsx.txt",
+    "before_sha256": "3db27d17ae840dc6c37d1e9c70861dd09b9d1f9af54ba15cf45aa92c253662ca",
+    "after_sha256": "8f5730fc093d0e6c8691cbf09a844561b5a13515889b604f3a5b9fe937601925"
+  }
+]

@@ -18,7 +18,7 @@ import {
 import { toastService } from '../../services/toastService';
 import { useAppStore } from '../../hooks/store/useAppStore';
 import { Tab } from '../../types';
-import { PageHeader, SearchInput, ActionButton } from '../ui/Workbench';
+import { PageHeader, SearchInput, ActionButton, ModalShell, FormInput, FormSelect } from '../ui/Workbench';
 import { CodeHighlightBlock } from '../ui/CodeHighlightBlock';
 import { duckDBService } from '../../services/duckdbService';
 import { useConfirmDialog } from '../ui/ConfirmDialog';
@@ -825,181 +825,161 @@ export const AiCapabilityLibraryApp: React.FC<AiCapabilityLibraryAppProps> = ({
       </div>
 
       {/* Create / Edit Capability Modal */}
-      {showEditModal && (
-        <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/80 backdrop-blur-xs p-4 animate-in fade-in duration-150">
-          <div className="flex flex-col max-h-[90vh] w-full max-w-2xl rounded-md border border-monokai-border bg-monokai-sidebar text-monokai-fg shadow-2xl overflow-hidden font-sans">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-monokai-border px-5 py-3.5 bg-monokai-surface">
-              <div className="flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-monokai-comment" />
-                <h3 className="text-sm font-bold text-monokai-fg">
-                  {editingCap.isSystem ? '查看系统预设 AI 能力定义' : editingCap.createdAt ? '编辑 AI 能力配置' : '新建自定义 AI 能力'}
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowEditModal(false)}
-                className="text-monokai-comment hover:text-monokai-pink transition-colors"
-              >
-                <X className="h-4 w-4" />
-              </button>
+      <ModalShell
+        open={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        title={editingCap.isSystem ? '查看系统预设 AI 能力定义' : editingCap.createdAt ? '编辑 AI 能力配置' : '新建自定义 AI 能力'}
+        description="配置能力提示词模板、输入约束与交付规格"
+        icon={Sparkles}
+        iconColor="text-monokai-comment"
+        size="md"
+        footer={
+          <>
+            <ActionButton
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowEditModal(false)}
+            >
+              取消
+            </ActionButton>
+            <ActionButton
+              variant="primary"
+              size="sm"
+              icon={Save}
+              onClick={handleSaveCapability}
+            >
+              保存能力配置
+            </ActionButton>
+          </>
+        }
+      >
+        <div className="space-y-3.5 text-xs font-sans">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-monokai-comment font-semibold mb-1">能力名称 (*):</label>
+              <FormInput
+                type="text"
+                value={editingCap.name || ''}
+                onChange={(e) => setEditingCap({ ...editingCap, name: e.target.value })}
+                placeholder="例如: 智能生成 GROUP BY 报表 SQL"
+              />
             </div>
 
-            {/* Modal Form Body */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-5 space-y-3.5 text-xs">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-monokai-comment font-semibold mb-1">能力名称 (*):</label>
-                  <input
-                    type="text"
-                    value={editingCap.name || ''}
-                    onChange={(e) => setEditingCap({ ...editingCap, name: e.target.value })}
-                    placeholder="例如: 智能生成 GROUP BY 报表 SQL"
-                    className="w-full rounded-md border border-monokai-border bg-monokai-bg px-3 py-1.5 text-xs text-monokai-fg outline-none focus:border-monokai-fg/40 font-sans"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-monokai-comment font-semibold mb-1">唯一标识符 (ID):</label>
-                  <input
-                    type="text"
-                    value={editingCap.id || ''}
-                    onChange={(e) => setEditingCap({ ...editingCap, id: e.target.value })}
-                    placeholder="cap_group_by_report"
-                    className="w-full rounded-md border border-monokai-border bg-monokai-bg px-3 py-1.5 text-xs text-monokai-fg outline-none focus:border-monokai-fg/40 font-mono"
-                    disabled={!!editingCap.isSystem}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-monokai-comment font-semibold mb-1">能力分类:</label>
-                  <select
-                    value={editingCap.category || 'generation'}
-                    onChange={(e) => setEditingCap({ ...editingCap, category: e.target.value as CapabilityCategoryKey })}
-                    className="w-full rounded-md border border-monokai-border bg-monokai-bg px-3 py-1.5 text-xs text-monokai-fg outline-none focus:border-monokai-fg/40 font-sans"
-                  >
-                    <option value="generation">⚡ SQL 生成与转换 (generation)</option>
-                    <option value="diagnosis">🔍 错误诊断与修复 (diagnosis)</option>
-                    <option value="optimization">🚀 性能重构与向量化 (optimization)</option>
-                    <option value="insight">📊 数据与结果洞察 (insight)</option>
-                    <option value="quality">🛡️ 数据质量审计 (quality)</option>
-                    <option value="schema">📐 Schema 模型演进 (schema)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-monokai-comment font-semibold mb-1">标签 (逗号分隔):</label>
-                  <input
-                    type="text"
-                    value={(editingCap.tags || []).join(', ')}
-                    onChange={(e) => setEditingCap({ ...editingCap, tags: e.target.value.split(',').map(t => t.trim()).filter(Boolean) })}
-                    placeholder="报表, 聚合, SQL"
-                    className="w-full rounded-md border border-monokai-border bg-monokai-bg px-3 py-1.5 text-xs text-monokai-fg outline-none focus:border-monokai-fg/40 font-mono"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-monokai-comment font-semibold mb-1">能力简短说明:</label>
-                <input
-                  type="text"
-                  value={editingCap.description || ''}
-                  onChange={(e) => setEditingCap({ ...editingCap, description: e.target.value })}
-                  placeholder="简要描述该能力的功能与输出..."
-                  className="w-full rounded-md border border-monokai-border bg-monokai-bg px-3 py-1.5 text-xs text-monokai-fg outline-none focus:border-monokai-fg/40"
-                />
-              </div>
-
-              <div>
-                <label className="block text-monokai-comment font-semibold mb-1">适用用途与场景 (Purpose):</label>
-                <input
-                  type="text"
-                  value={editingCap.purpose || ''}
-                  onChange={(e) => setEditingCap({ ...editingCap, purpose: e.target.value })}
-                  placeholder="例如：从自然语言快速转译为 DuckDB 方言 SQL"
-                  className="w-full rounded-md border border-monokai-border bg-monokai-bg px-3 py-1.5 text-xs text-monokai-fg outline-none focus:border-monokai-fg/40"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-monokai-comment font-semibold mb-1">输入要求描述:</label>
-                  <input
-                    type="text"
-                    value={editingCap.inputRequirement || ''}
-                    onChange={(e) => setEditingCap({ ...editingCap, inputRequirement: e.target.value })}
-                    placeholder="Schema 上下文 + 用户需求"
-                    className="w-full rounded-md border border-monokai-border bg-monokai-bg px-3 py-1.5 text-xs text-monokai-fg outline-none focus:border-monokai-fg/40"
-                  />
-                </div>
-                <div>
-                  <label className="block text-monokai-comment font-semibold mb-1">输出交付规则:</label>
-                  <input
-                    type="text"
-                    value={editingCap.outputRule || ''}
-                    onChange={(e) => setEditingCap({ ...editingCap, outputRule: e.target.value })}
-                    placeholder="输出可替换的 SQL 代码段"
-                    className="w-full rounded-md border border-monokai-border bg-monokai-bg px-3 py-1.5 text-xs text-monokai-fg outline-none focus:border-monokai-fg/40"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="block text-monokai-comment font-semibold">
-                    提示词模板 (*) (点击下方变量可快捷插入到光标处):
-                  </label>
-                </div>
-
-                {/* Variable insertion buttons */}
-                <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
-                  {PROMPT_VARIABLES.map((v) => (
-                    <button
-                      type="button"
-                      key={v.key}
-                      onClick={() => handleInsertVariableInEditor(v.key)}
-                      className="rounded border border-monokai-border bg-monokai-bg px-1.5 py-0.5 font-mono text-[10px] text-monokai-fg-muted hover:text-monokai-fg hover:border-monokai-border-strong transition-colors cursor-pointer"
-                      title={v.desc}
-                    >
-                      + {v.key}
-                    </button>
-                  ))}
-                </div>
-
-                <textarea
-                  ref={promptTextareaRef}
-                  rows={6}
-                  value={editingCap.promptTemplate || ''}
-                  onChange={(e) => setEditingCap({ ...editingCap, promptTemplate: e.target.value })}
-                  placeholder="请为 DuckDB 生成 SQL:&#10;【需求】: {userPrompt}&#10;&#10;【表结构】:&#10;{schemaContext}"
-                  className="w-full rounded-md border border-monokai-border bg-monokai-bg p-3 text-xs font-mono text-monokai-fg outline-none focus:border-monokai-fg/40 custom-scrollbar"
-                />
-              </div>
-            </div>
-
-            {/* Modal Footer */}
-            <div className="flex items-center justify-end gap-2 border-t border-monokai-border px-5 py-3 bg-monokai-surface">
-              <button
-                type="button"
-                onClick={() => setShowEditModal(false)}
-                className="inline-flex h-8 items-center justify-center rounded-md border border-monokai-border bg-monokai-elevated px-4 text-xs font-medium text-monokai-fg hover:bg-monokai-hover transition-colors cursor-pointer"
-              >
-                取消
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveCapability}
-                className="inline-flex h-8 items-center justify-center gap-1.5 rounded-md bg-monokai-green text-monokai-bg hover:bg-monokai-green/90 px-4 text-xs font-semibold shadow-xs transition-all cursor-pointer"
-              >
-                <Save className="h-3.5 w-3.5" />
-                <span>保存能力配置</span>
-              </button>
+            <div>
+              <label className="block text-monokai-comment font-semibold mb-1">唯一标识符 (ID):</label>
+              <FormInput
+                type="text"
+                value={editingCap.id || ''}
+                onChange={(e) => setEditingCap({ ...editingCap, id: e.target.value })}
+                placeholder="cap_group_by_report"
+                fontVariant="mono"
+                disabled={!!editingCap.isSystem}
+              />
             </div>
           </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-monokai-comment font-semibold mb-1">能力分类:</label>
+              <FormSelect
+                value={editingCap.category || 'generation'}
+                onChange={(e) => setEditingCap({ ...editingCap, category: e.target.value as CapabilityCategoryKey })}
+              >
+                <option value="generation">⚡ SQL 生成与转换 (generation)</option>
+                <option value="diagnosis">🔍 错误诊断与修复 (diagnosis)</option>
+                <option value="optimization">🚀 性能重构与向量化 (optimization)</option>
+                <option value="insight">📊 数据与结果洞察 (insight)</option>
+                <option value="quality">🛡️ 数据质量审计 (quality)</option>
+                <option value="schema">📐 Schema 模型演进 (schema)</option>
+              </FormSelect>
+            </div>
+
+            <div>
+              <label className="block text-monokai-comment font-semibold mb-1">标签 (逗号分隔):</label>
+              <FormInput
+                type="text"
+                value={(editingCap.tags || []).join(', ')}
+                onChange={(e) => setEditingCap({ ...editingCap, tags: e.target.value.split(',').map(t => t.trim()).filter(Boolean) })}
+                placeholder="报表, 聚合, SQL"
+                fontVariant="mono"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-monokai-comment font-semibold mb-1">能力简短说明:</label>
+            <FormInput
+              type="text"
+              value={editingCap.description || ''}
+              onChange={(e) => setEditingCap({ ...editingCap, description: e.target.value })}
+              placeholder="简要描述该能力的功能与输出..."
+            />
+          </div>
+
+          <div>
+            <label className="block text-monokai-comment font-semibold mb-1">适用用途与场景 (Purpose):</label>
+            <FormInput
+              type="text"
+              value={editingCap.purpose || ''}
+              onChange={(e) => setEditingCap({ ...editingCap, purpose: e.target.value })}
+              placeholder="例如：从自然语言快速转译为 DuckDB 方言 SQL"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-monokai-comment font-semibold mb-1">输入要求描述:</label>
+              <FormInput
+                type="text"
+                value={editingCap.inputRequirement || ''}
+                onChange={(e) => setEditingCap({ ...editingCap, inputRequirement: e.target.value })}
+                placeholder="Schema 上下文 + 用户需求"
+              />
+            </div>
+            <div>
+              <label className="block text-monokai-comment font-semibold mb-1">输出交付规则:</label>
+              <FormInput
+                type="text"
+                value={editingCap.outputRule || ''}
+                onChange={(e) => setEditingCap({ ...editingCap, outputRule: e.target.value })}
+                placeholder="输出可替换的 SQL 代码段"
+              />
+            </div>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-monokai-comment font-semibold">
+                提示词模板 (*) (点击下方变量可快捷插入到光标处):
+              </label>
+            </div>
+
+            {/* Variable insertion buttons */}
+            <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
+              {PROMPT_VARIABLES.map((v) => (
+                <button
+                  type="button"
+                  key={v.key}
+                  onClick={() => handleInsertVariableInEditor(v.key)}
+                  className="rounded border border-monokai-border bg-monokai-bg px-1.5 py-0.5 font-mono text-[10px] text-monokai-fg-muted hover:text-monokai-fg hover:border-monokai-border-strong transition-colors cursor-pointer"
+                  title={v.desc}
+                >
+                  + {v.key}
+                </button>
+              ))}
+            </div>
+
+            <textarea
+              ref={promptTextareaRef}
+              rows={6}
+              value={editingCap.promptTemplate || ''}
+              onChange={(e) => setEditingCap({ ...editingCap, promptTemplate: e.target.value })}
+              placeholder="请为 DuckDB 生成 SQL:&#10;【需求】: {userPrompt}&#10;&#10;【表结构】:&#10;{schemaContext}"
+              className="w-full rounded-md border border-monokai-border bg-monokai-bg p-3 text-xs font-mono text-monokai-fg outline-none focus:border-monokai-fg/40 custom-scrollbar"
+            />
+          </div>
         </div>
-      )}
+      </ModalShell>
     </div>
   );
 };

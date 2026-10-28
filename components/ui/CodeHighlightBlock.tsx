@@ -8,6 +8,8 @@ import { markdown } from '@codemirror/lang-markdown';
 import { yaml } from '@codemirror/lang-yaml';
 import { EditorView } from '@codemirror/view';
 import { monokai } from '@uiw/codemirror-theme-monokai';
+import { lightEditorTheme } from '../../themes/sqlEditorThemes';
+import { useUiTheme } from '../../services/uiTheme';
 import { 
   Copy, 
   Check, 
@@ -28,7 +30,7 @@ import {
 import { format } from 'sql-formatter';
 import { duckDBService } from '../../services/duckdbService';
 import { toastService } from '../../services/toastService';
-import { bootstrapDuckDBVirtualEnv } from '../../services/ontology/ontologySynthesisEngine';
+import { splitSqlScript } from '../../services/dataflow/sqlStructure';
 
 export type SupportedLanguage =
   | 'sql'
@@ -70,21 +72,21 @@ export interface CodeHighlightBlockProps {
 const SHARED_CODE_THEME = EditorView.theme({
   '&': {
     fontSize: '11.5px',
-    fontFamily: "'JetBrains Mono', 'Victor Mono', 'Roboto Mono', monospace",
-    backgroundColor: '#0c0f0d',
+    fontFamily: 'var(--font-mono)',
+    backgroundColor: 'var(--monokai-bg)',
     borderRadius: '0 0 8px 8px',
   },
   '.cm-content': {
     padding: '8px 12px',
-    fontFamily: "'JetBrains Mono', 'Victor Mono', 'Roboto Mono', monospace",
+    fontFamily: 'var(--font-mono)',
   },
   '.cm-line': {
     lineHeight: '1.65',
   },
   '.cm-gutters': {
-    backgroundColor: '#111613',
-    color: '#525e54',
-    borderRight: '1px solid #22331c',
+    backgroundColor: 'var(--monokai-sidebar)',
+    color: 'var(--monokai-comment)',
+    borderRight: '1px solid var(--monokai-border)',
     paddingRight: '6px',
   },
   '.cm-scroller': {
@@ -136,6 +138,7 @@ const CodeHighlightBlockInner: React.FC<CodeHighlightBlockProps> = ({
   initialCollapsed = true,
   collapseAll,
 }) => {
+  const uiTheme = useUiTheme(state => state.theme);
   const [copied, setCopied] = useState(false);
   const [isFormatted, setIsFormatted] = useState(initialFormat);
   const [isCollapsed, setIsCollapsed] = useState(initialCollapsed ?? true);
@@ -333,22 +336,7 @@ const CodeHighlightBlockInner: React.FC<CodeHighlightBlockProps> = ({
     setIsResultOpen(true);
     const start = performance.now();
     try {
-      // 确保基础测试数据与表结构在 DuckDB WASM 中已初始化（带8秒防死锁保护）
-      let bootstrapTimeout: any;
-      const timeoutPromise = new Promise<void>((resolve) => {
-        bootstrapTimeout = setTimeout(resolve, 8000);
-      });
-      await Promise.race([bootstrapDuckDBVirtualEnv(), timeoutPromise]).finally(() => {
-        if (bootstrapTimeout) clearTimeout(bootstrapTimeout);
-      });
-
-      const cleanSql = formattedCode
-        .replace(/--.*$/gm, '')
-        .replace(/\/\*[\s\S]*?\*\//g, '');
-      const rawStatements = cleanSql
-        .split(';')
-        .map((s) => s.trim())
-        .filter((s) => s.length > 0);
+      const rawStatements = splitSqlScript(formattedCode).map(statement => statement.sql);
 
       let lastRows: any[] = [];
       for (const cleanStmt of rawStatements) {
@@ -358,11 +346,7 @@ const CodeHighlightBlockInner: React.FC<CodeHighlightBlockProps> = ({
             reject(new Error(`SQL 执行超时 (超过 15000ms)`));
           }, 15000);
         });
-        let executableStmt = cleanStmt;
-        if (/^\s*CREATE\s+TABLE\s+(?!IF\s+NOT\s+EXISTS|AS\b)/i.test(executableStmt)) {
-          executableStmt = executableStmt.replace(/^\s*CREATE\s+TABLE\s+/i, 'CREATE OR REPLACE TABLE ');
-        }
-        const queryPromise = duckDBService.query(executableStmt.endsWith(';') ? executableStmt : `${executableStmt};`);
+        const queryPromise = duckDBService.query(cleanStmt.endsWith(';') ? cleanStmt : `${cleanStmt};`);
         const res = await Promise.race([queryPromise, timeoutPromise]).finally(() => {
           if (timeoutHandle) clearTimeout(timeoutHandle);
         });
@@ -420,7 +404,7 @@ const CodeHighlightBlockInner: React.FC<CodeHighlightBlockProps> = ({
       ref={containerRef}
       data-code-block="true"
       data-sql-snippet={formattedCode.slice(0, 100)}
-      className={`code-highlight-block-container rounded-xl border border-[#22331c] bg-[#0c0f0d] overflow-hidden font-sans shadow-xs my-2.5 transition-all duration-300 ${className}`}
+      className={`code-highlight-block-container rounded-xl border border-monokai-border bg-monokai-bg overflow-hidden font-sans shadow-xs my-2.5 transition-all duration-300 ${className}`}
       style={
         // 结果面板展开时禁用 content-visibility，否则浏览器可能按 containIntrinsicSize
         // 把结果区裁切/跳过绘制，表现为「执行了但看不到结果」
@@ -432,8 +416,8 @@ const CodeHighlightBlockInner: React.FC<CodeHighlightBlockProps> = ({
       {/* Header Bar */}
       {!hideHeader && (
         <div
-          className={`flex h-8 items-center justify-between px-3 bg-[#141a15] text-[10px] transition-colors cursor-pointer select-none ${
-            !isCollapsed || isResultOpen ? 'border-b border-[#22331c]' : ''
+          className={`flex min-h-8 flex-wrap items-center justify-between gap-x-2 gap-y-1 px-3 py-1 bg-monokai-surface text-[10px] transition-colors cursor-pointer select-none ${
+            !isCollapsed || isResultOpen ? 'border-b border-monokai-border' : ''
           }`}
           onClick={(e) => {
             if ((e.target as HTMLElement).closest('button')) return;
@@ -448,36 +432,36 @@ const CodeHighlightBlockInner: React.FC<CodeHighlightBlockProps> = ({
                 e.stopPropagation();
                 setIsCollapsed((prev) => !prev);
               }}
-              className="text-zinc-400 hover:text-[#a3e635] p-0.5 rounded transition-colors cursor-pointer"
+              className="text-monokai-comment hover:text-monokai-accent p-0.5 rounded transition-colors cursor-pointer"
               title={isCollapsed ? '展开代码块' : '折叠代码块'}
             >
               <ChevronRight
                 className={`w-3.5 h-3.5 transition-transform duration-200 ${
-                  !isCollapsed ? 'rotate-90 text-[#a3e635]' : ''
+                  !isCollapsed ? 'rotate-90 text-monokai-accent' : ''
                 }`}
               />
             </button>
-            <FileCode2 className="w-3.5 h-3.5 text-[#a3e635] shrink-0" />
-            <span className="font-semibold text-zinc-300 truncate">
+            <FileCode2 className="w-3.5 h-3.5 text-monokai-accent shrink-0" />
+            <span className="font-semibold text-monokai-fg-muted truncate">
               {title || (normalizedLang === 'sql' ? 'SQL STATEMENT' : `${normalizedLang.toUpperCase()} SNIPPET`)}
             </span>
-            <span className="text-zinc-500 font-mono text-[9px]">({lineCount} 行)</span>
+            <span className="shrink-0 text-monokai-comment font-mono text-[9px]">({lineCount} 行)</span>
             {isCollapsed && (
-              <span className="text-zinc-500 font-mono text-[10px] truncate max-w-xs md:max-w-md hidden sm:inline ml-1.5 opacity-70">
+              <span className="text-monokai-comment font-mono text-[10px] truncate max-w-xs md:max-w-md hidden sm:inline ml-1.5 opacity-70">
                 {formattedCode.trim().split('\n')[0].slice(0, 55)}
                 {formattedCode.trim().split('\n')[0].length > 55 || lineCount > 1 ? ' ...' : ''}
               </span>
             )}
           </div>
 
-          <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+          <div className="flex max-w-full flex-wrap items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
             {/* 执行 SQL 按钮 */}
             {isSql && enableExecute && (
               <button
                 type="button"
                 onClick={handleExecuteSql}
                 disabled={isExecuting}
-                className="flex items-center gap-1 px-2.5 py-0.5 rounded text-[10px] font-medium bg-[#a3e635] text-zinc-950 hover:bg-[#bef264] active:bg-[#84cc16] disabled:opacity-50 transition-colors shadow-xs cursor-pointer"
+                className="flex items-center gap-1 px-2.5 py-0.5 rounded text-[10px] font-medium bg-monokai-accent text-monokai-on-accent hover:bg-monokai-accent-hover active:bg-monokai-accent-hover disabled:opacity-50 transition-colors shadow-xs cursor-pointer"
                 title="直接就地执行当前 SQL (会自动展开代码)"
               >
                 {isExecuting ? (
@@ -500,13 +484,13 @@ const CodeHighlightBlockInner: React.FC<CodeHighlightBlockProps> = ({
                 type="button"
                 onClick={handleSendToEditor}
                 aria-label={sendSuccess ? '已发送到 SQL 编辑器' : '在编辑器中运行 (发送到 SQL 编辑器)'}
-                className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium text-sky-400 bg-sky-950/40 hover:bg-sky-900/60 border border-sky-800/50 hover:border-sky-700 transition-colors cursor-pointer"
+                className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium text-monokai-cyan bg-monokai-cyan/10 hover:bg-monokai-cyan/20 border border-monokai-cyan/30 hover:border-monokai-cyan transition-colors cursor-pointer"
                 title="在编辑器中运行，将 SQL 自动带入 SQL 编辑器继续编辑执行"
               >
                 {sendSuccess ? (
                   <>
-                    <Check className="w-3 h-3 text-sky-300" />
-                    <span className="text-sky-300">已发送</span>
+                    <Check className="w-3 h-3" />
+                    <span>已发送</span>
                   </>
                 ) : (
                   <>
@@ -524,8 +508,8 @@ const CodeHighlightBlockInner: React.FC<CodeHighlightBlockProps> = ({
                 onClick={() => setIsFormatted((prev) => !prev)}
                 className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-mono transition-colors cursor-pointer border ${
                   isFormatted
-                    ? 'bg-[#a3e635]/15 text-[#a3e635] border-[#a3e635]/30 font-semibold'
-                    : 'bg-transparent text-zinc-400 hover:text-zinc-200 border-[#22331c] hover:bg-[#1f2a20]'
+                    ? 'bg-monokai-accent/15 text-monokai-accent border-monokai-accent/30 font-semibold'
+                    : 'bg-transparent text-monokai-comment hover:text-monokai-fg border-monokai-border hover:bg-monokai-hover'
                 }`}
                 title="美化格式化代码"
               >
@@ -542,7 +526,7 @@ const CodeHighlightBlockInner: React.FC<CodeHighlightBlockProps> = ({
                   setEditableCode(code);
                   toastService.info('已重置为原教程代码');
                 }}
-                className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] text-amber-400 bg-amber-950/40 hover:bg-amber-900/60 border border-amber-800/50 transition-colors cursor-pointer"
+                className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] text-monokai-yellow bg-monokai-yellow/10 hover:bg-monokai-yellow/20 border border-monokai-yellow/30 transition-colors cursor-pointer"
                 title="已修改代码，点击恢复为教程初始代码"
               >
                 <RotateCcw className="w-2.5 h-2.5" />
@@ -554,10 +538,10 @@ const CodeHighlightBlockInner: React.FC<CodeHighlightBlockProps> = ({
             <button
               type="button"
               onClick={handleCopy}
-              className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] text-zinc-400 hover:text-zinc-200 hover:bg-[#1f2a20] border border-transparent hover:border-[#22331c] transition-all cursor-pointer"
+              className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] text-monokai-comment hover:text-monokai-fg hover:bg-monokai-hover border border-transparent hover:border-monokai-border transition-all cursor-pointer"
               title="复制代码到剪贴板"
             >
-              {copied ? <Check className="w-3 h-3 text-[#a3e635]" /> : <Copy className="w-3 h-3" />}
+              {copied ? <Check className="w-3 h-3 text-monokai-accent" /> : <Copy className="w-3 h-3" />}
               <span>{copied ? '已复制' : '复制'}</span>
             </button>
 
@@ -565,7 +549,7 @@ const CodeHighlightBlockInner: React.FC<CodeHighlightBlockProps> = ({
             <button
               type="button"
               onClick={() => setIsCollapsed((prev) => !prev)}
-              className="px-1.5 py-0.5 rounded text-[10px] text-zinc-400 hover:text-zinc-200 hover:bg-[#1f2a20] transition-colors cursor-pointer"
+              className="px-1.5 py-0.5 rounded text-[10px] text-monokai-comment hover:text-monokai-fg hover:bg-monokai-hover transition-colors cursor-pointer"
               title={isCollapsed ? '展开代码' : '折叠代码'}
             >
               <span>{isCollapsed ? '展开' : '折叠'}</span>
@@ -582,18 +566,18 @@ const CodeHighlightBlockInner: React.FC<CodeHighlightBlockProps> = ({
               value={formattedCode}
               onChange={(val) => setEditableCode(val)}
               extensions={extensions}
-              theme={monokai}
+              theme={uiTheme === 'light' ? lightEditorTheme : monokai}
               editable={!isExecuting}
               basicSetup={{
                 lineNumbers: showLineNumbers,
                 foldGutter: false,
                 highlightActiveLine: true,
               }}
-              className="text-[11px] custom-scrollbar selection:bg-[#a3e635]/20"
+              className="text-[11px] custom-scrollbar selection:bg-monokai-accent/20"
             />
           ) : (
             <pre
-              className="p-3 text-[11px] font-mono leading-[1.65] text-zinc-300 bg-[#0c0f0d] overflow-x-auto select-text m-0 whitespace-pre"
+              className="p-3 text-[11px] font-mono leading-[1.65] text-monokai-fg-muted bg-monokai-bg overflow-x-auto select-text m-0 whitespace-pre"
               style={{ maxHeight: maxHeight !== 'none' ? maxHeight : undefined }}
             >
               <code>{formattedCode}</code>
@@ -604,12 +588,12 @@ const CodeHighlightBlockInner: React.FC<CodeHighlightBlockProps> = ({
 
       {/* 就地执行结果面板 */}
       {isResultOpen && (
-        <div ref={resultPanelRef} className="border-t border-[#22331c] bg-[#111613]">
+        <div ref={resultPanelRef} className="border-t border-monokai-border bg-monokai-sidebar">
           {/* Result Bar */}
-          <div className="flex items-center justify-between px-3 py-1.5 bg-[#161d17] border-b border-[#22331c]/60 text-[10px]">
+          <div className="flex items-center justify-between px-3 py-1.5 bg-monokai-elevated border-b border-monokai-border/60 text-[10px]">
             <div className="flex items-center gap-2">
               {isExecuting ? (
-                <span className="flex items-center gap-1 text-[#a3e635] font-medium">
+                <span className="flex items-center gap-1 text-monokai-accent font-medium">
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
                   <span>执行中...</span>
                 </span>
@@ -619,7 +603,7 @@ const CodeHighlightBlockInner: React.FC<CodeHighlightBlockProps> = ({
                   <span>执行异常</span>
                 </span>
               ) : (
-                <span className="flex items-center gap-1 text-[#a3e635] font-medium">
+                <span className="flex items-center gap-1 text-monokai-accent font-medium">
                   <CheckCircle2 className="w-3.5 h-3.5" />
                   <span>执行完成</span>
                 </span>
@@ -628,7 +612,7 @@ const CodeHighlightBlockInner: React.FC<CodeHighlightBlockProps> = ({
                 <span className="text-zinc-500 font-mono text-[10px]">({execDuration} ms)</span>
               )}
               {!isExecuting && execResult && (
-                <span className="text-zinc-400 font-mono text-[10px]">
+                <span className="text-monokai-comment font-mono text-[10px]">
                   {execResult.length} 行 · {execResult.length > 0 ? Object.keys(execResult[0]).length : 0} 列
                 </span>
               )}
@@ -636,7 +620,7 @@ const CodeHighlightBlockInner: React.FC<CodeHighlightBlockProps> = ({
             <button
               type="button"
               onClick={() => setIsResultOpen(false)}
-              className="flex items-center gap-1 text-[10px] text-zinc-400 hover:text-zinc-200 px-1.5 py-0.5 rounded hover:bg-[#1f2a20] transition-colors cursor-pointer"
+              className="flex items-center gap-1 text-[10px] text-monokai-comment hover:text-monokai-fg px-1.5 py-0.5 rounded hover:bg-monokai-hover transition-colors cursor-pointer"
               title="收起结果面板"
             >
               <ChevronUp className="w-3 h-3" />
@@ -648,7 +632,7 @@ const CodeHighlightBlockInner: React.FC<CodeHighlightBlockProps> = ({
           <div className="max-h-[220px] overflow-auto custom-scrollbar p-2">
             {isExecuting ? (
               <div className="p-4 text-center text-zinc-500 text-[11px] flex items-center justify-center gap-2">
-                <Loader2 className="w-4 h-4 animate-spin text-[#a3e635]" />
+                <Loader2 className="w-4 h-4 animate-spin text-monokai-accent" />
                 <span>DuckDB WASM 正在计算中...</span>
               </div>
             ) : execError ? (
@@ -662,17 +646,17 @@ const CodeHighlightBlockInner: React.FC<CodeHighlightBlockProps> = ({
             ) : (
               <table className="w-full text-left border-collapse font-mono text-[11px]">
                 <thead>
-                  <tr className="border-b border-[#22331c] bg-[#161d17]/80 sticky top-0">
+                  <tr className="border-b border-monokai-border bg-monokai-elevated/80 sticky top-0">
                     {Object.keys(execResult[0]).map((col) => (
-                      <th key={col} className="px-2.5 py-1 text-[#a3e635] font-semibold tracking-wider">
+                      <th key={col} className="px-2.5 py-1 text-monokai-accent font-semibold tracking-wider">
                         {col}
                       </th>
                     ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#22331c]/50">
+                <tbody className="divide-y divide-monokai-border/50">
                   {execResult.slice(0, 50).map((row, idx) => (
-                    <tr key={idx} className="hover:bg-[#161d17]/80 text-zinc-300">
+                    <tr key={idx} className="hover:bg-monokai-elevated/80 text-monokai-fg-muted">
                       {Object.keys(execResult[0]).map((col) => (
                         <td key={col} className="px-2.5 py-1 whitespace-nowrap">
                           {row[col] !== null && row[col] !== undefined ? (

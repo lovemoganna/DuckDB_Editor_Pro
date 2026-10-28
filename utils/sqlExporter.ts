@@ -13,7 +13,7 @@
  * All functions are pure and synchronous (or async for Parquet via duckDBService).
  */
 
-import type { QueryResult } from '../types';
+import type { QueryResult, SqlTab } from '../types';
 
 /** Options for CSV export. */
 export interface CsvExportOptions {
@@ -234,6 +234,14 @@ export function downloadBlob(blob: Blob, filename: string): void {
   link.click();
   document.body.removeChild(link);
   setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
+/** Download the tab source as UTF-8 SQL without executing it. */
+export function downloadSqlTab(tab: SqlTab): string {
+  const title = (tab.title || 'query').replace(/[/\\?%*:|"<>]/g, '_').trim() || 'query';
+  const filename = /\.sql$/i.test(title) ? title : `${title}.sql`;
+  downloadBlob(new Blob([tab.code], { type: 'text/sql;charset=utf-8' }), filename);
+  return filename;
 }
 
 /**

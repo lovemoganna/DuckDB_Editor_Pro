@@ -67,51 +67,8 @@ export type NodeTypeFilter = 'typeHub' | 'instance' | 'action';
 /** 面板主 Tab */
 export type TopologyPanelTab = 'layout' | 'physics' | 'visuals' | 'analytics';
 
-/** 渲染引擎模式：MECE 三选一 —— SVG D3 / HTML5 Canvas / WebGL Pixi */
-export type RenderEngineMode = 'svg' | 'canvas' | 'webgl';
-
-/** 渲染引擎元数据 */
-export const RENDER_ENGINE_META: Record<RenderEngineMode, {
-  label: string;
-  shortLabel: string;
-  icon: React.ReactNode;
-  description: string;
-  hint: string;
-  color: string;
-  bgColor: string;
-  borderColor: string;
-}> = {
-  svg: {
-    label: 'SVG D3',
-    shortLabel: 'SVG',
-    icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>,
-    description: 'D3 + SVG 力导向仿真，最灵活但节点密集时性能受限',
-    hint: '≤500节点推荐',
-    color: '#66d9ef',
-    bgColor: 'rgba(102, 217, 239, 0.12)',
-    borderColor: 'rgba(102, 217, 239, 0.45)',
-  },
-  canvas: {
-    label: 'Canvas 2D',
-    shortLabel: 'Canvas',
-    icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>,
-    description: 'HTML5 Canvas 2D 渲染，批量绘制性能优秀，适合中大规模图谱',
-    hint: '500-3000节点推荐',
-    color: '#a6e22e',
-    bgColor: 'rgba(166, 226, 46, 0.12)',
-    borderColor: 'rgba(166, 226, 46, 0.45)',
-  },
-  webgl: {
-    label: 'WebGL Pixi',
-    shortLabel: 'WebGL',
-    icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>,
-    description: 'PixiJS WebGL 硬件加速，节点密集时（>3000）性能最优',
-    hint: '≥3000节点推荐',
-    color: '#fd971f',
-    bgColor: 'rgba(253, 151, 31, 0.12)',
-    borderColor: 'rgba(253, 151, 31, 0.45)',
-  },
-};
+import { RENDER_ENGINE_META, type RenderEngineMode } from './renderEngineMeta';
+export { RENDER_ENGINE_META, type RenderEngineMode } from './renderEngineMeta';
 
 /** 布局模式元数据 */
 export interface LayoutMeta {
@@ -188,15 +145,15 @@ export const CATEGORY_METADATA: Record<LayoutCategory, {
 }> = {
   hierarchical: {
     label: '层级结构', icon: <GitBranch className="w-3.5 h-3.5" />,
-    description: '展示有向依赖与流程推进关系，自动最小化交叉连线', hint: '流程图、依赖演进、因果链路', color: '#66d9ef',
+    description: '展示有向依赖与流程推进关系，自动最小化交叉连线', hint: '流程图、依赖演进、因果链路', color: 'var(--monokai-cyan)',
   },
   network: {
     label: '网状结构', icon: <Network className="w-3.5 h-3.5" />,
-    description: '自由实体关联，社群聚类与自然吸引聚集', hint: '社交网络、隐性关系发现、社群聚类', color: '#a6e22e',
+    description: '自由实体关联，社群聚类与自然吸引聚集', hint: '社交网络、隐性关系发现、社群聚类', color: 'var(--monokai-accent)',
   },
   radial: {
     label: '辐射结构', icon: <CircleDot className="w-3.5 h-3.5" />,
-    description: '以核心枢纽向外环形/星系扩散，凸显中心影响力', hint: '中心枢纽、影响力层阶、分类星系', color: '#fd971f',
+    description: '以核心枢纽向外环形/星系扩散，凸显中心影响力', hint: '中心枢纽、影响力层阶、分类星系', color: 'var(--monokai-orange)',
   },
   grid: {
     label: '网格结构', icon: <LayoutGrid className="w-3.5 h-3.5" />,
@@ -439,7 +396,7 @@ export const PHYSICS_PRESETS: PhysicsPresetConfig[] = [
 
 // ==================== 样式常量 ====================
 
-const SURFACE = 'bg-[#1e1f1c]/95 border border-monokai-border/80 rounded-xl shadow-[0_16px_48px_-12px_rgba(0,0,0,0.85)] backdrop-blur-xl text-monokai-fg font-sans';
+const SURFACE = 'bg-monokai-bg/95 border border-monokai-border/80 rounded-xl shadow-lg backdrop-blur-xl text-monokai-fg font-sans';
 const GROUP_CARD = 'rounded-lg border border-monokai-border/60 bg-monokai-bg/50 p-2.5 flex flex-col gap-2';
 const SECTION_LABEL = 'text-[10px] font-bold uppercase tracking-[0.12em] text-monokai-comment flex items-center gap-1.5';
 const TAB_BTN_ACTIVE = 'flex-1 py-1.5 px-1 rounded-md text-[11px] font-semibold bg-monokai-cyan/15 text-monokai-cyan border border-monokai-cyan/40 shadow-sm transition-all flex items-center justify-center gap-1';
@@ -544,7 +501,7 @@ const PerfMiniChart: React.FC<{ data: PerfDataPoint[]; metric: 'fps' | 'renderTi
 
   const pathD = `M ${coords.join(' L ')}`;
   const areaD = `M ${padding},${H - padding} L ${coords.join(' L ')} L ${W - padding},${H - padding} Z`;
-  const color = metric === 'fps' ? '#a6e22e' : '#66d9ef';
+  const color = metric === 'fps' ? 'var(--monokai-accent)' : 'var(--monokai-cyan)';
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-6 overflow-visible">
@@ -716,7 +673,7 @@ const ParameterSlider: React.FC<{
   disabled?: boolean;
   color?: string;
   onChange: (v: number) => void;
-}> = ({ label, value, min, max, step = 1, unit = '', disabled = false, color = '#66d9ef', onChange }) => {
+}> = ({ label, value, min, max, step = 1, unit = '', disabled = false, color = 'var(--monokai-cyan)', onChange }) => {
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (disabled) return;
     const delta = (e.shiftKey ? 5 : 1) * step;
@@ -1103,7 +1060,7 @@ export const TopologyLayoutPanel = forwardRef<TopologyLayoutPanelRef, TopologyLa
 
   return (
     <div
-      className={`${SURFACE} absolute top-3 left-3 z-[1000] flex flex-col w-[360px] max-h-[calc(100vh-28px)] overflow-hidden`}
+      className={`${SURFACE} absolute top-3 left-3 z-[1000] flex flex-col w-[360px] max-w-[calc(100%-24px)] max-h-[calc(100%-24px)] overflow-hidden`}
       role="region"
       aria-label="知识图谱拓扑布局控制中心"
     >
@@ -1300,7 +1257,7 @@ export const TopologyLayoutPanel = forwardRef<TopologyLayoutPanelRef, TopologyLa
                   <div className="flex items-center gap-2 mt-2">
                     <button
                       onClick={() => changeLayoutMode(recommendedLayout.mode)}
-                      className="px-2 py-1 rounded bg-monokai-accent text-[#1b1c18] font-bold text-[10px] hover:brightness-110 transition-all flex items-center gap-1"
+                      className="px-2 py-1 rounded bg-monokai-accent text-monokai-on-accent font-bold text-[10px] hover:brightness-110 transition-all flex items-center gap-1"
                     >
                       <Sparkles className="w-3 h-3" />
                       切换推荐布局
@@ -1555,7 +1512,7 @@ export const TopologyLayoutPanel = forwardRef<TopologyLayoutPanelRef, TopologyLa
                   />
                   <button
                     onClick={handleSaveCustomPreset}
-                    className="px-2 py-1 rounded bg-monokai-accent text-[#1b1c18] font-bold text-[10px]"
+                    className="px-2 py-1 rounded bg-monokai-accent text-monokai-on-accent font-bold text-[10px]"
                   >
                     保存
                   </button>
@@ -1618,7 +1575,7 @@ export const TopologyLayoutPanel = forwardRef<TopologyLayoutPanelRef, TopologyLa
                   max={400}
                   step={5}
                   unit="px"
-                  color="#66d9ef"
+                  color="var(--monokai-cyan)"
                   onChange={onLinkDistanceChange}
                 />
                 <ParameterSlider
@@ -1628,7 +1585,7 @@ export const TopologyLayoutPanel = forwardRef<TopologyLayoutPanelRef, TopologyLa
                   max={40}
                   step={1}
                   unit="px"
-                  color="#a6e22e"
+                  color="var(--monokai-accent)"
                   onChange={onCollisionRadiusChange}
                 />
                 <ParameterSlider
@@ -1648,7 +1605,7 @@ export const TopologyLayoutPanel = forwardRef<TopologyLayoutPanelRef, TopologyLa
                   max={50}
                   step={1}
                   unit="%"
-                  color="#fd971f"
+                  color="var(--monokai-orange)"
                   onChange={v => onGravityStrengthChange(v / 100)}
                 />
                 <ParameterSlider
@@ -1694,7 +1651,7 @@ export const TopologyLayoutPanel = forwardRef<TopologyLayoutPanelRef, TopologyLa
               <div className="grid grid-cols-3 gap-1.5">
                 {[
                   { key: 'typeHub' as NodeTypeFilter, label: '类型集', icon: <HexagonIcon className="w-3 h-3" />, color: '#c77dff', count: nodeCountByType.typeHub },
-                  { key: 'instance' as NodeTypeFilter, label: '实体实例', icon: <Box className="w-3 h-3" />, color: '#66d9ef', count: nodeCountByType.instance },
+                  { key: 'instance' as NodeTypeFilter, label: '实体实例', icon: <Box className="w-3 h-3" />, color: 'var(--monokai-cyan)', count: nodeCountByType.instance },
                   { key: 'action' as NodeTypeFilter, label: '行动任务', icon: <Zap className="w-3 h-3" />, color: '#4ade80', count: nodeCountByType.action },
                 ].map(({ key, label, icon, color, count }) => {
                   const isChecked = nodeTypeFilters.has(key);
@@ -2063,7 +2020,7 @@ export const TopologyLayoutPanel = forwardRef<TopologyLayoutPanelRef, TopologyLa
           )}
           
           {/* 视图控制五联按钮 */}
-          <div className="grid grid-cols-5 gap-1">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(72px,1fr))] gap-1">
             <button
               onClick={onFitAll}
               title="适应全图视角 (0)"

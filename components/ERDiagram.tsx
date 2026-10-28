@@ -1,4 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useVisualizationRequest } from '../hooks/useVisualizationRequest';
+import { useAppStore } from '../hooks/store/useAppStore';
+import { useUiTheme } from '../services/uiTheme';
 import mermaid from 'mermaid';
 import { duckDBService } from '../services/duckdbService';
 import { Copy, Play, Wrench } from 'lucide-react';
@@ -10,6 +13,11 @@ interface ERDiagramProps {
 export const ERDiagram: React.FC<ERDiagramProps> = ({ onExecuteSql }) => {
     const [svg, setSvg] = useState<string>('');
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const request = useVisualizationRequest();
+    const database = useAppStore(state => state.currentDatabase);
+    const theme = useUiTheme(state => state.theme);
+    const isLight = theme === 'light';
     const [schemas, setSchemas] = useState<any[]>([]);
     const [relationships, setRelationships] = useState<any[]>([]);
     const [selectedTables, setSelectedTables] = useState<Set<string>>(new Set());
@@ -20,8 +28,17 @@ export const ERDiagram: React.FC<ERDiagramProps> = ({ onExecuteSql }) => {
     useEffect(() => {
         mermaid.initialize({
             startOnLoad: false,
-            theme: 'dark',
-            themeCSS: `
+            theme: isLight ? 'neutral' : 'dark',
+            themeCSS: isLight ? `
+                .entityTitle { fill: #272822 !important; font-weight: bold; }
+                .entityBody { fill: #fcfcfa !important; stroke: #d3d3c7 !important; }
+                .attributeTitle { fill: #272822 !important; }
+                .relationshipLabel { fill: #272822 !important; background-color: #f1f1eb !important; }
+                line { stroke: #b8b8a8 !important; }
+                path { stroke: #b8b8a8 !important; }
+                .card { fill: #f1f1eb !important; stroke: #d3d3c7 !important; }
+                text { fill: #272822 !important; }
+            ` : `
                 .entityTitle { fill: #f8f8f2 !important; }
                 .entityBody { fill: #1e1f1c !important; stroke: #49483e !important; }
                 .attributeTitle { fill: #f8f8f2 !important; }
@@ -34,24 +51,31 @@ export const ERDiagram: React.FC<ERDiagramProps> = ({ onExecuteSql }) => {
             securityLevel: 'loose',
         });
         loadSchema();
-    }, []);
+        return request.invalidate;
+    }, [database, theme, request]);
 
     const loadSchema = async () => {
+        const current = request.begin();
         setLoading(true);
+        setSvg(''); setError(null); setSchemas([]); setRelationships([]); setSelectedTables(new Set()); setGeneratedSql('');
         try {
             const s = await duckDBService.getAllTablesSchema();
+            if (!current()) return;
             setSchemas(s);
             const rels = await duckDBService.inferRelationships(s);
+            if (!current()) return;
             setRelationships(rels);
-            renderDiagram(s, rels);
+            await renderDiagram(s, rels, current);
         } catch (e) {
+            if (!current()) return;
+            setError('无法加载数据库结构');
             console.error("ER Load failed", e);
         } finally {
-            setLoading(false);
+            if (current()) setLoading(false);
         }
     };
 
-    const renderDiagram = async (schemas: any[], rels: any[]) => {
+    const renderDiagram = async (schemas: any[], rels: any[], current: () => boolean) => {
         let graph = 'erDiagram\n';
         // Tables
         for (const s of schemas) {
@@ -70,16 +94,18 @@ export const ERDiagram: React.FC<ERDiagramProps> = ({ onExecuteSql }) => {
         }
 
         if (schemas.length === 0) {
-            setSvg('<div class="text-center p-4">No tables found</div>');
+            setSvg('');
             return;
         }
 
         try {
             const { svg } = await mermaid.render('er-diagram-svg-' + Date.now(), graph);
+            if (!current()) return;
             setSvg(svg);
         } catch (e) {
+            if (!current()) return;
             console.error("Mermaid Render Error", e);
-            setSvg('<div class="text-red-500">Failed to render diagram</div>');
+            setSvg(''); setError('无法渲染数据库关系图');
         }
     };
 
@@ -147,21 +173,21 @@ export const ERDiagram: React.FC<ERDiagramProps> = ({ onExecuteSql }) => {
     return (
         <div className="w-full h-full flex flex-row bg-monokai-surface overflow-hidden">
             {/* Sidebar: Query Builder */}
-            <div className="w-80 border-r border-monokai-accent p-4 flex flex-col bg-monokai-bg h-full overflow-y-auto">
+            <div className="w-80 border-r border-monokai-border p-4 flex flex-col bg-monokai-bg h-full overflow-y-auto">
                 <h3 className="font-bold text-monokai-fg mb-4 flex items-center gap-2">
                     <Wrench className="w-4 h-4 text-monokai-comment" /> Query Builder
                 </h3>
 
                 <div className="mb-6">
                     <label className="text-xs font-bold text-monokai-comment uppercase tracking-wider mb-2 block">Select Tables to Join</label>
-                    <div className="space-y-1 bg-monokai-surface p-2 rounded border border-monokai-accent">
+                    <div className="space-y-1 bg-monokai-surface p-2 rounded-lg border border-monokai-border">
                         {schemas.map(s => (
                             <label key={s.table} className="flex items-center gap-2 p-2 rounded hover:bg-monokai-sidebar cursor-pointer text-sm">
                                 <input
                                     type="checkbox"
                                     checked={selectedTables.has(s.table)}
                                     onChange={() => toggleTable(s.table)}
-                                    className="rounded border-monokai-accent text-monokai-blue focus:ring-monokai-blue"
+                                    className="rounded border-monokai-border text-monokai-accent focus:ring-monokai-blue"
                                 />
                                 <span className={selectedTables.has(s.table) ? "font-bold text-monokai-fg" : "text-monokai-fg"}>{s.table}</span>
                             </label>
@@ -189,7 +215,7 @@ export const ERDiagram: React.FC<ERDiagramProps> = ({ onExecuteSql }) => {
                         />
                         <button
                             onClick={() => onExecuteSql?.(generatedSql)}
-                            className="w-full bg-monokai-accent text-monokai-bg py-2 rounded-lg text-xs font-bold hover:opacity-90 flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs"
+                            className="w-full bg-monokai-accent text-monokai-on-accent py-2 rounded-lg text-xs font-bold hover:opacity-90 flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs"
                         >
                             <Play size={14} /> Run in Editor
                         </button>
@@ -212,7 +238,7 @@ export const ERDiagram: React.FC<ERDiagramProps> = ({ onExecuteSql }) => {
                             <div className="w-12 h-12 bg-monokai-sidebar rounded-full mb-4"></div>
                             <div className="h-4 w-32 bg-monokai-sidebar rounded"></div>
                         </div>
-                    ) : (
+                    ) : error || !schemas.length ? <div className="p-4 text-monokai-comment">{error || '当前数据库暂无数据表'}</div> : (
                         <div
                             ref={containerRef}
                             className="max-w-full overflow-auto bg-monokai-surface shadow-sm p-4 rounded-xl border border-monokai-border"

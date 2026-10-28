@@ -129,6 +129,72 @@ export const STUDIO_COMMANDS: StudioCommand[] = [
     enabled: true,
     actionId: 'editor-find',
   },
+  {
+    id: 'query.explain',
+    label: '生成执行计划',
+    category: 'query',
+    categoryLabel: 'SQL 执行与编辑',
+    shortcut: 'Ctrl+E',
+    keys: ['Ctrl', 'E'],
+    description: '查看物理算子拓扑图与预期开销',
+    enabled: true,
+    actionId: 'workbench-explain-query',
+  },
+  {
+    id: 'query.profile',
+    label: '深度剖析执行',
+    category: 'query',
+    categoryLabel: 'SQL 执行与编辑',
+    shortcut: 'Ctrl+Shift+A',
+    keys: ['Ctrl', 'Shift', 'A'],
+    description: '真实运行并量化各节点耗时与算子细节',
+    enabled: true,
+    actionId: 'workbench-profile-query',
+  },
+  {
+    id: 'query.export',
+    label: '导出查询结果',
+    category: 'query',
+    categoryLabel: 'SQL 执行与编辑',
+    shortcut: 'Ctrl+Shift+E',
+    keys: ['Ctrl', 'Shift', 'E'],
+    description: '导出查询结果为 Parquet、CSV 或 JSON',
+    enabled: true,
+    actionId: 'workbench-export-results',
+  },
+  {
+    id: 'tabs.new_tab',
+    label: '新建查询 Tab',
+    category: 'navigation',
+    categoryLabel: '标签页与导航',
+    shortcut: 'Ctrl+T',
+    keys: ['Ctrl', 'T'],
+    description: '在 SQL 工作台中新增空白查询标签',
+    enabled: true,
+    actionId: 'workbench-new-tab',
+  },
+  {
+    id: 'tabs.close_tab',
+    label: '关闭当前 Tab',
+    category: 'navigation',
+    categoryLabel: '标签页与导航',
+    shortcut: 'Ctrl+W',
+    keys: ['Ctrl', 'W'],
+    description: '关闭当前活动的查询标签',
+    enabled: true,
+    actionId: 'workbench-close-tab',
+  },
+  {
+    id: 'tabs.cycle_tab',
+    label: '切换下一个 Tab',
+    category: 'navigation',
+    categoryLabel: '标签页与导航',
+    shortcut: 'Ctrl+Tab',
+    keys: ['Ctrl', 'Tab'],
+    description: '循环切换到下一个查询标签',
+    enabled: true,
+    actionId: 'workbench-next-tab',
+  },
 
   // Tools & Navigation
   {
@@ -170,6 +236,15 @@ export const STUDIO_COMMANDS: StudioCommand[] = [
     actionId: 'open-query-history',
   },
   {
+    id: 'tools.create_table',
+    label: '新建数据表',
+    category: 'tools',
+    categoryLabel: '资产与维护',
+    description: '通过可视化界面新建 DuckDB 数据表，自定义字段类型与约束',
+    enabled: true,
+    actionId: 'open-create-table-modal',
+  },
+  {
     id: 'tools.create_view',
     label: '新建分析视图',
     category: 'tools',
@@ -205,6 +280,17 @@ export const STUDIO_COMMANDS: StudioCommand[] = [
     enabled: true,
     actionId: 'clear-all-macros',
   },
+  {
+    id: 'tools.database_manager',
+    label: '数据库管理与新建',
+    category: 'tools',
+    categoryLabel: '资产与维护',
+    shortcut: 'Ctrl+Shift+D',
+    keys: ['Ctrl', 'Shift', 'D'],
+    description: '新建、挂载 (ATTACH)、切换 (USE) 或管理 DuckDB 数据库',
+    enabled: true,
+    actionId: 'open-project-manager-modal',
+  },
 ];
 
 export class CommandRegistry {
@@ -223,6 +309,10 @@ export class CommandRegistry {
   }
 
   public static dispatch(actionId: string, detail?: unknown): void {
+    const cmd = this.getCommand(actionId) || this.commands.find(c => c.actionId === actionId);
+    if (cmd && cmd.actionId && cmd.actionId !== actionId) {
+      window.dispatchEvent(new CustomEvent(cmd.actionId, { detail }));
+    }
     window.dispatchEvent(new CustomEvent(actionId, { detail }));
   }
 }

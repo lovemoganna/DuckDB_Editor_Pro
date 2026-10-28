@@ -1,0 +1,130 @@
+- banner "全局工作区顶栏":
+  - button "🪶 DuckDB Studio PRO":
+    - generic: 🪶
+    - generic: DuckDB Studio
+    - generic: PRO
+  - navigation "业务领域大类":
+    - button "工程核心":
+      - generic: 工程核心
+    - button "分析洞察":
+      - generic: 分析洞察
+    - button "知识沉淀":
+      - generic: 知识沉淀
+    - button "AI 认知":
+      - generic: AI 认知
+  - tablist "分析洞察功能标签页":
+    - tab "指标":
+      - generic: 指标
+    - tab "可视化":
+      - generic: 可视化
+    - tab "分析":
+      - generic: 分析
+    - tab "历史":
+      - generic: 历史
+    - tab "审计" [active] [selected]:
+      - generic: 审计
+  - button "项目":
+    - generic: 项目
+  - button "sql_funds_flow 已保存到 OPFS":
+    - generic: sql_funds_flow
+    - generic: 已保存到 OPFS
+  - button "AI 助手 Ctrl+I":
+    - generic: AI 助手
+    - generic: Ctrl+I
+  - button "⌘K":
+  - button "帮助与快捷键":
+  - button "切换为浅色模式":
+  - button "AI 模型设置":
+- main:
+  - generic: 分析洞察
+  - generic: /
+  - generic: 审计日志
+  - button "折叠右侧上下文" [expanded]:
+  - main:
+    - heading "系统审计日志 (Audit Log)" [level=1]
+    - generic: 0 条记录
+    - paragraph: 持久化追踪所有 Schema 架构演变、DDL 执行与数据表变更记录
+    - button "刷新":
+      - generic: 刷新
+    - button "导出日志":
+      - text: 导出日志
+    - generic: 操作总计 (Total)
+    - generic: "0"
+    - generic: DDL 结构演进
+    - generic: "0"
+    - generic: DML 数据变更
+    - generic: "0"
+    - generic: 累计受影响行
+    - generic: "0"
+    - generic: 涉及数据表
+    - generic: 0 个表
+    - toolbar:
+      - tablist "审计分类过滤":
+        - tab "全部 0" [selected]:
+          - generic: 全部
+          - generic: "0"
+        - tab "DDL 架构 0":
+          - generic: DDL 架构
+          - generic: "0"
+        - tab "DML 变更 0":
+          - generic: DML 变更
+          - generic: "0"
+        - tab "高危/删除":
+          - generic: 高危/删除
+      - textbox "搜索 SQL 语句、表名、操作类型..."
+      - combobox "选择数据表":
+        - option "全部数据表 (0)" [selected]
+      - combobox "选择时间范围":
+        - option "全部时间" [selected]
+        - option "今日日志"
+        - option "最近 7 天"
+        - option "最近 30 天"
+      - generic: 已匹配 0 / 0 条
+    - heading "暂无系统审计日志" [level=3]
+    - paragraph: 请执行 DDL/DML 操作以自动生成审计记录
+  - separator "调整右侧窗格宽度"
+  - complementary:
+    - generic: 上下文
+    - text: 当前工作面
+    - generic: 审计日志
+    - paragraph: 分析洞察 · Context IDE 工作面
+    - generic: 数据上下文
+    - term: 当前表
+    - definition: 未选择
+    - term: 数据资产
+    - definition: 13 张表
+    - term: 运行引擎
+    - definition: OPFS
+    - generic: 同组功能
+    - button "指标":
+      - generic: 指标
+    - button "可视化":
+      - generic: 可视化
+    - button "分析中心":
+      - generic: 分析中心
+    - button "历史":
+      - generic: 历史
+    - button "审计日志":
+      - generic: 审计日志
+    - text: 快捷操作
+    - generic: 全局命令
+    - generic: Ctrl K
+    - generic: Monokai Context IDE
+  - generic: 工作区就绪
+  - generic: 审计日志
+- contentinfo:
+  - generic: DuckDB 1.33.1
+  - generic: "|"
+  - generic: sql_funds_flow [OPFS]
+  - generic: "|"
+  - generic: 持久化库
+  - generic: "|"
+  - generic: 13 张表
+  - generic: "|"
+  - generic: 13 个活动表
+  - generic: "|"
+  - generic: "内存: 1.75 MB / 3.1 GiB"
+  - generic: 引擎就绪
+  - generic: "|"
+  - generic: 18:32
+  - button "刷新运行时状态":

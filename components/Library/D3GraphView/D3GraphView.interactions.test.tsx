@@ -114,6 +114,16 @@ describe('D3GraphView blank-canvas reset', () => {
     expect(view.queryByText(/MECE 面板/)).toBeNull();
   });
 
+  it('opens one AI topic editor from the empty state and closes it with Escape', async () => {
+    const view = render(<D3GraphView ontologyState={{ ...ontologyState, initState: 'no-tables', objectTypes: [], objects: [], linkTypes: [], links: [] }} isActive />);
+    fireEvent.click(await view.findByRole('button', { name: 'AI 图谱生成' }));
+    expect(view.getAllByPlaceholderText(/输入图谱主题/)).toHaveLength(1);
+    const input = view.getByRole('textbox', { name: 'AI 生成主题' });
+    expect(document.activeElement).toBe(input);
+    fireEvent.keyDown(input, { key: 'Escape' });
+    expect(view.queryByRole('textbox', { name: 'AI 生成主题' })).toBeNull();
+  });
+
   it('clears selection, focus, search dimming, and stale highlight callbacks after a blank double click', async () => {
     const view = await renderReadyGraph();
     const svg = view.container.querySelector('svg[role="img"]')!;

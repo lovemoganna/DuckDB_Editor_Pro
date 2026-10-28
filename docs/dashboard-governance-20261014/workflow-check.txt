@@ -1,0 +1,1 @@
+PASS: YAML parses; shared quality job gates deployment; browser regression and verified build artifact are wired

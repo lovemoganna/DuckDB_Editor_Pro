@@ -1,0 +1,135 @@
+### Page
+- Page URL: http://127.0.0.1:5173/DuckDB_Editor_Pro/
+- Page Title: DuckDB Manager Pro
+- Console: 0 errors, 7 warnings
+### Snapshot
+```yaml
+- generic [ref=f8e1]:
+  - generic [ref=f8e3]:
+    - banner "全局工作区顶栏" [ref=f8e4]:
+      - generic [ref=f8e5]:
+        - button "🪶 DuckDB Studio PRO" [ref=f8e6] [cursor=pointer]:
+          - generic [ref=f8e7]: 🪶
+          - generic [ref=f8e9]:
+            - generic [ref=f8e10]: DuckDB Studio
+            - generic [ref=f8e11]: PRO
+        - navigation "业务领域大类" [ref=f8e13]:
+          - button "工程核心" [ref=f8e14] [cursor=pointer]
+          - button "分析洞察" [ref=f8e20] [cursor=pointer]
+          - button "知识沉淀" [ref=f8e25] [cursor=pointer]
+          - button "AI 认知" [ref=f8e30] [cursor=pointer]
+        - tablist "工程核心功能标签页" [ref=f8e36]:
+          - tab "仪表盘" [selected] [ref=f8e37] [cursor=pointer]
+          - tab "数据" [ref=f8e43] [cursor=pointer]:
+            - generic [aria-hidden] [ref=f8e48]: "2"
+          - tab "Schema" [ref=f8e49] [cursor=pointer]:
+            - generic [aria-hidden] [ref=f8e54]: "3"
+          - tab "SQL" [ref=f8e55] [cursor=pointer]:
+            - generic [aria-hidden] [ref=f8e60]: "4"
+          - tab "数据流" [ref=f8e61] [cursor=pointer]:
+            - generic [aria-hidden] [ref=f8e66]: "5"
+      - generic [ref=f8e67]:
+        - button "项目 Ctrl+Shift+D" [ref=f8e68] [cursor=pointer]:
+          - generic [ref=f8e71]: 项目
+          - generic [ref=f8e72]: Ctrl+Shift+D
+        - button "新建表" [ref=f8e73] [cursor=pointer]
+        - button "baseline 已保存到 OPFS" [ref=f8e78] [cursor=pointer]:
+          - generic [ref=f8e81]: baseline
+          - generic [ref=f8e83]: 已保存到 OPFS
+        - button "AI 助手 Ctrl+I" [ref=f8e87] [cursor=pointer]:
+          - generic [ref=f8e90]: AI 助手
+          - generic [ref=f8e91]: Ctrl+I
+        - button "⌘K" [ref=f8e92] [cursor=pointer]
+        - button "帮助与快捷键" [ref=f8e96] [cursor=pointer]
+        - button "切换为浅色模式" [ref=f8e99] [cursor=pointer]
+        - button "AI 模型设置" [ref=f8e100] [cursor=pointer]
+    - main [ref=f8e103]:
+      - generic [ref=f8e109]:
+        - generic [ref=f8e110]:
+          - generic [ref=f8e111]:
+            - generic [ref=f8e112]:
+              - heading "分析范围" [level=1] [ref=f8e113]
+              - generic [ref=f8e114]: /
+              - button "持久库 · baseline" [expanded] [active] [ref=f8e115] [cursor=pointer]
+            - paragraph [ref=f8e117]: 4 个数据集 · 68 行 · 数据规模未应用筛选
+          - generic [ref=f8e118]:
+            - button "导入数据" [ref=f8e119] [cursor=pointer]
+            - button "刷新数据" [ref=f8e121] [cursor=pointer]
+        - generic [ref=f8e122]:
+          - generic [ref=f8e124]:
+            - generic [ref=f8e125]:
+              - generic [ref=f8e126]: 工作台
+              - combobox "工作台视图" [ref=f8e127]:
+                - option "分析首页" [selected]
+            - button "添加分析" [ref=f8e128] [cursor=pointer]
+            - button "创建图表" [ref=f8e130] [cursor=pointer]
+            - button "新建查询" [ref=f8e132] [cursor=pointer]
+            - generic [ref=f8e134]:
+              - generic [ref=f8e135]: 数据集
+              - combobox "浏览数据集" [ref=f8e136]:
+                - option "选择数据集" [selected]
+                - option "baseline.lab_baseline.crypto_transactions"
+                - option "baseline.lab_baseline.exchange_rates"
+                - option "baseline.lab_baseline.fiat_transactions"
+                - option "baseline.lab_baseline.users"
+                - option "baseline.main.crypto_transactions"
+                - option "baseline.main.exchange_rates"
+                - option "baseline.main.fiat_transactions"
+                - option "baseline.main.users"
+            - button "筛选" [ref=f8e138] [cursor=pointer]
+            - button "视图设置" [ref=f8e140] [cursor=pointer]
+          - generic [ref=f8e142]:
+            - generic [ref=f8e143]: 1 项分析组件
+            - button "编辑布局" [ref=f8e145] [cursor=pointer]
+          - generic [ref=f8e152]:
+            - generic [ref=f8e153]:
+              - generic "真实订单记录数" [ref=f8e156]
+              - button "更多组件选项 真实订单记录数" [ref=f8e159] [cursor=pointer]
+            - generic [ref=f8e161]:
+              - generic [ref=f8e162]: 真实订单记录数
+              - generic [ref=f8e163]: "25"
+        - navigation "数据状态与详情" [ref=f8e165]:
+          - button "管理数据" [ref=f8e166] [cursor=pointer]
+          - button "查看 Schema" [ref=f8e167] [cursor=pointer]
+          - button "查看数据检查" [ref=f8e168] [cursor=pointer]
+    - contentinfo [ref=f8e169]:
+      - generic [ref=f8e170]:
+        - generic [ref=f8e171]: DuckDB 1.33.1
+        - generic [ref=f8e174]: "|"
+        - generic [ref=f8e175]: baseline [OPFS]
+        - generic [ref=f8e177]: "|"
+        - generic [ref=f8e178]: 持久化库
+        - generic [ref=f8e180]: "|"
+        - generic [ref=f8e181]: 4 张表
+        - generic [ref=f8e183]: "|"
+        - generic [ref=f8e184]: 4 个活动表
+        - generic [ref=f8e186]: "|"
+        - generic [ref=f8e187]: "内存: 0.50 MB / 3.1 GiB"
+      - generic [ref=f8e189]:
+        - generic [ref=f8e190]: 引擎就绪
+        - generic [ref=f8e194]: "|"
+        - generic [ref=f8e195]: 11:09
+        - button "刷新运行时状态" [ref=f8e196] [cursor=pointer]
+  - listbox [ref=f8e197]:
+    - generic [ref=f8e198]:
+      - generic [ref=f8e199]: 切换分析数据库
+      - generic [ref=f8e200]: 5 个可用目标
+    - generic [ref=f8e201]: 数据库 (Database)
+    - option "内存库 · memory（临时）" [ref=f8e203] [cursor=pointer]
+    - option "持久库 · baseline" [selected] [ref=f8e206] [cursor=pointer]
+    - option "持久库 · duckdb_manager_workspace" [ref=f8e209] [cursor=pointer]
+    - generic [ref=f8e213]:
+      - generic [ref=f8e214]:
+        - generic [ref=f8e215]: §
+        - generic [ref=f8e216]: 当前库模式 (Schema)
+      - generic [ref=f8e217]: "所属: baseline"
+    - option "§ Schema · baseline.__studio" [ref=f8e218] [cursor=pointer]:
+      - generic [ref=f8e219]:
+        - generic [ref=f8e220]: §
+        - generic [ref=f8e221]: Schema · baseline.__studio
+    - option "§ Schema · baseline.lab_baseline" [ref=f8e222] [cursor=pointer]:
+      - generic [ref=f8e223]:
+        - generic [ref=f8e224]: §
+        - generic [ref=f8e225]: Schema · baseline.lab_baseline
+    - button "管理数据库（创建 / 挂载 / 卸载）…" [ref=f8e227] [cursor=pointer]
+```

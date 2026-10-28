@@ -1,0 +1,154 @@
+{
+  "editedAfterCompletion": {
+    "highlights": [],
+    "sql": "SELECT 42 AS changed;",
+    "statuses": [
+      "idle",
+      "idle",
+      "idle"
+    ]
+  },
+  "selectionOffset": {
+    "highlights": [
+      "SELECT sum(sin(i)) AS selected_work FROM range(30000000) r(i)"
+    ],
+    "nodes": [
+      {
+        "statement": "statement_0_0",
+        "status": "idle"
+      },
+      {
+        "statement": "statement_0_0",
+        "status": "idle"
+      },
+      {
+        "statement": "statement_0_0",
+        "status": "idle"
+      },
+      {
+        "statement": "statement_1_0",
+        "status": "running"
+      },
+      {
+        "statement": "statement_1_0",
+        "status": "running"
+      },
+      {
+        "statement": "statement_1_0",
+        "status": "running"
+      },
+      {
+        "statement": "statement_1_0",
+        "status": "running"
+      },
+      {
+        "statement": "statement_2_0",
+        "status": "idle"
+      },
+      {
+        "statement": "statement_2_0",
+        "status": "idle"
+      },
+      {
+        "statement": "statement_2_0",
+        "status": "idle"
+      }
+    ]
+  },
+  "tabSwitch": {
+    "highlights": [],
+    "sql": "SELECT version(), current_timestamp;",
+    "statuses": []
+  },
+  "tabAfterCompletion": {
+    "highlights": [],
+    "sql": "SELECT version(), current_timestamp;",
+    "statuses": []
+  },
+  "viewportBefore": {
+    "bounds": {
+      "bottom": 664.0000305175781,
+      "height": 362.8000183105469,
+      "left": 320,
+      "right": 764.0874938964844,
+      "top": 301.20001220703125,
+      "width": 444.0874938964844,
+      "x": 320,
+      "y": 301.20001220703125
+    },
+    "transform": "transform: translate(13.5px, 144.5px) scale(0.2);"
+  },
+  "viewportAfter": {
+    "bounds": {
+      "bottom": 664.0000305175781,
+      "height": 394.8000183105469,
+      "left": 320,
+      "right": 920,
+      "top": 269.20001220703125,
+      "width": 600,
+      "x": 320,
+      "y": 269.20001220703125
+    },
+    "transform": "transform: translate(40.7899px, 151.501px) scale(0.248643);"
+  },
+  "splitRestored": {
+    "editors": 1,
+    "nodes": 7,
+    "separators": 1
+  },
+  "canvasMode": {
+    "canvas": {
+      "bottom": 636,
+      "height": 362.3999938964844,
+      "left": 360,
+      "right": 1245.2000122070312,
+      "top": 273.6000061035156,
+      "width": 885.2000122070312,
+      "x": 360,
+      "y": 273.6000061035156
+    },
+    "editors": 0,
+    "nodes": 7,
+    "separators": 0
+  },
+  "standalone": {
+    "canvas": {
+      "bottom": 1075.2000274658203,
+      "height": 902.4000244140624,
+      "left": 40,
+      "right": 1146.4000244140625,
+      "top": 172.8000030517578,
+      "width": 1106.4000244140625,
+      "x": 40,
+      "y": 172.8000030517578
+    },
+    "nodes": 7,
+    "querySelection": "tab-1",
+    "transform": "transform: translate(53.0912px, 369.16px) scale(0.916663);"
+  },
+  "zoom": "transform: translate(-46.8906px, 352.792px) scale(1.1);",
+  "finalStandalone": {
+    "bounds": {
+      "bottom": 664.0000152587891,
+      "height": 485.2000122070313,
+      "left": 40,
+      "right": 1280,
+      "top": 178.8000030517578,
+      "width": 1240,
+      "x": 40,
+      "y": 178.8000030517578
+    },
+    "nodeCount": 4,
+    "statements": [
+      "success",
+      "success",
+      "success",
+      "success"
+    ],
+    "transform": "transform: translate(86.3517px, 85.4197px) scale(0.849082);"
+  },
+  "pan": "transform: translate(137.307px, 62.7574px) scale(0.863474);",
+  "fitAfterPan": "transform: translate(86.3517px, 85.4197px) scale(0.849082);",
+  "lightTheme": "rgb(245, 246, 242)",
+  "darkTheme": "rgb(30, 31, 28)"
+}

@@ -1,0 +1,90 @@
+[
+  {
+    "path": "components/AnalysisHub/PivotEditor.tsx",
+    "sha256": "4533A5CC9C6755E544A2F43E7BE3A3EDC589C8E912335C13006A51853BBAC705"
+  },
+  {
+    "path": "components/AnalysisHub/AnalysisPivotWorkbench.tsx",
+    "sha256": "B63ED11E95EB0421C3574AA9504D9E8D2B9EE9FCB9007415A6ECD726BBB892C5"
+  },
+  {
+    "path": "components/AnalysisHub/AnalysisHubPanel.tsx",
+    "sha256": "12E4C858E28A17AC2C0E91F9F3FF3360C8077CE8D64AA9CE023F709A9D58819A"
+  },
+  {
+    "path": "components/AnalysisHub/LinkedAnalysis.tsx",
+    "sha256": "192040746C2BDAD396DE23BF8953D0385C017B41258F47C215BC2505380633EE"
+  },
+  {
+    "path": "components/DataTab.tsx",
+    "sha256": "712DDFC5DB0E4555CD036AEA299C0532B7F29E18C7BAFB8E2459B780FD790603"
+  },
+  {
+    "path": "components/Workbench/ResultSection.tsx",
+    "sha256": "C7F92E408A3FF2F10A739AD50125BCD9946A44E8EE161FD6EFA00E42B6142CBF"
+  },
+  {
+    "path": "components/DashboardWidget.tsx",
+    "sha256": "CA030F5F39302949D99CC363E68F148506B1DD999B0D43E8B579DF8A63924945"
+  },
+  {
+    "path": "components/Dashboard/MissionControl/DataIdeMissionControl.tsx",
+    "sha256": "C36EB010E469AE4B8B90D1448F957325310277DE58727FEBE068835404349522"
+  },
+  {
+    "path": "components/charts/PivotTableView.tsx",
+    "sha256": "9A487853E50E3A0A439A7973A7FBCB18FBFD843AC892DA5D846B21903ED78DF5"
+  },
+  {
+    "path": "hooks/store/useAnalysisWorkspace.ts",
+    "sha256": "B7BDF705A230462D1CB46D8EB58C22C2113EE05861A920A33ED4F2181F674AAB"
+  },
+  {
+    "path": "hooks/useCurrentAnalysisDataset.ts",
+    "sha256": "328B0F1DFB6A2FE7B874C0D67A1609FC9AF82F867B605ACECFC14A46E9B10746"
+  },
+  {
+    "path": "hooks/useCurrentGraphDataset.ts",
+    "sha256": "B52B017030CE90D6E25DD5046DB63CF2D68C448E0BBEA989E08885088EC0B3D8"
+  },
+  {
+    "path": "services/analysis/pivotExperience.ts",
+    "sha256": "A4504B49CE2D840CF082D20F4F31C510D7F536B9F0D37B0CD0B7D4CB7882353B"
+  },
+  {
+    "path": "services/analysis/types.ts",
+    "sha256": "E62AF2797182E0CC6AD0AFEE0D084218A0793C2F39A3A886F9BBCA86C18BC730"
+  },
+  {
+    "path": "services/analysis/sqlCompiler.ts",
+    "sha256": "A947EFC84DE56555FA5BE1BF47F517AD56E9F978C1FF826E1500A10A27F3AAB2"
+  },
+  {
+    "path": "services/analysis/pipeline.ts",
+    "sha256": "EFD637024E6112405D13DF1FE7A343EB5E15DDA0E85CA62FBA5AA46935EB9B3F"
+  },
+  {
+    "path": "services/analysis/datasetContext.ts",
+    "sha256": "0AF307227876D2E385A1D6F830735D168B4C92B7B5DBEF7271A58B934C80A8B3"
+  },
+  {
+    "path": "services/analysis/chartRegistry.ts",
+    "sha256": "B8BAE89188195EC8F7D2F0E8338C3487F73C33E258EECE0292E17555B69B839C"
+  },
+  {
+    "path": "services/analysis/chartDisplay.ts",
+    "sha256": "81C0C3CFC9499391FC04628064F434EA720FAF081EEDAB889C3ECA29FFBB960E"
+  },
+  {
+    "path": "services/workbench/queryCompiler.ts",
+    "sha256": "454EFDFC0B7E276C6EE5614DE4F5D9B79A7EA84057219F19C561CBE5B9BDB1B0"
+  },
+  {
+    "path": "tsconfig.json",
+    "sha256": "AFC4D8088F3747EBCD0546361977A5145A356E18746C91AB8D1FD3F13D48EEB7"
+  },
+  {
+    "path": "vitest.config.ts",
+    "sha256": "4C8E1DE967FCF4A29EEE2A8FFE1992C897EF1D68AAB50C7EBD9BEEA75D603E23"
+  }
+]

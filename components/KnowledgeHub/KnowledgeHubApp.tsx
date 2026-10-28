@@ -61,6 +61,18 @@ export const KnowledgeHubApp: React.FC<KnowledgeHubAppProps> = ({
     }
   });
 
+  const [isNarrow, setIsNarrow] = useState(() => typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 767px)').matches);
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return;
+    const query = window.matchMedia('(max-width: 767px)');
+    const update = () => { setIsNarrow(query.matches); setIsMobileNavOpen(false); };
+    update();
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
+  const sidebarCollapsed = isNarrow ? !isMobileNavOpen : isSidebarCollapsed;
+
   const handleToggleSidebar = useCallback(() => {
     setIsSidebarCollapsed((prev) => {
       const next = !prev;
@@ -70,6 +82,11 @@ export const KnowledgeHubApp: React.FC<KnowledgeHubAppProps> = ({
       return next;
     });
   }, []);
+
+  const toggleSidebar = useCallback(() => {
+    if (isNarrow) setIsMobileNavOpen(open => !open);
+    else handleToggleSidebar();
+  }, [isNarrow, handleToggleSidebar]);
 
   // Modal 状态
   const [isEditorOpen, setIsEditorOpen] = useState(false);
@@ -127,12 +144,12 @@ export const KnowledgeHubApp: React.FC<KnowledgeHubAppProps> = ({
           return;
         }
         e.preventDefault();
-        handleToggleSidebar();
+        toggleSidebar();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleToggleSidebar]);
+  }, [toggleSidebar]);
 
   const handlePickDirectory = async () => {
     try {
@@ -405,16 +422,17 @@ export const KnowledgeHubApp: React.FC<KnowledgeHubAppProps> = ({
   };
 
   return (
-    <div className="w-full h-full flex overflow-hidden bg-monokai-bg select-text">
+    <div className="relative w-full h-full flex overflow-hidden bg-monokai-bg select-text">
       {/* 左栏：Org-Museum 风格专题导航与文档树 */}
+      <div className="absolute inset-y-0 left-0 z-30 max-w-full md:static md:z-auto">
       <LeftCategoryNav
         assets={assets}
         selectedAssetId={selectedAssetId}
-        onSelectAsset={(id) => setSelectedAssetId(id)}
+        onSelectAsset={(id) => { setSelectedAssetId(id); setIsMobileNavOpen(false); }}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
-        isCollapsed={isSidebarCollapsed}
-        onToggleCollapse={handleToggleSidebar}
+        isCollapsed={sidebarCollapsed}
+        onToggleCollapse={toggleSidebar}
         selectedCategory={selectedCategory}
         onSelectCategory={(cat) => {
           setSelectedCategory(cat);
@@ -435,11 +453,13 @@ export const KnowledgeHubApp: React.FC<KnowledgeHubAppProps> = ({
         }}
       />
 
+      </div>
+
       {/* 右栏：沉浸式工作台主面板 (全宽阅读与交互) */}
       <RightDetailWorkbench
         asset={activeAsset}
-        isSidebarCollapsed={isSidebarCollapsed}
-        onToggleSidebar={handleToggleSidebar}
+        isSidebarCollapsed={sidebarCollapsed}
+        onToggleSidebar={toggleSidebar}
         onTryCode={onTryCode}
         onNavigateToMetrics={onNavigateToMetrics}
         onNavigateToOntology={onNavigateToOntology}

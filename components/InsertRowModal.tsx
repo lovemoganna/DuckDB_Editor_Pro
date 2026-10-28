@@ -135,15 +135,17 @@ export const InsertRowModal: React.FC<InsertRowModalProps> = ({
       size="lg"
       footer={(
         <>
-          <button
-            type="button"
+          <ActionButton
+            variant="ghost"
+            size="sm"
+            icon={RotateCcw}
             onClick={handleResetForm}
             disabled={loading}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-monokai-border bg-monokai-surface hover:bg-monokai-surface/80 text-monokai-comment hover:text-monokai-fg text-xs font-mono transition-colors cursor-pointer mr-auto"
+            className="mr-auto"
             title="重置为默认值"
           >
-            <RotateCcw size={13} /> 重置
-          </button>
+            重置表单
+          </ActionButton>
           <ActionButton variant="secondary" onClick={onClose} disabled={loading}>
             取消
           </ActionButton>

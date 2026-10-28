@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DuckDB Manager Pro</title>
+  <!-- Inline SVG favicon: DuckDB-themed monokai circle -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='15' fill='%231e1f1c' stroke='%23a6e22e' stroke-width='2'/><text x='16' y='22' text-anchor='middle' font-size='18' fill='%23a6e22e'>🦆</text></svg>" />
+  <meta name="description" content="DuckDB Manager Pro - Browser-native SQL IDE powered by DuckDB WASM" />
+  <meta name="theme-color" content="#1e1f1c" />
+  <meta property="og:title" content="DuckDB Manager Pro" />
+  <meta property="og:description" content="Browser-native SQL IDE powered by DuckDB WASM" />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="https://duckdb.org/images/logo-dl/duckdb-logo.png" />
+
+  <!-- JetBrains Mono is bundled by index.tsx. System fonts keep startup independent
+       of external font stylesheets, which can block deferred module execution. -->
+  <!-- CodeMirror handled by @uiw/react-codemirror -->
+  <!-- Chart.js handled by npm -->
+  <!-- SQL Formatter handled by npm -->
+  <!-- PrismJS Theme for Monokai -->
+  <style>
+    code[class*="language-"],
+    pre[class*="language-"] {
+      color: #f8f8f2;
+      text-shadow: 0 1px rgba(0, 0, 0, 0.3);
+      font-family: 'Victor Mono', 'JetBrains Mono', monospace;
+      direction: ltr;
+      text-align: left;
+      white-space: pre;
+      word-spacing: normal;
+      word-break: normal;
+      line-height: 1.5;
+      -moz-tab-size: 4;
+        -o-tab-size: 4;
+           tab-size: 4;
+      hyphens: none;
+    }
+
+    .token.comment,
+    .token.prolog,
+    .token.doctype,
+    .token.cdata {
+      color: #75715e;
+    }
+
+    .token.punctuation {
+      color: #f8f8f2;
+    }
+
+    .token.namespace {
+      opacity: .7;
+    }
+
+    .token.property,
+    .token.tag,
+    .token.constant,
+    .token.symbol,
+    .token.deleted {
+      color: #f92672;
+    }
+
+    .token.boolean,
+    .token.number {
+      color: #ae81ff;
+    }
+
+    .token.selector,
+    .token.attr-name,
+    .token.string,
+    .token.char,
+    .token.builtin,
+    .token.inserted {
+      color: #a6e22e;
+    }
+
+    .token.operator,
+    .token.entity,
+    .token.url,
+    .language-css .token.string,
+    .style .token.string {
+      color: #f8f8f2;
+    }
+
+    .token.atrule,
+    .token.attr-value,
+    .token.keyword {
+      color: #f92672;
+    }
+
+    .token.function,
+    .token.class-name {
+      color: #e6db74;
+    }
+
+    .token.regex,
+    .token.important,
+    .token.variable {
+      color: #fd971f;
+    }
+
+    /* Custom Scrollbar for Monokai Theme */
+    ::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #1e1f1c;
+      border-left: 1px solid #3e3d32;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #3e3d32;
+      border-radius: 5px;
+      border: 2px solid #1e1f1c;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #75715e;
+    }
+
+    ::-webkit-scrollbar-corner {
+      background: #1e1f1c;
+    }
+
+    /* CodeMirror Customization for Enhanced SQL Editor */
+    .CodeMirror {
+      height: 100% !important;
+      font-size: 11px !important;
+      font-family: 'Victor Mono', 'JetBrains Mono', monospace !important;
+      line-height: 1.6;
+      background: transparent !important;
+    }
+
+    .cm-s-material-darker.CodeMirror {
+      background-color: #0d0d0d !important;
+    }
+
+    .CodeMirror-gutters {
+      background: #0d0d0d !important;
+      border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
+    }
+
+    /* Progress animation for loading states */
+    @keyframes progress {
+      0% {
+        width: 0%;
+      }
+
+      50% {
+        width: 70%;
+      }
+
+      100% {
+        width: 100%;
+      }
+    }
+
+    .animate-progress {
+      animation: progress 1.5s ease-in-out infinite;
+    }
+  </style>
+
+  <script type="module" crossorigin src="/DuckDB_Editor_Pro/assets/index-TIK05hIb.js"></script>
+  <link rel="modulepreload" crossorigin href="/DuckDB_Editor_Pro/assets/vendor-ai-BFZOlLET.js">
+  <link rel="modulepreload" crossorigin href="/DuckDB_Editor_Pro/assets/vendor-reactflow-DkQdvYaR.js">
+  <link rel="modulepreload" crossorigin href="/DuckDB_Editor_Pro/assets/vendor-layout-VsB8awB6.js">
+  <link rel="modulepreload" crossorigin href="/DuckDB_Editor_Pro/assets/vendor-mermaid-D36ZxmwA.js">
+  <link rel="modulepreload" crossorigin href="/DuckDB_Editor_Pro/assets/duckdb-wasm-YhLtYgA2.js">
+  <link rel="modulepreload" crossorigin href="/DuckDB_Editor_Pro/assets/vendor-utils-DxwfOt6b.js">
+  <link rel="modulepreload" crossorigin href="/DuckDB_Editor_Pro/assets/vendor-sql-parser-J-CyKrjT.js">
+  <link rel="modulepreload" crossorigin href="/DuckDB_Editor_Pro/assets/vendor-d3-CkWhnim1.js">
+  <link rel="modulepreload" crossorigin href="/DuckDB_Editor_Pro/assets/vendor-charts-Bl0NVV5v.js">
+  <link rel="modulepreload" crossorigin href="/DuckDB_Editor_Pro/assets/vendor-codemirror-mwOcfAoZ.js">
+  <link rel="stylesheet" crossorigin href="/DuckDB_Editor_Pro/assets/index-qK3pmhMe.css">
+</head>
+
+<body class="bg-monokai-bg text-monokai-fg font-sans antialiased overflow-hidden">
+  <div id="root"></div>
+</body>
+
+</html>

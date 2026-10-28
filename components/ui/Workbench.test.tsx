@@ -89,4 +89,42 @@ describe('workbench UI primitives', () => {
     expect(onClose).toHaveBeenCalledOnce();
   });
 
+  it('lets only the top overlay handle Escape and restores the parent focus', () => {
+    const closeParent = vi.fn();
+    const closeChild = vi.fn();
+    const { rerender } = render(<>
+      <ModalShell open title="父弹窗" onClose={closeParent}><button>父操作</button></ModalShell>
+      <DrawerShell open={false} title="子抽屉" onClose={closeChild}><button>子操作</button></DrawerShell>
+    </>);
+    screen.getByRole('button', { name: '父操作' }).focus();
+    rerender(<>
+      <ModalShell open title="父弹窗" onClose={closeParent}><button>父操作</button></ModalShell>
+      <DrawerShell open title="子抽屉" onClose={closeChild}><button>子操作</button></DrawerShell>
+    </>);
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(closeChild).toHaveBeenCalledOnce();
+    expect(closeParent).not.toHaveBeenCalled();
+    rerender(<>
+      <ModalShell open title="父弹窗" onClose={closeParent}><button>父操作</button></ModalShell>
+      <DrawerShell open={false} title="子抽屉" onClose={closeChild}><button>子操作</button></DrawerShell>
+    </>);
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: '父操作' }));
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(closeParent).toHaveBeenCalledOnce();
+  });
+
+  it('excludes hidden and disabled controls from the dialog tab boundary', () => {
+    render(<ModalShell open title="表单" onClose={vi.fn()}>
+      <input type="hidden" />
+      <input aria-label="可用字段" />
+      <button disabled>禁用操作</button>
+      <button>最后操作</button>
+      <div hidden><button>隐藏操作</button></div>
+    </ModalShell>);
+    expect(document.activeElement).toBe(screen.getByRole('textbox', { name: '可用字段' }));
+    screen.getByRole('button', { name: '最后操作' }).focus();
+    fireEvent.keyDown(document, { key: 'Tab' });
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: '关闭' }));
+  });
+
 });

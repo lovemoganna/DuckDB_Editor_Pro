@@ -1,0 +1,203 @@
+[
+  {
+    "group": "工程核心",
+    "name": "仪表盘",
+    "file": "dark-390-仪表盘",
+    "alerts": [],
+    "overflow": [],
+    "scrollWidth": 390,
+    "width": 390
+  },
+  {
+    "group": "工程核心",
+    "name": "数据",
+    "file": "dark-390-数据",
+    "alerts": [],
+    "overflow": [],
+    "scrollWidth": 390,
+    "width": 390
+  },
+  {
+    "group": "工程核心",
+    "name": "Schema",
+    "file": "dark-390-Schema",
+    "alerts": [],
+    "overflow": [],
+    "scrollWidth": 390,
+    "width": 390
+  },
+  {
+    "group": "工程核心",
+    "name": "SQL",
+    "file": "dark-390-SQL",
+    "alerts": [],
+    "overflow": [],
+    "scrollWidth": 390,
+    "width": 390
+  },
+  {
+    "group": "工程核心",
+    "name": "数据流",
+    "file": "dark-390-数据流",
+    "alerts": [],
+    "overflow": [],
+    "scrollWidth": 390,
+    "width": 390
+  },
+  {
+    "group": "分析洞察",
+    "name": "指标",
+    "file": "dark-390-指标",
+    "alerts": [],
+    "overflow": [],
+    "scrollWidth": 390,
+    "width": 390
+  },
+  {
+    "group": "分析洞察",
+    "name": "可视化",
+    "file": "dark-390-可视化",
+    "alerts": [],
+    "overflow": [],
+    "scrollWidth": 390,
+    "width": 390
+  },
+  {
+    "group": "分析洞察",
+    "name": "分析",
+    "file": "dark-390-分析",
+    "alerts": [],
+    "overflow": [
+      {
+        "name": "场景配方",
+        "width": 78.5999984741211,
+        "x": 345.20001220703125
+      },
+      {
+        "name": "SQL 模板",
+        "width": 79.55000305175781,
+        "x": 425.8000183105469
+      }
+    ],
+    "scrollWidth": 390,
+    "width": 390
+  },
+  {
+    "group": "分析洞察",
+    "name": "历史",
+    "file": "dark-390-历史",
+    "alerts": [],
+    "overflow": [],
+    "scrollWidth": 390,
+    "width": 390
+  },
+  {
+    "group": "分析洞察",
+    "name": "审计",
+    "file": "dark-390-审计",
+    "alerts": [],
+    "overflow": [],
+    "scrollWidth": 390,
+    "width": 390
+  },
+  {
+    "group": "知识沉淀",
+    "name": "知识资产",
+    "file": "dark-390-知识资产",
+    "alerts": [],
+    "overflow": [],
+    "scrollWidth": 390,
+    "width": 390
+  },
+  {
+    "group": "知识沉淀",
+    "name": "插件",
+    "file": "dark-390-插件",
+    "alerts": [],
+    "overflow": [
+      {
+        "name": "Geo1",
+        "width": 59.07500076293945,
+        "x": 386.1375122070313
+      },
+      {
+        "name": "AI1",
+        "width": 49.8125,
+        "x": 447.2124938964844
+      }
+    ],
+    "scrollWidth": 390,
+    "width": 390
+  },
+  {
+    "group": "知识沉淀",
+    "name": "知识联动",
+    "file": "dark-390-知识联动",
+    "alerts": [],
+    "overflow": [],
+    "scrollWidth": 390,
+    "width": 390
+  },
+  {
+    "group": "AI 认知",
+    "name": "本体图谱",
+    "file": "dark-390-本体图谱",
+    "alerts": [],
+    "overflow": [],
+    "scrollWidth": 390,
+    "width": 390
+  },
+  {
+    "group": "AI 认知",
+    "name": "技能",
+    "file": "dark-390-技能",
+    "alerts": [],
+    "overflow": [
+      {
+        "name": "📊深度分析与洞察",
+        "width": 132.08750915527344,
+        "x": 310.57501220703125
+      },
+      {
+        "name": "🚀诊断与优化",
+        "width": 108.0875015258789,
+        "x": 450.6625061035156
+      },
+      {
+        "name": "🛠️工程与运维",
+        "width": 108.0875015258789,
+        "x": 566.75
+      },
+      {
+        "name": "📖官方手册",
+        "width": 96.0875015258789,
+        "x": 682.8375244140625
+      },
+      {
+        "name": "详情模式",
+        "width": 109.5999984741211,
+        "x": 786.9249877929688
+      }
+    ],
+    "scrollWidth": 390,
+    "width": 390
+  },
+  {
+    "group": "AI 认知",
+    "name": "能力",
+    "file": "dark-390-能力",
+    "alerts": [],
+    "overflow": [],
+    "scrollWidth": 390,
+    "width": 390
+  },
+  {
+    "group": "AI 认知",
+    "name": "推演",
+    "file": "dark-390-推演",
+    "alerts": [],
+    "overflow": [],
+    "scrollWidth": 390,
+    "width": 390
+  }
+]

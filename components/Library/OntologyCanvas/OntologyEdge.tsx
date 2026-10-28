@@ -125,7 +125,7 @@ export const OntologyEdge: React.FC<EdgeProps> = memo(({
 
   const labelColor = isActive
     ? (isUpstreamLink ? '#10b981' : '#06b6d4')
-    : (selected ? '#06b6d4' : '#e4e4e7');
+    : (selected ? 'var(--monokai-cyan)' : 'var(--monokai-fg)');
 
   const labelBorderColor = isActive
     ? (isUpstreamLink ? 'rgba(16, 185, 129, 0.4)' : 'rgba(6, 182, 212, 0.4)')
@@ -246,7 +246,7 @@ export const OntologyEdge: React.FC<EdgeProps> = memo(({
             >
               <div
                 style={{
-                  background: '#0c0d12',
+                  background: 'var(--monokai-bg)',
                   color: labelColor,
                   padding: '3px 7px',
                   borderRadius: '4px',

@@ -1,4 +1,6 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useOverlayFocus } from './ui/useOverlayFocus';
+import { allocateImportTableNames, allocateExcelTableNames, cleanIdentifier } from '../services/importTableNames';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { duckDBService } from '../services/duckdbService';
 import { toastService } from '../services/toastService';
 import { useConfirmDialog } from './ui/ConfirmDialog';
@@ -52,6 +54,9 @@ import {
   Sliders,
 } from 'lucide-react';
 import { recentImportsService, type RecentImportItem } from '../services/recentImportsService';
+import { importSqlWorkspace } from '../services/sqlWorkspaceService';
+import { Tab } from '../types';
+import { useAppStore } from '../hooks/store/useAppStore';
 
 export interface ImportWizardProps {
   isOpen: boolean;
@@ -92,7 +97,7 @@ const PRESETS = [
   },
 ];
 
-const FORMAT_OPTIONS: ImportFileFormat[] = ['CSV', 'TSV', 'JSON', 'Parquet', 'Excel'];
+const FORMAT_OPTIONS: ImportFileFormat[] = ['CSV', 'TSV', 'JSON', 'Parquet', 'Excel', 'DuckDB'];
 
 const DELIMITER_OPTIONS = [
   { value: ',', label: ', (逗号)' },
@@ -199,6 +204,12 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
   const [editingColumnIdx, setEditingColumnIdx] = useState<number | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
+  // ── 已有表列表与点选检索 ─────────────────────────────────
+  const [availableTables, setAvailableTables] = useState<string[]>([]);
+  const [showTablePicker, setShowTablePicker] = useState(false);
+  const [tableSearch, setTableSearch] = useState('');
+  const [sheetSearch, setSheetSearch] = useState('');
+
   // ── 字段映射检索与过滤 ──────────────────────────────────
   const [columnSearch, setColumnSearch] = useState('');
 
@@ -206,19 +217,33 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
-  // 加载可用 Schema 列表
+  // 加载指定 Schema 下的已有数据表
+  const fetchTablesForSchema = useCallback(async (targetSchema: string) => {
+    try {
+      const list = await duckDBService.getTableList(targetSchema);
+      const cleanList = (list || []).filter(t => Boolean(t) && !t.startsWith('_sys_'));
+      setAvailableTables(cleanList);
+    } catch {
+      setAvailableTables([]);
+    }
+  }, []);
+
+  // 加载可用 Schema 列表并同步对应 Schema 下的已有数据表
   const fetchSchemas = useCallback(async () => {
     try {
       const list = await duckDBService.getAvailableSchemas();
       const uniqueSchemas = Array.from(new Set(list));
       setAvailableSchemas(uniqueSchemas);
-      if (!uniqueSchemas.includes(schema)) {
-        setSchema(uniqueSchemas[0] || 'main');
+      const currentSchema = uniqueSchemas.includes(schema) ? schema : (uniqueSchemas[0] || 'main');
+      if (currentSchema !== schema) {
+        setSchema(currentSchema);
       }
+      await fetchTablesForSchema(currentSchema);
     } catch {
       setAvailableSchemas(['main']);
+      await fetchTablesForSchema('main');
     }
-  }, [schema]);
+  }, [schema, fetchTablesForSchema]);
 
   useEffect(() => {
     if (isOpen) {
@@ -227,7 +252,10 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
   }, [isOpen, fetchSchemas]);
 
   // 重置整个状态
+  const previewRevision = useRef(0);
   const handleReset = useCallback(() => {
+    previewRevision.current += 1;
+    setIsRefreshingPreview(false);
     setMode('local');
     setFile(null);
     setIsDragging(false);
@@ -248,6 +276,9 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
     setSheets([]);
     setActiveSheetName('');
     setShowSheetNamesDrawer(false);
+    setShowTablePicker(false);
+    setTableSearch('');
+    setSheetSearch('');
     setSortColumn(null);
     setSortDirection('asc');
     setColumnSearch('');
@@ -274,6 +305,25 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
     onClose();
   };
 
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useOverlayFocus(isOpen, dialogRef, () => {
+        if (showHelpModal) {
+          setShowHelpModal(false);
+        } else if (showConfirmModal) {
+          setShowConfirmModal(false);
+        } else if (showSqlPreviewModal) {
+          setShowSqlPreviewModal(false);
+        } else if (showRecentImportsModal) {
+          setShowRecentImportsModal(false);
+        } else if (showTablePicker) {
+          setShowTablePicker(false);
+        } else if (editingColumnIdx !== null) {
+          setEditingColumnIdx(null);
+        } else {
+          handleClose();
+        }
+  });
+
   // 支持键盘 Escape 快捷键平滑关闭与 Ctrl+B 侧边栏切换
   useEffect(() => {
     if (!isOpen) return;
@@ -283,38 +333,29 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
         setIsSidebarCollapsed(prev => !prev);
         return;
       }
-      if (e.key === 'Escape') {
-        if (showHelpModal) {
-          setShowHelpModal(false);
-        } else if (showConfirmModal) {
-          setShowConfirmModal(false);
-        } else if (showSqlPreviewModal) {
-          setShowSqlPreviewModal(false);
-        } else if (showRecentImportsModal) {
-          setShowRecentImportsModal(false);
-        } else if (editingColumnIdx !== null) {
-          setEditingColumnIdx(null);
-        } else {
-          handleClose();
-        }
-      }
+
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, showHelpModal, showConfirmModal, showSqlPreviewModal, showRecentImportsModal, editingColumnIdx]);
+  }, [isOpen, showHelpModal, showConfirmModal, showSqlPreviewModal, showRecentImportsModal, showTablePicker, editingColumnIdx]);
 
-  // 点击空白区域自动收起字段类型下拉弹窗
+  // 点击空白区域自动收起字段类型下拉弹窗与已有表选择面板
   useEffect(() => {
-    if (editingColumnIdx === null) return;
+    if (editingColumnIdx === null && !showTablePicker) return;
     const handleOutsideClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement | null;
-      if (target && !target.closest('[data-column-type-dropdown]')) {
-        setEditingColumnIdx(null);
+      if (target && typeof target.closest === 'function') {
+        if (editingColumnIdx !== null && !target.closest('[data-column-type-dropdown]')) {
+          setEditingColumnIdx(null);
+        }
+        if (showTablePicker && !target.closest('[data-table-picker]')) {
+          setShowTablePicker(false);
+        }
       }
     };
     document.addEventListener('pointerdown', handleOutsideClick);
     return () => document.removeEventListener('pointerdown', handleOutsideClick);
-  }, [editingColumnIdx]);
+  }, [editingColumnIdx, showTablePicker]);
 
 
   // ── 真实推断与嗅探 Pipeline ─────────────────────────────
@@ -327,12 +368,23 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
   ) => {
     const hasSource =
       (targetMode === 'local' && targetFile) ||
-      (targetMode === 'url' && targetUrl.trim()) ||
-      (targetMode === 'paste' && targetText.trim());
+      (targetMode === 'url' && Boolean(targetUrl.trim())) ||
+      (targetMode === 'paste' && Boolean(targetText.trim()));
 
     if (!hasSource) {
+      setMetadata(null);
+      setSheets([]);
+      setActiveSheetName('');
+      setColumns([]);
+      setPreviewRows([]);
+      setLifecycleState('IDLE');
+      setStatusMessage('请选择或上传数据源文件');
+      setValidationError(null);
+      setValidationWarning(null);
       return;
     }
+
+    const revision = ++previewRevision.current;
 
     setLifecycleState('PARSING');
     setStatusMessage('正在解析文件结构与推断列类型...');
@@ -347,6 +399,8 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
         targetText,
         targetOptions
       );
+
+      if (revision !== previewRevision.current) return;
 
       setMetadata(result);
 
@@ -369,29 +423,37 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
       // 若未设置表名，根据文件名自动填入
       setTableName(prev => {
         if (prev) return prev;
-        const clean = result.fileName
-          .split('.')[0]
-          .replace(/[^a-zA-Z0-9_\u4e00-\u9fa5]/g, '_')
-          .replace(/^_+/, '');
+        if (result.format === 'DuckDB' && result.sheets?.length === 1) return result.sheets[0].targetTableName;
+        if (result.format === 'Excel' && result.sheets?.length === 1) return result.sheets[0].targetTableName;
+        const clean = cleanIdentifier(result.fileName.split('.')[0]);
+        if (result.format === 'Excel') return clean || 'imported_table';
         return clean ? `${clean}_imported` : 'imported_table';
       });
     } catch (err: any) {
+      if (revision !== previewRevision.current) return;
       console.warn('Sniffing source failed:', err);
       setLifecycleState('PARSE_ERROR');
       setStatusMessage(`解析错误: ${err?.message || '无法识别数据结构'}`);
     } finally {
-      setIsRefreshingPreview(false);
+      if (revision === previewRevision.current) setIsRefreshingPreview(false);
     }
   }, []);
 
   // 监听数据源与配置变更，自动触发重新解析
   useEffect(() => {
     if (!isOpen) return;
-    if (file || url.trim() || text.trim()) {
+    const hasSource = Boolean((mode === 'local' && file) || (mode === 'url' && url.trim()) || (mode === 'paste' && text.trim()));
+    if (hasSource) {
+      if (mode === 'local' && file) {
+        void runSniff(mode, file, url, text, parseOptions);
+        return () => { previewRevision.current += 1; };
+      }
       const timer = setTimeout(() => {
         void runSniff(mode, file, url, text, parseOptions);
       }, 150);
-      return () => clearTimeout(timer);
+      return () => { clearTimeout(timer); previewRevision.current += 1; };
+    } else {
+      void runSniff(mode, file, url, text, parseOptions);
     }
   }, [isOpen, mode, file, url, text, parseOptions, runSniff]);
 
@@ -414,7 +476,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
   };
 
   const handleToggleAllSheets = (selected: boolean) => {
-    setSheets(prev => prev.map(s => (s.isEmpty || s.rowCount === 0 ? s : { ...s, selected })));
+    setSheets(prev => prev.map(s => (parseOptions.format !== 'DuckDB' && (s.isEmpty || s.rowCount === 0) ? s : { ...s, selected })));
   };
 
   const handleSelectOnlyNonEmptySheets = () => {
@@ -422,16 +484,18 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
   };
 
   const handleResetSheetNames = () => {
+    if (parseOptions.format === 'Excel') {
+      setSheets(prev => {
+        const names = allocateExcelTableNames(prev, metadata?.fileName || file?.name);
+        return prev.map((sheet, index) => ({ ...sheet, targetTableName: names[index] }));
+      });
+      return;
+    }
     const base = tableName.trim() || 'imported';
-    setSheets(prev =>
-      prev.map(s => {
-        const cleanSheetName = s.name.replace(/[^a-zA-Z0-9_\u4e00-\u9fa5]/g, '_').replace(/^_+/, '') || 'sheet';
-        return {
-          ...s,
-          targetTableName: `${base}_${cleanSheetName}`,
-        };
-      })
-    );
+    setSheets(prev => {
+      const names = allocateImportTableNames(base, prev.map(sheet => ({ name: sheet.name })));
+      return prev.map((sheet, index) => ({ ...sheet, targetTableName: names[index] }));
+    });
   };
 
   // 客户端轻量排序
@@ -472,24 +536,21 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
 
   const handleBaseTableNameChange = (val: string) => {
     setTableName(val);
-    if (sheets.length > 1) {
-      setSheets(prev =>
-        prev.map(s => {
-          const cleanSheetName = s.name.replace(/[^a-zA-Z0-9_\u4e00-\u9fa5]/g, '_').replace(/^_+/, '') || 'sheet';
-          return {
-            ...s,
-            targetTableName: val.trim() ? `${val.trim()}_${cleanSheetName}` : `imported_${cleanSheetName}`,
-          };
-        })
-      );
-    } else if (sheets.length === 1) {
-      setSheets(prev =>
-        prev.map(s => ({
-          ...s,
-          targetTableName: val.trim() || 'imported_table',
-        }))
-      );
+    if (parseOptions.format === 'Excel') {
+      const trimmed = val.trim();
+      const isDefault = !trimmed || trimmed === cleanIdentifier(metadata?.fileName?.split('.')[0] || '') || trimmed === 'imported';
+      setSheets(prev => {
+        const names = isDefault
+          ? allocateExcelTableNames(prev, metadata?.fileName || file?.name)
+          : allocateImportTableNames(trimmed, prev.map(sheet => ({ name: sheet.name })));
+        return prev.map((sheet, index) => ({ ...sheet, targetTableName: names[index] }));
+      });
+      return;
     }
+    setSheets(prev => {
+      const names = allocateImportTableNames(val.trim() || 'imported', prev.map(sheet => ({ name: sheet.name })));
+      return prev.map((sheet, index) => ({ ...sheet, targetTableName: names[index] }));
+    });
   };
 
   const handleSheetTableNameChange = (sheetName: string, customName: string) => {
@@ -501,7 +562,8 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
   // ── 目标表与冲突模式校验 ────────────────────────────────
   useEffect(() => {
     if (!isOpen) return;
-    if (lifecycleState === 'PARSING') return;
+    if (['PARSING', 'IMPORTING', 'SUCCESS', 'PARSE_ERROR', 'IMPORT_ERROR'].includes(lifecycleState)) return;
+    if (!metadata) return;
 
     let isMounted = true;
     const validate = async () => {
@@ -543,7 +605,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
           return;
         }
 
-        const unique = new Set(names);
+        const unique = new Set(names.map(name => name.toLowerCase()));
         if (unique.size !== names.length) {
           if (isMounted) {
             setValidationError('不同工作表的目标表名不能重复');
@@ -565,24 +627,23 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
         }
       }
 
-      const checkTable = sheets.length > 1
-        ? (sheets.find(s => s.selected)?.targetTableName || tableName)
-        : tableName;
-
-      const val = await dataImportService.validateTarget(
-        schema,
-        checkTable,
-        conflictStrategy,
-        columns
-      );
+      const targets = sheets.length > 0
+        ? sheets.filter(sheet => sheet.selected).map(sheet => ({ name: sheet.targetTableName, columns: sheet.columns }))
+        : [{ name: tableName, columns }];
+      const checks = await Promise.all(targets.map(target => dataImportService.validateTarget(
+        schema, target.name, conflictStrategy, target.columns
+      )));
+      const val = checks.find(check => !check.valid) || {
+        valid: true, warning: checks.map(check => check.warning).filter(Boolean).join('\n'),
+      };
 
       if (!isMounted) return;
 
       if (!val.valid) {
-        setValidationError(val.error || '校验失败');
+        setValidationError(('error' in val ? val.error : '') || '校验失败');
         setValidationWarning(null);
         setLifecycleState('VALIDATION_ERROR');
-        setStatusMessage(val.error || '校验未通过');
+        setStatusMessage(('error' in val ? val.error : '') || '校验未通过');
       } else {
         setValidationError(null);
         setValidationWarning(val.warning || null);
@@ -599,10 +660,18 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
       isMounted = false;
       clearTimeout(timer);
     };
-  }, [isOpen, schema, tableName, conflictStrategy, columns, lifecycleState, sheets, mode, file, url, text]);
+  }, [isOpen, schema, tableName, conflictStrategy, columns, lifecycleState, sheets, mode, file, url, text, metadata]);
 
   // ── 文件选择交互 ────────────────────────────────────────
   const handleFileChange = (selected: File) => {
+    if (selected.name.toLowerCase().endsWith('.sql')) {
+      setFile(selected); setLifecycleState('IMPORTING');
+      void importSqlWorkspace(selected).then(async source => {
+        await onRefreshTables(); onImportComplete(source.tables); onClose();
+        toastService.success(`SQL 已保存并开始分析：${source.name}`);
+      }).catch(err => { setLifecycleState('IDLE'); toastService.error(String(err.message)); });
+      return;
+    }
     const detectedFmt = detectFormatFromName(selected.name);
     setFile(selected);
     const nextOpts: ParseOptions = {
@@ -611,7 +680,6 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
       delimiter: detectedFmt === 'TSV' ? '\t' : ',',
     };
     setParseOptions(nextOpts);
-    void runSniff('local', selected, url, text, nextOpts);
   };
 
   const handleUrlChange = (newUrl: string) => {
@@ -699,16 +767,35 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
     });
   };
 
+  const handleMountAsDatabase = async () => {
+    if (!file) return;
+    try {
+      setLifecycleState('IMPORTING');
+      setStatusMessage('正在将数据库文件挂载到 Catalog...');
+      const alias = file.name.replace(/\.duckdb$/i, '').trim();
+      await dataImportService.cleanupVirtualFiles();
+      const imported = await duckDBService.importDatabaseFile(file, alias);
+      await duckDBService.useDatabase(imported.name);
+      await onRefreshTables();
+      onImportComplete([imported.name]);
+      handleClose();
+      toastService.success(`已成功挂载 DuckDB 数据库「${imported.name}」并切换至该库`);
+    } catch (err: any) {
+      await runSniff(mode, file, url, text, parseOptions);
+      toastService.error(`挂载数据库失败: ${err?.message || String(err)}`);
+    }
+  };
+
   // ── 导入执行 Pipeline ───────────────────────────────────
   const executeImportPipeline = async () => {
     // 1. 多工作表批量导入分支
-    if (parseOptions.format === 'Excel' && sheets.length > 0) {
+    if ((parseOptions.format === 'Excel' || parseOptions.format === 'DuckDB') && sheets.length > 0) {
       const selectedSheets = sheets.filter(s => s.selected);
       if (selectedSheets.length === 0) {
         toastService.error('请至少勾选一个要导入的工作表');
         return;
       }
-      const nonBlankSelected = selectedSheets.filter(s => !s.isEmpty && s.rawSqlSource);
+      const nonBlankSelected = selectedSheets.filter(s => s.rawSqlSource && (parseOptions.format === 'DuckDB' || !s.isEmpty));
       if (nonBlankSelected.length === 0) {
         toastService.error('选中的工作表均为空表，未包含可导入的数据');
         return;
@@ -720,7 +807,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
       try {
         const batchItems = nonBlankSelected.map(s => ({
           sheetName: s.name,
-          tableName: s.targetTableName || `${tableName}_${s.name}`,
+          tableName: s.targetTableName || (parseOptions.format === 'Excel' ? cleanIdentifier(s.name) : `${tableName}_${s.name}`),
           rawSqlSource: s.rawSqlSource,
           columns: s.columns,
         }));
@@ -875,6 +962,23 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
       });
   }, [columns, columnSearch]);
 
+  const filteredAvailableTables = useMemo(() => {
+    if (!tableSearch.trim()) return availableTables;
+    const q = tableSearch.toLowerCase();
+    return availableTables.filter(t => t.toLowerCase().includes(q));
+  }, [availableTables, tableSearch]);
+
+  const filteredSheets = useMemo(() => {
+    if (!sheetSearch.trim()) return sheets;
+    const q = sheetSearch.toLowerCase();
+    return sheets.filter(s => s.name.toLowerCase().includes(q));
+  }, [sheets, sheetSearch]);
+
+  const isExistingTable = useMemo(() => {
+    const trimmed = tableName.trim().toLowerCase();
+    return Boolean(trimmed && availableTables.some(t => t.toLowerCase() === trimmed));
+  }, [tableName, availableTables]);
+
   const handleBatchResetColumns = () => {
     setColumns(prev =>
       prev.map(c => ({
@@ -913,14 +1017,14 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
     const cleanSchema = schema.trim() || 'main';
     const cleanTable = tableName.trim() || 'imported_table';
 
-    if (parseOptions.format === 'Excel' && sheets.length > 0) {
-      const selectedSheets = sheets.filter(s => s.selected && !s.isEmpty);
+    if ((parseOptions.format === 'Excel' || parseOptions.format === 'DuckDB') && sheets.length > 0) {
+      const selectedSheets = sheets.filter(s => s.selected && (parseOptions.format === 'DuckDB' || !s.isEmpty));
       if (selectedSheets.length === 0) {
         return '-- 尚未勾选有效的工作表进行导入';
       }
       return selectedSheets
         .map((s, idx) => {
-          const targetT = s.targetTableName || `${cleanTable}_${s.name}`;
+          const targetT = s.targetTableName || (parseOptions.format === 'Excel' ? cleanIdentifier(s.name) : `${cleanTable}_${s.name}`);
           const dropLine =
             conflictStrategy === 'replace'
               ? `DROP TABLE IF EXISTS "${cleanSchema}"."${targetT}";\n`
@@ -983,26 +1087,26 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[1000] flex flex-col bg-monokai-bg text-monokai-fg font-sans select-none antialiased animate-fade-in">
+    <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="数据导入" tabIndex={-1} className="fixed inset-0 z-[1000] flex flex-col bg-monokai-bg text-monokai-fg font-sans select-none antialiased animate-fade-in">
       {/* ── 顶部 Header ── */}
-      <header className="h-11 border-b border-monokai-border px-5 flex items-center justify-between bg-monokai-surface shrink-0">
-        <div className="flex items-center gap-2.5">
+      <header className="min-h-11 border-b border-monokai-border px-5 py-2 flex flex-wrap gap-2 items-center justify-between bg-monokai-surface shrink-0">
+        <div className="flex min-w-0 flex-wrap items-center gap-2.5">
           {/* DuckDB Logo */}
-          <div className="w-5 h-5 rounded-full border-2 border-[#e6db74] flex items-center justify-center p-0.5 bg-[#2d2e27]">
-            <div className="w-1.5 h-1.5 rounded-full bg-[#e6db74]" />
+          <div className="w-5 h-5 rounded-full border-2 border-monokai-yellow flex items-center justify-center p-0.5 bg-monokai-sidebar">
+            <div className="w-1.5 h-1.5 rounded-full bg-monokai-yellow" />
           </div>
           <span className="font-bold text-xs text-monokai-fg tracking-tight">DuckDB</span>
-          <span className="text-[#55574f] font-light mx-1">|</span>
-          <h1 className="text-xs font-medium text-monokai-fg flex items-center gap-1.5">
+          <span className="text-monokai-comment font-light mx-1">|</span>
+          <h1 className="text-xs font-medium text-monokai-fg whitespace-nowrap flex items-center gap-1.5">
             <span>数据导入</span>
-            <span className="text-meta text-monokai-comment font-normal font-mono">Import Data</span>
+            <span className="hidden sm:inline text-meta text-monokai-comment font-normal font-mono">Import Data</span>
           </h1>
 
           {/* 切换隐藏/显示侧边栏按钮 */}
           <button
             type="button"
             onClick={() => setIsSidebarCollapsed(prev => !prev)}
-            className="flex items-center gap-1 px-2 py-0.5 ml-1.5 rounded text-2xs text-[#d8d7cc] hover:text-monokai-yellow hover:bg-[#34352f] transition-all cursor-pointer border border-monokai-border hover:border-[#55574f]"
+            className="flex shrink-0 whitespace-nowrap items-center gap-1 px-2 py-0.5 ml-1.5 rounded text-2xs text-monokai-fg hover:text-monokai-yellow hover:bg-monokai-elevated transition-all cursor-pointer border border-monokai-border hover:border-monokai-yellow/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-monokai-yellow"
             title={isSidebarCollapsed ? '展开左侧配置面板 (Ctrl+B)' : '收起左侧配置面板 (Ctrl+B)'}
             aria-label={isSidebarCollapsed ? '展开配置面板' : '收起配置面板'}
           >
@@ -1020,11 +1124,11 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
           </button>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={() => setShowSqlPreviewModal(true)}
-            className="flex items-center gap-1.5 text-meta text-[#d8d7cc] hover:text-monokai-cyan transition-colors cursor-pointer py-1 px-2.5 rounded bg-monokai-bg border border-monokai-border hover:border-[#55574f]"
+            className="flex shrink-0 whitespace-nowrap items-center gap-1.5 text-meta text-monokai-fg hover:text-monokai-cyan transition-colors cursor-pointer py-1 px-2.5 rounded bg-monokai-bg border border-monokai-border hover:border-monokai-cyan focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-monokai-cyan"
             title="查看当前生成的 DuckDB 执行 SQL"
           >
             <Code2 className="w-3.5 h-3.5 text-monokai-cyan" />
@@ -1036,7 +1140,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
               setRecentImportsList(recentImportsService.getImports());
               setShowRecentImportsModal(true);
             }}
-            className="flex items-center gap-1.5 text-meta text-[#d8d7cc] hover:text-monokai-accent transition-colors cursor-pointer py-1 px-2.5 rounded bg-monokai-bg border border-monokai-border hover:border-[#55574f]"
+            className="flex shrink-0 whitespace-nowrap items-center gap-1.5 text-meta text-monokai-fg hover:text-monokai-accent transition-colors cursor-pointer py-1 px-2.5 rounded bg-monokai-bg border border-monokai-border hover:border-monokai-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-monokai-accent"
             title="查看近期导入记录"
           >
             <History className="w-3.5 h-3.5 text-monokai-accent" />
@@ -1045,7 +1149,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
           <button
             type="button"
             onClick={() => setShowHelpModal(true)}
-            className="flex items-center gap-1.5 text-meta text-[#d8d7cc] hover:text-monokai-yellow transition-colors cursor-pointer py-1 px-2.5 rounded bg-monokai-bg border border-monokai-border hover:border-[#55574f]"
+            className="flex shrink-0 whitespace-nowrap items-center gap-1.5 text-meta text-monokai-fg hover:text-monokai-yellow transition-colors cursor-pointer py-1 px-2.5 rounded bg-monokai-bg border border-monokai-border hover:border-monokai-yellow focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-monokai-yellow"
           >
             <HelpCircle className="w-3.5 h-3.5 text-monokai-yellow" />
             <span>使用帮助</span>
@@ -1054,7 +1158,8 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
             type="button"
             onClick={handleClose}
             aria-label="关闭"
-            className="p-1 rounded-md text-monokai-comment hover:text-monokai-fg hover:bg-[#34352f] transition-colors cursor-pointer"
+            title="关闭 (Esc)"
+            className="p-1 rounded-md text-monokai-comment hover:text-monokai-fg hover:bg-monokai-elevated transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-monokai-yellow"
           >
             <X className="w-4 h-4" />
           </button>
@@ -1062,21 +1167,21 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
       </header>
 
       {/* ── 主体双栏内容区 ── */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="min-h-0 flex-1 flex flex-col md:flex-row overflow-y-auto md:overflow-hidden">
         {/* ── 左侧配置面板 (支持展开/收起) ── */}
         {isSidebarCollapsed ? (
-          <aside className="w-[42px] shrink-0 border-r border-monokai-border py-3 flex flex-col items-center justify-between bg-[#20211d] select-none transition-all duration-200 ease-in-out z-20">
+          <aside className="w-[42px] shrink-0 border-r border-monokai-border py-3 flex flex-col items-center justify-between bg-monokai-bg select-none transition-all duration-200 ease-in-out z-20">
             <div className="flex flex-col items-center gap-3">
               <button
                 type="button"
                 onClick={() => setIsSidebarCollapsed(false)}
-                className="w-7 h-7 rounded flex items-center justify-center text-monokai-yellow hover:bg-[#34352f] transition-colors cursor-pointer"
+                className="w-7 h-7 rounded flex items-center justify-center text-monokai-yellow hover:bg-monokai-elevated transition-colors cursor-pointer"
                 title="展开配置侧边栏 (Ctrl+B)"
                 aria-label="展开配置面板"
               >
                 <PanelLeftOpen className="w-4 h-4" />
               </button>
-              <div className="w-4 h-px bg-[#34352f]" />
+              <div className="w-4 h-px bg-monokai-elevated" />
               <button
                 type="button"
                 onClick={() => setIsSidebarCollapsed(false)}
@@ -1091,13 +1196,13 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
             </div>
 
             <div className="flex flex-col items-center gap-2 text-2xs text-monokai-comment font-mono pb-2">
-              <span className="w-2 h-2 rounded-full bg-[#a6e22e]" title="DuckDB 引擎就绪" />
+              <span className="w-2 h-2 rounded-full bg-monokai-accent" title="DuckDB 引擎就绪" />
             </div>
           </aside>
         ) : (
-          <aside className="w-full md:w-[400px] lg:w-[420px] shrink-0 border-r border-monokai-border p-4 pb-12 overflow-y-auto space-y-3.5 custom-scrollbar bg-[#20211d] transition-all duration-200 ease-in-out">
+          <aside className="w-full md:w-[400px] lg:w-[420px] shrink-0 border-r border-monokai-border p-4 pb-12 overflow-visible md:overflow-y-auto space-y-3.5 custom-scrollbar bg-monokai-bg transition-all duration-200 ease-in-out">
             {/* 顶部标题与快速收起按钮 */}
-            <div className="flex items-center justify-between pb-2 border-b border-[#34352f]">
+            <div className="flex items-center justify-between pb-2 border-b border-monokai-border">
               <div className="flex items-center gap-1.5 text-xs font-bold text-monokai-fg">
                 <Sliders className="w-3.5 h-3.5 text-monokai-yellow" />
                 <span>导入配置面板</span>
@@ -1106,7 +1211,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
               <button
                 type="button"
                 onClick={() => setIsSidebarCollapsed(true)}
-                className="flex items-center gap-1 px-1.5 py-0.5 rounded text-2xs text-monokai-comment hover:text-monokai-fg hover:bg-[#34352f] transition-colors cursor-pointer border border-transparent hover:border-monokai-border"
+                className="flex items-center gap-1 px-1.5 py-0.5 rounded text-2xs text-monokai-comment hover:text-monokai-fg hover:bg-monokai-elevated transition-colors cursor-pointer border border-transparent hover:border-monokai-border"
                 title="收起配置面板 (宽屏预览数据)"
               >
                 <PanelLeftClose className="w-3 h-3" />
@@ -1135,10 +1240,10 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
                     key={tab.id}
                     type="button"
                     onClick={() => setMode(tab.id)}
-                    className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-meta transition-all cursor-pointer ${
+                    className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-meta transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-monokai-yellow ${
                       active
-                        ? 'bg-[#2d2e27] text-monokai-yellow border border-[#e6db74] font-semibold shadow-xs'
-                        : 'bg-monokai-surface text-[#d8d7cc] hover:text-monokai-fg border border-monokai-border hover:border-[#55574f]'
+                        ? 'bg-monokai-sidebar text-monokai-yellow border border-monokai-yellow font-semibold shadow-xs'
+                        : 'bg-monokai-surface text-monokai-fg hover:text-monokai-yellow border border-monokai-border hover:border-monokai-border-strong'
                     }`}
                   >
                     <Icon className={`w-3.5 h-3.5 ${active ? 'text-monokai-yellow' : 'text-monokai-comment'}`} />
@@ -1156,7 +1261,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
                   <div className="p-3 rounded-lg bg-monokai-surface border border-monokai-border space-y-2">
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="w-8 h-9 rounded bg-monokai-elevated border border-monokai-border flex items-center justify-center text-[#d8d7cc] shrink-0">
+                        <div className="w-8 h-9 rounded bg-monokai-elevated border border-monokai-border flex items-center justify-center text-monokai-fg shrink-0">
                           <FileText className="w-4 h-4 text-monokai-yellow" />
                         </div>
                         <div className="min-w-0">
@@ -1170,22 +1275,41 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
                         type="button"
                         onClick={() => {
                           setFile(null);
+                          setMetadata(null);
+                          setSheets([]);
+                          setActiveSheetName('');
+                          setTableName('');
                           setColumns([]);
                           setPreviewRows([]);
+                          setValidationWarning(null);
                           setLifecycleState('IDLE');
                         }}
-                        className="w-5 h-5 rounded-full bg-monokai-bg hover:bg-[#f92672]/20 text-monokai-comment hover:text-monokai-pink flex items-center justify-center cursor-pointer shrink-0 transition-colors"
+                        className="w-5 h-5 rounded-full bg-monokai-bg hover:bg-monokai-pink/20 text-monokai-comment hover:text-monokai-pink flex items-center justify-center cursor-pointer shrink-0 transition-colors"
                         title="移除文件"
                       >
                         <X className="w-3 h-3" />
                       </button>
                     </div>
 
-                    <div className="text-2xs text-[#d8d7cc] flex items-center gap-3 pt-1 border-t border-[#34352f] flex-wrap font-mono">
+                    <div className="text-2xs text-monokai-fg flex items-center gap-3 pt-1 border-t border-monokai-border flex-wrap font-mono">
                       <span>大小: {metadata?.formattedSize || formatBytes(file.size)}</span>
                       <span>行数: {metadata ? metadata.rowCount.toLocaleString() : (previewRows.length ? previewRows.length.toLocaleString() : '未知')}</span>
                       <span>修改时间: {metadata?.lastModified || (file.lastModified ? new Date(file.lastModified).toLocaleString() : '刚刚')}</span>
                     </div>
+                    {parseOptions.format === 'DuckDB' && (
+                      <div className="flex items-center justify-between pt-1.5 border-t border-monokai-border">
+                        <span className="text-2xs text-monokai-comment">提示: 可直接挂载为独立数据库</span>
+                        <button
+                          type="button"
+                          onClick={handleMountAsDatabase}
+                          disabled={lifecycleState === 'IMPORTING' || lifecycleState === 'PARSING'}
+                          className="px-2 py-0.5 rounded bg-monokai-cyan/15 hover:bg-monokai-cyan/25 text-monokai-cyan text-2xs font-mono border border-monokai-cyan/30 transition-colors cursor-pointer"
+                        >
+                          挂载为独立库 (ATTACH)
+                        </button>
+                      </div>
+                    )}
+
                   </div>
                 ) : (
                   /* 拖拽上传真实文件区域 */
@@ -1195,20 +1319,20 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
                     onDrop={handleDrop}
                     className={`flex flex-col items-center justify-center p-6 rounded-lg border border-dashed transition-all cursor-pointer text-center ${
                       isDragging
-                        ? 'border-[#e6db74] bg-[#2d2e27]/70'
-                        : 'border-monokai-border bg-monokai-surface hover:border-[#55574f] hover:bg-[#282925]'
+                        ? 'border-monokai-yellow bg-monokai-sidebar/70'
+                        : 'border-monokai-border bg-monokai-surface hover:border-monokai-yellow/60 hover:bg-monokai-sidebar'
                     }`}
                   >
                     <UploadCloud className="w-7 h-7 text-monokai-comment mb-2 group-hover:text-monokai-yellow" />
                     <span className="text-[11.5px] text-monokai-fg font-medium">点击或拖入真实业务文件</span>
                     <span className="text-2xs text-monokai-comment mt-1 font-mono">
-                      支持 .csv, .parquet, .json, .xlsx, .tsv
+                      支持 .csv, .parquet, .json, .xlsx, .tsv, .duckdb
                     </span>
                     <input
                       type="file"
                       className="hidden"
                       onChange={handleFileInputChange}
-                      accept=".csv,.tsv,.tab,.json,.jsonl,.parquet,.xlsx,.xls,.txt"
+                      accept=".sql,.csv,.tsv,.tab,.json,.jsonl,.parquet,.xlsx,.xls,.txt,.duckdb"
                     />
                   </label>
                 )}
@@ -1227,7 +1351,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
                     value={url}
                     onChange={e => handleUrlChange(e.target.value)}
                     placeholder="https://.../data.xlsx, .csv, .parquet 或 Google Sheets 导出链接"
-                    className="w-full h-8 pl-8 pr-7 rounded bg-monokai-bg border border-monokai-border focus:border-[#e6db74] text-meta font-mono text-monokai-fg placeholder-[#75715e] outline-none transition-all"
+                    className="w-full h-8 pl-8 pr-7 rounded bg-monokai-bg border border-monokai-border focus:border-monokai-yellow text-meta font-mono text-monokai-fg placeholder-monokai-comment outline-none transition-all"
                   />
                   {url && (
                     <button
@@ -1255,7 +1379,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
                           handleUrlChange(p.url);
                           setTableName(p.name);
                         }}
-                        className="p-2 rounded bg-monokai-surface border border-monokai-border hover:border-[#e6db74]/60 text-left transition-all cursor-pointer flex items-center justify-between group"
+                        className="p-2 rounded bg-monokai-surface border border-monokai-border hover:border-monokai-yellow/60 text-left transition-all cursor-pointer flex items-center justify-between group"
                       >
                         <div>
                           <p className="text-[11.5px] font-semibold text-monokai-fg group-hover:text-monokai-yellow">
@@ -1263,7 +1387,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
                           </p>
                           <p className="text-2xs text-monokai-comment line-clamp-1">{p.desc}</p>
                         </div>
-                        <span className="text-2xs font-mono text-monokai-accent bg-[#a6e22e]/10 border border-[#a6e22e]/25 px-1.5 py-0.5 rounded shrink-0">
+                        <span className="text-2xs font-mono text-monokai-accent bg-monokai-accent/10 border border-monokai-accent/25 px-1.5 py-0.5 rounded shrink-0">
                           {p.tag}
                         </span>
                       </button>
@@ -1307,10 +1431,10 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
                   onChange={e => handleTextChange(e.target.value)}
                   placeholder="在此直接粘贴 CSV 或 TSV 文本 (支持制表符自动推断)..."
                   rows={3}
-                  className="w-full p-2 rounded bg-monokai-bg border border-monokai-border focus:border-[#e6db74] text-meta font-mono text-monokai-fg placeholder-[#75715e] outline-none resize-none leading-relaxed custom-scrollbar"
+                  className="w-full p-2 rounded bg-monokai-bg border border-monokai-border focus:border-monokai-yellow text-meta font-mono text-monokai-fg placeholder-monokai-comment outline-none resize-none leading-relaxed custom-scrollbar"
                 />
                 {parseOptions.format === 'TSV' && (
-                  <div className="flex items-center gap-1.5 text-2xs text-monokai-accent font-mono bg-[#a6e22e]/10 border border-[#a6e22e]/20 px-2 py-1 rounded">
+                  <div className="flex items-center gap-1.5 text-2xs text-monokai-accent font-mono bg-monokai-accent/10 border border-monokai-accent/20 px-2 py-1 rounded">
                     <Sparkles className="w-3 h-3 text-monokai-accent" />
                     <span>检测到制表符 (Tab)，已自动启用 TSV 解析</span>
                   </div>
@@ -1320,7 +1444,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
           </section>
 
           {/* 2. 文件解析设置 Parse Options */}
-          <section className="space-y-3 pt-3 border-t border-[#34352f]">
+          <section className="space-y-3 pt-3 border-t border-monokai-border">
             <div className="flex items-center justify-between">
               <h2 className="text-xs font-bold text-monokai-fg flex items-center gap-1.5">
                 <span>2. 文件解析设置</span>
@@ -1338,7 +1462,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
 
             {/* 格式单选 Pill 组 */}
             <div className="flex items-center justify-between gap-2">
-              <span className="text-meta text-[#d8d7cc] shrink-0">文件格式</span>
+              <span className="text-meta text-monokai-fg shrink-0">文件格式</span>
               <div className="flex items-center gap-1">
                 {FORMAT_OPTIONS.map(fmt => {
                   const active = parseOptions.format === fmt;
@@ -1349,11 +1473,11 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
                       onClick={() => handleFormatSelect(fmt)}
                       className={`px-2 py-0.5 text-center text-meta rounded transition-all cursor-pointer ${
                         active
-                          ? 'border border-[#e6db74] text-monokai-yellow bg-[#2d2e27] font-bold shadow-xs'
+                          ? 'border border-monokai-yellow text-monokai-yellow bg-monokai-sidebar font-bold shadow-xs'
                           : 'border border-monokai-border text-monokai-comment hover:text-monokai-fg bg-monokai-surface'
                       }`}
                     >
-                      {fmt === 'Excel' ? 'Excel (.xlsx)' : fmt}
+                      {fmt === 'Excel' ? 'Excel (.xlsx)' : fmt === 'DuckDB' ? 'DuckDB (.duckdb)' : fmt}
                     </button>
                   );
                 })}
@@ -1361,10 +1485,10 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
             </div>
 
             {/* 分隔符 与 引号 (仅纯文本格式需要，Excel / Parquet 自动跳过) */}
-            {parseOptions.format !== 'Excel' && parseOptions.format !== 'Parquet' ? (
+            {parseOptions.format !== 'Excel' && parseOptions.format !== 'Parquet' && parseOptions.format !== 'DuckDB' ? (
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="text-meta text-[#d8d7cc] block" htmlFor="parse-delimiter">
+                  <label className="text-meta text-monokai-fg block" htmlFor="parse-delimiter">
                     分隔符
                   </label>
                   <div className="relative">
@@ -1374,7 +1498,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
                       onChange={e =>
                         setParseOptions(prev => ({ ...prev, delimiter: e.target.value }))
                       }
-                      className="w-full h-7 px-2 bg-monokai-bg border border-monokai-border rounded text-meta font-mono text-monokai-fg outline-none focus:border-[#e6db74] appearance-none cursor-pointer"
+                      className="w-full h-7 px-2 bg-monokai-bg border border-monokai-border rounded text-meta font-mono text-monokai-fg outline-none focus:border-monokai-yellow appearance-none cursor-pointer"
                     >
                       {DELIMITER_OPTIONS.map(d => (
                         <option key={d.value} value={d.value}>
@@ -1387,7 +1511,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-meta text-[#d8d7cc] block" htmlFor="parse-quote">
+                  <label className="text-meta text-monokai-fg block" htmlFor="parse-quote">
                     引号
                   </label>
                   <div className="relative">
@@ -1397,7 +1521,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
                       onChange={e =>
                         setParseOptions(prev => ({ ...prev, quote: e.target.value }))
                       }
-                      className="w-full h-7 px-2 bg-monokai-bg border border-monokai-border rounded text-meta font-mono text-monokai-fg outline-none focus:border-[#e6db74] appearance-none cursor-pointer"
+                      className="w-full h-7 px-2 bg-monokai-bg border border-monokai-border rounded text-meta font-mono text-monokai-fg outline-none focus:border-monokai-yellow appearance-none cursor-pointer"
                     >
                       {QUOTE_OPTIONS.map(q => (
                         <option key={q.value} value={q.value}>
@@ -1410,11 +1534,13 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
                 </div>
               </div>
             ) : (
-              <div className="p-2 rounded bg-monokai-surface border border-monokai-border text-2xs text-[#d8d7cc] flex items-center gap-1.5 font-mono">
+              <div className="p-2 rounded bg-monokai-surface border border-monokai-border text-2xs text-monokai-fg flex items-center gap-1.5 font-mono">
                 <Sparkles className="w-3.5 h-3.5 text-monokai-yellow shrink-0" />
                 <span>
                   {parseOptions.format === 'Excel'
                     ? 'Excel 工作簿自动解析全部工作表结构，无需指定字符分隔符。'
+                    : parseOptions.format === 'DuckDB'
+                    ? 'DuckDB 数据库文件自动解析全部数据表结构与类型，无需配置分隔符。'
                     : 'Parquet 为原生列式二进制存储，自带精确类型元数据，无需配置分隔符。'}
                 </span>
               </div>
@@ -1422,17 +1548,18 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
 
             {/* 首行是否表头 Switch */}
             <div className="flex items-center justify-between py-0.5">
-              <span className="text-meta text-[#d8d7cc]">首行是否表头</span>
+              <span className="text-meta text-monokai-fg">首行是否表头</span>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   role="switch"
+                  aria-label="首行是否表头"
                   aria-checked={parseOptions.header}
                   onClick={() =>
                     setParseOptions(prev => ({ ...prev, header: !prev.header }))
                   }
                   className={`w-8 h-4 rounded-full transition-colors relative cursor-pointer ${
-                    parseOptions.header ? 'bg-[#a6e22e]' : 'bg-[#3a3b36]'
+                    parseOptions.header ? 'bg-monokai-accent' : 'bg-monokai-elevated'
                   }`}
                 >
                   <div
@@ -1441,7 +1568,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
                     }`}
                   />
                 </button>
-                <span className="text-meta text-[#d8d7cc]">
+                <span className="text-meta text-monokai-fg">
                   {parseOptions.header ? '是，使用第一行作为列名' : '否，自动编号列名'}
                 </span>
               </div>
@@ -1449,7 +1576,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
 
             {/* 编码 */}
             <div className="flex items-center justify-between gap-2">
-              <label className="text-meta text-[#d8d7cc] shrink-0" htmlFor="parse-encoding">
+              <label className="text-meta text-monokai-fg shrink-0" htmlFor="parse-encoding">
                 字符编码
               </label>
               <div className="relative flex-1 max-w-[200px]">
@@ -1459,7 +1586,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
                   onChange={e =>
                     setParseOptions(prev => ({ ...prev, encoding: e.target.value }))
                   }
-                  className="w-full h-7 px-2 bg-monokai-bg border border-monokai-border rounded text-meta text-monokai-fg outline-none focus:border-[#e6db74] appearance-none cursor-pointer"
+                  className="w-full h-7 px-2 bg-monokai-bg border border-monokai-border rounded text-meta text-monokai-fg outline-none focus:border-monokai-yellow appearance-none cursor-pointer"
                 >
                   {ENCODING_OPTIONS.map(enc => (
                     <option key={enc.value} value={enc.value}>
@@ -1472,7 +1599,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
             </div>
 
             {/* 高级选项折叠卡 */}
-            <div className="border-t border-[#34352f] pt-1.5">
+            <div className="border-t border-monokai-border pt-1.5">
               <button
                 type="button"
                 onClick={() => setShowAdvanced(!showAdvanced)}
@@ -1489,7 +1616,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
               {showAdvanced && (
                 <div className="mt-2 p-2.5 rounded bg-monokai-surface border border-monokai-border space-y-2 animate-fade-in text-meta">
                   <div className="space-y-1">
-                    <label className="text-meta text-[#d8d7cc] block">跳过前 N 行 (Skip Rows)</label>
+                    <label className="text-meta text-monokai-fg block">跳过前 N 行 (Skip Rows)</label>
                     <input
                       type="number"
                       min={0}
@@ -1500,11 +1627,11 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
                           skipRows: Math.max(0, parseInt(e.target.value, 10) || 0),
                         }))
                       }
-                      className="w-full h-7 px-2 bg-monokai-bg border border-monokai-border rounded text-meta text-monokai-fg outline-none focus:border-[#e6db74]"
+                      className="w-full h-7 px-2 bg-monokai-bg border border-monokai-border rounded text-meta text-monokai-fg outline-none focus:border-monokai-yellow"
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-meta text-[#d8d7cc] block">日期时间格式 (Date Format)</label>
+                    <label className="text-meta text-monokai-fg block">日期时间格式 (Date Format)</label>
                     <input
                       type="text"
                       placeholder="%Y-%m-%d"
@@ -1512,7 +1639,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
                       onChange={e =>
                         setParseOptions(prev => ({ ...prev, dateFormat: e.target.value }))
                       }
-                      className="w-full h-7 px-2 bg-monokai-bg border border-monokai-border rounded text-meta text-monokai-fg outline-none focus:border-[#e6db74]"
+                      className="w-full h-7 px-2 bg-monokai-bg border border-monokai-border rounded text-meta text-monokai-fg outline-none focus:border-monokai-yellow"
                     />
                   </div>
                 </div>
@@ -1521,7 +1648,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
           </section>
 
           {/* 3. 目标表设置 Target Table */}
-          <section className="space-y-2.5 pt-3 border-t border-[#34352f]">
+          <section className="space-y-2.5 pt-3 border-t border-monokai-border">
             <h2 className="text-xs font-bold text-monokai-fg flex items-center gap-1.5">
               <span>3. 目标表设置</span>
               <span className="text-2xs text-monokai-comment font-normal font-mono">Target Table</span>
@@ -1530,15 +1657,19 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
             <div className="space-y-2">
               {/* Schema 下拉 */}
               <div className="flex items-center justify-between gap-2">
-                <label className="text-meta text-[#d8d7cc] shrink-0" htmlFor="target-schema">
+                <label className="text-meta text-monokai-fg shrink-0" htmlFor="target-schema">
                   Schema
                 </label>
                 <div className="relative flex-1 flex items-center gap-1.5">
                   <select
                     id="target-schema"
                     value={schema}
-                    onChange={e => setSchema(e.target.value)}
-                    className="w-full h-7 px-2 bg-monokai-bg border border-monokai-border rounded text-meta text-monokai-fg outline-none focus:border-[#e6db74] appearance-none cursor-pointer"
+                    onChange={e => {
+                      const nextSchema = e.target.value;
+                      setSchema(nextSchema);
+                      void fetchTablesForSchema(nextSchema);
+                    }}
+                    className="w-full h-7 px-2 bg-monokai-bg border border-monokai-border rounded text-meta text-monokai-fg outline-none focus:border-monokai-yellow appearance-none cursor-pointer"
                   >
                     {availableSchemas.map(s => (
                       <option key={s} value={s}>
@@ -1550,32 +1681,143 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
                   <button
                     type="button"
                     onClick={() => void fetchSchemas()}
-                    className="w-7 h-7 rounded bg-monokai-bg border border-monokai-border hover:border-[#55574f] text-monokai-comment hover:text-monokai-fg flex items-center justify-center shrink-0 cursor-pointer"
-                    title="刷新 Schema 列表"
+                    className="w-7 h-7 rounded bg-monokai-bg border border-monokai-border hover:border-monokai-cyan text-monokai-comment hover:text-monokai-cyan flex items-center justify-center shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-monokai-cyan transition-colors"
+                    title="刷新 Schema 与已有表列表"
                   >
                     <RefreshCw className="w-3 h-3" />
                   </button>
                 </div>
               </div>
 
-              {/* 表名输入 */}
-              <div className="flex items-center justify-between gap-2">
-                <label className="text-meta text-[#d8d7cc] shrink-0" htmlFor="target-table-name">
-                  {sheets.length > 1 ? '基础表名' : '表名'} <span className="text-monokai-pink">*</span>
-                </label>
-                <div className="flex-1">
+              {/* 表名输入与已有表点选 */}
+              <div className="space-y-1.5" data-table-picker>
+                <div className="flex items-center justify-between gap-2">
+                  <label className="text-meta text-monokai-fg shrink-0 flex items-center gap-1.5" htmlFor="target-table-name">
+                    <span>{sheets.length > 1 ? '基础表名' : '表名'}</span>
+                    <span className="text-monokai-pink">*</span>
+                    {isExistingTable && (
+                      <span className="px-1.5 py-0.2 rounded text-[9.5px] font-mono bg-monokai-cyan/15 text-monokai-cyan border border-monokai-cyan/30" title="当前库中已存在此同名表">
+                        已有同名表
+                      </span>
+                    )}
+                  </label>
+                  {availableTables.length > 0 && (
+                    <button
+                      type="button"
+                      data-table-picker
+                      onClick={() => {
+                        setShowTablePicker(prev => !prev);
+                        setTableSearch('');
+                      }}
+                      className="text-2xs font-mono text-monokai-comment hover:text-monokai-yellow transition-colors flex items-center gap-1 cursor-pointer"
+                      title="展开/收起已有表选择器"
+                    >
+                      <Database className="w-3 h-3 text-monokai-yellow" />
+                      <span>从已有表中选择 ({availableTables.length})</span>
+                      <ChevronDown className={`w-3 h-3 transition-transform ${showTablePicker ? 'rotate-180' : ''}`} />
+                    </button>
+                  )}
+                </div>
+
+                <div className="relative">
                   <input
                     id="target-table-name"
                     type="text"
+                    list="target-existing-tables-list"
                     value={tableName}
                     onChange={e =>
                       sheets.length > 1
                         ? handleBaseTableNameChange(e.target.value)
                         : setTableName(e.target.value)
                     }
-                    placeholder="例如: raw_events_imported"
-                    className="w-full h-7 px-2 bg-monokai-bg border border-monokai-border rounded text-meta font-mono text-monokai-fg outline-none focus:border-[#e6db74]"
+                    placeholder={sheets.length > 1 ? "例如: multi_sheets_dataset" : "例如: raw_events_imported"}
+                    className="w-full h-7 px-2 bg-monokai-bg border border-monokai-border rounded text-meta font-mono text-monokai-fg outline-none focus:border-monokai-yellow"
                   />
+                  <datalist id="target-existing-tables-list">
+                    {availableTables.map(tbl => (
+                      <option key={tbl} value={tbl} />
+                    ))}
+                  </datalist>
+
+                  {/* 弹出式已有数据表选择面板 */}
+                  {showTablePicker && (
+                    <div
+                      data-table-picker
+                      className="absolute left-0 right-0 top-8 z-30 bg-monokai-surface border border-monokai-border-strong rounded-lg shadow-xl p-2 space-y-1.5 animate-fade-in font-sans"
+                    >
+                      <div className="flex items-center justify-between pb-1 border-b border-monokai-border text-2xs">
+                        <span className="font-bold text-monokai-fg flex items-center gap-1">
+                          <Database className="w-3 h-3 text-monokai-yellow" />
+                          <span>Schema "{schema}" 中的已有表 ({availableTables.length})</span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setShowTablePicker(false)}
+                          className="text-monokai-comment hover:text-monokai-fg p-0.5 rounded cursor-pointer"
+                          title="关闭"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+
+                      {availableTables.length > 3 && (
+                        <div className="relative">
+                          <Search className="w-3 h-3 text-monokai-comment absolute left-2 top-1.5 pointer-events-none" />
+                          <input
+                            type="text"
+                            value={tableSearch}
+                            onChange={e => setTableSearch(e.target.value)}
+                            placeholder="快速过滤已有数据表..."
+                            className="w-full h-6 pl-6 pr-2 bg-monokai-bg border border-monokai-border rounded text-2xs font-mono text-monokai-fg placeholder-monokai-comment outline-none focus:border-monokai-yellow"
+                          />
+                        </div>
+                      )}
+
+                      <div className="max-h-40 overflow-y-auto custom-scrollbar space-y-1">
+                        {filteredAvailableTables.length === 0 ? (
+                          <div className="p-2 text-center text-2xs text-monokai-comment font-mono">
+                            未找到匹配 "{tableSearch}" 的数据表
+                          </div>
+                        ) : (
+                          filteredAvailableTables.map(tbl => {
+                            const isSelected = tbl.toLowerCase() === tableName.trim().toLowerCase();
+                            return (
+                              <button
+                                key={tbl}
+                                type="button"
+                                onClick={() => {
+                                  if (sheets.length > 1) {
+                                    handleBaseTableNameChange(tbl);
+                                  } else {
+                                    setTableName(tbl);
+                                  }
+                                  setShowTablePicker(false);
+                                }}
+                                className={`w-full flex items-center justify-between p-1.5 rounded text-meta font-mono text-left cursor-pointer transition-colors ${
+                                  isSelected
+                                    ? 'bg-monokai-sidebar text-monokai-yellow font-bold border border-monokai-yellow/40'
+                                    : 'bg-monokai-bg hover:bg-monokai-elevated text-monokai-fg border border-monokai-border'
+                                }`}
+                              >
+                                <span className="truncate">{tbl}</span>
+                                {isSelected ? (
+                                  <Check className="w-3 h-3 text-monokai-yellow shrink-0" />
+                                ) : (
+                                  <span className="text-[9.5px] text-monokai-comment">选择</span>
+                                )}
+                              </button>
+                            );
+                          })
+                        )}
+                      </div>
+
+                      {conflictStrategy === 'append' && (
+                        <p className="text-[10px] text-monokai-comment pt-1 border-t border-monokai-border">
+                          提示: 当前处于【追加行数据】模式，点选目标表即可将新行追加至该表中。
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -1600,7 +1842,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
                   </div>
 
                   {showSheetNamesDrawer && (
-                    <div className="space-y-1.5 pt-1.5 border-t border-[#34352f] max-h-44 overflow-y-auto custom-scrollbar pr-0.5">
+                    <div className="space-y-1.5 pt-1.5 border-t border-monokai-border max-h-44 overflow-y-auto custom-scrollbar pr-0.5">
                       <div className="flex items-center justify-between pb-0.5 text-2xs">
                         <span className="text-monokai-comment font-mono">自定义各表名称:</span>
                         <button
@@ -1611,56 +1853,68 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
                           重置为默认名
                         </button>
                       </div>
-                      {sheets.map(s => (
-                        <div
-                          key={s.name}
-                          className="flex items-center gap-1.5 bg-monokai-bg p-1.5 rounded border border-[#34352f]"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={s.selected}
-                            disabled={s.isEmpty}
-                            onChange={() => handleToggleSheetSelection(s.name)}
-                            className="rounded border-monokai-border text-monokai-yellow focus:ring-0 cursor-pointer disabled:opacity-40"
-                          />
-                          <span
-                            className={`text-meta font-mono truncate w-24 shrink-0 ${
-                              s.name === activeSheetName ? 'text-monokai-yellow font-bold' : 'text-[#d8d7cc]'
+                      {sheets.map(s => {
+                        const isSheetActive = s.name === activeSheetName;
+                        return (
+                          <div
+                            key={s.name}
+                            className={`flex items-center gap-1.5 p-1.5 rounded border transition-colors ${
+                              isSheetActive
+                                ? 'bg-monokai-sidebar border-monokai-yellow/60'
+                                : 'bg-monokai-bg border-monokai-border hover:border-monokai-border-strong'
                             }`}
-                            title={s.name}
                           >
-                            {s.name}
-                          </span>
-                          <input
-                            type="text"
-                            value={s.targetTableName}
-                            disabled={!s.selected}
-                            onChange={e => handleSheetTableNameChange(s.name, e.target.value)}
-                            className="flex-1 h-6 px-1.5 bg-monokai-surface border border-monokai-border rounded text-meta font-mono text-monokai-fg outline-none focus:border-[#e6db74] disabled:opacity-40"
-                          />
-                        </div>
-                      ))}
+                            <input
+                              type="checkbox"
+                              checked={s.selected}
+                              disabled={parseOptions.format !== 'DuckDB' && (s.isEmpty || s.rowCount === 0)}
+                              onChange={() => handleToggleSheetSelection(s.name)}
+                              className="rounded border-monokai-border text-monokai-yellow focus:ring-0 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                              title={parseOptions.format !== 'DuckDB' && (s.isEmpty || s.rowCount === 0) ? '空工作表不可导入' : '勾选导入'}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleSheetTabClick(s.name)}
+                              className={`text-meta font-mono truncate max-w-[130px] shrink-0 text-left cursor-pointer hover:underline ${
+                                isSheetActive ? 'text-monokai-yellow font-bold' : 'text-monokai-fg'
+                              }`}
+                              title={`点击切换预览: ${s.name}`}
+                            >
+                              {s.name}
+                            </button>
+                            <input
+                              type="text"
+                              list="target-existing-tables-list"
+                              value={s.targetTableName}
+                              disabled={!s.selected}
+                              onChange={e => handleSheetTableNameChange(s.name, e.target.value)}
+                              placeholder="目标表名"
+                              className="flex-1 h-6 px-1.5 bg-monokai-surface border border-monokai-border rounded text-meta font-mono text-monokai-fg outline-none focus:border-monokai-yellow disabled:opacity-40 disabled:cursor-not-allowed"
+                            />
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
               )}
               {validationError && (
-                <p className="text-2xs text-monokai-pink flex items-center gap-1">
-                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                  <span>{validationError}</span>
-                </p>
+                <div className="p-2 rounded bg-monokai-pink/10 border border-monokai-pink/30 text-2xs text-monokai-pink flex items-start gap-1.5 leading-relaxed">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                  <span className="whitespace-pre-line">{validationError}</span>
+                </div>
               )}
               {validationWarning && !validationError && (
-                <p className="text-2xs text-monokai-yellow flex items-center gap-1">
-                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-                  <span>{validationWarning}</span>
-                </p>
+                <div className="p-2 rounded bg-monokai-yellow/10 border border-monokai-yellow/30 text-2xs text-amber-700 dark:text-monokai-yellow flex items-start gap-1.5 leading-relaxed">
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-monokai-yellow" />
+                  <span className="whitespace-pre-line">{validationWarning}</span>
+                </div>
               )}
             </div>
           </section>
 
           {/* 4. 同名表冲突策略 Conflict Strategy */}
-          <section className="space-y-2.5 pt-3 border-t border-[#34352f]">
+          <section className="space-y-2.5 pt-3 border-t border-monokai-border">
             <h2 className="text-xs font-bold text-monokai-fg flex items-center gap-1.5">
               <span>4. 同名表冲突策略</span>
               <span className="text-2xs text-monokai-comment font-normal font-mono">Conflict Strategy</span>
@@ -1675,10 +1929,10 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
                     key={item.id}
                     type="button"
                     onClick={() => setConflictStrategy(item.id)}
-                    className={`p-2 rounded-lg border text-left transition-all cursor-pointer relative flex flex-col justify-between ${
+                    className={`p-2 rounded-lg border text-left transition-all cursor-pointer relative flex flex-col justify-between focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-monokai-yellow ${
                       isSelected
-                        ? 'bg-[#2d2e27] border-[#e6db74] text-monokai-fg shadow-xs'
-                        : 'bg-monokai-surface border-monokai-border text-monokai-comment hover:border-[#55574f] hover:text-[#d8d7cc]'
+                        ? 'bg-monokai-sidebar border-monokai-yellow text-monokai-fg shadow-xs'
+                        : 'bg-monokai-surface border-monokai-border text-monokai-comment hover:border-monokai-border-strong hover:text-monokai-fg'
                     }`}
                   >
                     <div>
@@ -1687,14 +1941,14 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
                           className={`w-3.5 h-3.5 ${isSelected ? 'text-monokai-yellow' : 'text-monokai-comment'}`}
                         />
                         {isSelected && (
-                          <div className="w-3.5 h-3.5 rounded-full bg-[#e6db74] text-[#1e1f1c] flex items-center justify-center">
+                          <div className="w-3.5 h-3.5 rounded-full bg-monokai-yellow text-monokai-bg flex items-center justify-center">
                             <Check className="w-2.5 h-2.5 stroke-[3]" />
                           </div>
                         )}
                       </div>
                       <p
                         className={`text-[11.5px] font-bold ${
-                          isSelected ? 'text-monokai-fg' : 'text-[#d8d7cc]'
+                          isSelected ? 'text-monokai-fg' : 'text-monokai-fg'
                         }`}
                       >
                         {item.title}
@@ -1711,9 +1965,9 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
         )}
 
         {/* ── 右侧面板 (65% 左右，实时数据与元数据预览) ── */}
-        <main className="flex-1 flex flex-col p-4 overflow-y-auto space-y-4 custom-scrollbar bg-[#181916]">
+        <main className="flex-none md:flex-1 min-w-0 flex flex-col p-4 overflow-visible md:overflow-y-auto space-y-4 custom-scrollbar bg-monokai-bg">
           {/* 5. 数据预览 Preview 标头 */}
-          <div className="flex items-center justify-between shrink-0">
+          <div className="flex flex-wrap items-center justify-between gap-2 shrink-0">
             <h2 className="text-xs font-bold text-monokai-fg flex items-center gap-1.5">
               <span>5. 数据预览</span>
               <span className="text-2xs text-monokai-comment font-normal font-mono">Preview</span>
@@ -1731,13 +1985,13 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
                   <span>解析异常，请检查配置</span>
                 </div>
               ) : metadata ? (
-                <div className="flex items-center gap-1.5 text-xs text-[#d8d7cc]">
-                  <div className="w-1.5 h-1.5 rounded-full bg-[#a6e22e]" />
+                <div className="flex items-center gap-1.5 text-xs text-monokai-fg">
+                  <div className="w-1.5 h-1.5 rounded-full bg-monokai-accent" />
                   <span>已自动识别文件结构，修改左侧配置可实时更新预览</span>
                 </div>
               ) : (
                 <div className="flex items-center gap-1.5 text-xs text-monokai-comment">
-                  <div className="w-1.5 h-1.5 rounded-full bg-[#3a3b36]" />
+                  <div className="w-1.5 h-1.5 rounded-full bg-monokai-elevated" />
                   <span>等待选择数据源，载入后将自动识别结构</span>
                 </div>
               )}
@@ -1746,8 +2000,8 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
 
           {/* 多工作表 Sheet 切换与多选栏 (Excel Multi-Sheet Bar) */}
           {sheets.length > 0 && (
-            <section className="p-2.5 rounded-lg bg-monokai-surface border border-monokai-border space-y-2 shrink-0">
-              <div className="flex items-center justify-between">
+            <section className="sticky top-0 z-10 p-2.5 rounded-lg bg-monokai-surface/95 backdrop-blur-xs border border-monokai-border shadow-xs space-y-2 shrink-0">
+              <div className="flex items-center justify-between flex-wrap gap-2">
                 <div className="flex items-center gap-2">
                   <FileSpreadsheet className="w-4 h-4 text-monokai-accent" />
                   <span className="text-xs font-bold text-monokai-fg">工作表列表 (Sheets)</span>
@@ -1756,6 +2010,28 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
+                  {sheets.length > 3 && (
+                    <div className="relative flex items-center">
+                      <Search className="w-3 h-3 text-monokai-comment absolute left-2 pointer-events-none" />
+                      <input
+                        type="text"
+                        placeholder="过滤工作表..."
+                        value={sheetSearch}
+                        onChange={e => setSheetSearch(e.target.value)}
+                        className="h-6 pl-6 pr-5 rounded bg-monokai-bg border border-monokai-border focus:border-monokai-yellow text-2xs font-mono text-monokai-fg placeholder-monokai-comment outline-none w-28 focus:w-36 transition-all"
+                      />
+                      {sheetSearch && (
+                        <button
+                          type="button"
+                          onClick={() => setSheetSearch('')}
+                          className="text-monokai-comment hover:text-monokai-fg px-1 text-meta absolute right-1 cursor-pointer"
+                          title="清空搜索"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+                  )}
                   <button
                     type="button"
                     onClick={() => handleToggleAllSheets(true)}
@@ -1763,7 +2039,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
                   >
                     全选
                   </button>
-                  <span className="text-[#55574f] text-2xs">|</span>
+                  <span className="text-monokai-comment text-2xs">|</span>
                   <button
                     type="button"
                     onClick={handleSelectOnlyNonEmptySheets}
@@ -1771,7 +2047,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
                   >
                     仅选非空表
                   </button>
-                  <span className="text-[#55574f] text-2xs">|</span>
+                  <span className="text-monokai-comment text-2xs">|</span>
                   <button
                     type="button"
                     onClick={() => handleToggleAllSheets(false)}
@@ -1783,47 +2059,53 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
               </div>
 
               <div className="flex items-center gap-2 overflow-x-auto custom-scrollbar pb-1 pt-0.5">
-                {sheets.map(s => {
-                  const isActive = s.name === activeSheetName;
-                  return (
-                    <div
-                      key={s.name}
-                      onClick={() => handleSheetTabClick(s.name)}
-                      className={`flex items-center gap-2 px-2.5 py-1.5 rounded-md border cursor-pointer select-none shrink-0 transition-all ${
-                        isActive
-                          ? 'bg-[#2d2e27] border-[#e6db74] text-monokai-fg shadow-xs'
-                          : 'bg-monokai-bg border-monokai-border text-monokai-comment hover:border-[#55574f] hover:text-[#d8d7cc]'
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={s.selected}
-                        disabled={s.isEmpty || s.rowCount === 0}
-                        onChange={e => handleToggleSheetSelection(s.name, e as any)}
-                        onClick={e => e.stopPropagation()}
-                        className="rounded border-monokai-border text-monokai-yellow focus:ring-0 cursor-pointer disabled:opacity-30"
-                        title={s.isEmpty || s.rowCount === 0 ? '空工作表无有效数据，不可导入' : '勾选导入此工作表'}
-                      />
-                      <span className={`text-meta font-mono font-medium ${isActive ? 'text-monokai-yellow font-bold' : ''}`}>
-                        {s.name}
-                      </span>
-                      <span className="text-2xs text-monokai-comment font-mono">
-                        {s.rowCount.toLocaleString()} 行
-                        {s.columnCount > 0 ? ` · ${s.columnCount} 列` : ''}
-                      </span>
-                      {s.isHidden && (
-                        <span className="px-1.5 py-0.2 rounded text-[9.5px] font-mono bg-[#ae81ff]/15 text-monokai-purple border border-[#ae81ff]/30">
-                          隐藏表
+                {filteredSheets.length === 0 ? (
+                  <div className="text-2xs text-monokai-comment py-1 font-mono">
+                    未找到匹配 "{sheetSearch}" 的工作表
+                  </div>
+                ) : (
+                  filteredSheets.map(s => {
+                    const isActive = s.name === activeSheetName;
+                    return (
+                      <div
+                        key={s.name}
+                        onClick={() => handleSheetTabClick(s.name)}
+                        className={`flex items-center gap-2 px-2.5 py-1.5 rounded-md border cursor-pointer select-none shrink-0 transition-all ${
+                          isActive
+                            ? 'bg-monokai-sidebar border-monokai-yellow text-monokai-fg shadow-xs ring-1 ring-monokai-yellow/30'
+                            : 'bg-monokai-bg border-monokai-border text-monokai-comment hover:border-monokai-border-strong hover:text-monokai-fg'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={s.selected}
+                          disabled={parseOptions.format !== 'DuckDB' && (s.isEmpty || s.rowCount === 0)}
+                          onChange={e => handleToggleSheetSelection(s.name, e as any)}
+                          onClick={e => e.stopPropagation()}
+                          className="rounded border-monokai-border text-monokai-yellow focus:ring-0 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                          title={parseOptions.format !== 'DuckDB' && (s.isEmpty || s.rowCount === 0) ? '空工作表无有效数据，不可导入' : '勾选导入此工作表'}
+                        />
+                        <span className={`text-meta font-mono font-medium ${isActive ? 'text-monokai-yellow font-bold' : ''}`}>
+                          {s.name}
                         </span>
-                      )}
-                      {(s.isEmpty || s.rowCount === 0) && (
-                        <span className="px-1.5 py-0.2 rounded text-[9.5px] font-mono bg-monokai-bg text-monokai-comment border border-monokai-border">
-                          空工作表
+                        <span className="text-2xs text-monokai-comment font-mono">
+                          {s.rowCount.toLocaleString()} 行
+                          {s.columnCount > 0 ? ` · ${s.columnCount} 列` : ''}
                         </span>
-                      )}
-                    </div>
-                  );
-                })}
+                        {s.isHidden && (
+                          <span className="px-1.5 py-0.2 rounded text-[9.5px] font-mono bg-monokai-purple/15 text-monokai-purple border border-monokai-purple/30">
+                            隐藏表
+                          </span>
+                        )}
+                        {(s.isEmpty || s.rowCount === 0) && (
+                          <span className="px-1.5 py-0.2 rounded text-[9.5px] font-mono bg-monokai-bg text-monokai-comment border border-monokai-border">
+                            空工作表
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
               </div>
             </section>
           )}
@@ -1838,7 +2120,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
             <div className="flex items-center justify-between gap-4 flex-wrap pt-0.5">
               <div className="flex items-center gap-3 min-w-0">
                 <div className={`w-9 h-11 rounded flex items-center justify-center shrink-0 shadow-sm ${
-                  metadata || file ? 'bg-[#2d2e27] border border-[#e6db74]/40 text-monokai-yellow' : 'bg-monokai-bg border border-monokai-border text-monokai-comment'
+                  metadata || file ? 'bg-monokai-sidebar border border-monokai-yellow/40 text-monokai-yellow' : 'bg-monokai-bg border border-monokai-border text-monokai-comment'
                 }`}>
                   <FileText className="w-5 h-5" />
                 </div>
@@ -1919,7 +2201,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
                       placeholder="过滤字段名/类型..."
                       value={columnSearch}
                       onChange={e => setColumnSearch(e.target.value)}
-                      className="h-6 pl-6 pr-5 rounded bg-monokai-bg border border-monokai-border focus:border-[#e6db74] text-2xs font-mono text-monokai-fg placeholder-[#75715e] outline-none w-32 focus:w-44 transition-all"
+                      className="h-6 pl-6 pr-5 rounded bg-monokai-bg border border-monokai-border focus:border-monokai-yellow text-2xs font-mono text-monokai-fg placeholder-monokai-comment outline-none w-32 focus:w-44 transition-all"
                     />
                     {columnSearch && (
                       <button
@@ -1938,7 +2220,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
                     <button
                       type="button"
                       onClick={handleBatchLowercaseColumns}
-                      className="text-2xs text-[#d8d7cc] hover:text-monokai-yellow px-2 py-0.5 rounded bg-monokai-bg border border-monokai-border hover:border-[#55574f] cursor-pointer transition-colors"
+                      className="text-2xs text-monokai-fg hover:text-monokai-yellow px-2 py-0.5 rounded bg-monokai-bg border border-monokai-border hover:border-monokai-yellow/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-monokai-yellow cursor-pointer transition-colors"
                       title="将所有目标列名转为小写规范"
                     >
                       转小写
@@ -1946,7 +2228,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
                     <button
                       type="button"
                       onClick={handleBatchSnakeCaseColumns}
-                      className="text-2xs text-[#d8d7cc] hover:text-monokai-accent px-2 py-0.5 rounded bg-monokai-bg border border-monokai-border hover:border-[#55574f] cursor-pointer transition-colors"
+                      className="text-2xs text-monokai-fg hover:text-monokai-accent px-2 py-0.5 rounded bg-monokai-bg border border-monokai-border hover:border-monokai-accent/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-monokai-accent cursor-pointer transition-colors"
                       title="将所有目标列名转换为蛇形下划线命名 (snake_case)"
                     >
                       转蛇形
@@ -1954,7 +2236,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
                     <button
                       type="button"
                       onClick={handleBatchResetColumns}
-                      className="text-2xs text-[#d8d7cc] hover:text-monokai-cyan px-2 py-0.5 rounded bg-monokai-bg border border-monokai-border hover:border-[#55574f] cursor-pointer transition-colors"
+                      className="text-2xs text-monokai-fg hover:text-monokai-cyan px-2 py-0.5 rounded bg-monokai-bg border border-monokai-border hover:border-monokai-cyan/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-monokai-cyan cursor-pointer transition-colors"
                       title="重置全部列名为源列名并还原推断类型"
                     >
                       重置映射
@@ -1986,12 +2268,12 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
                       <th className="px-2.5 py-1.5">示例值</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#2d2e29] text-[#d8d7cc] bg-monokai-bg">
+                  <tbody className="divide-y divide-monokai-border text-monokai-fg bg-monokai-bg">
                     {filteredColumnsWithIndices.map(({ col, originalIndex }) => {
                       const displayType = col.overrideType || col.inferredType;
-                      let badgeClass = 'bg-[#66d9ef]/15 text-monokai-cyan border-[#66d9ef]/30';
+                      let badgeClass = 'bg-monokai-cyan/15 text-monokai-cyan border-monokai-cyan/30';
                       if (displayType.includes('VARCHAR') || displayType.includes('TEXT')) {
-                        badgeClass = 'bg-[#a6e22e]/15 text-monokai-accent border-[#a6e22e]/30';
+                        badgeClass = 'bg-monokai-accent/15 text-monokai-accent border-monokai-accent/30';
                       } else if (
                         displayType.includes('DOUBLE') ||
                         displayType.includes('FLOAT') ||
@@ -1999,14 +2281,14 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
                         displayType.includes('INT') ||
                         displayType.includes('BIGINT')
                       ) {
-                        badgeClass = 'bg-[#e6db74]/15 text-monokai-yellow border-[#e6db74]/30';
+                        badgeClass = 'bg-monokai-yellow/15 text-monokai-yellow border-monokai-yellow/30';
                       } else if (
                         displayType.includes('TIMESTAMP') ||
                         displayType.includes('DATE')
                       ) {
-                        badgeClass = 'bg-[#ae81ff]/15 text-monokai-purple border-[#ae81ff]/30';
+                        badgeClass = 'bg-monokai-purple/15 text-monokai-purple border-monokai-purple/30';
                       } else if (displayType.includes('JSON')) {
-                        badgeClass = 'bg-monokai-surface text-[#d8d7cc] border-monokai-border';
+                        badgeClass = 'bg-monokai-surface text-monokai-fg border-monokai-border';
                       }
 
                       const isNearBottom = originalIndex >= Math.max(1, columns.length - 2);
@@ -2016,7 +2298,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
                           <td className="px-2.5 py-1 text-center text-monokai-comment border-r border-monokai-border text-2xs">
                             {originalIndex + 1}
                           </td>
-                          <td className="px-2.5 py-1 text-[#d8d7cc] font-mono font-medium">
+                          <td className="px-2.5 py-1 text-monokai-fg font-mono font-medium">
                             {col.sourceName}
                           </td>
                           <td className="px-2.5 py-1">
@@ -2024,7 +2306,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
                               type="text"
                               value={col.targetName}
                               onChange={e => handleColumnTargetNameChange(originalIndex, e.target.value)}
-                              className="bg-transparent border-b border-transparent hover:border-[#55574f] focus:border-[#e6db74] focus:bg-monokai-surface text-monokai-fg px-1 py-0.5 rounded outline-none w-full text-meta font-mono transition-colors"
+                              className="bg-transparent border-b border-transparent hover:border-monokai-border focus:border-monokai-yellow focus:bg-monokai-surface text-monokai-fg px-1 py-0.5 rounded outline-none w-full text-meta font-mono transition-colors"
                             />
                           </td>
                           <td className="px-2.5 py-1">
@@ -2053,8 +2335,8 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
                                       }}
                                       className={`w-full text-left px-2.5 py-1 text-meta font-mono transition-colors flex items-center justify-between cursor-pointer ${
                                         displayType === t
-                                          ? 'bg-[#2d2e27] text-monokai-yellow font-bold'
-                                          : 'text-[#d8d7cc] hover:bg-[#34352f] hover:text-monokai-fg'
+                                          ? 'bg-monokai-sidebar text-monokai-yellow font-bold'
+                                          : 'text-monokai-fg hover:bg-monokai-elevated hover:text-monokai-fg'
                                       }`}
                                     >
                                       <span>{t}</span>
@@ -2066,22 +2348,32 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
                             </div>
                           </td>
                           <td className="px-2.5 py-1 text-center">
-                            {col.nullable ? (
-                              <div className="inline-flex items-center gap-1 cursor-pointer" onClick={() => handleColumnNullableToggle(originalIndex)}>
-                                <div className="w-3.5 h-3.5 rounded bg-[#a6e22e] text-[#1e1f1c] flex items-center justify-center">
-                                  <Check className="w-2.5 h-2.5 stroke-[3]" />
-                                </div>
-                                <span className="text-2xs text-monokai-comment font-mono">YES</span>
-                              </div>
-                            ) : (
-                              <div className="inline-flex items-center cursor-pointer" onClick={() => handleColumnNullableToggle(originalIndex)}>
-                                <div className="w-3.5 h-3.5 rounded border border-[#55574f] bg-monokai-bg" />
-                              </div>
-                            )}
+                            <button
+                              type="button"
+                              role="checkbox"
+                              aria-checked={col.nullable}
+                              aria-label={`字段 ${col.targetName} 是否允许为空`}
+                              onClick={() => handleColumnNullableToggle(originalIndex)}
+                              className="inline-flex items-center gap-1 cursor-pointer p-0.5 rounded focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-monokai-accent"
+                            >
+                              {col.nullable ? (
+                                <>
+                                  <div className="w-3.5 h-3.5 rounded bg-monokai-accent text-monokai-bg flex items-center justify-center">
+                                    <Check className="w-2.5 h-2.5 stroke-[3]" />
+                                  </div>
+                                  <span className="text-2xs text-monokai-comment font-mono">YES</span>
+                                </>
+                              ) : (
+                                <>
+                                  <div className="w-3.5 h-3.5 rounded border border-monokai-border bg-monokai-bg" />
+                                  <span className="text-2xs text-monokai-comment font-mono">NO</span>
+                                </>
+                              )}
+                            </button>
                           </td>
                           <td className="px-2.5 py-1 text-monokai-comment truncate max-w-[200px] text-2xs">
                             {col.sampleValue === '-' || col.sampleValue === '' || col.sampleValue === 'null' ? (
-                              <span className="italic text-[#55574f]">NULL</span>
+                              <span className="italic text-monokai-comment">NULL</span>
                             ) : (
                               col.sampleValue
                             )}
@@ -2112,7 +2404,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
                   type="button"
                   onClick={() => void runSniff(mode, file, url, text, parseOptions)}
                   disabled={isRefreshingPreview}
-                  className="flex items-center gap-1 text-meta text-[#d8d7cc] hover:text-monokai-fg px-2 py-0.5 rounded bg-monokai-bg border border-monokai-border hover:border-[#55574f] cursor-pointer transition-colors disabled:opacity-50"
+                  className="flex items-center gap-1 text-meta text-monokai-fg hover:text-monokai-cyan px-2 py-0.5 rounded bg-monokai-bg border border-monokai-border hover:border-monokai-cyan focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-monokai-cyan cursor-pointer transition-colors disabled:opacity-50"
                 >
                   <RefreshCw
                     className={`w-3 h-3 text-monokai-cyan ${
@@ -2129,7 +2421,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
               {displayPreviewRows.length === 0 ? (
                 lifecycleState === 'PARSE_ERROR' ? (
                   <div className="h-full min-h-[160px] p-6 flex flex-col items-center justify-center text-center space-y-3">
-                    <div className="w-10 h-10 rounded-full bg-[#f92672]/15 border border-[#f92672]/30 flex items-center justify-center text-monokai-pink shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-monokai-pink/15 border border-monokai-pink/30 flex items-center justify-center text-monokai-pink shrink-0">
                       <AlertCircle className="w-5 h-5" />
                     </div>
                     <div className="space-y-1.5 max-w-lg">
@@ -2151,7 +2443,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
                         <button
                           type="button"
                           onClick={() => setMode('local')}
-                          className="px-3 py-1 rounded bg-monokai-surface hover:bg-monokai-elevated border border-monokai-border text-meta text-[#d8d7cc] hover:text-monokai-fg transition-colors cursor-pointer"
+                          className="px-3 py-1 rounded bg-monokai-surface hover:bg-monokai-elevated border border-monokai-border text-meta text-monokai-fg hover:text-monokai-fg transition-colors cursor-pointer"
                         >
                           切换到本地文件上传
                         </button>
@@ -2186,14 +2478,14 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
                                 <ArrowDown className="w-3 h-3 text-monokai-yellow" />
                               )
                             ) : (
-                              <ArrowUpDown className="w-3 h-3 text-[#55574f] hover:text-[#d8d7cc]" />
+                              <ArrowUpDown className="w-3 h-3 text-monokai-comment hover:text-monokai-fg" />
                             )}
                           </div>
                         </th>
                       ))}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#2d2e29] text-[#d8d7cc]">
+                  <tbody className="divide-y divide-monokai-border text-monokai-fg">
                     {displayPreviewRows.map((row, rIdx) => (
                       <tr key={rIdx} className="hover:bg-monokai-surface transition-colors">
                         <td className="px-2.5 py-1 text-center text-monokai-comment border-r border-monokai-border select-none text-2xs">
@@ -2214,9 +2506,9 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
                               title={displayVal !== '-' ? displayVal : ''}
                             >
                               {displayVal === '-' || displayVal === 'null' || displayVal === null || displayVal === undefined ? (
-                                <span className="text-[#55574f] italic text-2xs">NULL</span>
+                                <span className="text-monokai-comment italic text-2xs">NULL</span>
                               ) : displayVal === '' ? (
-                                <span className="text-[#55574f] text-2xs">""</span>
+                                <span className="text-monokai-comment text-2xs">""</span>
                               ) : (
                                 displayVal
                               )}
@@ -2234,18 +2526,18 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
       </div>
 
       {/* ── 底部状态与操作栏 ── */}
-      <footer className="h-12 border-t border-monokai-border px-5 flex items-center justify-between bg-monokai-surface shrink-0">
+      <footer className="min-h-12 border-t border-monokai-border px-5 py-2 flex flex-wrap gap-2 items-center justify-between bg-monokai-surface shrink-0">
         {/* 左侧状态指示灯与文案 */}
         <div className="flex items-center gap-2 text-meta">
           <div
             className={`w-2 h-2 rounded-full ${
               lifecycleState === 'READY' || lifecycleState === 'SUCCESS'
-                ? 'bg-[#a6e22e]'
+                ? 'bg-monokai-accent'
                 : lifecycleState === 'PARSING' || lifecycleState === 'IMPORTING'
-                ? 'bg-[#e6db74] animate-spin'
+                ? 'bg-monokai-yellow animate-spin'
                 : lifecycleState === 'PARSE_ERROR' || lifecycleState === 'VALIDATION_ERROR'
-                ? 'bg-[#f92672]'
-                : 'bg-[#55574f]'
+                ? 'bg-monokai-pink'
+                : 'bg-monokai-border'
             }`}
           />
           <span className="font-bold text-monokai-fg">
@@ -2272,7 +2564,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
             type="button"
             onClick={handleClose}
             disabled={lifecycleState === 'IMPORTING'}
-            className="h-7 px-3.5 rounded bg-monokai-bg hover:bg-[#34352f] text-[#d8d7cc] hover:text-monokai-fg border border-monokai-border hover:border-[#55574f] text-meta font-medium cursor-pointer transition-colors disabled:opacity-50"
+            className="h-7 px-3.5 rounded bg-monokai-bg hover:bg-monokai-elevated text-monokai-fg border border-monokai-border hover:border-monokai-border-strong text-meta font-medium cursor-pointer transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-monokai-yellow"
           >
             取消
           </button>
@@ -2280,7 +2572,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
             type="button"
             onClick={handleImportClick}
             disabled={lifecycleState !== 'READY'}
-            className="h-7 flex items-center gap-1.5 px-4 rounded bg-[#e6db74] hover:bg-[#d8cc60] active:scale-[0.98] text-[#1e1f1c] text-meta font-bold transition-all shadow-sm cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            className="h-7 flex items-center gap-1.5 px-4 rounded bg-monokai-yellow hover:brightness-110 active:scale-[0.98] text-monokai-bg text-meta font-bold transition-all shadow-sm cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-monokai-yellow/60"
           >
             {lifecycleState === 'IMPORTING' ? (
               <RefreshCw className="w-3.5 h-3.5 animate-spin" />
@@ -2299,9 +2591,9 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
       {/* ── 二次确认覆盖弹窗 ── */}
       {showConfirmModal && (
         <div className="fixed inset-0 z-[1010] bg-black/75 flex items-center justify-center p-4 backdrop-blur-xs animate-fade-in">
-          <div className="w-full max-w-md bg-monokai-surface border border-[#f92672]/60 rounded-xl p-5 shadow-2xl space-y-4 font-sans">
+          <div className="w-full max-w-md bg-monokai-surface border border-monokai-pink/60 rounded-xl p-5 shadow-2xl space-y-4 font-sans">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-[#f92672]/15 border border-[#f92672]/30 flex items-center justify-center text-monokai-pink shrink-0">
+              <div className="w-10 h-10 rounded-full bg-monokai-pink/15 border border-monokai-pink/30 flex items-center justify-center text-monokai-pink shrink-0">
                 <AlertTriangle className="w-5 h-5" />
               </div>
               <div>
@@ -2311,11 +2603,11 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
             </div>
 
             <div className="p-3 rounded bg-monokai-bg border border-monokai-border text-meta space-y-1.5">
-              <p className="text-[#d8d7cc]">
+              <p className="text-monokai-fg">
                 目标表: <code className="text-monokai-yellow font-mono font-bold px-1 py-0.5 bg-monokai-surface border border-monokai-border rounded">{schema}.{tableName}</code>
               </p>
               <p className="text-monokai-comment leading-relaxed">
-                执行【覆盖替换 (Drop & Replace)】将先执行 <code className="text-monokai-pink font-mono px-1 py-0.2 rounded bg-[#f92672]/10 border border-[#f92672]/30">DROP TABLE</code>，原有所有行数据将被彻底重写并重新建表。此操作不可逆！
+                执行【覆盖替换 (Drop & Replace)】将先执行 <code className="text-monokai-pink font-mono px-1 py-0.2 rounded bg-monokai-pink/10 border border-monokai-pink/30">DROP TABLE</code>，原有所有行数据将被彻底重写并重新建表。此操作不可逆！
               </p>
             </div>
 
@@ -2323,14 +2615,14 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
               <button
                 type="button"
                 onClick={() => setShowConfirmModal(false)}
-                className="px-3.5 py-1.5 rounded bg-monokai-bg border border-monokai-border text-meta font-medium text-[#d8d7cc] hover:text-monokai-fg hover:border-[#55574f] cursor-pointer"
+                className="px-3.5 py-1.5 rounded bg-monokai-bg border border-monokai-border text-meta font-medium text-monokai-fg hover:border-monokai-border-strong cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-monokai-yellow"
               >
                 取消
               </button>
               <button
                 type="button"
                 onClick={() => void executeImportPipeline()}
-                className="px-4 py-1.5 rounded bg-[#f92672] hover:bg-[#ff3b82] text-meta font-bold text-white cursor-pointer shadow-md"
+                className="px-4 py-1.5 rounded bg-monokai-pink hover:brightness-110 text-meta font-bold text-white cursor-pointer shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-monokai-pink/60"
               >
                 确认删除并重新建表
               </button>
@@ -2343,7 +2635,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
       {showHelpModal && (
         <div className="fixed inset-0 z-[1010] bg-black/75 flex items-center justify-center p-4 backdrop-blur-xs animate-fade-in">
           <div className="w-full max-w-xl bg-monokai-surface border border-monokai-border rounded-xl p-5 shadow-2xl space-y-4 font-sans">
-            <div className="flex items-center justify-between border-b border-[#34352f] pb-3">
+            <div className="flex items-center justify-between border-b border-monokai-border pb-3">
               <div className="flex items-center gap-2">
                 <HelpCircle className="w-4 h-4 text-monokai-yellow" />
                 <h3 className="text-xs font-bold text-monokai-fg">数据导入指南与格式规范 (Import Guide)</h3>
@@ -2351,33 +2643,33 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
               <button
                 type="button"
                 onClick={() => setShowHelpModal(false)}
-                className="text-monokai-comment hover:text-monokai-fg p-1 rounded hover:bg-[#34352f] cursor-pointer"
+                className="text-monokai-comment hover:text-monokai-fg p-1 rounded hover:bg-monokai-elevated cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="text-meta space-y-3.5 text-[#d8d7cc] leading-relaxed max-h-[60vh] overflow-y-auto custom-scrollbar pr-1">
+            <div className="text-meta space-y-3.5 text-monokai-fg leading-relaxed max-h-[60vh] overflow-y-auto custom-scrollbar pr-1">
               {/* 1. 支持的数据格式 */}
               <div>
                 <h4 className="font-bold text-monokai-fg mb-1.5 flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#66d9ef]" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-monokai-cyan" />
                   <span>1. 支持的数据格式与特性</span>
                 </h4>
                 <div className="grid grid-cols-2 gap-2 text-2xs">
-                  <div className="p-2 rounded bg-monokai-bg border border-[#34352f] space-y-1">
+                  <div className="p-2 rounded bg-monokai-bg border border-monokai-border space-y-1">
                     <span className="font-bold text-monokai-yellow font-mono">CSV / TSV</span>
                     <p className="text-monokai-comment">纯文本表格，支持逗号、制表符(\t)、分号等自定义分隔符，粘贴模式下自动感知制表符。</p>
                   </div>
-                  <div className="p-2 rounded bg-monokai-bg border border-[#34352f] space-y-1">
+                  <div className="p-2 rounded bg-monokai-bg border border-monokai-border space-y-1">
                     <span className="font-bold text-monokai-accent font-mono">Excel (.xlsx / .xls)</span>
                     <p className="text-monokai-comment">完整读取全部工作表，支持隐藏表标记、空表过滤、独立改名及批量一键落库。</p>
                   </div>
-                  <div className="p-2 rounded bg-monokai-bg border border-[#34352f] space-y-1">
+                  <div className="p-2 rounded bg-monokai-bg border border-monokai-border space-y-1">
                     <span className="font-bold text-monokai-cyan font-mono">Parquet</span>
                     <p className="text-monokai-comment">高效列式二进制存储，自带精确类型元数据与统计信息，DuckDB 零拷贝极速载入。</p>
                   </div>
-                  <div className="p-2 rounded bg-monokai-bg border border-[#34352f] space-y-1">
+                  <div className="p-2 rounded bg-monokai-bg border border-monokai-border space-y-1">
                     <span className="font-bold text-monokai-purple font-mono">JSON / JSONL</span>
                     <p className="text-monokai-comment">结构化与按行换行 JSON 数据，自动探测多层嵌套结构并推断字段类型。</p>
                   </div>
@@ -2387,22 +2679,22 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
               {/* 2. 类型推断与转换 */}
               <div>
                 <h4 className="font-bold text-monokai-fg mb-1.5 flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#a6e22e]" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-monokai-accent" />
                   <span>2. 字段映射与类型转换 (Schema Casting)</span>
                 </h4>
                 <p className="text-monokai-comment mb-2 leading-relaxed">
                   系统默认嗅探前 20,480 行样本自动推断类型。可在映射表格中点击类型标签手动切换类型（如 VARCHAR 改为 BIGINT 或 TIMESTAMP），导入时将执行底层精准转换。
                 </p>
-                <div className="rounded border border-[#34352f] overflow-hidden bg-monokai-bg">
+                <div className="rounded border border-monokai-border overflow-hidden bg-monokai-bg">
                   <table className="w-full text-left font-mono text-2xs">
-                    <thead className="bg-monokai-surface text-monokai-comment border-b border-[#34352f]">
+                    <thead className="bg-monokai-surface text-monokai-comment border-b border-monokai-border">
                       <tr>
                         <th className="px-2 py-1">目标类型</th>
                         <th className="px-2 py-1">底层 DuckDB 类型</th>
                         <th className="px-2 py-1">适用数据示例</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-[#2d2e29] text-[#d8d7cc]">
+                    <tbody className="divide-y divide-monokai-border text-monokai-fg">
                       <tr>
                         <td className="px-2 py-1 text-monokai-accent">VARCHAR</td>
                         <td className="px-2 py-1">VARCHAR / TEXT</td>
@@ -2431,7 +2723,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
               {/* 3. 冲突策略说明 */}
               <div>
                 <h4 className="font-bold text-monokai-fg mb-1.5 flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#e6db74]" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-monokai-yellow" />
                   <span>3. 同名表冲突策略</span>
                 </h4>
                 <div className="space-y-1 text-monokai-comment">
@@ -2442,7 +2734,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
               </div>
 
               {/* 4. 性能建议 Blockquote Callout */}
-              <div className="p-2.5 rounded-lg bg-[#2d2e27] border-l-2 border-[#e6db74] text-[#d8d7cc] space-y-1">
+              <div className="p-2.5 rounded-lg bg-monokai-sidebar border-l-2 border-monokai-yellow text-monokai-fg space-y-1">
                 <span className="font-bold text-monokai-yellow flex items-center gap-1">
                   <Sparkles className="w-3.5 h-3.5" />
                   <span>性能黄金建议 (Performance Tip)</span>
@@ -2453,7 +2745,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
               </div>
 
               {/* 5. 官方文档外链 */}
-              <div className="flex items-center justify-between pt-1 border-t border-[#34352f]">
+              <div className="flex items-center justify-between pt-1 border-t border-monokai-border">
                 <span className="text-monokai-comment">官方资源:</span>
                 <a
                   href="https://duckdb.org/docs/data/overview"
@@ -2467,11 +2759,11 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
               </div>
             </div>
 
-            <div className="flex justify-end pt-2 border-t border-[#34352f]">
+            <div className="flex justify-end pt-2 border-t border-monokai-border">
               <button
                 type="button"
                 onClick={() => setShowHelpModal(false)}
-                className="px-4 py-1.5 rounded bg-[#e6db74] hover:bg-[#d8cc60] text-[#1e1f1c] text-meta font-bold cursor-pointer transition-colors shadow-xs"
+                className="px-4 py-1.5 rounded bg-monokai-yellow hover:brightness-110 text-monokai-bg text-meta font-bold cursor-pointer transition-colors shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-monokai-yellow/60"
               >
                 我知道了 (OK)
               </button>
@@ -2483,7 +2775,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
       {showSqlPreviewModal && (
         <div className="fixed inset-0 z-[1010] bg-black/75 flex items-center justify-center p-4 backdrop-blur-xs animate-fade-in">
           <div className="w-full max-w-2xl bg-monokai-surface border border-monokai-border rounded-xl p-5 shadow-2xl space-y-4 font-sans">
-            <div className="flex items-center justify-between border-b border-[#34352f] pb-3">
+            <div className="flex items-center justify-between border-b border-monokai-border pb-3">
               <div className="flex items-center gap-2">
                 <Code2 className="w-4 h-4 text-monokai-cyan" />
                 <h3 className="text-xs font-bold text-monokai-fg">DuckDB SQL 执行预览 (SQL Preview)</h3>
@@ -2491,25 +2783,25 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
               <button
                 type="button"
                 onClick={() => setShowSqlPreviewModal(false)}
-                className="text-monokai-comment hover:text-monokai-fg p-1 rounded hover:bg-[#34352f] cursor-pointer"
+                className="text-monokai-comment hover:text-monokai-fg p-1 rounded hover:bg-monokai-elevated cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="text-meta space-y-3 text-[#d8d7cc]">
+            <div className="text-meta space-y-3 text-monokai-fg">
               <p className="text-monokai-comment leading-relaxed">
                 以下为基于当前配置（Schema: <code className="text-monokai-yellow font-mono">{schema}</code>、表名: <code className="text-monokai-yellow font-mono">{tableName || 'auto'}</code>、字段映射与冲突策略）实时生成的底层 DuckDB SQL 语句：
               </p>
 
               <div className="relative group">
-                <pre className="p-3.5 rounded-lg bg-[#181916] border border-monokai-border text-meta font-mono text-monokai-fg max-h-72 overflow-auto custom-scrollbar leading-relaxed whitespace-pre-wrap select-text">
+                <pre className="p-3.5 rounded-lg bg-monokai-bg border border-monokai-border text-meta font-mono text-monokai-fg max-h-72 overflow-auto custom-scrollbar leading-relaxed whitespace-pre-wrap select-text">
                   {generatedDuckDBSql}
                 </pre>
                 <button
                   type="button"
                   onClick={handleCopySql}
-                  className="absolute top-2.5 right-2.5 flex items-center gap-1.5 px-2.5 py-1 rounded bg-monokai-surface border border-monokai-border hover:border-[#66d9ef] text-2xs font-mono text-[#d8d7cc] hover:text-monokai-cyan transition-colors cursor-pointer shadow-xs"
+                  className="absolute top-2.5 right-2.5 flex items-center gap-1.5 px-2.5 py-1 rounded bg-monokai-surface border border-monokai-border hover:border-monokai-cyan text-2xs font-mono text-monokai-fg hover:text-monokai-cyan transition-colors cursor-pointer shadow-xs"
                 >
                   {copiedSql ? (
                     <>
@@ -2525,7 +2817,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
                 </button>
               </div>
 
-              <div className="p-2.5 rounded-lg bg-[#2d2e27] border-l-2 border-[#66d9ef] space-y-1">
+              <div className="p-2.5 rounded-lg bg-monokai-sidebar border-l-2 border-monokai-cyan space-y-1">
                 <span className="font-bold text-monokai-cyan flex items-center gap-1">
                   <Database className="w-3.5 h-3.5" />
                   <span>零拷贝向量化流式执行机制</span>
@@ -2536,24 +2828,24 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
               </div>
             </div>
 
-            <div className="flex items-center justify-between pt-2 border-t border-[#34352f]">
+            <div className="flex items-center justify-between pt-2 border-t border-monokai-border">
               <span className="text-2xs text-monokai-comment font-mono">
-                {parseOptions.format === 'Excel' && sheets.length > 0
-                  ? `Excel 多工作表模式 · 勾选 ${sheets.filter(s => s.selected).length} 个表`
+                {(parseOptions.format === 'Excel' || parseOptions.format === 'DuckDB') && sheets.length > 0
+                  ? `${parseOptions.format === 'DuckDB' ? 'DuckDB 多数据表' : 'Excel 多工作表'}模式 · 勾选 ${sheets.filter(s => s.selected).length} 个表`
                   : `单表模式 · ${columns.length} 个字段列`}
               </span>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={handleCopySql}
-                  className="px-3.5 py-1.5 rounded bg-monokai-bg border border-monokai-border hover:border-[#55574f] text-[#d8d7cc] hover:text-monokai-fg text-meta font-medium cursor-pointer"
+                  className="px-3.5 py-1.5 rounded bg-monokai-bg border border-monokai-border hover:border-monokai-cyan text-monokai-fg hover:text-monokai-cyan text-meta font-medium cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-monokai-cyan"
                 >
                   复制语句
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowSqlPreviewModal(false)}
-                  className="px-4 py-1.5 rounded bg-[#e6db74] hover:bg-[#d8cc60] text-[#1e1f1c] text-meta font-bold cursor-pointer transition-colors"
+                  className="px-4 py-1.5 rounded bg-monokai-yellow hover:brightness-110 text-monokai-bg text-meta font-bold cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-monokai-yellow/60"
                 >
                   关闭 (Close)
                 </button>
@@ -2567,7 +2859,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
       {showRecentImportsModal && (
         <div className="fixed inset-0 z-[1010] bg-black/75 flex items-center justify-center p-4 backdrop-blur-xs animate-fade-in">
           <div className="w-full max-w-xl bg-monokai-surface border border-monokai-border rounded-xl p-5 shadow-2xl space-y-4 font-sans">
-            <div className="flex items-center justify-between border-b border-[#34352f] pb-3">
+            <div className="flex items-center justify-between border-b border-monokai-border pb-3">
               <div className="flex items-center gap-2">
                 <History className="w-4 h-4 text-monokai-accent" />
                 <h3 className="text-xs font-bold text-monokai-fg">近期数据导入历史 (Recent Imports)</h3>
@@ -2598,7 +2890,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowRecentImportsModal(false)}
-                  className="text-monokai-comment hover:text-monokai-fg p-1 rounded hover:bg-[#34352f] cursor-pointer"
+                  className="text-monokai-comment hover:text-monokai-fg p-1 rounded hover:bg-monokai-elevated cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -2607,9 +2899,9 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
 
             <div className="max-h-[60vh] overflow-y-auto custom-scrollbar space-y-2 pr-1">
               {recentImportsList.length === 0 ? (
-                <div className="py-12 flex flex-col items-center justify-center text-center space-y-2 bg-monokai-bg rounded-lg border border-[#34352f]">
-                  <Database className="w-8 h-8 text-[#55574f]" />
-                  <p className="text-[11.5px] font-medium text-[#d8d7cc]">暂无近期导入记录</p>
+                <div className="py-12 flex flex-col items-center justify-center text-center space-y-2 bg-monokai-bg rounded-lg border border-monokai-border">
+                  <Database className="w-8 h-8 text-monokai-comment" />
+                  <p className="text-[11.5px] font-medium text-monokai-fg">暂无近期导入记录</p>
                   <p className="text-2xs text-monokai-comment font-mono max-w-xs">
                     在当前会话中通过本地文件、远程 URL 或文本导入的数据表将自动登记于此。
                   </p>
@@ -2618,7 +2910,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
                 recentImportsList.map(item => (
                   <div
                     key={item.id}
-                    className="p-3 rounded-lg bg-monokai-bg border border-[#34352f] hover:border-[#55574f] transition-all flex items-center justify-between gap-3 text-meta"
+                    className="p-3 rounded-lg bg-monokai-bg border border-monokai-border hover:border-monokai-border-strong transition-all flex items-center justify-between gap-3 text-meta"
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="w-8 h-8 rounded bg-monokai-surface border border-monokai-border flex items-center justify-center text-monokai-accent shrink-0">
@@ -2627,7 +2919,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
                       <div className="min-w-0 space-y-0.5">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-bold text-monokai-fg truncate font-mono">{item.tableName}</span>
-                          <span className="text-[9.5px] font-mono text-monokai-cyan bg-[#66d9ef]/10 border border-[#66d9ef]/25 px-1.5 py-0.2 rounded">
+                          <span className="text-[9.5px] font-mono text-monokai-cyan bg-monokai-cyan/10 border border-monokai-cyan/25 px-1.5 py-0.2 rounded">
                             {item.rowCount ? `${item.rowCount.toLocaleString()} 行` : '已导入'}
                           </span>
                         </div>
@@ -2643,11 +2935,12 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
                         onClick={() => {
                           const sql = `SELECT * FROM "${item.tableName}" LIMIT 50;`;
                           handleClose();
+                          useAppStore.getState().setActiveTab(Tab.SQL);
                           setTimeout(() => {
                             window.dispatchEvent(new CustomEvent('duckdb_execute_sql', { detail: { sql } }));
                           }, 100);
                         }}
-                        className="px-2 py-1 rounded bg-monokai-surface border border-monokai-border hover:border-[#66d9ef] text-2xs font-mono text-monokai-cyan hover:bg-[#66d9ef]/10 transition-colors cursor-pointer flex items-center gap-1"
+                        className="px-2 py-1 rounded bg-monokai-surface border border-monokai-border hover:border-monokai-cyan text-2xs font-mono text-monokai-cyan hover:bg-monokai-cyan/10 transition-colors cursor-pointer flex items-center gap-1"
                         title="在 SQL 编辑器中直接执行 SELECT 查询"
                       >
                         <Code2 className="w-3 h-3" />
@@ -2663,7 +2956,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
                             toastService.error('复制失败');
                           }
                         }}
-                        className="px-2 py-1 rounded bg-monokai-surface border border-monokai-border hover:border-[#a6e22e] text-2xs font-mono text-[#d8d7cc] hover:text-monokai-accent transition-colors cursor-pointer flex items-center gap-1"
+                        className="px-2 py-1 rounded bg-monokai-surface border border-monokai-border hover:border-monokai-accent text-2xs font-mono text-monokai-fg hover:text-monokai-accent transition-colors cursor-pointer flex items-center gap-1"
                         title="复制数据表名"
                       >
                         <Copy className="w-3 h-3" />
@@ -2675,11 +2968,11 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
               )}
             </div>
 
-            <div className="flex justify-end pt-2 border-t border-[#34352f]">
+            <div className="flex justify-end pt-2 border-t border-monokai-border">
               <button
                 type="button"
                 onClick={() => setShowRecentImportsModal(false)}
-                className="px-4 py-1.5 rounded bg-monokai-bg border border-monokai-border hover:border-[#55574f] text-[#d8d7cc] hover:text-monokai-fg text-meta font-medium cursor-pointer"
+                className="px-4 py-1.5 rounded bg-monokai-bg border border-monokai-border hover:border-monokai-border-strong text-monokai-fg hover:text-monokai-fg text-meta font-medium cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-monokai-yellow"
               >
                 完成 (Done)
               </button>

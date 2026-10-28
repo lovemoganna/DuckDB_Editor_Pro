@@ -1,0 +1,542 @@
+{
+  "source": "https://docs.google.com/spreadsheets/d/1ivHFGOZy1eDFvSxFJo2ARNm81HoK9TA76TkU7J-1sto/edit",
+  "sheet": "003 SQL分类看板",
+  "cases": [
+    {
+      "name": "row 9: SELECT Statement\n(全量查询语句)",
+      "sql": "SELECT * FROM (VALUES (1,'Alice','Sales',5000),(2,'Bob','Tech',7000)) t(id,name,dept,salary);",
+      "sourceRow": 9,
+      "category": "1. 查看/选择数据\n浏览整表数据网格",
+      "syntax": "SELECT ...",
+      "expectedSemantics": "输入源 Relation → 全量扫描输出查询结果 Relation"
+    },
+    {
+      "name": "row 9: Temporary Table\n(连接级临时表)",
+      "sql": "CREATE TEMP TABLE tt AS SELECT * FROM (VALUES (1,'Alice'),(2,'Bob')) t(id,name);\nSELECT * FROM tt ORDER BY id;",
+      "sourceRow": 9,
+      "category": "高频｜临时沙盒计算\n中间结果物理落盘加速 (Excel 无对应)",
+      "syntax": "CREATE TEMP TABLE",
+      "expectedSemantics": "输入 Relation → 写入当前会话专属临时物理表存储 (temp.main)"
+    },
+    {
+      "name": "row 10: Projection / SELECT Clause\n(列级投影)",
+      "sql": "SELECT name, salary FROM (VALUES (1,'Alice',5000),(2,'Bob',7000)) t(id,name,salary);",
+      "sourceRow": 10,
+      "category": "1. 查看/选择数据\n选取特定几列（隐藏无关列）",
+      "syntax": "SELECT col1, col2 FROM ...",
+      "expectedSemantics": "N 列输入 Relation → M 列目标投影 Relation（行数不变，列宽缩减或表达式新增）"
+    },
+    {
+      "name": "row 10: Temporary View\n(连接级临时视图)",
+      "sql": "CREATE TEMP VIEW tv AS SELECT * FROM (VALUES (1,'Alice'),(2,'Bob')) t(id,name);\nSELECT * FROM tv ORDER BY id;",
+      "sourceRow": 10,
+      "category": "临时查询别名\n动态命名区域复用 (会话级虚拟逻辑)",
+      "syntax": "CREATE TEMP VIEW",
+      "expectedSemantics": "Query 逻辑定义 → 注册为会话内动态计算虚拟关系 (零物理存储开销)"
+    },
+    {
+      "name": "row 11: VALUES Clause\n(固定行构造器)",
+      "sql": "VALUES (1,'Alice','Sales'), (2,'Bob','Tech'), (3,'Charlie','Sales');",
+      "sourceRow": 11,
+      "category": "1. 查看/选择数据\n手工录入静态小表格",
+      "syntax": "VALUES (...), (...)",
+      "expectedSemantics": "无输入数据源 → 生成 N 行 M 列内存临时 Relation 数据流"
+    },
+    {
+      "name": "row 11: Temporary Scalar Macro\n(连接级临时标量宏)",
+      "sql": "CREATE TEMP MACRO add_tax(p) AS p * 1.1;\nSELECT name, add_tax(salary) AS total FROM (VALUES ('Alice',5000)) t(name,salary);",
+      "sourceRow": 11,
+      "category": "会话自定义函数\n临时 LAMBDA 标量计算 (统一会话公式)",
+      "syntax": "CREATE TEMP MACRO",
+      "expectedSemantics": "标量表达式定义 → 注入会话表达式引擎 (用于 SELECT/WHERE 逐行计算，不直接产生 Relation)"
+    },
+    {
+      "name": "row 12: FROM Clause\n(数据源子句)",
+      "sql": "SELECT x FROM (VALUES (1), (2)) AS t(x);",
+      "sourceRow": 12,
+      "category": "1. 查看/选择数据\n指定数据源（切换引用表）",
+      "syntax": "FROM relation",
+      "expectedSemantics": "物理表/视图/宏/文件 → 进入当前查询执行引擎的输入 Relation"
+    },
+    {
+      "name": "row 12: Temporary Table Macro\n(连接级临时表宏)",
+      "sql": "CREATE TEMP MACRO get_dept(d) AS TABLE SELECT * FROM (VALUES ('Sales','Alice'),('Tech','Bob')) t(dept,name) WHERE dept = d;\nSELECT * FROM get_dept('Sales');",
+      "sourceRow": 12,
+      "category": "参数化动态表\n溢出数组动态生成 (会话级表函数)",
+      "syntax": "CREATE TEMP MACRO ... AS TABLE",
+      "expectedSemantics": "参数化查询定义 → 封装为可传入参数并输出动态 Relation 的会话级函数流"
+    },
+    {
+      "name": "row 13: Table Alias / AS alias\n(关系别名)",
+      "sql": "SELECT t.name FROM (VALUES ('Alice'),('Bob')) AS t(name);",
+      "sourceRow": 13,
+      "category": "2. 关系命名与别名\n简化引用名称（区域简写）",
+      "syntax": "FROM (...) AS t(col)",
+      "expectedSemantics": "匿名/复杂嵌套 Relation → 赋予当前 Query 局部符号绑定的命名 Relation"
+    },
+    {
+      "name": "row 13: Temporary Sequence\n(连接级临时序列)",
+      "sql": "CREATE TEMP SEQUENCE tmp_seq START 1;\nSELECT nextval('tmp_seq') AS id;",
+      "sourceRow": 13,
+      "category": "会话级自增编号\n临时流水号生成器 (Excel 无直接对应)",
+      "syntax": "CREATE TEMP SEQUENCE",
+      "expectedSemantics": "序列定义 → 会话级状态对象；nextval() 每次返回一个 BIGINT 标量，不直接生成 Relation"
+    },
+    {
+      "name": "row 14: WHERE Clause\n(行级前置过滤)",
+      "sql": "SELECT * FROM (VALUES (1,'Alice',5000),(2,'Bob',7000)) t(id,name,salary) WHERE salary >= 6000;",
+      "sourceRow": 14,
+      "category": "3. 筛选与行过滤\n基础行过滤（多条件勾选）",
+      "syntax": "WHERE condition",
+      "expectedSemantics": "N 行输入 Relation → ≤N 行过滤结果 Relation（列结构不变，按行条件快速收敛）"
+    },
+    {
+      "name": "row 14: Prepared Statement\n(连接级预备语句)",
+      "sql": "PREPARE q AS SELECT * FROM (VALUES (1,'Alice'),(2,'Bob')) t(id,name) WHERE id >= $1;\nEXECUTE q(2);\nDEALLOCATE q;",
+      "sourceRow": 14,
+      "category": "参数化重复查询\n预编译查询模板复用",
+      "syntax": "PREPARE / EXECUTE / DEALLOCATE",
+      "expectedSemantics": "SQL 模板 + 参数位 → 会话级已准备语句；EXECUTE 时才产生标量或 Relation 结果"
+    },
+    {
+      "name": "row 15: HAVING Clause\n(聚合组后置过滤)",
+      "sql": "SELECT dept, SUM(salary) AS total FROM (VALUES ('Sales',5000),('Sales',6000),('Tech',7000)) t(dept,salary) GROUP BY dept HAVING SUM(salary) > 8000;",
+      "sourceRow": 15,
+      "category": "3. 筛选与行过滤\n汇总指标过滤（透视表值筛选）",
+      "syntax": "HAVING aggregate_condition",
+      "expectedSemantics": "G 组聚合 Relation → ≤G 组满足条件的聚合 Relation（仅保留符合组指标的记录）"
+    },
+    {
+      "name": "row 15: Attached Database\n(会话级附加数据库)",
+      "sql": "ATTACH ':memory:' AS aux;\nCREATE TABLE aux.t(i INTEGER);\nSELECT * FROM aux.t;\nDETACH aux;",
+      "sourceRow": 15,
+      "category": "挂载多个数据库文件\n跨库查询 / 数据搬运",
+      "syntax": "ATTACH / DETACH",
+      "expectedSemantics": "数据库文件 → 加入当前会话可解析 Catalog 集合；DETACH 后从名称空间移除"
+    },
+    {
+      "name": "row 16: QUALIFY Clause\n(窗口专用过滤)",
+      "sql": "SELECT * FROM (VALUES ('Alice','Sales',5000),('Charlie','Sales',6000),('Bob','Tech',7000)) t(name,dept,salary) QUALIFY ROW_NUMBER() OVER (PARTITION BY dept ORDER BY salary DESC) = 1;",
+      "sourceRow": 16,
+      "category": "3. 筛选与行过滤\n排名位次筛选（每组前 N 名）",
+      "syntax": "QUALIFY window_condition",
+      "expectedSemantics": "窗口计算 Relation → 依窗口排名/序号过滤的子集 Relation（极大消除嵌套开销）"
+    },
+    {
+      "name": "row 16: Default Database / Schema\n(会话级默认命名空间)",
+      "sql": "ATTACH ':memory:' AS aux2;\nCREATE SCHEMA aux2.s;\nUSE aux2.s;\nCREATE TABLE t(i INTEGER);",
+      "sourceRow": 16,
+      "category": "切换默认数据库 / Schema\n省略全限定名",
+      "syntax": "USE catalog[.schema]",
+      "expectedSemantics": "会话命名空间状态切换 → 后续未限定对象名解析目标改变；Relation 本身不变化"
+    },
+    {
+      "name": "row 17: ORDER BY Clause\n(排序子句)",
+      "sql": "SELECT * FROM (VALUES (2,'Bob'),(1,'Alice')) t(id,name) ORDER BY id ASC;",
+      "sourceRow": 17,
+      "category": "4. 排序与取前 N 行\n确定性展示次序（升序/降序）",
+      "syntax": "ORDER BY col [ASC|DESC]",
+      "expectedSemantics": "无序输入 Relation → 具有确定性物理/逻辑展现次序的有序 Relation"
+    },
+    {
+      "name": "row 17: Catalog Search Path\n(会话级搜索路径)",
+      "sql": "ATTACH ':memory:' AS db1;\nATTACH ':memory:' AS db2;\nSET search_path = 'db1,db2';",
+      "sourceRow": 17,
+      "category": "跨多个 Catalog / Schema 查名\n控制对象解析优先级",
+      "syntax": "SET search_path",
+      "expectedSemantics": "会话名称解析规则更新 → 后续对象引用按路径顺序绑定；不直接改变 Relation"
+    },
+    {
+      "name": "row 18: LIMIT Clause\n(行数限制子句)",
+      "sql": "SELECT * FROM (VALUES ('Alice',5000),('Bob',7000),('Charlie',6000)) t(name,salary) ORDER BY salary DESC LIMIT 2;",
+      "sourceRow": 18,
+      "category": "4. 排序与取前 N 行\n截取最高/头部数据（Top N）",
+      "syntax": "LIMIT n [OFFSET m]",
+      "expectedSemantics": "N 行 Relation → min(N, n) 行截取 Relation（与 ORDER BY 结合极速生成榜单）"
+    },
+    {
+      "name": "row 19: DISTINCT Clause\n(结果集去重)",
+      "sql": "SELECT DISTINCT dept FROM (VALUES ('Sales'),('Tech'),('Sales'),('Tech')) t(dept);",
+      "sourceRow": 19,
+      "category": "5. 消除重复\n提取唯一不重复清单",
+      "syntax": "SELECT DISTINCT col1, ...",
+      "expectedSemantics": "含冗余行 Relation → 行组合完全唯一的紧凑 Relation（基于选定列收敛基数）"
+    },
+    {
+      "name": "row 19: Table\n(持久化物理基表)",
+      "sql": "CREATE TABLE t AS SELECT * FROM (VALUES (1,'Alice'),(2,'Bob')) v(id,name);\nSELECT * FROM t ORDER BY id;",
+      "sourceRow": 19,
+      "category": "高频｜持久化数据落盘\n保存为正式工作表 (跨连接全局共享)",
+      "syntax": "CREATE TABLE",
+      "expectedSemantics": "输入 Relation / 结构定义 → 写入数据库持久化存储文件 (物理持久化)"
+    },
+    {
+      "name": "row 20: GROUP BY Clause\n(分组子句)",
+      "sql": "SELECT dept FROM (VALUES ('Sales'),('Sales'),('Tech')) t(dept) GROUP BY dept;",
+      "sourceRow": 20,
+      "category": "6. 分类汇总与聚合\n按维度折叠（透视表行标签）",
+      "syntax": "GROUP BY expr",
+      "expectedSemantics": "N 行明细记录 Relation → G 个独立分组的中间聚合态 Relation"
+    },
+    {
+      "name": "row 20: View\n(持久化逻辑视图)",
+      "sql": "CREATE VIEW v AS SELECT * FROM (VALUES (1,'Alice'),(2,'Bob')) t(id,name);\nSELECT * FROM v ORDER BY id;",
+      "sourceRow": 20,
+      "category": "高频｜持久化查询视图\nPower Query 仅创建连接 (逻辑解耦)",
+      "syntax": "CREATE VIEW",
+      "expectedSemantics": "Query 逻辑定义 → 注册为库级 Schema 虚拟关系对象 (动态执行，杜绝冗余副本)"
+    },
+    {
+      "name": "row 21: COUNT Aggregate Function\n(计数聚合函数)",
+      "sql": "SELECT dept, COUNT(*) AS head_count FROM (VALUES ('Sales',5000),('Sales',6000),('Tech',7000)) t(dept,salary) GROUP BY dept;",
+      "sourceRow": 21,
+      "category": "6. 分类汇总与聚合\n统计行数/非空计数",
+      "syntax": "COUNT(*) / COUNT(col)",
+      "expectedSemantics": "多行/组内多值输入 → 单个整数统计标量（将多行明细折叠压缩为单个汇总数值）"
+    },
+    {
+      "name": "row 21: Scalar Macro\n(持久化标量宏)",
+      "sql": "CREATE MACRO bonus_calc(s) AS s * 0.15;\nSELECT name, bonus_calc(salary) AS bonus FROM (VALUES ('Alice',5000)) t(name,salary);",
+      "sourceRow": 21,
+      "category": "全局业务公式\n加载项 Add-in 自定义标量函数 (全局复用)",
+      "syntax": "CREATE MACRO",
+      "expectedSemantics": "标量表达式定义 → 持久化登记至数据库 Catalog (全局标量计算规则，不直接产生 Relation)"
+    },
+    {
+      "name": "row 22: SUM Aggregate Function\n(求和聚合函数)",
+      "sql": "SELECT dept, SUM(salary) AS total_salary FROM (VALUES ('Sales',5000),('Sales',6000),('Tech',7000)) t(dept,salary) GROUP BY dept;",
+      "sourceRow": 22,
+      "category": "6. 分类汇总与聚合\n数值累加求和",
+      "syntax": "SUM(expr)",
+      "expectedSemantics": "多行数值序列 → 单一求和标量（配合 GROUP BY 产生组级总和列）"
+    },
+    {
+      "name": "row 22: Table Macro\n(持久化表宏)",
+      "sql": "CREATE MACRO filter_by_min_sal(ms) AS TABLE SELECT * FROM (VALUES ('Alice',5000),('Bob',7000)) t(name,salary) WHERE salary >= ms;\nSELECT * FROM filter_by_min_sal(6000);",
+      "sourceRow": 22,
+      "category": "参数化报表生成器\n全局动态行集生成 (库级表宏)",
+      "syntax": "CREATE MACRO ... AS TABLE",
+      "expectedSemantics": "参数化查询定义 → 持久化登记至 Catalog 作为全局参数化 Relation 生成器"
+    },
+    {
+      "name": "row 23: AVG Aggregate Function\n(均值聚合函数)",
+      "sql": "SELECT dept, AVG(salary) AS avg_salary FROM (VALUES ('Sales',5000),('Sales',6000),('Tech',7000)) t(dept,salary) GROUP BY dept;",
+      "sourceRow": 23,
+      "category": "6. 分类汇总与聚合\n计算算术平均值",
+      "syntax": "AVG(expr)",
+      "expectedSemantics": "多行数值序列 → 单一浮点平均值标量（折叠多行样本为集中趋势指标）"
+    },
+    {
+      "name": "row 23: Schema\n(持久化命名空间)",
+      "sql": "CREATE SCHEMA analytics;\nCREATE TABLE analytics.t(i INTEGER);",
+      "sourceRow": 23,
+      "category": "对象分组与命名空间\n按业务域隔离同名对象",
+      "syntax": "CREATE SCHEMA",
+      "expectedSemantics": "Catalog 结构 → 新增持久 Schema 命名空间；不直接产生 Relation"
+    },
+    {
+      "name": "row 24: MIN Aggregate Function\n(极小值聚合函数)",
+      "sql": "SELECT dept, MIN(salary) AS min_sal FROM (VALUES ('Sales',5000),('Sales',6000),('Tech',7000)) t(dept,salary) GROUP BY dept;",
+      "sourceRow": 24,
+      "category": "6. 分类汇总与聚合\n提取组内/全表极小值",
+      "syntax": "MIN(expr)",
+      "expectedSemantics": "多行字段样本 → 对应数据类型的单个极小值标量"
+    },
+    {
+      "name": "row 24: Sequence\n(持久化序列)",
+      "sql": "CREATE SEQUENCE id_seq START 1;\nSELECT nextval('id_seq') AS id;",
+      "sourceRow": 24,
+      "category": "持久自增编号\n全局流水号 / 主键编号",
+      "syntax": "CREATE SEQUENCE",
+      "expectedSemantics": "序列状态持久化 → nextval() 推进并返回标量；不直接生成 Relation"
+    },
+    {
+      "name": "row 25: MAX Aggregate Function\n(极大值聚合函数)",
+      "sql": "SELECT dept, MAX(salary) AS max_sal FROM (VALUES ('Sales',5000),('Sales',6000),('Tech',7000)) t(dept,salary) GROUP BY dept;",
+      "sourceRow": 25,
+      "category": "6. 分类汇总与聚合\n提取组内/全表极大值",
+      "syntax": "MAX(expr)",
+      "expectedSemantics": "多行字段样本 → 对应数据类型的单个极大值标量"
+    },
+    {
+      "name": "row 25: Index\n(持久化二级索引)",
+      "sql": "CREATE TABLE idx_demo(id INTEGER, name VARCHAR);\nCREATE INDEX idx_demo_id ON idx_demo(id);",
+      "sourceRow": 25,
+      "category": "高选择性点查加速\n唯一性约束辅助",
+      "syntax": "CREATE [UNIQUE] INDEX",
+      "expectedSemantics": "Table 数据 → 建立持久索引访问路径；输出 Relation 结构不变，优化器可改变扫描方式"
+    },
+    {
+      "name": "row 26: OVER Clause\n(窗口子句)",
+      "sql": "SELECT name, salary, SUM(salary) OVER (ORDER BY salary) AS run_sum FROM (VALUES ('Alice',5000),('Bob',7000)) t(name,salary);",
+      "sourceRow": 26,
+      "category": "7. 组内排名与时序分析\n声明窗口分析上下文",
+      "syntax": "function() OVER (...)",
+      "expectedSemantics": "明细 Relation → 附加计算上下文属性（行数保持 1:1，绝不折叠底层数据行）"
+    },
+    {
+      "name": "row 26: User-Defined Type\n(持久化自定义类型)",
+      "sql": "CREATE TYPE mood AS ENUM ('happy','sad');\nCREATE TABLE people(id INTEGER, state mood);",
+      "sourceRow": 26,
+      "category": "统一业务字段类型\n枚举 / STRUCT / UNION 复用",
+      "syntax": "CREATE TYPE",
+      "expectedSemantics": "类型定义 → 注册为 Catalog 数据类型；不产生 Relation，后续表列可直接引用"
+    },
+    {
+      "name": "row 27: WINDOW Clause\n(命名窗口子句)",
+      "sql": "SELECT name, SUM(salary) OVER w, AVG(salary) OVER w FROM (VALUES ('Alice',5000),('Bob',7000)) t(name,salary) WINDOW w AS (ORDER BY salary);",
+      "sourceRow": 27,
+      "category": "7. 组内排名与时序分析\n窗口规则命名与复用",
+      "syntax": "WINDOW w AS (...)",
+      "expectedSemantics": "查询语法修饰 → 为窗口分区排序定义命名别名，执行期零额外开销"
+    },
+    {
+      "name": "row 28: ROW_NUMBER Window Function\n(行号窗口函数)",
+      "sql": "SELECT name, dept, ROW_NUMBER() OVER (PARTITION BY dept ORDER BY salary DESC) AS seq FROM (VALUES ('Alice','Sales',5000),('Charlie','Sales',6000),('Bob','Tech',7000)) t(name,dept,salary);",
+      "sourceRow": 28,
+      "category": "7. 组内排名与时序分析\n连续自然序号（组内流水号）",
+      "syntax": "ROW_NUMBER() OVER (...)",
+      "expectedSemantics": "原始 Relation → 新增连续整数序列列（行数严格保持不变，标定绝对物理位次）"
+    },
+    {
+      "name": "row 29: RANK Window Function\n(排名窗口函数)",
+      "sql": "SELECT name, salary, RANK() OVER (ORDER BY salary DESC) AS rank_no FROM (VALUES ('Alice',6000),('Bob',7000),('Charlie',6000)) t(name,salary);",
+      "sourceRow": 29,
+      "category": "7. 组内排名与时序分析\n业务名次（支持同分跳号）",
+      "syntax": "RANK() OVER (...)",
+      "expectedSemantics": "原始 Relation → 新增业务名次列（行数保持 1:1，建立严谨的竞争评级）"
+    },
+    {
+      "name": "row 30: LAG Window Function\n(前行取值窗口函数)",
+      "sql": "SELECT name, salary, LAG(salary) OVER (ORDER BY salary) AS prev_sal, salary - LAG(salary) OVER (ORDER BY salary) AS diff FROM (VALUES ('Alice',5000),('Charlie',6000),('Bob',7000)) t(name,salary);",
+      "sourceRow": 30,
+      "category": "7. 组内排名与时序分析\n抓取上期数值做增量环比",
+      "syntax": "LAG(col, offset) OVER (...)",
+      "expectedSemantics": "原始明细 Relation → 新增时序历史回溯列（首行或越界自动填充 NULL）"
+    },
+    {
+      "name": "row 31: LEAD Window Function\n(后行取值窗口函数)",
+      "sql": "SELECT name, salary, LEAD(salary) OVER (ORDER BY salary) AS next_sal FROM (VALUES ('Alice',5000),('Charlie',6000),('Bob',7000)) t(name,salary);",
+      "sourceRow": 31,
+      "category": "7. 组内排名与时序分析\n抓取下期数值做前瞻比对",
+      "syntax": "LEAD(col, offset) OVER (...)",
+      "expectedSemantics": "原始明细 Relation → 新增时序未来前瞻列（尾行或越界自动填充 NULL）"
+    },
+    {
+      "name": "row 32: INNER JOIN\n(内连接)",
+      "sql": "SELECT l.id, l.name, r.bonus FROM (VALUES (1,'Alice'),(2,'Bob')) l(id,name) INNER JOIN (VALUES (2,800),(3,500)) r(id,bonus) USING(id);",
+      "sourceRow": 32,
+      "category": "8. 横向关联与匹配 (JOIN)\n仅保留双方完全匹配记录",
+      "syntax": "a INNER JOIN b ON cond",
+      "expectedSemantics": "两张独立 Relation → 仅保留两侧匹配键交叉项的复合宽表 Relation"
+    },
+    {
+      "name": "row 33: LEFT JOIN\n(左外连接)",
+      "sql": "SELECT l.id, l.name, r.bonus FROM (VALUES (1,'Alice'),(2,'Bob')) l(id,name) LEFT JOIN (VALUES (2,800)) r(id,bonus) USING(id);",
+      "sourceRow": 33,
+      "category": "8. 横向关联与匹配 (JOIN)\n跨表匹配补充属性（查表补列）",
+      "syntax": "a LEFT JOIN b ON cond",
+      "expectedSemantics": "主 Relation (左) + 辅 Relation (右) → 维持主表行数基数且横向扩充新属性列"
+    },
+    {
+      "name": "row 34: RIGHT JOIN\n(右外连接)",
+      "sql": "SELECT COALESCE(l.id,r.id) AS id, l.name, r.dept FROM (VALUES (1,'Alice')) l(id,name) RIGHT JOIN (VALUES (1,'Sales'),(2,'Tech')) r(id,dept) USING(id);",
+      "sourceRow": 34,
+      "category": "8. 横向关联与匹配 (JOIN)\n反向对齐（保留右表全量）",
+      "syntax": "a RIGHT JOIN b ON cond",
+      "expectedSemantics": "左 Relation + 右 Relation → 维持右表行数基数且横向补全左表匹配属性"
+    },
+    {
+      "name": "row 35: FULL JOIN\n(全外连接)",
+      "sql": "SELECT COALESCE(l.id,r.id) AS id, l.name, r.dept FROM (VALUES (1,'Alice'),(2,'Bob')) l(id,name) FULL JOIN (VALUES (2,'Tech'),(3,'HR')) r(id,dept) USING(id);",
+      "sourceRow": 35,
+      "category": "8. 横向关联与匹配 (JOIN)\n双方全景对齐（两表合并差集）",
+      "syntax": "a FULL JOIN b ON cond",
+      "expectedSemantics": "两个输入 Relation → 包含双方全部键值的最全宽表 Relation（不丢弃任何单边记录）"
+    },
+    {
+      "name": "row 36: UNION\n(并集去重)",
+      "sql": "SELECT * FROM (VALUES (1,'Alice'),(2,'Bob')) t(id,name) UNION SELECT * FROM (VALUES (1,'Alice'),(3,'Charlie')) u(id,name);",
+      "sourceRow": 36,
+      "category": "9. 纵向追加与集合计算\n多表纵向堆叠并全局去重",
+      "syntax": "q1 UNION q2",
+      "expectedSemantics": "两个同构 Relation → 纵向合并且全局去重的单一 Relation（行数 ≤ 两表总和）"
+    },
+    {
+      "name": "row 37: UNION ALL\n(并集保留重复)",
+      "sql": "SELECT * FROM (VALUES (1,'Alice'),(2,'Bob')) t(id,name) UNION ALL SELECT * FROM (VALUES (1,'Alice'),(3,'Charlie')) u(id,name);",
+      "sourceRow": 37,
+      "category": "9. 纵向追加与集合计算\n极速无损堆叠（追加查询）",
+      "syntax": "q1 UNION ALL q2",
+      "expectedSemantics": "两个同构 Relation → 纵向全量追加累加 Relation（行数严格等于两表行数之和）"
+    },
+    {
+      "name": "row 38: INTERSECT\n(交集去重)",
+      "sql": "SELECT * FROM (VALUES (1,'Alice'),(2,'Bob')) t(id,name) INTERSECT SELECT * FROM (VALUES (1,'Alice'),(3,'Charlie')) u(id,name);",
+      "sourceRow": 38,
+      "category": "9. 纵向追加与集合计算\n提取两表共同记录（求交集）",
+      "syntax": "q1 INTERSECT q2",
+      "expectedSemantics": "两个同构 Relation → 仅包含双方完全重合行的唯一 Relation（集合语义）"
+    },
+    {
+      "name": "row 39: INTERSECT ALL\n(交集保留重复)",
+      "sql": "SELECT * FROM (VALUES (1),(1),(2)) t(x) INTERSECT ALL SELECT * FROM (VALUES (1),(1),(1),(3)) u(x);",
+      "sourceRow": 39,
+      "category": "9. 纵向追加与集合计算\n提取共有行且保留频次",
+      "syntax": "q1 INTERSECT ALL q2",
+      "expectedSemantics": "两个同构 Relation → 按最小重合次数输出共有行的多重集 Relation"
+    },
+    {
+      "name": "row 40: EXCEPT\n(差集去重)",
+      "sql": "SELECT * FROM (VALUES (1,'Alice'),(2,'Bob'),(3,'Charlie')) t(id,name) EXCEPT SELECT * FROM (VALUES (1,'Alice'),(2,'Bob')) u(id,name);",
+      "sourceRow": 40,
+      "category": "9. 纵向追加与集合计算\n提取左表独有项（核对差异丢件）",
+      "syntax": "q1 EXCEPT q2",
+      "expectedSemantics": "两个同构 Relation → 仅包含左表独有行的唯一 Relation（精准识别单边差异）"
+    },
+    {
+      "name": "row 41: EXCEPT ALL\n(差集保留重复)",
+      "sql": "SELECT * FROM (VALUES (1),(1),(2),(3)) t(x) EXCEPT ALL SELECT * FROM (VALUES (1),(2)) u(x);",
+      "sourceRow": 41,
+      "category": "9. 纵向追加与集合计算\n账目核对（按频次扣减找差）",
+      "syntax": "q1 EXCEPT ALL q2",
+      "expectedSemantics": "两个同构 Relation → 按频次差值输出差异行的 Relation（自动化回归与对账利器）"
+    },
+    {
+      "name": "row 42: WITH Clause\n(WITH 子句)",
+      "sql": "WITH cte(x) AS (VALUES (1), (2)) SELECT * FROM cte ORDER BY x;",
+      "sourceRow": 42,
+      "category": "10. 模块化分步与中间结果\n声明式公用表表达式入口",
+      "syntax": "WITH cte AS (...) SELECT ...",
+      "expectedSemantics": "查询语法前置声明 → 建立后续执行上下文中的具名子查询空间"
+    },
+    {
+      "name": "row 43: CTE\n(公用表表达式 / CTE)",
+      "sql": "WITH high_pay AS (SELECT * FROM (VALUES ('Bob','Tech',7000),('David','Tech',8000)) t(name,dept,salary)) SELECT dept, COUNT(*) FROM high_pay GROUP BY dept;",
+      "sourceRow": 43,
+      "category": "10. 模块化分步与中间结果\n命名辅助工作表（链式编排）",
+      "syntax": "WITH cte_a AS (...), cte_b AS (...) ...",
+      "expectedSemantics": "命名查询逻辑 → 在当前 Query 生命周期内生成可多次安全引用的中间 Relation"
+    },
+    {
+      "name": "row 44: Subquery\n(子查询 / 内联临时关系)",
+      "sql": "SELECT AVG(salary) AS avg_sal FROM (SELECT salary FROM (VALUES (5000),(7000),(8000)) t(salary) WHERE salary >= 6000) s;",
+      "sourceRow": 44,
+      "category": "10. 模块化分步与中间结果\n公式嵌套（内联瞬时计算）",
+      "syntax": "FROM (SELECT ...) AS sub",
+      "expectedSemantics": "局部嵌套执行 → 输出匿名瞬时 Relation 直接供给外层子句消费"
+    },
+    {
+      "name": "row 45: Table Function Call\n(表函数调用)",
+      "sql": "SELECT * FROM range(3) t(x);",
+      "sourceRow": 45,
+      "category": "11. 原生动态表生成\n自动生成序列网格（序列填充）",
+      "syntax": "FROM range(n)",
+      "expectedSemantics": "参数化算法输入 → 动态生成由计算规则驱动的结构化 Relation 数据源"
+    },
+    {
+      "name": "row 46: read_csv Table Function\n(CSV 表函数读取)",
+      "sql": "SELECT * FROM read_csv('fixtures/users.csv');",
+      "sourceRow": 46,
+      "category": "12. 外部文件直读\n直接解析 CSV 文件",
+      "syntax": "FROM read_csv('file.csv')",
+      "expectedSemantics": "磁盘/远程 CSV 纯文本文件 → 强类型二维关系流 Relation（零预建表成本）"
+    },
+    {
+      "name": "row 47: read_parquet Table Function\n(Parquet 列存表函数读取)",
+      "sql": "SELECT * FROM read_parquet('fixtures/users.parquet');",
+      "sourceRow": 47,
+      "category": "12. 外部文件直读\n直接解析分析型 Parquet 列存",
+      "syntax": "FROM read_parquet('file.parquet')",
+      "expectedSemantics": "二进制 Parquet 列存文件 → 内存向量化 Relation（零转换开销，工业级分析）"
+    },
+    {
+      "name": "row 48: SAMPLE Clause\n(抽样子句)",
+      "sql": "SELECT * FROM range(100) t(x) USING SAMPLE 5 ROWS;",
+      "sourceRow": 48,
+      "category": "1. 查看/选择数据\n随机抽样预览（大表快速摸底）",
+      "syntax": "USING SAMPLE n [ROWS|%]",
+      "expectedSemantics": "N 行输入 Relation → K 行样本 Relation（列结构不变；按采样方法、比例或行数缩减）"
+    },
+    {
+      "name": "row 49: CROSS JOIN\n(交叉连接)",
+      "sql": "SELECT * FROM (VALUES (1),(2)) a(x) CROSS JOIN (VALUES ('A'),('B')) b(y);",
+      "sourceRow": 49,
+      "category": "8. 横向关联与匹配 (JOIN)\n生成全部组合（笛卡尔积）",
+      "syntax": "a CROSS JOIN b",
+      "expectedSemantics": "L 行 × R 行 → L×R 行组合 Relation（横向拼接双方列）"
+    },
+    {
+      "name": "row 50: SEMI JOIN\n(半连接)",
+      "sql": "SELECT * FROM (VALUES (1),(2),(3)) a(id) SEMI JOIN (VALUES (2),(3)) b(id) USING(id);",
+      "sourceRow": 50,
+      "category": "8. 横向关联与匹配 (JOIN)\n只判断右表是否存在匹配",
+      "syntax": "a SEMI JOIN b USING(key)",
+      "expectedSemantics": "左 Relation + 右 Relation → 左表匹配子集 Relation（列结构保持左表，行数 ≤ 左表）"
+    },
+    {
+      "name": "row 51: ANTI JOIN\n(反连接)",
+      "sql": "SELECT * FROM (VALUES (1),(2),(3)) a(id) ANTI JOIN (VALUES (2),(3)) b(id) USING(id);",
+      "sourceRow": 51,
+      "category": "8. 横向关联与匹配 (JOIN)\n只保留右表不存在的记录",
+      "syntax": "a ANTI JOIN b USING(key)",
+      "expectedSemantics": "左 Relation + 右 Relation → 左表未匹配子集 Relation（列结构保持左表，行数 ≤ 左表）"
+    },
+    {
+      "name": "row 52: Recursive CTE\n(递归公用表表达式)",
+      "sql": "WITH RECURSIVE t(n) AS (VALUES (1) UNION ALL SELECT n+1 FROM t WHERE n<3) SELECT * FROM t;",
+      "sourceRow": 52,
+      "category": "10. 模块化分步与中间结果\n递归展开层级 / 路径",
+      "syntax": "WITH RECURSIVE cte AS (...)",
+      "expectedSemantics": "Anchor Relation → 递归迭代追加 → 最终递归 Relation"
+    },
+    {
+      "name": "row 53: PIVOT Statement\n(透视语句)",
+      "sql": "WITH s(item,q,amt) AS (VALUES ('A','Q1',10),('A','Q2',20)) SELECT * FROM (PIVOT s ON q USING SUM(amt) GROUP BY item);",
+      "sourceRow": 53,
+      "category": "13. 行列重塑与透视\n长表转宽表（动态透视）",
+      "syntax": "PIVOT dataset ON ... USING ...",
+      "expectedSemantics": "长表 Relation → 按类别展开列并聚合的宽表 Relation"
+    },
+    {
+      "name": "row 54: UNPIVOT Statement\n(逆透视语句)",
+      "sql": "WITH s(id,q1,q2) AS (VALUES (1,10,20)) SELECT * FROM (UNPIVOT s ON q1,q2 INTO NAME quarter VALUE amount);",
+      "sourceRow": 54,
+      "category": "13. 行列重塑与透视\n宽表转长表（列堆叠）",
+      "syntax": "UNPIVOT dataset ON ... INTO NAME ... VALUE ...",
+      "expectedSemantics": "宽表 Relation → 多列堆叠为名称 / 值字段的长表 Relation"
+    },
+    {
+      "name": "row 55: OFFSET Clause\n(结果偏移子句)",
+      "sql": "SELECT x FROM (VALUES (1),(2),(3)) t(x) ORDER BY x LIMIT 2 OFFSET 1;",
+      "sourceRow": 55,
+      "category": "4. 排序与取前 N 行\n分页跳过前 N 行",
+      "syntax": "OFFSET n",
+      "expectedSemantics": "N 行有序 Relation → 跳过前 n 行 → 从指定起点继续输出 Relation"
+    },
+    {
+      "name": "row 56: DISTINCT ON Clause\n(按键保留单行)",
+      "sql": "SELECT DISTINCT ON(k) k,v FROM (VALUES ('a',2),('a',1),('b',3)) t(k,v) ORDER BY k,v;",
+      "sourceRow": 56,
+      "category": "5. 消除重复\n按键保留排序第一条",
+      "syntax": "SELECT DISTINCT ON (key) ... ORDER BY ...",
+      "expectedSemantics": "N 行 Relation → 按 Key 分组 → 每个 Key 保留排序首行的 Relation"
+    },
+    {
+      "name": "row 57: UNION [ALL] BY NAME\n(按列名纵向合并)",
+      "sql": "SELECT 1 AS a UNION ALL BY NAME SELECT 2 AS b;",
+      "sourceRow": 57,
+      "category": "9. 纵向追加与集合计算\n按列名对齐追加",
+      "syntax": "q1 UNION [ALL] BY NAME q2",
+      "expectedSemantics": "不同列布局的 Relation A + B → 按列名对齐 / 缺失补 NULL → 单一纵向 Relation"
+    },
+    {
+      "name": "row 58: ASOF JOIN\n(时序近邻连接)",
+      "sql": "SELECT l.t,r.v FROM (VALUES (5),(10)) l(t) ASOF LEFT JOIN (VALUES (3,'a'),(8,'b')) r(t,v) ON l.t >= r.t ORDER BY l.t;",
+      "sourceRow": 58,
+      "category": "8. 横向关联与匹配 (JOIN)\n时序最近值匹配",
+      "syntax": "a ASOF [LEFT] JOIN b ON equality AND inequality",
+      "expectedSemantics": "左 Relation + 有序右 Relation → 每个左行最多匹配一个最近右行 → 时序对齐 Relation"
+    }
+  ]
+}

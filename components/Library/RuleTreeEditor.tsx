@@ -247,7 +247,7 @@ const RuleNodeComponent: React.FC<RuleNodeProps> = ({
           {node.kind === 'condition' && (
             <div className="flex flex-wrap items-center gap-2 text-xs">
               <select 
-                className="bg-[#0c0d12] border border-white/10 rounded px-2 py-1 text-monokai-fg outline-none focus:border-monokai-accent min-w-[120px]"
+                className="bg-monokai-bg border border-monokai-border rounded px-2 py-1 text-monokai-fg outline-none focus:border-monokai-accent min-w-[120px]"
                 value={(node as any).featureId || ''}
                 onChange={(e) => {
                   const targetFeature = features.find(f => f.id === e.target.value);
@@ -277,7 +277,7 @@ const RuleNodeComponent: React.FC<RuleNodeProps> = ({
                 
                 return (
                   <select 
-                    className="bg-[#0c0d12] border border-white/10 rounded px-2 py-1 text-monokai-fg outline-none focus:border-monokai-accent"
+                    className="bg-monokai-bg border border-monokai-border rounded px-2 py-1 text-monokai-fg outline-none focus:border-monokai-accent"
                     value={(node as any).operator || ''}
                     onChange={(e) => onUpdate(node.nodeId, (n: any) => ({ ...n, operator: e.target.value, value: undefined, secondValue: undefined }))}
                     disabled={!feature}
@@ -299,7 +299,7 @@ const RuleNodeComponent: React.FC<RuleNodeProps> = ({
                     if (domainValues && domainValues.length > 0 && ((node as any).operator === 'eq' || (node as any).operator === 'neq')) {
                       return (
                         <select
-                          className="bg-[#0c0d12] border border-white/10 rounded px-2 py-1 text-monokai-fg outline-none focus:border-monokai-accent flex-1 min-w-[80px]"
+                          className="bg-monokai-bg border border-monokai-border rounded px-2 py-1 text-monokai-fg outline-none focus:border-monokai-accent flex-1 min-w-[80px]"
                           value={stringifyValue((node as any).value)}
                           onChange={(e) => onUpdate(node.nodeId, (n: any) => ({ ...n, value: parseInputValue(e.target.value) }))}
                           disabled={!(node as any).featureId}
@@ -315,8 +315,8 @@ const RuleNodeComponent: React.FC<RuleNodeProps> = ({
 
                     return (
                       <input 
-                        type="text"
-                        className="bg-[#0c0d12] border border-white/10 rounded px-2 py-1 text-monokai-fg outline-none focus:border-monokai-accent flex-1 min-w-[80px]"
+                        type="text" 
+                        className="bg-monokai-bg border border-monokai-border rounded px-2 py-1 text-monokai-fg outline-none focus:border-monokai-accent flex-1 min-w-[80px]"
                         placeholder="值"
                         value={stringifyValue((node as any).value)}
                         onChange={(e) => onUpdate(node.nodeId, (n: any) => ({ ...n, value: parseInputValue(e.target.value) }))}
@@ -330,8 +330,8 @@ const RuleNodeComponent: React.FC<RuleNodeProps> = ({
                     <>
                       <span className="text-monokai-comment">至</span>
                       <input 
-                        type="text"
-                        className="bg-[#0c0d12] border border-white/10 rounded px-2 py-1 text-monokai-fg outline-none focus:border-monokai-accent flex-1 min-w-[80px]"
+                        type="text" 
+                        className="bg-monokai-bg border border-monokai-border rounded px-2 py-1 text-monokai-fg outline-none focus:border-monokai-accent flex-1 min-w-[80px]"
                         placeholder="值 2"
                         value={stringifyValue((node as any).secondValue)}
                         onChange={(e) => onUpdate(node.nodeId, (n: any) => ({ ...n, secondValue: parseInputValue(e.target.value) }))}
@@ -348,7 +348,7 @@ const RuleNodeComponent: React.FC<RuleNodeProps> = ({
             <div className="flex items-center gap-2 text-xs">
               <Link2 size={14} className="text-monokai-comment" />
               <select 
-                className="bg-[#0c0d12] border border-white/10 rounded px-2 py-1 text-monokai-fg outline-none focus:border-monokai-accent flex-1"
+                className="bg-monokai-bg border border-monokai-border rounded px-2 py-1 text-monokai-fg outline-none focus:border-monokai-accent flex-1"
                 value={(node as any).ruleId || ''}
                 onChange={(e) => onUpdate(node.nodeId, (n: any) => ({ ...n, ruleId: e.target.value }))}
                 aria-label="Rule Reference"
@@ -618,10 +618,10 @@ export const RuleTreeEditor: React.FC<RuleTreeEditorProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#0c0d12] text-monokai-fg overflow-hidden rounded-2xl border border-white/10 relative">
+    <div className="flex flex-col h-full bg-monokai-bg text-monokai-fg overflow-hidden rounded-2xl border border-monokai-border relative">
       
       {/* Header */}
-      <div className="bg-[#141622] p-4 border-b border-white/10 flex flex-col gap-3">
+      <div className="bg-monokai-surface p-4 border-b border-monokai-border flex flex-col gap-3">
         <div className="flex items-center justify-between gap-3">
           <input 
             type="text" 

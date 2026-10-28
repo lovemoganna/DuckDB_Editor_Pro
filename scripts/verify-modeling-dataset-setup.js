@@ -1,0 +1,17 @@
+async page => {
+  await page.setViewportSize({width:1600,height:1000});
+  await page.getByRole('button',{name:'项目 Ctrl+Shift+D',exact:true}).click();
+  await page.getByLabel('导入 .duckdb 文件').setInputFiles('C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/data/crud-lab/baseline.duckdb');
+  await page.getByRole('dialog').waitFor({state:'hidden'});
+  const result = await page.evaluate(async () => {
+    const db = window.__duckDBService;
+    await db.createDatabase('funds_modeling_acceptance',{persistent:false,activate:true});
+    for (const table of ['users','fiat_transactions','crypto_transactions','exchange_rates']) {
+      await db.query(`CREATE TABLE "funds_modeling_acceptance"."main"."${table}" AS SELECT * FROM "baseline"."main"."${table}"`);
+    }
+    return await db.query('SELECT count(*) AS n FROM fiat_transactions');
+  });
+  await page.getByRole('button',{name:'刷新数据',exact:true}).click();
+  await page.getByLabel('浏览数据集').waitFor();
+  return {verdict:'PASS',realSource:'data/crud-lab/baseline.duckdb',isolatedCopy:'funds_modeling_acceptance',fiatRows:Number(result[0].n)};
+}

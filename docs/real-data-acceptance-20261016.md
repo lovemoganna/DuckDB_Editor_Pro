@@ -102,9 +102,9 @@ node node_modules/vite/bin/vite.js preview --host 127.0.0.1 --port 5192 --strict
 node scripts/test-funds-production.mjs
 ```
 
-脚本支持 FUNDS_BASE_URL/FUNDS_OUTPUT，开发验收还支持 FUNDS_ORACLE；用新的输出目录保留失败证据。`delivery-files.json` 与 `delivery.diff` 相对于任务开始工作区，而非 HEAD，因此可区分原有修改。
+脚本支持 FUNDS_BASE_URL/FUNDS_OUTPUT，开发验收还支持 FUNDS_ORACLE；用新的输出目录保留失败证据。`acceptance-delivery-files.json` 与 `acceptance-delivery.diff` 是本次修复清单，相对于任务开始工作区，而非 HEAD。原始 `delivery-files.json` / `delivery.diff` 可能包含任务开始后其他工作产生的差异，不应用作本次修复的独占归属证明。
 
-如需回退，只从 workspace-before.zip 恢复 delivery-files.json 中 changed 文件的任务前版本，并逐项处理本次 added 文件；勿整仓 reset。恢复依赖补丁配置后重新安装锁定依赖。此操作未执行，快照是源码回退材料而非业务数据库备份。
+如需回退，先确认本次文件之后没有新的编辑，再从 workspace-before.zip 恢复 acceptance-delivery-files.json 中 changed 文件的任务前版本，并逐项处理本次 added 文件；勿整仓 reset。恢复依赖补丁配置后重新安装锁定依赖。此操作未执行，快照是源码回退材料而非业务数据库备份。
 
 ## Loop QA 与剩余风险
 
@@ -113,3 +113,7 @@ G0 任务范围、G1 轨迹、G2 独立证据、G4 授权与回退、G6 复用�
 停止原因：已复现的两个产品缺陷完成最小修复及真实重放，指定核心流程已有独立数据证据。仍有明确未通过/未验证项：8 条依赖漏洞告警；仅 68 行和 Chromium 的验证不能证明规模性能、任意请求竞争、所有浏览器或长期存储可靠；汇率不具备交易日粒度；特殊 Excel 自定义日期格式未全面覆盖。
 
 用户 5173 服务未重启，已有预构建缓存可能仍包含旧日期解析代码。使用修复需重启/重新构建；已经导入并存储的错误日期不会自动纠正，需要从原文件重新导入。没有自动修改用户历史数据库。
+
+### 后续工作区变更边界
+
+最终全量测试日志在 2026-10-16 04:33（执行主机时间）结束。继续核实时发现 `services/analysis/types.ts` 与 `docs/pivot-enhancement-spec-20261016.md` 等透视增强文件在测试之后发生修改，且仍有后续文件变化；完整排除清单见 `acceptance-delivery-files.json` 的 excluded_later_changes。这些改动不属于上述两项修复，已保留，不计入本次交付清单，也未被本次最终测试覆盖。因此通过结论适用于已验收的修复版本，不能据此宣布当前所有后续改动都通过回归。持续变化的工作区需要在透视增强改动稳定后另做验收。

@@ -1,0 +1,50 @@
+async (page) => {
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  const acceptUnload = dialog => dialog.accept().catch(() => {});
+  page.on('dialog', acceptUnload);
+  try { await page.reload(); } finally { page.off('dialog', acceptUnload); }
+  await page.getByRole('button', { name: 'AI 认知', exact: true }).click();
+  await page.getByRole('button', { name: '本体建模', exact: true }).click();
+  await page.getByRole('button', { name: '手动建模', exact: true }).click();
+  await page.getByTitle('新增对象类型 (Object Type)').click();
+  await page.getByLabel('对象名称', { exact: true }).fill('Customer');
+  await page.getByLabel('对象标识符', { exact: true }).fill('customer');
+  await page.getByLabel('对象说明', { exact: true }).fill('真实客户数据映射');
+  await page.getByTitle('新增对象类型 (Object Type)').click();
+  await page.getByLabel('对象名称', { exact: true }).fill('Order');
+  await page.getByLabel('对象标识符', { exact: true }).fill('order');
+  await page.getByTestId('modeling-node-Customer').click({ modifiers: ['Shift'] });
+  await page.getByTestId('modeling-node-Order').click({ modifiers: ['Shift'] });
+  await page.getByTitle('新增业务行动 (Action Type)').click();
+  await page.getByRole('button', { name: 'AI 辅助建模', exact: true }).click();
+  await page.getByLabel('AI 读取当前草案并提出建议').fill('为订单添加取消和退款动作');
+  await page.getByRole('button', { name: '生成修改建议', exact: true }).click();
+  await page.getByRole('button', { name: '接受 CancelAndRefund', exact: true }).click();
+  await page.getByRole('button', { name: '手动建模', exact: true }).click();
+  if (!(await page.getByRole('status').innerText()).includes('0 真实实例')) throw new Error('Schema created fake instances');
+  await page.screenshot({ path: 'docs/modeling-manual-canvas.png', fullPage: true });
+  await page.getByTestId('enter-commit-step-btn').click();
+  await page.getByRole('button', { name: '确认写入本体图谱', exact: true }).click();
+  await page.getByRole('dialog').waitFor({ state: 'hidden' });
+  const counts = await page.evaluate(async () => {
+    const db = window.__duckDBService;
+    return { types: await db.query('SELECT name FROM life_object_type ORDER BY id'), instances: await db.query('SELECT count(*) AS n FROM life_object'), schema: await db.query('SELECT definition FROM life_object_type__modeling_schema') };
+  });
+  if (Number(counts.instances[0].n) !== 0 || counts.types.length !== 2) throw new Error('Unexpected formal rows');
+  const definition = JSON.parse(counts.schema[0].definition);
+  if (definition.actions.length !== 2 || definition.linkTypes.length !== 1) throw new Error('Schema metadata was lost');
+  await page.getByRole('button', { name: '本体建模', exact: true }).click();
+  await page.getByRole('button', { name: '编辑已保存本体', exact: true }).click();
+  await page.getByTestId('modeling-node-Customer').click();
+  if (await page.getByLabel('对象说明', { exact: true }).inputValue() !== '真实客户数据映射') throw new Error('Definition reload failed');
+  await page.getByRole('button', { name: '删除对象类型', exact: true }).click();
+  const impact = await page.getByRole('alertdialog', { name: '删除影响范围' }).innerText();
+  if (!impact.includes('Order') || !impact.includes('REL_CUSTOMER_TO_ORDER')) throw new Error('Missing deletion impact');
+  await page.getByRole('button', { name: '取消删除', exact: true }).click();
+  await page.getByLabel('对象标识符', { exact: true }).fill('order');
+  await page.getByTestId('enter-commit-step-btn').click();
+  if (!await page.getByText('校验失败，请在体检诊断中定位并修正错误。', { exact: true }).isVisible()) throw new Error('Identifier collision accepted');
+  await page.getByRole('button', { name: '取消未保存修改', exact: true }).click();
+  await page.getByRole('button', { name: '确认放弃修改', exact: true }).click();
+  return { verdict: 'PASS', types: counts.types.map(t => t.name), instanceCount: Number(counts.instances[0].n), actions: definition.actions.map(a => a.name), checks: ['blank manual creation','canvas connection','AI proposal acceptance','mode preservation','schema save and reload','deletion impact','identifier collision blocked','discard preserves formal rows'] };
+}

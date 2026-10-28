@@ -18,6 +18,19 @@ describe('DuckDBService views and macros management', () => {
     });
   });
 
+  describe('memory diagnostics', () => {
+    it('sums the measured byte column returned by duckdb_memory', async () => {
+      queryMock.mockResolvedValueOnce([{ database_size: '1 MB' }])
+        .mockResolvedValueOnce([{ memory_usage_bytes: 1048576n }, { memory_usage_bytes: 524288n }])
+        .mockResolvedValueOnce([{ value: '512 MiB' }]);
+      expect(await duckDBService.getDatabaseDiagnostics()).toMatchObject({ memoryUsage: '1.50 MB', memoryLimit: '512 MiB' });
+    });
+    it('reports unavailable memory when the result has no measured byte column', async () => {
+      queryMock.mockResolvedValueOnce([]).mockResolvedValueOnce([{ tag: 'BASE_TABLE' }]).mockResolvedValueOnce([]);
+      expect((await duckDBService.getDatabaseDiagnostics()).memoryUsage).toBe('Unknown');
+    });
+  });
+
   describe('getViews', () => {
     it('retrieves distinct view names from duckdb_views() or information_schema.views', async () => {
       queryMock.mockResolvedValueOnce([
@@ -171,6 +184,32 @@ describe('DuckDBService views and macros management', () => {
         droppedMacros: 2,
         droppedFiles: 0,
       });
+    });
+  });
+
+  describe('readQuery', () => {
+    beforeEach(() => { Object.assign(duckDBService, { currentDatabaseName: 'persisted_audit' }); });
+    it('throws Catalog Error immediately without falling back to write query queue', async () => {
+      const readQueryMock = vi.fn().mockRejectedValue(new Error('Catalog Error: Table with name missing_table does not exist!'));
+      const mainQuerySpy = vi.spyOn(duckDBService, 'query');
+      Object.assign(duckDBService as unknown as Record<string, unknown>, {
+        readConn: { query: readQueryMock },
+      });
+
+      await expect(duckDBService.readQuery('SELECT * FROM missing_table')).rejects.toThrow('Catalog Error');
+      expect(mainQuerySpy).not.toHaveBeenCalled();
+    });
+
+    it('falls back to main query queue on connection/internal failure', async () => {
+      const readQueryMock = vi.fn().mockRejectedValue(new Error('Worker connection closed unexpectedly'));
+      const mainQuerySpy = vi.spyOn(duckDBService, 'query').mockResolvedValue([{ id: 1 }] as any);
+      Object.assign(duckDBService as unknown as Record<string, unknown>, {
+        readConn: { query: readQueryMock },
+      });
+
+      const res = await duckDBService.readQuery('SELECT 1');
+      expect(mainQuerySpy).toHaveBeenCalledWith('SELECT 1');
+      expect(res).toEqual([{ id: 1 }]);
     });
   });
 });

@@ -302,7 +302,7 @@ const tableDef: ChartTypeDefinition = {
   mapResult: (rows, columns, spec, compiled) => ({
     ...enrichCommon('table', rows, columns, spec, compiled),
     pivotTable: spec.visual.pivot && { ...spec.visual.pivot, ...computePivotTable(rows, spec.visual.pivot.rowKey, spec.visual.pivot.colKey, spec.visual.pivot.valKey, spec.visual.pivot.aggregation, spec.pivotLayout?.rowAliases || (spec.visual.pivot.rowKey ? [spec.visual.pivot.rowKey] : [])) },
-    ...(spec.visual.pivot?.aggregation === 'count' ? { format: { unit:'个',decimals:0,percent:false },formatByKey:{[spec.visual.pivot.valKey]:{unit:'个',decimals:0,percent:false}} } : {}),
+    ...((spec.visual.pivot?.aggregation === 'count' || spec.visual.pivot?.aggregation === 'count_distinct') ? { format: { unit:'个',decimals:0,percent:false },formatByKey:{[spec.visual.pivot.valKey]:{unit:'个',decimals:0,percent:false}} } : {}),
     chartType: 'table',
     showLegend: false,
     showValues: false,
@@ -549,7 +549,7 @@ export function chartSpecToChartConfig(chart: ChartSpec): ChartConfig {
     id: chart.id,
     title: chart.title,
     type: chart.pivotTable ? 'pivot' : type,
-    ...(chart.pivotTable ? {rowKey: chart.pivotTable.rowKey, colKey: chart.pivotTable.colKey, valKey: chart.pivotTable.valKey, aggFunc: chart.pivotTable.aggregation} : {}),
+    ...(chart.pivotTable ? {nullDisplay: chart.pivotTable.nullDisplay, rowKey: chart.pivotTable.rowKey, colKey: chart.pivotTable.colKey, valKey: chart.pivotTable.valKey, aggFunc: chart.pivotTable.aggregation} : {}),
     xKey: chart.xKey,
     yKeys: chart.yKeys.length ? chart.yKeys : [''],
     yRightKeys: chart.yRightKeys,

@@ -408,10 +408,17 @@ class SqlSchemaCache {
   private listeners: Set<(tree: SchemaTree) => void> = new Set();
   private isFetching = false;
   private isInitialized = false;
+  private generation = 0;
 
   constructor() {
     if (typeof window !== 'undefined') {
       window.addEventListener('duckdb-schema-changed', () => {
+        void this.refreshSchema();
+      });
+      window.addEventListener('duckdb-database-changed', () => {
+        this.generation += 1;
+        this.isFetching = false;
+        this.setSchema({});
         void this.refreshSchema();
       });
     }
@@ -445,6 +452,9 @@ class SqlSchemaCache {
   async refreshSchema(): Promise<SchemaTree> {
     if (this.isFetching) return this.schemaTree;
     this.isFetching = true;
+    const generation = this.generation;
+    const catalog = duckDBService.getRuntimeInfo().currentDatabase;
+    const stillCurrent = () => generation === this.generation && duckDBService.getRuntimeInfo().currentDatabase === catalog;
 
     try {
       const tree: SchemaTree = {};
@@ -454,7 +464,7 @@ class SqlSchemaCache {
         const rows = await duckDBService.query(`
           SELECT table_name, column_name, data_type, is_nullable
           FROM information_schema.columns 
-          WHERE table_schema = current_schema()
+          WHERE table_catalog = current_database() AND table_schema = current_schema()
           ORDER BY table_name, ordinal_position
         `);
 
@@ -469,6 +479,7 @@ class SqlSchemaCache {
               nullable: r.is_nullable === 'YES',
             });
           }
+          if (!stillCurrent()) return this.schemaTree;
           this.schemaTree = tree;
           this.isInitialized = true;
           this.notify();
@@ -495,6 +506,7 @@ class SqlSchemaCache {
         }
       }
 
+      if (!stillCurrent()) return this.schemaTree;
       this.schemaTree = tree;
       this.isInitialized = true;
       this.notify();
@@ -503,7 +515,7 @@ class SqlSchemaCache {
       console.warn('[sqlCompletionEngine] Failed to refresh schema:', e);
       return this.schemaTree;
     } finally {
-      this.isFetching = false;
+      if (generation === this.generation) this.isFetching = false;
     }
   }
 }

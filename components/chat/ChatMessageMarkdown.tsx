@@ -62,7 +62,7 @@ const parseAlertContent = (children: React.ReactNode): { type: string; content: 
     remainingP.push(inlineTitle);
   } else {
     if (inlineTitle) {
-      remainingP.push(<strong key="inline-title" className="font-semibold block mb-0.5 text-white">{inlineTitle}</strong>);
+      remainingP.push(<strong key="inline-title" className="font-semibold block mb-0.5 text-monokai-fg">{inlineTitle}</strong>);
     }
     if (restLines) {
       remainingP.push(restLines);
@@ -91,44 +91,44 @@ const getAlertConfig = (type: string) => {
     case 'NOTE':
       return {
         label: '说明',
-        icon: <Info className="w-3.5 h-3.5 text-sky-400 shrink-0" />,
-        borderCls: 'border-l-2 border-sky-500 bg-sky-950/30 text-sky-200',
-        badgeCls: 'text-sky-400 font-semibold',
+        icon: <Info className="w-3.5 h-3.5 text-monokai-cyan shrink-0" />,
+        borderCls: 'border-l-2 border-monokai-cyan bg-monokai-cyan/10 text-monokai-fg',
+        badgeCls: 'text-monokai-cyan font-semibold',
       };
     case 'TIP':
       return {
         label: '技巧提示',
-        icon: <Lightbulb className="w-3.5 h-3.5 text-emerald-400 shrink-0" />,
-        borderCls: 'border-l-2 border-emerald-500 bg-emerald-950/30 text-emerald-200',
-        badgeCls: 'text-emerald-400 font-semibold',
+        icon: <Lightbulb className="w-3.5 h-3.5 text-monokai-accent shrink-0" />,
+        borderCls: 'border-l-2 border-monokai-accent bg-monokai-accent/10 text-monokai-fg',
+        badgeCls: 'text-monokai-accent font-semibold',
       };
     case 'IMPORTANT':
       return {
         label: '核心要点',
-        icon: <Bookmark className="w-3.5 h-3.5 text-purple-400 shrink-0" />,
-        borderCls: 'border-l-2 border-purple-500 bg-purple-950/30 text-purple-200',
-        badgeCls: 'text-purple-400 font-semibold',
+        icon: <Bookmark className="w-3.5 h-3.5 text-monokai-purple shrink-0" />,
+        borderCls: 'border-l-2 border-monokai-purple bg-monokai-purple/10 text-monokai-fg',
+        badgeCls: 'text-monokai-purple font-semibold',
       };
     case 'WARNING':
       return {
         label: '注意事项',
-        icon: <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />,
-        borderCls: 'border-l-2 border-amber-500 bg-amber-950/30 text-amber-200',
-        badgeCls: 'text-amber-400 font-semibold',
+        icon: <AlertTriangle className="w-3.5 h-3.5 text-monokai-yellow shrink-0" />,
+        borderCls: 'border-l-2 border-monokai-yellow bg-monokai-yellow/10 text-monokai-fg',
+        badgeCls: 'text-monokai-yellow font-semibold',
       };
     case 'CAUTION':
       return {
         label: '风险警示',
-        icon: <AlertOctagon className="w-3.5 h-3.5 text-red-400 shrink-0" />,
-        borderCls: 'border-l-2 border-red-500 bg-red-950/30 text-red-200',
-        badgeCls: 'text-red-400 font-semibold',
+        icon: <AlertOctagon className="w-3.5 h-3.5 text-monokai-pink shrink-0" />,
+        borderCls: 'border-l-2 border-monokai-pink bg-monokai-pink/10 text-monokai-fg',
+        badgeCls: 'text-monokai-pink font-semibold',
       };
     default:
       return {
         label: '提示',
-        icon: <Info className="w-3.5 h-3.5 text-zinc-400 shrink-0" />,
-        borderCls: 'border-l-2 border-zinc-500 bg-zinc-900/40 text-zinc-300',
-        badgeCls: 'text-zinc-400 font-semibold',
+        icon: <Info className="w-3.5 h-3.5 text-monokai-comment shrink-0" />,
+        borderCls: 'border-l-2 border-monokai-comment bg-monokai-surface/60 text-monokai-fg',
+        badgeCls: 'text-monokai-comment font-semibold',
       };
   }
 };
@@ -191,45 +191,45 @@ export const ChatMessageMarkdown: React.FC<ChatMessageMarkdownProps> = ({
   const components = useMemo(
     () => ({
       h1: ({ children }: any) => (
-        <h1 className="text-sm font-bold text-white mt-3 mb-1.5 pb-1 border-b border-white/10 flex items-center gap-1.5 first:mt-0 tracking-tight">
-          <span className="w-1.5 h-3.5 rounded-full bg-cyan-400 inline-block shrink-0" />
+        <h1 className="text-sm font-bold text-monokai-fg mt-3 mb-1.5 pb-1 border-b border-monokai-border flex items-center gap-1.5 first:mt-0 tracking-tight">
+          <span className="w-1.5 h-3.5 rounded-full bg-monokai-cyan inline-block shrink-0" />
           <span>{children}</span>
         </h1>
       ),
       h2: ({ children }: any) => (
-        <h2 className="text-[13px] font-bold text-cyan-300 mt-2.5 mb-1 flex items-center gap-1.5 first:mt-0 tracking-tight">
-          <span className="w-1 h-3 rounded-full bg-cyan-500/70 inline-block shrink-0" />
+        <h2 className="text-[13px] font-bold text-monokai-cyan mt-2.5 mb-1 flex items-center gap-1.5 first:mt-0 tracking-tight">
+          <span className="w-1 h-3 rounded-full bg-monokai-cyan/70 inline-block shrink-0" />
           <span>{children}</span>
         </h2>
       ),
       h3: ({ children }: any) => (
-        <h3 className="text-xs font-semibold text-slate-100 mt-2 mb-1 flex items-center gap-1 first:mt-0">
-          <span className="w-1 h-1 rounded-full bg-slate-400 inline-block shrink-0" />
+        <h3 className="text-xs font-semibold text-monokai-fg mt-2 mb-1 flex items-center gap-1 first:mt-0">
+          <span className="w-1 h-1 rounded-full bg-monokai-comment inline-block shrink-0" />
           <span>{children}</span>
         </h3>
       ),
       h4: ({ children }: any) => (
-        <h4 className="text-xs font-medium text-slate-300 mt-1.5 mb-0.5 first:mt-0">
+        <h4 className="text-xs font-medium text-monokai-comment mt-1.5 mb-0.5 first:mt-0">
           {children}
         </h4>
       ),
       p: ({ children }: any) => (
-        <p className="text-xs leading-relaxed text-slate-200 my-1.5 last:mb-0 first:mt-0 break-words">
+        <p className="text-xs leading-relaxed text-monokai-fg my-1.5 last:mb-0 first:mt-0 break-words">
           {children}
         </p>
       ),
       ul: ({ children }: any) => (
-        <ul className="text-xs text-slate-200 space-y-1 my-1.5 list-disc pl-4 leading-relaxed">
+        <ul className="text-xs text-monokai-fg space-y-1 my-1.5 list-disc pl-4 leading-relaxed">
           {children}
         </ul>
       ),
       ol: ({ children }: any) => (
-        <ol className="text-xs text-slate-200 space-y-1 my-1.5 list-decimal pl-4 leading-relaxed">
+        <ol className="text-xs text-monokai-fg space-y-1 my-1.5 list-decimal pl-4 leading-relaxed">
           {children}
         </ol>
       ),
       li: ({ children }: any) => (
-        <li className="leading-relaxed break-words text-slate-200 pl-0.5">
+        <li className="leading-relaxed break-words text-monokai-fg pl-0.5">
           {children}
         </li>
       ),
@@ -243,46 +243,46 @@ export const ChatMessageMarkdown: React.FC<ChatMessageMarkdownProps> = ({
                 {cfg.icon}
                 <span className={cfg.badgeCls}>{cfg.label}</span>
               </div>
-              <div className="text-xs leading-relaxed opacity-90">{alert.content}</div>
+              <div className="text-xs leading-relaxed opacity-95">{alert.content}</div>
             </div>
           );
         }
 
         return (
-          <blockquote className="border-l-2 border-indigo-400 bg-indigo-950/25 px-3 py-1.5 rounded-r my-2 text-xs text-slate-300 leading-relaxed shadow-2xs">
+          <blockquote className="border-l-2 border-monokai-purple bg-monokai-purple/10 px-3 py-1.5 rounded-r my-2 text-xs text-monokai-fg leading-relaxed shadow-2xs">
             {children}
           </blockquote>
         );
       },
       table: ({ children }: any) => (
-        <div className="overflow-x-auto my-2.5 rounded-lg border border-white/10 bg-[#060a14] shadow-xs custom-scrollbar">
+        <div className="overflow-x-auto my-2.5 rounded-lg border border-monokai-border bg-monokai-surface shadow-xs custom-scrollbar">
           <table className="w-full text-xs text-left border-collapse min-w-[280px]">
             {children}
           </table>
         </div>
       ),
       thead: ({ children }: any) => (
-        <thead className="bg-white/5 text-[11px] font-semibold text-slate-300 border-b border-white/10">
+        <thead className="bg-monokai-bg/70 text-[11px] font-semibold text-monokai-comment border-b border-monokai-border">
           {children}
         </thead>
       ),
       tbody: ({ children }: any) => (
-        <tbody className="divide-y divide-white/5 text-slate-300">
+        <tbody className="divide-y divide-monokai-border/40 text-monokai-fg">
           {children}
         </tbody>
       ),
       tr: ({ children }: any) => (
-        <tr className="hover:bg-white/[0.03] transition-colors">
+        <tr className="hover:bg-monokai-elevated/40 transition-colors">
           {children}
         </tr>
       ),
       th: ({ children }: any) => (
-        <th className="px-3 py-1.5 text-slate-200 font-semibold border-r border-white/5 last:border-r-0 whitespace-nowrap">
+        <th className="px-3 py-1.5 text-monokai-fg font-semibold border-r border-monokai-border/40 last:border-r-0 whitespace-nowrap">
           {children}
         </th>
       ),
       td: ({ children }: any) => (
-        <td className="px-3 py-1.5 text-slate-300 border-r border-white/5 last:border-r-0 whitespace-nowrap">
+        <td className="px-3 py-1.5 text-monokai-fg border-r border-monokai-border/40 last:border-r-0 whitespace-nowrap">
           {children}
         </td>
       ),
@@ -304,7 +304,7 @@ export const ChatMessageMarkdown: React.FC<ChatMessageMarkdownProps> = ({
 
         return (
           <code
-            className="px-1.5 py-0.5 rounded bg-white/10 text-cyan-300 font-mono text-[11px] border border-white/10 break-all inline-block align-baseline"
+            className="px-1.5 py-0.5 rounded bg-monokai-surface text-monokai-cyan font-mono text-[11px] border border-monokai-border break-all inline-block align-baseline"
             {...props}
           >
             {children}
@@ -312,10 +312,10 @@ export const ChatMessageMarkdown: React.FC<ChatMessageMarkdownProps> = ({
         );
       },
       strong: ({ children }: any) => (
-        <strong className="font-semibold text-white">{children}</strong>
+        <strong className="font-semibold text-monokai-fg">{children}</strong>
       ),
       em: ({ children }: any) => (
-        <em className="italic text-slate-300">{children}</em>
+        <em className="italic text-monokai-comment">{children}</em>
       ),
       a: ({ href, children }: any) => {
         const isExternal = href?.startsWith('http') || href?.startsWith('//');
@@ -324,20 +324,20 @@ export const ChatMessageMarkdown: React.FC<ChatMessageMarkdownProps> = ({
             href={href}
             target={isExternal ? '_blank' : undefined}
             rel={isExternal ? 'noreferrer' : undefined}
-            className="text-cyan-400 hover:text-cyan-300 underline underline-offset-2 transition-colors inline-flex items-center gap-0.5 cursor-pointer"
+            className="text-monokai-cyan hover:underline underline-offset-2 transition-colors inline-flex items-center gap-0.5 cursor-pointer"
           >
             <span>{children}</span>
             {isExternal && <ExternalLink className="w-2.5 h-2.5 opacity-70 shrink-0" />}
           </a>
         );
       },
-      hr: () => <hr className="border-white/10 my-3" />,
+      hr: () => <hr className="border-monokai-border my-3" />,
     }),
     []
   );
 
   return (
-    <div className={`text-xs leading-relaxed text-slate-200 select-text ${className}`}>
+    <div className={`text-xs leading-relaxed text-monokai-fg select-text ${className}`}>
       <ReactMarkdown remarkPlugins={REMARK_PLUGINS} components={components}>
         {content}
       </ReactMarkdown>

@@ -48,7 +48,7 @@ export const pivotDefinitionKey = (definition: PivotDefinition) => JSON.stringif
 /** SQL identity deliberately excludes presentation and session state. */
 export const pivotQueryKey = (def: PivotDefinition) => {
   const rowDims = getPivotRowDimensions(def);
-  return JSON.stringify({source:pivotSourceKey(def.source),rows:rowDims,column:def.column,metrics:def.metrics.map(({decimals,...metric})=>metric),filters:def.filters,sortMetric:def.sortMetric,sortOrder:def.sortOrder,limit:def.limit,unit:def.unit,nullDisplay:def.nullDisplay,joinConfig:def.joinConfig});
+  return JSON.stringify({source:pivotSourceKey(def.source),rows:rowDims,column:def.column,metrics:def.metrics.map(({decimals,...metric})=>metric),filters:def.filters,sortMetric:def.sortMetric,sortOrder:def.sortOrder,limit:def.limit,unit:def.unit,joinConfig:def.joinConfig});
 };
 export const pivotNumericType=(type:string)=>/^(U?TINYINT|U?SMALLINT|U?INTEGER|U?BIGINT|HUGEINT|UHUGEINT|INT\d*|FLOAT|DOUBLE|REAL|DECIMAL|NUMERIC)(\b|\()/i.test(type);
 
@@ -78,17 +78,33 @@ export function defaultPivot(source: DatasetDefinition, initialDimension?: strin
     view:'table',chartType:'bar',visibleMetric:0,unit:''};
 }
 
+/** Virtual single-value dimension used when the user leaves 行 empty: all records collapse into one row. */
+export const PIVOT_ALL_ROWS_COLUMN = '汇总范围';
+export const PIVOT_ALL_ROWS_VALUE = '全部';
+/** Metric used when the user leaves 值 empty: plain record count, so the table still shows how many records fall in each cell. */
+export const PIVOT_DEFAULT_METRIC: PivotMetric = {agg: 'count', alias: '记录数'};
+
 export function pivotToSpec(definition: PivotDefinition): AnalysisSpec {
   if (definition.version !== 1) throw new Error('不支持此透视配置版本');
-  const {source,column,metrics} = definition;
-  const rowDims = getPivotRowDimensions(definition);
-  if (source.error) throw new Error(source.error);
-  requireAnalysisQuery(source.sql);
-  const names = new Set(source.fields.map(f=>f.name));
-  for (const name of [...rowDims.map(r=>r.column),column?.column,...metrics.map(m=>m.column),...definition.filters.map(f=>f.column)].filter(Boolean)) {
+  const {column} = definition;
+  const configuredRows = getPivotRowDimensions(definition).filter(r=>r.column);
+  const emptyRows = configuredRows.length === 0;
+  const metrics = definition.metrics.length ? definition.metrics : [PIVOT_DEFAULT_METRIC];
+  const rawSource = definition.source;
+  if (rawSource.error) throw new Error(rawSource.error);
+  requireAnalysisQuery(rawSource.sql);
+  // Empty 行: every record falls into a single virtual row, so totals and drill-down keep working.
+  const source: DatasetDefinition = emptyRows ? {
+    ...rawSource,
+    sql: `SELECT *, ${literalValue(PIVOT_ALL_ROWS_VALUE)} AS ${quoteIdent(PIVOT_ALL_ROWS_COLUMN)} FROM (\n${rawSource.sql}\n) AS __pivot_all_rows_source`,
+    fields: [...rawSource.fields, {name: PIVOT_ALL_ROWS_COLUMN, type: 'VARCHAR'}],
+  } : rawSource;
+  const rowDims: PivotDimension[] = emptyRows ? [{column: PIVOT_ALL_ROWS_COLUMN}] : configuredRows;
+  const names = new Set(rawSource.fields.map(f=>f.name));
+  for (const name of [...configuredRows.map(r=>r.column),column?.column,...metrics.map(m=>m.column),...definition.filters.map(f=>f.column)].filter(Boolean)) {
     if(!names.has(name!)) throw new Error(`字段 ${name} 已不存在，请修改透视配置`);
   }
-  if (!rowDims.length || !rowDims[0].column || !metrics.length) throw new Error('请选择行字段并保留至少一个值');
+  if (emptyRows && column?.column === PIVOT_ALL_ROWS_COLUMN) throw new Error('列字段名称与虚拟汇总行冲突，请改用其他字段');
   const rowCols = new Set(rowDims.map(r=>r.column));
   if (column?.column && rowCols.has(column.column)) throw new Error('行与列不能使用相同字段');
   if (metrics.some(m=>!m.alias.trim() || m.alias.length>100 || m.alias.startsWith('__pivot_'))
@@ -128,7 +144,8 @@ export function pivotToSpec(definition: PivotDefinition): AnalysisSpec {
     rowKey: rowAliases[0],
     colKey: colAlias || '',
     valKey: sanitizeAlias(metrics[definition.visibleMetric]?.alias || metrics[0].alias),
-    aggregation: 'sum'
+    aggregation: 'sum',
+    nullDisplay: definition.nullDisplay || 'dash'
   };
   return spec;
 }

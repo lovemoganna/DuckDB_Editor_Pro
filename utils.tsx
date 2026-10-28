@@ -53,49 +53,22 @@ const SQL_FUNCTIONS = [
  */
 export const highlightSql = (sql: string): string => {
     if (!sql) return '';
-    
-    let result = sql;
-
-    // First escape HTML entities to prevent XSS and rendering issues
-    result = result
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-
-    // Highlight multi-line comments /* */
-    result = result.replace(/(\/\*[\s\S]*?\*\/)/g, 
-        '<span class="sql-comment">$1</span>');
-
-    // Highlight single-line comments -- 
-    result = result.replace(/(--[^\n]*)/g, 
-        '<span class="sql-comment">$1</span>');
-
-    // Highlight strings in single quotes - must be greedy to handle escaped quotes
-    result = result.replace(/('(?:[^'\\]|\\.)*')/g, 
-        '<span class="sql-string">$1</span>');
-
-    // Highlight double-quoted identifiers
-    result = result.replace(/"([^"]+)"/g, 
-        '<span class="sql-identifier">$1</span>');
-
-    // Highlight numbers
-    result = result.replace(/\b(\d+(?:\.\d+)?)\b/g, 
-        '<span class="sql-number">$1</span>');
-
-    // Highlight functions (before keywords, so function calls get function color)
-    SQL_FUNCTIONS.forEach(fn => {
-        const regex = new RegExp(`\\b(${fn})\\s*\\(`, 'gi');
-        result = result.replace(regex, '<span class="sql-function">$1</span>(');
-    });
-
-    // Highlight keywords
-    SQL_KEYWORDS.forEach(keyword => {
-        const regex = new RegExp(`\\b(${keyword})\\b`, 'gi');
-        result = result.replace(regex, '<span class="sql-keyword">$1</span>');
-    });
-
-    return result;
+    const keywords = new Set(SQL_KEYWORDS);
+    const functions = new Set(SQL_FUNCTIONS);
+    const escape = (text: string) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    // Tokenize the raw source once. Generated markup never re-enters the lexer.
+    const tokens = /--[^\n]*|\/\*[\s\S]*?(?:\*\/|$)|'(?:''|[^'])*(?:'|$)|"(?:""|[^"])*(?:"|$)|\b\d+(?:\.\d+)?(?:[eE][+-]?\d+)?\b|[A-Za-z_][A-Za-z_0-9$]*|[\s\S]/g;
+    return Array.from(sql.matchAll(tokens), match => {
+        const token = match[0];
+        const upper = token.toUpperCase();
+        const tone = token.startsWith('--') || token.startsWith('/*') ? 'comment'
+            : token.startsWith("'") ? 'string'
+            : token.startsWith('"') ? 'identifier'
+            : /^\d/.test(token) ? 'number'
+            : functions.has(upper) && /^\s*\(/.test(sql.slice((match.index ?? 0) + token.length)) ? 'function'
+            : keywords.has(upper) ? 'keyword' : null;
+        return tone ? `<span class="sql-${tone}">${escape(token)}</span>` : escape(token);
+    }).join('');
 };
 
 /**

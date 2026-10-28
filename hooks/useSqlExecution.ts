@@ -1,3 +1,5 @@
+import { splitSqlScript } from '../services/dataflow/sqlStructure';
+import { useWorkflowStore } from '../services/dataflow/workflowStore';
 /**
  * useSqlExecution — Query execution lifecycle hook
  *
@@ -27,6 +29,8 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { duckDBService } from '../services/duckdbService';
 import type { SqlTab, QueryResult } from '../types';
+import { useAppStore } from './store/useAppStore';
+import { requireAnalysisQuery } from '../services/analysis/readQueryGuard';
 
 export interface UseSqlExecutionDeps {
   /** Return the active Tab (used to read code, write result). */
@@ -47,7 +51,7 @@ export interface UseSqlExecutionDeps {
 
 export interface UseSqlExecutionReturn {
   /** Run the active Tab's SQL. Pass `explain=true` to wrap with EXPLAIN. */
-  execute: (explain?: boolean, overrideSql?: string, cursorOffset?: number) => Promise<void>;
+  execute: (explain?: boolean, overrideSql?: string, cursorOffset?: number, selectionOffset?: number) => Promise<void>;
   /** Mark current execution as cancelled. No-op if not running. */
   cancel: () => void;
   /** Whether an execution is currently in-flight. */
@@ -92,91 +96,9 @@ function extractTableName(sql: string): string | null {
 
 /** Get the SQL query containing the given character offset, accounting for semicolons, comments, and strings. */
 export function getSqlAtOffset(sqlText: string, offset: number): string {
-  if (!sqlText) return '';
-
-  const queries: { sql: string; start: number; end: number }[] = [];
-  let currentQuery = '';
-  let queryStart = 0;
-  let inString = false;
-  let stringChar = '';
-  let inComment = false;
-  let commentType = '';
-
-  for (let i = 0; i < sqlText.length; i++) {
-    const char = sqlText[i];
-    const nextChar = sqlText[i + 1];
-
-    if (!inString && !inComment) {
-      if (char === '-' && nextChar === '-') {
-        inComment = true;
-        commentType = '--';
-      } else if (char === '/' && nextChar === '*') {
-        inComment = true;
-        commentType = '/*';
-      }
-    }
-
-    if (inComment) {
-      currentQuery += char;
-      if (commentType === '--' && (char === '\n' || char === '\r')) {
-        inComment = false;
-      } else if (commentType === '/*' && char === '*' && nextChar === '/') {
-        currentQuery += nextChar; // Add the slash
-        inComment = false;
-        i++;
-      }
-      continue;
-    }
-
-    if ((char === "'" || char === '"' || char === '`') && sqlText[i - 1] !== '\\') {
-      if (!inString) {
-        inString = true;
-        stringChar = char;
-      } else if (stringChar === char) {
-        inString = false;
-      }
-    }
-
-    currentQuery += char;
-
-    if (char === ';' && !inString) {
-      queries.push({
-        sql: currentQuery,
-        start: queryStart,
-        end: i + 1,
-      });
-      currentQuery = '';
-      queryStart = i + 1;
-    }
-  }
-
-  if (currentQuery.trim()) {
-    queries.push({
-      sql: currentQuery,
-      start: queryStart,
-      end: sqlText.length,
-    });
-  }
-
-  const target = queries.find((q) => offset >= q.start && offset <= q.end);
-  if (target) {
-    return target.sql;
-  }
-
-  if (queries.length > 0) {
-    let minDistance = Infinity;
-    let closest = queries[0];
-    for (const q of queries) {
-      const dist = Math.min(Math.abs(offset - q.start), Math.abs(offset - q.end));
-      if (dist < minDistance) {
-        minDistance = dist;
-        closest = q;
-      }
-    }
-    return closest.sql;
-  }
-
-  return sqlText;
+  const statements = splitSqlScript(sqlText);
+  const target = statements.find(s => offset >= s.sourceSpan.start && offset <= s.sourceSpan.end) || statements.reduce<(typeof statements)[number] | undefined>((best, s) => !best || Math.min(Math.abs(offset-s.sourceSpan.start),Math.abs(offset-s.sourceSpan.end)) < Math.min(Math.abs(offset-best.sourceSpan.start),Math.abs(offset-best.sourceSpan.end)) ? s : best, undefined);
+  return target?.sql || sqlText;
 }
 
 export function useSqlExecution(deps: UseSqlExecutionDeps): UseSqlExecutionReturn {
@@ -192,18 +114,20 @@ export function useSqlExecution(deps: UseSqlExecutionDeps): UseSqlExecutionRetur
 
   const isRunningRef = useRef(false);
   const cancelledRef = useRef(false);
+  const abortRef = useRef<AbortController | null>(null);
 
   // Expose isRunning to consumers via the ref returned; but the hook contract
   // exposes isRunning as a boolean snapshot. We compute it lazily on each
   // call by reading the ref. This keeps the hook signature simple while
   // avoiding extra re-renders.
   const execute = useCallback(
-    async (explain = false, overrideSql?: string, cursorOffset?: number) => {
+    async (explain = false, overrideSql?: string, cursorOffset?: number, selectionOffset?: number) => {
       const tab = getActiveTab();
       if (!tab || isRunningRef.current) return;
 
       isRunningRef.current = true;
       cancelledRef.current = false;
+      abortRef.current = new AbortController();
 
       updateActiveTab({
         loading: true,
@@ -227,7 +151,13 @@ export function useSqlExecution(deps: UseSqlExecutionDeps): UseSqlExecutionRetur
       }
 
       try {
+        const statements = splitSqlScript(tab.code);
+        const selected = !overrideSql && typeof cursorOffset === 'number' ? statements.find(s => s.sql === sqlToRun && cursorOffset >= s.sourceSpan.start && cursorOffset <= s.sourceSpan.end) : undefined;
+        const baseOffset = selectionOffset ?? selected?.sourceSpan.start ?? 0;
+        if (!explain) await useWorkflowStore.getState().syncFromSql(tab.code, tab.title, false, tab.id);
+        const context = { bindingVersion:useWorkflowStore.getState().bindingVersion, tabId: tab.id, documentSql: tab.code, baseOffset, signal: abortRef.current!.signal };
         const type = classifyOperation(sqlToRun);
+        const executionScope = await duckDBService.getCurrentCatalogAndSchema();
         const table = extractTableName(sqlToRun);
 
         let executionResult: {
@@ -245,7 +175,8 @@ export function useSqlExecution(deps: UseSqlExecutionDeps): UseSqlExecutionRetur
             sqlToRun,
             type,
             table,
-            'Executed via SQL Editor'
+            'Executed via SQL Editor',
+            context
           );
         }
 
@@ -264,6 +195,9 @@ export function useSqlExecution(deps: UseSqlExecutionDeps): UseSqlExecutionRetur
         }
 
         const result: QueryResult = {
+          executedSql: sqlToRun,
+          databaseName: executionScope.catalog,
+          schemaName: executionScope.schema,
           columns: executionResult.columns,
           columnTypes: executionResult.columnTypes,
           columnTypeMap: executionResult.columnTypeMap,
@@ -273,13 +207,25 @@ export function useSqlExecution(deps: UseSqlExecutionDeps): UseSqlExecutionRetur
           isExplain: explain,
         };
 
-        updateActiveTab({ result, loading: false });
+        if(getActiveTab()?.id===tab.id&&getActiveTab()?.code===tab.code) {
+          updateActiveTab({ result, loading: false });
+          if(!explain && useAppStore.getState().currentDatabase===executionScope.catalog) {
+            // Only the statement actually executed becomes the shared dataset.
+            // Mutations and multi-statement scripts are never replayed by a graph refresh.
+            try {
+              const sql=requireAnalysisQuery(sqlToRun);
+              useAppStore.getState().setActiveDataset({id:`sql:${tab.id}`,name:`查询：${tab.title}`,catalog:executionScope.catalog,schema:executionScope.schema,
+                kind:'query',version:1,sql,fields:result.columns.map((name,index)=>({name,type:result.columnTypes?.[index] || result.columnTypeMap?.[name] || 'VARCHAR'}))});
+            }catch { /* Keep the current dataset after non-analysis operations. */ }
+          }
+        }
 
         if (!explain) {
           saveToHistory(sqlToRun, 'success', endTime - startTime);
         }
         onAfterRun?.();
       } catch (e: any) {
+        if(getActiveTab()?.id!==tab.id)return;
         if (cancelledRef.current) {
           updateActiveTab({ loading: false });
           onCancel?.();
@@ -294,6 +240,7 @@ export function useSqlExecution(deps: UseSqlExecutionDeps): UseSqlExecutionRetur
       } finally {
         isRunningRef.current = false;
         cancelledRef.current = false;
+        abortRef.current = null;
       }
     },
     [getActiveTab, updateActiveTab, onAfterRun, saveToHistory, refreshSchema, onCancel, onError]
@@ -302,7 +249,7 @@ export function useSqlExecution(deps: UseSqlExecutionDeps): UseSqlExecutionRetur
   const cancel = useCallback(() => {
     if (!isRunningRef.current) return;
     cancelledRef.current = true;
-    updateActiveTab({ loading: false });
+    abortRef.current?.abort();
     void duckDBService.cancelActiveQuery().catch(error => {
       console.warn('[SQL Execution] DuckDB cancellation failed', error);
     });

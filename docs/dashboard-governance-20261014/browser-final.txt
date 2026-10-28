@@ -1,0 +1,13 @@
+Loading real DuckDB dashboard acceptance surface
+PASS real readonly baseline loads three saved widgets and nine detail rows
+PASS real channel filtering changes rows without moving cards
+PASS clearing filters restores all nine rows and preserves geometry
+PASS viewport 1440: no overlap, no page overflow, drawable canvas, saved geometry unchanged
+PASS viewport 1280: no overlap, no page overflow, drawable canvas, saved geometry unchanged
+PASS viewport 1024: no overlap, no page overflow, drawable canvas, saved geometry unchanged
+PASS viewport 768: no overlap, no page overflow, drawable canvas, saved geometry unchanged
+PASS viewport 390: no overlap, no page overflow, drawable canvas, saved geometry unchanged
+PASS actual 30-second automatic refresh keeps fullscreen open and canvas drawable
+PASS real drag and resize persist, lock completes, reload restores saved geometry
+PASS saved readonly board does not leak into the memory catalog
+PASS no console errors, unhandled page errors, or dashboard incidents

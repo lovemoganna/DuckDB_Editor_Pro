@@ -1,14 +1,20 @@
+import './metricUi.css';
 import React, { useState, useEffect } from 'react';
 import { MetricChart } from '../types';
 import { metricAnalyzer } from '../services/metricAnalyzer';
 import { duckDBService } from '../services/duckdbService';
 import { toastService } from '../services/toastService';
+import { executeAnalysisQuery, requireAnalysisQuery } from '../services/analysis/readQuery';
+import { quoteIdent, quoteTable, escapeLiteral } from '../services/analysis/sqlUtils';
+import { deleteVisualizationAsset } from '../services/visualizationAssets';
+import { compileMetricSql } from '../services/metricSql';
+import { activeAnalysisDatabase } from '../services/metricAssetStorage';
 import {
   X, BarChart2, Trash2, ExternalLink,
   Loader2, PieChart, BarChart, LineChart, Activity,
   TrendingUp, GitCompare, Edit3, Plus, Sparkles, Check
 } from 'lucide-react';
-import { ActionButton, IconButton } from './ui/Workbench';
+import { ActionButton, IconButton, ModalShell } from './ui/Workbench';
 
 interface MetricChartListModalProps {
   packageId: string;
@@ -29,6 +35,7 @@ export const MetricChartListModal: React.FC<MetricChartListModalProps> = ({
   const [selectedCharts, setSelectedCharts] = useState<Set<string>>(new Set());
   const [compareMode, setCompareMode] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [operation, setOperation] = useState<string | null>(null);
 
   useEffect(() => {
     loadCharts();
@@ -38,6 +45,8 @@ export const MetricChartListModal: React.FC<MetricChartListModalProps> = ({
     setLoading(true);
     const loadedCharts = metricAnalyzer.getChartsByPackage(packageId);
     setCharts(loadedCharts);
+    setSelectedCharts(prev => new Set([...prev].filter(id => loadedCharts.some(chart => chart.id === id))));
+    if (loadedCharts.length < 2) setCompareMode(false);
     setLoading(false);
   };
 
@@ -58,82 +67,80 @@ export const MetricChartListModal: React.FC<MetricChartListModalProps> = ({
 
   // 生成趋势分析 SQL
   const handleGenerateTrend = async (chart: MetricChart) => {
-    let timeCol = 'created_at';
-    const config = chart.chartConfig;
-    let valCol = config?.yKeys?.[0] || 'amount';
-
+    if (operation || convertingId) return;
+    const database = activeAnalysisDatabase();
+    setOperation(chart.id);
     try {
-      const schema = await duckDBService.getTableSchema(chart.sourceTable).catch(() => []);
-      const dateCol = schema.find((c: any) => /date|time|timestamp/i.test(c.type || c.name));
-      if (dateCol) {
-        timeCol = dateCol.name;
+      const metric = metricAnalyzer.loadMetricPackages().find(pkg => pkg.id === chart.metricPackageId)
+        ?.metrics.find(metric => metric.id === chart.metricId);
+      if (!metric || (!metric.calculation && /^(?:select|with|values)\b/i.test(metric.formula.trim()))) {
+        throw new Error('此图表无法自动拆分日期口径，请在 SQL 工作台编辑其原始查询');
       }
-      const numCol = schema.find((c: any) => /int|float|double|decimal|num/i.test(c.type));
-      if (numCol && !config?.yKeys?.[0]) {
-        valCol = numCol.name;
-      }
-    } catch {}
-
-    const trendSql = `-- 趋势分析: ${chart.metricName}
--- 时间粒度按天聚合 (基于 ${chart.sourceTable}.${timeCol})
-SELECT 
-  date_trunc('day', "${timeCol}") AS time_bucket,
-  COUNT(*) AS metric_count,
-  COALESCE(SUM(TRY_CAST("${valCol}" AS DOUBLE)), COUNT(*)) AS total_value
-FROM "${chart.sourceTable}"
-GROUP BY 1
-ORDER BY 1 DESC
-LIMIT 30;`;
-
-    if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(trendSql).catch(() => {});
-    }
-
-    if (onOpenInSqlEditor) {
-      onOpenInSqlEditor({ ...chart, sql: trendSql });
-    } else {
-      window.dispatchEvent(
-        new CustomEvent('duckdb_execute_sql', {
-          detail: { sql: trendSql, autoRun: true, title: `趋势分析: ${chart.metricName}` },
-        })
-      );
-    }
-    toastService.success('趋势分析 SQL 已生成并载入 SQL 工作台', '已复制至剪贴板');
+      const schema = await duckDBService.getTableSchema(chart.sourceTable || '');
+      const dateCol = schema.find(column => column.name === metric.calculation?.timeField) || schema.find((column: any) => /date|timestamp/i.test(column.type));
+      if (!dateCol) throw new Error('数据源没有日期字段，无法生成时间趋势');
+      const trendSql = metric.calculation ? compileMetricSql({ ...metric, sourceTable: chart.sourceTable,
+        calculation: { ...metric.calculation, timeField: dateCol.name, grain: metric.calculation.grain || 'day' } }) : requireAnalysisQuery(`SELECT date_trunc('day', ${quoteIdent(dateCol.name)}) AS time_bucket,
+  ${metric.formula} AS ${quoteIdent(metric.name)}
+FROM ${quoteTable(chart.sourceTable || '')}
+GROUP BY 1 ORDER BY 1 DESC LIMIT 30`);
+      await executeAnalysisQuery(trendSql);
+      if (database !== activeAnalysisDatabase()) throw new Error('数据库已切换，请重新打开图表');
+      openSql({ ...chart, sql: trendSql, chartConfig: { ...chart.chartConfig,
+        type: 'line', xKey: metric.calculation ? 'period' : 'time_bucket', yKeys: [metric.calculation ? 'value' : metric.name],
+        aggregation: 'none', groupBy: metric.calculation?.groupBy?.[0],
+      } }, `趋势分析: ${chart.metricName}`);
+      toastService.success('已载入按真实日期字段和指标口径生成的趋势查询');
+    } catch (error) { toastService.error('无法生成趋势查询', (error as Error).message); }
+    finally { setOperation(null); }
   };
 
-  // 对比选中的图表
+  const openSql = (chart: MetricChart, title: string) => {
+    if (onOpenInSqlEditor) onOpenInSqlEditor(chart);
+    else window.dispatchEvent(new CustomEvent('duckdb_execute_sql', {
+      detail: { sql: chart.sql, autoRun: true, title },
+    }));
+  };
+
+  // Compare scalar values using the same two-column schema.
   const handleCompare = async () => {
+    if (operation || convertingId) return;
     if (selectedCharts.size < 2) {
       toastService.warning('请至少勾选 2 个图表进行对比分析');
       return;
     }
-
-    const selectedChartsData = charts.filter(c => selectedCharts.has(c.id));
-    const comparisonSql = `-- 指标对比分析视图
-SELECT 
-  *
-FROM (
-  ${selectedChartsData.map(c => `SELECT '${c.metricName}' AS metric_name, * FROM (${c.sql.replace(/;+$/, '')})`).join('\n  UNION ALL\n  ')}
-)
-LIMIT 100;`;
-
-    if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(comparisonSql).catch(() => {});
-    }
-
-    window.dispatchEvent(
-      new CustomEvent('duckdb_execute_sql', {
-        detail: { sql: comparisonSql, autoRun: true, title: `指标对比分析 (${selectedChartsData.length})` },
-      })
-    );
-    toastService.success(`已生成 ${selectedChartsData.length} 个指标的对比 SQL 并载入工作台`, '已复制至剪贴板');
+    const database = activeAnalysisDatabase();
+    setOperation('compare');
+    try {
+      const selected = charts.filter(chart => selectedCharts.has(chart.id));
+      const parts: string[] = [];
+      for (const chart of selected) {
+        if (database !== activeAnalysisDatabase()) throw new Error('数据库已切换，对比已停止');
+        const sql = requireAnalysisQuery(chart.sql);
+        const rows = await executeAnalysisQuery(sql);
+        const valueKey = chart.chartConfig.yKeys[0];
+        if (rows.length !== 1 || !valueKey || rows[0][valueKey] == null || !Number.isFinite(Number(rows[0][valueKey]))) {
+          throw new Error('对比支持单值数值指标；分类或趋势图请在 SQL 工作台合并分析');
+        }
+        parts.push(`SELECT '${escapeLiteral(chart.metricName)}' AS metric_name, TRY_CAST(${quoteIdent(valueKey)} AS DOUBLE) AS metric_value FROM (${sql})`);
+      }
+      const sql = parts.join('\nUNION ALL\n');
+      await executeAnalysisQuery(sql);
+      if (database !== activeAnalysisDatabase()) throw new Error('数据库已切换，对比已停止');
+      openSql({ ...selected[0], sql, chartConfig: { ...selected[0].chartConfig,
+        type: 'bar', xKey: 'metric_name', yKeys: ['metric_value'], aggregation: 'none', groupBy: undefined,
+      } }, `指标对比分析 (${selected.length})`);
+      toastService.success(`已载入 ${selected.length} 个真实指标的对比查询`);
+    } catch (error) { toastService.error('无法对比这些指标', (error as Error).message); }
+    finally { setOperation(null); }
   };
 
   const handleAddToDashboard = async (chart: MetricChart) => {
+    if (operation || convertingId) return;
     setConvertingId(chart.id);
     try {
       await metricAnalyzer.convertToSavedQuery(chart);
-      toastService.success(`图表「${chart.metricName}」已发送至看板`, '可在 Dashboard 中添加该组件');
+      toastService.success(`图表「${chart.metricName}」已固定到首页仪表盘`);
     } catch (error) {
       console.error('Failed to add to dashboard:', error);
       toastService.error('添加到 Dashboard 失败', (error as Error).message);
@@ -142,12 +149,19 @@ LIMIT 100;`;
     }
   };
 
-  const handleDeleteChart = (chartId: string) => {
-    metricAnalyzer.deleteMetricChart(chartId);
-    setDeletingId(null);
-    loadCharts();
-    onRefresh();
-    toastService.success('图表已删除');
+  const handleDeleteChart = async (chartId: string) => {
+    if (operation || convertingId) return;
+    const chart = charts.find(chart => chart.id === chartId);
+    if (!chart) return;
+    setOperation(chartId);
+    try {
+      await deleteVisualizationAsset(chart);
+      setDeletingId(null);
+      loadCharts();
+      onRefresh();
+      toastService.success('图表已删除，首页关联已更新');
+    } catch (error) { toastService.error('删除图表失败', (error as Error).message); }
+    finally { setOperation(null); }
   };
 
   const getChartTypeIcon = (type: string) => {
@@ -168,57 +182,43 @@ LIMIT 100;`;
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-label="指标图表资产列表"
+    <ModalShell
+      className="metric-surface"
+      open={true}
+      onClose={onClose}
+      title="指标图表资产"
+      description="声明式可视化图表配置，支持多指标合并对比与一键同步至 Dashboard"
+      icon={BarChart2}
+      badge={`${charts.length} 个已生成图表`}
+      size="lg"
+      headerActions={
+        charts.length >= 2 ? (
+          <ActionButton
+            variant={compareMode ? 'primary' : 'secondary'}
+            size="sm"
+            icon={GitCompare}
+            onClick={() => {
+              setCompareMode(!compareMode);
+              if (compareMode) setSelectedCharts(new Set());
+            }}
+          >
+            {compareMode ? '退出对比' : '对比模式'}
+          </ActionButton>
+        ) : null
+      }
+      footer={
+        <>
+          <span className="mr-auto text-xs text-monokai-comment">共 {charts.length} 个图表资产</span>
+          <ActionButton variant="secondary" size="sm" onClick={onClose}>
+            关闭
+          </ActionButton>
+        </>
+      }
     >
-      <div
-        className="w-full max-w-3xl bg-monokai-sidebar border border-monokai-border rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-200"
-        onClick={e => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-monokai-border bg-monokai-sidebar/95">
-          <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-lg bg-monokai-surface border border-monokai-border flex items-center justify-center text-monokai-fg-muted shrink-0">
-              <BarChart2 size={18} />
-            </div>
-            <div>
-              <h2 className="text-sm font-bold text-monokai-fg flex items-center gap-2">
-                指标图表资产 (Visual Charts)
-                <span className="text-[10px] font-mono font-medium px-2 py-0.5 rounded-full bg-monokai-surface text-monokai-fg-muted border border-monokai-border">
-                  {charts.length} 个已生成图表
-                </span>
-              </h2>
-              <p className="text-xs text-monokai-comment mt-0.5">
-                声明式可视化图表配置，支持多指标合并对比与一键同步至 Dashboard
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {charts.length >= 2 && (
-              <ActionButton
-                variant={compareMode ? 'primary' : 'secondary'}
-                size="sm"
-                icon={GitCompare}
-                onClick={() => {
-                  setCompareMode(!compareMode);
-                  if (compareMode) setSelectedCharts(new Set());
-                }}
-              >
-                {compareMode ? '退出对比' : '对比模式'}
-              </ActionButton>
-            )}
-            <IconButton label="关闭" icon={X} onClick={onClose} size="sm" />
-          </div>
-        </div>
-
+      <div className="-m-5 flex min-h-0 flex-col">
         {/* Compare Toolbar strip if in compare mode */}
         {compareMode && (
-          <div className="px-6 py-2.5 bg-monokai-surface border-b border-monokai-border flex items-center justify-between">
+          <div className="px-5 py-2.5 bg-monokai-surface border-b border-monokai-border flex items-center justify-between">
             <span className="text-xs text-monokai-fg font-medium flex items-center gap-1.5">
               <GitCompare size={14} className="text-monokai-fg-muted" />
               已选择 {selectedCharts.size} / 4 个图表进行对比
@@ -228,7 +228,8 @@ LIMIT 100;`;
               size="sm"
               icon={GitCompare}
               onClick={handleCompare}
-              disabled={selectedCharts.size < 2}
+              disabled={selectedCharts.size < 2 || Boolean(operation || convertingId)}
+              loading={operation === 'compare'}
             >
               生成对比 SQL
             </ActionButton>
@@ -236,7 +237,7 @@ LIMIT 100;`;
         )}
 
         {/* Content Area */}
-        <div className="flex-1 overflow-y-auto p-4 custom-scrollbar bg-monokai-bg">
+        <div className="flex-1 overflow-y-auto p-5 custom-scrollbar bg-monokai-bg">
           {loading ? (
             <div className="flex items-center justify-center py-16 text-monokai-comment gap-2">
               <Loader2 size={20} className="animate-spin text-monokai-comment" />
@@ -247,7 +248,7 @@ LIMIT 100;`;
               <BarChart2 size={40} className="mx-auto text-monokai-comment/40 mb-3" />
               <p className="text-sm font-semibold text-monokai-fg">暂无生成的图表</p>
               <p className="text-xs text-monokai-comment mt-1">
-                在指标卡片上点击「📊 图表」图标，AI 将自动分析数据维度并生成匹配图表
+                在指标卡片上点击「生成图表」，按当前指标口径计算真实数据并创建图表。
               </p>
             </div>
           ) : (
@@ -263,14 +264,16 @@ LIMIT 100;`;
                         : 'border-monokai-border hover:border-monokai-border-strong'
                     }`}
                   >
-                    <div className="flex items-start justify-between gap-3">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
                       <div className="flex items-start gap-3 min-w-0">
                         {compareMode && (
                           <input
                             type="checkbox"
                             checked={isSelected}
+                            aria-label={`选择 ${chart.metricName} 进行对比`}
+                            disabled={Boolean(operation || convertingId)}
                             onChange={() => toggleChartSelection(chart.id)}
-                            className="mt-1 h-4 w-4 rounded border-monokai-border accent-monokai-yellow cursor-pointer"
+                            className="mt-1 h-4 w-4 rounded border-monokai-border accent-monokai-accent cursor-pointer"
                           />
                         )}
 
@@ -296,12 +299,14 @@ LIMIT 100;`;
                       </div>
 
                       {/* Action buttons */}
-                      <div className="flex items-center gap-1.5 shrink-0">
+                      <div className="flex flex-wrap items-center gap-1.5">
                         <ActionButton
                           variant="secondary"
                           size="sm"
                           icon={TrendingUp}
                           onClick={() => handleGenerateTrend(chart)}
+                          disabled={Boolean(operation || convertingId)}
+                          loading={operation === chart.id}
                           title="复制时间趋势分析 SQL"
                         >
                           趋势
@@ -325,25 +330,27 @@ LIMIT 100;`;
                           icon={convertingId === chart.id ? Loader2 : ExternalLink}
                           loading={convertingId === chart.id}
                           onClick={() => handleAddToDashboard(chart)}
+                          disabled={Boolean(operation || convertingId)}
                           title="发布到 Dashboard 看板"
                         >
                           发送到看板
                         </ActionButton>
 
                         {deletingId === chart.id ? (
-                          <div className="flex items-center gap-1 bg-monokai-surface border border-monokai-border rounded-lg px-2 py-1">
-                            <span className="text-[10px] text-monokai-pink">确认删除?</span>
+                          <div className="flex items-center gap-1.5 bg-monokai-surface border border-monokai-pink/40 rounded-lg px-2.5 py-1 shadow-2xs">
+                            <span className="text-[10px] text-monokai-pink font-semibold">确认删除?</span>
                             <button
                               type="button"
                               onClick={() => handleDeleteChart(chart.id)}
-                              className="text-xs text-monokai-pink font-bold hover:underline"
+                              disabled={Boolean(operation || convertingId)}
+                              className="text-xs text-monokai-pink font-bold hover:underline cursor-pointer px-1 rounded focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-monokai-accent"
                             >
                               是
                             </button>
                             <button
                               type="button"
                               onClick={() => setDeletingId(null)}
-                              className="text-xs text-monokai-comment hover:text-monokai-fg ml-1"
+                              className="text-xs text-monokai-comment hover:text-monokai-fg cursor-pointer px-1 rounded focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-monokai-accent"
                             >
                               否
                             </button>
@@ -355,8 +362,10 @@ LIMIT 100;`;
                             size="sm"
                             tone="danger"
                             onClick={() => setDeletingId(chart.id)}
+                            disabled={Boolean(operation || convertingId)}
                           />
                         )}
+
                       </div>
                     </div>
                   </div>
@@ -365,15 +374,7 @@ LIMIT 100;`;
             </div>
           )}
         </div>
-
-        {/* Footer */}
-        <div className="px-6 py-3.5 border-t border-monokai-border bg-monokai-sidebar/95 flex items-center justify-between text-xs text-monokai-comment">
-          <span>共 {charts.length} 个图表资产</span>
-          <ActionButton variant="secondary" size="sm" onClick={onClose}>
-            关闭
-          </ActionButton>
-        </div>
       </div>
-    </div>
+    </ModalShell>
   );
 };

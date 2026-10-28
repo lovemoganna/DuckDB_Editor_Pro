@@ -1,0 +1,112 @@
+[
+  {
+    "width": 1440,
+    "usd": true,
+    "net": true,
+    "detail": true,
+    "items": true,
+    "legend": "false",
+    "sizes": {
+      "page": 1440,
+      "plots": [
+        {
+          "height": 334,
+          "width": 671
+        },
+        {
+          "height": 302,
+          "width": 772
+        }
+      ],
+      "viewport": 1440
+    }
+  },
+  {
+    "width": 1280,
+    "usd": true,
+    "net": true,
+    "detail": true,
+    "items": true,
+    "legend": "false",
+    "sizes": {
+      "page": 1280,
+      "plots": [
+        {
+          "height": 302,
+          "width": 591
+        },
+        {
+          "height": 302,
+          "width": 772
+        }
+      ],
+      "viewport": 1280
+    }
+  },
+  {
+    "width": 1024,
+    "usd": true,
+    "net": true,
+    "detail": true,
+    "items": true,
+    "legend": "false",
+    "sizes": {
+      "page": 1024,
+      "plots": [
+        {
+          "height": 302,
+          "width": 463
+        },
+        {
+          "height": 302,
+          "width": 772
+        }
+      ],
+      "viewport": 1024
+    }
+  },
+  {
+    "width": 768,
+    "usd": true,
+    "net": true,
+    "detail": true,
+    "items": true,
+    "legend": "false",
+    "sizes": {
+      "page": 768,
+      "plots": [
+        {
+          "height": 302,
+          "width": 708
+        },
+        {
+          "height": 302,
+          "width": 772
+        }
+      ],
+      "viewport": 768
+    }
+  },
+  {
+    "width": 390,
+    "usd": true,
+    "net": true,
+    "detail": true,
+    "items": true,
+    "legend": "false",
+    "sizes": {
+      "page": 390,
+      "plots": [
+        {
+          "height": 262,
+          "width": 380
+        },
+        {
+          "height": 262,
+          "width": 772
+        }
+      ],
+      "viewport": 390
+    }
+  }
+]

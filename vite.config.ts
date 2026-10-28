@@ -2,6 +2,24 @@ import { defineConfig, Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import fs from 'fs';
+import { createHash } from 'node:crypto';
+
+// Includes uncommitted source and configuration; a Git SHA alone cannot identify this workspace.
+function sourceBuildId() {
+  const hash=createHash('sha256');
+  function visit(directory:string) {
+    for(const entry of fs.readdirSync(directory,{withFileTypes:true}).sort((a,b)=>a.name.localeCompare(b.name))) {
+      if(['node_modules','.git','dist','docs','public','output','.playwright-cli'].includes(entry.name) || entry.name.startsWith('.codex-'))continue;
+      const file=path.join(directory,entry.name);
+      if(entry.isDirectory())visit(file);
+      else if(/\.(tsx?|css)$/.test(entry.name) || ['package.json','pnpm-lock.yaml','index.html'].includes(entry.name)) {
+        hash.update(path.relative(__dirname,file).replaceAll('\\','/'));hash.update(fs.readFileSync(file));
+      }
+    }
+  }
+  visit(__dirname);
+  return `${process.env.GITHUB_SHA?.slice(0,8) || 'local'}-${hash.digest('hex').slice(0,12)}`;
+}
 
 function snippetFsPlugin(): Plugin {
   return {
@@ -168,11 +186,95 @@ function snippetFsPlugin(): Plugin {
   };
 }
 
+function baseRedirectPlugin(basePath: string): Plugin {
+  const normalizedBase = basePath.endsWith('/') ? basePath : `${basePath}/`;
+  const cleanBase = normalizedBase.slice(0, -1);
+
+  const handleRedirect = (req: any, res: any, next: () => void) => {
+    const rawUrl = req.url || '';
+    const parsedUrl = new URL(rawUrl, 'http://localhost');
+    const pathname = parsedUrl.pathname;
+
+    // Pass through Vite dev server internals, assets, and APIs
+    if (
+      pathname.startsWith('/@') ||
+      pathname.startsWith('/__vite') ||
+      pathname.startsWith('/api/') ||
+      pathname.includes('/api/snippets') ||
+      pathname.includes('/api/docs') ||
+      pathname.includes('/api/proxy')
+    ) {
+      return next();
+    }
+
+    // 1. Exact base without trailing slash (case-insensitive, e.g. /DuckDB_Editor_Pro or /duckdb_editor_pro)
+    if (pathname.toLowerCase() === cleanBase.toLowerCase()) {
+      const target = normalizedBase + (parsedUrl.search || '') + (parsedUrl.hash || '');
+      res.writeHead(302, { Location: target });
+      res.end();
+      return;
+    }
+
+    // 2. Case mismatch for base prefix (e.g. /duckdb_editor_pro/... -> /DuckDB_Editor_Pro/...)
+    if (
+      pathname.toLowerCase().startsWith(cleanBase.toLowerCase() + '/') &&
+      !pathname.startsWith(normalizedBase)
+    ) {
+      const rest = pathname.slice(cleanBase.length + 1);
+      const target = normalizedBase + rest + (parsedUrl.search || '') + (parsedUrl.hash || '');
+      res.writeHead(302, { Location: target });
+      res.end();
+      return;
+    }
+
+    // 3. Root path / or /index.html
+    if (pathname === '/' || pathname === '/index.html') {
+      const target = normalizedBase + (parsedUrl.search || '') + (parsedUrl.hash || '');
+      res.writeHead(302, { Location: target });
+      res.end();
+      return;
+    }
+
+    // 4. Any HTML page navigation request outside base path
+    const acceptHeader = req.headers?.accept || '';
+    const secFetchDest = req.headers?.['sec-fetch-dest'] || '';
+    const isNavigation =
+      acceptHeader.includes('text/html') ||
+      secFetchDest === 'document';
+
+    if (isNavigation && !pathname.startsWith(normalizedBase)) {
+      const subPath = pathname.startsWith('/') ? pathname.slice(1) : pathname;
+      const target = normalizedBase + subPath + (parsedUrl.search || '') + (parsedUrl.hash || '');
+      res.writeHead(302, { Location: target });
+      res.end();
+      return;
+    }
+
+    next();
+  };
+
+  return {
+    name: 'base-redirect-plugin',
+    configureServer(server) {
+      server.middlewares.use(handleRedirect);
+    },
+    configurePreviewServer(server) {
+      server.middlewares.use(handleRedirect);
+    },
+  };
+}
+
+const BASE_PATH = process.env.VITE_BASE || '/DuckDB_Editor_Pro/';
+
 // https://vite.dev/config/
 export default defineConfig({
-  base: '/DuckDB_Editor_Pro/',
-  plugins: [react(), snippetFsPlugin()],
+  base: BASE_PATH,
+  cacheDir: process.env.VITE_ACCEPTANCE_CACHE_DIR || 'node_modules/.vite',
+  // Historical HTML/evidence directories are not application entry points.
+  optimizeDeps: { entries: ['index.html', 'test/dashboard-stability.html'] },
+  plugins: [react(), snippetFsPlugin(), baseRedirectPlugin(BASE_PATH)],
   define: {
+    __APP_BUILD_ID__: JSON.stringify(sourceBuildId()),
     'process.env': {},
   },
   resolve: {

@@ -52,14 +52,58 @@ export function normalizeDuckDBValue(value: unknown): unknown {
   return value;
 }
 
-export function duckDBResultToRows(result: unknown): RuntimeRow[] {
+// Arrow decimal128 stores an unscaled signed integer in little-endian words.
+// Scale belongs to the column type, rather than the cell value.
+function decimalText(value: unknown, scale: number): unknown {
+  if (value == null) return null;
+  let integer: bigint;
+  if (typeof value === 'bigint') integer = value;
+  else if (value instanceof Uint32Array || value instanceof Int32Array) {
+    integer = 0n;
+    for (let i = value.length - 1; i >= 0; i--) {
+      integer = (integer << 32n) + BigInt(value[i] >>> 0);
+    }
+    if (value.length && (value[value.length - 1] >>> 31)) {
+      integer -= 1n << BigInt(value.length * 32);
+    }
+  } else return normalizeDuckDBValue(value);
+  const negative = integer < 0n;
+  const digits = (negative ? -integer : integer).toString();
+  if (scale <= 0) return `${negative ? '-' : ''}${digits}${'0'.repeat(-scale)}`;
+  const padded = digits.padStart(scale + 1, '0');
+  return `${negative ? '-' : ''}${padded.slice(0, -scale)}.${padded.slice(-scale)}`;
+}
+
+export function duckDBResultToRows(
+  result: unknown,
+  normalizeValue: (value: unknown) => unknown = normalizeDuckDBValue,
+): RuntimeRow[] {
   if (!result || typeof (result as { toArray?: unknown }).toArray !== 'function') return [];
   const values = (result as { toArray(): unknown[] }).toArray();
+  const fields = (result as { schema?: { fields?: { name: string; type: { typeId?: number; scale?: number; byteWidth?: number } }[] } }).schema?.fields ?? [];
+  const decimalScales = new Map(fields
+    .filter(field => field.type.typeId === 7 && Number.isInteger(field.type.scale))
+    .map(field => [field.name, field.type.scale!]));
+  // DuckDB-Wasm exposes HUGEINT as signed little-endian Arrow FixedSizeBinary.
+  // Variable-width Binary (BLOB) retains its original value.
+  const hugeInts = new Set(fields.filter(field => field.type.typeId === 15 && field.type.byteWidth === 16).map(field => field.name));
   return values.map(value => {
     const row = value && typeof (value as { toJSON?: unknown }).toJSON === 'function'
       ? (value as { toJSON(): RuntimeRow }).toJSON()
       : value as RuntimeRow;
-    return normalizeDuckDBValue(row) as RuntimeRow;
+    return Object.fromEntries(Object.entries(row).map(([key, cell]) => [
+      key, hugeInts.has(key) && cell instanceof Uint8Array && cell.length === 16
+        ? (() => {
+          let integer = 0n;
+          for (let i = 15; i >= 0; i--) integer = (integer << 8n) + BigInt(cell[i]);
+          integer = BigInt.asIntN(128, integer);
+          const number = Number(integer);
+          return Number.isSafeInteger(number) ? number : integer.toString();
+        })()
+        : decimalScales.has(key)
+        ? decimalText(cell, decimalScales.get(key)!)
+        : normalizeValue(cell),
+    ])) as RuntimeRow;
   });
 }
 
@@ -174,6 +218,7 @@ export function createWorkspaceOpenConfig(useOPFS: boolean): DuckDBConfig {
 export async function openWorkspaceDatabase(
   database: OpenableDuckDB,
   useOPFS: boolean,
+  preparePersistentFile?: () => Promise<string>,
 ): Promise<WorkspaceOpenResult> {
   if (!useOPFS) {
     await database.open(createWorkspaceOpenConfig(false));
@@ -181,7 +226,10 @@ export async function openWorkspaceDatabase(
   }
 
   try {
-    await database.open(createWorkspaceOpenConfig(true));
+    const config = createWorkspaceOpenConfig(true);
+    // Use the registered writable VFS path, not an unregistered opfs URL.
+    if (preparePersistentFile) config.path = await preparePersistentFile();
+    await database.open(config);
     return { mode: 'opfs' };
   } catch (error) {
     await database.open(createWorkspaceOpenConfig(false));

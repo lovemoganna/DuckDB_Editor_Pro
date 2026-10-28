@@ -39,8 +39,8 @@ describe('ActiveFeatureHost', () => {
     expect(screen.getByRole('alert').textContent).toContain('历史 is unavailable');
   });
 
-  it('renders data, schema, metrics, and analysis hub tabs full-bleed without the context sidebar', () => {
-    for (const tab of [Tab.DATA, Tab.STRUCTURE, Tab.METRICS, Tab.ANALYSIS_HUB]) {
+  it('renders data, schema, metrics, analysis hub, history, and audit tabs full-bleed without the context sidebar', () => {
+    for (const tab of [Tab.DATA, Tab.STRUCTURE, Tab.METRICS, Tab.ANALYSIS_HUB, Tab.HISTORY, Tab.AUDIT]) {
       const renderer = vi.fn(() => <div data-testid={`content-${tab}`}>Feature content</div>);
       const { unmount } = render(
         <ActiveFeatureHost
@@ -62,18 +62,18 @@ describe('ActiveFeatureHost', () => {
     const onNavigate = vi.fn();
     render(
       <ActiveFeatureHost
-        activeTab={Tab.HISTORY}
+        activeTab={Tab.EXTENSIONS}
         onNavigate={onNavigate}
         context={{ currentTable: 'orders', tableCount: 3, runtimeLabel: 'OPFS', persistent: true }}
-        renderers={{ [Tab.HISTORY]: () => <div>History content</div> }}
+        renderers={{ [Tab.EXTENSIONS]: () => <div>Extensions content</div> }}
       />,
     );
 
     expect(screen.getByText('orders')).toBeTruthy();
     expect(screen.getByText('3 张表')).toBeTruthy();
     expect(screen.getByText('OPFS')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: '指标' }));
-    expect(onNavigate).toHaveBeenCalledWith(Tab.METRICS);
+    fireEvent.click(screen.getByRole('button', { name: '知识资产' }));
+    expect(onNavigate).toHaveBeenCalledWith(Tab.LIBRARY);
   });
 
   it('renders all AI cognitive tabs full-bleed directly without extra shell wrapping', () => {

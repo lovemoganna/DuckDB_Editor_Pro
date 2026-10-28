@@ -1,0 +1,340 @@
+{
+  "phase": "empty-dark-desktop",
+  "results": [
+    {
+      "group": "工程核心",
+      "tab": "仪表盘",
+      "screenshot": "docs/system-consistency-20261012/empty-dark-desktop/工程核心-仪表盘.png",
+      "errors": [],
+      "theme": "dark",
+      "bodyWidth": 1440,
+      "viewport": 1440,
+      "mainText": "分析范围\n/\n内存库 · memory（临时）\n\n导入数据开始分析\n\n导入数据",
+      "controls": 22,
+      "unnamedButtons": [],
+      "alerts": [],
+      "subTabs": [],
+      "overflow": []
+    },
+    {
+      "group": "工程核心",
+      "tab": "数据",
+      "screenshot": "docs/system-consistency-20261012/empty-dark-desktop/工程核心-数据.png",
+      "errors": [],
+      "theme": "dark",
+      "bodyWidth": 1440,
+      "viewport": 1440,
+      "mainText": "未找到可浏览的数据表\n\n当前 DuckDB 数据库中暂无任何数据表或视图。请导入数据文件或加载内置示例数据以开始。\n\n加载示例数据\n新建数据表\n导入数据文件\n返回仪表盘",
+      "controls": 23,
+      "unnamedButtons": [],
+      "alerts": [],
+      "subTabs": [],
+      "overflow": []
+    },
+    {
+      "group": "工程核心",
+      "tab": "Schema",
+      "screenshot": "docs/system-consistency-20261012/empty-dark-desktop/工程核心-Schema.png",
+      "errors": [],
+      "theme": "dark",
+      "bodyWidth": 1440,
+      "viewport": 1440,
+      "mainText": "未找到可分析的数据表\n\n请导入或创建一张数据表以探索 Schema 结构与 ER 拓扑关系，或使用下方快捷动作开始。\n\n加载示例数据\n新建数据表\n导入数据文件\n返回仪表盘",
+      "controls": 23,
+      "unnamedButtons": [],
+      "alerts": [],
+      "subTabs": [],
+      "overflow": []
+    },
+    {
+      "group": "工程核心",
+      "tab": "SQL",
+      "screenshot": "docs/system-consistency-20261012/empty-dark-desktop/工程核心-SQL.png",
+      "errors": [],
+      "theme": "dark",
+      "bodyWidth": 1440,
+      "viewport": 1440,
+      "mainText": "数据资源浏览\n新建表\n打开文件\n附加数据库\n添加数据源\nmemory\n(当前)\nmain\n表 (0)\n视图 (0)\n宏 (Macros) (0)\n文件与远程源 (0)\n最近打开 (0)\nquery_1.sql\n1 个查询\n运行\n格式化\n10\n流程图\n解释\n分析\n历史\n0\nmemory\n.\nmain\n1\n\n\n分隔条\nL\n1\n·\nC\n0\n最大化结果\n最大化代码\n双击\n重置\n40\n%\n数据\n图表\n透视\n执行计划\n筛选\n排序\n分组\n导出\n就绪待命\n\n等待执行查询\n\n按 Ctrl+Enter 运行 SQL。结果可在上方切换数据、图表、透视与执行计划。\n\n1\n第 1 页, 共 1 页\n每页:\n25 行\n50 行\n100 行\n200 行\n500 行\n1000 行\n0 / 0 行\n列画像\nAI助手\nDB\nmemory.main\n(0表)\n行\n1\n列\n1\nquery_1.sql\n内存\n未采集\n运行时\n就绪\n就绪\n控制\n反馈",
+      "controls": 66,
+      "unnamedButtons": [],
+      "alerts": [],
+      "subTabs": [
+        {
+          "name": "query_1.sql",
+          "selected": "true"
+        },
+        {
+          "name": "数据",
+          "selected": "true"
+        },
+        {
+          "name": "图表",
+          "selected": "false"
+        },
+        {
+          "name": "透视",
+          "selected": "false"
+        },
+        {
+          "name": "执行计划",
+          "selected": "false"
+        }
+      ],
+      "overflow": []
+    },
+    {
+      "group": "工程核心",
+      "tab": "数据流",
+      "screenshot": "docs/system-consistency-20261012/empty-dark-desktop/工程核心-数据流.png",
+      "errors": [],
+      "theme": "dark",
+      "bodyWidth": 1440,
+      "viewport": 1440,
+      "mainText": "数据流画布\n\nDuckDB 正在准备数据与执行环境",
+      "controls": 19,
+      "unnamedButtons": [],
+      "alerts": [],
+      "subTabs": [],
+      "overflow": []
+    },
+    {
+      "group": "分析洞察",
+      "tab": "指标",
+      "screenshot": "docs/system-consistency-20261012/empty-dark-desktop/分析洞察-指标.png",
+      "errors": [],
+      "theme": "dark",
+      "bodyWidth": 1440,
+      "viewport": 1440,
+      "mainText": "指标库\n0 个指标包\n\n管理计算口径，验证真实数据，并用于分析与可视化\n\n仪表盘\n从真实字段生成\n导入指标包\n新建指标包\n指标建模工具\n暂无指标包\n\n导入真实数据后可从字段生成基础指标，也可以手动创建业务指标包。\n\n从真实字段生成\n新建指标包",
+      "controls": 27,
+      "unnamedButtons": [],
+      "alerts": [],
+      "subTabs": [],
+      "overflow": []
+    },
+    {
+      "group": "分析洞察",
+      "tab": "可视化",
+      "screenshot": "docs/system-consistency-20261012/empty-dark-desktop/分析洞察-可视化.png",
+      "errors": [],
+      "theme": "dark",
+      "bodyWidth": 1440,
+      "viewport": 1440,
+      "mainText": "可视化\n\nDuckDB 正在准备数据与执行环境",
+      "controls": 19,
+      "unnamedButtons": [],
+      "alerts": [],
+      "subTabs": [],
+      "overflow": []
+    },
+    {
+      "group": "分析洞察",
+      "tab": "分析",
+      "screenshot": "docs/system-consistency-20261012/empty-dark-desktop/分析洞察-分析.png",
+      "errors": [],
+      "theme": "dark",
+      "bodyWidth": 1440,
+      "viewport": 1440,
+      "mainText": "分析中心\n\n多维透视 · 时序走势 · 业务配方 · SQL 模板 · DuckDB 本地内核\n\n仪表盘\n关联分析\n数据体检\n透视聚合\n时序分析\n场景配方\nSQL 模板\n暂无数据表可分析\n\n导入真实数据后，即可使用体检、透视、时序与业务配方。\n\n导入 CSV / Parquet\n先浏览 SQL 模板",
+      "controls": 28,
+      "unnamedButtons": [],
+      "alerts": [],
+      "subTabs": [
+        {
+          "name": "关联分析",
+          "selected": "false"
+        },
+        {
+          "name": "数据体检",
+          "selected": "true"
+        },
+        {
+          "name": "透视聚合",
+          "selected": "false"
+        },
+        {
+          "name": "时序分析",
+          "selected": "false"
+        },
+        {
+          "name": "场景配方",
+          "selected": "false"
+        },
+        {
+          "name": "SQL 模板",
+          "selected": "false"
+        }
+      ],
+      "overflow": []
+    },
+    {
+      "group": "分析洞察",
+      "tab": "历史",
+      "screenshot": "docs/system-consistency-20261012/empty-dark-desktop/分析洞察-历史.png",
+      "errors": [],
+      "theme": "dark",
+      "bodyWidth": 1440,
+      "viewport": 1440,
+      "mainText": "分析洞察 • 查询历史 (Query History)\n0 次执行记录\n\n统一回溯与分析会话内所有已执行的 SQL 查询流水、性能耗时指标与报错诊断\n\n刷新\n全部流水\n0\n执行成功\n0\n异常报错\n0\n已收藏\n0\n全部耗时\n<100ms\n100ms-1s\n🐢 ≥1s\n排序:\n最近执行 (Recent)\n最高耗时 (Slowest)\n执行状态 (Status)\n已显示 0 / 0 条\n当前会话暂无 SQL 查询历史\n\n请在 SQL 编辑器中运行查询以自动记录执行历史\n\n前往 SQL 编辑器\n显示 0 项 • 点击卡片或行可查看 SQL 语法高亮与格式化详情",
+      "controls": 32,
+      "unnamedButtons": [],
+      "alerts": [],
+      "subTabs": [
+        {
+          "name": "全部流水0",
+          "selected": "true"
+        },
+        {
+          "name": "执行成功0",
+          "selected": "false"
+        },
+        {
+          "name": "异常报错0",
+          "selected": "false"
+        },
+        {
+          "name": "已收藏0",
+          "selected": "false"
+        }
+      ],
+      "overflow": []
+    },
+    {
+      "group": "分析洞察",
+      "tab": "审计",
+      "screenshot": "docs/system-consistency-20261012/empty-dark-desktop/分析洞察-审计.png",
+      "errors": [],
+      "theme": "dark",
+      "bodyWidth": 1440,
+      "viewport": 1440,
+      "mainText": "系统审计日志 (Audit Log)\n0 条记录\n\n查看当前会话中表格编辑与 Schema 操作的审计记录；SQL 工作台执行记录请查看查询历史\n\n刷新\n导出日志\n操作总计 (Total)\n0\nDDL 结构演进\n0\nDML 数据变更\n0\n累计受影响行\n0\n涉及数据表\n0 个表\n全部\n0\nDDL 架构\n0\nDML 变更\n0\n高危/删除\n全部数据表 (0)\n全部时间\n今日日志\n最近 7 天\n最近 30 天\n已匹配 0 / 0 条\n暂无系统审计日志\n\n通过数据表格编辑或 Schema 操作生成记录；会话重开后此日志会清空",
+      "controls": 27,
+      "unnamedButtons": [],
+      "alerts": [],
+      "subTabs": [
+        {
+          "name": "全部0",
+          "selected": "true"
+        },
+        {
+          "name": "DDL 架构0",
+          "selected": "false"
+        },
+        {
+          "name": "DML 变更0",
+          "selected": "false"
+        },
+        {
+          "name": "高危/删除",
+          "selected": "false"
+        }
+      ],
+      "overflow": []
+    },
+    {
+      "group": "知识沉淀",
+      "tab": "知识资产",
+      "screenshot": "docs/system-consistency-20261012/empty-dark-desktop/知识沉淀-知识资产.png",
+      "errors": [],
+      "theme": "dark",
+      "bodyWidth": 1440,
+      "viewport": 1440,
+      "mainText": "知识资产\n\nDuckDB 正在准备数据与执行环境",
+      "controls": 17,
+      "unnamedButtons": [],
+      "alerts": [],
+      "subTabs": [],
+      "overflow": []
+    },
+    {
+      "group": "知识沉淀",
+      "tab": "插件",
+      "screenshot": "docs/system-consistency-20261012/empty-dark-desktop/知识沉淀-插件.png",
+      "errors": [],
+      "theme": "dark",
+      "bodyWidth": 1440,
+      "viewport": 1440,
+      "mainText": "插件\n\nDuckDB 正在准备数据与执行环境",
+      "controls": 17,
+      "unnamedButtons": [],
+      "alerts": [],
+      "subTabs": [],
+      "overflow": []
+    },
+    {
+      "group": "知识沉淀",
+      "tab": "知识联动",
+      "screenshot": "docs/system-consistency-20261012/empty-dark-desktop/知识沉淀-知识联动.png",
+      "errors": [],
+      "theme": "dark",
+      "bodyWidth": 1440,
+      "viewport": 1440,
+      "mainText": "知识文献库\n5 篇文档 / 讲义\n新建\nOntology\n05\nLesson 1 · DuckDB SQL 入门\nDuckDB SQL 完整使用教程 (交易所资金流向与业务风控全局体系)\n用 DuckDB 建模 Palantir Ontology 元结构：企业协同与研发生态核心四元组\n用 DuckDB 建模 Palantir Ontology 元结构：智能航空航线与机队调度动态图谱\nLesson 2 · 电商供应链本体建模\n载入 docs 目录文档\n导入 .md\n导出全部\n绑定本地 .md 目录\nDOC\n/\nLesson 1 · DuckDB SQL 入门\n·\n更新: 2026-09-27\n本体图谱\nAI 润色\n最佳实践\nID: duckdb-sql-lesson-1\n一键全部运行 (13)\n一键展开代码\n复制 Markdown\n保存为 .md\n在线编辑\nLesson 1 · DuckDB SQL 入门\n核心结论：建立“哲学概念本体”的**最小可运行宇宙**，为后续所有 DML / JOIN / 事务 / 递归查询提供唯一数据根基。\n本体建模\nOntology\n哲学本体\nDuckDB\n入门\n知识笔记正文\n支持代码高亮与公式格式化\n\n以下内容为 Lesson 1（L1），直接可执行，不引入任何后续未定义结构，确保最小闭环 + 可持续演进。\n\nLesson 1 · DuckDB SQL 入门\n哲学知识图谱 · 本体论最小闭环\n\n难度等级：L1 前置依赖：无 本课定位：\n\n建立“哲学概念本体”的最小可运行宇宙，为后续所有 DML / JOIN / 事务 / 递归查询提供唯一数据根基。\n\n一、学习目标\n\n完成本课后，你将能够：\n\n使用 DuckDB 创建一组具备哲学含义的关系型表\n理解 概念 / 思想家 / 学派 的本体论区分\n建立 稳定、不返工 的基础数据结构\n跑通第一批可查询、可扩展的哲学数据\n二、哲学概念说明（本体论锚定）\n1. 本体论三要素（最低必要）\n实体\t哲学含义\t数据库角色\n思想家（Thinker）\t概念的提出者、论证者\t行为主体\n学派（School）\t方法论与立场的集合\t立场集合\n概念（Concept）\t被讨论、被使用、被演化的对象\t核心节点\n\n本课只做“是什么”，不涉及“如何知道”（认识论留到 Lesson 3）。\n\n三、DuckDB 环境说明（极简）\n\nDuckDB 是 嵌入式分析型数据库\n\nSQL 标准高度兼容（Postgres 风格）\n\n支持：\n\n外键\n递归 CTE\nJSON\n列式分析\n\n启动方式（任选）：\n\n四、DDL：建表（全局唯一版本）\n\n⚠️ 说明：\n\n后续所有课程禁止重复建表\n只允许 ALTER TABLE 演进\n1️⃣ 学派表 schools\n2️⃣ 思想家表 thinkers\n3️⃣ 思想家 ↔ 学派（多对多）\n4️⃣ 概念表 ",
+      "controls": 129,
+      "unnamedButtons": [],
+      "alerts": [],
+      "subTabs": [],
+      "overflow": []
+    },
+    {
+      "group": "AI 认知",
+      "tab": "本体图谱",
+      "screenshot": "docs/system-consistency-20261012/empty-dark-desktop/AI 认知-本体图谱.png",
+      "errors": [],
+      "theme": "dark",
+      "bodyWidth": 1440,
+      "viewport": 1440,
+      "mainText": "本体图谱\n\nDuckDB 正在准备数据与执行环境",
+      "controls": 18,
+      "unnamedButtons": [],
+      "alerts": [],
+      "subTabs": [],
+      "overflow": []
+    },
+    {
+      "group": "AI 认知",
+      "tab": "技能",
+      "screenshot": "docs/system-consistency-20261012/empty-dark-desktop/AI 认知-技能.png",
+      "errors": [],
+      "theme": "dark",
+      "bodyWidth": 1440,
+      "viewport": 1440,
+      "mainText": "AI 技能\n\nDuckDB 正在准备数据与执行环境",
+      "controls": 18,
+      "unnamedButtons": [],
+      "alerts": [],
+      "subTabs": [],
+      "overflow": []
+    },
+    {
+      "group": "AI 认知",
+      "tab": "能力",
+      "screenshot": "docs/system-consistency-20261012/empty-dark-desktop/AI 认知-能力.png",
+      "errors": [],
+      "theme": "dark",
+      "bodyWidth": 1440,
+      "viewport": 1440,
+      "mainText": "AI 能力库\n\nDuckDB 正在准备数据与执行环境",
+      "controls": 18,
+      "unnamedButtons": [],
+      "alerts": [],
+      "subTabs": [],
+      "overflow": []
+    },
+    {
+      "group": "AI 认知",
+      "tab": "推演",
+      "screenshot": "docs/system-consistency-20261012/empty-dark-desktop/AI 认知-推演.png",
+      "errors": [],
+      "theme": "dark",
+      "bodyWidth": 1440,
+      "viewport": 1440,
+      "mainText": "特征组合与语义还原器\n\n先还原结构，再解释结构；不改事实，不丢关系，不擅自补关系\n\n原始输入 (Raw Input)\n0 字符 · 不截断\n需要外部映射 (Strict Source Mapping)\n只匹配你提供的依据，不联网、不调用模型常识补来源。\n开始语义还原\n最近记录\n\n成功通过校验的结果会仅保存在当前浏览器。\n\n等待原始输入进行语义还原\n\n输入业务规则或离散事实后，系统将自动拆解特征、识别拓扑关系，生成具有可追溯性的演绎图谱。",
+      "controls": 22,
+      "unnamedButtons": [],
+      "alerts": [],
+      "subTabs": [],
+      "overflow": []
+    }
+  ]
+}

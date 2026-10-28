@@ -121,6 +121,15 @@ export interface NodeExecutionResult {
 }
 
 export interface DataFlowNodeData {
+  acceptsStatementOutput?: boolean;
+  statementId?: string;
+  boundaryId?: string;
+  logicalKind?: string;
+  flowDirection?: 'RIGHT' | 'DOWN';
+  sourceSpan?: import('./logicalRelationFlowTypes').SourceSpan;
+  runId?: string;
+  executionStatus?: 'queued' | 'running' | 'success' | 'failed' | 'cancelled' | 'skipped';
+  rolledBack?: boolean;
   id: string;
   type: WorkflowNodeType;
   title: string;
@@ -136,6 +145,8 @@ export interface DataFlowNodeData {
   config: any;
   executionResult?: NodeExecutionResult;
   sqlRange?: {
+    start?: number;
+    end?: number;
     startLine: number;
     endLine: number;
     cteName?: string;
@@ -226,6 +237,9 @@ export interface SqlPitfallPreset {
 }
 
 export interface DataFlowEdgeData {
+  flowKind?: import('./logicalRelationFlowTypes').FlowEdgeKind;
+  inputRole?: string;
+  routePoints?: Array<{ x: number; y: number }>;
   sourceHandle?: string;
   targetHandle?: string;
   /** Join 左右语义（视觉锚点仍统一为左中，不改变 Handle 几何） */

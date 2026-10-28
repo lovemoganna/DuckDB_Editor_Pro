@@ -1,0 +1,174 @@
+- banner "全局工作区顶栏":
+  - button "🪶 DuckDB Studio PRO":
+    - generic: 🪶
+    - generic: DuckDB Studio
+    - generic: PRO
+  - navigation "业务领域大类":
+    - button "工程核心":
+      - generic: 工程核心
+    - button "分析洞察":
+      - generic: 分析洞察
+    - button "知识沉淀":
+      - generic: 知识沉淀
+    - button "AI 认知":
+      - generic: AI 认知
+  - tablist "AI 认知功能标签页":
+    - tab "本体图谱":
+      - generic: 本体图谱
+    - tab "技能":
+      - generic: 技能
+    - tab "能力" [active] [selected]:
+      - generic: 能力
+    - tab "推演":
+      - generic: 推演
+  - button "项目 Ctrl+Shift+D":
+    - generic: 项目
+    - generic: Ctrl+Shift+D
+  - button "新建表":
+    - generic: 新建表
+  - button "memory 临时分析空间":
+    - generic: memory
+    - generic: 临时分析空间
+  - button "AI 助手 Ctrl+I":
+    - generic: AI 助手
+    - generic: Ctrl+I
+  - button "⌘K":
+  - button "帮助与快捷键":
+  - button "切换为浅色模式":
+  - button "AI 模型设置":
+- main:
+  - heading "AI 能力库 (Capability Hub)" [level=1]
+  - generic: 8 项已就绪
+  - paragraph: 沉淀、检索与调用专精 AI 提示词与工程策略，支持一键调起并带入 DuckDB SQL 编辑器
+  - button "导出配置":
+    - generic: 导出配置
+  - button "导入配置":
+    - generic: 导入配置
+  - button "重置预设":
+    - generic: 重置预设
+  - button "新建 AI 能力":
+    - generic: 新建 AI 能力
+  - generic: 注册能力总数
+  - generic: "8"
+  - generic: 代码生成与性能
+  - generic: "3"
+  - generic: 诊断与质量审计
+  - generic: "2"
+  - generic: 商业洞察与模型
+  - generic: "3"
+  - button "全部能力 8":
+    - generic: 全部能力
+    - generic: "8"
+  - button "SQL 生成与转换 2":
+    - generic: SQL 生成与转换
+    - generic: "2"
+  - button "错误诊断与修复 1":
+    - generic: 错误诊断与修复
+    - generic: "1"
+  - button "性能重构与向量化 1":
+    - generic: 性能重构与向量化
+    - generic: "1"
+  - button "数据与结果洞察 2":
+    - generic: 数据与结果洞察
+    - generic: "2"
+  - button "数据质量审计 1":
+    - generic: 数据质量审计
+    - generic: "1"
+  - button "Schema 模型演进 1":
+    - generic: Schema 模型演进
+    - generic: "1"
+  - button "自定义能力 0":
+    - generic: 自定义能力
+    - generic: "0"
+  - textbox "搜索能力名称、场景、标签或 Prompt..."
+  - generic: 匹配能力列表 (8)
+  - generic: 点击查看详情
+  - listbox "AI 能力列表":
+    - button "自然语言生成 SQL (NL2SQL) 预设 自动感知当前 DuckDB 数据库 Schema 结构，根据业务自然语言描述生成极简可执行 SQL。":
+      - generic: 自然语言生成 SQL (NL2SQL)
+      - generic: 预设
+      - paragraph: 自动感知当前 DuckDB 数据库 Schema 结构，根据业务自然语言描述生成极简可执行 SQL。
+    - button "错误智能诊断与修复 预设 捕获 DuckDB 运行时与语法错误日志，定位错定位与列号，提供可替换的精准修正 SQL。":
+      - generic: 错误智能诊断与修复
+      - generic: 预设
+      - paragraph: 捕获 DuckDB 运行时与语法错误日志，定位错定位与列号，提供可替换的精准修正 SQL。
+    - button "DuckDB 性能与语法重构 预设 利用 DuckDB 向量化引擎、CTE、MACRO 与并行扫描优化现有的复杂查询语句。":
+      - generic: DuckDB 性能与语法重构
+      - generic: 预设
+      - paragraph: 利用 DuckDB 向量化引擎、CTE、MACRO 与并行扫描优化现有的复杂查询语句。
+    - button "SQL 代码精准读懂与解释 预设 逐行拆解复杂 SQL 的逻辑步骤、关联关系与数据流走向，生成 Markdown 解释报告。":
+      - generic: SQL 代码精准读懂与解释
+      - generic: 预设
+      - paragraph: 逐行拆解复杂 SQL 的逻辑步骤、关联关系与数据流走向，生成 Markdown 解释报告。
+    - button "查询结果集数据洞察 预设 自动扫描结果集的分布特征、极值与异常数据，归纳商业结论与下钻建议。":
+      - generic: 查询结果集数据洞察
+      - generic: 预设
+      - paragraph: 自动扫描结果集的分布特征、极值与异常数据，归纳商业结论与下钻建议。
+    - button "数据工程高级技能 (DE Skills) 预设 生成 Window 窗口函数、数据拉链表、PIVOT/UNPIVOT 透视与 DuckDB 宏函数 (MACRO)。":
+      - generic: 数据工程高级技能 (DE Skills)
+      - generic: 预设
+      - paragraph: 生成 Window 窗口函数、数据拉链表、PIVOT/UNPIVOT 透视与 DuckDB 宏函数 (MACRO)。
+    - button "数据质量智能审计 (Data Quality) 预设 生成针对当前表的缺失率、唯一性、范围断言与异常统计分析 SQL 规则。":
+      - generic: 数据质量智能审计 (Data Quality)
+      - generic: 预设
+      - paragraph: 生成针对当前表的缺失率、唯一性、范围断言与异常统计分析 SQL 规则。
+    - button "Schema 智能模型演进 (Model DDL) 预设 根据分析需求自动设计 CREATE TABLE, ALTER TABLE 变更或 CREATE VIEW 视图定义。":
+      - generic: Schema 智能模型演进 (Model DDL)
+      - generic: 预设
+      - paragraph: 根据分析需求自动设计 CREATE TABLE, ALTER TABLE 变更或 CREATE VIEW 视图定义。
+  - heading "自然语言生成 SQL (NL2SQL)" [level=2]
+  - generic: SQL 生成与转换
+  - text: 系统内置
+  - paragraph: 自动感知当前 DuckDB 数据库 Schema 结构，根据业务自然语言描述生成极简可执行 SQL。
+  - button "复制 Prompt":
+    - generic: 复制 Prompt
+  - button "克隆副本":
+    - generic: 克隆副本
+  - button "在 SQL 编辑器中运行":
+    - generic: 在 SQL 编辑器中运行
+  - generic: 适用场景与用途
+  - paragraph: 从自然语言描述快速转化为可运行的 DuckDB 方言 SQL 查询。
+  - generic: 输入要求 / 上下文
+  - paragraph: Schema 上下文 + 用户自然语言需求描述
+  - generic: 输出交付规则
+  - paragraph: 直接输出可执行的 SQL 代码段，并在顶部带单行注释说明。
+  - generic: 提示词模板 (Prompt Template)
+  - generic: "ID: nl2sql"
+  - button "复制模板":
+    - generic: 复制模板
+  - generic: "支持变量注入 (点击复制):"
+  - 'button "{userPrompt}"'
+  - 'button "{schemaContext}"'
+  - 'button "{currentSql}"'
+  - 'button "{errorMessage}"'
+  - 'button "{sampleData}"'
+  - 'button "{rowCount}"'
+  - generic "点击展开代码":
+    - button "展开代码块":
+    - generic: PROMPT TEMPLATE
+    - generic: (7 行)
+    - generic: 请为 DuckDB 生成满足以下业务需求的 SQL 语句： ...
+    - button "复制":
+      - generic: 复制
+    - button "展开"
+  - text: "标签:"
+  - generic: "#NL2SQL"
+  - generic: "#DuckDB 方言"
+  - generic: "#Schema 感知"
+  - generic: 系统内置预设标准
+- contentinfo:
+  - generic: DuckDB 1.33.1
+  - generic: "|"
+  - generic: memory [MEMORY]
+  - generic: "|"
+  - generic: 内存库
+  - generic: "|"
+  - generic: 0 张表
+  - generic: "|"
+  - generic: 暂无表
+  - generic: "|"
+  - generic: "内存: 0.00 MB / 3.1 GiB"
+  - generic: 引擎就绪
+  - generic: "|"
+  - generic: 06:53
+  - button "刷新运行时状态":

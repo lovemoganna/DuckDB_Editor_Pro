@@ -1,0 +1,4 @@
+[{"source":"crypto_transactions","rows":25,"fingerprint":"db64b19502f88bce9b0d45a1893621ac"},
+{"source":"exchange_rates","rows":8,"fingerprint":"fddc16d21820441a99bcbc5ce4bbdaad"},
+{"source":"fiat_transactions","rows":25,"fingerprint":"a34fadd22520b19126c134b96835707b"},
+{"source":"users","rows":10,"fingerprint":"b4d9c6867d293dcf0adbafd9e180531c"}]

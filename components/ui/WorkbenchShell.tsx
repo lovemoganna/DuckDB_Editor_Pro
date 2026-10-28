@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, ChevronLeft, ChevronRight, PanelBottom, PanelLeft, PanelRight } from 'lucide-react';
+import { useContainerWidth } from './useContainerWidth';
 
 export interface WorkbenchLayoutState {
   leftOpen: boolean;
@@ -49,12 +50,17 @@ const readLayout = (featureId: string, defaults: WorkbenchLayoutState): Workbenc
     const raw = window.localStorage.getItem(storageKey(featureId));
     if (!raw) return defaults;
     const parsed = JSON.parse(raw) as Partial<WorkbenchLayoutState>;
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return defaults;
+    const dimension = (value: unknown, fallback: number, min: number, max: number) =>
+      typeof value === 'number' && Number.isFinite(value) ? clamp(value, min, max) : fallback;
     return {
       ...defaults,
-      ...parsed,
-      leftWidth: clamp(parsed.leftWidth ?? defaults.leftWidth, LEFT_MIN, LEFT_MAX),
-      rightWidth: clamp(parsed.rightWidth ?? defaults.rightWidth, RIGHT_MIN, RIGHT_MAX),
-      bottomHeight: clamp(parsed.bottomHeight ?? defaults.bottomHeight, BOTTOM_MIN, BOTTOM_MAX),
+      leftOpen: typeof parsed.leftOpen === 'boolean' ? parsed.leftOpen : defaults.leftOpen,
+      rightOpen: typeof parsed.rightOpen === 'boolean' ? parsed.rightOpen : defaults.rightOpen,
+      bottomOpen: typeof parsed.bottomOpen === 'boolean' ? parsed.bottomOpen : defaults.bottomOpen,
+      leftWidth: dimension(parsed.leftWidth, defaults.leftWidth, LEFT_MIN, LEFT_MAX),
+      rightWidth: dimension(parsed.rightWidth, defaults.rightWidth, RIGHT_MIN, RIGHT_MAX),
+      bottomHeight: dimension(parsed.bottomHeight, defaults.bottomHeight, BOTTOM_MIN, BOTTOM_MAX),
     };
   } catch {
     return defaults;
@@ -87,6 +93,8 @@ export const WorkbenchShell: React.FC<WorkbenchShellProps> = ({
   const [compactRightOpen, setCompactRightOpen] = useState(false);
   const resizeRef = useRef<{ target: ResizeTarget; startX: number; startY: number; startValue: number } | null>(null);
   const rightToggleRef = useRef<HTMLButtonElement>(null);
+  const shellRef = useRef<HTMLElement>(null);
+  const containerWidth = useContainerWidth(shellRef);
 
   useEffect(() => {
     setLayout(readLayout(featureId, defaults));
@@ -170,8 +178,9 @@ export const WorkbenchShell: React.FC<WorkbenchShellProps> = ({
     else updateLayout({ rightWidth: clamp(layout.rightWidth - direction * step, RIGHT_MIN, RIGHT_MAX) });
   }, [defaults.bottomHeight, defaults.leftWidth, defaults.rightWidth, layout.bottomHeight, layout.leftWidth, layout.rightWidth, updateLayout]);
 
-  const compactInspector = viewportWidth < DESKTOP_INSPECTOR_BREAKPOINT;
-  const overlayPanes = viewportWidth < OVERLAY_BREAKPOINT;
+  const availableWidth = containerWidth ?? viewportWidth;
+  const compactInspector = availableWidth < DESKTOP_INSPECTOR_BREAKPOINT;
+  const overlayPanes = availableWidth < OVERLAY_BREAKPOINT;
   const leftVisible = Boolean(left) && layout.leftOpen;
   const rightVisible = Boolean(right) && (compactInspector ? compactRightOpen : layout.rightOpen);
   const bottomVisible = Boolean(bottom) && layout.bottomOpen;
@@ -198,7 +207,7 @@ export const WorkbenchShell: React.FC<WorkbenchShellProps> = ({
   const paneToggleClass = 'inline-flex h-7 w-7 items-center justify-center rounded-md border border-monokai-border bg-monokai-surface text-monokai-comment transition-colors hover:border-monokai-border-strong hover:text-monokai-fg focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-monokai-accent';
 
   return (
-    <section className={`workbench-shell flex h-full min-h-0 flex-col overflow-hidden bg-monokai-bg text-monokai-fg ${className}`} data-workbench-feature={featureId}>
+    <section ref={shellRef} className={`workbench-shell flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-monokai-bg text-monokai-fg ${className}`} data-workbench-feature={featureId}>
       {(commandBar || left || right || bottom) && (
         <div className="workbench-shell__commandbar flex h-9 shrink-0 items-center gap-2 border-b border-monokai-border bg-monokai-sidebar px-2.5">
           {left && (

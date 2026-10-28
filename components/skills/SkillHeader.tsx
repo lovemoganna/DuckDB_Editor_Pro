@@ -35,8 +35,8 @@ export const SkillHeader: React.FC<SkillHeaderProps> = ({
           'border-2',
         ].join(' ')}
         style={{
-          background: `linear-gradient(135deg, ${c.primary}20, ${c.primary}08)`,
-          borderColor: `${c.primary}40`,
+          background: `linear-gradient(135deg, color-mix(in srgb, ${c.primary} 12.55%, transparent), color-mix(in srgb, ${c.primary} 3.14%, transparent))`,
+          borderColor: `color-mix(in srgb, ${c.primary} 25.1%, transparent)`,
         }}
       >
         <span className="text-3xl">{skill.icon || '✨'}</span>
@@ -65,9 +65,9 @@ export const SkillHeader: React.FC<SkillHeaderProps> = ({
           <span
             className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[9px] font-semibold rounded-lg border"
             style={{
-              background: `${c.primary}12`,
+              background: `color-mix(in srgb, ${c.primary} 7.06%, transparent)`,
               color: c.primary,
-              borderColor: `${c.primary}30`,
+              borderColor: `color-mix(in srgb, ${c.primary} 18.82%, transparent)`,
             }}
           >
             <span className="text-base leading-none">{theme.emoji}</span>

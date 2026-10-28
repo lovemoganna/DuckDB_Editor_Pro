@@ -17,6 +17,7 @@ import {
 import { ActionButton, DrawerShell } from '../ui/Workbench';
 import { duckDBService } from '../../services/duckdbService';
 import { toastService } from '../../services/toastService';
+import { quoteIdent } from '../../services/databaseCatalog';
 
 interface QuickTablePeekDrawerProps {
   tableName: string | null;
@@ -49,12 +50,17 @@ export const QuickTablePeekDrawer: React.FC<QuickTablePeekDrawerProps> = ({
   const [copied, setCopied] = useState(false);
   const [rowCount, setRowCount] = useState<number | null>(null);
   const [columnFilter, setColumnFilter] = useState('');
+  const [error, setError] = useState('');
+  const [summaryError, setSummaryError] = useState('');
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
     if (!tableName) return;
 
     let isMounted = true;
     setLoading(true);
+    setError('');
+    setSummaryError('');
     setSampleRows([]);
     setColumns([]);
     setSummarizeRows([]);
@@ -68,13 +74,13 @@ export const QuickTablePeekDrawer: React.FC<QuickTablePeekDrawerProps> = ({
         setColumns(schema || []);
 
         // 2. Fetch sample 10 rows
-        const rows = await duckDBService.query(`SELECT * FROM "${tableName}" LIMIT 10;`);
+        const rows = await duckDBService.query(`SELECT * FROM ${quoteIdent(tableName)} LIMIT 10;`);
         if (!isMounted) return;
         setSampleRows(rows || []);
 
         // 3. Fetch count
         try {
-          const countRes = await duckDBService.query(`SELECT COUNT(*) as total FROM "${tableName}";`);
+          const countRes = await duckDBService.query(`SELECT COUNT(*) as total FROM ${quoteIdent(tableName)};`);
           if (isMounted && countRes && countRes[0]) {
             setRowCount(Number(countRes[0].total));
           }
@@ -84,16 +90,15 @@ export const QuickTablePeekDrawer: React.FC<QuickTablePeekDrawerProps> = ({
 
         // 4. Fetch summarize stats
         try {
-          const sumRes = await duckDBService.query(`SUMMARIZE "${tableName}";`);
+          const sumRes = await duckDBService.query(`SUMMARIZE ${quoteIdent(tableName)};`);
           if (isMounted) {
             setSummarizeRows(sumRes || []);
           }
-        } catch {
-          // Non-critical
+        } catch (err) {
+          if (isMounted) setSummaryError(`统计画像读取失败：${String((err as Error).message)}`);
         }
       } catch (err: any) {
-        console.error('Failed to peek table', err);
-        toastService.error(`读取数据表异常: ${err?.message || '未知错误'}`);
+        if (isMounted) setError(`读取数据表异常: ${err?.message || '未知错误'}`);
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -104,7 +109,7 @@ export const QuickTablePeekDrawer: React.FC<QuickTablePeekDrawerProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [tableName]);
+  }, [tableName, retry]);
 
   const filteredColumns = useMemo(() => {
     if (!columnFilter.trim()) return columns;
@@ -123,11 +128,16 @@ export const QuickTablePeekDrawer: React.FC<QuickTablePeekDrawerProps> = ({
 
   if (!tableName) return null;
 
-  const handleCopyTableName = () => {
-    void navigator.clipboard.writeText(tableName);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-    toastService.success(`已复制表名: ${tableName}`);
+  const handleCopyTableName = async () => {
+    try {
+      await navigator.clipboard.writeText(tableName);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+      toastService.success(`已复制表名: ${tableName}`);
+    } catch (err) {
+      setCopied(false);
+      toastService.error(`复制失败: ${String((err as Error).message)}`);
+    }
   };
 
   const getColTypeBadgeColor = (type: string) => {
@@ -311,12 +321,16 @@ export const QuickTablePeekDrawer: React.FC<QuickTablePeekDrawerProps> = ({
 
         {/* Drawer Body */}
         <div className="flex-1 overflow-auto p-5 sm:p-6 custom-scrollbar bg-monokai-bg">
+          {(error || summaryError) && <div role="alert" className="mb-3 text-xs text-monokai-pink">
+            {error || summaryError}
+            <button type="button" disabled={loading} className="ml-2 underline" onClick={() => setRetry(value => value + 1)}>重试读取速览</button>
+          </div>}
           {loading ? (
             <div className="flex h-64 flex-col items-center justify-center gap-3 text-xs font-mono text-monokai-comment">
               <Loader2 className="h-8 w-8 text-monokai-fg animate-spin" />
               <span>正在抽样并解析字段架构与统计画像…</span>
             </div>
-          ) : activeTab === 'sample' ? (
+          ) : error ? null : activeTab === 'sample' ? (
             <div className="space-y-4">
               {sampleRows.length === 0 ? (
                 <div className="flex h-48 flex-col items-center justify-center text-xs font-mono text-monokai-comment border border-dashed border-monokai-border rounded-xl p-6">
@@ -395,7 +409,7 @@ export const QuickTablePeekDrawer: React.FC<QuickTablePeekDrawerProps> = ({
                   type="button"
                   onClick={() => {
                     onClose();
-                    onNavigateToSql(`SELECT * FROM "${tableName}" LIMIT 100;`);
+                    onNavigateToSql(`SELECT * FROM ${quoteIdent(tableName)} LIMIT 100;`);
                   }}
                   className="flex items-center gap-2 rounded-lg border border-monokai-border bg-monokai-surface px-3.5 py-1.5 text-xs font-semibold text-monokai-fg hover:border-monokai-border-strong hover:bg-monokai-elevated transition-all cursor-pointer shadow-xs active:scale-[0.98]"
                 >
@@ -508,7 +522,7 @@ export const QuickTablePeekDrawer: React.FC<QuickTablePeekDrawerProps> = ({
                                       type="button"
                                       onClick={() => {
                                         onClose();
-                                        onNavigateToDataWithFilter(tableName, `"${sr.column_name}" IS NULL`);
+                                        onNavigateToDataWithFilter(tableName, `${quoteIdent(String(sr.column_name))} IS NULL`);
                                       }}
                                       className="text-2xs text-monokai-accent hover:underline font-mono px-1 py-0.2 rounded bg-monokai-surface border border-monokai-border/80 cursor-pointer"
                                       title="在数据网格中过滤显示空值记录"
@@ -520,7 +534,7 @@ export const QuickTablePeekDrawer: React.FC<QuickTablePeekDrawerProps> = ({
                                     type="button"
                                     onClick={() => {
                                       onClose();
-                                      onNavigateToSql(`SELECT * FROM "${tableName}" WHERE "${sr.column_name}" IS NULL LIMIT 50;`);
+                                      onNavigateToSql(`SELECT * FROM ${quoteIdent(tableName)} WHERE ${quoteIdent(String(sr.column_name))} IS NULL LIMIT 50;`);
                                     }}
                                     className="text-2xs text-monokai-cyan hover:underline font-mono px-1 py-0.2 rounded bg-monokai-surface border border-monokai-border/80 cursor-pointer"
                                     title="在 SQL 工作台中查询空值样本"

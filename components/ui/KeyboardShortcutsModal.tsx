@@ -5,9 +5,14 @@
  */
 
 import React, { useEffect, useState, useMemo } from 'react';
-import { Keyboard, Command, Terminal, Wrench, Sparkles } from 'lucide-react';
+import { Keyboard, Command, Terminal, Wrench, Sparkles, Compass } from 'lucide-react';
 import { CommandRegistry } from '../../services/commandRegistry';
 import { ModalShell } from './Workbench';
+
+export interface KeyboardShortcutsModalProps {
+  open?: boolean;
+  onClose?: () => void;
+}
 
 interface ShortcutGroup {
   category: string;
@@ -18,13 +23,23 @@ interface ShortcutGroup {
   }[];
 }
 
-export const KeyboardShortcutsModal: React.FC = () => {
-  const [isOpen, setIsOpen] = useState(false);
+export const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({
+  open,
+  onClose,
+}) => {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isControlled = open !== undefined;
+  const isVisible = isControlled ? open : internalOpen;
+  const handleClose = () => {
+    if (onClose) onClose();
+    if (!isControlled) setInternalOpen(false);
+  };
 
   const shortcutGroups: ShortcutGroup[] = useMemo(() => {
     const commands = CommandRegistry.getAll();
     const globalCmds = commands.filter(c => c.category === 'global' && c.keys);
     const queryCmds = commands.filter(c => c.category === 'query' && c.keys);
+    const navCmds = commands.filter(c => c.category === 'navigation' && c.keys);
     const toolCmds = commands.filter(c => c.category === 'tools' && c.keys);
 
     const groups: ShortcutGroup[] = [
@@ -39,6 +54,14 @@ export const KeyboardShortcutsModal: React.FC = () => {
         shortcuts: queryCmds.map(c => ({ keys: c.keys!, description: c.label })),
       },
     ];
+
+    if (navCmds.length > 0) {
+      groups.push({
+        category: '标签页与导航快捷键',
+        icon: <Compass className="w-3.5 h-3.5 text-monokai-orange" />,
+        shortcuts: navCmds.map(c => ({ keys: c.keys!, description: c.label })),
+      });
+    }
 
     if (toolCmds.length > 0) {
       groups.push({
@@ -56,18 +79,26 @@ export const KeyboardShortcutsModal: React.FC = () => {
       const target = e.target as HTMLElement | null;
       const isInput =
         target &&
+        typeof target.closest === 'function' &&
         (target.tagName === 'INPUT' ||
           target.tagName === 'TEXTAREA' ||
           target.isContentEditable ||
           target.closest('.cm-editor') !== null);
 
-      if (e.key === '?' && e.shiftKey && !isInput) {
+      if ((e.key === '?' || (e.key === '?' && e.shiftKey)) && !isInput) {
         e.preventDefault();
-        setIsOpen(prev => !prev);
+        if (isControlled) {
+          if (isVisible) onClose?.();
+          else window.dispatchEvent(new CustomEvent('open-keyboard-shortcuts'));
+        } else {
+          setInternalOpen(prev => !prev);
+        }
       }
     };
 
-    const handleOpenEvent = () => setIsOpen(true);
+    const handleOpenEvent = () => {
+      if (!isControlled) setInternalOpen(true);
+    };
 
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('open-keyboard-shortcuts', handleOpenEvent);
@@ -75,12 +106,12 @@ export const KeyboardShortcutsModal: React.FC = () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('open-keyboard-shortcuts', handleOpenEvent);
     };
-  }, []);
+  }, [isControlled, isVisible, onClose]);
 
   return (
     <ModalShell
-      open={isOpen}
-      onClose={() => setIsOpen(false)}
+      open={isVisible}
+      onClose={handleClose}
       title="快捷键速查指南"
       description="高效操作 DuckDB Studio 的键盘快捷键映射"
       size="lg"
@@ -99,7 +130,7 @@ export const KeyboardShortcutsModal: React.FC = () => {
           </span>
           <button
             type="button"
-            onClick={() => setIsOpen(false)}
+            onClick={handleClose}
             className="px-4 py-1.5 rounded-lg bg-monokai-accent text-monokai-bg font-semibold hover:bg-monokai-accent-hover transition-colors text-xs cursor-pointer"
           >
             完成

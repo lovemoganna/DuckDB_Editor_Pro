@@ -1,0 +1,234 @@
+- banner "全局工作区顶栏":
+  - button "🪶 DuckDB Studio PRO":
+    - generic: 🪶
+    - generic: DuckDB Studio
+    - generic: PRO
+  - navigation "业务领域大类":
+    - button "工程核心":
+      - generic: 工程核心
+    - button "分析洞察":
+      - generic: 分析洞察
+    - button "知识沉淀":
+      - generic: 知识沉淀
+    - button "AI 认知":
+      - generic: AI 认知
+  - tablist "分析洞察功能标签页":
+    - tab "指标":
+      - generic: 指标
+    - tab "可视化":
+      - generic: 可视化
+    - tab "分析":
+      - generic: 分析
+    - tab "历史" [active] [selected]:
+      - generic: 历史
+    - tab "审计":
+      - generic: 审计
+  - button "项目":
+    - generic: 项目
+  - button "sql_funds_flow 已保存到 OPFS":
+    - generic: sql_funds_flow
+    - generic: 已保存到 OPFS
+  - button "AI 助手 Ctrl+I":
+    - generic: AI 助手
+    - generic: Ctrl+I
+  - button "⌘K":
+  - button "帮助与快捷键":
+  - button "切换为浅色模式":
+  - button "AI 模型设置":
+- main:
+  - generic: 分析洞察
+  - generic: /
+  - generic: 历史
+  - button "折叠右侧上下文" [expanded]:
+  - main:
+    - heading "分析洞察 • 查询历史 (Query History)" [level=1]
+    - generic: 6 次执行记录
+    - paragraph: 统一回溯与分析会话内所有已执行的 SQL 查询流水、性能耗时指标与报错诊断
+    - button "刷新":
+      - generic: 刷新
+    - button "清空历史":
+      - generic: 清空历史
+    - generic: 执行指标分析 (Execution Metrics)
+    - generic: (近 6 次执行记录)
+    - button "收起指标":
+      - generic: 收起指标
+    - generic: 总执行次数
+    - generic: "6"
+    - generic: 平均执行耗时
+    - generic: 127.3 ms
+    - generic: 执行成功率
+    - generic: 100.0%
+    - generic: 慢查询 (≥1s)
+    - generic: "0"
+    - generic: 已收藏查询
+    - generic: "0"
+    - tablist "执行状态过滤":
+      - tab "全部流水 6" [selected]:
+        - generic: 全部流水
+        - generic: "6"
+      - tab "执行成功 6":
+        - generic: 执行成功
+        - generic: "6"
+      - tab "异常报错 0":
+        - generic: 异常报错
+        - generic: "0"
+      - tab "已收藏 0":
+        - generic: 已收藏
+        - generic: "0"
+    - button "全部耗时"
+    - button "<100ms":
+      - generic: <100ms
+    - button "100ms-1s"
+    - button "🐢 ≥1s"
+    - textbox "搜索 SQL 语句、报错关键字或 ID..."
+    - generic: "排序:"
+    - combobox:
+      - option "最近执行 (Recent)" [selected]
+      - option "最高耗时 (Slowest)"
+      - option "执行状态 (Status)"
+    - button "卡片流视图 (Card Flow View)":
+    - button "紧凑表格视图 (Data Table View)":
+    - generic: 已显示 6 / 6 条
+    - article:
+      - generic: SUCCESS
+      - generic: 20 小时前
+      - generic: 139ms
+      - button "收藏此查询":
+      - text: sql-comment>-- UI 回归：只读查询，与首页使用同一完成订单口径 SELECT sql-string>'USD' AS unit,
+      - generic: SUM
+      - text: (amount) AS completed_amount FROM fiat_transactions WHERE status = sql-string>'completed' AND currency = sql-string>'USD';
+      - generic: 2026/10/2 22:01:07
+      - button "详情":
+        - generic: 详情
+      - button "复制":
+        - generic: 复制
+      - button "载入运行":
+        - generic: 载入运行
+      - button "删除单条历史记录":
+    - article:
+      - generic: SUCCESS
+      - generic: 20 小时前
+      - generic: 191ms
+      - button "收藏此查询":
+      - text: sql-comment>-- UI 回归：只读查询，与首页使用同一完成订单口径 SELECT sql-string>'USD' AS unit,
+      - generic: SUM
+      - text: (amount) AS completed_amount FROM fiat_transactions WHERE status = sql-string>'completed' AND currency = sql-string>'USD';
+      - generic: 2026/10/2 21:59:33
+      - button "详情":
+        - generic: 详情
+      - button "复制":
+        - generic: 复制
+      - button "载入运行":
+        - generic: 载入运行
+      - button "删除单条历史记录":
+    - article:
+      - generic: SUCCESS
+      - generic: 昨天
+      - generic: 18ms
+      - button "收藏此查询":
+      - text: sql-comment>-- UI 回归：只读查询，与首页使用同一完成订单口径 SELECT sql-string>'USD' AS unit,
+      - generic: SUM
+      - text: (amount) AS completed_amount FROM fiat_transactions WHERE status = sql-string>'completed' AND currency = sql-string>'USD';
+      - generic: 2026/10/2 04:23:43
+      - button "详情":
+        - generic: 详情
+      - button "复制":
+        - generic: 复制
+      - button "载入运行":
+        - generic: 载入运行
+      - button "删除单条历史记录":
+    - article:
+      - generic: SUCCESS
+      - generic: 昨天
+      - generic: 81ms
+      - button "收藏此查询":
+      - text: sql-comment>-- UI 回归：只读查询，与首页使用同一完成订单口径 SELECT sql-string>'USD' AS unit,
+      - generic: SUM
+      - text: (amount) AS completed_amount FROM fiat_transactions WHERE status = sql-string>'completed' AND currency = sql-string>'USD';
+      - generic: 2026/10/2 04:10:58
+      - button "详情":
+        - generic: 详情
+      - button "复制":
+        - generic: 复制
+      - button "载入运行":
+        - generic: 载入运行
+      - button "删除单条历史记录":
+    - article:
+      - generic: SUCCESS
+      - generic: 昨天
+      - generic: 128ms
+      - button "收藏此查询":
+      - text: sql-comment>-- 实际数据刷新回归：仅临时修改一笔已完成 USD，随后从已保存 SQL 恢复 UPDATE fiat_transactions SET amount=amount+100 WHERE fiat_order_id=(SELECT fiat_order_id FROM fiat_transactions WHERE status=sql-string>'completed' AND currency=sql-string>'USD' ORDER BY fiat_order_id LIMIT 1); SELECT
+      - generic: SUM
+      - text: (amount) AS completed_usd FROM fiat_transactions WHERE status=sql-string>'completed' AND currency=sql-string>'USD';
+      - generic: 2026/10/2 00:27:31
+      - button "详情":
+        - generic: 详情
+      - button "复制":
+        - generic: 复制
+      - button "载入运行":
+        - generic: 载入运行
+      - button "删除单条历史记录":
+    - article:
+      - generic: SUCCESS
+      - generic: 昨天
+      - generic: 208ms
+      - button "收藏此查询":
+      - text: sql-comment>-- 实际数据刷新回归：仅临时修改一笔已完成 USD，随后从已保存 SQL 恢复 UPDATE fiat_transactions SET amount=amount+100 WHERE fiat_order_id=(SELECT fiat_order_id FROM fiat_transactions WHERE status=sql-string>'completed' AND currency=sql-string>'USD' ORDER BY fiat_order_id LIMIT 1); SELECT
+      - generic: SUM
+      - text: (amount) AS completed_usd FROM fiat_transactions WHERE status=sql-string>'completed' AND currency=sql-string>'USD';
+      - generic: 2026/10/2 00:18:34
+      - button "详情":
+        - generic: 详情
+      - button "复制":
+        - generic: 复制
+      - button "载入运行":
+        - generic: 载入运行
+      - button "删除单条历史记录":
+    - generic: 显示 6 项 • 点击卡片或行可查看 SQL 语法高亮与格式化详情
+  - separator "调整右侧窗格宽度"
+  - complementary:
+    - generic: 上下文
+    - text: 当前工作面
+    - generic: 历史
+    - paragraph: 分析洞察 · Context IDE 工作面
+    - generic: 数据上下文
+    - term: 当前表
+    - definition: 未选择
+    - term: 数据资产
+    - definition: 13 张表
+    - term: 运行引擎
+    - definition: OPFS
+    - generic: 同组功能
+    - button "指标":
+      - generic: 指标
+    - button "可视化":
+      - generic: 可视化
+    - button "分析中心":
+      - generic: 分析中心
+    - button "历史":
+      - generic: 历史
+    - button "审计日志":
+      - generic: 审计日志
+    - text: 快捷操作
+    - generic: 全局命令
+    - generic: Ctrl K
+    - generic: Monokai Context IDE
+  - generic: 工作区就绪
+  - generic: 历史
+- contentinfo:
+  - generic: DuckDB 1.33.1
+  - generic: "|"
+  - generic: sql_funds_flow [OPFS]
+  - generic: "|"
+  - generic: 持久化库
+  - generic: "|"
+  - generic: 13 张表
+  - generic: "|"
+  - generic: 13 个活动表
+  - generic: "|"
+  - generic: "内存: 1.75 MB / 3.1 GiB"
+  - generic: 引擎就绪
+  - generic: "|"
+  - generic: 18:32
+  - button "刷新运行时状态":

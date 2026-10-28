@@ -1,0 +1,146 @@
+- generic [ref=f1e1]:
+  - generic [ref=f1e3]:
+    - banner "全局工作区顶栏" [ref=f1e4]:
+      - generic [ref=f1e5]:
+        - button "🪶 DuckDB Studio PRO" [ref=f1e6] [cursor=pointer]:
+          - generic [ref=f1e7]: 🪶
+          - generic [ref=f1e9]:
+            - generic [ref=f1e10]: DuckDB Studio
+            - generic [ref=f1e11]: PRO
+        - navigation "业务领域大类" [ref=f1e13]:
+          - button "工程核心" [ref=f1e14] [cursor=pointer]
+          - button "分析洞察" [ref=f1e20] [cursor=pointer]
+          - button "知识沉淀" [ref=f1e25] [cursor=pointer]
+          - button "AI 认知" [ref=f1e30] [cursor=pointer]
+        - tablist "AI 认知功能标签页" [ref=f1e151]:
+          - tab "本体图谱" [selected] [ref=f1e152] [cursor=pointer]
+          - tab "技能" [ref=f1e158] [cursor=pointer]
+          - tab "能力" [ref=f1e163] [cursor=pointer]
+          - tab "推演" [ref=f1e168] [cursor=pointer]
+      - generic [ref=f1e67]:
+        - button "项目 Ctrl+Shift+D" [ref=f1e68] [cursor=pointer]:
+          - generic [ref=f1e71]: 项目
+          - generic [ref=f1e72]: Ctrl+Shift+D
+        - button "新建表" [ref=f1e73] [cursor=pointer]
+        - button "memory 临时分析空间" [ref=f1e78] [cursor=pointer]:
+          - generic [ref=f1e81]: memory
+          - generic [ref=f1e83]: 临时分析空间
+        - button "AI 助手 Ctrl+I" [ref=f1e87] [cursor=pointer]:
+          - generic [ref=f1e90]: AI 助手
+          - generic [ref=f1e91]: Ctrl+I
+        - button "⌘K" [ref=f1e92] [cursor=pointer]
+        - button "帮助与快捷键" [ref=f1e96] [cursor=pointer]
+        - button "切换为浅色模式" [ref=f1e99] [cursor=pointer]
+        - button "AI 模型设置" [ref=f1e100] [cursor=pointer]
+    - main [ref=f1e103]:
+      - generic [ref=f1e174]:
+        - generic [ref=f1e175]:
+          - generic [ref=f1e176]:
+            - button "展开本体侧栏" [ref=f1e177] [cursor=pointer]
+            - generic [ref=f1e178]: 本体知识空间 (Ontology Studio)
+          - tablist "本体视图切换" [ref=f1e181]:
+            - tab "知识图谱" [selected] [ref=f1e182] [cursor=pointer]
+            - tab "数据视图" [ref=f1e185] [cursor=pointer]
+            - tab "实体画布" [ref=f1e187] [cursor=pointer]
+          - generic [ref=f1e189]:
+            - button "数据切片" [ref=f1e190] [cursor=pointer]
+            - button "本体建模" [ref=f1e192] [cursor=pointer]
+            - button "组合推演" [ref=f1e194] [cursor=pointer]
+            - button "推演定义" [ref=f1e196] [cursor=pointer]
+            - button "聚合洞察" [ref=f1e198] [cursor=pointer]
+        - generic [ref=f1e200]:
+          - generic [ref=f1e202]:
+            - generic [ref=f1e203]: 本体论未初始化
+            - button "一键初始化" [ref=f1e228] [cursor=pointer]
+          - generic [ref=f1e204]:
+            - generic [ref=f1e205]:
+              - generic [ref=f1e206]: 跳数
+              - button "1跳" [ref=f1e207] [cursor=pointer]
+              - button "2跳" [ref=f1e208] [cursor=pointer]
+              - button "3跳" [ref=f1e209] [cursor=pointer]
+              - button "全图" [ref=f1e210] [cursor=pointer]
+            - button "刷新图谱数据" [ref=f1e211] [cursor=pointer]
+        - generic [ref=f1e216]:
+          - img "知识图谱可视化（SVG D3 (矢量交互)）：0 个节点，0 条关系连线。" [ref=f1e217]
+          - generic:
+            - generic:
+              - generic: 🔍
+              - generic: 本体论尚未初始化
+              - generic: 当前工作区尚未载入本体结构或种子数据。可点击「重试初始化」导入默认模型，或通过 AI 自动构建图谱。
+              - generic [ref=f1e219]:
+                - button "重试初始化" [ref=f1e220] [cursor=pointer]
+                - button "AI 图谱生成" [ref=f1e221] [cursor=pointer]
+                - button "刷新图谱" [ref=f1e222] [cursor=pointer]
+                - button "导出 CSV" [disabled] [ref=f1e223]
+                - button "导出 Excel" [disabled] [ref=f1e224]
+          - button "控制面板" [ref=f1e225] [cursor=pointer]
+          - button "信息面板" [ref=f1e226] [cursor=pointer]
+          - button "图例" [ref=f1e227] [cursor=pointer]
+    - contentinfo [ref=f1e122]:
+      - generic [ref=f1e123]:
+        - generic [ref=f1e124]: DuckDB 1.33.1
+        - generic [ref=f1e127]: "|"
+        - generic [ref=f1e128]: memory [MEMORY]
+        - generic [ref=f1e130]: "|"
+        - generic [ref=f1e131]: 内存库
+        - generic [ref=f1e133]: "|"
+        - generic [ref=f1e134]: 0 张表
+        - generic [ref=f1e136]: "|"
+        - generic [ref=f1e137]: 暂无表
+        - generic [ref=f1e139]: "|"
+        - generic [ref=f1e140]: "内存: 0.00 MB / 3.1 GiB"
+      - generic [ref=f1e142]:
+        - generic [ref=f1e143]: 引擎就绪
+        - generic [ref=f1e147]: "|"
+        - generic [ref=f1e148]: 15:50
+        - button "刷新运行时状态" [ref=f1e149] [cursor=pointer]
+  - dialog [ref=f1e231]:
+    - banner [ref=f1e232]:
+      - generic [ref=f1e235]:
+        - generic [ref=f1e236]:
+          - heading "AI 本体建模工作台 (Ontology Modeling Studio)" [level=2] [ref=f1e237]
+          - generic [ref=f1e238]: 生产级本体建模
+        - paragraph [ref=f1e239]: 手动与 AI 共用草案 · 实时编辑 · 真实数据映射 · 校验后确认保存
+      - button "关闭" [ref=f1e241] [cursor=pointer]
+    - generic [ref=f1e243]:
+      - generic [ref=f1e244]:
+        - button "手动建模" [ref=f1e245] [cursor=pointer]
+        - button "AI 辅助建模" [pressed] [ref=f1e246] [cursor=pointer]
+        - button "编辑已保存本体" [ref=f1e247] [cursor=pointer]
+      - generic [ref=f1e249]:
+        - button "1 业务需求输入" [ref=f1e250] [cursor=pointer]:
+          - generic [ref=f1e251]: "1"
+          - generic [ref=f1e252]: 业务需求输入
+        - button "2 四要素建模工作台" [disabled] [ref=f1e253] [cursor=pointer]:
+          - generic [ref=f1e254]: "2"
+          - generic [ref=f1e255]: 四要素建模工作台
+        - button "3 写入本体图谱" [disabled] [ref=f1e256] [cursor=pointer]:
+          - generic [ref=f1e257]: "3"
+          - generic [ref=f1e258]: 写入本体图谱
+      - generic [ref=f1e259]:
+        - generic [ref=f1e260]:
+          - generic [ref=f1e261]:
+            - heading "描述您的真实业务需求或数据" [level=3] [ref=f1e262]
+            - paragraph [ref=f1e263]: 输入自然语言业务流程、实际数据样例或系统描述。AI 将主动萃取核心对象类型 (Object Type)、特征属性 (Property)、业务关联纽带 (Link Type) 和驱动流转动作 (Action Type)。
+          - textbox "例如：跨境电商履约体系：包含采购客户、商品SKU、交易订单、中央保税仓与物流运单，支持客户下单、仓库出库、运单交付及售后取消退款..." [active] [ref=f1e265]
+          - generic [ref=f1e266]:
+            - text: 快速选用行业模板场景：
+            - generic [ref=f1e267]:
+              - button "🛒 跨境电商与仓储履约 跨境电商物流履约系统：包含采购客户、商品SKU、交易订单、中央保税仓与跨境配送运单实体，涵盖客户下单、保税仓出库、国际干线运输、清关交付以及售后退款取消动作。" [ref=f1e268] [cursor=pointer]:
+                - generic [ref=f1e269]: 🛒 跨境电商与仓储履约
+                - paragraph [ref=f1e270]: 跨境电商物流履约系统：包含采购客户、商品SKU、交易订单、中央保税仓与跨境配送运单实体，涵盖客户下单、保税仓出库、国际干线运输、清关交付以及售后退款取消动作。
+              - button "🏥 智慧医疗门诊处方 医院门诊挂号与电子处方系统：包括就诊患者、主治医师、挂号预约单、电子处方与药品库存主数据，关联就诊签到、名医接诊、处方开具与药房发药扣减闭环。" [ref=f1e271] [cursor=pointer]:
+                - generic [ref=f1e272]: 🏥 智慧医疗门诊处方
+                - paragraph [ref=f1e273]: 医院门诊挂号与电子处方系统：包括就诊患者、主治医师、挂号预约单、电子处方与药品库存主数据，关联就诊签到、名医接诊、处方开具与药房发药扣减闭环。
+              - button "💳 金融信贷授信风控 数字金融消费信贷审批：包含借款申请人、信贷申请件、风控大数据评分报告与授信放款合同，涵盖客户申请、风控模型实时跑批、经理终审与核心银企直连放款出资。" [ref=f1e274] [cursor=pointer]:
+                - generic [ref=f1e275]: 💳 金融信贷授信风控
+                - paragraph [ref=f1e276]: 数字金融消费信贷审批：包含借款申请人、信贷申请件、风控大数据评分报告与授信放款合同，涵盖客户申请、风控模型实时跑批、经理终审与核心银企直连放款出资。
+              - button "⚡ 智能物联网监控运维 工厂车间工业物联网监控：包含边缘智能网关、温湿度传感器子设备、实时时序遥测数据流与超温告警工单，支持指标越限告警、运维接单与边缘侧下发风机降温指令。" [ref=f1e277] [cursor=pointer]:
+                - generic [ref=f1e278]: ⚡ 智能物联网监控运维
+                - paragraph [ref=f1e279]: 工厂车间工业物联网监控：包含边缘智能网关、温湿度传感器子设备、实时时序遥测数据流与超温告警工单，支持指标越限告警、运维接单与边缘侧下发风机降温指令。
+              - button "📋 SaaS客户成功旅程 企业级SaaS客户全生命周期运营：包含企业租户、坐席操作员、软件订阅套餐、增购订单与服务工单实体，覆盖试用开通、付费续期、工单派发与权限冻结动作。" [ref=f1e280] [cursor=pointer]:
+                - generic [ref=f1e281]: 📋 SaaS客户成功旅程
+                - paragraph [ref=f1e282]: 企业级SaaS客户全生命周期运营：包含企业租户、坐席操作员、软件订阅套餐、增购订单与服务工单实体，覆盖试用开通、付费续期、工单派发与权限冻结动作。
+        - generic [ref=f1e283]:
+          - button "取消" [ref=f1e284] [cursor=pointer]
+          - button "开始 AI 业务建模" [disabled] [ref=f1e286]

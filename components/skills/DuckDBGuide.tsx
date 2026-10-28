@@ -119,7 +119,7 @@ export const DuckDBGuide: React.FC<DuckDBGuideProps> = ({
       <div className="shrink-0">
 
         {/* ─── Header ───────────────────────────────────────────── */}
-        <div className="flex items-center justify-between mb-3 mx-5 mt-5 px-4 py-3 bg-monokai-bg border border-monokai-border relative overflow-hidden">
+        <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between mb-3 mx-5 mt-5 px-4 py-3 bg-monokai-bg border border-monokai-border relative overflow-hidden">
           {/* 左侧渐变装饰条 */}
           <div
             className="absolute left-0 top-0 bottom-0 w-[3px]"
@@ -130,21 +130,21 @@ export const DuckDBGuide: React.FC<DuckDBGuideProps> = ({
             <div
               className="w-10 h-10 flex items-center justify-center border border-monokai-border-strong"
               style={{
-                background: `${currentCatDesign.primary}18`,
-                boxShadow: `0 0 12px ${currentCatDesign.primary}30`,
+                background: `color-mix(in srgb, ${currentCatDesign.primary} 9.41%, transparent)`,
+                boxShadow: `0 0 12px color-mix(in srgb, ${currentCatDesign.primary} 18.82%, transparent)`,
               }}
             >
               <Terminal className="w-5 h-5" style={{ color: currentCatDesign.primary }} />
             </div>
             <div>
-              <h3 className="text-[13px] font-bold text-monokai-fg flex items-center gap-2 mb-0.5">
+              <h3 className="text-[13px] font-bold text-monokai-fg flex flex-wrap items-center gap-2 mb-0.5">
                 <span>AI Skills</span>
                 <span
                   className="px-1.5 py-0.5 text-[10px] font-mono font-normal rounded border"
                   style={{
-                    background: `${currentCatDesign.primary}18`,
+                    background: `color-mix(in srgb, ${currentCatDesign.primary} 9.41%, transparent)`,
                     color: currentCatDesign.primary,
-                    borderColor: `${currentCatDesign.primary}40`,
+                    borderColor: `color-mix(in srgb, ${currentCatDesign.primary} 25.1%, transparent)`,
                   }}
                 >
                   {builtInCount} 内置
@@ -171,7 +171,7 @@ export const DuckDBGuide: React.FC<DuckDBGuideProps> = ({
 
           {/* 右侧滚动提示 */}
           <div
-            className="flex items-center gap-2 px-3 py-2 max-w-[240px] shrink-0 border"
+            className="flex items-center gap-2 px-3 py-2 max-w-full sm:max-w-[240px] shrink-0 border"
             style={{ background: 'var(--monokai-elevated)', borderColor: 'var(--monokai-border)' }}
           >
             <div className="w-1.5 h-1.5 rounded-full shrink-0 animate-pulse" style={{ background: currentCatDesign.primary }} />
@@ -215,10 +215,10 @@ export const DuckDBGuide: React.FC<DuckDBGuideProps> = ({
                 onClick={() => setActiveCategory(cat)}
                 className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs border transition-all duration-200 cursor-pointer"
                 style={{
-                  background: isActive ? `${design.colors.primary}20` : 'var(--monokai-elevated)',
-                  borderColor: isActive ? `${design.colors.primary}60` : 'var(--monokai-border)',
+                  background: isActive ? `color-mix(in srgb, ${design.colors.primary} 12.55%, transparent)` : 'var(--monokai-elevated)',
+                  borderColor: isActive ? `color-mix(in srgb, ${design.colors.primary} 37.65%, transparent)` : 'var(--monokai-border)',
                   color: isActive ? design.colors.primary : 'var(--monokai-comment)',
-                  boxShadow: isActive ? `0 0 8px ${design.colors.primary}30` : 'none',
+                  boxShadow: isActive ? `0 0 8px color-mix(in srgb, ${design.colors.primary} 18.82%, transparent)` : 'none',
                 }}
               >
                 <span>{design.emoji}</span>
@@ -296,9 +296,9 @@ export const DuckDBGuide: React.FC<DuckDBGuideProps> = ({
                 onClick={() => handleBrowseSkill(skill)}
                 className="group relative flex items-start gap-2 px-3 py-2.5 border cursor-pointer transition-all duration-200 text-left rounded-lg"
                 style={{
-                  background: isActive ? `${design.colors.primary}15` : 'var(--monokai-bg)',
-                  borderColor: isActive ? `${design.colors.primary}60` : 'var(--monokai-border)',
-                  boxShadow: isActive ? `0 0 10px ${design.colors.primary}20` : 'none',
+                  background: isActive ? `color-mix(in srgb, ${design.colors.primary} 8.24%, transparent)` : 'var(--monokai-bg)',
+                  borderColor: isActive ? `color-mix(in srgb, ${design.colors.primary} 37.65%, transparent)` : 'var(--monokai-border)',
+                  boxShadow: isActive ? `0 0 10px color-mix(in srgb, ${design.colors.primary} 12.55%, transparent)` : 'none',
                 }}
               >
                 {/* 左侧彩色强调条 */}
@@ -309,8 +309,8 @@ export const DuckDBGuide: React.FC<DuckDBGuideProps> = ({
                 <div
                   className="w-8 h-8 rounded flex items-center justify-center shrink-0 border transition-all duration-200"
                   style={{
-                    background: `${design.colors.primary}15`,
-                    borderColor: isActive ? `${design.colors.primary}50` : 'var(--monokai-border)',
+                    background: `color-mix(in srgb, ${design.colors.primary} 8.24%, transparent)`,
+                    borderColor: isActive ? `color-mix(in srgb, ${design.colors.primary} 31.37%, transparent)` : 'var(--monokai-border)',
                   }}
                 >
                   <Icon className="w-4 h-4 transition-colors duration-200" style={{ color: design.colors.primary }} />
@@ -368,7 +368,7 @@ export const DuckDBGuide: React.FC<DuckDBGuideProps> = ({
           <div
             className="absolute inset-0 pointer-events-none"
             style={{
-              background: `linear-gradient(135deg, ${currentCatDesign.primary}08 0%, transparent 60%)`,
+              background: `linear-gradient(135deg, color-mix(in srgb, ${currentCatDesign.primary} 3.14%, transparent) 0%, transparent 60%)`,
             }}
           />
 
@@ -473,8 +473,8 @@ export const DuckDBGuide: React.FC<DuckDBGuideProps> = ({
                       onClick={() => handleBrowseSkill(skill)}
                       className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-sans border transition-all duration-200 cursor-pointer"
                       style={{
-                        background: `${design.colors.primary}12`,
-                        borderColor: `${design.colors.primary}40`,
+                        background: `color-mix(in srgb, ${design.colors.primary} 7.06%, transparent)`,
+                        borderColor: `color-mix(in srgb, ${design.colors.primary} 25.1%, transparent)`,
                         color: design.colors.primary,
                       }}
                     >

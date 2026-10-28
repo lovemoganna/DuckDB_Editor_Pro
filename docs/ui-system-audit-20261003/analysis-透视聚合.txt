@@ -1,0 +1,181 @@
+- banner "全局工作区顶栏":
+  - button "🪶 DuckDB Studio PRO":
+    - generic: 🪶
+    - generic: DuckDB Studio
+    - generic: PRO
+  - navigation "业务领域大类":
+    - button "工程核心":
+      - generic: 工程核心
+    - button "分析洞察":
+      - generic: 分析洞察
+    - button "知识沉淀":
+      - generic: 知识沉淀
+    - button "AI 认知":
+      - generic: AI 认知
+  - tablist "分析洞察功能标签页":
+    - tab "指标":
+      - generic: 指标
+    - tab "可视化":
+      - generic: 可视化
+    - tab "分析" [selected]:
+      - generic: 分析
+    - tab "历史":
+      - generic: 历史
+    - tab "审计":
+      - generic: 审计
+  - button "项目":
+    - generic: 项目
+  - button "sql_funds_flow 已保存到 OPFS":
+    - generic: sql_funds_flow
+    - generic: 已保存到 OPFS
+  - button "AI 助手 Ctrl+I":
+    - generic: AI 助手
+    - generic: Ctrl+I
+  - button "⌘K":
+  - button "帮助与快捷键":
+  - button "切换为深色模式":
+  - button "AI 模型设置":
+- main:
+  - heading "分析中心" [level=1]
+  - paragraph: 多维透视 · 时序走势 · 业务配方 · SQL 模板 · DuckDB 本地内核
+  - button "仪表盘":
+    - generic: 仪表盘
+  - generic: 上下文
+  - combobox "切换分析库或 Schema":
+    - option "内存库 · memory（临时）"
+    - option "持久库 · duckdb_manager_workspace"
+    - option "持久库 · sql_funds_flow" [selected]
+    - option "Schema · sql_funds_flow.__studio"
+  - generic: 分析表
+  - combobox "选择分析表":
+    - option "crypto_transactions" [selected]
+    - option "exchange_rates"
+    - option "fiat_transactions"
+    - option "life_action"
+    - option "life_canvas_edge"
+    - option "life_canvas_state"
+    - option "life_insight"
+    - option "life_introspection"
+    - option "life_link"
+    - option "life_link_type"
+    - option "life_object"
+    - option "life_object_type"
+    - option "users"
+  - button "刷新表列表":
+  - button "数据网格":
+    - generic: 数据网格
+  - button "表结构":
+    - generic: 表结构
+  - tablist "分析工具模式":
+    - tab "关联分析":
+      - generic: 关联分析
+    - tab "数据体检":
+      - generic: 数据体检
+    - tab "透视聚合" [active] [selected]:
+      - generic: 透视聚合
+    - tab "时序分析":
+      - generic: 时序分析
+    - tab "场景配方":
+      - generic: 场景配方
+    - tab "SQL 模板":
+      - generic: SQL 模板
+  - text: 计量资产
+  - combobox "分析计量资产":
+    - option "请选择资产"
+    - option "BTC" [selected]
+    - option "ETH"
+    - option "USDT"
+  - generic: 不同资产不合计 · 所有状态
+  - button "保存与复用本次分析" [disabled]
+  - heading "多维透视与切片聚合" [level=3]
+  - paragraph: 分组计算 · 多度量筛选 · DuckDB 本地直出
+  - tablist "透视结果展示方式":
+    - tab "图表" [selected]:
+      - text: 图表
+    - tab "数据表":
+      - text: 数据表
+  - button "导出 CSV" [disabled]:
+    - text: 导出 CSV
+  - button "打开 SQL" [disabled]:
+    - text: 打开 SQL
+  - generic: 行分组维度
+  - generic: 1~2
+  - combobox:
+    - option "crypto_order_id (VARCHAR)" [selected]
+    - option "uid (BIGINT)"
+    - option "direction (VARCHAR)"
+    - option "asset (VARCHAR)"
+    - option "network (VARCHAR)"
+    - option "amount (DECIMAL(18,8))"
+    - option "fee (DECIMAL(18,8))"
+    - option "tx_hash (VARCHAR)"
+    - option "address (VARCHAR)"
+    - option "status (VARCHAR)"
+    - option "confirmations (INTEGER)"
+    - option "created_at (TIMESTAMP)"
+    - option "completed_at (TIMESTAMP)"
+  - button "添加交叉维度":
+    - text: 添加交叉维度
+  - generic: 度量指标
+  - button "新增":
+    - text: 新增
+  - combobox:
+    - option "COUNT"
+    - option "DISTINCT"
+    - option "SUM" [selected]
+    - option "AVG"
+    - option "MIN"
+    - option "MAX"
+  - combobox:
+    - option "amount" [selected]
+    - option "fee"
+    - option "confirmations"
+  - textbox "别名": 总amount
+  - button "移除度量":
+  - combobox:
+    - option "COUNT" [selected]
+    - option "DISTINCT"
+    - option "SUM"
+    - option "AVG"
+    - option "MIN"
+    - option "MAX"
+  - textbox "别名": 记录条数
+  - button "移除度量":
+  - generic: 过滤 / 排序
+  - button "+ 筛选"
+  - generic: 排序
+  - combobox:
+    - option "总amount" [selected]
+    - option "记录条数"
+  - combobox:
+    - option "降序" [selected]
+    - option "升序"
+  - combobox:
+    - option "Top 10"
+    - option "Top 25"
+    - option "Top 50" [selected]
+    - option "Top 100"
+    - option "全部"
+  - generic: 0 ms
+  - status:
+    - paragraph: 正在执行多维聚合…
+  - button "查看底层 SQL":
+    - generic: 查看底层 SQL
+  - button "复制 SQL 到剪贴板" [disabled]:
+    - generic: 复制 SQL
+- contentinfo:
+  - generic: DuckDB 1.33.1
+  - generic: "|"
+  - generic: sql_funds_flow [OPFS]
+  - generic: "|"
+  - generic: 持久化库
+  - generic: "|"
+  - generic: 13 张表
+  - generic: "|"
+  - generic: 13 个活动表
+  - generic: "|"
+  - generic: "内存: 1.75 MB / 3.1 GiB"
+  - generic: 引擎就绪
+  - generic: "|"
+  - generic: 19:14
+  - button "刷新运行时状态":

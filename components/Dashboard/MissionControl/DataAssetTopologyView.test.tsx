@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import React from 'react';
-import { render } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
 import { DataAssetTopologyView } from './DataAssetTopologyView';
 import type { TableDetail } from '../../../types';
@@ -45,7 +45,14 @@ describe('DataAssetTopologyView', () => {
     },
   ];
 
-  it('renders SVG connection curves with purely numeric path data (no percentage units)', () => {
+  it('defaults to dataset list view', () => {
+    render(<DataAssetTopologyView tables={sampleTables} onSelectTable={() => {}} />);
+    expect(screen.getByText('表与视图')).toBeInTheDocument();
+    expect(screen.getByText('orders')).toBeInTheDocument();
+    expect(screen.getByText('近期数据导入与挂载记录')).toBeInTheDocument();
+  });
+
+  it('renders SVG connection curves with purely numeric path data on ER tab', () => {
     const { container } = render(
       <DataAssetTopologyView
         tables={sampleTables}
@@ -53,10 +60,12 @@ describe('DataAssetTopologyView', () => {
       />
     );
 
-    const svg = container.querySelector('svg.pointer-events-none');
+    fireEvent.click(screen.getByRole('button', { name: /^ER$/i }));
+
+    const svg = container.querySelector('svg[viewBox="0 0 100 100"]');
     expect(svg).toBeInTheDocument();
-    expect(svg?.getAttribute('viewBox')).toBe('0 0 100 100');
     expect(svg?.getAttribute('preserveAspectRatio')).toBe('none');
+    expect(svg?.classList.contains('pointer-events-none')).toBe(true);
 
     const paths = svg?.querySelectorAll('path') ?? [];
     expect(paths.length).toBeGreaterThan(0);
@@ -64,9 +73,7 @@ describe('DataAssetTopologyView', () => {
     paths.forEach((path) => {
       const d = path.getAttribute('d');
       expect(d).toBeTruthy();
-      // Ensure SVG path d does not contain '%' which triggers DOM parsing errors
       expect(d).not.toContain('%');
-      // Should match valid SVG path syntax e.g. M 50 16 Q 50 16, 50 48
       expect(d).toMatch(/^M\s+[\d.-]+\s+[\d.-]+\s+Q\s+[\d.-]+\s+[\d.-]+,\s+[\d.-]+\s+[\d.-]+$/);
     });
   });

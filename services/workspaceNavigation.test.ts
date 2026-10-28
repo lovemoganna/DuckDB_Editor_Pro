@@ -52,7 +52,7 @@ describe('workspace navigation intent resolution', () => {
       return acc;
     }, {});
 
-    expect(counts).toEqual({ database: 5, analytics: 4, knowledge: 3, capability: 4 });
+    expect(counts).toEqual({ database: 5, analytics: 5, knowledge: 3, capability: 4 });
     expect(Object.values(counts).reduce((sum, count) => sum + count, 0)).toBe(WORKSPACE_FEATURES.length);
   });
 });

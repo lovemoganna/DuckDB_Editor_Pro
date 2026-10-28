@@ -1,0 +1,78 @@
+[
+  {
+    "sha256": "B75F3CC7A454083033F689AC0D47F1B9195AEBB01DBB55990DD62DBBE5D9FBFC",
+    "path": "components/DashboardGrid.tsx"
+  },
+  {
+    "sha256": "F2E1944B314494F0F3F3064B27637630129CE5B8ED0E8CDB5D5E0F459CA4DCC5",
+    "path": "components/DashboardWidget.tsx"
+  },
+  {
+    "sha256": "C793851C483F0CE7F4F646823C7B6C2CED8BB9AF9E2AAA665B665F9CEE743B44",
+    "path": "components/Dashboard/Home/HomeBoardCanvas.tsx"
+  },
+  {
+    "sha256": "051076579DB079777162D96D0B476C9A575AFA717D9077BDDF67BEE8FC670132",
+    "path": "components/Dashboard/Home/WorkspaceObjects.tsx"
+  },
+  {
+    "sha256": "F32ED539CAC2CB01B9773D9939F281D07FC58C7EE34211894065D80D6EE48B76",
+    "path": "components/Dashboard/WidgetErrorBoundary.tsx"
+  },
+  {
+    "sha256": "BAC6786DF4562B981638536BD8F2521327E5892C96DCDFC1B2384BB1ECB15182",
+    "path": "components/Dashboard/Home/DashboardDiagnostics.tsx"
+  },
+  {
+    "sha256": "5FD4FB31AC4030F19EBC9BCECDA2308BDC7778F5FDA7E745CE4A4B2556C701C0",
+    "path": "utils/dashboardLayout.ts"
+  },
+  {
+    "sha256": "AAC51E3A10F41A2D1BC1F11446E0238E9C73C73A07C17424EFFA5C70451FD719",
+    "path": "services/dbService.ts"
+  },
+  {
+    "sha256": "1935C30938374A1D83D79403F99CE874FB380FEAC72372D752B04EE1551A16BD",
+    "path": "services/homeDashboardService.ts"
+  },
+  {
+    "sha256": "12BF01CFE969F06438DFD9DAB25799BAAA9A7427152F1F34BA88BF44121A7A1C",
+    "path": "services/workbench/dashboardFormat.ts"
+  },
+  {
+    "sha256": "EEC522D253AA3E9CA80C5858649FD4E7E988A288BBAD1B86DADD9F8C172C9639",
+    "path": "services/dashboardDiagnostics.ts"
+  },
+  {
+    "sha256": "38EB87EB6F32E785B5878DD87BCE2F6D65FBBBBA4D6778E3F397CC00D495F64C",
+    "path": "services/studioMetadataSidecar.ts"
+  },
+  {
+    "sha256": "F884886E998BAF8C2198C6D1B3370C330663EFC42E1C7B7DBB74B6ED64AD425B",
+    "path": "scripts/test-dashboard-browser.mjs"
+  },
+  {
+    "sha256": "D27D4E2060898D25A0C79A8EA2E6C0B6A915ECDCD28CAA1E9AFA1CCC82279354",
+    "path": "test/dashboard-stability.html"
+  },
+  {
+    "sha256": "DD6EAF92D3E265DD8E5CDC00284344DA53356839ACC30E405AED8436FAFB514B",
+    "path": "test/dashboard-stability.tsx"
+  },
+  {
+    "sha256": "A7E5EFE4397A20DB44EA8ED7CBC32AC9D2B00216C3057ABAC96A05D06D6128A4",
+    "path": "package.json"
+  },
+  {
+    "sha256": "2D55FD1D953D857947C43DBB3B420FF4A7CB578D16BE214B84A7D7DF56C8B432",
+    "path": "pnpm-lock.yaml"
+  },
+  {
+    "sha256": "2BA1879431058996166BEAF1FED48A373AFA9126DB4BD30DA73E2916EEE3A0F1",
+    "path": ".github/workflows/blank.yml"
+  },
+  {
+    "sha256": "EA1AF0ED151BBF290DBABA8AE71B68164D5F9AF0FB4336CC7C6B52AABC056BB1",
+    "path": ".github/workflows/deploy.yml"
+  }
+]

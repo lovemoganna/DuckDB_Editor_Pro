@@ -293,8 +293,8 @@ export function useKeyboardShortcuts(
     if (!enabled) return;
 
     // 检查是否应该忽略
-    const target = event.target as HTMLElement;
-    if (ignoreSelectors.some((selector) => target.closest(selector))) {
+    const target = event.target as HTMLElement | null;
+    if (typeof target?.closest === 'function' && ignoreSelectors.some((selector) => target.closest(selector))) {
       return;
     }
 

@@ -1,0 +1,125 @@
+- banner "全局工作区顶栏":
+  - button "🪶 DuckDB Studio PRO":
+    - generic: 🪶
+    - generic: DuckDB Studio
+    - generic: PRO
+  - navigation "业务领域大类":
+    - button "工程核心":
+      - generic: 工程核心
+    - button "分析洞察":
+      - generic: 分析洞察
+    - button "知识沉淀":
+      - generic: 知识沉淀
+    - button "AI 认知":
+      - generic: AI 认知
+  - tablist "AI 认知功能标签页":
+    - tab "本体图谱" [active] [selected]:
+      - generic: 本体图谱
+    - tab "技能":
+      - generic: 技能
+    - tab "能力":
+      - generic: 能力
+    - tab "推演":
+      - generic: 推演
+  - button "项目 Ctrl+Shift+D":
+    - generic: 项目
+    - generic: Ctrl+Shift+D
+  - button "新建表":
+    - generic: 新建表
+  - button "memory 临时分析空间":
+    - generic: memory
+    - generic: 临时分析空间
+  - button "AI 助手 Ctrl+I":
+    - generic: AI 助手
+    - generic: Ctrl+I
+  - button "⌘K":
+  - button "帮助与快捷键":
+  - button "切换为深色模式":
+  - button "AI 模型设置":
+- main:
+  - button "展开本体侧栏":
+  - generic: 本体知识空间 (Ontology Studio)
+  - tablist "本体视图切换":
+    - tab "知识图谱" [selected]:
+      - generic: 知识图谱
+    - tab "数据视图":
+      - generic: 数据视图
+    - tab "实体画布":
+      - generic: 实体画布
+  - button "数据切片":
+    - generic: 数据切片
+  - button "本体建模":
+    - generic: 本体建模
+  - button "组合推演":
+    - generic: 组合推演
+  - button "推演定义":
+    - generic: 推演定义
+  - button "聚合洞察":
+    - generic: 聚合洞察
+  - generic "查询：query_1.sql": 数据源：查询：query_1.sql
+  - status: 等待查询
+  - button "返回本体图谱":
+    - generic: 返回本体图谱
+  - text: 跳数
+  - button "1跳"
+  - button "2跳"
+  - button "3跳"
+  - button "全图"
+  - button "刷新图谱数据":
+  - complementary "数据切片条件侧栏":
+    - region "数据切片筛选":
+      - strong: 数据切片
+      - button "收起筛选":
+        - generic: 收起筛选
+      - paragraph: 当前数据库：memory · 查询结果直接显示在主图谱
+      - paragraph: 已接入当前数据集，可继续缩小范围或关联其他对象。
+      - strong: 当前数据集：查询：query_1.sql
+      - paragraph: 跟随工作区数据集及已应用条件；在首页、数据或 SQL 中切换来源。
+      - status: 当前数据集缺少可确认的唯一标识，请调整对象标识或使用高级映射。
+      - generic "对象标识：待选择 · 调整"
+      - option "选择唯一字段" [selected]
+      - option "answer"
+      - option "label"
+      - text: 2 · 限定数据范围
+      - paragraph: 已继承数据集查询及已应用筛选。可追加条件，需同时满足。
+      - button "添加筛选":
+        - generic: 添加筛选
+      - generic "关联其他对象（可选）"
+      - option "仅查看来源对象" [selected]
+      - option "__studio.objects"
+      - option "main._sys_audit_log"
+      - option "main._sys_ontology_pattern_library"
+      - button "查看图谱" [disabled]:
+        - generic: 查看图谱
+      - generic "高级查询 · SQL 与对象映射"
+      - status: 选择对象并查看主图谱
+      - button "重新计算" [disabled]:
+        - generic: 重新计算
+  - img "知识图谱可视化（SVG D3 (矢量交互)）：0 个节点，0 条关系连线。"
+  - group "核心节点与关系筛选":
+    - generic: 核心节点与关系筛选 (全图 · 悬浮展开)
+  - generic: 在侧栏选择对象与条件，查询结果将在此图谱显示
+  - button "控制面板"
+  - button "渲染模式切换":
+    - generic: SVG D3 (矢量交互)
+    - generic: ≤500节点推荐
+  - button "信息面板"
+  - button "图例"
+  - generic: 🔎
+  - textbox "搜索节点... (Alt+S)"
+- contentinfo:
+  - generic: DuckDB 1.33.1
+  - generic: "|"
+  - generic: memory [MEMORY]
+  - generic: "|"
+  - generic: 内存库
+  - generic: "|"
+  - generic: 0 张表
+  - generic: "|"
+  - generic: 暂无表
+  - generic: "|"
+  - generic: "内存: 0.00 MB / 3.1 GiB"
+  - generic: 引擎就绪
+  - generic: "|"
+  - generic: 06:37
+  - button "刷新运行时状态":

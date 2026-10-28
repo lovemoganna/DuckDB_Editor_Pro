@@ -1,0 +1,413 @@
+- generic [ref=f5e3]:
+  - banner "全局工作区顶栏" [ref=f5e4]:
+    - generic [ref=f5e5]:
+      - button "🪶 DuckDB Studio PRO" [ref=f5e6] [cursor=pointer]:
+        - generic [ref=f5e7]: 🪶
+        - generic [ref=f5e9]:
+          - generic [ref=f5e10]: DuckDB Studio
+          - generic [ref=f5e11]: PRO
+      - navigation "业务领域大类" [ref=f5e13]:
+        - button "工程核心" [ref=f5e14] [cursor=pointer]
+        - button "分析洞察" [ref=f5e20] [cursor=pointer]
+        - button "知识沉淀" [ref=f5e25] [cursor=pointer]
+        - button "AI 认知" [ref=f5e30] [cursor=pointer]
+      - tablist "工程核心功能标签页" [ref=f5e36]:
+        - tab "仪表盘" [selected] [ref=f5e37] [cursor=pointer]
+        - tab "数据" [ref=f5e43] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f5e2283]: "2"
+        - tab "Schema" [ref=f5e49] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f5e54]: "3"
+        - tab "SQL" [ref=f5e55] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f5e60]: "4"
+        - tab "数据流" [ref=f5e61] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f5e66]: "5"
+    - generic [ref=f5e67]:
+      - button "项目" [ref=f5e68] [cursor=pointer]
+      - button "duckdb_manager_workspace 已保存到 OPFS" [ref=f5e73] [cursor=pointer]:
+        - generic [ref=f5e76]: duckdb_manager_workspace
+        - generic [ref=f5e78]: 已保存到 OPFS
+      - button "AI 助手 Ctrl+I" [ref=f5e82] [cursor=pointer]:
+        - generic [ref=f5e85]: AI 助手
+        - generic [ref=f5e86]: Ctrl+I
+      - button "⌘K" [ref=f5e87] [cursor=pointer]
+      - button "帮助与快捷键" [ref=f5e91] [cursor=pointer]
+      - button "切换为浅色模式" [ref=f5e94] [cursor=pointer]
+      - button "AI 模型设置" [ref=f5e95] [cursor=pointer]
+  - main [ref=f5e98]:
+    - generic [ref=f5e99]:
+      - generic [ref=f5e2285]:
+        - generic [ref=f5e2286]:
+          - generic [ref=f5e2287]:
+            - generic [ref=f5e2288]:
+              - heading "分析范围" [level=1] [ref=f5e2289]
+              - generic [ref=f5e2290]: /
+              - button "持久库 · duckdb_manager_workspace" [ref=f5e2291] [cursor=pointer]
+            - paragraph [ref=f5e2293]: 8 个数据集 · 136 行 · 数据规模未应用筛选
+          - generic [ref=f5e2294]:
+            - button "导入数据" [ref=f5e2295] [cursor=pointer]
+            - button "刷新" [ref=f5e2297] [cursor=pointer]
+        - generic [ref=f5e2298]:
+          - generic [ref=f5e2300]:
+            - generic [ref=f5e2301]:
+              - text: 工作台
+              - combobox "工作台视图" [ref=f5e2302]:
+                - option "分析首页" [selected]
+            - button "添加分析" [ref=f5e2303] [cursor=pointer]
+            - button "新建查询" [ref=f5e2305] [cursor=pointer]
+            - generic [ref=f5e2306]:
+              - text: 数据集
+              - combobox "浏览数据集" [ref=f5e2307]:
+                - option "选择数据集"
+                - option "duckdb_manager_workspace.main.baseline_crypto_transactions"
+                - option "duckdb_manager_workspace.main.baseline_crypto_transactions_lab_baseline"
+                - option "duckdb_manager_workspace.main.baseline_exchange_rates"
+                - option "duckdb_manager_workspace.main.baseline_exchange_rates_lab_baseline"
+                - option "duckdb_manager_workspace.main.baseline_fiat_transactions" [selected]
+                - option "duckdb_manager_workspace.main.baseline_fiat_transactions_lab_baseline"
+                - option "duckdb_manager_workspace.main.baseline_users"
+                - option "duckdb_manager_workspace.main.baseline_users_lab_baseline"
+            - button "筛选" [ref=f5e2309] [cursor=pointer]
+            - button "视图设置" [ref=f5e2311] [cursor=pointer]
+          - generic [ref=f5e2313]: 尚未添加分析
+          - generic [ref=f5e2332]:
+            - generic [ref=f5e2333]:
+              - heading "duckdb_manager_workspace.main.baseline_fiat_transactions · 明细" [level=3] [ref=f5e2334]
+              - generic [ref=f5e2335]: 25 行
+            - table [ref=f5e2337]:
+              - rowgroup [ref=f5e2349]:
+                - row [ref=f5e2350]:
+                  - columnheader "fiat_order_id" [ref=f5e2351]
+                  - columnheader "uid" [ref=f5e2352]
+                  - columnheader "direction" [ref=f5e2353]
+                  - columnheader "currency" [ref=f5e2354]
+                  - columnheader "amount" [ref=f5e2355]
+                  - columnheader "fee" [ref=f5e2356]
+                  - columnheader "channel" [ref=f5e2357]
+                  - columnheader "status" [ref=f5e2358]
+                  - columnheader "created_at" [ref=f5e2359]
+                  - columnheader "completed_at" [ref=f5e2360]
+              - rowgroup [ref=f5e2361]:
+                - row [ref=f5e2362]:
+                  - cell "fo_20241231_43875092" [ref=f5e2363]
+                  - cell "438750921" [ref=f5e2364]
+                  - cell "deposit" [ref=f5e2365]
+                  - cell "BRL" [ref=f5e2366]
+                  - cell "2,500" [ref=f5e2367]
+                  - cell "0" [ref=f5e2368]
+                  - cell "pix" [ref=f5e2369]
+                  - cell "completed" [ref=f5e2370]
+                  - cell "2024-12-31 23:50:00" [ref=f5e2371]
+                  - cell "2024-12-31 23:52:00" [ref=f5e2372]
+                - row [ref=f5e2373]:
+                  - cell "fo_20250101_43875093" [ref=f5e2374]
+                  - cell "438750921" [ref=f5e2375]
+                  - cell "withdrawal" [ref=f5e2376]
+                  - cell "BRL" [ref=f5e2377]
+                  - cell "2,500" [ref=f5e2378]
+                  - cell "3.5" [ref=f5e2379]
+                  - cell "pix" [ref=f5e2380]
+                  - cell "completed" [ref=f5e2381]
+                  - cell "2025-01-01 00:20:00" [ref=f5e2382]
+                  - cell "2025-01-01 00:22:00" [ref=f5e2383]
+                - row [ref=f5e2384]:
+                  - cell "fo_20250110_78423190" [ref=f5e2385]
+                  - cell "784231905" [ref=f5e2386]
+                  - cell "deposit" [ref=f5e2387]
+                  - cell "EUR" [ref=f5e2388]
+                  - cell "1,500" [ref=f5e2389]
+                  - cell "0" [ref=f5e2390]
+                  - cell "sepa_instant" [ref=f5e2391]
+                  - cell "completed" [ref=f5e2392]
+                  - cell "2025-01-10 10:15:00" [ref=f5e2393]
+                  - cell "2025-01-10 10:18:00" [ref=f5e2394]
+                - row [ref=f5e2395]:
+                  - cell "fo_20250112_61590237" [ref=f5e2396]
+                  - cell "615902374" [ref=f5e2397]
+                  - cell "deposit" [ref=f5e2398]
+                  - cell "USD" [ref=f5e2399]
+                  - cell "50,000" [ref=f5e2400]
+                  - cell "15" [ref=f5e2401]
+                  - cell "wire_transfer" [ref=f5e2402]
+                  - cell "completed" [ref=f5e2403]
+                  - cell "2025-01-12 08:30:00" [ref=f5e2404]
+                  - cell "2025-01-12 15:45:00" [ref=f5e2405]
+                - row [ref=f5e2406]:
+                  - cell "fo_20250214_61590238" [ref=f5e2407]
+                  - cell "615902374" [ref=f5e2408]
+                  - cell "withdrawal" [ref=f5e2409]
+                  - cell "USD" [ref=f5e2410]
+                  - cell "12,000" [ref=f5e2411]
+                  - cell "25" [ref=f5e2412]
+                  - cell "wire_transfer" [ref=f5e2413]
+                  - cell "completed" [ref=f5e2414]
+                  - cell "2025-02-14 23:45:00" [ref=f5e2415]
+                  - cell "2025-02-15 01:15:00" [ref=f5e2416]
+                - row [ref=f5e2417]:
+                  - cell "fo_20250220_78423191" [ref=f5e2418]
+                  - cell "784231905" [ref=f5e2419]
+                  - cell "withdrawal" [ref=f5e2420]
+                  - cell "EUR" [ref=f5e2421]
+                  - cell "500" [ref=f5e2422]
+                  - cell "1.5" [ref=f5e2423]
+                  - cell "sepa_instant" [ref=f5e2424]
+                  - cell "completed" [ref=f5e2425]
+                  - cell "2025-02-20 14:30:00" [ref=f5e2426]
+                  - cell "2025-02-20 14:35:00" [ref=f5e2427]
+                - row [ref=f5e2428]:
+                  - cell "fo_20250308_90317462" [ref=f5e2429]
+                  - cell "903174628" [ref=f5e2430]
+                  - cell "deposit" [ref=f5e2431]
+                  - cell "USD" [ref=f5e2432]
+                  - cell "1,000" [ref=f5e2433]
+                  - cell "0" [ref=f5e2434]
+                  - cell "ach" [ref=f5e2435]
+                  - cell "completed" [ref=f5e2436]
+                  - cell "2025-03-08 09:10:00" [ref=f5e2437]
+                  - cell "2025-03-09 11:30:00" [ref=f5e2438]
+                - row [ref=f5e2439]:
+                  - cell "fo_20250315_78423192" [ref=f5e2440]
+                  - cell "784231905" [ref=f5e2441]
+                  - cell "deposit" [ref=f5e2442]
+                  - cell "EUR" [ref=f5e2443]
+                  - cell "2,000" [ref=f5e2444]
+                  - cell "0" [ref=f5e2445]
+                  - cell "sepa_credit" [ref=f5e2446]
+                  - cell "completed" [ref=f5e2447]
+                  - cell "2025-03-15 09:00:00" [ref=f5e2448]
+                  - cell "2025-03-15 16:20:00" [ref=f5e2449]
+                - row [ref=f5e2450]:
+                  - cell "fo_20250410_78423193" [ref=f5e2451]
+                  - cell "784231905" [ref=f5e2452]
+                  - cell "withdrawal" [ref=f5e2453]
+                  - cell "EUR" [ref=f5e2454]
+                  - cell "300" [ref=f5e2455]
+                  - cell "1.5" [ref=f5e2456]
+                  - cell "sepa_instant" [ref=f5e2457]
+                  - cell "failed" [ref=f5e2458]
+                  - cell "2025-04-10 11:00:00" [ref=f5e2459]
+                  - cell "2025-04-10 11:05:00" [ref=f5e2460]
+                - row [ref=f5e2461]:
+                  - cell "fo_20250415_90317463" [ref=f5e2462]
+                  - cell "903174628" [ref=f5e2463]
+                  - cell "withdrawal" [ref=f5e2464]
+                  - cell "USD" [ref=f5e2465]
+                  - cell "450" [ref=f5e2466]
+                  - cell "2" [ref=f5e2467]
+                  - cell "ach" [ref=f5e2468]
+                  - cell "completed" [ref=f5e2469]
+                  - cell "2025-04-15 14:00:00" [ref=f5e2470]
+                  - cell "2025-04-16 10:00:00" [ref=f5e2471]
+                - row [ref=f5e2472]:
+                  - cell "fo_20250418_52840619" [ref=f5e2473]
+                  - cell "528406193" [ref=f5e2474]
+                  - cell "deposit" [ref=f5e2475]
+                  - cell "GBP" [ref=f5e2476]
+                  - cell "3,000" [ref=f5e2477]
+                  - cell "0" [ref=f5e2478]
+                  - cell "faster_payments" [ref=f5e2479]
+                  - cell "completed" [ref=f5e2480]
+                  - cell "2025-04-18 10:00:00" [ref=f5e2481]
+                  - cell "2025-04-18 10:04:00" [ref=f5e2482]
+                - row [ref=f5e2483]:
+                  - cell "fo_20250502_90317464" [ref=f5e2484]
+                  - cell "903174628" [ref=f5e2485]
+                  - cell "withdrawal" [ref=f5e2486]
+                  - cell "USD" [ref=f5e2487]
+                  - cell "200" [ref=f5e2488]
+                  - cell "2" [ref=f5e2489]
+                  - cell "ach" [ref=f5e2490]
+                  - cell "cancelled" [ref=f5e2491]
+                  - cell "2025-05-02 12:30:00" [ref=f5e2492]
+                  - cell "NULL" [ref=f5e2493]
+                - row [ref=f5e2494]:
+                  - cell "fo_20250520_84621953" [ref=f5e2495]
+                  - cell "846219537" [ref=f5e2496]
+                  - cell "deposit" [ref=f5e2497]
+                  - cell "EUR" [ref=f5e2498]
+                  - cell "4,200" [ref=f5e2499]
+                  - cell "0" [ref=f5e2500]
+                  - cell "sepa_instant" [ref=f5e2501]
+                  - cell "completed" [ref=f5e2502]
+                  - cell "2025-05-20 11:10:00" [ref=f5e2503]
+                  - cell "2025-05-20 11:12:00" [ref=f5e2504]
+                - row [ref=f5e2505]:
+                  - cell "fo_20250525_52840620" [ref=f5e2506]
+                  - cell "528406193" [ref=f5e2507]
+                  - cell "withdrawal" [ref=f5e2508]
+                  - cell "GBP" [ref=f5e2509]
+                  - cell "800" [ref=f5e2510]
+                  - cell "1" [ref=f5e2511]
+                  - cell "faster_payments" [ref=f5e2512]
+                  - cell "completed" [ref=f5e2513]
+                  - cell "2025-05-25 15:30:00" [ref=f5e2514]
+                  - cell "2025-05-25 15:33:00" [ref=f5e2515]
+                - row [ref=f5e2516]:
+                  - cell "fo_20250605_69248130" [ref=f5e2517]
+                  - cell "692481305" [ref=f5e2518]
+                  - cell "deposit" [ref=f5e2519]
+                  - cell "USD" [ref=f5e2520]
+                  - cell "25,000" [ref=f5e2521]
+                  - cell "15" [ref=f5e2522]
+                  - cell "wire_transfer" [ref=f5e2523]
+                  - cell "completed" [ref=f5e2524]
+                  - cell "2025-06-05 09:30:00" [ref=f5e2525]
+                  - cell "2025-06-05 16:10:00" [ref=f5e2526]
+                - row [ref=f5e2527]:
+                  - cell "fo_20250618_61590239" [ref=f5e2528]
+                  - cell "615902374" [ref=f5e2529]
+                  - cell "withdrawal" [ref=f5e2530]
+                  - cell "USD" [ref=f5e2531]
+                  - cell "5,000" [ref=f5e2532]
+                  - cell "25" [ref=f5e2533]
+                  - cell "wire_transfer" [ref=f5e2534]
+                  - cell "completed" [ref=f5e2535]
+                  - cell "2025-06-18 10:20:00" [ref=f5e2536]
+                  - cell "2025-06-18 14:10:00" [ref=f5e2537]
+                - row [ref=f5e2538]:
+                  - cell "fo_20250711_84621954" [ref=f5e2539]
+                  - cell "846219537" [ref=f5e2540]
+                  - cell "deposit" [ref=f5e2541]
+                  - cell "EUR" [ref=f5e2542]
+                  - cell "1,800" [ref=f5e2543]
+                  - cell "0" [ref=f5e2544]
+                  - cell "sepa_credit" [ref=f5e2545]
+                  - cell "completed" [ref=f5e2546]
+                  - cell "2025-07-11 13:40:00" [ref=f5e2547]
+                  - cell "2025-07-11 17:50:00" [ref=f5e2548]
+                - row [ref=f5e2549]:
+                  - cell "fo_20250720_61590240" [ref=f5e2550]
+                  - cell "615902374" [ref=f5e2551]
+                  - cell "deposit" [ref=f5e2552]
+                  - cell "USD" [ref=f5e2553]
+                  - cell "10,000" [ref=f5e2554]
+                  - cell "15" [ref=f5e2555]
+                  - cell "wire_transfer" [ref=f5e2556]
+                  - cell "pending" [ref=f5e2557]
+                  - cell "2025-07-20 16:00:00" [ref=f5e2558]
+                  - cell "NULL" [ref=f5e2559]
+                - row [ref=f5e2560]:
+                  - cell "fo_20250810_52840621" [ref=f5e2561]
+                  - cell "528406193" [ref=f5e2562]
+                  - cell "withdrawal" [ref=f5e2563]
+                  - cell "GBP" [ref=f5e2564]
+                  - cell "1,200" [ref=f5e2565]
+                  - cell "1" [ref=f5e2566]
+                  - cell "faster_payments" [ref=f5e2567]
+                  - cell "completed" [ref=f5e2568]
+                  - cell "2025-08-10 18:20:00" [ref=f5e2569]
+                  - cell "2025-08-10 18:24:00" [ref=f5e2570]
+                - row [ref=f5e2571]:
+                  - cell "fo_20250901_31958204" [ref=f5e2572]
+                  - cell "319582046" [ref=f5e2573]
+                  - cell "deposit" [ref=f5e2574]
+                  - cell "TRY" [ref=f5e2575]
+                  - cell "15,000" [ref=f5e2576]
+                  - cell "0" [ref=f5e2577]
+                  - cell "papara" [ref=f5e2578]
+                  - cell "completed" [ref=f5e2579]
+                  - cell "2025-09-01 10:00:00" [ref=f5e2580]
+                  - cell "2025-09-01 10:05:00" [ref=f5e2581]
+                - row [ref=f5e2582]:
+                  - cell "fo_20250912_52840622" [ref=f5e2583]
+                  - cell "528406193" [ref=f5e2584]
+                  - cell "deposit" [ref=f5e2585]
+                  - cell "GBP" [ref=f5e2586]
+                  - cell "500" [ref=f5e2587]
+                  - cell "0" [ref=f5e2588]
+                  - cell "faster_payments" [ref=f5e2589]
+                  - cell "processing" [ref=f5e2590]
+                  - cell "2025-09-12 09:15:00" [ref=f5e2591]
+                  - cell "NULL" [ref=f5e2592]
+                - row [ref=f5e2593]:
+                  - cell "fo_20250915_69248131" [ref=f5e2594]
+                  - cell "692481305" [ref=f5e2595]
+                  - cell "withdrawal" [ref=f5e2596]
+                  - cell "USD" [ref=f5e2597]
+                  - cell "10,000" [ref=f5e2598]
+                  - cell "25" [ref=f5e2599]
+                  - cell "wire_transfer" [ref=f5e2600]
+                  - cell "completed" [ref=f5e2601]
+                  - cell "2025-09-15 14:00:00" [ref=f5e2602]
+                  - cell "2025-09-15 17:30:00" [ref=f5e2603]
+                - row [ref=f5e2604]:
+                  - cell "fo_20250920_50284719" [ref=f5e2605]
+                  - cell "502847193" [ref=f5e2606]
+                  - cell "withdrawal" [ref=f5e2607]
+                  - cell "USD" [ref=f5e2608]
+                  - cell "800" [ref=f5e2609]
+                  - cell "2" [ref=f5e2610]
+                  - cell "ach" [ref=f5e2611]
+                  - cell "completed" [ref=f5e2612]
+                  - cell "2025-09-20 16:45:00" [ref=f5e2613]
+                  - cell "2025-09-21 09:30:00" [ref=f5e2614]
+                - row [ref=f5e2615]:
+                  - cell "fo_20251010_31958205" [ref=f5e2616]
+                  - cell "319582046" [ref=f5e2617]
+                  - cell "withdrawal" [ref=f5e2618]
+                  - cell "TRY" [ref=f5e2619]
+                  - cell "6,000" [ref=f5e2620]
+                  - cell "15" [ref=f5e2621]
+                  - cell "papara" [ref=f5e2622]
+                  - cell "completed" [ref=f5e2623]
+                  - cell "2025-10-10 14:20:00" [ref=f5e2624]
+                  - cell "2025-10-10 14:25:00" [ref=f5e2625]
+                - row [ref=f5e2626]:
+                  - cell "fo_20251025_50284720" [ref=f5e2627]
+                  - cell "502847193" [ref=f5e2628]
+                  - cell "withdrawal" [ref=f5e2629]
+                  - cell "USD" [ref=f5e2630]
+                  - cell "20" [ref=f5e2631]
+                  - cell "1" [ref=f5e2632]
+                  - cell "ach" [ref=f5e2633]
+                  - cell "completed" [ref=f5e2634]
+                  - cell "2025-10-25 11:00:00" [ref=f5e2635]
+                  - cell "2025-10-25 15:30:00" [ref=f5e2636]
+        - navigation "数据状态与详情" [ref=f5e2326]:
+          - button "管理数据" [ref=f5e2327] [cursor=pointer]
+          - button "查看 Schema" [ref=f5e2328] [cursor=pointer]
+          - button "查看数据检查" [ref=f5e2329] [cursor=pointer]
+      - complementary "AI Copilot 侧边栏" [ref=f5e117]:
+        - generic "拖拽调整侧边栏宽度" [ref=f5e118]
+        - generic [ref=f5e119]:
+          - generic [ref=f5e120]:
+            - generic [ref=f5e121]: AI Copilot
+            - button "Gemini 2.0 Flash" [ref=f5e123] [cursor=pointer]
+          - generic [ref=f5e125]:
+            - button "会话历史" [ref=f5e126] [cursor=pointer]:
+              - generic [ref=f5e127]: "2"
+            - button "新建会话" [ref=f5e128] [cursor=pointer]
+            - button "清空会话历史" [ref=f5e129] [cursor=pointer]
+            - button "收起侧边栏" [ref=f5e130] [cursor=pointer]
+        - generic [ref=f5e132]:
+          - generic [ref=f5e133]: 仪表盘
+          - generic [ref=f5e134]: ·
+          - button "选择关注的数据表" [ref=f5e136] [cursor=pointer]:
+            - generic [ref=f5e137]: baseline_crypto_transactions
+            - generic [ref=f5e2330]: "1"
+        - generic [ref=f5e139]:
+          - paragraph [ref=f5e140]: 有什么想查的？
+          - paragraph [ref=f5e141]: 可围绕 baseline_crypto_transactions 提问、生成 SQL 或做数据探查。
+        - generic [ref=f5e143]:
+          - button "生成探索问题" [ref=f5e144] [cursor=pointer]
+          - generic [ref=f5e2331]: 基于 baseline_crypto_transactions
+        - generic [ref=f5e147]:
+          - textbox "提问、生成 SQL 或分析数据…" [ref=f5e148]
+          - button "发送" [disabled] [ref=f5e150]
+  - contentinfo [ref=f5e152]:
+    - generic [ref=f5e153]:
+      - generic [ref=f5e154]: DuckDB 1.33.1
+      - generic [ref=f5e157]: "|"
+      - generic [ref=f5e158]: duckdb_manager_workspace [OPFS]
+      - generic [ref=f5e160]: "|"
+      - generic [ref=f5e161]: 持久化库
+      - generic [ref=f5e163]: "|"
+      - generic [ref=f5e164]: 8 张表
+      - generic [ref=f5e166]: "|"
+      - generic [ref=f5e167]: 8 个活动表
+      - generic [ref=f5e169]: "|"
+      - generic [ref=f5e170]: "内存: 0.25 MB / 3.1 GiB"
+    - generic [ref=f5e172]:
+      - generic [ref=f5e173]: 引擎就绪
+      - generic [ref=f5e177]: "|"
+      - generic [ref=f5e178]: 08:24
+      - button "刷新运行时状态" [ref=f5e179] [cursor=pointer]

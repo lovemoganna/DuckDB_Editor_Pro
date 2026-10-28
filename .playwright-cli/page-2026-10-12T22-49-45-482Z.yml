@@ -1,0 +1,93 @@
+- generic [ref=f1e3]:
+  - banner "全局工作区顶栏" [ref=f1e4]:
+    - generic [ref=f1e5]:
+      - button "🪶 DuckDB Studio PRO" [ref=f1e6] [cursor=pointer]:
+        - generic [ref=f1e7]: 🪶
+        - generic [ref=f1e9]:
+          - generic [ref=f1e10]: DuckDB Studio
+          - generic [ref=f1e11]: PRO
+      - navigation "业务领域大类" [ref=f1e13]:
+        - button "工程核心" [ref=f1e14] [cursor=pointer]
+        - button "分析洞察" [ref=f1e20] [cursor=pointer]
+        - button "知识沉淀" [ref=f1e25] [cursor=pointer]
+        - button "AI 认知" [active] [ref=f1e30] [cursor=pointer]
+      - tablist "AI 认知功能标签页" [ref=f1e151]:
+        - tab "本体图谱" [selected] [ref=f1e152] [cursor=pointer]
+        - tab "技能" [ref=f1e158] [cursor=pointer]
+        - tab "能力" [ref=f1e163] [cursor=pointer]
+        - tab "推演" [ref=f1e168] [cursor=pointer]
+    - generic [ref=f1e67]:
+      - button "项目 Ctrl+Shift+D" [ref=f1e68] [cursor=pointer]:
+        - generic [ref=f1e71]: 项目
+        - generic [ref=f1e72]: Ctrl+Shift+D
+      - button "新建表" [ref=f1e73] [cursor=pointer]
+      - button "memory 临时分析空间" [ref=f1e78] [cursor=pointer]:
+        - generic [ref=f1e81]: memory
+        - generic [ref=f1e83]: 临时分析空间
+      - button "AI 助手 Ctrl+I" [ref=f1e87] [cursor=pointer]:
+        - generic [ref=f1e90]: AI 助手
+        - generic [ref=f1e91]: Ctrl+I
+      - button "⌘K" [ref=f1e92] [cursor=pointer]
+      - button "帮助与快捷键" [ref=f1e96] [cursor=pointer]
+      - button "切换为浅色模式" [ref=f1e99] [cursor=pointer]
+      - button "AI 模型设置" [ref=f1e100] [cursor=pointer]
+  - main [ref=f1e103]:
+    - generic [ref=f1e174]:
+      - generic [ref=f1e175]:
+        - generic [ref=f1e176]:
+          - button "展开本体侧栏" [ref=f1e177] [cursor=pointer]
+          - generic [ref=f1e178]: 本体知识空间 (Ontology Studio)
+        - tablist "本体视图切换" [ref=f1e181]:
+          - tab "知识图谱" [selected] [ref=f1e182] [cursor=pointer]
+          - tab "数据视图" [ref=f1e185] [cursor=pointer]
+          - tab "实体画布" [ref=f1e187] [cursor=pointer]
+        - generic [ref=f1e189]:
+          - button "数据切片" [ref=f1e190] [cursor=pointer]
+          - button "本体建模" [ref=f1e192] [cursor=pointer]
+          - button "组合推演" [ref=f1e194] [cursor=pointer]
+          - button "推演定义" [ref=f1e196] [cursor=pointer]
+          - button "聚合洞察" [ref=f1e198] [cursor=pointer]
+      - generic [ref=f1e200]:
+        - generic [ref=f1e201]: 加载中...
+        - generic [ref=f1e204]:
+          - generic [ref=f1e205]:
+            - generic [ref=f1e206]: 跳数
+            - button "1跳" [ref=f1e207] [cursor=pointer]
+            - button "2跳" [ref=f1e208] [cursor=pointer]
+            - button "3跳" [ref=f1e209] [cursor=pointer]
+            - button "全图" [ref=f1e210] [cursor=pointer]
+          - button "刷新图谱数据" [ref=f1e211] [cursor=pointer]
+      - generic [ref=f1e216]:
+        - img "知识图谱可视化（SVG D3 (矢量交互)）：0 个节点，0 条关系连线。" [ref=f1e217]
+        - generic:
+          - generic:
+            - generic: 🔍
+            - generic: 本体论尚未初始化
+            - generic: 当前工作区尚未载入本体结构或种子数据。可点击「重试初始化」导入默认模型，或通过 AI 自动构建图谱。
+            - generic [ref=f1e219]:
+              - button "重试初始化" [ref=f1e220] [cursor=pointer]
+              - button "AI 图谱生成" [ref=f1e221] [cursor=pointer]
+              - button "刷新图谱" [ref=f1e222] [cursor=pointer]
+              - button "导出 CSV" [disabled] [ref=f1e223]
+              - button "导出 Excel" [disabled] [ref=f1e224]
+        - button "控制面板" [ref=f1e225] [cursor=pointer]
+        - button "信息面板" [ref=f1e226] [cursor=pointer]
+        - button "图例" [ref=f1e227] [cursor=pointer]
+  - contentinfo [ref=f1e122]:
+    - generic [ref=f1e123]:
+      - generic [ref=f1e124]: DuckDB 1.33.1
+      - generic [ref=f1e127]: "|"
+      - generic [ref=f1e128]: memory [MEMORY]
+      - generic [ref=f1e130]: "|"
+      - generic [ref=f1e131]: 内存库
+      - generic [ref=f1e133]: "|"
+      - generic [ref=f1e134]: 0 张表
+      - generic [ref=f1e136]: "|"
+      - generic [ref=f1e137]: 暂无表
+      - generic [ref=f1e139]: "|"
+      - generic [ref=f1e140]: "内存: 0.00 MB / 3.1 GiB"
+    - generic [ref=f1e142]:
+      - generic [ref=f1e143]: 引擎就绪
+      - generic [ref=f1e147]: "|"
+      - generic [ref=f1e148]: 15:49
+      - button "刷新运行时状态" [ref=f1e149] [cursor=pointer]

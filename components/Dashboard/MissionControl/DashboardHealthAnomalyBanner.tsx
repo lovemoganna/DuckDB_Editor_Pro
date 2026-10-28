@@ -1,6 +1,5 @@
 import React from 'react';
 import {
-  ShieldCheck,
   AlertTriangle,
   XCircle,
   Clock,
@@ -46,19 +45,7 @@ export const DashboardHealthAnomalyBanner: React.FC<DashboardHealthAnomalyBanner
   const isAllHealthy = totalAnomalies === 0;
 
   if (isAllHealthy) {
-    return (
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-monokai-border/80 bg-monokai-elevated/30 px-3 py-1.5 text-xs select-text">
-        <div className="flex items-center gap-2 text-monokai-fg-muted font-mono">
-          <ShieldCheck className="h-3.5 w-3.5 text-monokai-accent shrink-0" />
-          <span className="font-sans text-monokai-accent font-medium">系统健康</span>
-          <span className="hidden sm:inline text-monokai-border">·</span>
-          <span className="hidden sm:inline">
-            {metrics.totalQueries} 次查询 · {tables.length} 表 · 内存 {metrics.memoryUsageFormatted || '正常'}
-          </span>
-        </div>
-        <span className="font-mono text-[10px] text-monokai-comment">无待处理异常</span>
-      </div>
-    );
+    return null;
   }
 
   // When anomalies exist: show prominent actionable triage strip
@@ -75,7 +62,7 @@ export const DashboardHealthAnomalyBanner: React.FC<DashboardHealthAnomalyBanner
         <span className="text-monokai-border font-mono hidden sm:inline-block">|</span>
         
         {/* Actionable Anomaly Badges */}
-        <div className="flex flex-wrap items-center gap-2 font-mono text-[11px]">
+        <div className="flex flex-wrap items-center gap-2 font-mono text-meta">
           {errorCount > 0 && (
             <button
               type="button"
@@ -136,7 +123,7 @@ export const DashboardHealthAnomalyBanner: React.FC<DashboardHealthAnomalyBanner
         </div>
       </div>
 
-      <div className="flex items-center gap-2 font-mono text-[11px] text-monokai-yellow ml-auto">
+      <div className="flex items-center gap-2 font-mono text-meta text-monokai-yellow ml-auto">
         <span className="rounded bg-monokai-elevated border border-monokai-yellow/40 px-2 py-0.5 font-bold">
           需调优
         </span>

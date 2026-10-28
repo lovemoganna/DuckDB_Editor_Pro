@@ -1,0 +1,9 @@
+{
+  "source": "components/Workbench/DataExplorerPanel.tsx and WorkbenchView.tsx quick queries",
+  "cases": [
+    {"name":"Catalog object preview","sql":"SELECT * FROM \"memory\".\"main\".\"inventory\" LIMIT 100;"},
+    {"name":"Parquet source preview","sql":"SELECT * FROM read_parquet('files/*.parquet') LIMIT 100;"},
+    {"name":"File shorthand preview","sql":"SELECT * FROM 'flow.csv' LIMIT 100;"},
+    {"name":"Empty workspace query","sql":"SELECT version(), current_timestamp;"}
+  ]
+}

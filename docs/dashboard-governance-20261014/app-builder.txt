@@ -1,0 +1,330 @@
+### Page
+- Page URL: http://127.0.0.1:5173/DuckDB_Editor_Pro/
+- Page Title: DuckDB Manager Pro
+- Console: 0 errors, 7 warnings
+### Snapshot
+```yaml
+- generic [ref=f6e1]:
+  - generic [ref=f6e3]:
+    - banner "全局工作区顶栏" [ref=f6e4]:
+      - generic [ref=f6e5]:
+        - button "🪶 DuckDB Studio PRO" [ref=f6e6] [cursor=pointer]:
+          - generic [ref=f6e7]: 🪶
+          - generic [ref=f6e9]:
+            - generic [ref=f6e10]: DuckDB Studio
+            - generic [ref=f6e11]: PRO
+        - navigation "业务领域大类" [ref=f6e13]:
+          - button "工程核心" [ref=f6e14] [cursor=pointer]
+          - button "分析洞察" [ref=f6e20] [cursor=pointer]
+          - button "知识沉淀" [ref=f6e25] [cursor=pointer]
+          - button "AI 认知" [ref=f6e30] [cursor=pointer]
+        - tablist "工程核心功能标签页" [ref=f6e36]:
+          - tab "仪表盘" [selected] [ref=f6e37] [cursor=pointer]
+          - tab "数据" [ref=f6e43] [cursor=pointer]:
+            - generic [aria-hidden] [ref=f6e48]: "2"
+          - tab "Schema" [ref=f6e49] [cursor=pointer]:
+            - generic [aria-hidden] [ref=f6e54]: "3"
+          - tab "SQL" [ref=f6e55] [cursor=pointer]:
+            - generic [aria-hidden] [ref=f6e60]: "4"
+          - tab "数据流" [ref=f6e61] [cursor=pointer]:
+            - generic [aria-hidden] [ref=f6e66]: "5"
+      - generic [ref=f6e67]:
+        - button "项目 Ctrl+Shift+D" [ref=f6e68] [cursor=pointer]:
+          - generic [ref=f6e71]: 项目
+          - generic [ref=f6e72]: Ctrl+Shift+D
+        - button "新建表" [ref=f6e73] [cursor=pointer]
+        - button "baseline 已保存到 OPFS" [ref=f6e78] [cursor=pointer]:
+          - generic [ref=f6e81]: baseline
+          - generic [ref=f6e83]: 已保存到 OPFS
+        - button "AI 助手 Ctrl+I" [ref=f6e87] [cursor=pointer]:
+          - generic [ref=f6e90]: AI 助手
+          - generic [ref=f6e91]: Ctrl+I
+        - button "⌘K" [ref=f6e92] [cursor=pointer]
+        - button "帮助与快捷键" [ref=f6e96] [cursor=pointer]
+        - button "切换为浅色模式" [ref=f6e99] [cursor=pointer]
+        - button "AI 模型设置" [ref=f6e100] [cursor=pointer]
+    - main [ref=f6e103]:
+      - generic [ref=f6e109]:
+        - generic [ref=f6e110]:
+          - generic [ref=f6e111]:
+            - generic [ref=f6e112]:
+              - heading "分析范围" [level=1] [ref=f6e113]
+              - generic [ref=f6e114]: /
+              - button "持久库 · baseline" [ref=f6e115] [cursor=pointer]
+            - paragraph [ref=f6e117]: 4 个数据集 · 68 行 · 数据规模未应用筛选
+          - generic [ref=f6e118]:
+            - button "导入数据" [ref=f6e119] [cursor=pointer]
+            - button "刷新数据" [ref=f6e121] [cursor=pointer]
+        - generic [ref=f6e122]:
+          - generic [ref=f6e124]:
+            - generic [ref=f6e125]:
+              - generic [ref=f6e126]: 工作台
+              - combobox "工作台视图" [ref=f6e127]:
+                - option "分析首页" [selected]
+            - button "添加分析" [ref=f6e128] [cursor=pointer]
+            - button "创建图表" [ref=f6e130] [cursor=pointer]
+            - button "新建查询" [ref=f6e132] [cursor=pointer]
+            - generic [ref=f6e134]:
+              - generic [ref=f6e135]: 数据集
+              - combobox "浏览数据集" [ref=f6e136]:
+                - option "选择数据集" [selected]
+                - option "baseline.lab_baseline.crypto_transactions"
+                - option "baseline.lab_baseline.exchange_rates"
+                - option "baseline.lab_baseline.fiat_transactions"
+                - option "baseline.lab_baseline.users"
+                - option "baseline.main.crypto_transactions"
+                - option "baseline.main.exchange_rates"
+                - option "baseline.main.fiat_transactions"
+                - option "baseline.main.users"
+            - button "筛选" [ref=f6e138] [cursor=pointer]
+            - button "视图设置" [ref=f6e140] [cursor=pointer]
+          - generic [ref=f6e142]: 尚未添加分析组件
+          - generic [ref=f6e144]:
+            - generic [ref=f6e145]:
+              - generic [ref=f6e146]:
+                - heading "开始分析" [level=2] [ref=f6e147]
+                - paragraph [ref=f6e148]: 选择已连接的数据集探索明细、生成聚合图表或构建自定义分析
+              - generic [ref=f6e149]: 8 个可用数据集
+            - generic [ref=f6e150]:
+              - button "baseline.lab_baseline.crypto_transactions" [ref=f6e151] [cursor=pointer]:
+                - generic [ref=f6e154]:
+                  - generic [ref=f6e155]: crypto_transactions
+                  - generic [ref=f6e156]: lab_baseline · 13 个字段
+              - button "baseline.lab_baseline.exchange_rates" [ref=f6e157] [cursor=pointer]:
+                - generic [ref=f6e160]:
+                  - generic [ref=f6e161]: exchange_rates
+                  - generic [ref=f6e162]: lab_baseline · 8 个字段
+              - button "baseline.lab_baseline.fiat_transactions" [ref=f6e163] [cursor=pointer]:
+                - generic [ref=f6e166]:
+                  - generic [ref=f6e167]: fiat_transactions
+                  - generic [ref=f6e168]: lab_baseline · 10 个字段
+              - button "baseline.lab_baseline.users" [ref=f6e169] [cursor=pointer]:
+                - generic [ref=f6e172]:
+                  - generic [ref=f6e173]: users
+                  - generic [ref=f6e174]: lab_baseline · 7 个字段
+              - button "baseline.main.crypto_transactions" [ref=f6e175] [cursor=pointer]:
+                - generic [ref=f6e178]:
+                  - generic [ref=f6e179]: crypto_transactions
+                  - generic [ref=f6e180]: main · 13 个字段
+              - button "baseline.main.exchange_rates" [ref=f6e181] [cursor=pointer]:
+                - generic [ref=f6e184]:
+                  - generic [ref=f6e185]: exchange_rates
+                  - generic [ref=f6e186]: main · 8 个字段
+              - button "baseline.main.fiat_transactions" [ref=f6e187] [cursor=pointer]:
+                - generic [ref=f6e190]:
+                  - generic [ref=f6e191]: fiat_transactions
+                  - generic [ref=f6e192]: main · 10 个字段
+              - button "baseline.main.users" [ref=f6e193] [cursor=pointer]:
+                - generic [ref=f6e196]:
+                  - generic [ref=f6e197]: users
+                  - generic [ref=f6e198]: main · 7 个字段
+        - navigation "数据状态与详情" [ref=f6e199]:
+          - button "管理数据" [ref=f6e200] [cursor=pointer]
+          - button "查看 Schema" [ref=f6e201] [cursor=pointer]
+          - button "查看数据检查" [ref=f6e202] [cursor=pointer]
+    - contentinfo [ref=f6e203]:
+      - generic [ref=f6e204]:
+        - generic [ref=f6e205]: DuckDB 1.33.1
+        - generic [ref=f6e208]: "|"
+        - generic [ref=f6e209]: baseline [OPFS]
+        - generic [ref=f6e211]: "|"
+        - generic [ref=f6e212]: 持久化库
+        - generic [ref=f6e214]: "|"
+        - generic [ref=f6e215]: 4 张表
+        - generic [ref=f6e217]: "|"
+        - generic [ref=f6e218]: 4 个活动表
+        - generic [ref=f6e220]: "|"
+        - generic [ref=f6e221]: "内存: 0.50 MB / 3.1 GiB"
+      - generic [ref=f6e223]:
+        - generic [ref=f6e224]: 引擎就绪
+        - generic [ref=f6e228]: "|"
+        - generic [ref=f6e229]: 11:03
+        - button "刷新运行时状态" [ref=f6e230] [cursor=pointer]
+  - dialog [ref=f6e232]:
+    - banner [ref=f6e233]:
+      - generic [ref=f6e235]:
+        - heading "创建图表" [level=2] [ref=f6e237]
+        - paragraph [ref=f6e238]: 选择字段即可建图，结果随配置更新。保存后可在首页继续修改。
+      - button "关闭" [ref=f6e240] [cursor=pointer]
+    - generic [ref=f6e241]:
+      - generic [ref=f6e242]:
+        - complementary [ref=f6e243]:
+          - generic [ref=f6e244]:
+            - generic [ref=f6e245]: 选择数据集
+            - combobox "图表数据集" [active] [ref=f6e246]:
+              - option "选择数据集"
+              - option "baseline.lab_baseline.crypto_transactions"
+              - option "baseline.lab_baseline.exchange_rates"
+              - option "baseline.lab_baseline.fiat_transactions"
+              - option "baseline.lab_baseline.users"
+              - option "baseline.main.crypto_transactions"
+              - option "baseline.main.exchange_rates"
+              - option "baseline.main.fiat_transactions" [selected]
+              - option "baseline.main.users"
+          - generic [ref=f6e308]:
+            - generic [ref=f6e309]:
+              - generic [ref=f6e310]: 可用字段 (10)
+              - generic "fiat_transactions" [ref=f6e311]
+            - textbox "搜索字段" [ref=f6e313]:
+              - /placeholder: 搜索字段名或类型...
+          - paragraph [ref=f6e247]: 拖拽或点击字段放入槽位。
+          - generic [ref=f6e248]:
+            - generic [ref=f6e249]:
+              - generic [ref=f6e250]:
+                - generic [ref=f6e251]: 维度 (分类/时间)
+                - generic [ref=f6e252]: 7 / 7
+              - generic [ref=f6e314]:
+                - generic "选择维度 fiat_order_id" [ref=f6e315]:
+                  - button "文本 fiat_order_id" [ref=f6e316] [cursor=pointer]:
+                    - generic [ref=f6e317]: 文本
+                    - generic "fiat_order_id" [ref=f6e318]
+                  - generic [ref=f6e319]: VARCHAR
+                - generic "选择维度 direction" [ref=f6e320]:
+                  - button "文本 direction" [ref=f6e321] [cursor=pointer]:
+                    - generic [ref=f6e322]: 文本
+                    - generic "direction" [ref=f6e323]
+                  - generic [ref=f6e324]: VARCHAR
+                - generic "选择维度 currency" [ref=f6e325]:
+                  - button "文本 currency" [ref=f6e326] [cursor=pointer]:
+                    - generic [ref=f6e327]: 文本
+                    - generic "currency" [ref=f6e328]
+                  - generic [ref=f6e329]: VARCHAR
+                - generic "选择维度 channel" [ref=f6e330]:
+                  - button "文本 channel" [ref=f6e331] [cursor=pointer]:
+                    - generic [ref=f6e332]: 文本
+                    - generic "channel" [ref=f6e333]
+                  - generic [ref=f6e334]: VARCHAR
+                - generic "选择维度 status" [ref=f6e335]:
+                  - button "文本 status" [ref=f6e336] [cursor=pointer]:
+                    - generic [ref=f6e337]: 文本
+                    - generic "status" [ref=f6e338]
+                  - generic [ref=f6e339]: VARCHAR
+                - generic "选择维度 created_at" [ref=f6e340]:
+                  - button "时间 created_at" [ref=f6e341] [cursor=pointer]:
+                    - generic [ref=f6e342]: 时间
+                    - generic "created_at" [ref=f6e343]
+                  - generic [ref=f6e344]: TIMESTAMP
+                - generic "选择维度 completed_at" [ref=f6e345]:
+                  - button "时间 completed_at" [ref=f6e346] [cursor=pointer]:
+                    - generic [ref=f6e347]: 时间
+                    - generic "completed_at" [ref=f6e348]
+                  - generic [ref=f6e349]: TIMESTAMP
+            - generic [ref=f6e253]:
+              - generic [ref=f6e254]:
+                - generic [ref=f6e255]: 指标 (数值度量)
+                - generic [ref=f6e256]: 3 / 3
+              - generic [ref=f6e350]:
+                - generic "选择指标 uid" [ref=f6e351]:
+                  - button "数值 uid" [ref=f6e352] [cursor=pointer]:
+                    - generic [ref=f6e353]: 数值
+                    - generic "uid" [ref=f6e354]
+                  - generic [ref=f6e355]: BIGINT
+                - generic "选择指标 amount" [ref=f6e356]:
+                  - button "数值 amount" [ref=f6e357] [cursor=pointer]:
+                    - generic [ref=f6e358]: 数值
+                    - generic "amount" [ref=f6e359]
+                  - generic [ref=f6e360]: DECIMAL(18,2)
+                - generic "选择指标 fee" [ref=f6e361]:
+                  - button "数值 fee" [ref=f6e362] [cursor=pointer]:
+                    - generic [ref=f6e363]: 数值
+                    - generic "fee" [ref=f6e364]
+                  - generic [ref=f6e365]: DECIMAL(18,2)
+        - generic [ref=f6e257]:
+          - generic [ref=f6e258]:
+            - generic [ref=f6e259]: 图表标题
+            - textbox "图表标题" [ref=f6e260]:
+              - /placeholder: 自动使用数据集名称
+          - generic [ref=f6e261]:
+            - generic [ref=f6e262]: 字段配置架 (拖放槽位)
+            - generic [ref=f6e264]:
+              - generic [ref=f6e265]: 主维度 (X 轴 / 分组)
+              - combobox "图表维度" [ref=f6e268]:
+                - option "拖拽或选择字段（不分组）" [selected]
+                - option "fiat_order_id · VARCHAR"
+                - option "uid · BIGINT"
+                - option "direction · VARCHAR"
+                - option "currency · VARCHAR"
+                - option "amount · DECIMAL(18,2)"
+                - option "fee · DECIMAL(18,2)"
+                - option "channel · VARCHAR"
+                - option "status · VARCHAR"
+                - option "created_at · TIMESTAMP"
+                - option "completed_at · TIMESTAMP"
+            - generic [ref=f6e269]:
+              - generic [ref=f6e270]: 第二维度 / 系列 (颜色 / 堆叠)
+              - combobox "图表系列" [ref=f6e273]:
+                - option "拖拽或选择字段（无）" [selected]
+                - option "fiat_order_id · VARCHAR"
+                - option "uid · BIGINT"
+                - option "direction · VARCHAR"
+                - option "currency · VARCHAR"
+                - option "amount · DECIMAL(18,2)"
+                - option "fee · DECIMAL(18,2)"
+                - option "channel · VARCHAR"
+                - option "status · VARCHAR"
+                - option "created_at · TIMESTAMP"
+                - option "completed_at · TIMESTAMP"
+            - generic [ref=f6e274]:
+              - generic [ref=f6e275]: 指标度量 (Y 轴 / 数值)
+              - generic [ref=f6e278]:
+                - combobox "图表聚合" [ref=f6e279]:
+                  - option "记录数" [selected]
+                  - option "求和"
+                  - option "平均值"
+                  - option "最小值"
+                  - option "最大值"
+                  - option "明细"
+                - generic [ref=f6e280]: 自动统计行数
+          - generic [ref=f6e281]:
+            - generic [ref=f6e282]: 图表展示类型
+            - generic [ref=f6e283]:
+              - button "指标卡" [ref=f6e284] [cursor=pointer]
+              - button "柱状图" [ref=f6e285] [cursor=pointer]
+              - button "折线图" [ref=f6e286] [cursor=pointer]
+              - button "面积图" [ref=f6e287] [cursor=pointer]
+              - button "饼图" [ref=f6e288] [cursor=pointer]
+              - button "环形图" [ref=f6e289] [cursor=pointer]
+              - button "数据表" [ref=f6e290] [cursor=pointer]
+          - paragraph [ref=f6e291]: 金额按 currency / asset 等单位自动分组；分组指标卡会自动转为柱图或数据表。
+          - generic [ref=f6e292] [cursor=pointer]:
+            - checkbox "参与首页筛选与图表联动" [checked] [ref=f6e293]
+            - generic [ref=f6e294]: 参与首页筛选与图表联动
+        - region "图表实时预览" [ref=f6e295]:
+          - generic [ref=f6e296]:
+            - heading "实时预览" [level=3] [ref=f6e297]
+            - generic [ref=f6e366]: 共 1 组结果
+          - generic [ref=f6e367]:
+            - generic [ref=f6e369]:
+              - generic [ref=f6e370]: fiat_transactions
+              - generic [ref=f6e371]: "25"
+            - generic [ref=f6e373]:
+              - status [ref=f6e374]: 预览前 1 组数据 · 结果已通过统一 Registry 映射
+              - group [ref=f6e375]:
+                - generic "查看预览数据结构" [ref=f6e376] [cursor=pointer]
+      - group [ref=f6e301]:
+        - generic "图表局部筛选条件" [ref=f6e302] [cursor=pointer]
+        - option "选择数据集"
+        - option "baseline.main.fiat_transactions" [selected]
+        - option "选择字段" [selected]
+        - option "fiat_order_id"
+        - option "uid"
+        - option "direction"
+        - option "currency"
+        - option "amount"
+        - option "fee"
+        - option "channel"
+        - option "status"
+        - option "created_at"
+        - option "completed_at"
+        - option "等于" [selected]
+        - option "不等于"
+        - option "大于等于 / 起始时间"
+        - option "小于 / 截止时间"
+        - option "小于等于"
+        - option "包含"
+        - option "为空"
+        - option "非空"
+    - contentinfo [ref=f6e303]:
+      - button "取消" [ref=f6e304] [cursor=pointer]
+      - button "加入首页" [ref=f6e306] [cursor=pointer]
+```

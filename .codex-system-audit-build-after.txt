@@ -1,0 +1,109 @@
+$ node scripts/copy-docs.js && vite build
+Published 5 tutorials from tutorials.publish.json.
+vite v6.4.3 building for production...
+transforming...
+node_modules/.pnpm/@duckdb+duckdb-wasm@1.32.0/node_modules/@duckdb/duckdb-wasm/dist/duckdb-browser-eh.worker.js (1:24350): Use of eval in "node_modules/.pnpm/@duckdb+duckdb-wasm@1.32.0/node_modules/@duckdb/duckdb-wasm/dist/duckdb-browser-eh.worker.js" is strongly discouraged as it poses security risks and may cause issues with minification.
+node_modules/.pnpm/@duckdb+duckdb-wasm@1.32.0/node_modules/@duckdb/duckdb-wasm/dist/duckdb-browser-eh.worker.js (1:24846): Use of eval in "node_modules/.pnpm/@duckdb+duckdb-wasm@1.32.0/node_modules/@duckdb/duckdb-wasm/dist/duckdb-browser-eh.worker.js" is strongly discouraged as it poses security risks and may cause issues with minification.
+node_modules/.pnpm/@duckdb+duckdb-wasm@1.32.0/node_modules/@duckdb/duckdb-wasm/dist/duckdb-browser-eh.worker.js (1:241338): Use of eval in "node_modules/.pnpm/@duckdb+duckdb-wasm@1.32.0/node_modules/@duckdb/duckdb-wasm/dist/duckdb-browser-eh.worker.js" is strongly discouraged as it poses security risks and may cause issues with minification.
+node_modules/.pnpm/@duckdb+duckdb-wasm@1.32.0/node_modules/@duckdb/duckdb-wasm/dist/duckdb-browser-eh.worker.js (1:241451): Use of eval in "node_modules/.pnpm/@duckdb+duckdb-wasm@1.32.0/node_modules/@duckdb/duckdb-wasm/dist/duckdb-browser-eh.worker.js" is strongly discouraged as it poses security risks and may cause issues with minification.
+node_modules/.pnpm/@duckdb+duckdb-wasm@1.32.0/node_modules/@duckdb/duckdb-wasm/dist/duckdb-browser-eh.worker.js (1:241572): Use of eval in "node_modules/.pnpm/@duckdb+duckdb-wasm@1.32.0/node_modules/@duckdb/duckdb-wasm/dist/duckdb-browser-eh.worker.js" is strongly discouraged as it poses security risks and may cause issues with minification.
+node_modules/.pnpm/@duckdb+duckdb-wasm@1.32.0/node_modules/@duckdb/duckdb-wasm/dist/duckdb-browser-eh.worker.js (1:309690): Use of eval in "node_modules/.pnpm/@duckdb+duckdb-wasm@1.32.0/node_modules/@duckdb/duckdb-wasm/dist/duckdb-browser-eh.worker.js" is strongly discouraged as it poses security risks and may cause issues with minification.
+✓ 9173 modules transformed.
+rendering chunks...
+[plugin vite:reporter] 
+(!) C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/services/importTableNames.ts is dynamically imported by C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/services/duckdbService.ts but also statically imported by C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/ImportWizard.tsx, C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/services/dataImportService.ts, C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/services/duckdbService.ts, dynamic import will not move module into another chunk.
+
+[plugin vite:reporter] 
+(!) C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/hooks/store/useAnalysisWorkspace.ts is dynamically imported by C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/services/analysisObjects.ts but also statically imported by C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/App.tsx, C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/AnalysisHub/AnalysisHubPanel.tsx, C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/AnalysisHub/AnalysisPivotWorkbench.tsx, C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/AnalysisHub/AnalysisRecipeCenter.tsx, C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/AnalysisHub/AnalysisTimeSeries.tsx, C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/AnalysisHub/LinkedAnalysis.tsx, C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/Dashboard/Home/HomeDataFoundation.tsx, C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/Dashboard/MissionControl/DataIdeMissionControl.tsx, C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/DashboardWidget.tsx, C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/MetricCard.tsx, C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/Visualization/VisualizationCard.tsx, C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/Visualization/VisualizationWorkbench.tsx, dynamic import will not move module into another chunk.
+
+[plugin vite:reporter] 
+(!) C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/services/dataImportService.ts is dynamically imported by C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/services/duckdbService.ts but also statically imported by C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/ImportWizard.tsx, C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/Library/UniversalImporter.tsx, dynamic import will not move module into another chunk.
+
+[plugin vite:reporter] 
+(!) C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/services/workbench/dashboardFormat.ts is dynamically imported by C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/services/dbService.ts but also statically imported by C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/Dashboard/Home/WorkspaceObjects.tsx, dynamic import will not move module into another chunk.
+
+[plugin vite:reporter] 
+(!) C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/DataFlow/DataFlowCanvas.tsx is dynamically imported by C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/App.tsx but also statically imported by C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/Workbench/SqlWorkspacePanel.tsx, dynamic import will not move module into another chunk.
+
+computing gzip size...
+dist/assets/export.worker-DPlJ6g0j.js                                1.78 kB
+dist/assets/jetbrains-mono-greek-400-normal-C190GLew.woff2           4.23 kB
+dist/assets/jetbrains-mono-cyrillic-400-normal-BEIGL1Tu.woff2        5.33 kB
+dist/assets/jetbrains-mono-vietnamese-400-normal-CqNFfHCs.woff       5.37 kB
+dist/index.html                                                      5.61 kB │ gzip:     1.93 kB
+dist/assets/jetbrains-mono-greek-400-normal-B9oWc5Lo.woff            5.66 kB
+dist/assets/jetbrains-mono-cyrillic-400-normal-ugxPyKxw.woff         6.98 kB
+dist/assets/jetbrains-mono-latin-ext-400-normal-Bc8Ftmh3.woff2       7.34 kB
+dist/assets/jetbrains-mono-latin-ext-400-normal-fXTG6kC5.woff       10.13 kB
+dist/assets/jetbrains-mono-latin-400-normal-V6pRDFza.woff2          21.17 kB
+dist/assets/jetbrains-mono-latin-400-normal-6-qcROiO.woff           27.50 kB
+dist/assets/duckdb-browser-eh.worker-BvIpOmHT.js                   757.16 kB
+dist/assets/duckdb-browser-eh.worker-hQa-dcAV.js                   772.76 kB
+dist/assets/duckdb-eh-9ubY-jlA.wasm                             34,242.59 kB │ gzip: 7,712.13 kB
+dist/assets/index-D0Bzrrcc.css                                       0.68 kB │ gzip:     0.28 kB
+dist/assets/MetricManager-BF1f6_6K.css                               1.39 kB │ gzip:     0.56 kB
+dist/assets/index-BtLSAIyb.css                                     244.65 kB │ gzip:    44.37 kB
+dist/assets/vendor-recharts-Bleb5KVK.js                              0.07 kB │ gzip:     0.08 kB
+dist/assets/arrow-left-B3GHB7z7.js                                   0.34 kB │ gzip:     0.27 kB
+dist/assets/circle-check-big-BKZ9-4Zd.js                             0.37 kB │ gzip:     0.29 kB
+dist/assets/undo-2-CyHRRXj6.js                                       0.38 kB │ gzip:     0.28 kB
+dist/assets/type-DXWZfraV.js                                         0.39 kB │ gzip:     0.28 kB
+dist/assets/settings-2-CZfNPN7o.js                                   0.43 kB │ gzip:     0.30 kB
+dist/assets/pen-line-BID4rgJj.js                                     0.45 kB │ gzip:     0.33 kB
+dist/assets/book-open-XLkK-4Vq.js                                    0.45 kB │ gzip:     0.31 kB
+dist/assets/flask-conical-CFD8V8SC.js                                0.48 kB │ gzip:     0.33 kB
+dist/assets/box-GGfxwZs2.js                                          0.48 kB │ gzip:     0.33 kB
+dist/assets/square-pen-sE1qzXkT.js                                   0.49 kB │ gzip:     0.34 kB
+dist/assets/wand-sparkles-BXEUJMcx.js                                0.69 kB │ gzip:     0.40 kB
+dist/assets/calculator-CFLkYeby.js                                   0.70 kB │ gzip:     0.38 kB
+dist/assets/Filter-650D1woZ.js                                       0.93 kB │ gzip:     0.49 kB
+dist/assets/library-MW5S_uHu.js                                      1.04 kB │ gzip:     0.44 kB
+dist/assets/vendor-mermaid-byt2e8Gc.js                               1.20 kB │ gzip:     0.71 kB
+dist/assets/ontologyInsightsService-BSPp57CT.js                      1.52 kB │ gzip:     0.69 kB
+dist/assets/query-generators-Dgl-UklK.js                             1.91 kB │ gzip:     0.97 kB
+dist/assets/analysis-generators-CnY4K4k6.js                          3.97 kB │ gzip:     1.69 kB
+dist/assets/LineageGraphView-BQvq9EF_.js                             4.55 kB │ gzip:     1.64 kB
+dist/assets/skills-Ba5v3qTU.js                                       5.48 kB │ gzip:     3.04 kB
+dist/assets/MarkdownPreview-De1O1TM0.js                              7.52 kB │ gzip:     2.51 kB
+dist/assets/aiCapabilitiesStorage-C33COX16.js                        8.50 kB │ gzip:     3.58 kB
+dist/assets/BufferResource-Bfx9_sUh.js                              11.16 kB │ gzip:     2.88 kB
+dist/assets/misc-generators-BY2Ie_rM.js                             12.21 kB │ gzip:     4.49 kB
+dist/assets/ddl-generators-BF6Xf6Jp.js                              15.56 kB │ gzip:     4.82 kB
+dist/assets/webworkerAll-DBaKOkNK.js                                16.15 kB │ gzip:     5.20 kB
+dist/assets/CanvasRenderer-DATDIB50.js                              18.95 kB │ gzip:     6.44 kB
+dist/assets/ChartBuilder-BLaivwPX.js                                19.73 kB │ gzip:     5.82 kB
+dist/assets/SkillInvoker-D1Ss-jUV.js                                21.01 kB │ gzip:     6.21 kB
+dist/assets/index-C1LSWsaT.js                                       23.79 kB │ gzip:     7.31 kB
+dist/assets/sqlTemplatesStorage-Cms3AkIx.js                         25.13 kB │ gzip:     9.55 kB
+dist/assets/VisualizationWorkbench-D0iRa2kt.js                      25.99 kB │ gzip:     8.85 kB
+dist/assets/SkillImportModal-PgbYNA5x.js                            26.79 kB │ gzip:     7.85 kB
+dist/assets/AiCapabilityLibraryApp-Bt11IfxP.js                      28.40 kB │ gzip:     7.73 kB
+dist/assets/Extensions-DciUkMod.js                                  29.43 kB │ gzip:     9.69 kB
+dist/assets/browserAll-DxoQlHQF.js                                  43.87 kB │ gzip:    11.66 kB
+dist/assets/WebGPURenderer-D1FmzL9I.js                              46.87 kB │ gzip:    13.61 kB
+dist/assets/RenderTargetSystem-C2I2H6AM.js                          52.60 kB │ gzip:    14.58 kB
+dist/assets/vendor-layout-Dq9dR8f_.js                               64.83 kB │ gzip:    20.13 kB
+dist/assets/WebGLRenderer-BnDQh9D2.js                               72.84 kB │ gzip:    19.99 kB
+dist/assets/SkillPanel-1kEuTy9O.js                                  83.28 kB │ gzip:    21.36 kB
+dist/assets/index-D06kJ77y.js                                       90.85 kB │ gzip:    23.65 kB
+dist/assets/ai-skills-BAfX5pEl.js                                   90.94 kB │ gzip:    31.56 kB
+dist/assets/vendor-d3-CG5q6BhK.js                                  103.01 kB │ gzip:    36.27 kB
+dist/assets/index-BqqWrs8q.js                                      138.63 kB │ gzip:    39.01 kB
+dist/assets/MetricManager-DX2HLtbq.js                              149.02 kB │ gzip:    45.07 kB
+dist/assets/duckdb-wasm-YhLtYgA2.js                                190.93 kB │ gzip:    44.68 kB
+dist/assets/vendor-charts-DySHHEoE.js                              193.29 kB │ gzip:    67.10 kB
+dist/assets/vendor-utils-DxwfOt6b.js                               205.94 kB │ gzip:    49.40 kB
+dist/assets/SqlEditor-geL_YyMa.js                                  228.51 kB │ gzip:    61.26 kB
+dist/assets/vendor-ai-BFZOlLET.js                                  289.29 kB │ gzip:    56.44 kB
+dist/assets/vendor-reactflow-CG_I-5aX.js                           292.67 kB │ gzip:    95.02 kB
+dist/assets/vendor-codemirror-BtE0TnyW.js                          699.04 kB │ gzip:   246.68 kB
+dist/assets/index-Dxh5Z5NW.js                                      888.59 kB │ gzip:   230.25 kB
+dist/assets/OntologyPanelRightInspector-x1spYqzq.js              1,059.35 kB │ gzip:   324.90 kB
+dist/assets/vendor-sql-parser-J-CyKrjT.js                        1,934.95 kB │ gzip:   314.61 kB
+dist/assets/index-zNoKR-2s.js                                    4,154.99 kB │ gzip: 1,189.66 kB
+
+(!) Some chunks are larger than 1000 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 1m 59s

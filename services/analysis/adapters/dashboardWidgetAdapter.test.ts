@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { enrichWidgetChartConfig, widgetRowsToChartSpec } from './dashboardWidgetAdapter';
+import {chartSpecToChartConfig} from '../chartRegistry';
 import type { ChartConfig } from '../../types';
 
 describe('dashboardWidgetAdapter', () => {
@@ -47,4 +48,12 @@ describe('dashboardWidgetAdapter', () => {
     expect(spec.centerTotal).toBe(100000);
     expect(spec.sliceLabels![0].percent).toBe(80);
   });
+});
+
+it('preserves pivot empty-cell presentation through dashboard save and reload',()=>{
+  const config:ChartConfig={id:'nulls',title:'Nulls',type:'pivot',xKey:'region',yKeys:['value'],rowKey:'region',colKey:'channel',valKey:'value',nullDisplay:'zero'};
+  const first=widgetRowsToChartSpec([{region:'N',channel:'A',value:1}],config);
+  const stored=chartSpecToChartConfig(first);
+  const reopened=widgetRowsToChartSpec([{region:'N',channel:'A',value:1}],stored);
+  expect(reopened.pivotTable?.nullDisplay).toBe('zero');
 });

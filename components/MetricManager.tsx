@@ -1,3 +1,5 @@
+import './metricUi.css';
+import { extractTablesFromSql } from '../services/queryVizHint';
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { MetricChart, MetricPackage, MetricDefinition } from '../types';
 import { metricAnalyzer } from '../services/metricAnalyzer';
@@ -6,137 +8,51 @@ import { toastService } from '../services/toastService';
 import { MetricCard } from './MetricCard';
 import { MetricChartListModal } from './MetricChartListModal';
 import { MetricTemplateModal } from './MetricTemplateModal';
+import { METRIC_AUTHORING_RULES } from '../services/metricAuthoring';
 import { MetricDataSourceModal } from './MetricDataSourceModal';
 import { MetricEditModal } from './MetricEditModal';
+import { MetricCreatePackageModal } from './MetricCreatePackageModal';
 import {
   Database, Plus, RefreshCw, Trash2, Check, Loader2, Package, ArrowLeft, Play,
   BarChart2, Star, Search, Download, Upload, LayoutDashboard,
   Sparkles, HelpCircle, X, Zap, Undo2,
   Filter, Layers, BookOpen, ExternalLink, CheckCircle2,
-  Table2, ArrowRight
+  Table2, ArrowRight, GitBranch, PieChart
 } from 'lucide-react';
 import {
   PanelHeader, PageHeader, ActionButton, IconButton,
-  SearchInput, EmptyState, SegmentedTabs
+  SearchInput, EmptyState, SegmentedTabs, FormInput, FormTextarea, ModalShell
 } from './ui/Workbench';
+import { LineageGraphView } from './ui/LineageGraphView';
+import { metricSource } from '../services/metricSql';
+import { activeAnalysisDatabase } from '../services/metricAssetStorage';
+import { semanticMetricCatalog } from '../services/semanticMetricCatalog';
+import { buildAnalyticalCatalog } from '../services/analyticalCatalogService';
 
-// ── MECE 背景说明数据 ──────────────────────────────────────────────────────────
-type MetricCategoryHelp = {
-  title: string;
-  description: string;
-  scenarios: string[];
-  commonErrors: string[];
-  aiHints: string[];
-  quickStart: string[];
-  formulaExamples: { name: string; formula: string; note: string }[];
-};
-
-const METRIC_CATEGORY_HELP: Record<string, MetricCategoryHelp> = {
-  metricModeling: {
-    title: '指标定义 / 建模',
-    description: '适用于将业务问题转化为可量化的声明式指标体系，每个指标包含标识、场景、公式与数据依赖。',
-    scenarios: [
-      '有明确业务目标，需要搭建统一的营收/流量/转化指标体系',
-      '数据表结构已知，希望 AI 自动推断关键原子指标与复合指标',
-      '对已有指标进行标准化命名与语义对齐',
-    ],
-    commonErrors: [
-      '公式中使用列名占位符（如 amount_col），未替换为实际字段名',
-      '比率类指标未处理分母为零（应使用 NULLIF 防除零）',
-      '趋势类指标未指定时间粒度，导致聚合结果失去时序意义',
-    ],
-    aiHints: [
-      '提供「业务目标 + 表名 + 关键字段」，AI 可一次生成高质量指标草稿',
-      '复合指标（如留存率）建议先拆解为原子指标，再组合计算',
-    ],
-    quickStart: [
-      '1. 在左侧勾选目标数据表',
-      '2. 输入业务需求或点击「AI 填充」自动命名',
-      '3. 点击「生成指标」完成建模并自动保存指标包',
-    ],
-    formulaExamples: [
-      { name: 'DAU（日活用户数）', formula: 'COUNT(DISTINCT user_id)', note: '配合 WHERE date_trunc 过滤日期' },
-      { name: '订单金额总计', formula: 'SUM(order_amount)', note: '注意过滤已取消订单' },
-      { name: '用户转化率', formula: 'COUNT(DISTINCT paid_user) * 1.0 / NULLIF(COUNT(DISTINCT visit_user), 0)', note: '用 NULLIF 防分母为零' },
-    ],
-  },
-  metricValidation: {
-    title: '指标验证 / 修复',
-    description: '适用于对指标 SQL 公式进行实际执行验证，定位语法或字段错误，并使用 AI 自动修复。',
-    scenarios: [
-      '批量导入后的指标公式正确性核查',
-      '数据表结构变更后，检查依赖该表的指标是否仍然可用',
-      '新建指标后，确认公式在实际 DuckDB 数据上可正确执行',
-    ],
-    commonErrors: [
-      '验证时未选择数据源表，导致 SQL 执行缺失 FROM 目标',
-      '指标公式包含方言函数，需适配 DuckDB 标准语法',
-    ],
-    aiHints: [
-      '验证失败时点击「🔧 修复」，AI 会结合真实表字段自动改写公式',
-      '批量验证前建议先单个验证典型指标',
-    ],
-    quickStart: [
-      '1. 进入指标包详情页',
-      '2. 点击单个指标卡片的「验证（▶）」按钮',
-      '3. 若报错可点击「修复（🔧）」让 AI 自动重构',
-      '4. 点击顶部「验证全部」进行批量确认',
-    ],
-    formulaExamples: [
-      { name: '防除零写法', formula: 'SUM(revenue) / NULLIF(COUNT(*), 0)', note: '避免分母为 0 导致运行时错误' },
-      { name: '安全类型转换', formula: 'TRY_CAST(amount_str AS DOUBLE)', note: '字段类型不匹配时安全转换' },
-    ],
-  },
-  chartGeneration: {
-    title: '图表生成 / 可视化',
-    description: '从指标公式自动推断图表类型（折线/柱状/饼图）并生成可视化图表配置，一键发布至 Dashboard。',
-    scenarios: [
-      '趋势类指标自动生成时序折线图',
-      '构成类指标自动生成占比饼图或环形图',
-      '对比类指标自动生成分组柱状图',
-    ],
-    commonErrors: [
-      '数据源表无数据，生成图表时返回空结果',
-      '纯标量无时间维度指标无法推断 X 轴',
-    ],
-    aiHints: [
-      '生成图表前确保指标已通过「验证」（绿色标签）',
-      '时序指标在公式中注明 date_trunc 聚合维度',
-    ],
-    quickStart: [
-      '1. 进入指标包详情页',
-      '2. 点击指标卡片上的「📊 图表」图标',
-      '3. 点击顶部「查看图表」在弹窗中对比或发送至看板',
-    ],
-    formulaExamples: [
-      { name: '折线图（趋势）', formula: "SELECT date_trunc('day', created_at) AS day, COUNT(*) AS cnt FROM t GROUP BY 1", note: '包含时间维度' },
-      { name: '柱状图（分组）', formula: 'SELECT category, SUM(amount) AS total FROM t GROUP BY category', note: '分类维度' },
-    ],
-  },
-};
-
-const HELP_CATEGORIES = [
-  { key: 'metricModeling', label: '指标建模' },
-  { key: 'metricValidation', label: '指标验证' },
-  { key: 'chartGeneration', label: '图表生成' },
-] as const;
+import { METRIC_CATEGORY_HELP, HELP_CATEGORIES } from '../data/metricHelp';
 
 type SidebarTabType = 'builder' | 'tables' | 'guide';
 
 interface MetricManagerProps {
   tables: string[];
   currentTable?: string | null;
+  currentMetricId?: string | null;
   onExecuteSql?: (sql: string) => void;
   onChartGenerated?: (chart: MetricChart) => void;
   onNavigateToDashboard?: () => void;
+  onNavigateToVisualization?: (metricId?: string) => void;
+  onNavigateToData?: (tableName: string) => void;
 }
 
 export const MetricManager: React.FC<MetricManagerProps> = ({
   tables,
   currentTable,
+  currentMetricId,
   onExecuteSql,
   onChartGenerated,
   onNavigateToDashboard,
+  onNavigateToVisualization,
+  onNavigateToData,
 }) => {
   // ── Core State ─────────────────────────────────────────────────────────────
   const [packages, setPackages] = useState<MetricPackage[]>([]);
@@ -155,9 +71,22 @@ export const MetricManager: React.FC<MetricManagerProps> = ({
   const [metricPreview, setMetricPreview] = useState<MetricDefinition[] | null>(null);
   const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
   const nlDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const previewRequestRef = useRef(0);
+
+  useEffect(() => {
+    previewRequestRef.current++;
+    if (nlDebounceRef.current) clearTimeout(nlDebounceRef.current);
+    setMetricPreview(null);
+    setIsGeneratingPreview(false);
+    return () => {
+      previewRequestRef.current++;
+      if (nlDebounceRef.current) clearTimeout(nlDebounceRef.current);
+    };
+  }, [selectedTables]);
 
   // ── Left Sidebar Tab State ─────────────────────────────────────────────────
   const [sidebarTab, setSidebarTab] = useState<SidebarTabType>('builder');
+  const [showBuilder, setShowBuilder] = useState(false);
   const [activeHelpCategory, setActiveHelpCategory] = useState<keyof typeof METRIC_CATEGORY_HELP>('metricModeling');
 
   // ── Detail View Filtering & Modals ─────────────────────────────────────────
@@ -165,17 +94,23 @@ export const MetricManager: React.FC<MetricManagerProps> = ({
   const [selectedCategoryPill, setSelectedCategoryPill] = useState<string>('全部');
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [favorites, setFavorites] = useState<Set<string>>(() => {
-    const saved = localStorage.getItem('duckdb_metric_favorites');
-    return saved ? new Set(JSON.parse(saved)) : new Set();
+    try {
+      const saved = localStorage.getItem('duckdb_metric_favorites');
+      return saved ? new Set(JSON.parse(saved)) : new Set();
+    } catch { return new Set(); }
   });
 
   // ── Modals ─────────────────────────────────────────────────────────────────
+  const [showCreatePackageModal, setShowCreatePackageModal] = useState(false);
   const [showTemplatesModal, setShowTemplatesModal] = useState(false);
   const [showDataSourceModal, setShowDataSourceModal] = useState(false);
   const [showChartListModal, setShowChartListModal] = useState(false);
   const [editingMetric, setEditingMetric] = useState<MetricDefinition | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<{ kind: 'metric' | 'package'; id: string; name: string } | null>(null);
+  const [lineageModalMetric, setLineageModalMetric] = useState<MetricDefinition | null>(null);
   const [metricCharts, setMetricCharts] = useState<Map<string, boolean>>(new Map());
   const [isGeneratingChart, setIsGeneratingChart] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // ── Quick Clear Undo Toast ─────────────────────────────────────────────────
   const [lastClearedForm, setLastClearedForm] = useState<{
@@ -185,11 +120,50 @@ export const MetricManager: React.FC<MetricManagerProps> = ({
     selectedTables: Set<string>;
   } | null>(null);
   const [showClearToast, setShowClearToast] = useState(false);
+  const clearToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (clearToastTimerRef.current) clearTimeout(clearToastTimerRef.current); }, []);
+  const focusedMetricRef = useRef<string | null>(null);
+
+  // Filters and overlays belong to the opened package, not the whole library.
+  useEffect(() => {
+    setDetailSearchTerm(selectedPackage?.metrics.find(metric => metric.id === currentMetricId)?.name || '');
+    setSelectedCategoryPill('全部');
+    setShowFavoritesOnly(false);
+    setEditingMetric(null);
+    setLineageModalMetric(null);
+    setShowChartListModal(false);
+    setPendingDelete(null);
+  }, [selectedPackage?.id]);
 
   // ── Lifecycle ──────────────────────────────────────────────────────────────
   useEffect(() => {
     loadPackages();
+    const reload = () => loadPackages();
+    window.addEventListener('duckdb-metrics-updated', reload);
+    window.addEventListener('duckdb-database-changed', reload);
+    window.addEventListener('duckdb-metric-charts-updated', reload);
+    return () => {
+      window.removeEventListener('duckdb-metrics-updated', reload);
+      window.removeEventListener('duckdb-database-changed', reload);
+      window.removeEventListener('duckdb-metric-charts-updated', reload);
+    };
   }, []);
+
+  useEffect(() => {
+    if (!currentMetricId) { focusedMetricRef.current = null; return; }
+    if (focusedMetricRef.current === currentMetricId) return;
+    const pkg = packages.find(item => item.metrics.some(metric => metric.id === currentMetricId));
+    if (!pkg) return;
+    focusedMetricRef.current = currentMetricId;
+    setSelectedPackage(pkg);
+    setDetailSearchTerm(pkg.metrics.find(metric => metric.id === currentMetricId)?.name || '');
+    setSelectedCategoryPill('全部');
+    setShowFavoritesOnly(false);
+  }, [currentMetricId, packages]);
+
+  useEffect(() => {
+    setSelectedTables(prev => new Set([...prev].filter(table => tables.includes(table))));
+  }, [tables]);
 
   // Auto-select currentTable from navigation context if provided
   useEffect(() => {
@@ -217,6 +191,25 @@ export const MetricManager: React.FC<MetricManagerProps> = ({
   const loadPackages = () => {
     const loaded = metricAnalyzer.loadMetricPackages();
     setPackages(loaded);
+    setSelectedPackage(prev => prev ? loaded.find(pkg => pkg.id === prev.id) || null : null);
+  };
+
+  const saveMetricResults = (pkg: MetricPackage, database: string, results: MetricDefinition[]) => {
+    if (activeAnalysisDatabase() !== database) throw new Error('数据库已切换，本次结果未保存，请在当前数据库重新验证');
+    const latest = metricAnalyzer.loadMetricPackages().find(item => item.id === pkg.id);
+    if (!latest) return;
+    const metrics = latest.metrics.map(metric => {
+      const before = pkg.metrics.find(item => item.id === metric.id);
+      const result = results.find(item => item.id === metric.id);
+      // A result for an earlier definition must not overwrite an edit made while it ran.
+      if (!before || !result || metric.formula !== before.formula || metric.sourceTable !== before.sourceTable
+        || JSON.stringify(metric.calculation) !== JSON.stringify(before.calculation)) return metric;
+      const changes = Object.fromEntries(Object.entries(result).filter(([key, value]) =>
+        JSON.stringify(value) !== JSON.stringify(before[key as keyof MetricDefinition])));
+      return { ...metric, ...changes };
+    });
+    metricAnalyzer.updateMetricPackage(pkg.id, { metrics });
+    loadPackages();
   };
 
   const loadMetricChartsForPackage = (packageId: string) => {
@@ -245,8 +238,10 @@ export const MetricManager: React.FC<MetricManagerProps> = ({
 
   // ── Natural Language Realtime Preview ──────────────────────────────────────
   const handleNLInputChange = (value: string) => {
+    const requestId = ++previewRequestRef.current;
     setAiNaturalLanguageInput(value);
     setMetricPreview(null);
+    setIsGeneratingPreview(false);
     if (nlDebounceRef.current) clearTimeout(nlDebounceRef.current);
     if (!value.trim() || selectedTables.size === 0) return;
 
@@ -254,9 +249,13 @@ export const MetricManager: React.FC<MetricManagerProps> = ({
       setIsGeneratingPreview(true);
       try {
         const tableList = Array.from(selectedTables).join('、');
+        const schemas = await metricAnalyzer.collectTableSchema(Array.from(selectedTables));
+        if (requestId !== previewRequestRef.current) return;
         const prompt = `根据以下需求生成指标定义（返回 JSON 数组，每个元素包含 name/scenario/characteristics/value/definition/formula/example/dependencies/unit/category 字段，最多 3 个指标）：
 数据表：${tableList}
-需求描述：${value.trim()}`;
+实际结构：${JSON.stringify(schemas.map(table => ({ tableName: table.tableName, columns: table.columns })))}
+需求描述：${value.trim()}
+${METRIC_AUTHORING_RULES}`;
         const result = await aiService.robustCall<MetricDefinition[]>(
           'metric' as any,
           prompt,
@@ -265,26 +264,15 @@ export const MetricManager: React.FC<MetricManagerProps> = ({
           1,
         );
         const arr = Array.isArray(result) ? result : [result];
-        setMetricPreview(
-          arr.slice(0, 3).map((m: any, i: number) => ({
-            id: `preview_${i}`,
-            name: m.name ?? '',
-            scenario: m.scenario ?? '',
-            characteristics: m.characteristics ?? '',
-            value: m.value ?? '',
-            definition: m.definition ?? '',
-            formula: m.formula ?? '',
-            example: m.example ?? '',
-            dependencies: m.dependencies ?? [],
-            unit: m.unit,
-            category: m.category,
-            createdAt: Date.now(),
-          })),
-        );
+        if (requestId !== previewRequestRef.current) return;
+        setMetricPreview(metricAnalyzer.validateMetrics(arr.slice(0, 3)).map(metric => ({ ...metric,
+          sourceTable: metric.sourceTable || (schemas.length === 1 ? schemas[0].tableName : undefined),
+        })));
+
       } catch {
         // Silent fail for preview
       } finally {
-        setIsGeneratingPreview(false);
+        if (requestId === previewRequestRef.current) setIsGeneratingPreview(false);
       }
     }, 600);
   };
@@ -315,7 +303,11 @@ export const MetricManager: React.FC<MetricManagerProps> = ({
       );
       if (result?.name) setPackageName(result.name);
       if (result?.description) setPackageDescription(result.description);
-      toastService.success('AI 智能填充完成', result?.name || '已生成指标包名称与描述');
+      if (result?.name || result?.description) {
+        toastService.success('AI 智能填充完成', result?.name || '已生成指标包名称与描述');
+      } else {
+        toastService.warning('AI 未能生成有效信息', '请补充自然语言描述或手动输入包名称');
+      }
     } catch (err) {
       console.error('AI fill failed:', err);
       toastService.error('AI 填充失败', '请检查网络或 AI 模型配置');
@@ -326,6 +318,10 @@ export const MetricManager: React.FC<MetricManagerProps> = ({
 
   // ── Quick Clear ────────────────────────────────────────────────────────────
   const handleMetricQuickClear = () => {
+    if (!packageName.trim() && !packageDescription.trim() && !aiNaturalLanguageInput.trim() && selectedTables.size === 0) {
+      toastService.info('表单已是空白状态');
+      return;
+    }
     setLastClearedForm({
       packageName,
       packageDescription,
@@ -338,11 +334,13 @@ export const MetricManager: React.FC<MetricManagerProps> = ({
     setSelectedTables(new Set());
     setMetricPreview(null);
     setShowClearToast(true);
-    setTimeout(() => setShowClearToast(false), 5000);
+    if (clearToastTimerRef.current) clearTimeout(clearToastTimerRef.current);
+    clearToastTimerRef.current = setTimeout(() => setShowClearToast(false), 5000);
   };
 
   const handleUndoClear = () => {
     if (!lastClearedForm) return;
+    if (clearToastTimerRef.current) clearTimeout(clearToastTimerRef.current);
     setPackageName(lastClearedForm.packageName);
     setPackageDescription(lastClearedForm.packageDescription);
     setAiNaturalLanguageInput(lastClearedForm.aiInput);
@@ -350,6 +348,13 @@ export const MetricManager: React.FC<MetricManagerProps> = ({
     setLastClearedForm(null);
     setShowClearToast(false);
   };
+
+  // ── Lineage Graph Computation ──────────────────────────────────────────────
+  const lineageGraph = useMemo(() => {
+    if (!lineageModalMetric || !selectedPackage) return null;
+    const sourceTable = metricSource(lineageModalMetric, selectedPackage.sourceTables);
+    return semanticMetricCatalog.buildMetricLineage(lineageModalMetric, sourceTable);
+  }, [lineageModalMetric, selectedPackage]);
 
   // ── AI Generate / Analyze ──────────────────────────────────────────────────
   const handleAnalyze = async () => {
@@ -359,6 +364,7 @@ export const MetricManager: React.FC<MetricManagerProps> = ({
       return;
     }
 
+    const database = activeAnalysisDatabase();
     const name = packageName.trim() || `指标包_${new Date().toLocaleDateString()}`;
     setIsAnalyzing(true);
     setAnalysisProgress('正在提取数据表语义结构...');
@@ -367,8 +373,11 @@ export const MetricManager: React.FC<MetricManagerProps> = ({
       const metrics = await metricAnalyzer.analyzeMetrics(
         Array.from(selectedTables),
         (step) => setAnalysisProgress(step),
+        aiNaturalLanguageInput.trim(),
       );
 
+      if (activeAnalysisDatabase() !== database) throw new Error('数据库已切换，请重新生成指标');
+      if (!metrics.length) { toastService.info('未生成指标候选，请补充业务问题或手动定义'); return; }
       const newPackage = metricAnalyzer.createMetricPackage(
         name,
         packageDescription.trim(),
@@ -389,7 +398,7 @@ export const MetricManager: React.FC<MetricManagerProps> = ({
       setAiNaturalLanguageInput('');
       setSelectedTables(new Set());
       setMetricPreview(null);
-      toastService.success('指标包构建成功', `已提取 ${newPackage.metrics.length} 个核心指标`);
+      toastService.success('指标包构建成功', `已保留 ${newPackage.metrics.length} 个候选草稿，请补齐口径并验证`);
     } catch (err) {
       console.error('Analysis failed:', err);
       toastService.error('分析生成失败', (err as Error).message);
@@ -399,36 +408,72 @@ export const MetricManager: React.FC<MetricManagerProps> = ({
     }
   };
 
+  const handleCreatePackage = (newPackage: MetricPackage) => {
+    const existing = metricAnalyzer.loadMetricPackages();
+    existing.push(newPackage);
+    metricAnalyzer.saveAllPackages(existing);
+    loadPackages();
+    setSelectedPackage(newPackage);
+  };
+
+  const handleBuildFromTables = async () => {
+    const sources = selectedTables.size ? [...selectedTables] : currentTable ? [currentTable] : tables;
+    if (!sources.length) { toastService.info('请先导入数据或创建数据表'); return; }
+    const database = activeAnalysisDatabase();
+    setIsAnalyzing(true);
+    try {
+      const catalog = await buildAnalyticalCatalog(sources);
+      if (activeAnalysisDatabase() !== database) throw new Error('数据库已切换，请重新生成指标');
+      const metrics: MetricDefinition[] = catalog.coreMetrics.map(proposal => ({
+        id: `metric-${proposal.id}-${Date.now()}`, name: proposal.name, sourceTable: proposal.tableName,
+        governance: {role: 'diagnostic', reviewStatus: 'draft'},
+        scenario: '当前数据表的基础统计', characteristics: proposal.aggregation,
+        value: '基础诊断候选；业务问题、决策用途、资格总体与单位尚待确认',
+        definition: proposal.rationale,
+        formula: proposal.sql, sqlValidation: proposal.sql,
+        example: '执行指标查询后查看实际结果', dependencies: proposal.measureColumn ? [proposal.measureColumn] : [],
+        unit: proposal.aggregation === 'count' ? '行' : '',
+        createdAt: Date.now(), category: '数据基础',
+      }));
+      if (!metrics.length) { toastService.info('当前数据表没有可生成的指标'); return; }
+      const pkg = metricAnalyzer.createMetricPackage(packageName.trim() || `${sources[0]}_基础指标`,
+        '真实字段生成的基础诊断候选；技术验证不代表业务价值已确认', sources, metrics);
+      metricAnalyzer.saveMetricPackage(pkg);
+      loadPackages();
+      setSelectedPackage(pkg);
+      toastService.success(`已从真实字段生成 ${metrics.length} 个指标`);
+    } catch (error) { toastService.error('指标生成失败', (error as Error).message); }
+    finally { setIsAnalyzing(false); }
+  };
+
   // ── Batch Actions ──────────────────────────────────────────────────────────
   const handleValidateAll = async () => {
     if (!selectedPackage || isAnalyzing) return;
+    const database = activeAnalysisDatabase();
     setIsAnalyzing(true);
     setAnalysisProgress('正在逐一验证指标公式...');
     try {
       const updatedMetrics: MetricDefinition[] = [];
       let successCount = 0;
       for (let i = 0; i < selectedPackage.metrics.length; i++) {
+        if (activeAnalysisDatabase() !== database) throw new Error('数据库已切换，批量验证已停止');
         const metric = selectedPackage.metrics[i];
         setAnalysisProgress(`正在验证 (${i + 1}/${selectedPackage.metrics.length}): ${metric.name}...`);
-        const result = await metricAnalyzer.validateMetric(metric, selectedPackage.sourceTables[0]);
+        const result = await metricAnalyzer.validateMetric(metric, metricSource(metric, selectedPackage.sourceTables));
         const validatedMetric: MetricDefinition = {
           ...metric,
           isValid: result.isValid,
-          validationError: result.error,
+          validationError: result.error, sqlValidation: result.sql, validationDatabase: result.database, validationResult: result.result?.slice(0, 20),
+          lastValidated: Date.now(),
         };
         if (result.isValid) successCount++;
         updatedMetrics.push(validatedMetric);
       }
 
-      const updatedPackage = {
-        ...selectedPackage,
-        metrics: updatedMetrics,
-        updatedAt: Date.now(),
-      };
-      metricAnalyzer.updateMetricPackage(selectedPackage.id, { metrics: updatedMetrics });
-      loadPackages();
-      setSelectedPackage(updatedPackage);
-      toastService.success('批量验证完成', `验证通过率: ${successCount} / ${selectedPackage.metrics.length}`);
+      saveMetricResults(selectedPackage, database, updatedMetrics);
+      const summary = `通过 ${successCount} / ${selectedPackage.metrics.length}，失败 ${selectedPackage.metrics.length - successCount}`;
+      if (successCount === selectedPackage.metrics.length) toastService.success('批量验证完成', summary);
+      else toastService.warning('部分指标验证失败', summary);
     } catch (err) {
       toastService.error('批量验证失败', (err as Error).message);
     } finally {
@@ -439,40 +484,44 @@ export const MetricManager: React.FC<MetricManagerProps> = ({
 
   const handleGenerateAllCharts = async () => {
     if (!selectedPackage || isGeneratingChart) return;
+    const database = activeAnalysisDatabase();
     setIsGeneratingChart(true);
     try {
       let count = 0;
-      for (const metric of selectedPackage.metrics) {
+      for (const [index, metric] of selectedPackage.metrics.entries()) {
+        if (activeAnalysisDatabase() !== database) throw new Error('数据库已切换，图表生成已停止');
+        setAnalysisProgress(`正在生成图表 (${index + 1}/${selectedPackage.metrics.length}): ${metric.name}`);
         try {
-          await metricAnalyzer.generateChart(metric, selectedPackage.id, selectedPackage.sourceTables[0]);
+          await metricAnalyzer.generateChart(metric, selectedPackage.id, metricSource(metric, selectedPackage.sourceTables));
           count++;
         } catch {
           // continue
         }
       }
       loadMetricChartsForPackage(selectedPackage.id);
-      toastService.success('图表批量生成完成', `已成功生成 ${count} 个指标图表`);
+      const summary = `成功 ${count} / ${selectedPackage.metrics.length}，失败 ${selectedPackage.metrics.length - count}`;
+      if (count === selectedPackage.metrics.length) toastService.success('图表批量生成完成', summary);
+      else toastService.warning('部分图表生成失败', summary);
     } catch (err) {
       toastService.error('生成图表失败', (err as Error).message);
     } finally {
       setIsGeneratingChart(false);
+      setAnalysisProgress('');
     }
   };
 
   // ── Single Metric Actions ──────────────────────────────────────────────────
   const handleValidateMetric = async (metric: MetricDefinition) => {
     if (!selectedPackage) return;
+    const database = activeAnalysisDatabase();
     try {
-      const result = await metricAnalyzer.validateMetric(metric, selectedPackage.sourceTables[0]);
+      const result = await metricAnalyzer.validateMetric(metric, metricSource(metric, selectedPackage.sourceTables));
       const updatedMetrics = selectedPackage.metrics.map(m =>
         m.id === metric.id
-          ? { ...m, isValid: result.isValid, validationError: result.error }
+          ? { ...m, isValid: result.isValid, validationError: result.error, sqlValidation: result.sql, validationDatabase: result.database, validationResult: result.result?.slice(0, 20), lastValidated: Date.now() }
           : m,
       );
-      const updatedPackage = { ...selectedPackage, metrics: updatedMetrics, updatedAt: Date.now() };
-      metricAnalyzer.updateMetricPackage(selectedPackage.id, { metrics: updatedMetrics });
-      loadPackages();
-      setSelectedPackage(updatedPackage);
+      saveMetricResults(selectedPackage, database, updatedMetrics.filter(item => item.id === metric.id));
       if (result.isValid) {
         toastService.success(`指标「${metric.name}」验证通过`);
       } else {
@@ -485,24 +534,25 @@ export const MetricManager: React.FC<MetricManagerProps> = ({
 
   const handleFixMetric = async (metric: MetricDefinition) => {
     if (!selectedPackage) return;
+    const database = activeAnalysisDatabase();
     try {
-      const fixedMetric = await metricAnalyzer.fixMetric(metric, selectedPackage.sourceTables[0]);
+      const fixedMetric = await metricAnalyzer.fixMetric(metric, metricSource(metric, selectedPackage.sourceTables));
+      if (activeAnalysisDatabase() !== database) throw new Error('数据库已切换，修复已停止');
       if (fixedMetric) {
         // Re-validate fixed metric
-        const validation = await metricAnalyzer.validateMetric(fixedMetric, selectedPackage.sourceTables[0]);
+        const validation = await metricAnalyzer.validateMetric(fixedMetric, metricSource(metric, selectedPackage.sourceTables));
         const finalMetric = {
           ...fixedMetric,
           isValid: validation.isValid,
           validationError: validation.error,
+          sqlValidation: validation.sql, validationDatabase: validation.database,
+          validationResult: validation.result?.slice(0, 20), lastValidated: Date.now(),
           version: (metric.version || 1) + 1,
         };
 
-        const updatedMetrics = selectedPackage.metrics.map(m => (m.id === metric.id ? finalMetric : m));
-        const updatedPackage = { ...selectedPackage, metrics: updatedMetrics, updatedAt: Date.now() };
-        metricAnalyzer.updateMetricPackage(selectedPackage.id, { metrics: updatedMetrics });
-        loadPackages();
-        setSelectedPackage(updatedPackage);
-        toastService.success(`AI 已修复指标「${metric.name}」`, `已升级为版本 v${finalMetric.version}`);
+        saveMetricResults(selectedPackage, database, [finalMetric]);
+        if (validation.isValid) toastService.success(`已修复指标「${metric.name}」`, `已升级为版本 v${finalMetric.version}`);
+        else toastService.error('修复后的指标仍未通过验证', validation.error);
       }
     } catch (err) {
       toastService.error('AI 修复失败', (err as Error).message);
@@ -512,19 +562,18 @@ export const MetricManager: React.FC<MetricManagerProps> = ({
   const handleGenerateChart = async (metric: MetricDefinition) => {
     if (!selectedPackage) return;
     try {
-      const chart = await metricAnalyzer.generateChart(metric, selectedPackage.id, selectedPackage.sourceTables[0]);
+      const chart = await metricAnalyzer.generateChart(metric, selectedPackage.id, metricSource(metric, selectedPackage.sourceTables));
       loadMetricChartsForPackage(selectedPackage.id);
-      if (onChartGenerated) {
-        onChartGenerated(chart);
-      }
       toastService.success(`已为「${metric.name}」生成图表`, `类型: ${chart.chartConfig.type}`);
     } catch (err) {
       toastService.error('生成图表失败', (err as Error).message);
     }
   };
 
-  const handleExecuteMetricInEditor = (metric: MetricDefinition) => {
-    const sql = metric.sqlValidation || metric.formula;
+  const handleExecuteMetricInEditor = async (metric: MetricDefinition) => {
+    let sql: string;
+    try { sql = await metricAnalyzer.generateValidationSql(metric, metricSource(metric, selectedPackage?.sourceTables || [])); }
+    catch (error) { toastService.error('无法生成指标 SQL', (error as Error).message); return; }
     if (!sql) {
       toastService.error('指标未包含有效的 SQL 表达式');
       return;
@@ -542,15 +591,25 @@ export const MetricManager: React.FC<MetricManagerProps> = ({
     }
   };
 
-  const handleSaveEditMetric = (updatedMetric: MetricDefinition) => {
-    if (!selectedPackage) return;
-    const updatedMetrics = selectedPackage.metrics.map(m =>
-      m.id === updatedMetric.id ? { ...updatedMetric, updatedAt: Date.now() } : m,
-    );
-    const updatedPackage = { ...selectedPackage, metrics: updatedMetrics, updatedAt: Date.now() };
-    metricAnalyzer.updateMetricPackage(selectedPackage.id, { metrics: updatedMetrics });
+  const handleSaveEditMetric = async (updatedMetric: MetricDefinition) => {
+    if (!selectedPackage || (selectedPackage.databaseName && selectedPackage.databaseName !== activeAnalysisDatabase())) throw new Error('数据库已切换，请重新打开指标包');
+    const database = activeAnalysisDatabase();
+    const validation = await metricAnalyzer.validateMetric(updatedMetric, metricSource(updatedMetric, selectedPackage.sourceTables));
+    if (database !== activeAnalysisDatabase()) throw new Error('数据库已切换，请重新打开指标包');
+    if (!validation.isValid) throw new Error(validation.error);
+    const saved = { ...updatedMetric, sqlValidation: validation.sql, validationResult: validation.result?.slice(0, 20), validationDatabase: validation.database, isValid: true, lastValidated: Date.now(), updatedAt: Date.now() };
+    const latest = metricAnalyzer.loadMetricPackages().find(pkg => pkg.id === selectedPackage.id);
+    if (!latest) throw new Error('指标包已移除，无法保存');
+    const exists = latest.metrics.some(m => m.id === saved.id);
+    const updatedMetrics = exists ? latest.metrics.map(m => m.id === saved.id ? saved : m) : [...latest.metrics, saved];
+    const updatedPackage = metricAnalyzer.updateMetricPackage(selectedPackage.id, { metrics: updatedMetrics });
     loadPackages();
-    setSelectedPackage(updatedPackage);
+    setSelectedPackage(prev => prev?.id === updatedPackage?.id ? updatedPackage : prev);
+    const savedMetric = updatedPackage?.metrics.find(metric => metric.id === updatedMetric.id);
+    if (savedMetric && metricAnalyzer.getChartByMetric(savedMetric.id)) {
+      try { await metricAnalyzer.generateChart(savedMetric, selectedPackage.id, metricSource(savedMetric, selectedPackage.sourceTables)); }
+      catch (error) { toastService.warning('指标已保存，但关联图表更新失败', (error as Error).message); }
+    }
     toastService.success('指标更新成功', updatedMetric.name);
   };
 
@@ -574,16 +633,8 @@ export const MetricManager: React.FC<MetricManagerProps> = ({
       id: `metric_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       createdAt: Date.now(),
     };
-    const updatedPackage = {
-      ...selectedPackage,
-      metrics: [...selectedPackage.metrics, newMetric],
-      updatedAt: Date.now(),
-    };
-    metricAnalyzer.updateMetricPackage(selectedPackage.id, { metrics: updatedPackage.metrics });
-    loadPackages();
-    setSelectedPackage(updatedPackage);
     setShowTemplatesModal(false);
-    toastService.success(`已置入模板指标「${template.name}」`);
+    setEditingMetric({ ...newMetric, sourceTable: template.sourceTable || (selectedPackage.sourceTables.length === 1 ? selectedPackage.sourceTables[0] : undefined) });
   };
 
   const handleDeletePackage = (packageId: string) => {
@@ -608,33 +659,91 @@ export const MetricManager: React.FC<MetricManagerProps> = ({
     const file = event.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
+    const database = activeAnalysisDatabase();
     reader.onload = (e) => {
       try {
-        const imported = JSON.parse(e.target?.result as string);
-        if (imported.name && Array.isArray(imported.metrics)) {
-          const newPkg: MetricPackage = {
-            ...imported,
-            id: `pkg_${Date.now()}`,
-            createdAt: Date.now(),
+        if (activeAnalysisDatabase() !== database) throw new Error('数据库已切换，请在目标数据库重新导入');
+        const rawContent = e.target?.result as string;
+        if (!rawContent || !rawContent.trim()) {
+          toastService.error('导入失败', 'JSON 文件内容为空');
+          return;
+        }
+        const imported = JSON.parse(rawContent);
+        if (!imported || typeof imported !== 'object' || Array.isArray(imported)) {
+          toastService.error('导入失败', '文件根结构必须为指标包 JSON 对象');
+          return;
+        }
+
+        if (!Array.isArray(imported.metrics)) throw new Error('指标包必须包含 metrics 数组');
+        const rawMetrics = imported.metrics;
+        const validMetrics: MetricDefinition[] = rawMetrics
+          .filter((m: any) => m && typeof m === 'object' && typeof m.name === 'string' && m.name.trim().length > 0)
+          .map((m: any) => ({
+            id: `metric_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+            name: String(m.name).trim(),
+            scenario: typeof m.scenario === 'string' ? m.scenario.trim() : '',
+            characteristics: typeof m.characteristics === 'string' ? m.characteristics.trim() : '标准型',
+            value: typeof m.value === 'string' ? m.value.trim() : '',
+            definition: typeof m.definition === 'string' ? m.definition.trim() : '',
+            formula: typeof m.formula === 'string' ? m.formula.trim() : '',
+            example: typeof m.example === 'string' ? m.example.trim() : '',
+            dependencies: Array.isArray(m.dependencies)
+              ? m.dependencies.filter((d: any) => typeof d === 'string' && d.trim().length > 0).map((d: any) => d.trim())
+              : [],
+            unit: typeof m.unit === 'string' ? m.unit.trim() : '',
+            category: typeof m.category === 'string' && m.category.trim() ? m.category.trim() : '基础统计',
+            tags: Array.isArray(m.tags)
+              ? m.tags.filter((t: any) => typeof t === 'string' && t.trim().length > 0).map((t: any) => t.trim())
+              : [],
+            isFavorite: Boolean(m.isFavorite),
+            sourceTable: typeof m.sourceTable === 'string' ? m.sourceTable : undefined,
+            calculation: m.calculation && typeof m.calculation === 'object' && !Array.isArray(m.calculation) ? m.calculation : undefined,
+            governance: m.governance && typeof m.governance === 'object' && !Array.isArray(m.governance) ? { ...m.governance, reviewStatus: 'draft' } : undefined,
+            isValid: undefined,
+            sqlValidation: undefined,
+            validationError: undefined,
+            createdAt: typeof m.createdAt === 'number' ? m.createdAt : Date.now(),
             updatedAt: Date.now(),
-            metrics: imported.metrics.map((m: any) => ({
-              ...m,
-              id: `metric_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-            })),
-          };
-          const existing = metricAnalyzer.loadMetricPackages();
-          existing.push(newPkg);
-          metricAnalyzer.saveAllPackages(existing);
-          loadPackages();
-          setSelectedPackage(newPkg);
-          toastService.success(`成功导入指标包「${newPkg.name}」`, `共 ${newPkg.metrics.length} 个指标`);
+          }));
+
+        if (rawMetrics.length > 0 && validMetrics.length === 0) {
+          toastService.error('导入失败', '未在文件中检测到有效的指标定义 (至少需提供包含名称的指标项)');
+          return;
+        }
+
+        const sourceTables = Array.isArray(imported.sourceTables)
+          ? imported.sourceTables.filter((t: any) => typeof t === 'string' && t.trim().length > 0)
+          : (typeof imported.table === 'string' && imported.table.trim() ? [imported.table.trim()] : []);
+
+        const newPkg: MetricPackage = {
+          id: `pkg_${Date.now()}`,
+          name: typeof imported.name === 'string' && imported.name.trim() ? imported.name.trim() : `导入指标包_${new Date().toISOString().slice(0, 10)}`,
+          description: typeof imported.description === 'string' ? imported.description.trim() : '',
+          sourceTables,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          metrics: validMetrics,
+        };
+
+        const existing = metricAnalyzer.loadMetricPackages();
+        existing.push(newPkg);
+        metricAnalyzer.saveAllPackages(existing);
+        loadPackages();
+        setSelectedPackage(newPkg);
+
+        if (validMetrics.length < rawMetrics.length) {
+          toastService.warning(
+            `成功导入「${newPkg.name}」`,
+            `导入 ${validMetrics.length} 个指标 (已过滤 ${rawMetrics.length - validMetrics.length} 个格式异常项)`
+          );
         } else {
-          toastService.error('导入失败', 'JSON 格式不符合指标包规范');
+          toastService.success(`成功导入指标包「${newPkg.name}」`, `共 ${validMetrics.length} 个指标`);
         }
       } catch (err) {
-        toastService.error('导入失败', (err as Error).message);
+        toastService.error('导入失败', `JSON 解析异常: ${(err as Error).message}`);
       }
     };
+    reader.onerror = () => toastService.error('导入失败', '无法读取文件，请重新选择');
     reader.readAsText(file);
     event.target.value = '';
   };
@@ -648,6 +757,9 @@ export const MetricManager: React.FC<MetricManagerProps> = ({
     });
     return Array.from(set);
   }, [selectedPackage]);
+  useEffect(() => {
+    if (!packageCategories.includes(selectedCategoryPill)) setSelectedCategoryPill('全部');
+  }, [packageCategories, selectedCategoryPill]);
 
   const filteredMetrics = useMemo(() => {
     if (!selectedPackage) return [];
@@ -666,6 +778,11 @@ export const MetricManager: React.FC<MetricManagerProps> = ({
     });
   }, [selectedPackage, showFavoritesOnly, favorites, selectedCategoryPill, detailSearchTerm]);
 
+  const hasDetailFilters = Boolean(detailSearchTerm.trim() || showFavoritesOnly || selectedCategoryPill !== '全部');
+  const resetDetailFilters = () => {
+    setDetailSearchTerm(''); setSelectedCategoryPill('全部'); setShowFavoritesOnly(false);
+  };
+
   const filteredPackages = useMemo(() => {
     if (!packageSearchTerm.trim()) return packages;
     const q = packageSearchTerm.toLowerCase().trim();
@@ -681,17 +798,16 @@ export const MetricManager: React.FC<MetricManagerProps> = ({
   }, [tables, tableSearchTerm]);
 
   return (
-    <div className="metric-manager flex-1 flex min-h-0 bg-monokai-bg font-sans overflow-hidden">
+    <div className="metric-manager metric-surface relative flex-1 flex min-w-0 min-h-0 bg-monokai-bg font-sans overflow-hidden">
+      {showBuilder && !selectedPackage && <button type="button" aria-label="收起建模工具遮罩" className="absolute inset-0 z-20 bg-black/30" onClick={() => setShowBuilder(false)} />}
       {/* ── Left Sidebar (320px) ─────────────────────────────────────────── */}
-      <div className="metric-builder-sidebar w-80 flex-shrink-0 bg-monokai-sidebar border-r border-monokai-border flex flex-col min-h-0">
+      <div className={`metric-builder-sidebar absolute inset-y-0 left-0 z-30 shadow-xl w-80 max-w-[85vw] flex-shrink-0 bg-monokai-sidebar border-r border-monokai-border flex flex-col min-h-0 ${selectedPackage || !showBuilder ? 'hidden' : ''}`}>
         <PanelHeader
           title="指标建模工作台"
           icon={Layers}
           tone="accent"
           actions={
-            <span className="text-[10px] font-mono font-medium text-monokai-comment px-1.5 py-0.5 rounded bg-monokai-surface border border-monokai-border">
-              DuckDB
-            </span>
+            <IconButton label="收起建模工具" icon={X} size="sm" onClick={() => setShowBuilder(false)} />
           }
         />
 
@@ -705,7 +821,7 @@ export const MetricManager: React.FC<MetricManagerProps> = ({
             tone="accent"
             items={[
               { value: 'builder', label: 'AI 建模', icon: Sparkles },
-              { value: 'tables', label: `数据表 (${selectedTables.size})`, icon: Table2 },
+              { value: 'tables', label: `数据表 (${tables.length})`, icon: Table2 },
               { value: 'guide', label: '知识指南', icon: BookOpen },
             ]}
           />
@@ -751,12 +867,13 @@ export const MetricManager: React.FC<MetricManagerProps> = ({
                 业务需求描述 (AI 实时推断)
               </label>
               <div className="relative">
-                <textarea
+                <FormTextarea
+                  sizeVariant="sm"
                   rows={2}
                   placeholder="例如：统计各渠道客单价与次日留存率，监控核心营收..."
                   value={aiNaturalLanguageInput}
                   onChange={e => handleNLInputChange(e.target.value)}
-                  className="w-full bg-monokai-surface p-2.5 pr-7 rounded-lg text-xs text-monokai-fg placeholder-monokai-comment/60 border border-monokai-border focus:border-monokai-border-strong focus:outline-none resize-none transition-colors leading-relaxed"
+                  className="pr-7 resize-none leading-relaxed"
                 />
                 {aiNaturalLanguageInput && (
                   <button
@@ -765,7 +882,8 @@ export const MetricManager: React.FC<MetricManagerProps> = ({
                       setAiNaturalLanguageInput('');
                       setMetricPreview(null);
                     }}
-                    className="absolute top-2 right-2 text-monokai-comment hover:text-monokai-fg p-0.5 cursor-pointer"
+                    className="absolute top-2 right-2 text-monokai-comment hover:text-monokai-fg p-0.5 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-monokai-accent rounded-sm"
+                    aria-label="清空输入"
                   >
                     <X size={12} />
                   </button>
@@ -807,12 +925,12 @@ export const MetricManager: React.FC<MetricManagerProps> = ({
                 <label className="block text-[11px] font-semibold text-monokai-fg-muted uppercase tracking-wider mb-1">
                   指标包名称 *
                 </label>
-                <input
+                <FormInput
+                  sizeVariant="sm"
                   type="text"
                   placeholder="例如: 电商营收核心指标包"
                   value={packageName}
                   onChange={e => setPackageName(e.target.value)}
-                  className="w-full bg-monokai-surface border border-monokai-border px-3 py-1.5 rounded-lg text-xs text-monokai-fg placeholder-monokai-comment/60 focus:border-monokai-border-strong focus:outline-none transition-colors"
                 />
               </div>
 
@@ -820,12 +938,12 @@ export const MetricManager: React.FC<MetricManagerProps> = ({
                 <label className="block text-[11px] font-semibold text-monokai-fg-muted uppercase tracking-wider mb-1">
                   业务说明 (可选)
                 </label>
-                <input
+                <FormInput
+                  sizeVariant="sm"
                   type="text"
                   placeholder="业务口径与用途概要"
                   value={packageDescription}
                   onChange={e => setPackageDescription(e.target.value)}
-                  className="w-full bg-monokai-surface border border-monokai-border px-3 py-1.5 rounded-lg text-xs text-monokai-fg placeholder-monokai-comment/60 focus:border-monokai-border-strong focus:outline-none transition-colors"
                 />
               </div>
             </div>
@@ -841,6 +959,15 @@ export const MetricManager: React.FC<MetricManagerProps> = ({
                 loading={isAnalyzing}
               >
                 {isAnalyzing ? '分析中...' : '生成指标包'}
+              </ActionButton>
+
+              <ActionButton
+                variant="secondary"
+                size="sm"
+                icon={Plus}
+                onClick={() => setShowCreatePackageModal(true)}
+              >
+                手动建包
               </ActionButton>
 
               <ActionButton
@@ -862,12 +989,14 @@ export const MetricManager: React.FC<MetricManagerProps> = ({
               >
                 模版库
               </ActionButton>
+            </div>
 
+            <div className="pt-0.5">
               <ActionButton
                 variant="ghost"
                 size="sm"
                 icon={Trash2}
-                className="text-monokai-pink hover:bg-monokai-pink/15"
+                className="w-full text-monokai-pink hover:bg-monokai-pink/15"
                 onClick={handleMetricQuickClear}
               >
                 清空重置
@@ -907,25 +1036,14 @@ export const MetricManager: React.FC<MetricManagerProps> = ({
         {sidebarTab === 'tables' && (
           <div className="flex-1 flex flex-col min-h-0 bg-monokai-bg/40">
             <div className="p-3 border-b border-monokai-border/80 space-y-2">
-              <div className="relative">
-                <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-monokai-comment" />
-                <input
-                  type="text"
-                  value={tableSearchTerm}
-                  onChange={e => setTableSearchTerm(e.target.value)}
-                  placeholder="搜索数据表..."
-                  className="w-full bg-monokai-surface border border-monokai-border rounded-md pl-7 pr-6 py-1 text-xs text-monokai-fg placeholder-monokai-comment/60 focus:border-monokai-border-strong focus:outline-none"
-                />
-                {tableSearchTerm && (
-                  <button
-                    type="button"
-                    onClick={() => setTableSearchTerm('')}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-monokai-comment hover:text-monokai-fg cursor-pointer"
-                  >
-                    <X size={11} />
-                  </button>
-                )}
-              </div>
+              <SearchInput
+                size="sm"
+                value={tableSearchTerm}
+                onChange={setTableSearchTerm}
+                onClear={() => setTableSearchTerm('')}
+                placeholder="搜索数据表..."
+                className="w-full max-w-none"
+              />
 
               <div className="flex items-center justify-between text-xs">
                 <span className="text-monokai-comment text-[11px]">
@@ -1004,21 +1122,19 @@ export const MetricManager: React.FC<MetricManagerProps> = ({
         {sidebarTab === 'guide' && (
           <div className="flex-1 flex flex-col min-h-0 bg-monokai-bg/40">
             {/* Sub-tabs for Help categories */}
-            <div className="flex border-b border-monokai-border bg-monokai-sidebar px-2">
-              {HELP_CATEGORIES.map(cat => (
-                <button
-                  key={cat.key}
-                  type="button"
-                  onClick={() => setActiveHelpCategory(cat.key)}
-                  className={`flex-1 py-2 text-[11px] font-medium transition-colors border-b-2 -mb-px text-center cursor-pointer ${
-                    activeHelpCategory === cat.key
-                      ? 'border-monokai-fg text-monokai-fg font-bold'
-                      : 'border-transparent text-monokai-comment hover:text-monokai-fg'
-                  }`}
-                >
-                  {cat.label}
-                </button>
-              ))}
+            <div className="p-2 border-b border-monokai-border bg-monokai-sidebar">
+              <SegmentedTabs<string>
+                value={activeHelpCategory}
+                onChange={val => setActiveHelpCategory(val as keyof typeof METRIC_CATEGORY_HELP)}
+                aria-label="指南分类"
+                size="sm"
+                tone="accent"
+                className="w-full"
+                items={HELP_CATEGORIES.map(cat => ({
+                  value: cat.key,
+                  label: cat.label,
+                }))}
+              />
             </div>
 
             {/* Guide Content */}
@@ -1106,7 +1222,7 @@ export const MetricManager: React.FC<MetricManagerProps> = ({
               </div>
 
               {/* Action Buttons */}
-              <div className="flex items-center gap-2 shrink-0 flex-wrap">
+              <div className="flex items-center gap-2 max-w-full flex-wrap">
                 {onNavigateToDashboard && (
                   <ActionButton
                     variant="ghost"
@@ -1123,7 +1239,8 @@ export const MetricManager: React.FC<MetricManagerProps> = ({
                   size="sm"
                   icon={Play}
                   onClick={handleValidateAll}
-                  disabled={isAnalyzing || !selectedPackage.sourceTables.length}
+                  disabled={isAnalyzing || isGeneratingChart || !selectedPackage.metrics.length}
+                  loading={isAnalyzing}
                 >
                   验证全部
                 </ActionButton>
@@ -1132,7 +1249,7 @@ export const MetricManager: React.FC<MetricManagerProps> = ({
                   size="sm"
                   icon={BarChart2}
                   onClick={handleGenerateAllCharts}
-                  disabled={isGeneratingChart || !selectedPackage.sourceTables.length}
+                  disabled={isAnalyzing || isGeneratingChart || !selectedPackage.metrics.length}
                   loading={isGeneratingChart}
                 >
                   生成全部图表
@@ -1145,6 +1262,17 @@ export const MetricManager: React.FC<MetricManagerProps> = ({
                 >
                   查看图表
                 </ActionButton>
+                {onNavigateToVisualization && (
+                  <ActionButton
+                    variant="secondary"
+                    size="sm"
+                    icon={PieChart}
+                    onClick={() => onNavigateToVisualization()}
+                    title="前往可视化中心查看多维图表与数据联动"
+                  >
+                    可视化中心
+                  </ActionButton>
+                )}
                 <ActionButton
                   variant="secondary"
                   size="sm"
@@ -1158,7 +1286,8 @@ export const MetricManager: React.FC<MetricManagerProps> = ({
                   variant="danger"
                   size="sm"
                   icon={Trash2}
-                  onClick={() => handleDeletePackage(selectedPackage.id)}
+                  disabled={isAnalyzing || isGeneratingChart}
+                  onClick={() => setPendingDelete({ kind: 'package', id: selectedPackage.id, name: selectedPackage.name })}
                 >
                   删除包
                 </ActionButton>
@@ -1166,13 +1295,20 @@ export const MetricManager: React.FC<MetricManagerProps> = ({
             </div>
 
             {/* Secondary Meta Strip: Dependencies & Quick Stats */}
-            <div className="px-5 py-2.5 bg-monokai-surface/40 flex items-center justify-between text-xs text-monokai-comment font-mono flex-wrap gap-2 shadow-xs">
-              <div className="flex items-center gap-2">
-                <span>依赖数据表:</span>
+            <div className="px-5 py-2.5 bg-monokai-surface/40 flex items-center justify-between text-xs text-monokai-comment font-mono flex-wrap gap-2 shadow-xs border-b border-monokai-border/60">
+              <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+                <span className="shrink-0 text-monokai-comment">依赖数据表:</span>
                 {selectedPackage.sourceTables.map(t => (
-                  <span key={t} className="px-2 py-0.5 rounded bg-monokai-bg text-monokai-yellow">
+                  <button
+                    type="button"
+                    key={t}
+                    title={t}
+                    disabled={!tables.includes(t) || !onNavigateToData}
+                    onClick={() => onNavigateToData?.(t)}
+                    className="max-w-[180px] truncate px-2 py-0.5 rounded bg-monokai-bg text-monokai-yellow border border-monokai-border/60 hover:border-monokai-accent/60 hover:text-monokai-fg transition-colors cursor-pointer disabled:cursor-default focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-monokai-accent"
+                  >
                     {t}
-                  </span>
+                  </button>
                 ))}
               </div>
               <div className="flex items-center gap-3">
@@ -1188,26 +1324,32 @@ export const MetricManager: React.FC<MetricManagerProps> = ({
               </div>
             </div>
 
+
             {/* Filter Toolbar & Category Pills */}
             <div className="p-4 bg-monokai-bg flex items-center justify-between gap-3 flex-wrap">
-              <div className="flex items-center gap-3 flex-1 min-w-[240px]">
+              <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
                 <SearchInput
                   value={detailSearchTerm}
                   onChange={setDetailSearchTerm}
                   onClear={() => setDetailSearchTerm('')}
                   placeholder="搜索指标名称、公式、业务定义..."
-                  className="flex-1"
+                  className="flex-1 min-w-[180px]"
                 />
 
                 <ActionButton
                   variant={showFavoritesOnly ? 'warning' : 'secondary'}
                   size="sm"
                   icon={Star}
+                  aria-pressed={showFavoritesOnly}
                   onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
                 >
                   {showFavoritesOnly ? '仅收藏' : '收藏筛选'}
                 </ActionButton>
 
+                <ActionButton variant="success" size="sm" icon={Plus} onClick={() => setEditingMetric({
+                  id: `metric_${crypto.randomUUID()}`, name: '', formula: '', scenario: '', characteristics: '', value: '', definition: '', example: '', dependencies: [], createdAt: Date.now(),
+                  sourceTable: selectedPackage.sourceTables.length === 1 ? selectedPackage.sourceTables[0] : '', calculation: { aggregation: 'COUNT' },
+                })}>手动建立指标</ActionButton>
                 <ActionButton
                   variant="secondary"
                   size="sm"
@@ -1225,10 +1367,11 @@ export const MetricManager: React.FC<MetricManagerProps> = ({
                     key={cat}
                     type="button"
                     onClick={() => setSelectedCategoryPill(cat)}
-                    className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all cursor-pointer border ${
+                    aria-pressed={selectedCategoryPill === cat}
+                    className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all cursor-pointer border focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-monokai-accent ${
                       selectedCategoryPill === cat
                         ? 'bg-monokai-surface text-monokai-fg border-monokai-border-strong shadow-xs'
-                        : 'bg-monokai-sidebar text-monokai-comment hover:text-monokai-fg border-transparent'
+                        : 'bg-monokai-sidebar text-monokai-comment hover:text-monokai-fg hover:bg-monokai-surface/60 border-monokai-border/60'
                     }`}
                   >
                     {cat}
@@ -1237,32 +1380,39 @@ export const MetricManager: React.FC<MetricManagerProps> = ({
               </div>
             </div>
 
+
             {/* Metrics Content Grid */}
+            <div className="px-5 pb-2 flex flex-wrap items-center gap-3 text-xs text-monokai-comment">
+              <span>显示 {filteredMetrics.length} / {selectedPackage.metrics.length} 个指标</span>
+              {hasDetailFilters && <ActionButton size="sm" variant="ghost" icon={X} onClick={resetDetailFilters}>清除筛选</ActionButton>}
+              {(isAnalyzing || isGeneratingChart) && <span role="status" aria-live="polite" className="inline-flex items-center gap-2 text-monokai-accent"><Loader2 size={13} className="animate-spin" />{analysisProgress || '正在处理指标…'}</span>}
+            </div>
             <div className="flex-1 overflow-y-auto p-5 custom-scrollbar bg-monokai-bg">
               {filteredMetrics.length === 0 ? (
                 <EmptyState
                   icon={BarChart2}
                   title={
-                    showFavoritesOnly
-                      ? '暂无收藏的指标'
-                      : detailSearchTerm
+                    hasDetailFilters
                       ? '没有匹配的指标'
                       : '该指标包暂无指标定义'
                   }
-                  description="点击「添加模版指标」或在左侧使用 AI 自动生成语义指标"
+                  description={hasDetailFilters ? '调整搜索、分类或收藏条件，或点击「清除筛选」查看全部指标。' : '点击「手动建立指标」，选择真实字段并验证计算结果'}
                 />
               ) : (
-                <div className="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-4 items-start">
+                <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,360px),1fr))] gap-4 items-start">
                   {filteredMetrics.map(metric => (
                     <MetricCard
                       key={metric.id}
                       metric={metric}
-                      sourceTable={selectedPackage.sourceTables[0]}
+                      sourceTable={metricSource(metric, selectedPackage.sourceTables) || extractTablesFromSql(metric.formula)[0]}
                       onEdit={setEditingMetric}
-                      onDelete={handleDeleteMetric}
+                      onDelete={id => setPendingDelete({ kind: 'metric', id, name: metric.name })}
+                      busy={isAnalyzing || isGeneratingChart}
                       onValidate={handleValidateMetric}
                       onFix={handleFixMetric}
                       onGenerateChart={handleGenerateChart}
+                      onViewChart={onNavigateToVisualization}
+                      onShowLineage={setLineageModalMetric}
                       onExecuteInEditor={handleExecuteMetricInEditor}
                       hasChart={metricCharts.get(metric.id) || false}
                       onToggleFavorite={toggleFavorite}
@@ -1277,17 +1427,18 @@ export const MetricManager: React.FC<MetricManagerProps> = ({
           // ── Tier 1: Discovery Board (Package List View) ───────────────────
           <div className="flex-1 flex flex-col min-h-0">
             <PageHeader
-              title="语义指标库 (Semantic Metrics)"
-              description="基于 DuckDB 的声明式语义指标建模与多维分析管理中心"
+              className="flex-wrap [&>div:first-child]:min-w-[260px] [&>div:first-child]:flex-1"
+              title="指标库"
+              description="管理计算口径，验证真实数据，并用于分析与可视化"
               icon={BarChart2}
               tone="accent"
               badge={
-                <span className="rounded-full bg-monokai-surface border border-monokai-border px-2.5 py-0.5 text-[10px] font-mono font-medium text-monokai-fg-muted">
+                <span className="shrink-0 whitespace-nowrap rounded-full bg-monokai-surface border border-monokai-border px-2.5 py-0.5 text-[10px] font-mono font-medium text-monokai-fg-muted">
                   {packages.length} 个指标包
                 </span>
               }
               actions={
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   {onNavigateToDashboard && (
                     <ActionButton
                       variant="ghost"
@@ -1299,18 +1450,48 @@ export const MetricManager: React.FC<MetricManagerProps> = ({
                       仪表盘
                     </ActionButton>
                   )}
-                  <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-monokai-surface border border-monokai-border rounded-lg text-xs font-medium text-monokai-fg hover:bg-monokai-sidebar cursor-pointer transition-colors shadow-xs active:scale-95">
-                    <Upload size={14} className="text-monokai-fg-muted" />
-                    <span>导入指标包</span>
-                    <input type="file" accept=".json" onChange={handleImportPackage} className="hidden" />
-                  </label>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".json"
+                    onChange={handleImportPackage}
+                    className="hidden"
+                  />
+                  <ActionButton
+                    variant="secondary"
+                    size="sm"
+                    icon={Sparkles}
+                    onClick={handleBuildFromTables}
+                    disabled={!tables.length || isAnalyzing}
+                    title="依据当前数据库的真实字段生成基础指标"
+                  >
+                    从真实字段生成
+                  </ActionButton>
+                  <ActionButton
+                    variant="secondary"
+                    size="sm"
+                    icon={Upload}
+                    onClick={() => fileInputRef.current?.click()}
+                    title="导入指标包 JSON 文件"
+                  >
+                    导入指标包
+                  </ActionButton>
+                  <ActionButton
+                    variant="primary"
+                    size="sm"
+                    icon={Plus}
+                    onClick={() => setShowCreatePackageModal(true)}
+                  >
+                    新建指标包
+                  </ActionButton>
                 </div>
               }
             />
 
             {/* Filter Search Bar */}
             <div className="p-4 bg-monokai-sidebar/40">
-              <div className="max-w-4xl mx-auto flex items-center gap-3">
+              <div className="max-w-4xl mx-auto flex flex-wrap items-center gap-3">
+                <ActionButton variant="secondary" size="sm" aria-expanded={showBuilder} onClick={() => setShowBuilder(value => !value)}>{showBuilder ? '收起建模工具' : '指标建模工具'}</ActionButton>
                 <SearchInput
                   value={packageSearchTerm}
                   onChange={setPackageSearchTerm}
@@ -1322,24 +1503,33 @@ export const MetricManager: React.FC<MetricManagerProps> = ({
             </div>
 
             {/* Package Cards List */}
-            <div className="flex-1 overflow-y-auto p-6 custom-scrollbar bg-monokai-bg">
+            <div className="flex-1 overflow-y-auto p-4 custom-scrollbar bg-monokai-bg">
               {filteredPackages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center p-12 text-center">
                   <div className="w-14 h-14 rounded-2xl bg-monokai-surface border border-monokai-border flex items-center justify-center mb-4 text-monokai-comment shadow-lg shadow-black/40">
                     <Package className="h-7 w-7 text-monokai-comment" />
                   </div>
-                  <h3 className="text-base font-bold text-monokai-fg mb-1.5 tracking-tight">暂无指标包</h3>
+                  <h3 className="text-sm font-bold text-monokai-fg mb-1.5 tracking-tight">{packages.length ? '未找到匹配的指标包' : '暂无指标包'}</h3>
                   <p className="text-xs text-monokai-comment max-w-sm mb-6 leading-relaxed">
-                    在左侧选择数据表后输入业务描述自动推断，或直接浏览预设指标库快速构建。
+                    {packages.length ? '请调整搜索条件；已有指标包仍保留。' : '导入真实数据后可从字段生成基础指标，也可以手动创建业务指标包。'}
                   </p>
                   <div className="flex items-center gap-3">
-                    <ActionButton
+                    {packages.length ? <ActionButton variant="secondary" size="sm" onClick={() => setPackageSearchTerm('')}>清除搜索</ActionButton> : <ActionButton
                       variant="primary"
                       size="md"
                       icon={Sparkles}
-                      onClick={() => setShowTemplatesModal(true)}
+                      onClick={handleBuildFromTables}
+                    disabled={!tables.length || isAnalyzing}
                     >
-                      浏览预设指标模板
+                      从真实字段生成
+                    </ActionButton>}
+                    <ActionButton
+                      variant="secondary"
+                      size="md"
+                      icon={Plus}
+                      onClick={() => setShowCreatePackageModal(true)}
+                    >
+                      新建指标包
                     </ActionButton>
                   </div>
                 </div>
@@ -1348,10 +1538,19 @@ export const MetricManager: React.FC<MetricManagerProps> = ({
                   {filteredPackages.map(pkg => (
                     <div
                       key={pkg.id}
+                      role="button"
+                      tabIndex={0}
                       onClick={() => setSelectedPackage(pkg)}
-                      className="group bg-monokai-sidebar border border-monokai-border rounded-xl p-5 hover:border-monokai-border-strong hover:bg-monokai-surface/60 transition-all cursor-pointer shadow-xs hover:shadow-md"
+                      onKeyDown={e => {
+                        if (e.target !== e.currentTarget) return;
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setSelectedPackage(pkg);
+                        }
+                      }}
+                      className="group bg-monokai-sidebar border border-monokai-border rounded-xl p-5 hover:border-monokai-border-strong hover:bg-monokai-surface/60 transition-all cursor-pointer shadow-xs hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-monokai-accent/70"
                     >
-                      <div className="flex items-start justify-between gap-4">
+                      <div className="flex flex-wrap items-start justify-between gap-4">
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2.5">
                             <h3 className="font-bold text-sm text-monokai-fg group-hover:text-monokai-accent transition-colors truncate">
@@ -1380,31 +1579,36 @@ export const MetricManager: React.FC<MetricManagerProps> = ({
                           </div>
                         </div>
 
-                        {/* Right operations */}
-                        <div className="flex items-center gap-2 shrink-0">
-                          <IconButton
-                            label="导出指标包"
-                            icon={Download}
-                            size="sm"
-                            onClick={e => {
-                              e.stopPropagation();
-                              handleExportPackage(pkg);
-                            }}
-                          />
-                          <ActionButton
-                            variant="primary"
-                            size="sm"
-                            icon={ArrowRight}
-                            iconPosition="right"
-                            onClick={() => setSelectedPackage(pkg)}
-                          >
-                            进入详细内容
-                          </ActionButton>
+                          {/* Right operations */}
+                          <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
+                            <IconButton
+                              label="导出指标包"
+                              icon={Download}
+                              size="sm"
+                              onClick={() => handleExportPackage(pkg)}
+                            />
+                            <IconButton
+                              label="删除指标包"
+                              icon={Trash2}
+                              size="sm"
+                              tone="danger"
+                              onClick={() => setPendingDelete({ kind: 'package', id: pkg.id, name: pkg.name })}
+                            />
+                            <ActionButton
+                              variant="primary"
+                              size="sm"
+                              icon={ArrowRight}
+                              iconPosition="right"
+                              onClick={() => setSelectedPackage(pkg)}
+                            >
+                              进入详细内容
+                            </ActionButton>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+
               )}
             </div>
           </div>
@@ -1412,8 +1616,41 @@ export const MetricManager: React.FC<MetricManagerProps> = ({
       </div>
 
       {/* ── Modals ────────────────────────────────────────────────────────── */}
+      <ModalShell
+        className="metric-surface"
+        open={!!pendingDelete}
+        onClose={() => setPendingDelete(null)}
+        title={pendingDelete?.kind === 'package' ? '删除指标包' : '删除指标'}
+        size="sm"
+        footer={
+          <>
+            <ActionButton variant="secondary" size="sm" onClick={() => setPendingDelete(null)}>
+              取消
+            </ActionButton>
+            <ActionButton
+              variant="danger"
+              size="sm"
+              onClick={() => {
+                if (!pendingDelete) return;
+                if (pendingDelete.kind === 'package') handleDeletePackage(pendingDelete.id);
+                else handleDeleteMetric(pendingDelete.id);
+                setPendingDelete(null);
+              }}
+            >
+              确认删除
+            </ActionButton>
+          </>
+        }
+      >
+        <p className="p-4 text-xs text-monokai-fg leading-relaxed break-words">
+          确认删除「<strong className="text-monokai-accent font-semibold">{pendingDelete?.name}</strong>」？
+          {pendingDelete?.kind === 'package' ? '包内指标定义将一并移除，建议先导出备份。' : '关联图表也将移除。'}
+        </p>
+      </ModalShell>
       {/* 1. Template Modal */}
       <MetricTemplateModal
+
+        tables={selectedPackage?.sourceTables || []}
         isOpen={showTemplatesModal}
         onClose={() => setShowTemplatesModal(false)}
         onSelectTemplate={handleAddTemplate}
@@ -1439,10 +1676,64 @@ export const MetricManager: React.FC<MetricManagerProps> = ({
 
       {/* 4. Metric Edit Modal */}
       <MetricEditModal
+        tables={selectedPackage?.sourceTables || []}
+        creating={!!editingMetric && !selectedPackage?.metrics.some(m => m.id === editingMetric.id)}
         isOpen={!!editingMetric}
         metric={editingMetric}
         onClose={() => setEditingMetric(null)}
         onSave={handleSaveEditMetric}
+      />
+
+      {/* 5. Metric Lineage Modal */}
+      {lineageModalMetric && lineageGraph && (
+        <ModalShell
+          className="metric-surface"
+          open={Boolean(lineageModalMetric)}
+          onClose={() => setLineageModalMetric(null)}
+          title={`指标血缘关系: ${lineageModalMetric.name}`}
+          description={`解析自公式「${lineageModalMetric.formula}」与源表「${lineageModalMetric ? metricSource(lineageModalMetric, selectedPackage?.sourceTables || []) : '未绑定'}」`}
+          icon={GitBranch}
+          size="lg"
+          footer={
+            <>
+              <ActionButton
+                variant="secondary"
+                size="sm"
+                onClick={() => setLineageModalMetric(null)}
+              >
+                关闭
+              </ActionButton>
+              <ActionButton
+                variant="primary"
+                size="sm"
+                icon={Play}
+                onClick={() => {
+                  handleExecuteMetricInEditor(lineageModalMetric);
+                  setLineageModalMetric(null);
+                }}
+              >
+                在 SQL 编辑器中运行
+              </ActionButton>
+            </>
+          }
+        >
+          <div className="h-[440px] flex flex-col">
+            <LineageGraphView
+              graph={lineageGraph}
+              embedded={true}
+              onClose={() => setLineageModalMetric(null)}
+            />
+          </div>
+        </ModalShell>
+      )}
+
+      {/* 6. Metric Create Package Modal */}
+      <MetricCreatePackageModal
+        isOpen={showCreatePackageModal}
+        onClose={() => setShowCreatePackageModal(false)}
+        onCreatePackage={handleCreatePackage}
+        availableTables={tables}
+        existingPackageNames={packages.map(p => p.name)}
       />
     </div>
   );

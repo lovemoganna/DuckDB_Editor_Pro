@@ -646,8 +646,8 @@ export const CanvasContextMenu: React.FC<CanvasContextMenuProps> = ({
             label="编辑关系属性"
             shortcut="Enter"
             onClick={() => handleAction(() => onEditEdge?.(targetId))}
-            disabled={isReadOnly}
-            description="修改连线的名称和权重"
+            disabled={isReadOnly || !onEditEdge}
+            description={onEditEdge ? '修改连线的名称和权重' : '关系属性编辑暂不可用'}
           />
 
           <MenuItem

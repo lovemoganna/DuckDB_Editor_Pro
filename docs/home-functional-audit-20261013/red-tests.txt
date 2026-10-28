@@ -1,0 +1,711 @@
+$ vitest run --pool=threads --maxWorkers=1 --no-file-parallelism "components/Dashboard/Home/HomeBoardCanvas.audit.test.tsx" "components/Dashboard/Home/DatasetPreview.requests.test.tsx" "components/Dashboard.test.tsx"
+
+ RUN  v4.1.10 C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor
+
+stderr | components/Dashboard.test.tsx > DuckDB Analysis Home Dashboard > prevents overlapping file drops and permits a new import after completion
+Warning: An update to Dashboard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at Dashboard (C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/Dashboard.tsx:10:3)
+    at ConfirmDialogProvider (C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/ui/ConfirmDialog.tsx:20:34)
+Warning: An update to Dashboard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at Dashboard (C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/Dashboard.tsx:10:3)
+    at ConfirmDialogProvider (C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/ui/ConfirmDialog.tsx:20:34)
+Warning: An update to Dashboard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at Dashboard (C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/Dashboard.tsx:10:3)
+    at ConfirmDialogProvider (C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/ui/ConfirmDialog.tsx:20:34)
+Warning: An update to Dashboard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at Dashboard (C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/Dashboard.tsx:10:3)
+    at ConfirmDialogProvider (C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/ui/ConfirmDialog.tsx:20:34)
+Warning: An update to Dashboard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at Dashboard (C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/Dashboard.tsx:10:3)
+    at ConfirmDialogProvider (C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/ui/ConfirmDialog.tsx:20:34)
+Warning: An update to Dashboard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at Dashboard (C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/Dashboard.tsx:10:3)
+    at ConfirmDialogProvider (C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/ui/ConfirmDialog.tsx:20:34)
+Warning: An update to Dashboard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at Dashboard (C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/Dashboard.tsx:10:3)
+    at ConfirmDialogProvider (C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/ui/ConfirmDialog.tsx:20:34)
+Warning: An update to Dashboard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at Dashboard (C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/Dashboard.tsx:10:3)
+    at ConfirmDialogProvider (C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/ui/ConfirmDialog.tsx:20:34)
+Warning: An update to Dashboard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at Dashboard (C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/Dashboard.tsx:10:3)
+    at ConfirmDialogProvider (C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/ui/ConfirmDialog.tsx:20:34)
+Warning: An update to Dashboard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at Dashboard (C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/Dashboard.tsx:10:3)
+    at ConfirmDialogProvider (C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/ui/ConfirmDialog.tsx:20:34)
+
+stderr | components/Dashboard.test.tsx > DuckDB Analysis Home Dashboard > prevents overlapping file drops and permits a new import after completion
+Warning: An update to Dashboard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at Dashboard (C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/Dashboard.tsx:10:3)
+    at ConfirmDialogProvider (C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/ui/ConfirmDialog.tsx:20:34)
+Warning: An update to Dashboard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at Dashboard (C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/Dashboard.tsx:10:3)
+    at ConfirmDialogProvider (C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/ui/ConfirmDialog.tsx:20:34)
+Warning: An update to Dashboard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at Dashboard (C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/Dashboard.tsx:10:3)
+    at ConfirmDialogProvider (C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/ui/ConfirmDialog.tsx:20:34)
+Warning: An update to Dashboard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at Dashboard (C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/Dashboard.tsx:10:3)
+    at ConfirmDialogProvider (C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/ui/ConfirmDialog.tsx:20:34)
+Warning: An update to Dashboard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at Dashboard (C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/Dashboard.tsx:10:3)
+    at ConfirmDialogProvider (C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/ui/ConfirmDialog.tsx:20:34)
+Warning: An update to Dashboard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at Dashboard (C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/Dashboard.tsx:10:3)
+    at ConfirmDialogProvider (C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/ui/ConfirmDialog.tsx:20:34)
+Warning: An update to Dashboard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at Dashboard (C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/Dashboard.tsx:10:3)
+    at ConfirmDialogProvider (C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/ui/ConfirmDialog.tsx:20:34)
+Warning: An update to Dashboard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at Dashboard (C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/Dashboard.tsx:10:3)
+    at ConfirmDialogProvider (C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/ui/ConfirmDialog.tsx:20:34)
+Warning: An update to Dashboard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at Dashboard (C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/Dashboard.tsx:10:3)
+    at ConfirmDialogProvider (C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/ui/ConfirmDialog.tsx:20:34)
+Warning: An update to Dashboard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at Dashboard (C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/Dashboard.tsx:10:3)
+    at ConfirmDialogProvider (C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/ui/ConfirmDialog.tsx:20:34)
+Warning: An update to Dashboard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at Dashboard (C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/Dashboard.tsx:10:3)
+    at ConfirmDialogProvider (C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/ui/ConfirmDialog.tsx:20:34)
+Warning: An update to Dashboard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at Dashboard (C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/Dashboard.tsx:10:3)
+    at ConfirmDialogProvider (C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/ui/ConfirmDialog.tsx:20:34)
+Warning: An update to Dashboard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at Dashboard (C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/Dashboard.tsx:10:3)
+    at ConfirmDialogProvider (C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor/components/ui/ConfirmDialog.tsx:20:34)
+
+ ❯ components/Dashboard.test.tsx (11 tests | 1 failed) 1081ms
+     × prevents overlapping file drops and permits a new import after completion 31ms
+ ❯ components/Dashboard/Home/DatasetPreview.requests.test.tsx (4 tests | 1 failed) 1308ms
+   × returns to a valid page when refreshed data shrinks below the current offset 1158ms
+ ❯ components/Dashboard/Home/HomeBoardCanvas.audit.test.tsx (2 tests | 1 failed) 1235ms
+   × clears a removed selection and offers the remaining datasets 1086ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  components/Dashboard.test.tsx > DuckDB Analysis Home Dashboard > prevents overlapping file drops and permits a new import after completion
+AssertionError: expected "vi.fn()" to be called 1 times, but got 2 times
+ ❯ components/Dashboard.test.tsx:261:30
+    259|     fireEvent.drop(root, {dataTransfer:{files:[file]}});
+    260|     fireEvent.drop(root, {dataTransfer:{files:[file]}});
+    261|     expect(mocks.importFile).toHaveBeenCalledTimes(1);
+       |                              ^
+    262|     await act(async () => finish(['audit']));
+    263|     mocks.importFile.mockResolvedValueOnce(['audit']);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  components/Dashboard/Home/DatasetPreview.requests.test.tsx > returns to a valid page when refreshed data shrinks below the current offset
+AssertionError: expected 'SELECT * FROM (SELECT * FROM (\nSELEC…' to contain 'OFFSET 0'
+
+Ignored nodes: comments, script, style
+<html>
+  <head />
+  <body>
+    <div>
+      <section
+        aria-busy="false"
+        class="min-w-0 rounded-lg border border-monokai-border/80 bg-monokai-surface/40 p-3.5 text-xs shadow-xs"
+      >
+        <div
+          class="flex flex-wrap gap-2 items-center justify-between pb-2 border-b border-monokai-border/60"
+        >
+          <div
+            class="flex items-center gap-2"
+          >
+            <h3
+              class="font-semibold text-monokai-fg break-words"
+            >
+              fiat_transactions
+               · 明细预览
+            </h3>
+            <span
+              class="rounded bg-monokai-surface px-1.5 py-0.5 text-2xs text-monokai-comment font-mono border border-monokai-border/60"
+            >
+              1
+               字段
+            </span>
+          </div>
+          <div
+            class="flex items-center gap-2"
+          >
+            <span
+              class="text-2xs font-mono text-monokai-comment"
+            >
+              25
+               行记录
+            </span>
+          </div>
+        </div>
+        <div
+          class="max-h-80 overflow-auto mt-2 rounded border border-monokai-border bg-monokai-bg/60 custom-scrollbar"
+        >
+          <table
+            class="text-left w-full text-xs"
+            style="min-width: 164px; table-layout: fixed;"
+          >
+            <colgroup>
+              <col
+                style="width: 164px;"
+              />
+            </colgroup>
+            <thead
+              class="sticky top-0 bg-monokai-surface shadow-xs"
+            >
+              <tr>
+                <th
+                  class="px-2.5 py-2 font-medium text-2xs text-monokai-fg-muted uppercase tracking-wider border-b border-monokai-border"
+                >
+                  fiat_order_id
+                </th>
+              </tr>
+            </thead>
+            <tbody
+              class="divide-y divide-monokai-border/40"
+            >
+              <tr
+                class="hover:bg-monokai-surface/50 transition-colors"
+              >
+                <td
+                  class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+                >
+                  fo_20241231_43875092
+                </td>
+              </tr>
+              <tr
+                class="hover:bg-monokai-surface/50 transition-colors"
+              >
+                <td
+                  class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+                >
+                  fo_20250101_43875093
+                </td>
+              </tr>
+              <tr
+                class="hover:bg-monokai-surface/50 transition-colors"
+              >
+                <td
+                  class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+                >
+                  fo_20250110_78423190
+                </td>
+              </tr>
+              <tr
+                class="hover:bg-monokai-surface/50 transition-colors"
+              >
+                <td
+                  class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+                >
+                  fo_20250112_61590237
+                </td>
+              </tr>
+              <tr
+                class="hover:bg-monokai-surface/50 transition-colors"
+              >
+                <td
+                  class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+                >
+                  fo_20250214_61590238
+                </td>
+              </tr>
+              <tr
+                class="hover:bg-monokai-surface/50 transition-colors"
+              >
+                <td
+                  class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+                >
+                  fo_20250220_78423191
+                </td>
+              </tr>
+              <tr
+                class="hover:bg-monokai-surface/50 transition-colors"
+              >
+                <td
+                  class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+                >
+                  fo_20250308_90317462
+                </td>
+              </tr>
+              <tr
+                class="hover:bg-monokai-surface/50 transition-colors"
+              >
+                <td
+                  class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+                >
+                  fo_20250315_78423192
+                </td>
+              </tr>
+              <tr
+                class="hover:bg-monokai-surface/50 transition-colors"
+              >
+                <td
+                  class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+                >
+                  fo_20250410_78423193
+                </td>
+              </tr>
+              <tr
+                class="hover:bg-monokai-surface/50 transition-colors"
+              >
+                <td
+                  class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+                >
+                  fo_20250415_90317463
+                </td>
+              </tr>
+              <tr
+                class="hover:bg-monokai-surface/50 transition-colors"
+              >
+                <td
+                  class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+                >
+                  fo_20250418_52840619
+                </td>
+              </tr>
+              <tr
+                class="hover:bg-monokai-surface/50 transition-colors"
+              >
+                <td
+                  class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+                >
+                  fo_20250502_90317464
+                </td>
+              </tr>
+              <tr
+                class="hover:bg-monokai-surface/50 transition-colors"
+              >
+                <td
+                  class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+                >
+                  fo_20250520_84621953
+                </td>
+              </tr>
+              <tr
+                class="hover:bg-monokai-surface/50 transition-colors"
+              >
+                <td
+                  class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+                >
+                  fo_20250525_52840620
+                </td>
+              </tr>
+              <tr
+                class="hover:bg-monokai-surface/50 transition-colors"
+              >
+                <td
+                  class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+                >
+                  fo_20250605_69248130
+                </td>
+              </tr>
+              <tr
+                class="hover:bg-monokai-surface/50 transition-colors"
+              >
+                <td
+                  class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+                >
+                  fo_20250618_61590239
+                </td>
+              </tr>
+              <tr
+                class="hover:bg-monokai-surface/50 transition-colors"
+              >
+                <td
+                  class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+                >
+                  fo_20250711_84621954
+                </td>
+              </tr>
+              <tr
+                class="hover:bg-monokai-surface/50 transition-colors"
+              >
+                <td
+                  class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+                >
+                  fo_20250720_61590240
+                </td>
+              </tr>
+              <tr
+                class="hover:bg-monokai-surface/50 transition-colors"
+              >
+                <td
+                  class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+                >
+                  fo_20250810_52840621
+                </td>
+              </tr>
+              <tr
+                class="hover:bg-monokai-surface/50 transition-colors"
+              >
+                <td
+                  class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+                >
+                  fo_20250901_31958204
+                </td>
+              </tr>
+              <tr
+                class="hover:bg-monokai-surface/50 transition-colors"
+              >
+                <td
+                  class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+                >
+                  fo_20250912_52840622
+                </td>
+              </tr>
+              <tr
+                class="hover:bg-monokai-surface/50 transition-colors"
+              >
+                <td
+                  class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+                >
+                  fo_20250915_69248131
+                </td>
+              </tr>
+              <tr
+                class="hover:bg-monokai-surface/50 transition-colors"
+              >
+                <td
+                  class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+                >
+                  fo_20250920_50284719
+                </td>
+              </tr>
+              <tr
+                class="hover:bg-monokai-surface/50 transition-colors"
+              >
+                <td
+                  class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+                >
+                  fo_20251010_31958205
+                </td>
+              </tr>
+              <tr
+                class="hover:bg-monokai-surface/50 transition-colors"
+              >
+                <td
+                  class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+                >
+                  fo_20251025_50284720
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </body>
+</html>
+
+- Expected
++ Received
+
+- OFFSET 0
++ SELECT * FROM (SELECT * FROM (
++ SELECT * FROM baseline.main.fiat_transactions
++ ) AS dataset ORDER BY ALL) AS preview LIMIT 50 OFFSET 50
+
+ ❯ components/Dashboard/Home/DatasetPreview.requests.test.tsx:29:74
+     27|   transport.read.mockResolvedValue([[{count:25}],data]);
+     28|   view.rerender(<DatasetPreview {...props} revision={1}/>);
+     29|   await waitFor(()=>expect(transport.read.mock.calls.at(-1)?.[0][1].sq…
+       |                                                                          ^
+     30|   expect(screen.queryByText('2 / 2')).toBeNull();
+     31| });
+ ❯ runWithExpensiveErrorDiagnosticsDisabled node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/config.js:47:12
+ ❯ checkCallback node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:124:77
+ ❯ Timeout.checkRealTimersCallback node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:118:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  components/Dashboard/Home/HomeBoardCanvas.audit.test.tsx > clears a removed selection and offers the remaining datasets
+AssertionError: expected <div></div> to be null
+
+Ignored nodes: comments, script, style
+<html>
+  <head />
+  <body>
+    <div>
+      <section
+        aria-busy="false"
+        class="relative z-0 flex flex-col gap-3"
+      >
+        <div>
+          <label
+            class="flex items-center gap-1.5 text-xs text-monokai-fg-muted font-medium"
+          >
+            <span>
+              数据集
+            </span>
+            <select
+              aria-label="浏览数据集"
+              class="w-full rounded-lg border border-monokai-border/80 hover:border-monokai-border-strong bg-monokai-surface text-monokai-fg font-sans transition-all focus:outline-none focus:ring-2 focus:border-monokai-accent focus:ring-monokai-accent/30 disabled:opacity-50 disabled:cursor-not-allowed h-8 px-2.5 text-xs !w-auto min-w-[140px] max-w-[240px]"
+            >
+              <option
+                value=""
+              >
+                选择数据集
+              </option>
+              <option
+                value="other"
+              >
+                remaining
+              </option>
+            </select>
+          </label>
+        </div>
+        <div
+          class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-monokai-border/40"
+        >
+          <span
+            class="text-2xs font-mono text-monokai-comment"
+          >
+            尚未添加分析组件
+          </span>
+          <div
+            class="flex items-center gap-1.5"
+          />
+        </div>
+        <div>
+          missing-preview
+        </div>
+      </section>
+    </div>
+  </body>
+</html>
+
+- Expected:
+null
+
++ Received:
+<div>
+  missing-preview
+</div>
+
+ ❯ components/Dashboard/Home/HomeBoardCanvas.audit.test.tsx:38:67
+     36|   view.rerender(<HomeBoardCanvas {...props}/>);
+     37|   await screen.findByRole('option',{name:'remaining'});
+     38|   await waitFor(()=>expect(screen.queryByText('missing-preview')).toBe…
+       |                                                                   ^
+     39|   expect(screen.getByRole('combobox',{name:'浏览数据集'})).toHaveProperty('…
+     40|   expect(useAppStore.getState().activeDataset).toBeNull();
+ ❯ runWithExpensiveErrorDiagnosticsDisabled node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/config.js:47:12
+ ❯ checkCallback node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:124:77
+ ❯ Timeout.checkRealTimersCallback node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:118:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  3 failed (3)
+      Tests  3 failed | 14 passed (17)
+   Start at  07:26:41
+   Duration  27.66s (transform 11.67s, setup 652ms, import 17.53s, tests 3.62s, environment 4.87s)
+
+[ELIFECYCLE] Command failed with exit code 1.

@@ -63,8 +63,8 @@ const SkillPanelInner: React.FC<Pick<SkillPanelProps, 'onExecuteSql'>> = ({
 
       <div className="flex h-full w-full flex-col overflow-hidden border border-monokai-border bg-monokai-bg font-sans">
         {/* Navigation Tabs — Standard Segmented Control Bar */}
-        <div className="flex min-h-16 items-center justify-between px-5 sm:px-6 bg-monokai-sidebar/95 border-b border-monokai-border/80 shrink-0 select-none backdrop-blur-md shadow-xs">
-          <div className="flex items-center gap-3.5">
+        <div className="flex min-h-16 flex-wrap items-center justify-between gap-2 py-3 px-5 sm:px-6 bg-monokai-sidebar/95 border-b border-monokai-border/80 shrink-0 select-none backdrop-blur-md shadow-xs">
+          <div className="flex min-w-0 max-w-full items-center gap-3.5">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-monokai-accent/30 bg-monokai-accent/10 text-monokai-accent shadow-inner">
               <Sparkles className="h-5 w-5" aria-hidden="true" />
             </div>

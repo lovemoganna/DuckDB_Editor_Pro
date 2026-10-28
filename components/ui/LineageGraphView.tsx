@@ -5,6 +5,7 @@ import { AlertTriangle, Columns, Database, GitBranch, Table, X } from 'lucide-re
 interface LineageGraphViewProps {
   graph: DataLineageGraph;
   onClose?: () => void;
+  embedded?: boolean;
 }
 
 const RELATION_LABELS: Record<DataLineageGraph['edges'][number]['relationType'], string> = {
@@ -14,30 +15,38 @@ const RELATION_LABELS: Record<DataLineageGraph['edges'][number]['relationType'],
   AGGREGATED_BY: '聚合',
 };
 
-export const LineageGraphView: React.FC<LineageGraphViewProps> = ({ graph, onClose }) => {
+export const LineageGraphView: React.FC<LineageGraphViewProps> = ({ graph, onClose, embedded = false }) => {
   const nodesById = new Map(graph.nodes.map(node => [node.id, node]));
   const diagnostics = graph.diagnostics;
 
   return (
-    <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-xl border border-monokai-accent/20 bg-monokai-bg p-4 shadow-xl">
-      <div className="mb-4 flex items-center justify-between border-b border-monokai-accent/20 pb-3">
-        <div className="flex items-center gap-2">
-          <Database className="h-5 w-5 text-monokai-cyan" />
-          <h3 className="text-base font-bold text-monokai-fg">数据血缘与转换关系</h3>
-          <span className="rounded bg-monokai-surface px-2 py-0.5 text-[10px] text-monokai-comment">
-            {diagnostics.parser}
-          </span>
+    <div
+      className={`flex min-h-0 w-full flex-1 flex-col overflow-hidden ${
+        embedded
+          ? 'bg-transparent border-0 shadow-none p-0'
+          : 'rounded-xl border border-monokai-accent/20 bg-monokai-bg p-4 shadow-xl'
+      }`}
+    >
+      {!embedded && (
+        <div className="mb-4 flex items-center justify-between border-b border-monokai-accent/20 pb-3">
+          <div className="flex items-center gap-2">
+            <Database className="h-5 w-5 text-monokai-cyan" />
+            <h3 className="text-base font-bold text-monokai-fg">数据血缘与转换关系</h3>
+            <span className="rounded bg-monokai-surface px-2 py-0.5 text-[10px] text-monokai-comment">
+              {diagnostics.parser}
+            </span>
+          </div>
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="rounded-lg p-1 text-monokai-comment transition-colors hover:bg-monokai-accent/20 hover:text-white"
+              aria-label="关闭血缘视图"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
         </div>
-        {onClose && (
-          <button
-            onClick={onClose}
-            className="rounded-lg p-1 text-monokai-comment transition-colors hover:bg-monokai-accent/20 hover:text-white"
-            aria-label="关闭血缘视图"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        )}
-      </div>
+      )}
 
       {diagnostics.confidence !== 'exact' && (
         <div

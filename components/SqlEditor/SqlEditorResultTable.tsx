@@ -270,7 +270,7 @@ export const SqlEditorResultTable: React.FC<SqlEditorResultTableProps> = ({
         ) : (
           <div className="overflow-auto h-full w-full custom-scrollbar">
             <table className="w-full text-left text-sm whitespace-nowrap border-collapse">
-              <thead className="bg-[#242422] sticky top-0 z-10 shadow-[0_4px_12px_rgba(0,0,0,0.45)] border-b-2 border-monokai-border">
+              <thead className="bg-monokai-surface sticky top-0 z-10 shadow-[0_4px_12px_rgba(0,0,0,0.15)] border-b-2 border-monokai-border">
                 <tr>
                   {result.columns.map((c, colIdx) => {
                     const colType = result.columnTypeMap?.[c] || result.columnTypes?.[colIdx];

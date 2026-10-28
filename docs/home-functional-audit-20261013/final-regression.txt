@@ -1,0 +1,171 @@
+$ vitest run --pool=threads --maxWorkers=1 --no-file-parallelism "components/Dashboard/Home" "components/Dashboard/MissionControl" "components/Dashboard.test.tsx" "components/DashboardGrid" "components/DashboardWidget.requests.test.tsx" "components/Dashboard/QuickTablePeekDrawer.audit.test.tsx" "services/homeDashboardService.test.ts" "services/dbService.dashboard.test.ts" "services/workbench/homeCompatibility.integration.test.ts" "services/workbench/runtime.test.ts" "services/workbench/queryCompiler.test.ts" "services/workbench/datasets.test.ts" "services/workbench/fieldChart.test.ts" "services/dynamicHome.test.ts"
+
+ RUN  v4.1.10 C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor
+
+ ❯ components/Dashboard/Home/WorkspaceObjects.test.tsx (5 tests | 1 failed) 1201ms
+     × marks a canonical saved object reference as already on the board 530ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  components/Dashboard/Home/WorkspaceObjects.test.tsx > workspace content library > marks a canonical saved object reference as already on the board
+TestingLibraryElementError: Unable to find an element with the text: 已在看板. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <section
+      class="space-y-2.5 text-xs"
+    >
+      <div
+        class="flex flex-wrap gap-2 items-center"
+      >
+        <label
+          class="flex items-center gap-1.5 font-medium text-monokai-fg-muted"
+        >
+          <span
+            class="font-semibold text-monokai-fg"
+          >
+            工作台
+          </span>
+          <select
+            aria-label="工作台视图"
+            class="w-full rounded-lg border border-monokai-border/80 hover:border-monokai-border-strong bg-monokai-surface text-monokai-fg font-sans transition-all focus:outline-none focus:ring-2 focus:border-monokai-accent focus:ring-monokai-accent/30 disabled:opacity-50 disabled:cursor-not-allowed h-8 px-2.5 text-xs !w-auto min-w-[130px] max-w-full !text-xs font-medium"
+          />
+        </label>
+        <button
+          class="inline-flex shrink-0 items-center justify-center font-sans cursor-pointer transition-all duration-150 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed h-8 px-2.5 text-xs gap-1.5 rounded-lg bg-monokai-surface text-monokai-fg font-medium hover:bg-monokai-hover active:bg-monokai-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-monokai-accent/70 focus-visible:ring-offset-1 focus-visible:ring-offset-monokai-bg "
+          title="高级分析：复用已有指标、图表和分析"
+          type="button"
+        >
+          <svg
+            aria-hidden="true"
+            class="lucide lucide-plus h-4 w-4 shrink-0"
+            fill="none"
+            height="24"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            viewBox="0 0 24 24"
+            width="24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M5 12h14"
+            />
+            <path
+              d="M12 5v14"
+            />
+          </svg>
+          <span>
+            添加分析
+          </span>
+        </button>
+        <button
+          aria-expanded="false"
+          class="inline-flex shrink-0 items-center justify-center font-sans cursor-pointer transition-all duration-150 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed h-8 px-2.5 text-xs gap-1.5 rounded-lg bg-monokai-surface text-monokai-fg font-medium hover:bg-monokai-hover active:bg-monokai-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-monokai-accent/70 focus-visible:ring-offset-1 focus-visible:ring-offset-monokai-bg "
+          type="button"
+        >
+          <span>
+            视图设置
+          </span>
+        </button>
+      </div>
+    </section>
+  </div>
+  <div
+    class="fixed inset-0 z-[9999] flex bg-black/65"
+  >
+    <div
+      aria-labelledby=":r0:"
+      aria-modal="true"
+      class="fixed inset-y-0 right-0 border-l w-full max-w-2xl flex flex-col overflow-hidden border-monokai-border bg-monokai-sidebar shadow-2xl "
+      role="dialog"
+      tabindex="-1"
+    >
+      <header
+        class="flex min-h-14 shrink-0 items-center justify-between gap-3 border-b border-monokai-border/80 bg-monokai-surface px-4 py-3"
+      >
+        <div
+          class="min-w-0"
+        >
+          <h2
+            class="truncate text-sm font-semibold text-monokai-fg"
+            id=":r0:"
+          >
+            添加分析
+          </h2>
+          <p
+            class="mt-0.5 truncate text-xs text-monokai-comment"
+          >
+            复用指标、图表与分析内容，或直接创建新分析资产加入当前看板。
+          </p>
+        </div>
+        <div
+          class="flex shrink-0 items-center gap-2"
+        >
+          <button
+            aria-label="关闭内容库"
+            class="flex h-8 w-8 items-center justify-center rounded-lg text-monokai-comment hover:bg-monokai-bg hover:text-monokai-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-monokai-accent/70 focus-visible:ring-offset-1 focus-visible:ring-offset-monokai-bg"
+            title="关闭内容库"
+            type="button"
+          >
+            <svg
+              aria-hidden="true"
+              class="lucide lucide-x h-4 w-4"
+              fill="none"
+              height="24"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+              width="24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M18 6 6 18"
+              />
+              <path
+                d="m6 6 12 12"
+              />
+            </svg>
+          </button>
+        </div>
+      </header>
+      <div
+        class="min-h-0 flex-1 overflow-y-auto p-4 custom-scrollbar text-xs "
+      >
+        <div
+          class="space-y-3.5 text-xs"
+        >
+          <div
+            class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-monokai-border/80 bg-monokai-surface/60 p-2.5"
+          >
+            <div
+              class="flex items-center gap-2 text-2xs text-monokai-comment"
+            >
+              <svg
+                aria-hidden="true"
+             ...
+ ❯ Object.getElementError node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ ❯ node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ ❯ node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ components/Dashboard/Home/WorkspaceObjects.test.tsx:24:19
+     22|     fireEvent.click(screen.getByRole('button',{name:'添加分析'}));
+     23|     await screen.findByText('真实订单数');
+     24|     expect(screen.getByText('已在看板')).toBeTruthy();
+       |                   ^
+     25|   });
+     26|   it('shows a failed load inside the open library and retries without …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 24 passed (25)
+      Tests  1 failed | 115 passed (116)
+   Start at  07:32:48
+   Duration  194.21s (transform 13.90s, setup 11.06s, import 64.79s, tests 13.92s, environment 87.81s)
+
+[ELIFECYCLE] Command failed with exit code 1.

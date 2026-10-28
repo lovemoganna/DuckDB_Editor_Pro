@@ -14,6 +14,10 @@ import { duckDBService } from '../duckdbService';
 import type { ExecutionTask, QuerySnapshot } from './types';
 import { querySnapshotManager } from './querySnapshotManager';
 import { useSqlEditorStore } from '../../hooks/store/useSqlEditorStore';
+import { useAppStore } from '../../hooks/store/useAppStore';
+import { useWorkflowStore } from '../dataflow/workflowStore';
+import {splitSqlScript} from '../dataflow/sqlStructure';
+import type { ScriptExecutionContext } from '../dataflow/sqlScriptExecution';
 
 export class QueryExecutionService {
   private activeTasks: Map<string, ExecutionTask> = new Map();
@@ -35,9 +39,6 @@ export class QueryExecutionService {
       if (task.cancellationToken) {
         task.cancellationToken.abort();
       }
-      task.status = 'cancelled';
-      task.duration = performance.now() - task.startTime;
-      this.activeTasks.set(tabId, task);
       return true;
     }
     return false;
@@ -50,7 +51,7 @@ export class QueryExecutionService {
     tabId: string,
     sql: string,
     tabTitle: string,
-    options?: { explain?: boolean; isProfile?: boolean }
+    options?: { explain?: boolean; isProfile?: boolean; executionContext?: ScriptExecutionContext }
   ): Promise<{ snapshot?: QuerySnapshot; task: ExecutionTask }> {
     if (!sql.trim()) {
       throw new Error('Query cannot be empty');
@@ -64,6 +65,14 @@ export class QueryExecutionService {
     const taskId = `task_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
     const cancelToken = new AbortController();
     const startTime = performance.now();
+    const runtime = duckDBService.getRuntimeInfo();
+    const databaseName = runtime.currentDatabase;
+    const contextRevision = runtime.databaseContextRevision;
+    const sessionContextChange=splitSqlScript(sql).some(s=>['USE','DETACH'].includes(s.tokens[0]?.upper));
+    const sameContext = () => {
+      const current = duckDBService.getRuntimeInfo();
+      return (sessionContextChange||current.currentDatabase === databaseName) && current.databaseContextRevision === contextRevision;
+    };
 
     const task: ExecutionTask = {
       taskId,
@@ -86,14 +95,17 @@ export class QueryExecutionService {
     const limitClause = limitMatch ? parseInt(limitMatch[1], 10) : undefined;
 
     try {
-      const execRes = await duckDBService.queryWithMetadata(finalSql);
+      const context = options?.executionContext || { tabId, documentSql: sql, baseOffset: 0 };
+      let bindingVersion=useWorkflowStore.getState().bindingVersion;
+      if (!options?.explain && !options?.isProfile){const sync=useWorkflowStore.getState().syncFromSql(context.documentSql, tabTitle, false, tabId);bindingVersion=useWorkflowStore.getState().bindingVersion;await sync;}
+      const execRes = await duckDBService.queryWithMetadata(finalSql, options?.explain || options?.isProfile ? undefined : { ...context, bindingVersion, signal: cancelToken.signal });
       const duration = performance.now() - startTime;
 
       if (execRes.error) {
         throw new Error(execRes.error);
       }
 
-      if (task.status === 'cancelled' || cancelToken.signal.aborted) {
+      if (task.status === 'cancelled' || cancelToken.signal.aborted || !sameContext()) {
         task.status = 'cancelled';
         task.duration = duration;
         return { task };
@@ -128,11 +140,16 @@ export class QueryExecutionService {
           useSqlEditorStore.getState().addHistory({
             id: snapshotId,
             sql,
+            databaseName,
             timestamp: Date.now(),
             status: 'success',
             executionTime: duration,
             affectedRows: execRes.rows?.length,
           });
+          useAppStore.getState().bumpDashboardRefresh();
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('duckdb-sql-history-updated'));
+          }
         } catch (historyErr) {
           console.warn('[QueryExecutionService] Failed to record query history', historyErr);
         }
@@ -141,22 +158,24 @@ export class QueryExecutionService {
       task.status = 'success';
       task.duration = duration;
       task.snapshotId = snapshotId;
-      this.activeTasks.set(tabId, task);
+      if(this.activeTasks.get(tabId)?.taskId===task.taskId)this.activeTasks.set(tabId, task);
 
       return { snapshot, task };
     } catch (err: any) {
       const duration = performance.now() - startTime;
       const errorMsg = err.message || String(err);
+      if (cancelToken.signal.aborted) { task.status = 'cancelled'; task.duration = duration; return { task }; }
 
       // Parse DuckDB error line and column if available
       const lineMatch = errorMsg.match(/LINE\s+(\d+)/i);
       const colMatch = errorMsg.match(/COLUMN\s+(\d+)/i);
 
-      if (!options?.explain && !options?.isProfile && !cancelToken.signal.aborted) {
+      if (!options?.explain && !options?.isProfile && !cancelToken.signal.aborted && sameContext()) {
         try {
           useSqlEditorStore.getState().addHistory({
             id: taskId,
             sql,
+            databaseName,
             timestamp: Date.now(),
             status: 'error',
             executionTime: duration,
@@ -172,7 +191,7 @@ export class QueryExecutionService {
       task.error = errorMsg;
       task.errorLine = lineMatch ? parseInt(lineMatch[1], 10) : undefined;
       task.errorColumn = colMatch ? parseInt(colMatch[1], 10) : undefined;
-      this.activeTasks.set(tabId, task);
+      if(this.activeTasks.get(tabId)?.taskId===task.taskId)this.activeTasks.set(tabId, task);
 
       return { task };
     }

@@ -1,0 +1,146 @@
+- generic [ref=f3e1]:
+  - generic [ref=f3e3]:
+    - banner "全局工作区顶栏" [ref=f3e16]:
+      - generic [ref=f3e17]:
+        - button "🪶 DuckDB Studio PRO" [ref=f3e18] [cursor=pointer]:
+          - generic [ref=f3e19]: 🪶
+          - generic [ref=f3e21]:
+            - generic [ref=f3e22]: DuckDB Studio
+            - generic [ref=f3e23]: PRO
+        - navigation "业务领域大类" [ref=f3e25]:
+          - button "工程核心" [ref=f3e26] [cursor=pointer]
+          - button "分析洞察" [ref=f3e32] [cursor=pointer]
+          - button "知识沉淀" [ref=f3e37] [cursor=pointer]
+          - button "AI 认知" [ref=f3e42] [cursor=pointer]
+        - tablist "工程核心功能标签页" [ref=f3e48]:
+          - tab "仪表盘" [selected] [ref=f3e49] [cursor=pointer]
+          - tab "数据" [ref=f3e55] [cursor=pointer]:
+            - generic [aria-hidden] [ref=f3e699]: "2"
+          - tab "Schema" [ref=f3e61] [cursor=pointer]:
+            - generic [aria-hidden] [ref=f3e66]: "3"
+          - tab "SQL" [ref=f3e67] [cursor=pointer]:
+            - generic [aria-hidden] [ref=f3e72]: "4"
+          - tab "数据流" [ref=f3e73] [cursor=pointer]:
+            - generic [aria-hidden] [ref=f3e78]: "5"
+      - generic [ref=f3e79]:
+        - button "项目" [ref=f3e80] [cursor=pointer]
+        - button "已保存到 OPFS" [ref=f3e621] [cursor=pointer]
+        - button "AI 助手" [ref=f3e93] [cursor=pointer]
+        - button "⌘K" [ref=f3e97] [cursor=pointer]
+        - button "帮助与快捷键" [ref=f3e101] [cursor=pointer]
+        - button "切换为浅色模式" [ref=f3e104] [cursor=pointer]
+        - button "AI 模型设置" [ref=f3e105] [cursor=pointer]
+    - main [ref=f3e108]:
+      - generic [ref=f3e701]:
+        - generic [ref=f3e702]:
+          - generic [ref=f3e703]:
+            - generic [ref=f3e704]:
+              - heading "分析范围" [level=1] [ref=f3e705]
+              - generic [ref=f3e706]: /
+              - button "持久库 · acceptance" [ref=f3e707] [cursor=pointer]
+            - paragraph [ref=f3e709]: 3 个数据集 · 未知 行 · 数据规模未应用筛选
+          - generic [ref=f3e710]:
+            - button "导入数据" [ref=f3e711] [cursor=pointer]
+            - button "刷新" [ref=f3e713] [cursor=pointer]
+        - generic [ref=f3e714]:
+          - generic [ref=f3e716]:
+            - generic [ref=f3e717]:
+              - text: 工作台
+              - combobox "工作台视图" [ref=f3e718]:
+                - option "分析首页" [selected]
+            - button "添加分析" [ref=f3e719] [cursor=pointer]
+            - button "新建查询" [ref=f3e721] [cursor=pointer]
+            - generic [ref=f3e722]:
+              - text: 数据集
+              - combobox "浏览数据集" [ref=f3e723]:
+                - option "选择数据集" [selected]
+                - option "acceptance.main.dataset_a"
+                - option "acceptance.main.dataset_b"
+            - generic [ref=f3e724]:
+              - button "筛选（1）" [ref=f3e918] [cursor=pointer]
+              - generic [ref=f3e919]: status 等于 completed
+            - button "视图设置" [ref=f3e727] [cursor=pointer]
+          - generic [ref=f3e729]:
+            - generic [ref=f3e730]: 1 项分析
+            - button "编辑布局" [ref=f3e862] [cursor=pointer]
+          - generic [ref=f3e869]:
+            - generic [ref=f3e920]:
+              - generic "单场景验收 · 渠道交易金额" [ref=f3e923]
+              - button "更多组件选项 单场景验收 · 渠道交易金额" [ref=f3e926] [cursor=pointer]
+            - generic [ref=f3e929]:
+              - generic "图表绘图区" [ref=f3e930]
+              - generic "图例" [ref=f3e933]:
+                - button "USD" [pressed] [ref=f3e934] [cursor=pointer]
+        - navigation "数据状态与详情" [ref=f3e742]:
+          - button "管理数据" [ref=f3e743] [cursor=pointer]
+          - button "查看 Schema" [ref=f3e744] [cursor=pointer]
+          - button "查看数据检查" [ref=f3e745] [cursor=pointer]
+        - alert [ref=f3e746]:
+          - text: 1 个数据集的元数据未完整获取，无法获取的统计标为未知。
+          - button "重新读取元数据" [ref=f3e747] [cursor=pointer]
+          - group [ref=f3e748]:
+            - generic "查看失败原因" [ref=f3e749] [cursor=pointer]
+    - contentinfo [ref=f3e127]:
+      - generic [ref=f3e128]:
+        - generic [ref=f3e129]: DuckDB 1.33.1
+        - generic [ref=f3e132]: "|"
+        - generic [ref=f3e133]: acceptance [OPFS]
+        - generic [ref=f3e135]: "|"
+        - generic [ref=f3e136]: 持久化库
+        - generic [ref=f3e138]: "|"
+        - generic [ref=f3e139]: 3 张表
+      - generic [ref=f3e141]:
+        - generic [ref=f3e142]: 引擎就绪
+        - generic [ref=f3e146]: "|"
+        - generic [ref=f3e147]: 19:45
+        - button "刷新运行时状态" [ref=f3e148] [cursor=pointer]
+  - dialog [ref=f3e961]:
+    - banner [ref=f3e962]:
+      - generic [ref=f3e964]:
+        - heading "组件实例设置" [level=2] [ref=f3e966]
+        - paragraph [ref=f3e967]: 只修改当前放置实例；原指标与其他组件保持独立。
+      - button "关闭" [ref=f3e969] [cursor=pointer]
+    - generic [ref=f3e970]:
+      - generic [ref=f3e971]:
+        - text: 实例标题
+        - textbox "实例标题" [active] [ref=f3e972]
+      - generic [ref=f3e973]:
+        - checkbox "参与全局筛选与图表联动" [checked] [ref=f3e974]
+        - text: 参与全局筛选与图表联动
+      - generic [ref=f3e975]:
+        - text: 数据集绑定
+        - combobox "实例数据集" [ref=f3e976]:
+          - option "沿用来源定义"
+          - option "acceptance.main.dataset_a" [selected]
+          - option "acceptance.main.dataset_b"
+      - paragraph [ref=f3e977]: 重新绑定适用于从数据集创建的组件；自定义 SQL 的来源仍由 SQL 定义。
+      - heading "局部筛选" [level=3] [ref=f3e978]
+      - generic [ref=f3e980]:
+        - generic [ref=f3e981]:
+          - text: 数据集
+          - combobox "筛选数据集" [ref=f3e982]:
+            - option "选择数据集" [selected]
+            - option "acceptance.main.dataset_a"
+            - option "acceptance.main.dataset_b"
+        - generic [ref=f3e983]:
+          - text: 字段
+          - combobox "筛选字段" [ref=f3e984]:
+            - option "选择字段" [selected]
+        - generic [ref=f3e985]:
+          - text: 条件
+          - combobox "筛选条件" [ref=f3e986]:
+            - option "等于" [selected]
+            - option "不等于"
+            - option "大于等于 / 起始时间"
+            - option "小于 / 截止时间"
+            - option "小于等于"
+            - option "包含"
+            - option "为空"
+            - option "非空"
+        - generic [ref=f3e987]:
+          - text: 值
+          - textbox "筛选值" [ref=f3e988]
+        - button "添加条件" [disabled] [ref=f3e989]
+    - contentinfo [ref=f3e991]:
+      - button "取消" [ref=f3e992] [cursor=pointer]
+      - button "应用并保存实例" [ref=f3e994] [cursor=pointer]

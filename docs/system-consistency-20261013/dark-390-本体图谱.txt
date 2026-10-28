@@ -1,0 +1,86 @@
+- banner "全局工作区顶栏":
+  - button "🪶 DuckDB Studio PRO":
+    - generic: 🪶
+    - generic: DuckDB Studio
+    - generic: PRO
+  - navigation "业务领域大类":
+    - button "工程核心":
+      - generic: 工程核心
+    - button "分析洞察":
+      - generic: 分析洞察
+    - button "知识沉淀":
+      - generic: 知识沉淀
+    - button "AI 认知":
+      - generic: AI 认知
+  - tablist "AI 认知功能标签页":
+    - tab "本体图谱" [active] [selected]:
+      - generic: 本体图谱
+    - tab "技能":
+      - generic: 技能
+    - tab "能力":
+      - generic: 能力
+    - tab "推演":
+      - generic: 推演
+  - button "项目":
+    - generic: 项目
+  - button "新建表":
+    - generic: 新建表
+  - button "临时分析空间":
+    - generic: 临时分析空间
+  - button "AI 助手":
+    - generic: AI 助手
+  - button "⌘K":
+  - button "帮助与快捷键":
+  - button "切换为浅色模式":
+  - button "AI 模型设置":
+- main:
+  - button "展开本体侧栏":
+  - generic: 本体知识空间 (Ontology Studio)
+  - tablist "本体视图切换":
+    - tab "知识图谱" [selected]:
+      - generic: 知识图谱
+    - tab "数据视图":
+      - generic: 数据视图
+    - tab "实体画布":
+      - generic: 实体画布
+  - button "数据切片":
+    - generic: 数据切片
+  - button "本体建模":
+    - generic: 本体建模
+  - button "组合推演":
+    - generic: 组合推演
+  - button "推演定义":
+    - generic: 推演定义
+  - button "聚合洞察":
+    - generic: 聚合洞察
+  - generic: 加载中...
+  - text: 跳数
+  - button "1跳"
+  - button "2跳"
+  - button "3跳"
+  - button "全图"
+  - button "刷新图谱数据":
+  - img "知识图谱可视化（SVG D3 (矢量交互)）：0 个节点，0 条关系连线。"
+  - heading "本体论尚未初始化" [level=3]
+  - paragraph: 当前工作区尚未载入本体结构或种子数据。可重试初始化，或通过 AI 构建图谱。
+  - button "重试初始化":
+    - generic: 重试初始化
+  - button "AI 图谱生成":
+    - generic: AI 图谱生成
+  - button "刷新图谱":
+    - generic: 刷新图谱
+  - button "导出 CSV" [disabled]:
+    - generic: 导出 CSV
+  - button "导出 Excel" [disabled]:
+    - generic: 导出 Excel
+  - button "控制面板"
+  - button "信息面板"
+  - button "图例"
+- contentinfo:
+  - generic: DuckDB 1.33.1
+  - generic: "|"
+  - generic: memory [MEMORY]
+  - generic: 引擎就绪
+  - generic: "|"
+  - generic: 06:53
+  - button "刷新运行时状态":

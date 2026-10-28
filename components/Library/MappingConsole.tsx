@@ -303,7 +303,7 @@ export const MappingConsole: React.FC = () => {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-monokai-yellow" />
-            <span className="text-xs font-bold text-white uppercase tracking-wider">
+            <span className="text-xs font-bold text-monokai-fg uppercase tracking-wider">
               DuckDB 物理表逆向中心
             </span>
           </div>
@@ -459,7 +459,7 @@ export const MappingConsole: React.FC = () => {
             <select
               value={state.mapping.objectTable}
               onChange={(e) => updateMapping('objectTable', e.target.value)}
-              className="flex-1 bg-monokai-bg border border-monokai-border rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-monokai-accent transition-colors"
+              className="flex-1 bg-monokai-bg border border-monokai-border rounded-lg px-3 py-2 text-xs text-monokai-fg outline-none focus:border-monokai-accent transition-colors"
             >
               <option value="">-- 选择绑定物理表 --</option>
               {tables.map(t => <option key={t} value={t}>{t}</option>)}
@@ -499,7 +499,7 @@ export const MappingConsole: React.FC = () => {
                     <select
                       value={mappedVal}
                       onChange={(e) => updateColumnMapping('objectFields', f.key, e.target.value)}
-                      className="col-span-3 bg-monokai-bg border border-monokai-border rounded-lg px-2.5 py-1.5 text-xs text-white outline-none focus:border-monokai-accent transition-colors"
+                      className="col-span-3 bg-monokai-bg border border-monokai-border rounded-lg px-2.5 py-1.5 text-xs text-monokai-fg outline-none focus:border-monokai-accent transition-colors"
                     >
                       <option value="">-- 默认 --</option>
                       {cols.map(c => <option key={c} value={c}>{c}</option>)}
@@ -532,7 +532,7 @@ export const MappingConsole: React.FC = () => {
             <select
               value={state.mapping.linkTable}
               onChange={(e) => updateMapping('linkTable', e.target.value)}
-              className="flex-1 bg-monokai-bg border border-monokai-border rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-monokai-accent transition-colors"
+              className="flex-1 bg-monokai-bg border border-monokai-border rounded-lg px-3 py-2 text-xs text-monokai-fg outline-none focus:border-monokai-accent transition-colors"
             >
               <option value="">-- 选择绑定关系表 --</option>
               {tables.map(t => <option key={t} value={t}>{t}</option>)}
@@ -572,7 +572,7 @@ export const MappingConsole: React.FC = () => {
                     <select
                       value={mappedVal}
                       onChange={(e) => updateColumnMapping('linkFields', f.key, e.target.value)}
-                      className="col-span-3 bg-monokai-bg border border-monokai-border rounded-lg px-2.5 py-1.5 text-xs text-white outline-none focus:border-monokai-accent transition-colors"
+                      className="col-span-3 bg-monokai-bg border border-monokai-border rounded-lg px-2.5 py-1.5 text-xs text-monokai-fg outline-none focus:border-monokai-accent transition-colors"
                     >
                       <option value="">-- 默认 --</option>
                       {cols.map(c => <option key={c} value={c}>{c}</option>)}

@@ -52,7 +52,7 @@ export const FeatureCatalogPanel: React.FC<FeatureCatalogPanelProps> = ({
   };
 
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-[#12141e] border-r border-white/10 p-3 text-xs">
+    <div className="flex h-full flex-col overflow-hidden bg-monokai-surface border-r border-monokai-border p-3 text-xs">
       {/* Header */}
       <div className="mb-3 shrink-0">
         <div className="flex items-center justify-between">
@@ -60,7 +60,7 @@ export const FeatureCatalogPanel: React.FC<FeatureCatalogPanelProps> = ({
             <Layers className="h-4 w-4 text-monokai-cyan" />
             本体特征库
           </h2>
-          <span className="rounded bg-white/10 px-1.5 py-0.5 text-[10px] text-monokai-comment">
+          <span className="rounded bg-monokai-bg border border-monokai-border px-1.5 py-0.5 text-[10px] text-monokai-comment">
             {selectedFeatureIds.length} / {features.length}
           </span>
         </div>
@@ -77,21 +77,21 @@ export const FeatureCatalogPanel: React.FC<FeatureCatalogPanelProps> = ({
               placeholder="搜索特征名称/ID..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="w-full rounded-lg border border-white/10 bg-[#0c0d12] py-1 pl-7 pr-2 text-[10px] text-monokai-fg outline-none focus:border-monokai-accent transition-colors"
+              className="w-full rounded-lg border border-monokai-border bg-monokai-bg py-1 pl-7 pr-2 text-[10px] text-monokai-fg outline-none focus:border-monokai-accent transition-colors"
               aria-label="搜索特征"
             />
           </div>
           <button
             type="button"
             onClick={onSelectAllFeatures}
-            className="rounded bg-white/5 px-2 py-1 text-[10px] text-monokai-accent transition-colors hover:bg-white/10 cursor-pointer"
+            className="rounded bg-monokai-bg border border-monokai-border px-2 py-1 text-[10px] text-monokai-accent transition-colors hover:bg-monokai-hover cursor-pointer"
           >
             全选
           </button>
           <button
             type="button"
             onClick={onClearFeatureSelection}
-            className="rounded bg-white/5 px-2 py-1 text-[10px] text-monokai-comment transition-colors hover:bg-white/10"
+            className="rounded bg-monokai-bg border border-monokai-border px-2 py-1 text-[10px] text-monokai-comment transition-colors hover:bg-monokai-hover cursor-pointer"
           >
             清空
           </button>
@@ -101,7 +101,7 @@ export const FeatureCatalogPanel: React.FC<FeatureCatalogPanelProps> = ({
       {/* Feature list */}
       <div className="flex-1 space-y-2 overflow-auto pr-1">
         {filteredFeatures.length === 0 ? (
-          <div className="rounded-lg bg-black/20 p-4 text-center text-monokai-comment">
+          <div className="rounded-lg bg-monokai-bg border border-monokai-border p-4 text-center text-monokai-comment">
             未找到匹配的特征
           </div>
         ) : (
@@ -118,7 +118,7 @@ export const FeatureCatalogPanel: React.FC<FeatureCatalogPanelProps> = ({
                 className={`rounded-xl border transition-all duration-150 ${
                   isSelected
                     ? 'border-monokai-cyan/30 bg-monokai-cyan/[0.03]'
-                    : 'border-white/[0.07] bg-black/20 hover:border-white/20'
+                    : 'border-monokai-border bg-monokai-bg hover:border-monokai-border-light'
                 }`}
               >
                 {/* Main feature row */}
@@ -133,7 +133,7 @@ export const FeatureCatalogPanel: React.FC<FeatureCatalogPanelProps> = ({
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-1">
                       <strong className="truncate font-bold text-monokai-fg">{feature.name}</strong>
-                      <span className="shrink-0 rounded bg-white/10 px-1.5 py-0.5 text-[9px] font-mono text-monokai-yellow">
+                      <span className="shrink-0 rounded bg-monokai-surface border border-monokai-border px-1.5 py-0.5 text-[9px] font-mono text-monokai-yellow">
                         {feature.valueType}
                       </span>
                     </div>
@@ -152,7 +152,7 @@ export const FeatureCatalogPanel: React.FC<FeatureCatalogPanelProps> = ({
                     </div>
 
                     {/* Coverage bar */}
-                    <div className="mt-1.5 h-1 w-full rounded-full bg-white/5">
+                    <div className="mt-1.5 h-1 w-full rounded-full bg-monokai-surface">
                       <div
                         className="h-full rounded-full bg-monokai-cyan/60"
                         style={{ width: `${coverage}%` }}
@@ -163,8 +163,8 @@ export const FeatureCatalogPanel: React.FC<FeatureCatalogPanelProps> = ({
 
                 {/* Expanded feature definition & null semantics */}
                 {isExpanded && (
-                  <div className="border-t border-white/[0.08] bg-black/30 p-2.5 text-[11px] space-y-2">
-                    <div className="rounded-lg bg-white/5 p-2 space-y-1">
+                  <div className="border-t border-monokai-border bg-monokai-surface/60 p-2.5 text-[11px] space-y-2">
+                    <div className="rounded-lg bg-monokai-bg border border-monokai-border p-2 space-y-1">
                       <div className="font-bold text-monokai-cyan">特征元数据定义</div>
                       <div>唯一标识 ID：<code className="text-monokai-yellow">{feature.id}</code></div>
                       <div>数据来源：<span className="text-monokai-fg">{explanation.sourceDescription}</span></div>
@@ -184,7 +184,7 @@ export const FeatureCatalogPanel: React.FC<FeatureCatalogPanelProps> = ({
 
                     {/* Reliability & Manual weight sliders */}
                     {isSelected && (
-                      <div className="mt-2 grid grid-cols-2 gap-2 border-t border-white/10 pt-2 text-[10px]">
+                      <div className="mt-2 grid grid-cols-2 gap-2 border-t border-monokai-border pt-2 text-[10px]">
                         <div>
                           <span className="text-monokai-comment">可靠度:</span>
                           <input
@@ -194,7 +194,7 @@ export const FeatureCatalogPanel: React.FC<FeatureCatalogPanelProps> = ({
                             step="0.1"
                             value={featureReliability[feature.id] ?? 1}
                             onChange={e => onUpdateReliability(feature.id, Number(e.target.value))}
-                            className="ml-1 w-12 rounded bg-black/40 px-1 py-0.5 text-monokai-fg border border-white/10"
+                            className="ml-1 w-12 rounded bg-monokai-bg px-1 py-0.5 text-monokai-fg border border-monokai-border"
                             aria-label={`${feature.name} 可靠度`}
                           />
                         </div>

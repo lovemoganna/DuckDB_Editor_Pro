@@ -78,6 +78,7 @@ describe('CopilotSidebar Component', () => {
   const defaultProps = {
     onNavigate: vi.fn(),
     currentTable: 'customers',
+    tables: ['customers', 'orders'],
     activeTab: Tab.DASHBOARD,
   };
 

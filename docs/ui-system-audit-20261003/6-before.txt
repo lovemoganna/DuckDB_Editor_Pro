@@ -1,0 +1,101 @@
+- banner "全局工作区顶栏":
+  - button "🪶 DuckDB Studio PRO":
+    - generic: 🪶
+    - generic: DuckDB Studio
+    - generic: PRO
+  - navigation "业务领域大类":
+    - button "工程核心":
+      - generic: 工程核心
+    - button "分析洞察":
+      - generic: 分析洞察
+    - button "知识沉淀":
+      - generic: 知识沉淀
+    - button "AI 认知":
+      - generic: AI 认知
+  - tablist "分析洞察功能标签页":
+    - tab "指标" [active] [selected]:
+      - generic: 指标
+    - tab "可视化":
+      - generic: 可视化
+    - tab "分析":
+      - generic: 分析
+    - tab "历史":
+      - generic: 历史
+    - tab "审计":
+      - generic: 审计
+  - button "项目":
+    - generic: 项目
+  - button "sql_funds_flow 已保存到 OPFS":
+    - generic: sql_funds_flow
+    - generic: 已保存到 OPFS
+  - button "AI 助手 Ctrl+I":
+    - generic: AI 助手
+    - generic: Ctrl+I
+  - button "⌘K":
+  - button "帮助与快捷键":
+  - button "切换为浅色模式":
+  - button "AI 模型设置":
+- main:
+  - heading "语义指标库 (Semantic Metrics)" [level=1]
+  - generic: 2 个指标包
+  - paragraph: 基于 DuckDB 的声明式语义指标建模与多维分析管理中心
+  - button "仪表盘":
+    - generic: 仪表盘
+  - button "从真实字段生成":
+    - generic: 从真实字段生成
+  - button "导入指标包":
+    - generic: 导入指标包
+  - button "新建指标包":
+    - generic: 新建指标包
+  - button "指标建模工具":
+    - generic: 指标建模工具
+  - textbox "搜索指标包名称或描述..."
+  - 'button "main · 自动发现 38 个指标 实际数据库结构自动生成；支持修改定义，重新发现不会覆盖修改。不同单位分组展示。 依赖表: crypto_transactions exchange_rates fiat_transactions life_action life_canvas_edge life_canvas_state life_insight life_introspection life_link life_link_type life_object life_object_type users 导出指标包 进入详细内容"':
+    - heading "main · 自动发现" [level=3]
+    - generic: 38 个指标
+    - paragraph: 实际数据库结构自动生成；支持修改定义，重新发现不会覆盖修改。不同单位分组展示。
+    - generic: "依赖表:"
+    - generic: crypto_transactions
+    - generic: exchange_rates
+    - generic: fiat_transactions
+    - generic: life_action
+    - generic: life_canvas_edge
+    - generic: life_canvas_state
+    - generic: life_insight
+    - generic: life_introspection
+    - generic: life_link
+    - generic: life_link_type
+    - generic: life_object
+    - generic: life_object_type
+    - generic: users
+    - button "导出指标包":
+    - button "进入详细内容":
+      - generic: 进入详细内容
+  - 'button "资金业务 · 统一指标 12 个指标 Executive_Dashboard 业务结构；查询四张真实表，保留单位与来源 依赖表: users fiat_transactions crypto_transactions exchange_rates 导出指标包 进入详细内容"':
+    - heading "资金业务 · 统一指标" [level=3]
+    - generic: 12 个指标
+    - paragraph: Executive_Dashboard 业务结构；查询四张真实表，保留单位与来源
+    - generic: "依赖表:"
+    - generic: users
+    - generic: fiat_transactions
+    - generic: crypto_transactions
+    - generic: exchange_rates
+    - button "导出指标包":
+    - button "进入详细内容":
+      - generic: 进入详细内容
+- contentinfo:
+  - generic: DuckDB 1.33.1
+  - generic: "|"
+  - generic: sql_funds_flow [OPFS]
+  - generic: "|"
+  - generic: 持久化库
+  - generic: "|"
+  - generic: 13 张表
+  - generic: "|"
+  - generic: 13 个活动表
+  - generic: "|"
+  - generic: "内存: 1.75 MB / 3.1 GiB"
+  - generic: 引擎就绪
+  - generic: "|"
+  - generic: 18:32
+  - button "刷新运行时状态":

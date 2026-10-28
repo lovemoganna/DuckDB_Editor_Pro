@@ -1,0 +1,10 @@
+$ vitest run --pool=threads --maxWorkers=1 --no-file-parallelism "components/StructureTab.test.tsx" "components/skills/SkillPanel.test.tsx" "components/skills/DuckDBGuide.test.tsx"
+
+ RUN  v4.1.10 C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor
+
+
+ Test Files  1 passed (1)
+      Tests  12 passed (12)
+   Start at  01:16:17
+   Duration  86.65s (transform 1.55s, setup 5.02s, import 21.21s, tests 945ms, environment 39.20s)
+

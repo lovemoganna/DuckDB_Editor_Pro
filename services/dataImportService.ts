@@ -1,8 +1,11 @@
 import { duckDBService } from './duckdbService';
 import { workbookIO, WorkbookFile } from './workbookIO';
+import { validateDuckDBDatabaseFile } from './workspaceDatabaseFile';
+import { quoteIdent, quoteLiteral } from './databaseCatalog';
+import { allocateImportTableNames, allocateExcelTableNames, cleanIdentifier } from './importTableNames';
 
 export type ImportSourceMode = 'local' | 'url' | 'paste';
-export type ImportFileFormat = 'CSV' | 'TSV' | 'JSON' | 'Parquet' | 'Excel';
+export type ImportFileFormat = 'CSV' | 'TSV' | 'JSON' | 'Parquet' | 'Excel' | 'DuckDB';
 export type ConflictStrategy = 'replace' | 'append' | 'fail';
 
 export type ImportLifecycleState =
@@ -124,6 +127,7 @@ export function detectFormatFromName(name: string): ImportFileFormat {
       ).toLowerCase();
 
       if (formatParam === 'xlsx' || formatParam === 'xls') return 'Excel';
+      if (formatParam === 'duckdb') return 'DuckDB';
       if (formatParam === 'parquet') return 'Parquet';
       if (formatParam === 'json' || formatParam === 'jsonl') return 'JSON';
       if (formatParam === 'tsv' || formatParam === 'tab') return 'TSV';
@@ -135,6 +139,7 @@ export function detectFormatFromName(name: string): ImportFileFormat {
 
       const pathname = parsed.pathname.toLowerCase();
       if (pathname.endsWith('.xlsx') || pathname.endsWith('.xls')) return 'Excel';
+      if (pathname.endsWith('.duckdb')) return 'DuckDB';
       if (pathname.endsWith('.parquet')) return 'Parquet';
       if (pathname.endsWith('.json') || pathname.endsWith('.jsonl')) return 'JSON';
       if (pathname.endsWith('.tsv') || pathname.endsWith('.tab')) return 'TSV';
@@ -146,6 +151,7 @@ export function detectFormatFromName(name: string): ImportFileFormat {
 
   const cleanName = trimmed.split('?')[0].split('#')[0].toLowerCase();
   if (cleanName.endsWith('.parquet')) return 'Parquet';
+  if (cleanName.endsWith('.duckdb')) return 'DuckDB';
   if (cleanName.endsWith('.json') || cleanName.endsWith('.jsonl')) return 'JSON';
   if (cleanName.endsWith('.tsv') || cleanName.endsWith('.tab')) return 'TSV';
   if (cleanName.endsWith('.xlsx') || cleanName.endsWith('.xls')) return 'Excel';
@@ -153,6 +159,7 @@ export function detectFormatFromName(name: string): ImportFileFormat {
   if (trimmed.includes('?')) {
     const queryPart = trimmed.split('?')[1].toLowerCase();
     if (queryPart.includes('format=xlsx') || queryPart.includes('format=xls')) return 'Excel';
+    if (queryPart.includes('format=duckdb')) return 'DuckDB';
     if (queryPart.includes('format=parquet')) return 'Parquet';
     if (queryPart.includes('format=json')) return 'JSON';
     if (queryPart.includes('format=tsv')) return 'TSV';
@@ -291,8 +298,8 @@ export async function fetchRemoteFile(url: string, format?: ImportFileFormat): P
     }
   }
 
-  if (!fileName.toLowerCase().endsWith('.xlsx') && !fileName.toLowerCase().endsWith('.xls')) {
-    fileName += '.xlsx';
+  if (!fileName.toLowerCase().endsWith('.xlsx') && !fileName.toLowerCase().endsWith('.xls') && !fileName.toLowerCase().endsWith('.duckdb')) {
+    fileName += format === 'DuckDB' ? '.duckdb' : '.xlsx';
   }
 
   return {
@@ -306,11 +313,30 @@ export async function fetchRemoteFile(url: string, format?: ImportFileFormat): P
 
 class DataImportService {
   private activeVirtualFiles = new Set<string>();
+  private activeAttachedCatalogs = new Set<string>();
+  private previewQueue: Promise<unknown> = Promise.resolve();
+
+  private enqueuePreview<T>(operation: () => Promise<T>): Promise<T> {
+    const next = this.previewQueue.then(operation);
+    this.previewQueue = next.catch(() => undefined);
+    return next;
+  }
 
   /**
-   * 清理当前导入会话中创建的临时虚拟文件
+   * 清理当前导入会话中创建的临时虚拟文件与临时挂载库
    */
   async cleanupVirtualFiles(): Promise<void> {
+    return this.enqueuePreview(() => this.cleanupVirtualFilesNow());
+  }
+
+  private async cleanupVirtualFilesNow(): Promise<void> {
+    for (const alias of this.activeAttachedCatalogs) {
+      try {
+        await duckDBService.query(`DETACH DATABASE IF EXISTS ${alias};`);
+      } catch {}
+    }
+    this.activeAttachedCatalogs.clear();
+
     for (const name of this.activeVirtualFiles) {
       await duckDBService.dropFile(name);
     }
@@ -334,12 +360,13 @@ class DataImportService {
     }
 
     const sheetsMeta: ExcelSheetMetadata[] = [];
+    const allocatedTableNames = allocateExcelTableNames(parsedSheets, fileName);
     const baseCleanName = fileName.split('.')[0].replace(/[^a-zA-Z0-9_\u4e00-\u9fa5]/g, '_').replace(/^_+/, '') || 'imported';
 
     for (let i = 0; i < parsedSheets.length; i++) {
       const sheet = parsedSheets[i];
       const cleanSheetName = sheet.name.replace(/[^a-zA-Z0-9_\u4e00-\u9fa5]/g, '_').replace(/^_+/, '') || `sheet_${i + 1}`;
-      const sheetTargetName = parsedSheets.length === 1 ? `${baseCleanName}_imported` : `${baseCleanName}_${cleanSheetName}`;
+      const sheetTargetName = allocatedTableNames[i];
 
       if (sheet.isEmpty || !sheet.csvText.trim() || sheet.rowCount === 0) {
         sheetsMeta.push({
@@ -427,6 +454,127 @@ class DataImportService {
   }
 
   /**
+   * 处理 DuckDB 数据库文件，提取所有数据表、列结构与数据样本
+   */
+  async processDuckDbTables(
+    file: File | { arrayBuffer(): Promise<ArrayBuffer>; size: number; name: string },
+    fileName: string,
+    filePath: string,
+    fileSizeBytes: number,
+    lastModified: string,
+    _options: ParseOptions
+  ): Promise<FileMetadataResult> {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    try {
+      validateDuckDBDatabaseFile(bytes);
+    } catch {
+      throw new Error(`文件 "${fileName}" 不是有效的 DuckDB 数据库文件格式`);
+    }
+
+    const tempVFile = `duckdb_temp_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.duckdb`;
+    await duckDBService.registerFileBuffer(tempVFile, bytes);
+    this.activeVirtualFiles.add(tempVFile);
+
+    try {
+      const tempAlias = `_import_db_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+      await duckDBService.query(`ATTACH '${tempVFile}' AS ${tempAlias} (READ_ONLY);`);
+      this.activeAttachedCatalogs.add(tempAlias);
+
+      const tableRows = await duckDBService.query(`
+        SELECT table_schema, table_name
+        FROM information_schema.tables
+        WHERE table_catalog = '${tempAlias}'
+          AND table_schema NOT IN ('information_schema', 'pg_catalog')
+        ORDER BY (table_schema = 'main') DESC, table_name;
+      `);
+
+      if (!tableRows || tableRows.length === 0) {
+        throw new Error(`DuckDB 数据库文件 (${fileName}) 中未发现包含数据的数据表`);
+      }
+
+      const tablesMeta: ExcelSheetMetadata[] = [];
+      const baseCleanName = fileName.replace(/\.duckdb$/i, '');
+      const targetNames = allocateImportTableNames(baseCleanName, tableRows.map(row => ({ schema: String(row.table_schema), name: String(row.table_name) })));
+
+      for (let i = 0; i < tableRows.length; i++) {
+        const row = tableRows[i];
+        const tSchema = String(row.table_schema || 'main');
+        const tName = String(row.table_name || '');
+        const targetTableName = targetNames[i];
+        const rawSqlSource = [tempAlias, tSchema, tName].map(quoteIdent).join('.');
+
+        let tableCols: ColumnMappingItem[] = [];
+        let tablePreview: Record<string, any>[] = [];
+        let rowCount = 0;
+
+        try {
+          const describeRows = await duckDBService.query(`DESCRIBE SELECT * FROM ${rawSqlSource};`);
+          tablePreview = await duckDBService.query(`SELECT * FROM ${rawSqlSource} LIMIT 100;`);
+          const countRes = await duckDBService.query(`SELECT count(*) as cnt FROM ${rawSqlSource};`);
+          rowCount = Number(countRes[0]?.cnt ?? tablePreview.length);
+          const firstR = tablePreview[0] || {};
+          tableCols = (describeRows || []).map((col: any, colIdx: number) => {
+            const colName = String(col.column_name ?? `col_${colIdx + 1}`);
+            const rawType = String(col.column_type ?? 'VARCHAR').toUpperCase();
+            const isNull = col.null === 'YES' || col.null === true || col.null === 'true';
+            const sample = firstR[colName] !== undefined && firstR[colName] !== null
+              ? (typeof firstR[colName] === 'object' ? JSON.stringify(firstR[colName]) : String(firstR[colName]))
+              : '-';
+            return {
+              index: colIdx + 1,
+              sourceName: colName,
+              targetName: colName,
+              inferredType: rawType,
+              overrideType: rawType,
+              nullable: isNull,
+              sampleValue: sample,
+            };
+          });
+        } catch (e) {
+          await this.cleanupVirtualFilesNow();
+          throw new Error(`无法解析 DuckDB 表 ${tSchema}.${tName}: ${(e as Error).message}`);
+        }
+
+        tablesMeta.push({
+          name: tableRows.some(other => other !== row && String(other.table_name).toLowerCase() === tName.toLowerCase()) ? `${tSchema}.${tName}` : tName,
+          targetTableName,
+          rowCount,
+          columnCount: tableCols.length,
+          columns: tableCols,
+          previewRows: tablePreview,
+          rawSqlSource,
+          isEmpty: rowCount === 0,
+          selected: true,
+        });
+      }
+
+      const activeTable = tablesMeta.find(t => !t.isEmpty) || tablesMeta[0];
+      const totalRowCount = tablesMeta.reduce((acc, t) => acc + t.rowCount, 0);
+
+      return {
+        fileName,
+        filePath,
+        fileSizeBytes,
+        formattedSize: formatBytes(fileSizeBytes),
+        rowCount: totalRowCount,
+        columnCount: activeTable?.columnCount || 0,
+        encoding: 'Binary',
+        hasHeader: true,
+        format: 'DuckDB',
+        lastModified,
+        columns: activeTable?.columns || [],
+        previewRows: activeTable?.previewRows || [],
+        rawSqlSource: activeTable?.rawSqlSource || '',
+        sheets: tablesMeta,
+        activeSheetName: activeTable?.name,
+      };
+    } catch (error) {
+      await this.cleanupVirtualFilesNow();
+      throw error;
+    }
+  }
+
+  /**
    * 嗅探与解析数据源元数据、列结构及前 100 行样本
    */
   async sniffSource(
@@ -436,7 +584,17 @@ class DataImportService {
     text: string,
     options: ParseOptions
   ): Promise<FileMetadataResult> {
-    await this.cleanupVirtualFiles();
+    return this.enqueuePreview(() => this.sniffSourceNow(mode, file, url, text, options));
+  }
+
+  private async sniffSourceNow(
+    mode: ImportSourceMode,
+    file: File | null,
+    url: string,
+    text: string,
+    options: ParseOptions,
+  ): Promise<FileMetadataResult> {
+    await this.cleanupVirtualFilesNow();
 
     let virtualFileName = '';
     let rawSqlSource = '';
@@ -458,6 +616,8 @@ class DataImportService {
 
       if (format === 'Excel') {
         return await this.processExcelSheets(file, fileName, filePath, fileSizeBytes, lastModified, options);
+      } else if (format === 'DuckDB' || file.name.toLowerCase().endsWith('.duckdb')) {
+        return await this.processDuckDbTables(file, fileName, filePath, fileSizeBytes, lastModified, options);
       } else {
         virtualFileName = `local_${Date.now()}_${file.name}`;
         await duckDBService.registerFileHandle(virtualFileName, file);
@@ -480,7 +640,11 @@ class DataImportService {
       if (!url.trim()) throw new Error('远程 URL 不能为空');
       const normalizedUrl = normalizeRemoteUrl(url, format);
       const detectedFmt = detectFormatFromName(normalizedUrl);
-      const effectiveFormat = format === 'Excel' || detectedFmt === 'Excel' ? 'Excel' : format;
+      const effectiveFormat = format === 'Excel' || detectedFmt === 'Excel'
+        ? 'Excel'
+        : format === 'DuckDB' || detectedFmt === 'DuckDB'
+        ? 'DuckDB'
+        : format;
 
       if (effectiveFormat === 'Excel') {
         const fetched = await fetchRemoteFile(normalizedUrl, 'Excel');
@@ -497,6 +661,27 @@ class DataImportService {
 
         return await this.processExcelSheets(
           workbookFile,
+          fileName,
+          filePath,
+          fileSizeBytes,
+          lastModified,
+          options
+        );
+      } else if (effectiveFormat === 'DuckDB') {
+        const fetched = await fetchRemoteFile(normalizedUrl, 'DuckDB');
+        fileName = fetched.fileName;
+        fileSizeBytes = fetched.size;
+        filePath = normalizedUrl;
+        lastModified = '远程资源 (Remote)';
+
+        const duckdbFile = {
+          name: fetched.fileName,
+          size: fetched.size,
+          arrayBuffer: async () => fetched.buffer,
+        };
+
+        return await this.processDuckDbTables(
+          duckdbFile,
           fileName,
           filePath,
           fileSizeBytes,
@@ -605,6 +790,9 @@ class DataImportService {
     if (format === 'JSON') {
       return `read_json_auto('${virtualFileName}')`;
     }
+    if (format === 'DuckDB') {
+      return `'${virtualFileName}'`;
+    }
     // CSV / TSV / Default
     const opts: string[] = [];
     opts.push(`header=${options.header ? 'true' : 'false'}`);
@@ -646,16 +834,17 @@ class DataImportService {
       const res = await duckDBService.query(`
         SELECT table_name 
         FROM information_schema.tables 
-        WHERE table_schema = '${cleanSchema.replace(/'/g, "''")}' 
-          AND table_name = '${cleanTable.replace(/'/g, "''")}'
+        WHERE table_catalog = current_database()
+          AND lower(table_schema) = lower(${quoteLiteral(cleanSchema)})
+          AND lower(table_name) = lower(${quoteLiteral(cleanTable)})
       `);
       tableExists = res && res.length > 0;
       if (tableExists) {
-        const countRes = await duckDBService.query(`SELECT count(*) as cnt FROM "${cleanSchema}"."${cleanTable}";`);
+        const countRes = await duckDBService.query(`SELECT count(*) as cnt FROM ${quoteIdent(cleanSchema)}.${quoteIdent(cleanTable)};`);
         existingRowCount = Number(countRes[0]?.cnt || 0);
       }
-    } catch {
-      tableExists = false;
+    } catch (error) {
+      return { valid: false, error: `无法校验目标表: ${(error as Error).message}`, tableExists };
     }
 
     if (tableExists) {
@@ -673,8 +862,8 @@ class DataImportService {
         try {
           const targetCols = await duckDBService.getTableColumnDefinitions(cleanSchema, cleanTable);
           const targetColNames = new Set(targetCols.map(c => c.name.toLowerCase()));
-          const missingCols = columns.filter(c => !targetColNames.has((c.overrideType ? c.targetName : c.sourceName).toLowerCase()));
-          if (missingCols.length > 0 && targetCols.length !== columns.length) {
+          const missingCols = columns.filter(c => !targetColNames.has(c.targetName.toLowerCase()));
+          if (missingCols.length > 0) {
             return {
               valid: false,
               error: `列结构不兼容: 现有表有 ${targetCols.length} 列，而导入数据有 ${columns.length} 列 (缺失匹配列: ${missingCols.map(c => c.targetName).join(', ')})`,
@@ -713,18 +902,19 @@ class DataImportService {
     const cleanSchema = schema.trim() || 'main';
     const cleanTable = tableName.trim();
 
+    const target = `${quoteIdent(cleanSchema)}.${quoteIdent(cleanTable)}`;
+
     // 1. 检查是否存在
     const existingTables = await duckDBService.getTableList(cleanSchema);
-    const tableExists = existingTables.includes(cleanTable);
+    const tableExists = existingTables.some(name => name.toLowerCase() === cleanTable.toLowerCase());
 
     if (tableExists && conflictStrategy === 'fail') {
       throw new Error(`目标表 "${cleanSchema}.${cleanTable}" 已存在，策略为 Fail If Exists，导入终止`);
     }
 
     // 2. 如果是覆盖替换且表存在，先 DROP TABLE
-    if (tableExists && conflictStrategy === 'replace') {
-      await duckDBService.query(`DROP TABLE IF EXISTS "${cleanSchema}"."${cleanTable}";`);
-    }
+    const dropSql = tableExists && conflictStrategy === 'replace'
+      ? `DROP TABLE ${quoteIdent(cleanSchema)}.${quoteIdent(cleanTable)};` : '';
 
     // 3. 构建 SELECT 投影与类型 CAST 语句
     const projections = columns.length > 0
@@ -744,27 +934,27 @@ class DataImportService {
 
     if (isAppend) {
       const targetColsList = columns.map(c => `"${c.targetName.replace(/"/g, '""')}"`).join(', ');
-      executeSql = `INSERT INTO "${cleanSchema}"."${cleanTable}" (${targetColsList})\nSELECT\n    ${projections}\nFROM ${rawSqlSource};`;
+      executeSql = `INSERT INTO ${target}${targetColsList ? ` (${targetColsList})` : ''}\nSELECT\n    ${projections}\nFROM ${rawSqlSource};`;
     } else {
-      executeSql = `CREATE TABLE "${cleanSchema}"."${cleanTable}" AS\nSELECT\n    ${projections}\nFROM ${rawSqlSource};`;
+      executeSql = `CREATE TABLE ${target} AS\nSELECT\n    ${projections}\nFROM ${rawSqlSource};`;
     }
 
     // 4. 执行写入
-    await duckDBService.query(executeSql);
+    await duckDBService.executeTransaction([dropSql, executeSql].filter(Boolean));
 
     // 5. 严格物理验真 (Verification)
     // 5.1 验证表是否存在
     const verifyTables = await duckDBService.getTableList(cleanSchema);
-    if (!verifyTables.includes(cleanTable)) {
+    if (!verifyTables.some(name => name.toLowerCase() === cleanTable.toLowerCase())) {
       throw new Error(`物理验真失败: 数据表 "${cleanSchema}.${cleanTable}" 未在数据库中成功创建`);
     }
 
     // 5.2 验证行数
-    const countRes = await duckDBService.query(`SELECT count(*) as row_count FROM "${cleanSchema}"."${cleanTable}";`);
+    const countRes = await duckDBService.query(`SELECT count(*) as row_count FROM ${target};`);
     const writtenRows = Number(countRes[0]?.row_count || 0);
 
     // 5.3 获取样本验证
-    const sampleRows = await duckDBService.query(`SELECT * FROM "${cleanSchema}"."${cleanTable}" LIMIT 3;`);
+    const sampleRows = await duckDBService.query(`SELECT * FROM ${target} LIMIT 3;`);
 
     // 6. 审计日志记录
     const cleanSqlForAudit = executeSql.substring(0, 1000).replace(/'/g, "''");
@@ -824,6 +1014,12 @@ class DataImportService {
         throw new Error(`目标表名重复: "${name}"。请在各工作表映射中指定不同的表名。`);
       }
       seen.add(name.toLowerCase());
+    }
+
+    // Validate every destination before writing the first table.
+    for (const item of sheetsToImport) {
+      const check = await this.validateTarget(schema, item.tableName, conflictStrategy, item.columns);
+      if (!check.valid) throw new Error(check.error);
     }
 
     const results: ImportExecutionResult[] = [];

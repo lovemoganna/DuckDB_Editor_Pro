@@ -24,6 +24,8 @@ import { OntologyDraftPayload } from '../services/ontologyAiService';
 
 import seedOntologyLv1 from '../data/ontology/seed-ontology-lv1.json';
 import seedOntologyLv2 from '../data/ontology/seed-ontology-lv2.json';
+import { saveModelingDraft, readModelingSchema } from '../services/ontologyModelingPersistence';
+import type { OntologyModelingResult } from '../services/ontologyModelingService';
 import seedOntologyLv3 from '../data/ontology/seed-ontology-lv3.json';
 import seedOntologyLv4 from '../data/ontology/seed-ontology-lv4.json';
 import seedOntologyLv5 from '../data/ontology/seed-ontology-lv5.json';
@@ -143,6 +145,8 @@ export interface LifeLinkType {
   id: number;
   name: string;
   description: string;
+  fromType?: string;
+  toType?: string;
 }
 
 export interface LifeLink {
@@ -547,14 +551,20 @@ function useOntologyStoreInternal() {
 
   const pendingPositionsRef = useRef<SavedPositions>({});
   const dbWriteTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const loadedContextRevisionRef = useRef<number | undefined>(undefined);
+  const positionsContextRevisionRef = useRef<number | undefined>(undefined);
 
   const flushPositionsToDb = useCallback(async () => {
     const positionsToWrite = pendingPositionsRef.current;
     pendingPositionsRef.current = {};
     if (Object.keys(positionsToWrite).length === 0) return;
+    const revision = positionsContextRevisionRef.current;
+    if (duckDBService.getRuntimeInfo?.().databaseContextRevision !== revision) return;
 
     try {
+      const scope = await duckDBService.getCurrentCatalogAndSchema?.();
       for (const [nodeIdStr, pos] of Object.entries(positionsToWrite)) {
+        if (duckDBService.getRuntimeInfo?.().databaseContextRevision !== revision) return;
         let nodeId: number | null = null;
         if (/^\d+$/.test(nodeIdStr)) {
           nodeId = Number(nodeIdStr);
@@ -586,7 +596,8 @@ function useOntologyStoreInternal() {
           0,
           0,
           'object',
-          { is_locked: isLocked }
+          { is_locked: isLocked },
+          scope
         );
       }
     } catch (err) {
@@ -595,6 +606,9 @@ function useOntologyStoreInternal() {
   }, []);
 
   const queuePositionsForDb = useCallback((positions: SavedPositions) => {
+    const revision = duckDBService.getRuntimeInfo?.().databaseContextRevision;
+    if (revision !== loadedContextRevisionRef.current) return;
+    positionsContextRevisionRef.current = revision;
     pendingPositionsRef.current = { ...pendingPositionsRef.current, ...positions };
     if (dbWriteTimeoutRef.current) {
       clearTimeout(dbWriteTimeoutRef.current);
@@ -612,6 +626,7 @@ function useOntologyStoreInternal() {
 
   // ── Load all ontology data from DuckDB ──
   const loadData = useCallback(async () => {
+    const revision = duckDBService.getRuntimeInfo?.().databaseContextRevision;
     try {
       const tables = await duckDBService.getTables();
 
@@ -684,6 +699,13 @@ function useOntologyStoreInternal() {
         ...lt,
         id: Number(lt.id)
       }));
+      if (tables.includes(`${stateRef.current.mapping.objectTypeTable}__modeling_schema`)) {
+        const definition = await readModelingSchema(duckDBService.query.bind(duckDBService), stateRef.current.mapping);
+        linkTypes.forEach((lt: LifeLinkType) => {
+          const schema = definition?.linkTypes.find(t => t.sourceId === lt.id);
+          if (schema) { lt.fromType = schema.fromType; lt.toType = schema.toType; }
+        });
+      }
       const links = linksRaw.map((l: any) => ({
         ...l,
         id: Number(l.id),
@@ -784,6 +806,8 @@ function useOntologyStoreInternal() {
         console.warn('Failed to load canvas positions from DuckDB:', e);
       }
 
+      if (duckDBService.getRuntimeInfo?.().databaseContextRevision !== revision) return;
+      loadedContextRevisionRef.current = revision;
       dispatchAction({
         type: 'SET_DATA',
         objectTypes: objectTypes as any, objects: objects as any, linkTypes: linkTypes as any, links: links as any, actions: actions as any, introspections: introspections as any, insights: insights as any,
@@ -892,6 +916,16 @@ function useOntologyStoreInternal() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+  useEffect(() => {
+    const reload = () => {
+      if (dbWriteTimeoutRef.current) clearTimeout(dbWriteTimeoutRef.current);
+      pendingPositionsRef.current = {};
+      loadedContextRevisionRef.current = undefined;
+      void refresh();
+    };
+    window.addEventListener('duckdb-database-changed', reload);
+    return () => window.removeEventListener('duckdb-database-changed', reload);
+  }, [refresh]);
 
   // ── CRUD Operations ──
   const createObjectType = useCallback(async (name: string, description: string) => {
@@ -1043,6 +1077,11 @@ function useOntologyStoreInternal() {
     links: Array<{ from: string; to: string; linkType: string; weight?: number }>;
     actions?: Array<{ name: string; objectName?: string; description?: string; status?: string }>;
   }, options?: { replace?: boolean }) => {
+    if ('modelingVersion' in result && result.modelingVersion === 1) {
+      await saveModelingDraft(duckDBService, state.mapping, result as OntologyModelingResult, options?.replace);
+      await refresh();
+      return;
+    }
     if (options?.replace) {
       try {
         await duckDBService.query(`DELETE FROM ${state.mapping.actionTable}`);

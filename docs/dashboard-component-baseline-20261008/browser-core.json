@@ -1,0 +1,35 @@
+[
+  {
+    "step": "refresh-1",
+    "net": "false",
+    "dataset": "table:[\"sql_funds_flow\",\"main\",\"fiat_transactions\"]",
+    "values": [
+      {
+        "present": true,
+        "value": "104,270 USD"
+      },
+      {
+        "present": true,
+        "value": "13,000 USDT"
+      },
+      {
+        "present": true,
+        "value": "86%"
+      },
+      {
+        "present": true,
+        "value": "47,730 USD"
+      }
+    ]
+  },
+  {
+    "step": "refresh-2",
+    "net": "false",
+    "dataset": "table:[\"sql_funds_flow\",\"main\",\"fiat_transactions\"]"
+  },
+  {
+    "step": "refresh-3",
+    "net": "false",
+    "dataset": "table:[\"sql_funds_flow\",\"main\",\"fiat_transactions\"]"
+  }
+]

@@ -134,7 +134,8 @@ describe('Pivot Enhanced Features (P0 & P1)', () => {
         nullDisplay: 'zero',
       };
       const queryKey = pivotQueryKey(def);
-      expect(queryKey).toContain('"nullDisplay":"zero"');
+      expect(queryKey).toBe(pivotQueryKey({...def,nullDisplay:'dash'}));
+      expect(pivotToSpec(def).visual.pivot).toMatchObject({nullDisplay:'zero'});
     });
   });
 

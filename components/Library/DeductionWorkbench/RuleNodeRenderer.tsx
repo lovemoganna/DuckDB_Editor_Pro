@@ -159,14 +159,14 @@ const ConditionNodeEditor: React.FC<{
   const needsValue = !VALUE_FREE_OPERATORS.includes(node.operator);
 
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-white/[0.08] bg-black/20 p-2 text-xs transition-all duration-150 hover:border-white/15">
+    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-monokai-border bg-monokai-bg p-2 text-xs transition-all duration-150 hover:border-monokai-border-light">
       {/* Feature selector */}
       <select
         aria-label="选择特征"
         value={node.featureId}
         disabled={readOnly}
         onChange={e => onUpdate({ featureId: e.target.value })}
-        className="rounded-lg border border-white/10 bg-[#0c0d12] px-2 py-1.5 text-xs text-monokai-fg outline-none focus:border-monokai-accent disabled:opacity-50 transition-colors"
+        className="rounded-lg border border-monokai-border bg-monokai-surface px-2 py-1.5 text-xs text-monokai-fg outline-none focus:border-monokai-accent disabled:opacity-50 transition-colors"
       >
         <option value="">选择特征…</option>
         {features.map(f => (
@@ -180,7 +180,7 @@ const ConditionNodeEditor: React.FC<{
         value={node.operator}
         disabled={readOnly}
         onChange={e => onUpdate({ operator: e.target.value as ConditionOperator })}
-        className="rounded-lg border border-white/10 bg-[#0c0d12] px-2 py-1.5 text-xs text-monokai-comment outline-none focus:border-monokai-accent disabled:opacity-50 transition-colors"
+        className="rounded-lg border border-monokai-border bg-monokai-surface px-2 py-1.5 text-xs text-monokai-comment outline-none focus:border-monokai-accent disabled:opacity-50 transition-colors"
       >
         {availableOperators.map(op => (
           <option key={op} value={op}>{OPERATOR_LABELS[op]}</option>
@@ -203,7 +203,7 @@ const ConditionNodeEditor: React.FC<{
             else if (raw !== '' && Number.isFinite(Number(raw))) parsed = Number(raw);
             onUpdate({ value: parsed });
           }}
-          className="w-28 rounded-lg border border-white/10 bg-[#0c0d12] px-2 py-1.5 text-xs text-monokai-fg outline-none focus:border-monokai-accent disabled:opacity-50 transition-colors font-mono"
+          className="w-28 rounded-lg border border-monokai-border bg-monokai-surface px-2 py-1.5 text-xs text-monokai-fg outline-none focus:border-monokai-accent disabled:opacity-50 transition-colors font-mono"
         />
       )}
 
@@ -223,7 +223,7 @@ const ConditionNodeEditor: React.FC<{
               if (raw !== '' && Number.isFinite(Number(raw))) parsed = Number(raw);
               onUpdate({ secondValue: parsed });
             }}
-            className="w-28 rounded-lg border border-white/10 bg-[#0c0d12] px-2 py-1.5 text-xs text-monokai-fg outline-none focus:border-monokai-accent disabled:opacity-50 transition-colors font-mono"
+            className="w-28 rounded-lg border border-monokai-border bg-monokai-surface px-2 py-1.5 text-xs text-monokai-fg outline-none focus:border-monokai-accent disabled:opacity-50 transition-colors font-mono"
           />
         </>
       )}
@@ -274,7 +274,7 @@ const RuleRefNodeEditor: React.FC<{
         value={node.ruleId}
         disabled={readOnly}
         onChange={e => onUpdate({ ruleId: e.target.value })}
-        className="rounded-lg border border-white/10 bg-[#0c0d12] px-2 py-1.5 text-xs text-monokai-fg outline-none focus:border-monokai-accent disabled:opacity-50 transition-colors"
+        className="rounded-lg border border-monokai-border bg-monokai-surface px-2 py-1.5 text-xs text-monokai-fg outline-none focus:border-monokai-accent disabled:opacity-50 transition-colors"
       >
         <option value="">选择子规则…</option>
         {referenceable.map(r => (

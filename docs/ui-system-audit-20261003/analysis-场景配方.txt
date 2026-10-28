@@ -1,0 +1,213 @@
+- banner "全局工作区顶栏":
+  - button "🪶 DuckDB Studio PRO":
+    - generic: 🪶
+    - generic: DuckDB Studio
+    - generic: PRO
+  - navigation "业务领域大类":
+    - button "工程核心":
+      - generic: 工程核心
+    - button "分析洞察":
+      - generic: 分析洞察
+    - button "知识沉淀":
+      - generic: 知识沉淀
+    - button "AI 认知":
+      - generic: AI 认知
+  - tablist "分析洞察功能标签页":
+    - tab "指标":
+      - generic: 指标
+    - tab "可视化":
+      - generic: 可视化
+    - tab "分析" [selected]:
+      - generic: 分析
+    - tab "历史":
+      - generic: 历史
+    - tab "审计":
+      - generic: 审计
+  - button "项目":
+    - generic: 项目
+  - button "sql_funds_flow 已保存到 OPFS":
+    - generic: sql_funds_flow
+    - generic: 已保存到 OPFS
+  - button "AI 助手 Ctrl+I":
+    - generic: AI 助手
+    - generic: Ctrl+I
+  - button "⌘K":
+  - button "帮助与快捷键":
+  - button "切换为深色模式":
+  - button "AI 模型设置":
+- main:
+  - heading "分析中心" [level=1]
+  - paragraph: 多维透视 · 时序走势 · 业务配方 · SQL 模板 · DuckDB 本地内核
+  - button "仪表盘":
+    - generic: 仪表盘
+  - generic: 上下文
+  - combobox "切换分析库或 Schema":
+    - option "内存库 · memory（临时）"
+    - option "持久库 · duckdb_manager_workspace"
+    - option "持久库 · sql_funds_flow" [selected]
+    - option "Schema · sql_funds_flow.__studio"
+  - generic: 分析表
+  - combobox "选择分析表":
+    - option "crypto_transactions" [selected]
+    - option "exchange_rates"
+    - option "fiat_transactions"
+    - option "life_action"
+    - option "life_canvas_edge"
+    - option "life_canvas_state"
+    - option "life_insight"
+    - option "life_introspection"
+    - option "life_link"
+    - option "life_link_type"
+    - option "life_object"
+    - option "life_object_type"
+    - option "users"
+  - button "刷新表列表":
+  - button "数据网格":
+    - generic: 数据网格
+  - button "表结构":
+    - generic: 表结构
+  - tablist "分析工具模式":
+    - tab "关联分析":
+      - generic: 关联分析
+    - tab "数据体检":
+      - generic: 数据体检
+    - tab "透视聚合":
+      - generic: 透视聚合
+    - tab "时序分析":
+      - generic: 时序分析
+    - tab "场景配方" [active] [selected]:
+      - generic: 场景配方
+    - tab "SQL 模板":
+      - generic: SQL 模板
+  - text: 计量资产
+  - combobox "分析计量资产":
+    - option "请选择资产"
+    - option "BTC" [selected]
+    - option "ETH"
+    - option "USDT"
+  - generic: 不同资产不合计 · 所有状态
+  - button "保存与复用本次分析"
+  - heading "业务分析场景配方" [level=3]
+  - paragraph: 自动映射字段 · 帕累托 / RFM / IQR / 分箱 / 留存
+  - button "导出 CSV":
+    - text: 导出 CSV
+  - button "打开 SQL":
+    - text: 打开 SQL
+  - button "价值集中度 帕累托 80/20 分析 客户价值 / 爆款 SKU / 资源倾斜":
+    - generic: 价值集中度
+    - generic: 帕累托 80/20 分析
+    - generic: 客户价值 / 爆款 SKU / 资源倾斜
+  - button "用户画像 RFM 价值分层 精准营销 / 流失预警":
+    - generic: 用户画像
+    - generic: RFM 价值分层
+    - generic: 精准营销 / 流失预警
+  - button "数据清洗 IQR 异常值检测 数据清洗 / 欺诈侦测 / 极值风控":
+    - generic: 数据清洗
+    - generic: IQR 异常值检测
+    - generic: 数据清洗 / 欺诈侦测 / 极值风控
+  - button "分布密度 等宽分箱频次分布 客单价分布 / 年龄段分布 / 停留时长分档":
+    - generic: 分布密度
+    - generic: 等宽分箱频次分布
+    - generic: 客单价分布 / 年龄段分布 / 停留时长分档
+  - button "生命周期 同期群留存矩阵 用户留存 / 复购率衰减 / 队列流失":
+    - generic: 生命周期
+    - generic: 同期群留存矩阵
+    - generic: 用户留存 / 复购率衰减 / 队列流失
+  - generic: 映射 [crypto_transactions]
+  - generic: 实体字段
+  - combobox:
+    - option "crypto_order_id (VARCHAR)"
+    - option "uid (BIGINT)" [selected]
+    - option "direction (VARCHAR)"
+    - option "asset (VARCHAR)"
+    - option "network (VARCHAR)"
+    - option "amount (DECIMAL(18,8))"
+    - option "fee (DECIMAL(18,8))"
+    - option "tx_hash (VARCHAR)"
+    - option "address (VARCHAR)"
+    - option "status (VARCHAR)"
+    - option "confirmations (INTEGER)"
+    - option "created_at (TIMESTAMP)"
+    - option "completed_at (TIMESTAMP)"
+  - generic: 价值度量
+  - combobox:
+    - option "crypto_order_id (VARCHAR)"
+    - option "uid (BIGINT)"
+    - option "direction (VARCHAR)"
+    - option "asset (VARCHAR)"
+    - option "network (VARCHAR)"
+    - option "amount (DECIMAL(18,8))" [selected]
+    - option "fee (DECIMAL(18,8))"
+    - option "tx_hash (VARCHAR)"
+    - option "address (VARCHAR)"
+    - option "status (VARCHAR)"
+    - option "confirmations (INTEGER)"
+    - option "created_at (TIMESTAMP)"
+    - option "completed_at (TIMESTAMP)"
+  - button "运行配方":
+    - text: 运行配方
+  - generic: 业务洞察
+  - generic: "#1"
+  - text: 共探查 3 个实体。
+  - generic: "#2"
+  - text: 前 1 个核心头部实体（占 33.3%）贡献了当前样本 69.31% 的价值。
+  - generic: "#3"
+  - text: 建议将核心头部客户提取为目标重点服务名单。
+  - heading "帕累托累计贡献" [level=4]
+  - generic: 3 行
+  - generic: 单位 %
+  - generic: 帕累托 80/20 分析 明细
+  - generic: 20.6 ms
+  - table:
+    - rowgroup:
+      - row "实体标识 贡献金额 累计贡献金额 累计贡献率_百分比 实体排位占比_百分比 帕累托分组":
+        - columnheader "实体标识"
+        - columnheader "贡献金额"
+        - columnheader "累计贡献金额"
+        - columnheader "累计贡献率_百分比"
+        - columnheader "实体排位占比_百分比"
+        - columnheader "帕累托分组"
+    - rowgroup:
+      - row "615,902,374 0.07 0.07 69.31 33.33 核心头部 (80%贡献圈)":
+        - cell "615,902,374"
+        - cell "0.07"
+        - cell "0.07"
+        - cell "69.31"
+        - cell "33.33"
+        - cell "核心头部 (80%贡献圈)"
+      - row "692,481,305 0.03 0.1 99.01 66.67 长尾群体":
+        - cell "692,481,305"
+        - cell "0.03"
+        - cell "0.1"
+        - cell "99.01"
+        - cell "66.67"
+        - cell "长尾群体"
+      - row "319,582,046 0.001 0.101 100 100 长尾群体":
+        - cell "319,582,046"
+        - cell "0.001"
+        - cell "0.101"
+        - cell "100"
+        - cell "100"
+        - cell "长尾群体"
+  - generic: 共 3 行
+  - generic: DuckDB WASM
+  - button "查看底层 SQL":
+    - generic: 查看底层 SQL
+  - button "复制 SQL 到剪贴板":
+    - generic: 复制 SQL
+- contentinfo:
+  - generic: DuckDB 1.33.1
+  - generic: "|"
+  - generic: sql_funds_flow [OPFS]
+  - generic: "|"
+  - generic: 持久化库
+  - generic: "|"
+  - generic: 13 张表
+  - generic: "|"
+  - generic: 13 个活动表
+  - generic: "|"
+  - generic: "内存: 1.75 MB / 3.1 GiB"
+  - generic: 引擎就绪
+  - generic: "|"
+  - generic: 19:14
+  - button "刷新运行时状态":

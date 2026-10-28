@@ -1,0 +1,67 @@
+- generic [ref=e3]:
+  - banner "全局工作区顶栏" [ref=e16]:
+    - generic [ref=e17]:
+      - button "🪶 DuckDB Studio PRO" [ref=e18] [cursor=pointer]:
+        - generic [ref=e19]: 🪶
+        - generic [ref=e21]:
+          - generic [ref=e22]: DuckDB Studio
+          - generic [ref=e23]: PRO
+      - navigation "业务领域大类" [ref=e25]:
+        - button "工程核心" [active] [ref=e26] [cursor=pointer]
+        - button "分析洞察" [ref=e31] [cursor=pointer]
+        - button "知识沉淀" [ref=e36] [cursor=pointer]
+        - button "AI 认知" [ref=e41] [cursor=pointer]
+      - tablist "工程核心功能标签页" [ref=e635]:
+        - tab "仪表盘" [selected] [ref=e636] [cursor=pointer]
+        - tab "数据" [ref=e642] [cursor=pointer]:
+          - generic [aria-hidden] [ref=e647]: "2"
+        - tab "Schema" [ref=e648] [cursor=pointer]:
+          - generic [aria-hidden] [ref=e653]: "3"
+        - tab "SQL" [ref=e654] [cursor=pointer]:
+          - generic [aria-hidden] [ref=e659]: "4"
+        - tab "数据流" [ref=e660] [cursor=pointer]:
+          - generic [aria-hidden] [ref=e665]: "5"
+    - generic [ref=e70]:
+      - button "项目 Ctrl+Shift+D" [ref=e71] [cursor=pointer]:
+        - generic [ref=e74]: 项目
+        - generic [ref=e75]: Ctrl+Shift+D
+      - button "新建表" [ref=e76] [cursor=pointer]
+      - button "funds_modeling_acceptance 内存临时模式" [ref=e81] [cursor=pointer]:
+        - generic [ref=e84]: funds_modeling_acceptance
+        - generic [ref=e86]: 内存临时模式
+      - button "AI 助手 Ctrl+I" [ref=e90] [cursor=pointer]:
+        - generic [ref=e93]: AI 助手
+        - generic [ref=e94]: Ctrl+I
+      - button "⌘K" [ref=e95] [cursor=pointer]
+      - button "帮助与快捷键" [ref=e99] [cursor=pointer]
+      - button "切换为浅色模式" [ref=e102] [cursor=pointer]
+      - button "AI 模型设置" [ref=e103] [cursor=pointer]
+  - main [ref=e106]:
+    - generic [ref=e667]:
+      - generic [ref=e668]:
+        - generic [ref=e669]:
+          - generic [ref=e670]:
+            - heading "分析范围" [level=1] [ref=e671]
+            - generic [ref=e672]: /
+            - button "内存库 · funds_modeling_acceptance" [ref=e673] [cursor=pointer]
+          - paragraph
+        - button "刷新数据" [ref=e676] [cursor=pointer]
+      - status [ref=e677]: 加载分析…
+  - contentinfo [ref=e606]:
+    - generic [ref=e607]:
+      - generic [ref=e608]: DuckDB 1.33.1
+      - generic [ref=e611]: "|"
+      - generic [ref=e612]: funds_modeling_acceptance [MEMORY]
+      - generic [ref=e614]: "|"
+      - generic [ref=e615]: 内存库
+      - generic [ref=e617]: "|"
+      - generic [ref=e618]: 14 张表
+      - generic [ref=e620]: "|"
+      - generic [ref=e621]: 14 个活动表
+      - generic [ref=e623]: "|"
+      - generic [ref=e624]: "内存: 13.68 MB / 3.1 GiB"
+    - generic [ref=e626]:
+      - generic [ref=e627]: 引擎就绪
+      - generic [ref=e631]: "|"
+      - generic [ref=e632]: 22:48
+      - button "刷新运行时状态" [ref=e633] [cursor=pointer]

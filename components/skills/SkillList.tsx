@@ -350,7 +350,7 @@ export const SkillList: React.FC<SkillListProps> = ({
                       <div
                         className="w-6 h-6 rounded flex items-center justify-center text-xs"
                         style={{
-                          backgroundColor: `${design?.colors.primary}20`,
+                          backgroundColor: `color-mix(in srgb, ${design?.colors.primary} 12.55%, transparent)`,
                           color: design?.colors.primary,
                         }}
                       >
@@ -375,7 +375,7 @@ export const SkillList: React.FC<SkillListProps> = ({
                     {/* Skills in Category */}
                     {isExpanded && (
                       <div className="ml-2 mt-1 space-y-1 pl-3 py-1"
-                        style={{ borderLeft: `2px solid ${design?.colors.primary}30` }}>
+                        style={{ borderLeft: `2px solid color-mix(in srgb, ${design?.colors.primary} 18.82%, transparent)` }}>
                         {filtered.map((skill) => {
                           const stats = skillStats[skill.id];
                           return (

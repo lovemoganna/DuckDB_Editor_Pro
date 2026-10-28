@@ -1,0 +1,26 @@
+[
+  [
+    "1",
+    "crypto_transactions",
+    "25",
+    "db64b19502f88bce9b0d45a1893621ac"
+  ],
+  [
+    "2",
+    "exchange_rates",
+    "8",
+    "fddc16d21820441a99bcbc5ce4bbdaad"
+  ],
+  [
+    "3",
+    "fiat_transactions",
+    "25",
+    "a34fadd22520b19126c134b96835707b"
+  ],
+  [
+    "4",
+    "users",
+    "10",
+    "b4d9c6867d293dcf0adbafd9e180531c"
+  ]
+]

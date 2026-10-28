@@ -1,0 +1,232 @@
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import GridLayout, {
+  noCompactor,
+  verticalCompactor,
+  type Layout,
+} from 'react-grid-layout';
+import 'react-grid-layout/css/styles.css';
+import 'react-resizable/css/styles.css';
+import { Dashboard, Tab } from '../types';
+import { DashboardWidget } from './DashboardWidget';
+import type { BoardBrushFilter } from './Dashboard/Home/homeBoardTypes';
+import { chartColumns } from '../utils/chartSpace';
+import type { DatasetDefinition, DashboardContext, WidgetSettings } from '../services/workbench/analysisTypes';
+
+/** Fixed canvas grid — window resize only changes cell pixel size, never col count. */
+export const HOME_BOARD_COLS = 12;
+export const HOME_BOARD_ROW_HEIGHT = 60;
+export const HOME_BOARD_MARGIN: [number, number] = [8, 8];
+export const HOME_BOARD_MIN_W = 4;
+export const HOME_BOARD_MIN_H = 5;
+
+interface DashboardGridProps {
+  datasets?: DatasetDefinition[];
+  context?: DashboardContext;
+  onSettingsChange?: (id:string,settings:WidgetSettings)=>Promise<void>;
+  dashboard: Dashboard;
+  refreshTrigger: number;
+  /** Persist user drag/resize only (not window resize). */
+  onLayoutChange: (layout: Array<{ i: string; x: number; y: number; w: number; h: number }>) => void;
+  onRemoveWidget: (itemId: string) => void;
+  onNavigate?: (tab: Tab) => void;
+  boardParams?: Record<string, string>;
+  brushFilter?: BoardBrushFilter | null;
+  onBrushFilter?: (filter: BoardBrushFilter | null) => void;
+  onSelectTable?: (tableName: string) => void;
+  onSelectTableStructure?: (tableName: string) => void;
+  onSelectTableDataFlow?: (tableName: string) => void;
+}
+
+/** Clamp a layout item to the fixed 12-col canvas grid (no out-of-bounds). */
+export function clampLayoutItem(item: { i: string; x: number; y: number; w: number; h: number }, minimum = { w: HOME_BOARD_MIN_W, h: HOME_BOARD_MIN_H }) {
+  const w = Math.max(minimum.w, Math.min(HOME_BOARD_COLS, Math.round(item.w)));
+  const h = Math.max(minimum.h, Math.round(item.h));
+  const x = Math.max(0, Math.min(HOME_BOARD_COLS - w, Math.round(item.x)));
+  const y = Math.max(0, Math.round(item.y));
+  return { i: item.i, x, y, w, h };
+}
+
+export const DashboardGrid: React.FC<DashboardGridProps> = ({
+  datasets,
+  context,
+  onSettingsChange,
+  dashboard,
+  refreshTrigger,
+  onLayoutChange,
+  onRemoveWidget,
+  onNavigate,
+  boardParams,
+  brushFilter,
+  onBrushFilter,
+  onSelectTable,
+  onSelectTableStructure,
+  onSelectTableDataFlow,
+}) => {
+  const [width, setWidth] = useState(0);
+  const [kinds, setKinds] = useState<Record<string, 'value' | 'chart' | 'table'>>({});
+  const recordKind = useCallback((id: string, kind: 'value' | 'chart' | 'table') => {
+    setKinds(previous => previous[id] === kind ? previous : { ...previous, [id]: kind });
+  }, []);
+  const minimumFor = useCallback((id: string) => kinds[id] === 'value' ? { w: 3, h: 3 } : { w: 4, h: kinds[id] === 'chart' ? 7 : 5 }, [kinds]);
+  const containerRef = useRef<HTMLDivElement>(null);
+  /** default locked so existing boards stop jumping until user unlocks */
+  const layoutLocked = dashboard.layoutLocked !== false;
+  const editable = !layoutLocked;
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const el = containerRef.current;
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const next = Math.floor(entry.contentRect.width);
+        if (next > 0) setWidth(next);
+      }
+    });
+    resizeObserver.observe(el);
+    setWidth(Math.floor(el.getBoundingClientRect().width) || 1200);
+    return () => resizeObserver.disconnect();
+  }, []);
+
+  const layout = useMemo(
+    () =>
+      dashboard.items.map((item) =>
+        ({
+          i: item.i,
+          x: item.x,
+          y: item.y,
+          w: item.w,
+          h: item.h,
+        }),
+      ),
+    [dashboard.items],
+  );
+
+  const gridLayout = useMemo(
+    () =>
+      layout.map((item) => ({
+        ...(editable ? clampLayoutItem(item, minimumFor(item.i)) : item),
+        minW: minimumFor(item.i).w,
+        minH: minimumFor(item.i).h,
+        maxW: HOME_BOARD_COLS,
+        // Per-item static mirrors lock; also disable via drag/resize config
+        static: layoutLocked,
+        isDraggable: editable,
+        isResizable: editable,
+      })),
+    [layout, layoutLocked, editable, minimumFor],
+  );
+
+  /**
+   * Unlocked: vertical compact so resizing a packed card pushes neighbors
+   * (preventCollision alone snaps back when the 12-col board is full).
+   * Locked: noCompactor — window width changes must not reflow saved coords.
+   */
+  const compactor = editable ? verticalCompactor : noCompactor;
+
+  const gridConfig = useMemo(
+    () => ({
+      cols: HOME_BOARD_COLS,
+      rowHeight: HOME_BOARD_ROW_HEIGHT,
+      margin: HOME_BOARD_MARGIN,
+      containerPadding: [0, 0] as [number, number],
+    }),
+    [],
+  );
+
+  const dragConfig = useMemo(
+    () => ({
+      enabled: editable,
+      bounded: true,
+      handle: '.drag-handle',
+    }),
+    [editable],
+  );
+
+  const resizeConfig = useMemo(
+    () => ({
+      enabled: editable,
+      handles: ['se', 'e', 's'] as const,
+    }),
+    [editable],
+  );
+
+  const commitLayout = useCallback(
+    (next: Layout) => {
+      if (layoutLocked) return;
+      const clamped = next.map((item) =>
+        clampLayoutItem({ i: item.i, x: item.x, y: item.y, w: item.w, h: item.h }, minimumFor(item.i)),
+      );
+      const same =
+        clamped.length === layout.length &&
+        clamped.every((c) => {
+          const prev = layout.find((p) => p.i === c.i);
+          return prev && prev.x === c.x && prev.y === c.y && prev.w === c.w && prev.h === c.h;
+        });
+      if (same) return;
+      onLayoutChange(clamped);
+    },
+    [layoutLocked, layout, onLayoutChange, minimumFor],
+  );
+
+  const renderWidget = (item: Dashboard['items'][number]) => (
+    <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-lg">
+                <DashboardWidget
+                  item={item}
+                  datasets={datasets}
+                  context={context}
+                  ownerCatalog={dashboard.databaseName}
+                  onSettingsChange={onSettingsChange}
+                  onDisplayKind={recordKind}
+                  savedQueryId={item.savedQueryId}
+                  widgetInstanceId={item.i}
+                  refreshTrigger={refreshTrigger}
+                  onRemove={() => onRemoveWidget(item.i)}
+                  onNavigate={onNavigate}
+                  boardParams={boardParams}
+                  brushFilter={brushFilter}
+                  onBrushFilter={onBrushFilter}
+                  onSelectTable={onSelectTable}
+                  onSelectTableStructure={onSelectTableStructure}
+                  onSelectTableDataFlow={onSelectTableDataFlow}
+                />
+    </div>
+  );
+  const temporary = layoutLocked && needsReadableLayout(dashboard.items, width);
+  const ordered = [...dashboard.items].sort((a, b) => a.y - b.y || a.x - b.x);
+
+  return (
+    <div
+      ref={containerRef}
+      className={`relative z-0 w-full min-w-0 pb-3 ${layoutLocked ? 'home-board-locked' : 'home-board-unlocked'}`}
+      data-layout-locked={layoutLocked ? 'true' : 'false'}
+    >
+      {temporary && <div data-testid="readable-board" className="grid gap-3" style={{ gridTemplateColumns: `repeat(${chartColumns(width, 480, 12)}, minmax(0, 1fr))` }}>
+        {ordered.map(item => <div key={item.i} className="min-w-0 h-[440px]">{renderWidget(item)}</div>)}
+      </div>}
+      {width > 0 && !temporary && (
+        <GridLayout
+          key={editable ? 'board-edit' : 'board-locked'}
+          className="layout" style={editable ? { minWidth: 1456 } : undefined}
+          layout={gridLayout}
+          width={editable ? Math.max(1456, width) : width}
+          gridConfig={gridConfig}
+          dragConfig={dragConfig}
+          resizeConfig={resizeConfig}
+          compactor={compactor}
+          // Persist only after user drag/resize — never on width-only remount
+          onDragStop={(next) => commitLayout(next)}
+          onResizeStop={(next) => commitLayout(next)}
+        >
+          {dashboard.items.map(item => <div key={item.i} className="min-w-0 h-full flex flex-col">{renderWidget(item)}</div>)}
+        </GridLayout>
+      )}
+    </div>
+  );
+};
+
+/** Read-only adaptation; caller must never persist this decision. */
+export function needsReadableLayout(items: Array<{ w: number; h: number }>, width: number) {
+  const cell = (width - 11 * 8) / 12;
+  // Budget plot, wrapping title, scope disclosure, legend and result footer.
+  return width > 0 && items.some(item => cell * item.w + (item.w - 1) * 8 < 480 || item.h * 60 + (item.h - 1) * 8 < 440);
+}

@@ -1,0 +1,270 @@
+- generic [ref=f2e1]:
+  - generic [ref=f2e3]:
+    - banner "全局工作区顶栏" [ref=f2e16]:
+      - generic [ref=f2e17]:
+        - button "🪶 DuckDB Studio PRO" [ref=f2e18] [cursor=pointer]:
+          - generic [ref=f2e19]: 🪶
+          - generic [ref=f2e21]:
+            - generic [ref=f2e22]: DuckDB Studio
+            - generic [ref=f2e23]: PRO
+        - navigation "业务领域大类" [ref=f2e25]:
+          - button "工程核心" [ref=f2e26] [cursor=pointer]
+          - button "分析洞察" [ref=f2e32] [cursor=pointer]
+          - button "知识沉淀" [ref=f2e37] [cursor=pointer]
+          - button "AI 认知" [ref=f2e42] [cursor=pointer]
+        - tablist "分析洞察功能标签页" [ref=f2e193]:
+          - tab "指标" [selected] [ref=f2e194] [cursor=pointer]
+          - tab "可视化" [ref=f2e200] [cursor=pointer]
+          - tab "分析" [ref=f2e205] [cursor=pointer]
+          - tab "历史" [ref=f2e210] [cursor=pointer]
+          - tab "审计" [ref=f2e215] [cursor=pointer]
+      - generic [ref=f2e79]:
+        - button "项目" [ref=f2e80] [cursor=pointer]
+        - button "memory 临时分析空间" [ref=f2e85] [cursor=pointer]:
+          - generic [ref=f2e88]: memory
+          - generic [ref=f2e90]: 临时分析空间
+        - button "AI 助手 Ctrl+I" [ref=f2e94] [cursor=pointer]:
+          - generic [ref=f2e97]: AI 助手
+          - generic [ref=f2e98]: Ctrl+I
+        - button "⌘K" [ref=f2e99] [cursor=pointer]
+        - button "帮助与快捷键" [ref=f2e103] [cursor=pointer]
+        - button "切换为浅色模式" [ref=f2e106] [cursor=pointer]
+        - button "AI 模型设置" [ref=f2e107] [cursor=pointer]
+    - main [ref=f2e110]:
+      - generic [ref=f2e111]:
+        - generic [ref=f2e334]:
+          - generic [ref=f2e382]:
+            - generic [ref=f2e383]:
+              - button "返回指标包列表" [ref=f2e384] [cursor=pointer]
+              - generic [ref=f2e385]:
+                - generic [ref=f2e386]:
+                  - heading "验证记录" [level=2] [ref=f2e387]
+                  - generic [ref=f2e388]: 0 个指标
+                - paragraph [ref=f2e389]: 无业务描述
+            - generic [ref=f2e390]:
+              - button "仪表盘" [ref=f2e391] [cursor=pointer]
+              - button "验证全部" [disabled] [ref=f2e393]
+              - button "生成全部图表" [disabled] [ref=f2e395]
+              - button "查看图表" [ref=f2e397] [cursor=pointer]
+              - button "可视化中心" [ref=f2e399] [cursor=pointer]
+              - button "导出" [ref=f2e401] [cursor=pointer]
+              - button "删除包" [ref=f2e403] [cursor=pointer]
+          - generic [ref=f2e353]:
+            - generic [ref=f2e354]: "依赖数据表:"
+            - generic [ref=f2e406]:
+              - generic [ref=f2e407]:
+                - text: "已验证:"
+                - strong [ref=f2e408]: "0"
+              - generic [ref=f2e409]:
+                - text: "已关联图表:"
+                - strong [ref=f2e410]: "0"
+              - generic [ref=f2e411]:
+                - text: "收藏:"
+                - strong [ref=f2e412]: "0"
+          - generic [ref=f2e359]:
+            - generic [ref=f2e360]:
+              - textbox "搜索指标名称、公式、业务定义..." [ref=f2e414]
+              - button "收藏筛选" [ref=f2e415] [cursor=pointer]
+              - button "手动建立指标" [ref=f2e417] [cursor=pointer]
+              - button "添加模版指标" [ref=f2e419] [cursor=pointer]
+            - button "全部" [pressed] [ref=f2e422] [cursor=pointer]
+          - generic [ref=f2e423]: 显示 0 / 0 个指标
+          - generic [ref=f2e426]:
+            - heading "该指标包暂无指标定义" [level=3] [ref=f2e428]
+            - paragraph [ref=f2e429]: 点击「手动建立指标」，选择真实字段并验证计算结果
+        - complementary "AI Copilot 侧边栏" [ref=f2e129]:
+          - generic "拖拽调整侧边栏宽度" [ref=f2e130]
+          - generic [ref=f2e131]:
+            - generic [ref=f2e132]:
+              - generic [ref=f2e133]: AI Copilot
+              - button "Gemini 2.0 Flash" [ref=f2e135] [cursor=pointer]
+            - generic [ref=f2e137]:
+              - button "会话历史" [ref=f2e138] [cursor=pointer]:
+                - generic [ref=f2e139]: "1"
+              - button "新建会话" [ref=f2e140] [cursor=pointer]
+              - button "清空会话历史" [ref=f2e141] [cursor=pointer]
+              - button "收起侧边栏" [ref=f2e142] [cursor=pointer]
+          - generic [ref=f2e144]:
+            - generic [ref=f2e145]: 指标中心
+            - generic [ref=f2e146]: ·
+            - button "选择关注的数据表" [ref=f2e148] [cursor=pointer]:
+              - generic [ref=f2e149]: 所有表
+          - generic [ref=f2e151]:
+            - paragraph [ref=f2e152]: 有什么想查的？
+            - paragraph [ref=f2e153]: 直接提问、生成 SQL，或先选关注表再探索。
+          - button "生成探索问题" [ref=f2e156] [cursor=pointer]
+          - generic [ref=f2e159]:
+            - textbox "提问、生成 SQL 或分析数据…" [ref=f2e160]
+            - button "发送" [disabled] [ref=f2e162]
+    - contentinfo [ref=f2e164]:
+      - generic [ref=f2e165]:
+        - generic [ref=f2e166]: DuckDB 1.33.1
+        - generic [ref=f2e169]: "|"
+        - generic [ref=f2e170]: memory [MEMORY]
+        - generic [ref=f2e172]: "|"
+        - generic [ref=f2e173]: 内存库
+        - generic [ref=f2e175]: "|"
+        - generic [ref=f2e176]: 0 张表
+        - generic [ref=f2e178]: "|"
+        - generic [ref=f2e179]: 暂无表
+        - generic [ref=f2e181]: "|"
+        - generic [ref=f2e182]: "内存: 0.00 MB / 3.1 GiB"
+      - generic [ref=f2e184]:
+        - generic [ref=f2e185]: 引擎就绪
+        - generic [ref=f2e189]: "|"
+        - generic [ref=f2e190]: 22:00
+        - button "刷新运行时状态" [ref=f2e191] [cursor=pointer]
+  - dialog [ref=f2e431]:
+    - banner [ref=f2e432]:
+      - generic [ref=f2e435]:
+        - heading "手动建立指标" [level=2] [ref=f2e437]
+        - paragraph [ref=f2e438]: 调整指标的计算公式、业务场景与元数据定义
+      - button "关闭" [ref=f2e440] [cursor=pointer]
+    - group [ref=f2e443]:
+      - generic [ref=f2e444]:
+        - generic [ref=f2e445]:
+          - generic [ref=f2e446]: 指标标识 (Name) *
+          - textbox "指标名称" [active] [ref=f2e447]
+        - generic [ref=f2e448]:
+          - generic [ref=f2e449]: 业务分类 (Category)
+          - textbox "业务分类" [ref=f2e450]:
+            - /placeholder: "例如: 营收类, 流量类"
+        - generic [ref=f2e451]:
+          - generic [ref=f2e452]: 计量单位 (Unit)
+          - textbox "计量单位" [ref=f2e453]:
+            - /placeholder: 元, %, 个, 人
+      - generic [ref=f2e454]:
+        - text: 定义方式
+        - combobox "定义方式" [ref=f2e455]:
+          - option "字段与聚合" [selected]
+          - option "SQL 公式 / 多表查询"
+      - generic [ref=f2e456]:
+        - text: 来源表
+        - combobox "来源表" [ref=f2e457]:
+          - option "请选择；完整多表 SQL 须明确每张表" [selected]
+      - generic [ref=f2e458]:
+        - generic [ref=f2e459]:
+          - text: 聚合方式
+          - combobox "聚合方式" [ref=f2e460]:
+            - option "记录数 / 非空数 · COUNT" [selected]
+            - option "去重主体数 · COUNT DISTINCT"
+            - option "求和 · SUM"
+            - option "算术均值 · AVG"
+            - option "最小值 · MIN"
+            - option "最大值 · MAX"
+            - option "中位数 · MEDIAN"
+            - option "连续分位数 · QUANTILE"
+            - option "样本标准差 · STDDEV_SAMP"
+            - option "总体标准差 · STDDEV_POP"
+            - option "样本方差 · VAR_SAMP"
+            - option "总体方差 · VAR_POP"
+            - option "加权均值 · WEIGHTED_AVG"
+            - option "聚合比率 · RATIO"
+        - generic [ref=f2e461]:
+          - text: 计算字段
+          - combobox "计算字段" [ref=f2e462]:
+            - option "全部记录（仅 COUNT）" [selected]
+        - generic [ref=f2e463]:
+          - text: 过滤条件（WHERE 表达式）
+          - textbox "过滤条件" [ref=f2e464]
+        - generic [ref=f2e465]:
+          - text: 分组维度（可多选）
+          - listbox "分组维度" [ref=f2e466]
+        - generic [ref=f2e467]:
+          - text: 时间字段
+          - combobox "时间字段" [ref=f2e468]:
+            - option "无" [selected]
+        - generic [ref=f2e469]:
+          - text: 统计粒度
+          - combobox "统计粒度" [ref=f2e470]:
+            - option "总体 / 分组" [selected]
+            - option "hour"
+            - option "day"
+            - option "week"
+            - option "month"
+            - option "quarter"
+            - option "year"
+        - generic [ref=f2e471]:
+          - text: 分析变换
+          - combobox "分析变换" [ref=f2e472]:
+            - option "原始聚合" [selected]
+            - option "累计求和"
+            - option "日历滚动求和"
+            - option "环比增长率（%）"
+            - option "同比增长率（%）"
+      - generic [ref=f2e473]:
+        - generic [ref=f2e474]:
+          - generic [ref=f2e475]: DuckDB 计算公式 (SQL Formula) *
+          - generic [ref=f2e476]: 聚合表达式或 CTE 结构
+        - textbox "计算公式" [ref=f2e477]:
+          - /placeholder: "例如: SUM(order_amount) 或 COUNT(DISTINCT user_id)"
+      - generic [ref=f2e478]:
+        - generic [ref=f2e479]: 指标定义与业务口径
+        - textbox "业务口径" [ref=f2e480]:
+          - /placeholder: 清晰描述该指标所表达的具体业务逻辑与统计边界
+      - group [ref=f2e481]:
+        - generic "口径契约与审核" [ref=f2e482] [cursor=pointer]
+        - paragraph [ref=f2e483]: SQL 执行通过与业务审核分别记录；时区为口径登记，需在数据或 SQL 中完成转换。
+        - generic [ref=f2e484]:
+          - generic [ref=f2e485]:
+            - text: 负责人
+            - textbox "负责人" [ref=f2e486]
+          - generic [ref=f2e487]:
+            - text: 统计主体
+            - textbox "统计主体" [ref=f2e488]
+          - generic [ref=f2e489]:
+            - text: 来源事实粒度
+            - textbox "来源事实粒度" [ref=f2e490]
+          - generic [ref=f2e491]:
+            - text: 业务时区
+            - textbox "业务时区" [ref=f2e492]
+          - generic [ref=f2e493]:
+            - text: 更新频率 / 延迟
+            - textbox "更新频率 / 延迟" [ref=f2e494]
+          - generic [ref=f2e495]:
+            - text: 排除与空值规则
+            - textbox "排除与空值规则" [ref=f2e496]
+          - generic [ref=f2e497]:
+            - text: 指标用途
+            - combobox "指标用途" [ref=f2e498]:
+              - option "未登记" [selected]
+              - option "结果"
+              - option "驱动"
+              - option "护栏"
+              - option "诊断"
+          - generic [ref=f2e499]:
+            - text: 基础度量可加性
+            - combobox "可加性" [ref=f2e500]:
+              - option "未登记" [selected]
+              - option "完全可加"
+              - option "半可加（如余额）"
+              - option "不可加（如比率 / 去重）"
+          - generic [ref=f2e501]:
+            - text: 审核状态
+            - combobox "审核状态" [ref=f2e502]:
+              - option "草稿" [selected]
+              - option "已业务复核"
+              - option "已废弃"
+        - paragraph [ref=f2e503]: 待完善：补充业务定义与总体范围；明确单位 / 倍率；指定负责人；明确统计主体；登记来源事实粒度；约定更新频率与延迟；确认可加性；完成业务口径审核
+      - generic [ref=f2e504]:
+        - generic [ref=f2e505]:
+          - generic [ref=f2e506]: 应用场景 (Scenario)
+          - textbox "应用场景" [ref=f2e507]
+        - generic [ref=f2e508]:
+          - generic [ref=f2e509]: 指标特征 (Characteristics)
+          - textbox "指标特征" [ref=f2e510]
+      - generic [ref=f2e511]:
+        - generic [ref=f2e512]:
+          - generic [ref=f2e513]: 业务价值 (Value)
+          - textbox "业务价值" [ref=f2e514]
+        - generic [ref=f2e515]:
+          - generic [ref=f2e516]: 典型案例数值 (Example)
+          - textbox "典型案例" [ref=f2e517]
+      - generic [ref=f2e518]:
+        - generic [ref=f2e519]: 依赖字段列表 (Dependencies, 逗号分隔)
+        - textbox "依赖字段列表" [ref=f2e520]:
+          - /placeholder: "例如: created_at, order_amount, user_id"
+    - contentinfo [ref=f2e521]:
+      - button "取消" [ref=f2e522] [cursor=pointer]
+      - button "验证计算" [ref=f2e524] [cursor=pointer]
+      - button "保存指标定义" [disabled] [ref=f2e526]

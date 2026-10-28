@@ -1,0 +1,10 @@
+$ vitest run --pool=threads --maxWorkers=1 --no-file-parallelism "components/Dashboard/Home" "components/Dashboard/MissionControl/DataIdeMissionControl.test.tsx" "components/Dashboard.test.tsx" "components/DashboardGrid" "components/DashboardWidget.requests.test.tsx" "services/homeDashboardService.test.ts" "services/dbService.dashboard.test.ts" "services/workbench/homeCompatibility.integration.test.ts"
+
+ RUN  v4.1.10 C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor
+
+
+ Test Files  14 passed (14)
+      Tests  62 passed (62)
+   Start at  07:28:56
+   Duration  60.81s (transform 11.47s, setup 2.44s, import 29.45s, tests 5.56s, environment 19.52s)
+

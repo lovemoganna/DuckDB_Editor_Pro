@@ -21,6 +21,20 @@ const metric = (overrides: Partial<MetricDefinition>): MetricDefinition => ({
 });
 
 describe('SemanticMetricCatalog', () => {
+  it('versions governance changes with their previous contract', () => {
+    const catalog = new SemanticMetricCatalog(() => 100);
+    const previous = metric({ governance: { owner: 'A', reviewStatus: 'draft' } });
+    const next = catalog.versionMetric(previous, { ...previous, governance: { owner: 'B', reviewStatus: 'reviewed' } });
+    expect(next.history?.at(-1)?.changedFields).toEqual(['governance']);
+    expect(next.history?.at(-1)?.previousValues.governance).toEqual(previous.governance);
+  });
+  it('requires a fresh business review after a semantic change to an approved metric', () => {
+    const catalog = new SemanticMetricCatalog(() => 100);
+    const previous = metric({ governance: { reviewStatus: 'reviewed' } });
+    const next = catalog.versionMetric(previous, { ...previous, formula: 'AVG(amount)' });
+    expect(next.governance?.reviewStatus).toBe('draft');
+    expect(previous.governance?.reviewStatus).toBe('reviewed');
+  });
   it('creates an immutable version with field-level change history', () => {
     const catalog = new SemanticMetricCatalog(() => 100);
     const previous = metric({});

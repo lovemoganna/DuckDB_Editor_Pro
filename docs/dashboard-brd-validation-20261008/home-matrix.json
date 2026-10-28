@@ -1,0 +1,112 @@
+[
+  {
+    "page": 1440,
+    "plots": [
+      {
+        "scroll": 10900,
+        "w": 689
+      }
+    ],
+    "widgets": [
+      {
+        "h": 196,
+        "kind": "value",
+        "w": 341
+      },
+      {
+        "h": 468,
+        "kind": "chart",
+        "w": 691
+      }
+    ],
+    "width": 1440
+  },
+  {
+    "page": 1280,
+    "plots": [
+      {
+        "scroll": 10900,
+        "w": 609
+      }
+    ],
+    "widgets": [
+      {
+        "h": 196,
+        "kind": "value",
+        "w": 301
+      },
+      {
+        "h": 468,
+        "kind": "chart",
+        "w": 611
+      }
+    ],
+    "width": 1280
+  },
+  {
+    "page": 1024,
+    "plots": [
+      {
+        "scroll": 10900,
+        "w": 650
+      }
+    ],
+    "widgets": [
+      {
+        "h": 184,
+        "kind": "value",
+        "w": 320
+      },
+      {
+        "h": 400,
+        "kind": "chart",
+        "w": 652
+      }
+    ],
+    "width": 1024
+  },
+  {
+    "page": 768,
+    "plots": [
+      {
+        "scroll": 10900,
+        "w": 724
+      }
+    ],
+    "widgets": [
+      {
+        "h": 184,
+        "kind": "value",
+        "w": 357
+      },
+      {
+        "h": 400,
+        "kind": "chart",
+        "w": 726
+      }
+    ],
+    "width": 768
+  },
+  {
+    "page": 390,
+    "plots": [
+      {
+        "scroll": 10900,
+        "w": 354
+      }
+    ],
+    "widgets": [
+      {
+        "h": 184,
+        "kind": "value",
+        "w": 356
+      },
+      {
+        "h": 360,
+        "kind": "chart",
+        "w": 356
+      }
+    ],
+    "width": 390
+  }
+]

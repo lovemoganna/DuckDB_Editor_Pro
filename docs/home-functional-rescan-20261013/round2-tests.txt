@@ -1,0 +1,10 @@
+$ vitest run --pool=threads --maxWorkers=1 --no-file-parallelism "components/Dashboard/WidgetChartConfigPanel.test.tsx" "components/DashboardWidget.requests.test.tsx" "components/Dashboard/Home/WorkspaceObjects.test.tsx" "components/Dashboard/Home/HomeBoardCanvas.audit.test.tsx"
+
+ RUN  v4.1.10 C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor
+
+
+ Test Files  4 passed (4)
+      Tests  23 passed (23)
+   Start at  17:06:09
+   Duration  37.74s (transform 10.62s, setup 1.22s, import 21.78s, tests 4.37s, environment 8.82s)
+

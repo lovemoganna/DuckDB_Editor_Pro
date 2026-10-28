@@ -1,0 +1,138 @@
+- generic [ref=f3e1]:
+  - generic [ref=f3e3]:
+    - banner "全局工作区顶栏" [ref=f3e16]:
+      - generic [ref=f3e17]:
+        - button "🪶 DuckDB Studio PRO" [ref=f3e18] [cursor=pointer]:
+          - generic [ref=f3e19]: 🪶
+          - generic [ref=f3e21]:
+            - generic [ref=f3e22]: DuckDB Studio
+            - generic [ref=f3e23]: PRO
+        - navigation "业务领域大类" [ref=f3e25]:
+          - button "工程核心" [ref=f3e26] [cursor=pointer]
+          - button "分析洞察" [ref=f3e32] [cursor=pointer]
+          - button "知识沉淀" [ref=f3e37] [cursor=pointer]
+          - button "AI 认知" [ref=f3e42] [cursor=pointer]
+        - tablist "工程核心功能标签页" [ref=f3e48]:
+          - tab "仪表盘" [selected] [ref=f3e49] [cursor=pointer]
+          - tab "数据" [ref=f3e55] [cursor=pointer]:
+            - generic [aria-hidden] [ref=f3e699]: "2"
+          - tab "Schema" [ref=f3e61] [cursor=pointer]:
+            - generic [aria-hidden] [ref=f3e66]: "3"
+          - tab "SQL" [ref=f3e67] [cursor=pointer]:
+            - generic [aria-hidden] [ref=f3e72]: "4"
+          - tab "数据流" [ref=f3e73] [cursor=pointer]:
+            - generic [aria-hidden] [ref=f3e78]: "5"
+      - generic [ref=f3e79]:
+        - button "项目" [ref=f3e80] [cursor=pointer]
+        - button "已保存到 OPFS" [ref=f3e621] [cursor=pointer]
+        - button "AI 助手" [ref=f3e93] [cursor=pointer]
+        - button "⌘K" [ref=f3e97] [cursor=pointer]
+        - button "帮助与快捷键" [ref=f3e101] [cursor=pointer]
+        - button "切换为浅色模式" [ref=f3e104] [cursor=pointer]
+        - button "AI 模型设置" [ref=f3e105] [cursor=pointer]
+    - main [ref=f3e108]:
+      - generic [ref=f3e701]:
+        - generic [ref=f3e702]:
+          - generic [ref=f3e703]:
+            - generic [ref=f3e704]:
+              - heading "分析范围" [level=1] [ref=f3e705]
+              - generic [ref=f3e706]: /
+              - button "持久库 · acceptance" [ref=f3e707] [cursor=pointer]
+            - paragraph [ref=f3e709]: 3 个数据集 · 未知 行 · 数据规模未应用筛选
+          - generic [ref=f3e710]:
+            - button "导入数据" [ref=f3e711] [cursor=pointer]
+            - button "刷新" [ref=f3e713] [cursor=pointer]
+        - generic [ref=f3e714]:
+          - generic [ref=f3e716]:
+            - generic [ref=f3e717]:
+              - text: 工作台
+              - combobox "工作台视图" [ref=f3e718]:
+                - option "分析首页" [selected]
+            - button "添加分析" [ref=f3e719] [cursor=pointer]
+            - button "新建查询" [ref=f3e721] [cursor=pointer]
+            - generic [ref=f3e722]:
+              - text: 数据集
+              - combobox "浏览数据集" [ref=f3e723]:
+                - option "选择数据集" [selected]
+                - option "acceptance.main.dataset_a"
+                - option "acceptance.main.dataset_b"
+            - button "筛选" [ref=f3e725] [cursor=pointer]
+            - button "视图设置" [ref=f3e727] [cursor=pointer]
+          - generic [ref=f3e729]:
+            - generic [ref=f3e730]: 1 项分析
+            - button "编辑布局" [ref=f3e862] [cursor=pointer]
+          - generic [ref=f3e869]:
+            - generic [ref=f3e870]:
+              - generic "单场景验收 · 渠道交易金额" [ref=f3e873]
+              - button "更多组件选项 单场景验收 · 渠道交易金额" [ref=f3e876] [cursor=pointer]
+            - generic [ref=f3e879]:
+              - generic "图表绘图区" [ref=f3e880]
+              - generic "图例" [ref=f3e883]:
+                - button "USD" [pressed] [ref=f3e884] [cursor=pointer]
+        - navigation "数据状态与详情" [ref=f3e742]:
+          - button "管理数据" [ref=f3e743] [cursor=pointer]
+          - button "查看 Schema" [ref=f3e744] [cursor=pointer]
+          - button "查看数据检查" [ref=f3e745] [cursor=pointer]
+        - alert [ref=f3e746]:
+          - text: 1 个数据集的元数据未完整获取，无法获取的统计标为未知。
+          - button "重新读取元数据" [ref=f3e747] [cursor=pointer]
+          - group [ref=f3e748]:
+            - generic "查看失败原因" [ref=f3e749] [cursor=pointer]
+    - contentinfo [ref=f3e127]:
+      - generic [ref=f3e128]:
+        - generic [ref=f3e129]: DuckDB 1.33.1
+        - generic [ref=f3e132]: "|"
+        - generic [ref=f3e133]: acceptance [OPFS]
+        - generic [ref=f3e135]: "|"
+        - generic [ref=f3e136]: 持久化库
+        - generic [ref=f3e138]: "|"
+        - generic [ref=f3e139]: 3 张表
+      - generic [ref=f3e141]:
+        - generic [ref=f3e142]: 引擎就绪
+        - generic [ref=f3e146]: "|"
+        - generic [ref=f3e147]: 19:43
+        - button "刷新运行时状态" [ref=f3e148] [cursor=pointer]
+  - dialog [ref=f3e888]:
+    - banner [ref=f3e889]:
+      - generic [ref=f3e891]:
+        - heading "统一分析上下文" [level=2] [ref=f3e893]
+        - paragraph [ref=f3e894]: 条件进入底层查询；按数据集显式映射字段。截止时间使用小于条件可避免日期边界重叠。
+      - button "关闭" [ref=f3e896] [cursor=pointer]
+    - generic [ref=f3e897]:
+      - generic [ref=f3e899]:
+        - generic [ref=f3e900]:
+          - text: 数据集
+          - combobox "筛选数据集" [active] [ref=f3e901]:
+            - option "选择数据集" [selected]
+            - option "acceptance.main.dataset_a"
+            - option "acceptance.main.dataset_b"
+        - generic [ref=f3e902]:
+          - text: 字段
+          - combobox "筛选字段" [ref=f3e903]:
+            - option "选择字段" [selected]
+        - generic [ref=f3e904]:
+          - text: 条件
+          - combobox "筛选条件" [ref=f3e905]:
+            - option "等于" [selected]
+            - option "不等于"
+            - option "大于等于 / 起始时间"
+            - option "小于 / 截止时间"
+            - option "小于等于"
+            - option "包含"
+            - option "为空"
+            - option "非空"
+        - generic [ref=f3e906]:
+          - text: 值
+          - textbox "筛选值" [ref=f3e907]
+        - button "添加条件" [disabled] [ref=f3e908]
+      - generic [ref=f3e910]:
+        - text: 刷新策略
+        - combobox "看板刷新策略" [ref=f3e911]:
+          - option "应用内数据变化时刷新" [selected]
+          - option "每 30 秒"
+          - option "每 60 秒"
+          - option "每 5 分钟"
+      - paragraph [ref=f3e912]: 定时刷新重新查询已连接数据；外部文件内容变化仍需重新载入数据源。
+    - contentinfo [ref=f3e913]:
+      - button "取消" [ref=f3e914] [cursor=pointer]
+      - button "应用并保存默认条件" [ref=f3e916] [cursor=pointer]

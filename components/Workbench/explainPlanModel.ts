@@ -26,6 +26,7 @@ export interface PlanStep {
   /** One short fact line — prefer conditions/tables over jargon */
   humanSummary: string;
   rawLine: string;
+  rawLines?: string[];
   category: StepCategory;
   depth: number;
   costPercent?: number;
@@ -277,6 +278,7 @@ function toUiNode(raw: RawParsedOperator, depth: number): PlanStep {
     humanTitle,
     humanSummary,
     rawLine: raw.rawLines.join(' · ') || raw.name,
+    rawLines: raw.rawLines?.length ? raw.rawLines : [raw.rawLines.join(' · ') || raw.name],
     category,
     depth,
     costPercent: hasRealCost && raw.costPercent > 0 ? Math.min(100, Math.round(raw.costPercent)) : undefined,
@@ -347,3 +349,131 @@ export function categoryLabel(cat: StepCategory): string {
     default: return '其他';
   }
 }
+
+export const DUCKDB_OPERATOR_EXPLANATIONS: Record<string, { title: string; desc: string }> = {
+  SEQ_SCAN: {
+    title: '全表顺序扫描',
+    desc: '从底层存储逐块读取整张表的所有数据。若表很大且耗时高，建议检查 WHERE 条件是否支持索引或谓词下推。',
+  },
+  TABLE_SCAN: {
+    title: '物理表扫描',
+    desc: '从物理数据表顺序读取数据块。',
+  },
+  INDEX_SCAN: {
+    title: 'ART 索引快速扫描',
+    desc: '利用 DuckDB 的自适应基数树（ART）索引快速检索目标行，大幅减少数据扫描量。',
+  },
+  PARQUET_SCAN: {
+    title: 'Parquet 列式读取',
+    desc: '直接从 Parquet 文件中按列式读取，利用元数据跳过无关数据页（Zone Map 剪裁），并仅读取涉及的列。',
+  },
+  CSV_SCAN: {
+    title: 'CSV 文件多线程扫描',
+    desc: '对 CSV 文本进行多线程切分并解析转换为二进制向量。',
+  },
+  COLUMN_DATA_SCAN: {
+    title: '列内存扫描',
+    desc: '扫描 DuckDB 内存中的中间列数据块。',
+  },
+  CHUNK_SCAN: {
+    title: '数据块扫描',
+    desc: '扫描内存中的临时数据块（DataChunk）。',
+  },
+  DELIM_SCAN: {
+    title: '去重中间结果扫描',
+    desc: '在关联子查询（Correlated Subquery）解关联时，用于读取去重后的参数集。',
+  },
+  FILTER: {
+    title: '谓词行过滤',
+    desc: '计算 WHERE 或 HAVING 过滤表达式，不符合条件的行将被立即丢弃，减少后续计算量。',
+  },
+  HASH_JOIN: {
+    title: '哈希连接',
+    desc: '以右侧分支数据在内存构建哈希表（Build），再流式遍历左侧分支（Probe）进行匹配。等值关联（ON a.id = b.id）的标准高效算法。',
+  },
+  MERGE_JOIN: {
+    title: '归并连接',
+    desc: '要求两路输入已按关联键排好序，双指针线性归并匹配，适合大排序数据集。',
+  },
+  BLOCKWISE_NL_JOIN: {
+    title: '分块嵌套循环连接',
+    desc: '当关联条件不是简单的等值或不等式时，采用双重分块循环比对，计算量较大。',
+  },
+  NESTED_LOOP: {
+    title: '嵌套循环连接',
+    desc: '逐行进行双层循环比对，常用于笛卡尔积或复杂不等式连接。',
+  },
+  CROSS_PRODUCT: {
+    title: '笛卡尔交叉积',
+    desc: '两表无关联条件直接做全组合乘积（M × N 行），数据量易膨胀。',
+  },
+  IEJOIN: {
+    title: '不等式连接 (Inequality Join)',
+    desc: '专用于带有两组不等式范围条件（如 A.time < B.time AND A.val > B.val）的高性能连接算法。',
+  },
+  ASOF_JOIN: {
+    title: '时序 ASOF 连接',
+    desc: '用于时序或金融数据，在时间戳最接近的记录之间建立对齐连接。',
+  },
+  DELIM_JOIN: {
+    title: '解关联连接',
+    desc: '优化器将复杂的相关子查询改写为去重驱动的独立连接。',
+  },
+  HASH_GROUP_BY: {
+    title: '哈希分组聚合',
+    desc: '根据 GROUP BY 字段将行哈希分流到不同的桶中，并计算聚合函数（SUM、COUNT、AVG 等）。',
+  },
+  PERFECT_HASH_GROUP_BY: {
+    title: '完美哈希分组聚合',
+    desc: '当分组键范围较小且密集（如连续小整数或枚举）时，直接用数组寻址替代哈希运算，性能极高。',
+  },
+  UNGROUPED_AGGREGATE: {
+    title: '全局无分组聚合',
+    desc: '整张表计算单个合计值（如无 GROUP BY 的 COUNT(*) 或 SUM(x)）。',
+  },
+  HASH_DISTINCT: {
+    title: '哈希去重',
+    desc: '使用哈希表识别并过滤重复记录（DISTINCT）。',
+  },
+  ORDER_BY: {
+    title: '全局排序',
+    desc: '按 ORDER BY 指定的列对所有数据进行排序。当内存不足时可能会触发磁盘溢出（External Sort）。',
+  },
+  TOP_N: {
+    title: 'Top-N 堆排序',
+    desc: '配合 LIMIT 执行的优化排序，仅在内存中维护前 N 个极值，不需要对全量数据做完整排序。',
+  },
+  LIMIT: {
+    title: '截取行数',
+    desc: '获取指定数量的行后立即停止向上游拉取数据（Early Out）。',
+  },
+  STREAMING_LIMIT: {
+    title: '流式截取行数',
+    desc: '流式透传并在达到行数上限后快速终止执行。',
+  },
+  PROJECTION: {
+    title: '字段表达式计算与投影',
+    desc: '计算 SELECT 后面的列、重命名别名、函数表达式或数据类型转换。',
+  },
+  RESULT_COLLECTOR: {
+    title: '查询结果收集器',
+    desc: '物理流水线的最顶层，将引擎内部处理好的向量结果汇总成最终数据表格输出给前端。',
+  },
+  WINDOW: {
+    title: '窗口函数计算',
+    desc: '执行 OVER (PARTITION BY ... ORDER BY ...) 窗口分析计算。',
+  },
+  STREAMING_WINDOW: {
+    title: '流式窗口函数',
+    desc: '内存友好的流式窗口分析计算。',
+  },
+};
+
+export function getOperatorExplanation(name: string): { title: string; desc: string } | null {
+  const norm = name.toUpperCase().replace(/[\s-]+/g, '_');
+  for (const [key, val] of Object.entries(DUCKDB_OPERATOR_EXPLANATIONS)) {
+    if (norm.includes(key)) return val;
+  }
+  return null;
+}
+

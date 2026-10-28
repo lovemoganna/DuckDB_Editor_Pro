@@ -61,7 +61,7 @@ export interface OntologyCanvasHeaderProps {
   onImportTable: () => void;
   onCompileCTE: () => void;
   onReverseInferSchema: () => void;
-  onSavePreset: () => void;
+  onSavePreset?: () => void;
   onShowShortcuts: () => void;
   
   // 视图
@@ -415,12 +415,14 @@ export const OntologyCanvasHeader: React.FC<OntologyCanvasHeaderProps> = ({
               <span>反向工程</span>
             </button>
             <div className="h-px bg-monokai-border mx-2" />
-            <button
-              onClick={() => { onSavePreset(); setShowAdvancedMenu(false); }}
-              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-monokai-surface text-left transition-colors"
-            >
-              <span>保存预设</span>
-            </button>
+            {onSavePreset && (
+              <button
+                onClick={() => { onSavePreset(); setShowAdvancedMenu(false); }}
+                className="w-full flex items-center gap-2 px-3 py-2 hover:bg-monokai-surface text-left transition-colors"
+              >
+                <span>保存预设</span>
+              </button>
+            )}
             <button
               onClick={() => { onShowShortcuts(); setShowAdvancedMenu(false); }}
               className="w-full flex items-center gap-2 px-3 py-2 hover:bg-monokai-surface text-left transition-colors"

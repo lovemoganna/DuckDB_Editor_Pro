@@ -124,7 +124,7 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
       <span>
         {parts.map((part, i) =>
           part.toLowerCase() === highlight.toLowerCase() ? (
-            <mark key={i} className="bg-monokai-cyan/35 text-white rounded px-0.5 font-semibold">{part}</mark>
+            <mark key={i} className="bg-monokai-cyan/35 text-monokai-fg rounded px-0.5 font-semibold">{part}</mark>
           ) : (
             part
           )
@@ -436,7 +436,7 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
     ];
     if (activeDataTab === 'object') return [
       { key: 'id', label: 'ID' },
-      { key: 'object_type_id', label: '归属类型', render: v => <span className="text-[#FF9F1C] font-semibold text-xs">{state.objectTypes.find(t => t.id === v)?.name || String(v)}</span> },
+      { key: 'object_type_id', label: '归属类型', render: v => <span className="text-monokai-orange font-semibold text-xs">{state.objectTypes.find(t => t.id === v)?.name || String(v)}</span> },
       { key: 'name', label: '实例全称', render: (v) => renderHighlightedText(String(v), filterText) },
       { key: 'properties', label: '特性负载 (JSON)', render: (v, r) => {
         if (!v || v === '{}') return (
@@ -491,14 +491,14 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
     ];
     if (activeDataTab === 'link') return [
       { key: 'id', label: 'ID' },
-      { key: 'link_type_id', label: '关系类型', render: v => <span className="text-[#FFD166] text-xs font-semibold">{state.linkTypes.find(t => t.id === v)?.name || String(v)}</span> },
+      { key: 'link_type_id', label: '关系类型', render: v => <span className="text-monokai-yellow text-xs font-semibold">{state.linkTypes.find(t => t.id === v)?.name || String(v)}</span> },
       { key: 'source_object_id', label: 'Source', render: v => {
         const obj = state.objects.find(o => o.id === v);
         const name = obj?.name || String(v);
         return (
           <button
             onClick={(e) => { e.stopPropagation(); handleNavigateToInstance(name); }}
-            className="text-[#4CC9F0] text-xs hover:underline text-left font-semibold"
+            className="text-monokai-cyan text-xs hover:underline text-left font-semibold"
             title="点击跳转到实例"
           >
             {renderHighlightedText(name, filterText)}
@@ -511,7 +511,7 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
         return (
           <button
             onClick={(e) => { e.stopPropagation(); handleNavigateToInstance(name); }}
-            className="text-[#FF9CF7] text-xs hover:underline text-left font-semibold"
+            className="text-monokai-pink text-xs hover:underline text-left font-semibold"
             title="点击跳转到实例"
           >
             {renderHighlightedText(name, filterText)}
@@ -521,7 +521,7 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
       { key: 'weight', label: '耦合权重', render: v => (
         <div className="flex items-center gap-2 min-w-[90px]">
           <div className="h-1.5 flex-1 bg-black/40 rounded-full overflow-hidden">
-            <div className="h-full bg-gradient-to-r from-monokai-cyan to-[#FF9CF7] rounded-full transition-all" style={{ width: `${Math.min(Number(v) * 100, 100)}%` }} />
+            <div className="h-full bg-gradient-to-r from-monokai-cyan to-monokai-pink rounded-full transition-all" style={{ width: `${Math.min(Number(v) * 100, 100)}%` }} />
           </div>
           <span className="text-xs font-mono text-monokai-comment w-9 text-right">{Number(v).toFixed(2)}</span>
         </div>
@@ -536,7 +536,7 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
         return (
           <button
             onClick={(e) => { e.stopPropagation(); handleNavigateToInstance(name); }}
-            className="text-[#4CC9F0] text-xs hover:underline text-left font-semibold"
+            className="text-monokai-cyan text-xs hover:underline text-left font-semibold"
             title="点击跳转到实例"
           >
             {renderHighlightedText(name, filterText)}
@@ -560,7 +560,7 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
         return (
           <button
             onClick={(e) => { e.stopPropagation(); handleNavigateToInstance(name); }}
-            className="text-[#4CC9F0] text-xs hover:underline text-left font-semibold"
+            className="text-monokai-cyan text-xs hover:underline text-left font-semibold"
             title="点击跳转到实例"
           >
             {renderHighlightedText(name, filterText)}
@@ -582,7 +582,7 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
         return (
           <button
             onClick={(e) => { e.stopPropagation(); handleNavigateToInstance(name); }}
-            className="text-[#4CC9F0] text-xs hover:underline text-left font-semibold"
+            className="text-monokai-cyan text-xs hover:underline text-left font-semibold"
             title="点击跳转到实例"
           >
             {renderHighlightedText(name, filterText)}
@@ -1280,7 +1280,7 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
                   setFilterText('');
                   setCurrentPage(1);
                 }}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-monokai-comment hover:text-white transition-colors"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-monokai-comment hover:text-monokai-fg transition-colors"
                 title="清除过滤"
               >
                 <X className="w-3.5 h-3.5" />
@@ -1845,9 +1845,10 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
                     <path
                       d={`M ${state.links.map((l: any, idx: number) => `${(idx / Math.max(state.links.length - 1, 1)) * 60},${30 - (l.weight * 25)}`).join(' L ')}`}
                       fill="none"
-                      stroke="#A6E22E"
+                      stroke="currentColor"
                       strokeWidth="2"
                       strokeLinecap="round"
+                      className="text-monokai-accent"
                     />
                   </svg>
                 </div>
@@ -1855,14 +1856,15 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
               {activeDataTab === 'action' && m.label.includes('待处理') && state.actions.length > 0 && (
                 <div className="w-8 h-8 opacity-65 group-hover:opacity-90 transition-opacity">
                   <svg className="w-full h-full" viewBox="0 0 20 20">
-                    <circle cx="10" cy="10" r="8" fill="none" stroke="#75715E" strokeWidth="2" />
+                    <circle cx="10" cy="10" r="8" fill="none" stroke="currentColor" strokeWidth="2" className="text-monokai-comment" />
                     <circle
                       cx="10" cy="10" r="8"
                       fill="none"
-                      stroke="#A6E22E"
+                      stroke="currentColor"
                       strokeWidth="2"
                       strokeDasharray={`${(state.actions.filter((a: any) => a.status === 'done').length / state.actions.length) * 50.2} 50.2`}
                       transform="rotate(-90 10 10)"
+                      className="text-monokai-accent"
                     />
                   </svg>
                 </div>
@@ -1940,7 +1942,7 @@ export const OntologyDataView: React.FC<{ ontologyState?: any }> = ({ ontologySt
                       <th
                         key={h.key}
                         onClick={() => handleHeaderClick(h.key)}
-                        className="px-5 py-3.5 text-[10px] font-black text-monokai-comment uppercase tracking-widest whitespace-nowrap cursor-pointer hover:text-white transition-colors select-none group"
+                        className="px-5 py-3.5 text-[10px] font-black text-monokai-comment uppercase tracking-widest whitespace-nowrap cursor-pointer hover:text-monokai-fg transition-colors select-none group"
                       >
                         <div className="flex items-center gap-1.5">
                           <span>{h.label}</span>

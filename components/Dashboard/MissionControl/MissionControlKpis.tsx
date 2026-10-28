@@ -1,28 +1,9 @@
 import React, { useState } from 'react';
-import {
-  Database,
-  FileText,
-  Zap,
-  Clock,
-  Cpu,
-  Layers,
-  RotateCcw,
-} from 'lucide-react';
 import { Tab, QueryHistoryItem } from '../../../types';
 import { type DashboardDbMetrics, type TableItemDetail } from '../../../hooks/useDashboardWorkflow';
 import { duckDBService } from '../../../services/duckdbService';
 import { toastService } from '../../../services/toastService';
-import {
-  KpiPortalTooltip,
-  type KpiTooltipData,
-  TableDistributionMiniChart,
-  TableRowVolumeMiniChart,
-  QueryTimelineSparkline,
-  LatencyTrendSparkline,
-  WasmWorkerTelemetryMiniChart,
-  MemoryGaugeMiniChart,
-} from '../KpiDynamicMiniCharts';
-import { KpiWatermark } from './DashboardSvgIllustrations';
+import { DB, dbBadgeClass, type DbBadgeTone } from '../dashboardUi';
 
 interface MissionControlKpisProps {
   metrics: DashboardDbMetrics;
@@ -33,26 +14,80 @@ interface MissionControlKpisProps {
   onOpenSettings?: () => void;
 }
 
+interface MetricCellProps {
+  label: string;
+  value: string;
+  hint?: string;
+  badge?: string;
+  badgeTone?: DbBadgeTone;
+  title?: string;
+  onClick?: () => void;
+}
+
+const MetricCell: React.FC<MetricCellProps> = ({
+  label,
+  value,
+  hint,
+  badge,
+  badgeTone = 'neutral',
+  title,
+  onClick,
+}) => {
+  const interactive = Boolean(onClick);
+  const className = `group flex min-w-0 flex-1 flex-col gap-0.5 px-1 py-1.5 text-left transition-colors sm:px-2.5 ${
+    interactive
+      ? `hover:bg-monokai-elevated/50 cursor-pointer rounded-md ${DB.focus}`
+      : ''
+  }`;
+
+  const body = (
+    <>
+      <div className="flex items-center gap-1.5 min-w-0">
+        <span className="truncate text-2xs font-mono uppercase tracking-wide text-monokai-comment">
+          {label}
+        </span>
+        {badge ? <span className={`shrink-0 ${dbBadgeClass(badgeTone)}`}>{badge}</span> : null}
+      </div>
+      <div className="font-mono text-xl font-semibold tracking-tight text-monokai-fg tabular-nums truncate">
+        {value}
+      </div>
+      {hint ? <div className={`${DB.metaMono} truncate`}>{hint}</div> : null}
+    </>
+  );
+
+  if (!interactive) {
+    return (
+      <div title={title} className={className}>
+        {body}
+      </div>
+    );
+  }
+
+  return (
+    <button type="button" title={title} onClick={onClick} className={className}>
+      {body}
+    </button>
+  );
+};
+
+/**
+ * Compact workspace metrics — IDE status density, not a KPI marketing row.
+ */
 export const MissionControlKpis: React.FC<MissionControlKpisProps> = ({
   metrics,
   tables = [],
-  allHistoryItems = [],
   onNavigate,
   onShrinkMemory,
-  onOpenSettings,
 }) => {
   const [isShrinking, setIsShrinking] = useState(false);
-  const [tooltip, setTooltip] = useState<KpiTooltipData | null>(null);
 
-  const handleShrink = async (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleShrink = async () => {
     setIsShrinking(true);
     try {
-      if (onShrinkMemory) {
-        await onShrinkMemory();
-      } else {
+      if (onShrinkMemory) await onShrinkMemory();
+      else {
         await duckDBService.query('PRAGMA shrink_memory;');
-        toastService.success('已触发本地内存释放 (PRAGMA shrink_memory)');
+        toastService.success('已触发本地内存释放');
       }
     } catch {
       toastService.info('内存状态健康，无需回收');
@@ -62,295 +97,54 @@ export const MissionControlKpis: React.FC<MissionControlKpisProps> = ({
   };
 
   const missingPkCount = metrics.qualityIssues?.missingPkCount || 0;
-  const slowCount = metrics.latencyDistribution?.slowCount || 0;
   const errorCount = metrics.errorCount || 0;
   const memoryPct = metrics.memoryPercentage || 0;
+  const tableCount = tables.filter((t) => t.type !== 'view').length;
+  const viewCount = tables.filter((t) => t.type === 'view').length;
 
   return (
-    <>
-      {/* Floating portal tooltip */}
-      <KpiPortalTooltip tooltip={tooltip} />
-
-      <div className="grid w-full grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6 select-text">
-        {/* 1. 数据表 (Tables) */}
-        <div
-          onClick={() => onNavigate?.(Tab.DATA)}
-          className="group relative flex flex-col justify-between rounded-xl border border-monokai-border bg-gradient-to-b from-monokai-surface to-monokai-surface/90 p-3 sm:p-3.5 shadow-xs hover:border-monokai-cyan/60 transition-colors cursor-pointer overflow-hidden backdrop-blur-xs"
-        >
-          {/* Subtle Cyber SVG Watermark */}
-          <KpiWatermark type="tables" className="text-monokai-cyan" />
-
-          <div className="relative z-10 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-monokai-cyan/15 text-monokai-cyan border border-monokai-cyan/30 shadow-xs">
-                <Database className="h-3.5 w-3.5" />
-              </span>
-              <span className="text-xs font-semibold text-monokai-fg tracking-wide font-sans">数据表</span>
-            </div>
-            <span
-              className={`rounded px-1.5 py-0.2 font-mono text-[10px] border ${
-                missingPkCount > 0
-                  ? 'border-monokai-yellow/40 bg-monokai-yellow/10 text-monokai-yellow'
-                  : 'border-monokai-accent/30 bg-monokai-accent/10 text-monokai-accent'
-              }`}
-            >
-              {missingPkCount > 0 ? `${missingPkCount} 待设PK` : '100% 健全'}
-            </span>
-          </div>
-
-          <div className="relative z-10 mt-3 flex items-end justify-between">
-            <div>
-              <div className="font-mono text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
-                {metrics.tableCount}
-              </div>
-              <div className="mt-0.5 font-mono text-[11px] text-monokai-comment flex items-center gap-1">
-                <span>{tables.filter((t) => t.type !== 'view').length} 表 · {tables.filter((t) => t.type === 'view').length} 视图</span>
-              </div>
-            </div>
-
-            {/* Dynamic Real Table Distribution Mini-Chart with Hover Tooltip */}
-            <TableDistributionMiniChart tables={tables} onTooltip={setTooltip} />
-          </div>
-        </div>
-
-        {/* 2. 总行数 (Total Rows) */}
-        <div
-          onClick={() => onNavigate?.(Tab.DATA)}
-          className="group relative flex flex-col justify-between rounded-xl border border-monokai-border bg-gradient-to-b from-monokai-surface to-monokai-surface/90 p-3 sm:p-3.5 shadow-xs hover:border-monokai-accent/60 transition-colors cursor-pointer overflow-hidden backdrop-blur-xs"
-        >
-          {/* Subtle Cyber SVG Watermark */}
-          <KpiWatermark type="rows" className="text-monokai-accent" />
-
-          <div className="relative z-10 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-monokai-accent/15 text-monokai-accent border border-monokai-accent/30 shadow-xs">
-                <FileText className="h-3.5 w-3.5" />
-              </span>
-              <span className="text-xs font-semibold text-monokai-fg tracking-wide font-sans">总行数</span>
-            </div>
-            <span className="rounded border border-monokai-cyan/30 bg-monokai-cyan/10 px-1.5 py-0.2 font-mono text-[10px] text-monokai-cyan">
-              {metrics.dataSize || '0 B'}
-            </span>
-          </div>
-
-          <div className="relative z-10 mt-3 flex items-end justify-between">
-            <div>
-              <div className="font-mono text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
-                {metrics.formattedTotalRows || '0'}
-              </div>
-              <div className="mt-0.5 font-mono text-[11px] text-monokai-comment flex items-center gap-1">
-                <span className="truncate max-w-[110px]" title={tables[0]?.name ? `主表: ${tables[0].name}` : '数据表'}>
-                  {tables[0]?.name ? `主表: ${tables[0].name}` : '暂无数据'}
-                </span>
-              </div>
-            </div>
-
-            {/* Dynamic Real Table Volume Mini-Chart with Hover Tooltip */}
-            <TableRowVolumeMiniChart
-              tables={tables}
-              totalRows={metrics.totalRows}
-              onTooltip={setTooltip}
-            />
-          </div>
-        </div>
-
-        {/* 3. 查询次数 (Queries Count) */}
-        <div
-          onClick={() => onNavigate?.(Tab.SQL)}
-          className="group relative flex flex-col justify-between rounded-xl border border-monokai-border bg-gradient-to-b from-monokai-surface to-monokai-surface/90 p-3 sm:p-3.5 shadow-xs hover:border-monokai-yellow/60 transition-colors cursor-pointer overflow-hidden backdrop-blur-xs"
-        >
-          {/* Subtle Cyber SVG Watermark */}
-          <KpiWatermark type="queries" className="text-monokai-yellow" />
-
-          <div className="relative z-10 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-monokai-yellow/15 text-monokai-yellow border border-monokai-yellow/30 shadow-xs">
-                <Zap className="h-3.5 w-3.5" />
-              </span>
-              <span className="text-xs font-semibold text-monokai-fg tracking-wide font-sans">查询次数</span>
-            </div>
-            <span
-              className={`rounded px-1.5 py-0.2 font-mono text-[10px] border ${
-                errorCount > 0
-                  ? 'border-monokai-pink/50 bg-monokai-pink/15 text-monokai-pink'
-                  : 'border-monokai-accent/30 bg-monokai-accent/10 text-monokai-accent'
-              }`}
-            >
-              {errorCount > 0 ? `${errorCount} 失败` : '0 报错'}
-            </span>
-          </div>
-
-          <div className="relative z-10 mt-3 flex items-end justify-between">
-            <div>
-              <div className="font-mono text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
-                {metrics.totalQueries}
-              </div>
-              <div className="mt-0.5 font-mono text-[11px] text-monokai-yellow flex items-center gap-1">
-                <span>{metrics.totalQueries > 0 ? `成功率 ${metrics.successRatePct}%` : '暂无记录'}</span>
-              </div>
-            </div>
-
-            {/* Dynamic Real Query Timeline Sparkline with Hover Tooltip */}
-            <QueryTimelineSparkline
-              historyItems={allHistoryItems}
-              totalQueries={metrics.totalQueries}
-              successRatePct={metrics.successRatePct}
-              onTooltip={setTooltip}
-            />
-          </div>
-        </div>
-
-        {/* 4. 平均查询时间 (Avg Latency) */}
-        <div
-          onClick={() => onNavigate?.(Tab.SQL)}
-          className="group relative flex flex-col justify-between rounded-xl border border-monokai-border bg-gradient-to-b from-monokai-surface to-monokai-surface/90 p-3 sm:p-3.5 shadow-xs hover:border-monokai-cyan/60 transition-colors cursor-pointer overflow-hidden backdrop-blur-xs"
-        >
-          {/* Subtle Cyber SVG Watermark */}
-          <KpiWatermark type="latency" className="text-monokai-cyan" />
-
-          <div className="relative z-10 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-monokai-cyan/15 text-monokai-cyan border border-monokai-cyan/30 shadow-xs">
-                <Clock className="h-3.5 w-3.5" />
-              </span>
-              <span className="text-xs font-semibold text-monokai-fg tracking-wide font-sans">平均查询时间</span>
-            </div>
-            <span
-              className={`rounded px-1.5 py-0.2 font-mono text-[10px] border ${
-                slowCount > 0
-                  ? 'border-monokai-yellow/40 bg-monokai-yellow/10 text-monokai-yellow'
-                  : 'border-monokai-cyan/30 bg-monokai-cyan/10 text-monokai-cyan'
-              }`}
-            >
-              {slowCount > 0 ? `${slowCount} 慢查询` : '极速响应'}
-            </span>
-          </div>
-
-          <div className="relative z-10 mt-3 flex items-end justify-between">
-            <div>
-              <div className="font-mono text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
-                {metrics.formattedAvgLatency || '—'}
-              </div>
-              <div className="mt-0.5 font-mono text-[11px] text-monokai-comment flex items-center gap-0.5">
-                <span>
-                  {allHistoryItems.length === 0
-                    ? '—'
-                    : metrics.avgLatencyMs < 50
-                      ? '引擎响应 < 50ms'
-                      : metrics.avgLatencyMs < 200
-                        ? '标准响应 < 200ms'
-                        : '负载偏高'}
-                </span>
-              </div>
-            </div>
-
-            {/* Dynamic Real Latency Trend Sparkline with Hover Tooltip */}
-            <LatencyTrendSparkline
-              historyItems={allHistoryItems}
-              avgLatencyMs={metrics.avgLatencyMs}
-              onTooltip={setTooltip}
-            />
-          </div>
-        </div>
-
-        {/* 5. 活跃会话 (Active Sessions) */}
-        <div
-          onClick={onOpenSettings}
-          className="group relative flex flex-col justify-between rounded-xl border border-monokai-border bg-gradient-to-b from-monokai-surface to-monokai-surface/90 p-3 sm:p-3.5 shadow-xs hover:border-monokai-purple/60 transition-colors cursor-pointer overflow-hidden backdrop-blur-xs"
-        >
-          {/* Subtle Cyber SVG Watermark */}
-          <KpiWatermark type="engine" className="text-monokai-purple" />
-
-          <div className="relative z-10 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-monokai-purple/15 text-monokai-purple border border-monokai-purple/30 shadow-xs">
-                <Cpu className="h-3.5 w-3.5" />
-              </span>
-              <span className="text-xs font-semibold text-monokai-fg tracking-wide font-sans">活跃会话</span>
-            </div>
-            <span className="rounded border border-monokai-purple/30 bg-monokai-purple/10 px-1.5 py-0.2 font-mono text-[10px] text-monokai-purple">
-              WASM
-            </span>
-          </div>
-
-          <div className="relative z-10 mt-3 flex items-end justify-between">
-            <div>
-              <div className="font-mono text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
-                {metrics.activeSessions || 1}
-              </div>
-              <div className="mt-0.5 font-mono text-[11px] text-monokai-purple flex items-center gap-1">
-                <span>独立 Web Worker</span>
-              </div>
-            </div>
-
-            {/* Dynamic WASM Telemetry Subsystem Channels with Hover Tooltip */}
-            <WasmWorkerTelemetryMiniChart
-              activeSessions={metrics.activeSessions}
-              onTooltip={setTooltip}
-            />
-          </div>
-        </div>
-
-        {/* 6. 内存使用 (Memory Usage) */}
-        <div
-          onClick={handleShrink}
-          className={`group relative flex flex-col justify-between rounded-xl border bg-gradient-to-b from-monokai-surface to-monokai-surface/90 p-3 sm:p-3.5 shadow-xs transition-colors cursor-pointer overflow-hidden backdrop-blur-xs ${
-            memoryPct >= 75
-              ? 'border-monokai-pink/50 hover:border-monokai-pink'
-              : 'border-monokai-border hover:border-monokai-accent/60'
-          }`}
-          title="点击执行 PRAGMA shrink_memory 释放内存"
-        >
-          {/* Subtle Cyber SVG Watermark */}
-          <KpiWatermark type="memory" className={memoryPct >= 75 ? 'text-monokai-pink' : 'text-monokai-accent'} />
-
-          <div className="relative z-10 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span
-                className={`flex h-7 w-7 items-center justify-center rounded-lg border shadow-xs ${
-                  memoryPct >= 75
-                    ? 'bg-monokai-pink/15 text-monokai-pink border-monokai-pink/30'
-                    : 'bg-monokai-accent/15 text-monokai-accent border-monokai-accent/30'
-                }`}
-              >
-                <Layers className="h-3.5 w-3.5" />
-              </span>
-              <span className="text-xs font-semibold text-monokai-fg tracking-wide font-sans">内存使用</span>
-            </div>
-            <span
-              className={`rounded px-1.5 py-0.2 font-mono text-[10px] border ${
-                memoryPct >= 75
-                  ? 'border-monokai-pink/50 bg-monokai-pink/15 text-monokai-pink animate-pulse'
-                  : 'border-monokai-accent/30 bg-monokai-accent/10 text-monokai-accent'
-              }`}
-            >
-              {metrics.memoryPercentageDisplay || `${memoryPct}%`}
-            </span>
-          </div>
-
-          <div className="relative z-10 mt-3 flex items-end justify-between">
-            <div>
-              <div className="font-mono text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
-                {metrics.memoryUsageFormatted || '0 MiB'}
-              </div>
-              <div className="mt-0.5 font-mono text-[11px] text-monokai-comment flex items-center gap-1 group-hover:text-monokai-accent transition-colors">
-                <RotateCcw className={`h-3 w-3 ${isShrinking ? 'animate-spin text-monokai-accent' : ''}`} />
-                <span>{isShrinking ? '正在回收…' : '点击立即回收'}</span>
-              </div>
-            </div>
-
-            {/* Dynamic Real Memory Gauge Mini-Chart with Hover Tooltip */}
-            <MemoryGaugeMiniChart
-              memoryTotalGb={metrics.memoryTotalGb}
-              memoryPercentage={metrics.memoryPercentage}
-              memoryUsageFormatted={metrics.memoryUsageFormatted}
-              memoryPercentageDisplay={metrics.memoryPercentageDisplay}
-              isShrinking={isShrinking}
-              onTooltip={setTooltip}
-            />
-          </div>
-        </div>
-      </div>
-    </>
+    <div
+      className="flex flex-col sm:flex-row sm:items-stretch divide-y sm:divide-y-0 sm:divide-x divide-monokai-border/60 border-y border-monokai-border/70 select-text"
+      data-testid="studio-metric-strip"
+    >
+      <MetricCell
+        label="表"
+        value={String(metrics.tableCount)}
+        hint={`${tableCount} 表 · ${viewCount} 视图`}
+        badge={missingPkCount > 0 ? `${missingPkCount} PK` : undefined}
+        badgeTone={missingPkCount > 0 ? 'warn' : 'neutral'}
+        title="前往数据网格"
+        onClick={() => onNavigate?.(Tab.DATA)}
+      />
+      <MetricCell
+        label="行数"
+        value={metrics.formattedTotalRows || '0'}
+        hint={metrics.dataSize || '0 B'}
+        title="查看各表行数"
+        onClick={() => onNavigate?.(Tab.DATA)}
+      />
+      <MetricCell
+        label="查询"
+        value={String(metrics.totalQueries)}
+        hint={
+          metrics.totalQueries > 0
+            ? `${metrics.successRatePct}% 成功 · 均 ${metrics.formattedAvgLatency || '—'}`
+            : '暂无记录'
+        }
+        badge={errorCount > 0 ? `${errorCount} 失败` : undefined}
+        badgeTone={errorCount > 0 ? 'danger' : 'neutral'}
+        title="前往 SQL 工作台"
+        onClick={() => onNavigate?.(Tab.SQL)}
+      />
+      <MetricCell
+        label="内存"
+        value={metrics.memoryUsageFormatted || '0 MiB'}
+        hint={isShrinking ? '正在回收…' : `占用 ${metrics.memoryPercentageDisplay || `${memoryPct}%`} · 点击回收`}
+        badge={memoryPct >= 75 ? '偏高' : undefined}
+        badgeTone={memoryPct >= 75 ? 'danger' : 'neutral'}
+        title="点击执行 PRAGMA shrink_memory 释放内存"
+        onClick={() => void handleShrink()}
+      />
+    </div>
   );
 };

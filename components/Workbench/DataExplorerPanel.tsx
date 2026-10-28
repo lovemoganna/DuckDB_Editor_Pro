@@ -159,6 +159,7 @@ export const DataExplorerPanel: React.FC<DataExplorerPanelProps> = ({
   const searchInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
+  const metadataGeneration = useRef(0);
 
   // Focus search shortcut Ctrl+P
   useEffect(() => {
@@ -189,12 +190,16 @@ export const DataExplorerPanel: React.FC<DataExplorerPanelProps> = ({
 
   // Sync real tables, views, macros, row counts, and registered files
   const loadDatabaseMetadata = async () => {
+    const generation = ++metadataGeneration.current;
+    const catalog = databaseName;
+    const stillCurrent = () => generation === metadataGeneration.current && duckDBService.getRuntimeInfo().currentDatabase === catalog;
     try {
       const [realBaseTables, realViews, realMacros] = await Promise.all([
         duckDBService.getBaseTables().catch(() => tables.filter(t => !t.startsWith('v_') && !t.startsWith('view_'))),
         duckDBService.getViews().catch(() => tables.filter(t => t.startsWith('v_') || t.startsWith('view_'))),
         duckDBService.getMacros().catch(() => []),
       ]);
+      if (!stillCurrent()) return;
       setDbTables(realBaseTables);
       setDbViews(realViews);
       setDbMacros(realMacros || []);
@@ -206,7 +211,8 @@ export const DataExplorerPanel: React.FC<DataExplorerPanelProps> = ({
       const rows = await duckDBService.query(`
         SELECT table_name, estimated_size 
         FROM duckdb_tables() 
-        WHERE NOT internal AND schema_name NOT IN ('information_schema', 'pg_catalog')
+        WHERE database_name = current_database() AND NOT internal
+          AND schema_name NOT IN ('information_schema', 'pg_catalog', '__studio')
       `).catch(() => []);
 
       const countMap: Record<string, number> = {};
@@ -217,16 +223,27 @@ export const DataExplorerPanel: React.FC<DataExplorerPanelProps> = ({
           }
         });
       }
-      setLiveRowCounts(countMap);
+      if (stillCurrent()) setLiveRowCounts(countMap);
     } catch (e) {
+      if (!stillCurrent()) return;
       setMetadataLoaded(true);
       console.warn('[DataExplorerPanel] Metadata load error:', e);
     }
   };
 
   useEffect(() => {
+    setDbTables([]); setDbViews([]); setDbMacros([]); setDbFiles([]);
+    setLiveRowCounts({}); setRemoteSources([]);
+    try {
+      setRecentItems(databaseName === 'duckdb_manager_workspace' ? JSON.parse(localStorage.getItem('duckdb_recent_queries_v1') || '[]') : []);
+    } catch { setRecentItems([]); }
+    setSearchTerm(''); setContextMenu(null); setMetadataLoaded(false);
+  }, [databaseName]);
+
+  useEffect(() => {
     void loadDatabaseMetadata();
-  }, [tables]);
+    return () => { metadataGeneration.current += 1; };
+  }, [tables, databaseName]);
 
   const filteredTables = useMemo(() => {
     const rawList = metadataLoaded ? dbTables : (dbTables.length > 0 ? dbTables : tables.filter(t => !t.startsWith('v_') && !t.startsWith('view_')));
@@ -546,7 +563,7 @@ export const DataExplorerPanel: React.FC<DataExplorerPanelProps> = ({
         ref={fileInputRef}
         onChange={handleFileInputChange}
         multiple
-        accept=".parquet,.csv,.json,.sql,.txt,.arrow"
+        accept=".parquet,.csv,.json,.sql,.txt,.arrow,.duckdb"
         className="hidden"
       />
 
@@ -609,6 +626,21 @@ export const DataExplorerPanel: React.FC<DataExplorerPanelProps> = ({
         <div className="grid grid-cols-2 gap-1.5 font-sans mb-1.5">
           <button
             onClick={() => {
+              if (onCreateTable) {
+                onCreateTable();
+              } else {
+                window.dispatchEvent(new CustomEvent('open-create-table-modal'));
+              }
+            }}
+            className="flex items-center justify-center gap-1.5 h-7 px-2 rounded-md bg-monokai-surface hover:bg-monokai-elevated border border-monokai-border text-xs font-medium text-monokai-fg hover:text-monokai-yellow transition-colors cursor-pointer whitespace-nowrap"
+            title="可视化创建数据表 (CREATE TABLE)"
+          >
+            <TableIcon className="w-3.5 h-3.5 text-monokai-yellow shrink-0" />
+            <span>新建表</span>
+          </button>
+
+          <button
+            onClick={() => {
               if (fileInputRef.current) {
                 fileInputRef.current.click();
               } else if (onUploadFile) {
@@ -621,31 +653,33 @@ export const DataExplorerPanel: React.FC<DataExplorerPanelProps> = ({
             <FolderPlus className="w-3.5 h-3.5 text-monokai-cyan shrink-0" />
             <span>打开文件</span>
           </button>
-
-          <button
-            onClick={() => onAttachDatabase?.()}
-            className="flex items-center justify-center gap-1.5 h-7 px-2 rounded-md bg-monokai-surface hover:bg-monokai-elevated border border-monokai-border text-xs font-medium text-monokai-fg hover:text-monokai-yellow transition-colors cursor-pointer whitespace-nowrap"
-            title="附加 DuckDB / SQLite 数据库"
-          >
-            <Database className="w-3.5 h-3.5 text-monokai-yellow shrink-0" />
-            <span>附加数据库</span>
-          </button>
         </div>
 
-        <button
-          onClick={() => {
-            if (onAddDataSource) {
-              onAddDataSource();
-            } else {
-              setShowRemoteFileModal(true);
-            }
-          }}
-          className="flex items-center justify-center gap-1.5 w-full h-7 px-2 rounded-md bg-monokai-surface hover:bg-monokai-elevated border border-monokai-border text-xs font-medium text-monokai-fg hover:text-monokai-fg transition-colors cursor-pointer whitespace-nowrap"
-          title="添加外部数据源或挂载远程 Parquet/CSV"
-        >
-          <Plus className="w-3.5 h-3.5 text-monokai-comment shrink-0" />
-          <span>添加数据源</span>
-        </button>
+        <div className="grid grid-cols-2 gap-1.5 font-sans">
+          <button
+            onClick={() => onAttachDatabase?.()}
+            className="flex items-center justify-center gap-1.5 h-7 px-2 rounded-md bg-monokai-surface hover:bg-monokai-elevated border border-monokai-border text-xs font-medium text-monokai-fg hover:text-monokai-green transition-colors cursor-pointer whitespace-nowrap"
+            title="附加 DuckDB / SQLite 数据库"
+          >
+            <Database className="w-3.5 h-3.5 text-monokai-green shrink-0" />
+            <span>附加数据库</span>
+          </button>
+
+          <button
+            onClick={() => {
+              if (onAddDataSource) {
+                onAddDataSource();
+              } else {
+                setShowRemoteFileModal(true);
+              }
+            }}
+            className="flex items-center justify-center gap-1.5 h-7 px-2 rounded-md bg-monokai-surface hover:bg-monokai-elevated border border-monokai-border text-xs font-medium text-monokai-fg hover:text-monokai-fg transition-colors cursor-pointer whitespace-nowrap"
+            title="添加外部数据源或挂载远程 Parquet/CSV"
+          >
+            <Plus className="w-3.5 h-3.5 text-monokai-comment shrink-0" />
+            <span>添加数据源</span>
+          </button>
+        </div>
       </div>
 
       {/* 2. Object Tree Structure */}
@@ -699,20 +733,38 @@ export const DataExplorerPanel: React.FC<DataExplorerPanelProps> = ({
                           <TableIcon className="w-3 h-3 text-monokai-yellow" />
                           <span>表 ({filteredTables.length})</span>
                         </div>
-                        {filteredTables.length > 0 && (
+                        <div className="flex items-center gap-0.5">
                           <button
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleClearAllTables();
+                              if (onCreateTable) {
+                                onCreateTable();
+                              } else {
+                                window.dispatchEvent(new CustomEvent('open-create-table-modal'));
+                              }
                             }}
-                            className="opacity-0 group-hover/header:opacity-100 flex items-center justify-center w-5 h-5 rounded text-monokai-comment hover:text-monokai-pink hover:bg-monokai-pink/15 transition-all cursor-pointer shrink-0"
-                            title="一键清空所有数据表"
-                            aria-label="一键清空所有数据表"
+                            className="opacity-0 group-hover/header:opacity-100 flex items-center justify-center w-5 h-5 rounded text-monokai-comment hover:text-monokai-yellow hover:bg-monokai-surface transition-all cursor-pointer shrink-0"
+                            title="新建数据表"
+                            aria-label="新建数据表"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Plus className="w-3.5 h-3.5" />
                           </button>
-                        )}
+                          {filteredTables.length > 0 && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleClearAllTables();
+                              }}
+                              className="opacity-0 group-hover/header:opacity-100 flex items-center justify-center w-5 h-5 rounded text-monokai-comment hover:text-monokai-pink hover:bg-monokai-pink/15 transition-all cursor-pointer shrink-0"
+                              title="一键清空所有数据表"
+                              aria-label="一键清空所有数据表"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
                       </div>
 
                       {expandedSections.tables && (
@@ -740,8 +792,8 @@ export const DataExplorerPanel: React.FC<DataExplorerPanelProps> = ({
                                   <span className="truncate">{tableName}</span>
                                 </div>
                                 <div className="flex items-center gap-1 shrink-0">
-                                  <span className={`text-[10px] font-mono tabular-nums ${isSelected ? 'text-monokai-fg' : 'text-monokai-comment group-hover:text-monokai-fg-muted'}`}>
-                                    {formatted}
+                                  <span title="引擎估算行数；精确结果请执行 COUNT(*)" className={`text-[10px] font-mono tabular-nums ${isSelected ? 'text-monokai-fg' : 'text-monokai-comment group-hover:text-monokai-fg-muted'}`}>
+                                    {count === null ? formatted : `约 ${formatted}`}
                                   </span>
                                   <button
                                     type="button"

@@ -1,0 +1,28 @@
+{
+  "implementation": "local",
+  "regression": {
+    "files": 285,
+    "workers": 4,
+    "errors": 0,
+    "tests": 2648,
+    "log": "full-tests-frozen.txt"
+  },
+  "browser": {
+    "passed": true,
+    "checks": 12
+  },
+  "typecheck": "passed",
+  "build": "passed",
+  "workflowStaticCheck": "passed",
+  "sourceHashes": "unchanged",
+  "sourceBaselineHash": "A16DB823884EF4C8A6056214C624EAF12FC12A454E31A93F2AB180B5948CC887",
+  "dependencyAudit": {
+    "high": 0,
+    "moderate": 5,
+    "low": 3,
+    "critical": 0,
+    "passed": false
+  },
+  "remoteCI": "not run",
+  "published": false
+}

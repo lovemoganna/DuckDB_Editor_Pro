@@ -203,8 +203,15 @@ export const HistoryTab: React.FC = () => {
     toastService.info(nextStarred ? '已收藏此 SQL 查询' : '已取消收藏');
   };
 
-  const handleDeleteItem = (id: string, e?: React.MouseEvent) => {
+  const handleDeleteItem = async (id: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
+    const ok = await confirm({
+      title: '删除 SQL 历史记录',
+      message: '确定删除此执行记录吗？此操作无法撤销，数据库中的表和数据不会删除。',
+      confirmText: '确认删除',
+      variant: 'danger',
+    });
+    if (!ok) return;
     removeHistoryItem(id);
     toastService.info('历史记录项已删除');
   };

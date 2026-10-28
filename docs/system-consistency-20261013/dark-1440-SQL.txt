@@ -1,0 +1,201 @@
+- banner "全局工作区顶栏":
+  - button "🪶 DuckDB Studio PRO":
+    - generic: 🪶
+    - generic: DuckDB Studio
+    - generic: PRO
+  - navigation "业务领域大类":
+    - button "工程核心":
+      - generic: 工程核心
+    - button "分析洞察":
+      - generic: 分析洞察
+    - button "知识沉淀":
+      - generic: 知识沉淀
+    - button "AI 认知":
+      - generic: AI 认知
+  - tablist "工程核心功能标签页":
+    - tab "仪表盘":
+      - generic: 仪表盘
+      - generic: "1"
+    - tab "数据":
+      - generic: 数据
+      - generic: "2"
+    - tab "Schema":
+      - generic: Schema
+      - generic: "3"
+    - tab "SQL" [active] [selected]:
+      - generic: SQL
+    - tab "数据流":
+      - generic: 数据流
+      - generic: "5"
+  - button "项目 Ctrl+Shift+D":
+    - generic: 项目
+    - generic: Ctrl+Shift+D
+  - button "新建表":
+    - generic: 新建表
+  - button "memory 临时分析空间":
+    - generic: memory
+    - generic: 临时分析空间
+  - button "AI 助手 Ctrl+I":
+    - generic: AI 助手
+    - generic: Ctrl+I
+  - button "⌘K":
+  - button "帮助与快捷键":
+  - button "切换为浅色模式":
+  - button "AI 模型设置":
+- main:
+  - generic: 数据资源浏览
+  - button "刷新元数据":
+  - button "隐藏左侧边栏":
+  - textbox "搜索表、视图、文件..."
+  - button "新建表":
+    - generic: 新建表
+  - button "打开文件":
+    - generic: 打开文件
+  - button "附加数据库":
+    - generic: 附加数据库
+  - button "添加数据源":
+    - generic: 添加数据源
+  - generic: memory
+  - generic: (当前)
+  - generic: main
+  - generic: 表 (0)
+  - button "新建数据表":
+  - generic: 视图 (0)
+  - generic: 宏 (Macros) (0)
+  - generic: 文件与远程源 (0)
+  - generic: 最近打开 (0)
+  - generic "双击空白处新建查询":
+    - tablist "SQL 查询标签页":
+      - tab "query_1.sql 标签选项 关闭标签页" [selected]:
+        - generic "query_1.sql • 左键切换 • 双击重命名 • 右键更多选项 (另存为/关闭等) • 中键快速关闭": query_1.sql
+        - button "标签选项":
+        - button "关闭标签页":
+      - button "新建查询标签页":
+    - generic: 1 个查询
+  - toolbar "SQL 工作区工具栏":
+    - group "执行":
+      - button "运行":
+        - generic: 运行
+      - button "更多执行选项":
+      - button "停止" [disabled]:
+    - group "编辑":
+      - button "格式化":
+        - generic: 格式化
+      - button "复制当前 SQL 代码到剪贴板":
+      - generic "编辑器字号 10px":
+        - button "减小字号" [disabled]:
+        - generic: "10"
+        - button "增大字号":
+    - group "视图模式与流程图":
+      - button "流程图":
+        - generic: 流程图
+      - button "流程图模式选项":
+    - group "智能助手":
+      - button "AI 解释":
+        - generic: 解释
+      - button "AI 分析":
+        - generic: 分析
+    - button "历史 0":
+      - generic: 历史
+      - generic: "0"
+    - generic "当前目录上下文：memory.main":
+      - generic: memory
+      - generic: .
+      - generic: main
+  - generic: "1"
+  - textbox
+  - separator "拖动调整比例，双击恢复 50/50 分屏":
+    - generic: 分隔条
+    - generic: L
+    - generic: "1"
+    - generic: ·
+    - generic: C
+    - generic: "0"
+    - button "最大化结果":
+      - generic: 最大化结果
+    - button "最大化代码":
+      - generic: 最大化代码
+    - generic: 双击
+    - generic: 重置
+    - text: "40"
+    - generic: "%"
+  - tablist "查询结果视图切换":
+    - tab "数据" [selected]:
+      - generic: 数据
+    - tab "图表":
+      - generic: 图表
+    - tab "透视":
+      - generic: 透视
+    - tab "执行计划":
+      - generic: 执行计划
+  - textbox "过滤当前结果..."
+  - button "筛选":
+    - generic: 筛选
+  - button "排序":
+    - generic: 排序
+  - button "分组":
+    - generic: 分组
+  - button "导出":
+    - generic: 导出
+  - generic: 就绪待命
+  - button "全屏浏览结果集":
+  - paragraph: 等待执行查询
+  - paragraph: 按 Ctrl+Enter 运行 SQL。结果可在上方切换数据、图表、透视与执行计划。
+  - button "第一页" [disabled]:
+  - button "上一页" [disabled]:
+  - generic: "1"
+  - button "下一页" [disabled]:
+  - button "最后一页" [disabled]:
+  - generic: 第 1 页, 共 1 页
+  - generic: "每页:"
+  - combobox:
+    - option "25 行"
+    - option "50 行"
+    - option "100 行" [selected]
+    - option "200 行"
+    - option "500 行"
+    - option "1000 行"
+  - generic: 0 / 0 行
+  - button "表格渲染设置":
+  - button "展开列画像":
+    - generic: 列画像
+  - button "展开 AI 智能助手":
+    - generic: AI助手
+  - generic: db
+  - generic: memory.main
+  - generic: (0表)
+  - button "行 1 列 1":
+    - generic: 行
+    - generic: "1"
+    - generic: 列
+    - generic: "1"
+  - 'generic "当前查询: query_1.sql"':
+    - generic: query_1.sql
+  - generic "点击查看运行时状态中心":
+    - generic: 内存
+    - generic: 未采集
+  - generic "查看运行时状态详情":
+    - generic: 运行时
+    - generic: 就绪
+  - generic "点击打开运行时状态中心":
+    - generic: 就绪
+  - button "控制":
+    - generic: 控制
+  - button "反馈":
+    - generic: 反馈
+- contentinfo:
+  - generic: DuckDB 1.33.1
+  - generic: "|"
+  - generic: memory [MEMORY]
+  - generic: "|"
+  - generic: 内存库
+  - generic: "|"
+  - generic: 0 张表
+  - generic: "|"
+  - generic: 暂无表
+  - generic: "|"
+  - generic: "内存: 0.00 MB / 3.1 GiB"
+  - generic: 引擎就绪
+  - generic: "|"
+  - generic: 06:53
+  - button "刷新运行时状态":

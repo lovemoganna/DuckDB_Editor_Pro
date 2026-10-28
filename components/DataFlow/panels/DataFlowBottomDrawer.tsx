@@ -4,7 +4,7 @@
  * 核心特性：
  * 1. 平时收起为 28px 精致状态栏（显示 WASM 状态、拓扑总数与耗时）
  * 2. 顶部带自由拖拽手柄 (Vertical Resizer)，支持 140px ~ 500px 自由伸缩并记忆
- * 3. 三大视图：全链路运行日志、当前节点历史、全量采样数据预览
+ * 3. 三大视图：全链路运行日志、当前节点历史、数据采样数据预览
  * 4. 日志支持一键清空与自动滚动开关
  */
 
@@ -40,12 +40,12 @@ export const DataFlowBottomDrawer: React.FC = () => {
     selectedNodeId,
     nodes,
     edges,
-    dataFlowMode,
+    isExecuting,
   } = useWorkflowStore();
 
   const [drawerHeight, setDrawerHeight] = useState<number>(() => {
-    const saved = localStorage.getItem('dataflow_drawer_height');
-    return saved ? Math.max(140, Math.min(500, Number(saved))) : 210;
+    const saved = Number(localStorage.getItem('dataflow_drawer_height'));
+    return Number.isFinite(saved) && saved > 0 ? Math.max(140, Math.min(500, saved)) : 210;
   });
 
   const [isDragging, setIsDragging] = useState(false);
@@ -61,7 +61,7 @@ export const DataFlowBottomDrawer: React.FC = () => {
 
     const handleMouseMove = (moveEvent: MouseEvent) => {
       const deltaY = startY - moveEvent.clientY;
-      const nextHeight = Math.max(130, Math.min(520, startHeight + deltaY));
+      const nextHeight = Math.max(140, Math.min(500, startHeight + deltaY));
       setDrawerHeight(nextHeight);
       localStorage.setItem('dataflow_drawer_height', String(nextHeight));
     };
@@ -78,12 +78,30 @@ export const DataFlowBottomDrawer: React.FC = () => {
 
   // 自动滚动到底部
   useEffect(() => {
-    if (autoScrollLogs && logTableRef.current) {
+    if (autoScrollLogs && bottomDrawerTab === 'logs' && logTableRef.current) {
       logTableRef.current.scrollTop = logTableRef.current.scrollHeight;
     }
-  }, [runLogs, autoScrollLogs]);
+  }, [runLogs, autoScrollLogs, bottomDrawerTab, isBottomDrawerOpen]);
 
   const selectedNode = nodes.find(n => n.id === selectedNodeId);
+  const logicalNodes = nodes.filter(node => node.type !== 'logicalBoundary');
+  const hasStatementEvidence = logicalNodes.some(node => node.data.executionStatus);
+  const workflowFeedback = hasStatementEvidence
+    ? isExecuting ? '流程执行中'
+      : logicalNodes.some(node => node.data.executionStatus === 'failed') ? '流程执行失败'
+      : logicalNodes.some(node => node.data.executionStatus === 'cancelled') ? '流程已取消'
+      : logicalNodes.some(node => node.data.rolledBack) ? '流程已回滚'
+      : logicalNodes.length > 0 && logicalNodes.every(node => node.data.executionStatus === 'success') ? '流程执行完成'
+      : '流程部分完成'
+    : isExecuting
+    ? '流程执行中'
+    : nodes.some(node => node.data.status === 'error' || node.data.executionResult?.status === 'error')
+      ? '流程执行失败'
+      : nodes.length > 0 && nodes.every(node => node.data.status === 'success' && node.data.executionResult?.status === 'success')
+        ? '流程执行完成'
+        : nodes.some(node => node.data.status === 'success' && node.data.executionResult?.status === 'success')
+          ? '流程部分完成'
+          : '流程待运行';
 
   // 当前节点的历史执行记录（按时间倒序）
   const nodeHistory = selectedNodeId
@@ -93,13 +111,27 @@ export const DataFlowBottomDrawer: React.FC = () => {
   return (
     <div
       style={{ height: isBottomDrawerOpen ? `${drawerHeight}px` : '28px' }}
-      className={`border-t border-monokai-border bg-monokai-surface text-monokai-fg transition-[height] ${
+      className={`dataflow-console shrink-0 min-h-0 max-h-[60%] border-t border-monokai-border bg-monokai-surface text-monokai-fg transition-[height] ${
         isDragging ? 'transition-none' : 'duration-200'
       } flex flex-col font-sans select-none relative z-20`}
     >
       {/* ── 拖拽调整手柄（仅展开时激活） ── */}
       {isBottomDrawerOpen && (
         <div
+          role="separator"
+          aria-label="调整控制台高度"
+          aria-orientation="horizontal"
+          aria-valuemin={140}
+          aria-valuemax={500}
+          aria-valuenow={drawerHeight}
+          tabIndex={0}
+          onKeyDown={e => {
+            if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+            e.preventDefault();
+            const height = Math.max(140, Math.min(500, drawerHeight + (e.key === 'ArrowUp' ? 20 : -20)));
+            setDrawerHeight(height);
+            localStorage.setItem('dataflow_drawer_height', String(height));
+          }}
           onMouseDown={handleMouseDown}
           className="absolute -top-1.5 left-0 right-0 h-3 cursor-ns-resize z-30 group flex items-center justify-center hover:bg-monokai-accent/10 transition-colors"
           title="上下拖拽调整控制台高度"
@@ -109,9 +141,9 @@ export const DataFlowBottomDrawer: React.FC = () => {
       )}
 
       {/* ── 抽屉顶栏（28px 高度） ── */}
-      <div className="flex h-7 shrink-0 items-center justify-between border-b border-monokai-border/80 px-3 bg-monokai-surface/90">
+      <div className="flex h-7 shrink-0 items-center justify-between border-b border-monokai-border/80 px-3 bg-monokai-surface/90 gap-3 overflow-x-auto">
         {/* 左侧：Tabs 切换与快速状态指示 */}
-        <div className="flex h-full items-center">
+        <div className="flex h-full items-center shrink-0">
           {/* 运行日志 */}
           <button
             type="button"
@@ -179,7 +211,7 @@ export const DataFlowBottomDrawer: React.FC = () => {
             }`}
           >
             <Table className="w-3 h-3 shrink-0" />
-            <span>全量采样</span>
+            <span>数据采样</span>
             {isBottomDrawerOpen && bottomDrawerTab === 'preview' && (
               <span className={dfTabUnderline} />
             )}
@@ -188,10 +220,10 @@ export const DataFlowBottomDrawer: React.FC = () => {
           {/* 状态徽标 */}
           <div className="hidden sm:flex items-center gap-3 pl-3 border-l border-monokai-border/60 text-2xs font-mono text-monokai-comment">
             <span className="flex items-center gap-1 text-monokai-fg">
-              <span className="w-1.5 h-1.5 rounded-full bg-monokai-accent shadow-[0_0_5px_rgba(166,226,46,0.6)]" />
-              DuckDB 运行中
+              <span className="w-1.5 h-1.5 rounded-full bg-monokai-accent shadow-[0_0_5px_color-mix(in_srgb,var(--monokai-accent)_60%,transparent)]" />
+              {workflowFeedback}
             </span>
-            <span>{nodes.length} 个节点</span>
+            <span>{logicalNodes.length} 个节点</span>
             <span>{edges.length} 条数据流</span>
           </div>
         </div>
@@ -211,9 +243,10 @@ export const DataFlowBottomDrawer: React.FC = () => {
             </button>
           )}
 
-          {isBottomDrawerOpen && (
+          {isBottomDrawerOpen && bottomDrawerTab === 'logs' && (
             <button
               type="button"
+              aria-pressed={autoScrollLogs}
               onClick={() => setAutoScrollLogs(!autoScrollLogs)}
               className="flex items-center gap-1 hover:text-monokai-fg transition-colors cursor-pointer text-2xs"
               title={autoScrollLogs ? '关闭自动滚动' : '开启自动滚动'}
@@ -227,6 +260,7 @@ export const DataFlowBottomDrawer: React.FC = () => {
           <button
             type="button"
             onClick={toggleBottomDrawer}
+            aria-expanded={isBottomDrawerOpen}
             className="p-1 hover:text-monokai-fg cursor-pointer transition-colors rounded hover:bg-monokai-elevated flex items-center gap-1 text-2xs"
             title={isBottomDrawerOpen ? '收起控制台抽屉' : '展开控制台抽屉'}
           >
@@ -242,7 +276,7 @@ export const DataFlowBottomDrawer: React.FC = () => {
 
       {/* ── 抽屉内容主体（展开状态） ── */}
       {isBottomDrawerOpen && (
-        <div ref={logTableRef} className="flex-1 overflow-y-auto custom-scrollbar font-mono text-meta bg-monokai-bg">
+        <div ref={logTableRef} className="flex-1 min-h-0 overflow-auto custom-scrollbar select-text font-mono text-meta bg-monokai-bg">
           {bottomDrawerTab === 'logs' ? (
             runLogs.length === 0 ? (
               <div className={dfEmpty}>
@@ -267,6 +301,9 @@ export const DataFlowBottomDrawer: React.FC = () => {
                   {runLogs.map((log, idx) => (
                     <tr
                       key={log.id ? `${log.id}_${idx}` : `log_${idx}`}
+                      tabIndex={0}
+                      aria-label={`查看节点 ${log.nodeName}`}
+                      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectNode(log.nodeId); } }}
                       onClick={() => selectNode(log.nodeId)}
                       className={`${dfTableRow} cursor-pointer ${
                         log.nodeId === selectedNodeId ? 'bg-monokai-accent/5' : ''
@@ -343,16 +380,17 @@ export const DataFlowBottomDrawer: React.FC = () => {
           ) : (
             /* 数据预览 Tab */
             <div className="p-3">
-              {selectedNode?.data.executionResult?.rows && selectedNode.data.executionResult.rows.length > 0 ? (
+              {selectedNode?.data.status === 'dirty' && <p role="status" className="text-meta text-monokai-orange mb-2">配置已修改，下方为上次执行结果，请重新运行。</p>}
+              {selectedNode?.data.executionResult?.status === 'success' ? (
                 <div className="overflow-x-auto">
                   <div className="text-2xs text-monokai-comment font-sans mb-1.5 flex items-center gap-1.5">
                     <Table className="w-3 h-3 text-monokai-accent" />
                     <span className="font-semibold text-monokai-fg">{selectedNode.data.title}</span>
-                    <span>— 采样 {selectedNode.data.executionResult.rows.length} 行 · {selectedNode.data.executionResult.columns.length} 列</span>
+                    <span>— 展示 {Math.min(50, selectedNode.data.executionResult.rows.length)} / {selectedNode.data.executionResult.rowCount.toLocaleString()} 行 · {selectedNode.data.executionResult.columns.length} 列</span>
                   </div>
-                  <table className="w-full text-left border-collapse text-meta">
+                  <table className={dfTable}>
                     <thead>
-                      <tr className="border-b border-monokai-border bg-monokai-elevated text-monokai-fg-muted">
+                      <tr className={dfTableHead}>
                         {selectedNode.data.executionResult.columns.map(c => (
                           <th key={c.name} className="py-1 px-2.5 font-medium whitespace-nowrap">
                             <div>{c.name}</div>
@@ -363,10 +401,10 @@ export const DataFlowBottomDrawer: React.FC = () => {
                     </thead>
                     <tbody>
                       {selectedNode.data.executionResult.rows.slice(0, 50).map((r, i) => (
-                        <tr key={i} className="border-b border-monokai-border/30 hover:bg-white/[0.02]">
+                        <tr key={i} className={dfTableRow}>
                           {selectedNode.data.executionResult!.columns.map(c => (
                             <td key={c.name} className="py-1 px-2.5 text-monokai-fg truncate max-w-[160px]">
-                              {String(r[c.name] ?? '')}
+                              {r[c.name] == null ? <span className="text-monokai-comment italic">NULL</span> : String(r[c.name])}
                             </td>
                           ))}
                         </tr>

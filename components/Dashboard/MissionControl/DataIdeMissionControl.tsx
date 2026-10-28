@@ -1,38 +1,48 @@
-import React, { useState } from 'react';
-import { Tab, QueryHistoryItem } from '../../../types';
+import React, { useEffect, useState } from 'react';
+import { Tab, QueryHistoryItem, Dashboard } from '../../../types';
 import { type DuckDBRuntimeInfo } from '../../../services/duckdbService';
 import {
   type TableItemDetail,
   type RecentQueryDisplayItem,
   type DashboardDbMetrics,
   type RecentImportItem,
-  type GrowthTrendItem,
-  type LatencyTrendItem,
 } from '../../../hooks/useDashboardWorkflow';
-import { MissionControlTopStrip } from './MissionControlTopStrip';
-import { MissionControlKpis } from './MissionControlKpis';
-import { DataAssetTopologyView } from './DataAssetTopologyView';
-import { LiveQueryStream } from './LiveQueryStream';
-import { ActionLaunchpad } from './ActionLaunchpad';
-import { DashboardHealthAnomalyBanner } from './DashboardHealthAnomalyBanner';
-import { PerformanceTrendStrip } from './PerformanceTrendStrip';
+import {
+  HomeHeader,
+  HomeBoardCanvas,
+  type BoardBrushFilter,
+} from '../Home';
 import { useCopilotStore } from '../../../hooks/store/useCopilotStore';
-import { CyberGridBackground, DataPipelineStreamIllustration } from './DashboardSvgIllustrations';
+import { useAppStore } from '../../../hooks/store/useAppStore';
+import { useAnalysisWorkspace } from '../../../hooks/store/useAnalysisWorkspace';
+import { useDataInspection } from '../../../hooks/store/useDataInspection';
+import { toastService } from '../../../services/toastService';
+import { WorkspaceWelcome } from '../Home/WorkspaceWelcome';
 
 export interface DataIdeMissionControlProps {
+  dataLoading?: boolean;
+  dataError?: string;
   tables: TableItemDetail[];
   queries: RecentQueryDisplayItem[];
   allHistoryItems?: QueryHistoryItem[];
   recentImports?: RecentImportItem[];
-  growthData?: GrowthTrendItem[];
-  latencyData?: LatencyTrendItem[];
+  growthData?: unknown[];
+  latencyData?: unknown[];
   metrics: DashboardDbMetrics;
   runtimeInfo?: DuckDBRuntimeInfo;
+  homeDashboard?: Dashboard | null;
+  homeBoardLoading?: boolean;
+  homeBoardError?: string;
+  dashboardRefreshTrigger?: number;
+  tableUsageFrequency?: Array<{ name: string; count: number }>;
+  onHomeDashboardChange?: (dashboard: Dashboard) => void;
+  onRefreshHomeDashboard?: () => void;
   onNavigate: (tab: Tab) => void;
   onSelectTable?: (tableName: string) => void;
   onSelectTableStructure?: (tableName: string, focusTab?: 'profile' | 'add' | 'ddl') => void;
   onSelectTableAnalysis?: (tableName: string) => void;
   onSelectTableMetrics?: (tableName: string) => void;
+  onSelectTableDataFlow?: (tableName: string) => void;
   onPeekTable?: (tableName: string) => void;
   onQuickQuery?: (tableName: string) => void;
   onSelectQuery?: (sql: string, executeDirectly?: boolean) => void;
@@ -41,20 +51,31 @@ export interface DataIdeMissionControlProps {
   onOpenSettings: () => void;
   onOpenExport?: () => void;
   onRefresh: () => void;
+  analysisContexts?: Array<{ id: string; label: string; kind: 'schema' | 'database' | 'project'; isCurrent: boolean }>;
+  onSwitchAnalysisContext?: (target: { id: string; kind: 'schema' | 'database' | 'project' }) => void;
   isRefreshing?: boolean;
   onShrinkMemory?: () => void;
-  onToggleLayoutMode?: () => void;
 }
 
+/**
+ * Analysis Home — Dune-inspired entry:
+ * assets → SQL → results → charts → board → drill-down.
+ */
 export const DataIdeMissionControl: React.FC<DataIdeMissionControlProps> = ({
+  dataLoading = false,
+  dataError = '',
   tables = [],
   queries = [],
-  allHistoryItems = [],
-  recentImports = [],
-  growthData = [],
-  latencyData = [],
   metrics,
   runtimeInfo,
+  homeDashboard = null,
+  homeBoardLoading = false,
+  homeBoardError = '',
+  dashboardRefreshTrigger = 0,
+  tableUsageFrequency = [],
+  recentImports = [],
+  onHomeDashboardChange,
+  onRefreshHomeDashboard,
   onNavigate,
   onSelectTable,
   onSelectTableStructure,
@@ -63,174 +84,146 @@ export const DataIdeMissionControl: React.FC<DataIdeMissionControlProps> = ({
   onPeekTable,
   onQuickQuery,
   onSelectQuery,
+  onSelectTableDataFlow,
   onOpenImport,
-  onOpenCreate,
-  onOpenSettings,
-  onOpenExport,
   onRefresh,
+  analysisContexts = [],
+  onSwitchAnalysisContext,
   isRefreshing = false,
   onShrinkMemory,
-  onToggleLayoutMode,
 }) => {
-  const [streamStatusFilter, setStreamStatusFilter] = useState<'all' | 'success' | 'error' | 'slow'>('all');
-  const [highlightedQueryId, setHighlightedQueryId] = useState<string | null>(null);
+  const [brushFilter, setBrushFilter] = useState<BoardBrushFilter | null>(null);
+  const currentDatabase = useAppStore((s) => s.currentDatabase);
 
-  const handleSelectQueryPoint = (id: string, _sql: string) => {
-    setHighlightedQueryId(id);
-    const target = queries.find((q) => q.id === id);
-    if (target) {
-      if (target.status === 'error' && streamStatusFilter === 'success') {
-        setStreamStatusFilter('all');
-      } else if (target.status === 'success' && streamStatusFilter === 'error') {
-        setStreamStatusFilter('all');
-      }
-    }
+  useEffect(() => {
+    setBrushFilter(null);
+  }, [currentDatabase, homeDashboard?.id]);
+
+  const changeBrushFilter = (next: BoardBrushFilter | null) => {
+    setBrushFilter(next);
   };
 
-  const handleFilterErrorQueries = () => {
-    setStreamStatusFilter('error');
-    const firstError = queries.find((q) => q.status === 'error');
-    if (firstError) {
-      setHighlightedQueryId(firstError.id);
-    }
-  };
+  const setPendingChartConfig = useAppStore((s) => s.setPendingChartConfig);
+  const setPendingSql = useAppStore((s) => s.setPendingSql);
+  const setContext = useCopilotStore((s) => s.setContext);
 
-  const handleFilterSlowQueries = () => {
-    setStreamStatusFilter('slow');
-    const firstSlow = queries.find((q) => {
-      const ms = q.executionTime ?? (parseFloat(q.duration) || 0);
-      return ms >= 200;
+  const handleGenerateChart = () => {
+    const candidate =
+      queries.find((q) => q.status === 'success' && (q.vizHint === 'strong' || q.vizHint === 'weak')) ||
+      queries.find((q) => q.status === 'success');
+    if (!candidate) {
+      useAppStore.getState().clearPending();
+      useAppStore.getState().setPendingNewQuery(true);
+      onNavigate(Tab.SQL);
+      toastService.info('请先执行一条查询，再生成图表');
+      return;
+    }
+    setPendingSql(candidate.sql);
+    setPendingChartConfig({
+      id: `chart-${Date.now()}`,
+      title: '未命名图表',
+      type: 'bar',
+      xKey: '',
+      yKeys: [],
+      source: 'manual',
     });
-    if (firstSlow) {
-      setHighlightedQueryId(firstSlow.id);
-    }
+    onNavigate(Tab.SQL);
+    toastService.info('已载入查询并打开结果图表视图，配置后可「加入看板」');
   };
 
+  const handleContinueAnalysis = () => {
+    const hot = tableUsageFrequency[0]?.name || tables[0]?.name;
+    if (hot && onSelectTableAnalysis) onSelectTableAnalysis(hot);
+    else onNavigate(Tab.ANALYSIS_HUB);
+  };
+
+  const handleNewQuery = () => {
+    useAppStore.getState().clearPending();
+    useAppStore.getState().setPendingNewQuery(true);
+    onNavigate(Tab.SQL);
+  };
+
+  // Inject Copilot context from home board + recent SQL + hot tables
+  useEffect(() => {
+    const hotTables = tableUsageFrequency.slice(0, 3).map((t) => t.name);
+    const seed = hotTables[0] || tables[0]?.name || null;
+
+    setContext({
+      table: seed,
+      tables: hotTables.length > 0 ? hotTables : seed ? [seed] : [],
+      tab: Tab.DASHBOARD,
+      pin: false,
+    });
+  }, [homeDashboard?.id, homeDashboard?.items.length, queries[0]?.id, tables, tableUsageFrequency, setContext]);
+
+  const contextMismatch = Boolean(
+    (metrics.databaseName && metrics.databaseName !== currentDatabase) ||
+    (homeDashboard?.databaseName && homeDashboard.databaseName !== currentDatabase),
+  );
+  const loading = dataLoading || homeBoardLoading || contextMismatch;
+  const unavailable = tables.filter(table => table.metadataStatus === 'unavailable');
+  const inspectionReports = useDataInspection(state => state.reports);
+  const checked = Object.values(inspectionReports).filter(report => report.catalog === metrics.databaseName && report.schema === metrics.schemaName && tables.some(table => table.name === report.table));
+  const inspectionProblem = checked.find(report => ['issues', 'failed', 'unavailable'].includes(report.status));
+  // Refreshing metadata must not unmount the last available analysis workspace.
+  const hasData = tables.some(table => table.rowCount > 0) || unavailable.length > 0 || Boolean(homeDashboard?.items.length);
   return (
-    <div className="relative flex flex-col w-full space-y-3.5 font-sans pb-10">
-      {/* 全局微网格与柔和氛围光晕底图 */}
-      <CyberGridBackground />
+    <div className="analysis-home flex flex-col w-full gap-3 font-sans text-xs pb-4">
+      <HomeHeader
+        metrics={contextMismatch ? {...metrics,databaseName:currentDatabase,formattedTotalRows:'未知'} : metrics}
+        tables={contextMismatch ? [] : tables}
+        runtimeInfo={runtimeInfo}
+        analysisContexts={analysisContexts}
+        onSwitchAnalysisContext={onSwitchAnalysisContext}
+        onNavigate={onNavigate}
+        onOpenImport={hasData && !contextMismatch ? onOpenImport : undefined}
+        onGenerateChart={handleGenerateChart}
+        onContinueAnalysis={handleContinueAnalysis}
+        onRefresh={onRefresh}
+        isRefreshing={isRefreshing}
+      />
 
-      <div className="relative z-10 flex flex-col w-full space-y-3.5">
-        {/* 1. 一体化沉浸式 Modern Cyber Hero 展台 */}
-        <MissionControlTopStrip
-          metrics={metrics}
-          tables={tables}
-          runtimeInfo={runtimeInfo}
-          onNavigate={onNavigate}
-          onSelectQuery={onSelectQuery}
-          onRefresh={onRefresh}
-          isRefreshing={isRefreshing}
-          onOpenAiChat={() => useCopilotStore.getState().setIsOpen(true)}
-          onFilterErrorQueries={handleFilterErrorQueries}
-          onFilterSlowQueries={handleFilterSlowQueries}
-          onSelectTableStructure={onSelectTableStructure}
-          onShrinkMemory={onShrinkMemory}
-          onOpenImport={onOpenImport}
-          onToggleLayoutMode={onToggleLayoutMode}
-        />
 
-        {/* 2. 六大核心 KPI 态势卡片 (内置半透明矢量浮雕水印与动态微图) */}
-        <MissionControlKpis
-          metrics={metrics}
-          tables={tables}
-          allHistoryItems={allHistoryItems}
-          onNavigate={onNavigate}
-          onShrinkMemory={onShrinkMemory}
-          onOpenSettings={onOpenSettings}
-        />
-
-        {/* 3. 异常诊断与质量雷达 (Anomaly & Health Triage Strip) */}
-        <DashboardHealthAnomalyBanner
-          metrics={metrics}
-          tables={tables}
-          onNavigate={onNavigate}
-          onFilterSlowQueries={handleFilterSlowQueries}
-          onFilterErrorQueries={handleFilterErrorQueries}
-          onSelectTableStructure={onSelectTableStructure}
-          onShrinkMemory={onShrinkMemory}
-        />
-
-        {/* 3.5 数据流导管与计算架构脉络图示 (SVG 渲染美化链路：数据源接入 → DuckDB 向量执行 → OLAP 洞察) */}
-        <div className="hidden lg:flex items-center justify-between rounded-xl border border-monokai-border bg-gradient-to-r from-monokai-surface/90 via-monokai-surface/60 to-monokai-surface/90 px-4 py-2 backdrop-blur-xs shadow-xs">
-          <div className="flex items-center gap-2.5 text-xs font-mono text-monokai-fg-muted shrink-0">
-            <span className="flex h-2 w-2 rounded-full bg-monokai-accent animate-pulse" />
-            <span className="font-bold text-monokai-fg">数据流水线态势</span>
-            <span className="rounded bg-monokai-elevated px-1.5 py-0.5 text-[10px] text-monokai-cyan border border-monokai-border">
-              零网络开销 · 内存即席执行
-            </span>
-          </div>
-          <div className="flex-1 max-w-[480px] h-8 mx-4">
-            <DataPipelineStreamIllustration className="w-full h-full" />
-          </div>
-          <div className="flex items-center gap-3 text-[11px] font-mono text-monokai-comment shrink-0">
-            <span className="text-monokai-accent font-semibold">DuckDB WASM 列式计算</span>
-            <span className="text-monokai-border">|</span>
-            <span className="text-monokai-yellow">向量化流水线</span>
-          </div>
+      {homeBoardError && <div role="alert" className="text-monokai-pink">分析读取失败：{homeBoardError}<button className="ml-2 underline" onClick={onRefresh}>重试</button></div>}
+      {dataError && <div role="alert" className="text-monokai-pink">数据集元数据读取失败：{dataError}<button className="ml-2 underline" onClick={onRefresh}>重试读取元数据</button></div>}
+      {(loading || isRefreshing) && (
+        <div className={`workspace-load-state ${hasData && !contextMismatch ? 'workspace-load-state-refresh' : ''}`}>
+          <p role="status" className="text-monokai-fg-muted">
+            {hasData && !contextMismatch ? '正在更新分析，当前视图保持可用…' : contextMismatch ? '正在切换数据源，加载分析…' : '正在加载分析工作台…'}
+          </p>
+          {(!hasData || contextMismatch) && <div className="workspace-load-placeholder" aria-hidden="true">
+            <div /><div /><div />
+          </div>}
         </div>
+      )}
+      {!loading && !hasData && !dataError && !homeBoardError && <WorkspaceWelcome
+        hasTables={tables.length > 0} onImport={onOpenImport} onNewQuery={handleNewQuery}
+        onManageDatabases={() => window.dispatchEvent(new CustomEvent('open-project-manager-modal'))}
+      />}
+      {hasData && !contextMismatch && <>
 
-        {/* 4 & 5. 核心作业大盘：数据资产全景 (7 Cols) + SQL 脉搏与慢查询分析 (5 Cols) */}
-        <div className="grid w-full grid-cols-1 gap-3.5 xl:grid-cols-12 items-stretch">
-          {/* 4. 数据资产全景大盘 (7 Cols) */}
-          <div className="flex flex-col xl:col-span-7 h-full min-h-[560px]">
-            <DataAssetTopologyView
-              tables={tables}
-              metrics={metrics}
-              recentImports={recentImports}
-              onSelectTable={onSelectTable}
-              onSelectTableStructure={onSelectTableStructure}
-              onSelectTableAnalysis={onSelectTableAnalysis}
-              onSelectTableMetrics={onSelectTableMetrics}
-              onPeekTable={onPeekTable}
-              onQuickQuery={onQuickQuery}
-              onNavigate={onNavigate}
-              onOpenCreate={onOpenCreate}
-              onOpenImport={onOpenImport}
-            />
-          </div>
+      <HomeBoardCanvas
+        key={currentDatabase}
+        dashboard={homeDashboard} loading={homeBoardLoading} refreshTrigger={dashboardRefreshTrigger}
+        brushFilter={brushFilter} onBrushFilterChange={changeBrushFilter}
+        onDashboardChange={(d) => onHomeDashboardChange?.(d)} onNavigate={onNavigate}
+        onGenerateChart={handleGenerateChart} onNewQuery={handleNewQuery}
+        onSelectTable={onSelectTable} onSelectTableStructure={onSelectTableStructure} onSelectTableDataFlow={onSelectTableDataFlow}
+      />
 
-          {/* 5. SQL 脉搏与慢查询分析 (5 Cols) */}
-          <div className="flex flex-col xl:col-span-5 h-full min-h-[560px]">
-            <LiveQueryStream
-              queries={queries}
-              controlledFilter={streamStatusFilter}
-              onFilterChange={setStreamStatusFilter}
-              highlightedQueryId={highlightedQueryId}
-              onSelectQuery={(sql) => onSelectQuery?.(sql)}
-              onExecuteQueryDirectly={(sql) => onSelectQuery?.(sql, true)}
-              onNavigate={onNavigate}
-            />
-          </div>
-        </div>
-
-        {/* 6. 快捷操作与工作流直通坞 (12 Cols 统一栅格对齐) */}
-        <div className="w-full">
-          <ActionLaunchpad
-            tables={tables}
-            onNavigate={onNavigate}
-            onOpenImport={onOpenImport}
-            onOpenCreate={onOpenCreate}
-            onOpenExport={onOpenExport}
-            onOpenAiChat={() => useCopilotStore.getState().setIsOpen(true)}
-            onSelectQuery={onSelectQuery}
-            lastFailedSql={queries.find((q) => q.status === 'error')?.sql}
-            metrics={metrics}
-            onRefresh={onRefresh}
-            isRefreshing={isRefreshing}
-          />
-        </div>
-
-        {/* 4. 底层性能与吞吐遥测条 */}
-        <PerformanceTrendStrip
-          metrics={metrics}
-          allHistoryItems={allHistoryItems}
-          recentImports={recentImports}
-          growthData={growthData}
-          latencyData={latencyData}
-          onSelectQueryPoint={handleSelectQueryPoint}
-        />
-      </div>
+      <nav aria-label="数据状态与详情" className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-monokai-border pt-2 text-monokai-comment">
+        {checked.length > 0 && <span className={inspectionProblem ? 'text-monokai-pink' : undefined}>
+          最近检查：{checked.length} / {tables.length} 个数据集 · {inspectionProblem ? inspectionProblem.status === 'issues' ? '发现规则失败' : '检查未完成' : '已检查范围未发现规则失败'}
+        </span>}
+        <button className="text-monokai-cyan" onClick={() => onNavigate(Tab.DATA)}>管理数据</button>
+        <button className="text-monokai-cyan" onClick={() => onNavigate(Tab.STRUCTURE)}>查看 Schema</button>
+        <button className="text-monokai-cyan" onClick={() => { useAnalysisWorkspace.getState().requestInspection(); const table = inspectionProblem?.table || tables[0]?.name; if (onSelectTableAnalysis && table) onSelectTableAnalysis(table); else onNavigate(Tab.ANALYSIS_HUB); }}>{inspectionProblem ? '处理检查问题' : '查看数据检查'}</button>
+      </nav>
+      {!!unavailable.length && <div role="alert" className="text-monokai-pink">{unavailable.length} 个数据集的元数据未完整获取，无法获取的统计标为未知。<button className="ml-2 underline" onClick={onRefresh}>重新读取元数据</button>
+        <details><summary>查看失败原因</summary>{unavailable.map(table => <p key={table.name}>{table.name}：{table.metadataError}</p>)}</details>
+      </div>}
+      </>}
+      {!hasData && metrics.errorCount > 0 && <button className="text-monokai-pink" onClick={() => onNavigate(Tab.HISTORY)}>查看失败查询（{metrics.errorCount}）</button>}
     </div>
   );
 };

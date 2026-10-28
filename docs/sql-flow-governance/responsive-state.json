@@ -1,0 +1,151 @@
+{
+  "bounds": {
+    "bottom": 1075.2000122070312,
+    "height": 774,
+    "left": 320,
+    "right": 704.625,
+    "top": 301.20001220703125,
+    "width": 384.625,
+    "x": 320,
+    "y": 301.20001220703125
+  },
+  "divider": {
+    "bottom": 1075.2000274658203,
+    "height": 870.4000244140625,
+    "left": 704.625,
+    "right": 712.625,
+    "top": 204.8000030517578,
+    "width": 8,
+    "x": 704.625,
+    "y": 204.8000030517578
+  },
+  "nodes": [
+    {
+      "rect": {
+        "bottom": 538.5000076293945,
+        "height": 62.900001525878906,
+        "left": 412,
+        "right": 602.4000091552734,
+        "top": 475.6000061035156,
+        "width": 190.40000915527344,
+        "x": 412,
+        "y": 475.6000061035156
+      },
+      "status": "success",
+      "text": "VALUES成功VALUES ('Sales',5000),('Tech',7000),('Sales',6000)—"
+    },
+    {
+      "rect": {
+        "bottom": 645.6000137329102,
+        "height": 62.900001525878906,
+        "left": 412,
+        "right": 602.4000091552734,
+        "top": 582.7000122070312,
+        "width": 190.40000915527344,
+        "x": 412,
+        "y": 582.7000122070312
+      },
+      "status": "success",
+      "text": "Result成功VALUES ('Sales',5000),('Tech',7000),('Sales',6000)—反向追溯"
+    },
+    {
+      "rect": {
+        "bottom": 773.9499893188477,
+        "height": 62.900001525878906,
+        "left": 412,
+        "right": 602.4000091552734,
+        "top": 711.0499877929688,
+        "width": 190.40000915527344,
+        "x": 412,
+        "y": 711.0499877929688
+      },
+      "status": "success",
+      "text": "WHERE成功WHERE salary >= 5000—"
+    },
+    {
+      "rect": {
+        "bottom": 881.0500259399414,
+        "height": 62.900001525878906,
+        "left": 412,
+        "right": 602.4000091552734,
+        "top": 818.1500244140625,
+        "width": 190.40000915527344,
+        "x": 412,
+        "y": 818.1500244140625
+      },
+      "status": "success",
+      "text": "GROUP BY成功dept, sum(salary) AS total FROM (VALUES ('Sales',5000),('Tech',7000),('Sales',6000)) t(dept,salary) WHERE salary >= 5000 GROUP BY dept—"
+    },
+    {
+      "rect": {
+        "bottom": 988.1500015258788,
+        "height": 62.900001525878906,
+        "left": 412,
+        "right": 602.4000091552734,
+        "top": 925.25,
+        "width": 190.40000915527344,
+        "x": 412,
+        "y": 925.25
+      },
+      "status": "success",
+      "text": "HAVING成功HAVING sum(salary)>0—"
+    },
+    {
+      "rect": {
+        "bottom": 1095.2499771118164,
+        "height": 62.900001525878906,
+        "left": 412,
+        "right": 602.4000091552734,
+        "top": 1032.3499755859375,
+        "width": 190.40000915527344,
+        "x": 412,
+        "y": 1032.3499755859375
+      },
+      "status": "success",
+      "text": "SELECT成功dept, sum(salary) AS total—"
+    },
+    {
+      "rect": {
+        "bottom": 1202.3500747680664,
+        "height": 62.900001525878906,
+        "left": 412,
+        "right": 602.4000091552734,
+        "top": 1139.4500732421875,
+        "width": 190.40000915527344,
+        "x": 412,
+        "y": 1139.4500732421875
+      },
+      "status": "success",
+      "text": "ORDER BY成功ORDER BY total DESC—"
+    },
+    {
+      "rect": {
+        "bottom": 1309.450050354004,
+        "height": 62.900001525878906,
+        "left": 412,
+        "right": 602.4000091552734,
+        "top": 1246.550048828125,
+        "width": 190.40000915527344,
+        "x": 412,
+        "y": 1246.550048828125
+      },
+      "status": "success",
+      "text": "LIMIT/OFFSET成功LIMIT 10—"
+    },
+    {
+      "rect": {
+        "bottom": 1416.5500259399414,
+        "height": 62.900001525878906,
+        "left": 412,
+        "right": 602.4000091552734,
+        "top": 1353.6500244140625,
+        "width": 190.40000915527344,
+        "x": 412,
+        "y": 1353.6500244140625
+      },
+      "status": "success",
+      "text": "Result成功SELECT dept, sum(salary) AS total FROM (VALUES ('Sales',5000),('Tech',7000),('Sales',6000)) t(dept,salary) WHERE salary >= 5000 GROUP BY dept HAVING sum(salary)>0 ORDER BY total DESC LIMIT 102 行反向追溯"
+    }
+  ],
+  "viewport": "transform: translate(7px, 21.4px) scale(0.85);"
+}

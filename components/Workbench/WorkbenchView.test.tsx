@@ -4,6 +4,7 @@ import React from 'react';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { WorkbenchView } from './WorkbenchView';
+import { useAppStore } from '../../hooks/store/useAppStore';
 
 // Mock chartjs to avoid canvas errors in jsdom
 vi.mock('react-chartjs-2', () => ({
@@ -13,6 +14,7 @@ vi.mock('react-chartjs-2', () => ({
 }));
 
 beforeEach(() => {
+  useAppStore.getState().clearPending();
   Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1440 });
 });
 
@@ -35,13 +37,23 @@ describe('WorkbenchView BRD v1.0 & Ultimate Mockup Architecture', () => {
     onAddDataSource: vi.fn(),
   };
 
+  it('consumes the home new-query intent once after workspace restoration', async () => {
+    useAppStore.getState().setPendingNewQuery(true);
+    const view = render(<WorkbenchView {...defaultProps}/>);
+    await waitFor(() => expect(useAppStore.getState().pendingNewQuery).toBe(false));
+    expect(screen.getAllByText('查询 2').length).toBeGreaterThan(0);
+    view.rerender(<WorkbenchView {...defaultProps}/>);
+    expect(screen.queryByText('查询 3')).toBeNull();
+    expect(screen.getByText(/等待执行查询/)).toBeTruthy();
+  });
+
   it('renders unified 4-core-area workbench matching final blueprint and AI Assistant', () => {
     render(<WorkbenchView {...defaultProps} />);
 
     // 1. Data Explorer — desktop viewport keeps left rail open
     expect(screen.getByText('数据资源浏览')).toBeTruthy();
     expect(screen.getByRole('button', { name: '隐藏左侧边栏' })).toBeTruthy();
-    expect(screen.getAllByText('duckdb_manager_workspace').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('memory').length).toBeGreaterThan(0);
     expect(screen.getAllByText('main').length).toBeGreaterThan(0);
     expect(screen.getAllByText('orders').length).toBeGreaterThan(0);
     expect(screen.getAllByText('customers').length).toBeGreaterThan(0);
@@ -54,7 +66,7 @@ describe('WorkbenchView BRD v1.0 & Ultimate Mockup Architecture', () => {
     expect(screen.getByText('运行')).toBeTruthy();
     expect(screen.getByRole('button', { name: '停止' })).toBeTruthy();
     expect(screen.getByText('格式化')).toBeTruthy();
-    expect(screen.getByText('保存')).toBeTruthy();
+    expect(screen.getByText('流程图')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'AI 解释' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'AI 分析' })).toBeTruthy();
     // 运行选中 / 执行计划 live under Run menu (no duplicate primary buttons)
@@ -77,8 +89,8 @@ describe('WorkbenchView BRD v1.0 & Ultimate Mockup Architecture', () => {
 
     // 5. Status Bar
     expect(screen.getByText('db')).toBeTruthy();
-    expect(screen.getByText(/duckdb_manager_workspace\.main/)).toBeTruthy();
-    expect(screen.getByText('就绪')).toBeTruthy();
+    expect(screen.getByText(/memory\.main/)).toBeTruthy();
+    expect(screen.getAllByText('就绪').length).toBeGreaterThan(0);
   });
 
   it('starts with compact side rails on phone-sized viewports', () => {
@@ -108,7 +120,7 @@ describe('WorkbenchView BRD v1.0 & Ultimate Mockup Architecture', () => {
   it('supports opening Runtime Center modal when clicking status bar indicator', () => {
     render(<WorkbenchView {...defaultProps} />);
 
-    const readyBtn = screen.getByText('就绪');
+    const readyBtn = screen.getByTitle('查看 DuckDB WASM 引擎与扩展运行时状态');
     fireEvent.click(readyBtn);
 
     expect(screen.getByText('运行时状态中心')).toBeTruthy();

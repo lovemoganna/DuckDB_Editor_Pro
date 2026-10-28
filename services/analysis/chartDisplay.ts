@@ -309,7 +309,7 @@ export function filterSortTableRows<T extends Record<string, unknown>>(
 
 export function computePivotTable(
   rows: Record<string, unknown>[], rowKey: string, colKey: string, valueKey: string,
-  aggregation: 'sum' | 'count' | 'avg' | 'min' | 'max' = 'sum',
+  aggregation: 'sum' | 'count' | 'avg' | 'min' | 'max' | 'count_distinct' | 'median' = 'sum',
   rowKeys?: string[],
 ) {
   const sourceTotals = rows.some(row => Object.hasOwn(row, `__pivot_all_${valueKey}`));
@@ -326,26 +326,55 @@ export function computePivotTable(
 
   const rowValues = [...new Set(rows.map(row => keyOf(row)))];
   const colValues = colKey ? [...new Set(rows.map(row => sourceTotals ? JSON.stringify(row[colKey] == null ? null : String(row[colKey])) : String(row[colKey] ?? '—')))] : ['汇总'];
-  type Cell = { sum: number; count: number; min: number; max: number };
+  type Cell = { sum: number; count: number; min: number; max: number; distinct: Set<unknown>; values: number[] };
+  const createCell = (): Cell => ({ sum: 0, count: 0, min: Infinity, max: -Infinity, distinct: new Set(), values: [] });
   const cells = new Map<string, Cell>(), rowCells = new Map<string, Cell>(), colCells = new Map<string, Cell>();
-  const grand: Cell = { sum: 0, count: 0, min: Infinity, max: -Infinity };
-  const bump = (cell: Cell, value: number) => {
+  const grand: Cell = createCell();
+  const bump = (cell: Cell, value: number, rawVal: unknown) => {
     cell.sum += value; cell.count++; cell.min = Math.min(cell.min, value); cell.max = Math.max(cell.max, value);
+    cell.values.push(value);
+    if (rawVal != null) cell.distinct.add(rawVal);
   };
-  const bumpMap = (map: Map<string, Cell>, key: string, value: number) => {
+  const bumpMap = (map: Map<string, Cell>, key: string, value: number, rawVal: unknown) => {
     let cell = map.get(key);
-    if (!cell) { cell = { sum: 0, count: 0, min: Infinity, max: -Infinity }; map.set(key, cell); }
-    bump(cell, value);
+    if (!cell) { cell = createCell(); map.set(key, cell); }
+    bump(cell, value, rawVal);
   };
-  const result = (cell?: Cell): number | null => !cell?.count ? null
-    : aggregation === 'count' ? cell.count : aggregation === 'avg' ? cell.sum / cell.count
-    : aggregation === 'min' ? cell.min : aggregation === 'max' ? cell.max : cell.sum;
+  const result = (cell?: Cell): number | null => {
+    if (!cell) return null;
+    if (aggregation === 'count_distinct') return cell.distinct.size;
+    if (!cell.count) return null;
+    if (aggregation === 'count') return cell.count;
+    if (aggregation === 'avg') return cell.sum / cell.count;
+    if (aggregation === 'min') return cell.min;
+    if (aggregation === 'max') return cell.max;
+    if (aggregation === 'median') {
+      if (!cell.values.length) return null;
+      const sorted = [...cell.values].sort((a, b) => a - b);
+      const mid = Math.floor(sorted.length / 2);
+      return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+    }
+    return cell.sum;
+  };
   for (const row of rows) {
     if(sourceTotals)continue;
     const r = keyOf(row), c = colKey ? (sourceTotals ? JSON.stringify(row[colKey] == null ? null : String(row[colKey])) : String(row[colKey] ?? '—')) : '汇总';
-    const value = aggregation === 'count' ? (row[valueKey] == null ? null : 1) : toNumber(row[valueKey]);
-    if (value == null) continue;
-    bumpMap(cells, JSON.stringify([r, c]), value); bumpMap(rowCells, r, value); bumpMap(colCells, c, value); bump(grand, value);
+    const rawVal = row[valueKey];
+    if (aggregation === 'count_distinct') {
+      if (rawVal != null) {
+        bumpMap(cells, JSON.stringify([r, c]), 1, rawVal);
+        bumpMap(rowCells, r, 1, rawVal);
+        bumpMap(colCells, c, 1, rawVal);
+        bump(grand, 1, rawVal);
+      }
+    } else {
+      const value = aggregation === 'count' ? (rawVal == null ? null : 1) : toNumber(rawVal);
+      if (value == null) continue;
+      bumpMap(cells, JSON.stringify([r, c]), value, rawVal);
+      bumpMap(rowCells, r, value, rawVal);
+      bumpMap(colCells, c, value, rawVal);
+      bump(grand, value, rawVal);
+    }
   }
   const matrix: Record<string, Record<string, number|string>> = Object.create(null);
   const rowTotals: Record<string, number|string> = Object.create(null), colTotals: Record<string, number|string> = Object.create(null);

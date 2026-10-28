@@ -1,0 +1,132 @@
+- generic [ref=f2e3]:
+  - banner "全局工作区顶栏" [ref=f2e4]:
+    - generic [ref=f2e5]:
+      - button "🪶 DuckDB Studio PRO" [ref=f2e6] [cursor=pointer]:
+        - generic [ref=f2e7]: 🪶
+        - generic [ref=f2e9]:
+          - generic [ref=f2e10]: DuckDB Studio
+          - generic [ref=f2e11]: PRO
+      - navigation "业务领域大类" [ref=f2e13]:
+        - button "工程核心" [ref=f2e14] [cursor=pointer]
+        - button "分析洞察" [ref=f2e20] [cursor=pointer]
+        - button "知识沉淀" [ref=f2e25] [cursor=pointer]
+        - button "AI 认知" [ref=f2e30] [cursor=pointer]
+      - tablist "工程核心功能标签页" [ref=f2e36]:
+        - tab "仪表盘" [ref=f2e37] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f2e42]: "1"
+        - tab "数据" [active] [selected] [ref=f2e43] [cursor=pointer]
+        - tab "Schema" [ref=f2e49] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f2e54]: "3"
+        - tab "SQL" [ref=f2e55] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f2e455]: "4"
+        - tab "数据流" [ref=f2e61] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f2e66]: "5"
+    - generic [ref=f2e67]:
+      - button "项目 Ctrl+Shift+D" [ref=f2e68] [cursor=pointer]:
+        - generic [ref=f2e71]: 项目
+        - generic [ref=f2e72]: Ctrl+Shift+D
+      - button "新建表" [ref=f2e73] [cursor=pointer]
+      - button "duckdb_manager_workspace 已保存到 OPFS" [ref=f2e78] [cursor=pointer]:
+        - generic [ref=f2e81]: duckdb_manager_workspace
+        - generic [ref=f2e83]: 已保存到 OPFS
+      - button "AI 助手 Ctrl+I" [ref=f2e87] [cursor=pointer]:
+        - generic [ref=f2e90]: AI 助手
+        - generic [ref=f2e91]: Ctrl+I
+      - button "⌘K" [ref=f2e92] [cursor=pointer]
+      - button "帮助与快捷键" [ref=f2e96] [cursor=pointer]
+      - button "切换为浅色模式" [ref=f2e99] [cursor=pointer]
+      - button "AI 模型设置" [ref=f2e100] [cursor=pointer]
+  - main [ref=f2e103]:
+    - main [ref=f2e456]:
+      - generic [ref=f2e457]:
+        - generic [ref=f2e460]:
+          - heading "数据资源工作台" [level=1] [ref=f2e462]
+          - paragraph [ref=f2e463]: DuckDB 数据资源总览 · 共 1 个对象 (1 张表 · 0 视图) · 极速网格浏览 · 跨模块直达
+        - generic [ref=f2e465]:
+          - button "加载示例" [ref=f2e466] [cursor=pointer]
+          - button "新建表" [ref=f2e468] [cursor=pointer]
+          - button "导入文件" [ref=f2e470] [cursor=pointer]
+          - button "仪表盘" [ref=f2e472] [cursor=pointer]
+      - generic [ref=f2e474]:
+        - generic [ref=f2e475]:
+          - generic [ref=f2e477]:
+            - text: 数据表与视图 / OBJECTS
+            - generic [ref=f2e478]:
+              - generic [ref=f2e479]: "1"
+              - generic [ref=f2e480]: (1 表 · 0 视图)
+          - generic [ref=f2e483]:
+            - text: 估算记录体量 / ESTIMATED ROWS
+            - generic [ref=f2e484]:
+              - generic [ref=f2e485]: 2,421
+              - generic [ref=f2e486]: 条记录
+          - generic [ref=f2e489]:
+            - text: 字段规模与主键 / SCHEMA SCOPE
+            - generic [ref=f2e490]:
+              - generic [ref=f2e491]: "3"
+              - generic [ref=f2e492]: 字段 · PK率 0%
+          - generic [ref=f2e495]:
+            - text: 引擎状态 / RUNTIME
+            - generic [ref=f2e496]: DuckDB WASM
+            - generic [ref=f2e498]: 列式极速向量化执行
+        - generic [ref=f2e500]:
+          - generic [ref=f2e501]:
+            - textbox "搜索表名 / 字段名…" [ref=f2e503]
+            - generic [ref=f2e504]:
+              - button "全部 (1)" [ref=f2e505] [cursor=pointer]
+              - button "表 (1)" [ref=f2e506] [cursor=pointer]
+          - generic [ref=f2e507]:
+            - generic [ref=f2e508]:
+              - generic [ref=f2e509]: "排序:"
+              - combobox [ref=f2e510]:
+                - option "默认顺序" [selected]
+                - option "表名 A → Z"
+                - option "表名 Z → A"
+                - option "记录数 由多到少"
+                - option "字段数 由多到少"
+            - generic [ref=f2e511]:
+              - button "卡片网格视图" [ref=f2e512] [cursor=pointer]
+              - button "紧凑表格列表视图" [ref=f2e513] [cursor=pointer]
+        - article [ref=f2e515] [cursor=pointer]:
+          - generic [ref=f2e516]:
+            - generic [ref=f2e517]:
+              - generic [ref=f2e520]:
+                - heading "pivot_qa_functions" [level=3] [ref=f2e521]
+                - generic [ref=f2e522]: TABLE
+              - button "复制表名" [ref=f2e525]
+            - generic [ref=f2e526]:
+              - generic [ref=f2e527]:
+                - generic [ref=f2e528]: 估算行数
+                - generic [ref=f2e529]: 2,421 行
+              - generic [ref=f2e530]:
+                - generic [ref=f2e531]: 字段规模
+                - generic [ref=f2e532]: 3 列
+            - generic [ref=f2e533]:
+              - generic [ref=f2e534]: function_type
+              - generic [ref=f2e535]: return_type
+              - generic [ref=f2e536]: parameter_count
+          - generic [ref=f2e537]:
+            - button "浏览数据 ↗" [ref=f2e538]
+            - generic [ref=f2e540]:
+              - button "查看结构定义" [ref=f2e541]
+              - button "在分析中心探查" [ref=f2e542]
+              - button "在指标建模中定义" [ref=f2e543]
+              - button "在 SQL 中快速查询" [ref=f2e544]
+              - button "查看数据流血缘" [ref=f2e545]
+  - contentinfo [ref=f2e123]:
+    - generic [ref=f2e124]:
+      - generic [ref=f2e125]: DuckDB 1.33.1
+      - generic [ref=f2e128]: "|"
+      - generic [ref=f2e129]: duckdb_manager_workspace [OPFS]
+      - generic [ref=f2e131]: "|"
+      - generic [ref=f2e132]: 持久化库
+      - generic [ref=f2e134]: "|"
+      - generic [ref=f2e135]: 1 张表
+      - generic [ref=f2e137]: "|"
+      - generic [ref=f2e138]: 1 个活动表
+      - generic [ref=f2e140]: "|"
+      - generic [ref=f2e141]: "内存: 0.25 MB / 3.1 GiB"
+    - generic [ref=f2e143]:
+      - generic [ref=f2e144]: 引擎就绪
+      - generic [ref=f2e148]: "|"
+      - generic [ref=f2e149]: 12:27
+      - button "刷新运行时状态" [ref=f2e150] [cursor=pointer]

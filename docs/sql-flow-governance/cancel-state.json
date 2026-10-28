@@ -1,0 +1,55 @@
+{
+  "highlights": [],
+  "nodes": [
+    {
+      "statement": "statement_0_0",
+      "status": "success",
+      "text": "Single row已回滚"
+    },
+    {
+      "statement": "statement_0_0",
+      "status": "success",
+      "text": "SELECT已回滚"
+    },
+    {
+      "statement": "statement_0_0",
+      "status": "success",
+      "text": "Result已回滚"
+    },
+    {
+      "statement": "statement_1_0",
+      "status": "cancelled",
+      "text": "range(30000000)已回滚"
+    },
+    {
+      "statement": "statement_1_0",
+      "status": "cancelled",
+      "text": "GROUP BY已回滚"
+    },
+    {
+      "statement": "statement_1_0",
+      "status": "cancelled",
+      "text": "SELECT已回滚"
+    },
+    {
+      "statement": "statement_1_0",
+      "status": "cancelled",
+      "text": "Result已回滚"
+    },
+    {
+      "statement": "statement_2_0",
+      "status": "skipped",
+      "text": "Single row已跳过"
+    },
+    {
+      "statement": "statement_2_0",
+      "status": "skipped",
+      "text": "SELECT已跳过"
+    },
+    {
+      "statement": "statement_2_0",
+      "status": "skipped",
+      "text": "Result已跳过"
+    }
+  ]
+}

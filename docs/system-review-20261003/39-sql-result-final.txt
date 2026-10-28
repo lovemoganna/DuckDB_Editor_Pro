@@ -1,0 +1,347 @@
+- banner "全局工作区顶栏":
+  - button "🪶 DuckDB Studio PRO":
+    - generic: 🪶
+    - generic: DuckDB Studio
+    - generic: PRO
+  - navigation "业务领域大类":
+    - button "工程核心":
+      - generic: 工程核心
+    - button "分析洞察":
+      - generic: 分析洞察
+    - button "知识沉淀":
+      - generic: 知识沉淀
+    - button "AI 认知":
+      - generic: AI 认知
+  - tablist "工程核心功能标签页":
+    - tab "仪表盘":
+      - generic: 仪表盘
+      - generic: "1"
+    - tab "数据":
+      - generic: 数据
+      - generic: "2"
+    - tab "Schema":
+      - generic: Schema
+      - generic: "3"
+    - tab "SQL" [selected]:
+      - generic: SQL
+    - tab "数据流":
+      - generic: 数据流
+      - generic: "5"
+  - button "项目":
+    - generic: 项目
+  - button "sql_funds_flow 已保存到 OPFS":
+    - generic: sql_funds_flow
+    - generic: 已保存到 OPFS
+  - button "AI 助手 Ctrl+I":
+    - generic: AI 助手
+    - generic: Ctrl+I
+  - button "⌘K":
+  - button "帮助与快捷键":
+  - button "切换为深色模式":
+  - button "AI 模型设置":
+- main:
+  - generic: 数据资源浏览
+  - button "刷新元数据":
+  - button "隐藏左侧边栏":
+  - textbox "搜索表、视图、文件..."
+  - button "打开文件":
+    - generic: 打开文件
+  - button "附加数据库":
+    - generic: 附加数据库
+  - button "添加数据源":
+    - generic: 添加数据源
+  - generic: sql_funds_flow
+  - generic: (当前)
+  - generic: main
+  - generic: 表 (13)
+  - button "一键清空所有数据表":
+  - generic "单击查看列画像 · 双击查询前 100 行":
+    - generic: crypto_transactions
+    - generic: 25 行
+    - button "快速查询表 crypto_transactions":
+    - button "插入表名 crypto_transactions":
+    - button "将表 crypto_transactions 添加到数据流画布":
+    - button "删除表 crypto_transactions":
+  - generic "单击查看列画像 · 双击查询前 100 行":
+    - generic: exchange_rates
+    - generic: 8 行
+    - button "快速查询表 exchange_rates":
+    - button "插入表名 exchange_rates":
+    - button "将表 exchange_rates 添加到数据流画布":
+    - button "删除表 exchange_rates":
+  - generic "单击查看列画像 · 双击查询前 100 行":
+    - generic: fiat_transactions
+    - generic: 25 行
+    - button "快速查询表 fiat_transactions":
+    - button "插入表名 fiat_transactions":
+    - button "将表 fiat_transactions 添加到数据流画布":
+    - button "删除表 fiat_transactions":
+  - generic "单击查看列画像 · 双击查询前 100 行":
+    - generic: life_action
+    - generic: 0 行
+    - button "快速查询表 life_action":
+    - button "插入表名 life_action":
+    - button "将表 life_action 添加到数据流画布":
+    - button "删除表 life_action":
+  - generic "单击查看列画像 · 双击查询前 100 行":
+    - generic: life_canvas_edge
+    - generic: 0 行
+    - button "快速查询表 life_canvas_edge":
+    - button "插入表名 life_canvas_edge":
+    - button "将表 life_canvas_edge 添加到数据流画布":
+    - button "删除表 life_canvas_edge":
+  - generic "单击查看列画像 · 双击查询前 100 行":
+    - generic: life_canvas_state
+    - generic: 7 行
+    - button "快速查询表 life_canvas_state":
+    - button "插入表名 life_canvas_state":
+    - button "将表 life_canvas_state 添加到数据流画布":
+    - button "删除表 life_canvas_state":
+  - generic "单击查看列画像 · 双击查询前 100 行":
+    - generic: life_insight
+    - generic: 0 行
+    - button "快速查询表 life_insight":
+    - button "插入表名 life_insight":
+    - button "将表 life_insight 添加到数据流画布":
+    - button "删除表 life_insight":
+  - generic "单击查看列画像 · 双击查询前 100 行":
+    - generic: life_introspection
+    - generic: 0 行
+    - button "快速查询表 life_introspection":
+    - button "插入表名 life_introspection":
+    - button "将表 life_introspection 添加到数据流画布":
+    - button "删除表 life_introspection":
+  - generic "单击查看列画像 · 双击查询前 100 行":
+    - generic: life_link
+    - generic: 6 行
+    - button "快速查询表 life_link":
+    - button "插入表名 life_link":
+    - button "将表 life_link 添加到数据流画布":
+    - button "删除表 life_link":
+  - generic "单击查看列画像 · 双击查询前 100 行":
+    - generic: life_link_type
+    - generic: 6 行
+    - button "快速查询表 life_link_type":
+    - button "插入表名 life_link_type":
+    - button "将表 life_link_type 添加到数据流画布":
+    - button "删除表 life_link_type":
+  - generic "单击查看列画像 · 双击查询前 100 行":
+    - generic: life_object
+    - generic: 7 行
+    - button "快速查询表 life_object":
+    - button "插入表名 life_object":
+    - button "将表 life_object 添加到数据流画布":
+    - button "删除表 life_object":
+  - generic "单击查看列画像 · 双击查询前 100 行":
+    - generic: life_object_type
+    - generic: 2 行
+    - button "快速查询表 life_object_type":
+    - button "插入表名 life_object_type":
+    - button "将表 life_object_type 添加到数据流画布":
+    - button "删除表 life_object_type":
+  - generic "单击查看列画像 · 双击查询前 100 行":
+    - generic: users
+    - generic: 10 行
+    - button "快速查询表 users":
+    - button "插入表名 users":
+    - button "将表 users 添加到数据流画布":
+    - button "删除表 users":
+  - generic: 视图 (0)
+  - generic: 宏 (Macros) (0)
+  - generic: 文件与远程源 (0)
+  - generic: 最近打开 (0)
+  - generic: query_1.sql
+  - button "新建查询标签页":
+  - generic: 1 个查询
+  - toolbar "SQL 工作区工具栏":
+    - group "执行":
+      - button "运行":
+        - generic: 运行
+      - button "更多执行选项":
+      - button "停止" [disabled]:
+    - group "编辑":
+      - button "格式化":
+        - generic: 格式化
+      - button "复制当前 SQL 代码到剪贴板":
+      - generic "编辑器字号 10px":
+        - button "减小字号" [disabled]:
+        - generic: "10"
+        - button "增大字号":
+    - group "视图模式与流程图":
+      - button "流程图":
+        - generic: 流程图
+      - button "流程图模式选项":
+    - group "持久化":
+      - button "保存":
+        - generic: 保存
+      - button "更多持久化选项":
+    - group "智能助手":
+      - button "AI 解释":
+        - generic: 解释
+      - button "AI 分析":
+        - generic: 分析
+    - button "历史 1":
+      - generic: 历史
+      - generic: "1"
+    - generic "当前目录上下文：sql_funds_flow.main":
+      - generic: sql_funds_flow
+      - generic: .
+      - generic: main
+  - generic: "1"
+  - textbox:
+    - generic: SELECT 'USD' AS unit, SUM(amount) AS completed_amount FROM fiat_transactions WHERE status='completed' AND currency='USD';
+  - separator "拖动调整比例，双击恢复 50/50 分屏":
+    - generic: 分隔条
+    - generic: L
+    - generic: "1"
+    - generic: ·
+    - generic: C
+    - generic: "121"
+    - button "最大化结果":
+      - generic: 最大化结果
+    - button "最大化代码":
+      - generic: 最大化代码
+    - generic: 双击
+    - generic: 重置
+    - text: "40"
+    - generic: "%"
+  - tablist "查询结果视图切换":
+    - tab "数据 1" [selected]:
+      - generic: 数据
+      - generic: "1"
+    - tab "图表":
+      - generic: 图表
+    - tab "透视":
+      - generic: 透视
+    - tab "执行计划":
+      - generic: 执行计划
+  - textbox "过滤当前结果..."
+  - button "筛选":
+    - generic: 筛选
+  - button "排序":
+    - generic: 排序
+  - button "分组":
+    - generic: 分组
+  - button "导出":
+    - generic: 导出
+  - generic: 执行成功
+  - generic "数据行数": "1"
+  - generic: 行
+  - generic "字段列数": "2"
+  - generic: 列
+  - generic "执行耗时": "79"
+  - generic: ms
+  - button "紧凑自适应":
+    - generic: 紧凑自适应
+  - button "全屏浏览结果集":
+  - table:
+    - rowgroup:
+      - row "# unit VARCHAR completed_amount DECIMAL":
+        - columnheader "#"
+        - columnheader "unit VARCHAR":
+          - generic "unit"
+          - 'generic "列类型: VARCHAR"': VARCHAR
+          - generic "拖拽调整列宽，双击恢复最佳自适应"
+        - columnheader "completed_amount DECIMAL":
+          - generic "completed_amount"
+          - 'generic "列类型: DECIMAL"': DECIMAL
+          - generic "拖拽调整列宽，双击恢复最佳自适应"
+    - rowgroup:
+      - row "1 USD 104270.00":
+        - cell "1"
+        - cell "USD"
+        - cell "104270.00"
+  - button "第一页" [disabled]:
+  - button "上一页" [disabled]:
+  - generic: "1"
+  - button "下一页" [disabled]:
+  - button "最后一页" [disabled]:
+  - generic: 第 1 页, 共 1 页
+  - generic: "每页:"
+  - combobox:
+    - option "25 行"
+    - option "50 行"
+    - option "100 行" [selected]
+    - option "200 行"
+    - option "500 行"
+    - option "1000 行"
+  - generic: 1-1 / 1 行
+  - button "表格渲染设置":
+  - generic: AI 助手
+  - generic "AI 服务未配置": 未配置
+  - button "列画像":
+    - generic: 列画像
+  - button "解释":
+    - generic: 解释
+  - button "分析":
+    - generic: 分析
+  - button "关闭面板":
+  - generic: query_1.sql
+  - generic: 语义剖析
+  - generic: AI 未配置
+  - generic: 当前语句
+  - generic: "依据: SQL + Schema"
+  - generic "SELECT 'USD' AS unit, SUM(amount) AS completed_amount FROM fiat_transactions WHERE status='completed' AND currency='USD';": SELECT 'USD' AS unit, SUM(amount) AS completed_amount FROM fiat_transactions WHERE status='completed' AND currency='USD'…
+  - generic: query_1.sql
+  - button "查看完整 SQL"
+  - generic: 一句话解释
+  - generic: 等待 AI 生成解释。
+  - generic: 执行逻辑
+  - generic: 暂无执行逻辑推断。
+  - generic: 涉及对象
+  - generic: 暂无涉及对象。
+  - generic: 输出字段
+  - table:
+    - rowgroup:
+      - row "字段名 类型 含义":
+        - columnheader "字段名"
+        - columnheader "类型"
+        - columnheader "含义"
+    - rowgroup:
+      - row "暂无输出字段。":
+        - cell "暂无输出字段。"
+  - generic: 关键条件
+  - generic: 暂无关键条件。
+  - generic: 以上解释由 AI 生成，可能不完全准确，请结合实际业务确认。
+  - button "有帮助":
+  - button "无帮助":
+  - button "复制解释":
+  - generic: db
+  - generic: sql_funds_flow.main
+  - generic: (13表)
+  - button "行 1 列 122":
+    - generic: 行
+    - generic: "1"
+    - generic: 列
+    - generic: "122"
+  - 'generic "当前查询: query_1.sql"':
+    - generic: query_1.sql
+  - generic "点击查看运行时状态中心":
+    - generic: 内存
+    - generic: 未采集
+  - generic "查看运行时状态详情":
+    - generic: 运行时
+    - generic: 就绪
+  - generic "点击打开运行时状态中心":
+    - generic: 就绪
+    - generic: (79ms)
+  - button "控制":
+    - generic: 控制
+  - button "反馈":
+    - generic: 反馈
+- contentinfo:
+  - generic: DuckDB 1.33.1
+  - generic: "|"
+  - generic: sql_funds_flow [OPFS]
+  - generic: "|"
+  - generic: 持久化库
+  - generic: "|"
+  - generic: 13 张表
+  - generic: "|"
+  - generic: 13 个活动表
+  - generic: "|"
+  - generic: "内存: 1.75 MB / 3.1 GiB"
+  - generic: 引擎就绪
+  - generic: "|"
+  - generic: 02:34
+  - button "刷新运行时状态":

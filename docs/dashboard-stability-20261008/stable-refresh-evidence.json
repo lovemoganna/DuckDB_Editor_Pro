@@ -1,0 +1,90 @@
+[
+  {
+    "round": 1,
+    "usd": true,
+    "net": true,
+    "detail": true,
+    "legend": "false"
+  },
+  {
+    "round": 2,
+    "ready": true,
+    "usd": true,
+    "net": true,
+    "detail": true,
+    "items": true,
+    "legend": "false"
+  },
+  {
+    "round": 3,
+    "usd": true,
+    "net": true,
+    "detail": true,
+    "items": true,
+    "legend": "false"
+  },
+  {
+    "round": 4,
+    "ready": true,
+    "usd": true,
+    "net": true,
+    "detail": true,
+    "items": true,
+    "legend": "false"
+  },
+  {
+    "round": 5,
+    "ready": true,
+    "usd": true,
+    "net": true,
+    "detail": true,
+    "items": true,
+    "legend": "false"
+  },
+  {
+    "round": 6,
+    "ready": true,
+    "usd": true,
+    "net": true,
+    "detail": true,
+    "items": true,
+    "legend": "false"
+  },
+  {
+    "round": 7,
+    "ready": true,
+    "usd": true,
+    "net": true,
+    "detail": true,
+    "items": true,
+    "legend": "false"
+  },
+  {
+    "round": 8,
+    "ready": true,
+    "usd": true,
+    "net": true,
+    "detail": true,
+    "items": true,
+    "legend": "false"
+  },
+  {
+    "round": 9,
+    "ready": true,
+    "usd": true,
+    "net": true,
+    "detail": true,
+    "items": true,
+    "legend": "false"
+  },
+  {
+    "round": 10,
+    "ready": true,
+    "loading": 0,
+    "usd": true,
+    "net": true,
+    "detail": true,
+    "items": true,
+    "legend": "false"
+  }
+]

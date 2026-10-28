@@ -627,7 +627,7 @@ export const AddWidgetModal: React.FC<AddWidgetModalProps> = ({ onClose, onAdd }
                       type="button"
                       disabled={isMountingPreset}
                       onClick={() => handleMountPreset(activeSelectedPreset.id)}
-                      className="inline-flex items-center gap-2 rounded-md bg-monokai-accent px-4 py-2 text-xs font-semibold text-[#1e1f1c] hover:bg-monokai-accent-hover transition-colors shadow-xs active:scale-[0.98] cursor-pointer disabled:opacity-50"
+                      className="inline-flex items-center gap-2 rounded-md bg-monokai-accent px-4 py-2 text-xs font-semibold text-monokai-on-accent hover:bg-monokai-accent-hover transition-colors shadow-xs active:scale-[0.98] cursor-pointer disabled:opacity-50"
                     >
                       {isMountingPreset ? <Loader2 size={15} className="animate-spin" /> : <Plus size={15} />}
                       <span>挂载此组件到仪表板</span>
@@ -847,7 +847,7 @@ export const AddWidgetModal: React.FC<AddWidgetModalProps> = ({ onClose, onAdd }
                   type="button"
                   disabled={!selectedTable}
                   onClick={handleMountTableWidget}
-                  className="inline-flex items-center gap-2 rounded-md bg-monokai-accent px-4 py-2 text-xs font-semibold text-[#1e1f1c] hover:bg-monokai-accent-hover transition-colors shadow-xs active:scale-[0.98] cursor-pointer disabled:opacity-50"
+                  className="inline-flex items-center gap-2 rounded-md bg-monokai-accent px-4 py-2 text-xs font-semibold text-monokai-on-accent hover:bg-monokai-accent-hover transition-colors shadow-xs active:scale-[0.98] cursor-pointer disabled:opacity-50"
                 >
                   <Plus size={15} />
                   <span>生成并挂载至仪表板</span>
@@ -1036,7 +1036,7 @@ export const AddWidgetModal: React.FC<AddWidgetModalProps> = ({ onClose, onAdd }
                     <button
                       type="button"
                       onClick={() => handleMountQuery(activeSelectedQuery.id)}
-                      className="inline-flex items-center gap-2 rounded-md bg-monokai-accent px-4 py-2 text-xs font-semibold text-[#1e1f1c] hover:bg-monokai-accent-hover transition-colors shadow-xs active:scale-[0.98] cursor-pointer"
+                      className="inline-flex items-center gap-2 rounded-md bg-monokai-accent px-4 py-2 text-xs font-semibold text-monokai-on-accent hover:bg-monokai-accent-hover transition-colors shadow-xs active:scale-[0.98] cursor-pointer"
                     >
                       <Plus size={15} />
                       <span>挂载到当前仪表板</span>
@@ -1169,7 +1169,7 @@ export const AddWidgetModal: React.FC<AddWidgetModalProps> = ({ onClose, onAdd }
                           type="button"
                           disabled={isGeneratingMetric}
                           onClick={() => handleMetricSelect(selectedMetric)}
-                          className="inline-flex items-center gap-2 rounded-md bg-monokai-accent px-4 py-2 text-xs font-semibold text-[#1e1f1c] hover:bg-monokai-accent-hover transition-colors shadow-xs active:scale-[0.98] cursor-pointer disabled:opacity-50"
+                          className="inline-flex items-center gap-2 rounded-md bg-monokai-accent px-4 py-2 text-xs font-semibold text-monokai-on-accent hover:bg-monokai-accent-hover transition-colors shadow-xs active:scale-[0.98] cursor-pointer disabled:opacity-50"
                         >
                           {isGeneratingMetric ? <Loader2 size={15} className="animate-spin" /> : <Plus size={15} />}
                           <span>生成图表并挂载至仪表板</span>
@@ -1334,7 +1334,7 @@ export const AddWidgetModal: React.FC<AddWidgetModalProps> = ({ onClose, onAdd }
                 <button
                   type="button"
                   onClick={handleMountCustomSql}
-                  className="inline-flex items-center gap-2 rounded-md bg-monokai-accent px-4 py-2 text-xs font-semibold text-[#1e1f1c] hover:bg-monokai-accent-hover transition-colors shadow-xs active:scale-[0.98] cursor-pointer"
+                  className="inline-flex items-center gap-2 rounded-md bg-monokai-accent px-4 py-2 text-xs font-semibold text-monokai-on-accent hover:bg-monokai-accent-hover transition-colors shadow-xs active:scale-[0.98] cursor-pointer"
                 >
                   <Plus size={15} />
                   <span>挂载自定义 SQL 组件</span>

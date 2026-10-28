@@ -71,7 +71,9 @@ function decodeXmlEntities(str: string): string {
 
 function normalizeCellValue(value: unknown): string | number | boolean | null {
   if (value === null || value === undefined) return null;
-  if (value instanceof Date) return value.toISOString();
+  // Excel serial dates have no timezone. Preserve their wall-clock fields so
+  // DuckDB infers TIMESTAMP instead of shifting a TIMESTAMPTZ across month boundaries.
+  if (value instanceof Date) return value.toISOString().replace('T', ' ').replace(/Z$/, '');
   if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
     return value;
   }

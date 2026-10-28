@@ -107,7 +107,7 @@ export function widgetRowsToChartSpec(
       valueMode: config.valueMode,
       colors: config.colors,
       showTrendLine: config.showTrendLine,
-      pivot: config.type === 'pivot' ? { rowKey: config.rowKey || xKey, colKey: config.colKey || '', valKey: config.valKey || yKeys[0], aggregation: config.aggFunc || 'sum' } : undefined,
+      pivot: config.type === 'pivot' ? { nullDisplay: config.nullDisplay, rowKey: config.rowKey || xKey, colKey: config.colKey || '', valKey: config.valKey || yKeys[0], aggregation: config.aggFunc || 'sum' } : undefined,
       highlightOutliers: config.highlightOutliers,
       topN: config.topN,
       format: config.format || {

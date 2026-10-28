@@ -1,0 +1,752 @@
+
+ RUN  v4.1.10 C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor
+
+ ❯ components/Dashboard/Home/HomeBoardCanvas.audit.test.tsx (4 tests | 1 failed) 1237ms
+   × reloads dataset metadata on the header refresh trigger without losing the selection 1136ms
+ ❯ components/Dashboard/Home/DatasetPreview.requests.test.tsx (5 tests | 1 failed) 1236ms
+   × rechecks saved join-key constraints before previewing and recovers after retry 1031ms
+ ❯ components/Dashboard.test.tsx (14 tests | 1 failed) 534ms
+     × does not replace a newer board snapshot with an older overlapping event response 263ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  components/Dashboard.test.tsx > DuckDB Analysis Home Dashboard > does not replace a newer board snapshot with an older overlapping event response
+AssertionError: expected '过期视图' to be '最新视图' // Object.is equality
+
+Expected: "最新视图"
+Received: "过期视图"
+
+ ❯ components/Dashboard.test.tsx:180:48
+    178|     await waitFor(()=>expect(result.current.homeDashboard?.name).toBe(…
+    179|     await act(async()=>finishOld([{...board,name:'过期视图',updatedAt:1}])…
+    180|     expect(result.current.homeDashboard?.name).toBe('最新视图');
+       |                                                ^
+    181|   });
+    182|   it('renders analysis header with identity, primary CTA, and import',…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  components/Dashboard/Home/DatasetPreview.requests.test.tsx > rechecks saved join-key constraints before previewing and recovers after retry
+TestingLibraryElementError: Unable to find role="alert"
+
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <section
+      aria-busy="false"
+      class="min-w-0 rounded-lg border border-monokai-border/80 bg-monokai-surface/40 p-3.5 text-xs shadow-xs"
+    >
+      <div
+        class="flex flex-wrap gap-2 items-center justify-between pb-2 border-b border-monokai-border/60"
+      >
+        <div
+          class="flex items-center gap-2"
+        >
+          <h3
+            class="font-semibold text-monokai-fg break-words"
+          >
+            fiat_transactions
+             · 明细预览
+          </h3>
+          <span
+            class="rounded bg-monokai-surface px-1.5 py-0.5 text-2xs text-monokai-comment font-mono border border-monokai-border/60"
+          >
+            1
+             字段
+          </span>
+        </div>
+        <div
+          class="flex items-center gap-2"
+        >
+          <span
+            class="text-2xs font-mono text-monokai-comment"
+          >
+            25
+             行记录
+          </span>
+        </div>
+      </div>
+      <div
+        class="max-h-80 overflow-auto mt-2 rounded border border-monokai-border bg-monokai-bg/60 custom-scrollbar"
+      >
+        <table
+          class="text-left w-full text-xs"
+          style="min-width: 164px; table-layout: fixed;"
+        >
+          <colgroup>
+            <col
+              style="width: 164px;"
+            />
+          </colgroup>
+          <thead
+            class="sticky top-0 bg-monokai-surface shadow-xs"
+          >
+            <tr>
+              <th
+                class="px-2.5 py-2 font-medium text-2xs text-monokai-fg-muted uppercase tracking-wider border-b border-monokai-border"
+              >
+                fiat_order_id
+              </th>
+            </tr>
+          </thead>
+          <tbody
+            class="divide-y divide-monokai-border/40"
+          >
+            <tr
+              class="hover:bg-monokai-surface/50 transition-colors"
+            >
+              <td
+                class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+              >
+                fo_20241231_43875092
+              </td>
+            </tr>
+            <tr
+              class="hover:bg-monokai-surface/50 transition-colors"
+            >
+              <td
+                class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+              >
+                fo_20250101_43875093
+              </td>
+            </tr>
+            <tr
+              class="hover:bg-monokai-surface/50 transition-colors"
+            >
+              <td
+                class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+              >
+                fo_20250110_78423190
+              </td>
+            </tr>
+            <tr
+              class="hover:bg-monokai-surface/50 transition-colors"
+            >
+              <td
+                class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+              >
+                fo_20250112_61590237
+              </td>
+            </tr>
+            <tr
+              class="hover:bg-monokai-surface/50 transition-colors"
+            >
+              <td
+                class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+              >
+                fo_20250214_61590238
+              </td>
+            </tr>
+            <tr
+              class="hover:bg-monokai-surface/50 transition-colors"
+            >
+              <td
+                class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+              >
+                fo_20250220_78423191
+              </td>
+            </tr>
+            <tr
+              class="hover:bg-monokai-surface/50 transition-colors"
+            >
+              <td
+                class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+              >
+                fo_20250308_90317462
+              </td>
+            </tr>
+            <tr
+              class="hover:bg-monokai-surface/50 transition-colors"
+            >
+              <td
+                class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+              >
+                fo_20250315_78423192
+              </td>
+            </tr>
+            <tr
+              class="hover:bg-monokai-surface/50 transition-colors"
+            >
+              <td
+                class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+              >
+                fo_20250410_78423193
+              </td>
+            </tr>
+            <tr
+              class="hover:bg-monokai-surface/50 transition-colors"
+            >
+              <td
+                class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+              >
+                fo_20250415_90317463
+              </td>
+            </tr>
+            <tr
+              class="hover:bg-monokai-surface/50 transition-colors"
+            >
+              <td
+                class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+              >
+                fo_20250418_52840619
+              </td>
+            </tr>
+            <tr
+              class="hover:bg-monokai-surface/50 transition-colors"
+            >
+              <td
+                class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+              >
+                fo_20250502_90317464
+              </td>
+            </tr>
+            <tr
+              class="hover:bg-monokai-surface/50 transition-colors"
+            >
+              <td
+                class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+              >
+                fo_20250520_84621953
+              </td>
+            </tr>
+            <tr
+              class="hover:bg-monokai-surface/50 transition-colors"
+            >
+              <td
+                class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+              >
+                fo_20250525_52840620
+              </td>
+            </tr>
+            <tr
+              class="hover:bg-monokai-surface/50 transition-colors"
+            >
+              <td
+                class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+              >
+                fo_20250605_69248130
+              </td>
+            </tr>
+            <tr
+              class="hover:bg-monokai-surface/50 transition-colors"
+            >
+              <td
+                class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+              >
+                fo_20250618_61590239
+              </td>
+            </tr>
+            <tr
+              class="hover:bg-monokai-surface/50 transition-colors"
+            >
+              <td
+                class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+              >
+                fo_20250711_84621954
+              </td>
+            </tr>
+            <tr
+              class="hover:bg-monokai-surface/50 transition-colors"
+            >
+              <td
+                class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+              >
+                fo_20250720_61590240
+              </td>
+            </tr>
+            <tr
+              class="hover:bg-monokai-surface/50 transition-colors"
+            >
+              <td
+                class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+              >
+                fo_20250810_52840621
+              </td>
+            </tr>
+            <tr
+              class="hover:bg-monokai-surface/50 transition-colors"
+            >
+              <td
+                class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+              >
+                fo_20250901_31958204
+              </td>
+            </tr>
+            <tr
+              class="hover:bg-monokai-surface/50 transition-colors"
+            >
+              <td
+                class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+              >
+                fo_20250912_52840622
+              </td>
+            </tr>
+            <tr
+              class="hover:bg-monokai-surface/50 transition-colors"
+            >
+              <td
+                class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+              >
+                fo_20250915_69248131
+              </td>
+            </tr>
+            <tr
+              class="hover:bg-monokai-surface/50 transition-colors"
+            >
+              <td
+                class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+              >
+                fo_20250920_50284719
+              </td>
+            </tr>
+            <tr
+              class="hover:bg-monokai-surface/50 transition-colors"
+            >
+              <td
+                class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+              >
+                fo_20251010_31958205
+              </td>
+            </tr>
+            <tr
+              class="hover:bg-monokai-surface/50 transition-colors"
+            >
+              <td
+                class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+              >
+                fo_20251025_50284720
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</body>
+
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <section
+      aria-busy="false"
+      class="min-w-0 rounded-lg border border-monokai-border/80 bg-monokai-surface/40 p-3.5 text-xs shadow-xs"
+    >
+      <div
+        class="flex flex-wrap gap-2 items-center justify-between pb-2 border-b border-monokai-border/60"
+      >
+        <div
+          class="flex items-center gap-2"
+        >
+          <h3
+            class="font-semibold text-monokai-fg break-words"
+          >
+            fiat_transactions
+             · 明细预览
+          </h3>
+          <span
+            class="rounded bg-monokai-surface px-1.5 py-0.5 text-2xs text-monokai-comment font-mono border border-monokai-border/60"
+          >
+            1
+             字段
+          </span>
+        </div>
+        <div
+          class="flex items-center gap-2"
+        >
+          <span
+            class="text-2xs font-mono text-monokai-comment"
+          >
+            25
+             行记录
+          </span>
+        </div>
+      </div>
+      <div
+        class="max-h-80 overflow-auto mt-2 rounded border border-monokai-border bg-monokai-bg/60 custom-scrollbar"
+      >
+        <table
+          class="text-left w-full text-xs"
+          style="min-width: 164px; table-layout: fixed;"
+        >
+          <colgroup>
+            <col
+              style="width: 164px;"
+            />
+          </colgroup>
+          <thead
+            class="sticky top-0 bg-monokai-surface shadow-xs"
+          >
+            <tr>
+              <th
+                class="px-2.5 py-2 font-medium text-2xs text-monokai-fg-muted uppercase tracking-wider border-b border-monokai-border"
+              >
+                fiat_order_id
+              </th>
+            </tr>
+          </thead>
+          <tbody
+            class="divide-y divide-monokai-border/40"
+          >
+            <tr
+              class="hover:bg-monokai-surface/50 transition-colors"
+            >
+              <td
+                class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+              >
+                fo_20241231_43875092
+              </td>
+            </tr>
+            <tr
+              class="hover:bg-monokai-surface/50 transition-colors"
+            >
+              <td
+                class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+              >
+                fo_20250101_43875093
+              </td>
+            </tr>
+            <tr
+              class="hover:bg-monokai-surface/50 transition-colors"
+            >
+              <td
+                class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+              >
+                fo_20250110_78423190
+              </td>
+            </tr>
+            <tr
+              class="hover:bg-monokai-surface/50 transition-colors"
+            >
+              <td
+                class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+              >
+                fo_20250112_61590237
+              </td>
+            </tr>
+            <tr
+              class="hover:bg-monokai-surface/50 transition-colors"
+            >
+              <td
+                class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+              >
+                fo_20250214_61590238
+              </td>
+            </tr>
+            <tr
+              class="hover:bg-monokai-surface/50 transition-colors"
+            >
+              <td
+                class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+              >
+                fo_20250220_78423191
+              </td>
+            </tr>
+            <tr
+              class="hover:bg-monokai-surface/50 transition-colors"
+            >
+              <td
+                class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+              >
+                fo_20250308_90317462
+              </td>
+            </tr>
+            <tr
+              class="hover:bg-monokai-surface/50 transition-colors"
+            >
+              <td
+                class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+              >
+                fo_20250315_78423192
+              </td>
+            </tr>
+            <tr
+              class="hover:bg-monokai-surface/50 transition-colors"
+            >
+              <td
+                class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+              >
+                fo_20250410_78423193
+              </td>
+            </tr>
+            <tr
+              class="hover:bg-monokai-surface/50 transition-colors"
+            >
+              <td
+                class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+              >
+                fo_20250415_90317463
+              </td>
+            </tr>
+            <tr
+              class="hover:bg-monokai-surface/50 transition-colors"
+            >
+              <td
+                class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+              >
+                fo_20250418_52840619
+              </td>
+            </tr>
+            <tr
+              class="hover:bg-monokai-surface/50 transition-colors"
+            >
+              <td
+                class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+              >
+                fo_20250502_90317464
+              </td>
+            </tr>
+            <tr
+              class="hover:bg-monokai-surface/50 transition-colors"
+            >
+              <td
+                class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+              >
+                fo_20250520_84621953
+              </td>
+            </tr>
+            <tr
+              class="hover:bg-monokai-surface/50 transition-colors"
+            >
+              <td
+                class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+              >
+                fo_20250525_52840620
+              </td>
+            </tr>
+            <tr
+              class="hover:bg-monokai-surface/50 transition-colors"
+            >
+              <td
+                class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+              >
+                fo_20250605_69248130
+              </td>
+            </tr>
+            <tr
+              class="hover:bg-monokai-surface/50 transition-colors"
+            >
+              <td
+                class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+              >
+                fo_20250618_61590239
+              </td>
+            </tr>
+            <tr
+              class="hover:bg-monokai-surface/50 transition-colors"
+            >
+              <td
+                class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+              >
+                fo_20250711_84621954
+              </td>
+            </tr>
+            <tr
+              class="hover:bg-monokai-surface/50 transition-colors"
+            >
+              <td
+                class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+              >
+                fo_20250720_61590240
+              </td>
+            </tr>
+            <tr
+              class="hover:bg-monokai-surface/50 transition-colors"
+            >
+              <td
+                class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+              >
+                fo_20250810_52840621
+              </td>
+            </tr>
+            <tr
+              class="hover:bg-monokai-surface/50 transition-colors"
+            >
+              <td
+                class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+              >
+                fo_20250901_31958204
+              </td>
+            </tr>
+            <tr
+              class="hover:bg-monokai-surface/50 transition-colors"
+            >
+              <td
+                class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+              >
+                fo_20250912_52840622
+              </td>
+            </tr>
+            <tr
+              class="hover:bg-monokai-surface/50 transition-colors"
+            >
+              <td
+                class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+              >
+                fo_20250915_69248131
+              </td>
+            </tr>
+            <tr
+              class="hover:bg-monokai-surface/50 transition-colors"
+            >
+              <td
+                class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+              >
+                fo_20250920_50284719
+              </td>
+            </tr>
+            <tr
+              class="hover:bg-monokai-surface/50 transition-colors"
+            >
+              <td
+                class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+              >
+                fo_20251010_31958205
+              </td>
+            </tr>
+            <tr
+              class="hover:bg-monokai-surface/50 transition-colors"
+            >
+              <td
+                class="px-2.5 py-1.5 whitespace-normal break-words font-mono text-2xs text-monokai-fg"
+              >
+                fo_20251025_50284720
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</body>
+ ❯ waitForWrapper node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ components/Dashboard/Home/DatasetPreview.requests.test.tsx:26:23
+     24|   const guarded={...dataset,uniqueKeys:[{sql:dataset.sql,key:'fiat_ord…
+     25|   render(<DatasetPreview {...props} dataset={guarded} datasets={[guard…
+     26|   expect(await screen.findByRole('alert')).toHaveTextContent('右侧关联键不唯一…
+       |                       ^
+     27|   expect(transport.read).not.toHaveBeenCalled();
+     28|   fireEvent.click(screen.getByRole('button',{name:'重试'}));
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  components/Dashboard/Home/HomeBoardCanvas.audit.test.tsx > reloads dataset metadata on the header refresh trigger without losing the selection
+TestingLibraryElementError: Unable to find role="option" and name "new-source"
+
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <section
+      aria-busy="false"
+      class="relative z-0 flex flex-col gap-3"
+    >
+      <div>
+        <label
+          class="flex items-center gap-1.5 text-xs text-monokai-fg-muted font-medium"
+        >
+          <span>
+            数据集
+          </span>
+          <select
+            aria-label="浏览数据集"
+            class="w-full rounded-lg border border-monokai-border/80 hover:border-monokai-border-strong bg-monokai-surface text-monokai-fg font-sans transition-all focus:outline-none focus:ring-2 focus:border-monokai-accent focus:ring-monokai-accent/30 disabled:opacity-50 disabled:cursor-not-allowed h-8 px-2.5 text-xs !w-auto min-w-[140px] max-w-[240px]"
+          >
+            <option
+              value=""
+            >
+              选择数据集
+            </option>
+            <option
+              value="d"
+            >
+              orders
+            </option>
+          </select>
+        </label>
+      </div>
+      <div
+        class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-monokai-border/40"
+      >
+        <span
+          class="text-2xs font-mono text-monokai-comment"
+        >
+          尚未添加分析组件
+        </span>
+        <div
+          class="flex items-center gap-1.5"
+        />
+      </div>
+      <div>
+        preview:orders
+      </div>
+    </section>
+  </div>
+</body>
+
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <section
+      aria-busy="false"
+      class="relative z-0 flex flex-col gap-3"
+    >
+      <div>
+        <label
+          class="flex items-center gap-1.5 text-xs text-monokai-fg-muted font-medium"
+        >
+          <span>
+            数据集
+          </span>
+          <select
+            aria-label="浏览数据集"
+            class="w-full rounded-lg border border-monokai-border/80 hover:border-monokai-border-strong bg-monokai-surface text-monokai-fg font-sans transition-all focus:outline-none focus:ring-2 focus:border-monokai-accent focus:ring-monokai-accent/30 disabled:opacity-50 disabled:cursor-not-allowed h-8 px-2.5 text-xs !w-auto min-w-[140px] max-w-[240px]"
+          >
+            <option
+              value=""
+            >
+              选择数据集
+            </option>
+            <option
+              value="d"
+            >
+              orders
+            </option>
+          </select>
+        </label>
+      </div>
+      <div
+        class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-monokai-border/40"
+      >
+        <span
+          class="text-2xs font-mono text-monokai-comment"
+        >
+          尚未添加分析组件
+        </span>
+        <div
+          class="flex items-center gap-1.5"
+        />
+      </div>
+      <div>
+        preview:orders
+      </div>
+    </section>
+  </div>
+</body>
+ ❯ waitForWrapper node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ components/Dashboard/Home/HomeBoardCanvas.audit.test.tsx:28:16
+     26|   mocks.load.mockResolvedValue([dataset,{...dataset,id:'new',name:'new…
+     27|   view.rerender(<HomeBoardCanvas {...props} refreshTrigger={1}/>);
+     28|   await screen.findByRole('option',{name:'new-source'});
+       |                ^
+     29|   expect(screen.getByRole('combobox',{name:'浏览数据集'})).toHaveValue('d');
+     30| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  3 failed (3)
+      Tests  3 failed | 20 passed (23)
+   Start at  18:36:15
+   Duration  12.18s (transform 3.70s, setup 316ms, import 5.85s, tests 3.01s, environment 2.41s)
+

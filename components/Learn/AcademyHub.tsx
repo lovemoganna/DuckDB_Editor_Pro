@@ -185,7 +185,7 @@ export const AcademyHub: React.FC<AcademyHubProps> = ({
       <div
         key={course.id}
         onClick={() => onSelectCourse(course.id)}
-        className="group relative flex flex-col justify-between p-4 rounded-xl bg-[#12171f] border border-zinc-800 hover:border-cyan-500/50 hover:bg-[#161d27] transition-all duration-200 cursor-pointer shadow-sm hover:shadow-lg select-none"
+        className="group relative flex flex-col justify-between p-4 rounded-xl bg-monokai-surface border border-monokai-border hover:border-monokai-cyan/50 hover:bg-monokai-elevated transition-all duration-200 cursor-pointer shadow-sm hover:shadow-lg select-none"
       >
         {/* 顶部标签行 */}
         <div>
@@ -272,12 +272,12 @@ export const AcademyHub: React.FC<AcademyHubProps> = ({
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-[#0c1015] text-[#d4d4d4] overflow-y-auto custom-scrollbar select-none font-sans">
+    <div className="flex-1 flex flex-col h-full bg-monokai-bg text-monokai-fg overflow-y-auto custom-scrollbar select-none font-sans">
       
       {/* ============================================================ */}
       {/* 1. 学堂大厅仪表盘 (Academy Hero Header Deck) */}
       {/* ============================================================ */}
-      <section className="bg-gradient-to-b from-[#121922] via-[#0f141b] to-[#0c1015] border-b border-zinc-800/80 px-6 pt-7 pb-6 shrink-0">
+      <section className="bg-gradient-to-b from-monokai-sidebar via-monokai-surface to-monokai-bg border-b border-monokai-border px-6 pt-7 pb-6 shrink-0">
         <div className="max-w-6xl mx-auto space-y-5">
           
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -349,52 +349,52 @@ export const AcademyHub: React.FC<AcademyHubProps> = ({
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
             
             {/* 1. 通关进度 */}
-            <div className="p-3.5 rounded-xl bg-[#12171f] border border-zinc-800 flex items-center gap-3">
+            <div className="p-3.5 rounded-xl bg-monokai-surface border border-monokai-border flex items-center gap-3">
               <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400">
                 <CheckCircle2 className="w-4 h-4" />
               </div>
               <div>
-                <div className="text-[10.5px] text-zinc-400 font-medium">通关进度</div>
-                <div className="text-sm font-bold text-white font-mono">
-                  {completedCount} <span className="text-xs text-zinc-500 font-normal">/ {totalCount} 课</span>
+                <div className="text-[10.5px] text-monokai-comment font-medium">通关进度</div>
+                <div className="text-sm font-bold text-monokai-fg font-mono">
+                  {completedCount} <span className="text-xs text-monokai-comment/80 font-normal">/ {totalCount} 课</span>
                 </div>
               </div>
             </div>
 
             {/* 2. 达成率 */}
-            <div className="p-3.5 rounded-xl bg-[#12171f] border border-zinc-800 flex items-center gap-3">
+            <div className="p-3.5 rounded-xl bg-monokai-surface border border-monokai-border flex items-center gap-3">
               <div className="p-2 rounded-lg bg-cyan-500/10 text-cyan-400">
                 <Trophy className="w-4 h-4" />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="text-[10.5px] text-zinc-400 font-medium">达成率</div>
-                <div className="text-sm font-bold text-white font-mono">{completionPercentage}%</div>
-                <div className="w-full bg-zinc-800 rounded-full h-1 mt-1 overflow-hidden">
+                <div className="text-[10.5px] text-monokai-comment font-medium">达成率</div>
+                <div className="text-sm font-bold text-monokai-fg font-mono">{completionPercentage}%</div>
+                <div className="w-full bg-monokai-elevated rounded-full h-1 mt-1 overflow-hidden">
                   <div className="bg-cyan-400 h-full rounded-full transition-all duration-300" style={{ width: `${completionPercentage}%` }} />
                 </div>
               </div>
             </div>
 
             {/* 3. 总学时与经验 */}
-            <div className="p-3.5 rounded-xl bg-[#12171f] border border-zinc-800 flex items-center gap-3">
+            <div className="p-3.5 rounded-xl bg-monokai-surface border border-monokai-border flex items-center gap-3">
               <div className="p-2 rounded-lg bg-amber-500/10 text-amber-400">
                 <Clock className="w-4 h-4" />
               </div>
               <div>
-                <div className="text-[10.5px] text-zinc-400 font-medium">总学时</div>
-                <div className="text-sm font-bold text-white font-mono">
-                  ~{totalMinutes} <span className="text-xs text-zinc-500 font-normal">分钟</span>
+                <div className="text-[10.5px] text-monokai-comment font-medium">总学时</div>
+                <div className="text-sm font-bold text-monokai-fg font-mono">
+                  ~{totalMinutes} <span className="text-xs text-monokai-comment/80 font-normal">分钟</span>
                 </div>
               </div>
             </div>
 
             {/* 4. 技能树与等级 */}
-            <div className="p-3.5 rounded-xl bg-[#12171f] border border-zinc-800 flex items-center gap-3">
+            <div className="p-3.5 rounded-xl bg-monokai-surface border border-monokai-border flex items-center gap-3">
               <div className={`p-2 rounded-lg ${userRank.bg} ${userRank.color}`}>
                 <Zap className="w-4 h-4" />
               </div>
               <div className="min-w-0">
-                <div className="text-[10.5px] text-zinc-400 font-medium">实战段位 ({xpPoints} XP)</div>
+                <div className="text-[10.5px] text-monokai-comment font-medium">实战段位 ({xpPoints} XP)</div>
                 <div className={`text-xs font-bold ${userRank.color} truncate font-mono`}>
                   {userRank.title}
                 </div>
@@ -407,7 +407,7 @@ export const AcademyHub: React.FC<AcademyHubProps> = ({
           {lastAccessedCourse && (
             <div 
               onClick={() => onSelectCourse(lastAccessedCourse.id)}
-              className="p-3.5 rounded-xl bg-gradient-to-r from-emerald-500/10 via-[#12171f] to-[#12171f] border border-emerald-500/30 hover:border-emerald-500/60 transition-all flex items-center justify-between cursor-pointer group shadow-sm"
+              className="p-3.5 rounded-xl bg-gradient-to-r from-emerald-500/10 via-monokai-surface to-monokai-surface border border-emerald-500/30 hover:border-emerald-500/60 transition-all flex items-center justify-between cursor-pointer group shadow-sm"
             >
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center text-black font-extrabold shrink-0 group-hover:scale-105 transition-transform">
@@ -418,9 +418,9 @@ export const AcademyHub: React.FC<AcademyHubProps> = ({
                     <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">
                       继续上次学习
                     </span>
-                    <span className="text-[10.5px] text-zinc-400">· {lastAccessedCourse.categoryLabel}</span>
+                    <span className="text-[10.5px] text-monokai-comment">· {lastAccessedCourse.categoryLabel}</span>
                   </div>
-                  <h4 className="text-xs font-bold text-white truncate">
+                  <h4 className="text-xs font-bold text-monokai-fg truncate">
                     {lastAccessedCourse.title}
                   </h4>
                 </div>
@@ -439,20 +439,20 @@ export const AcademyHub: React.FC<AcademyHubProps> = ({
       {/* ============================================================ */}
       {/* 2. 浏览模式切换与多维检索栏 */}
       {/* ============================================================ */}
-      <section className="bg-[#12171f]/95 border-b border-zinc-800 px-6 py-3.5 shrink-0 sticky top-0 z-10 backdrop-blur">
+      <section className="bg-monokai-surface/95 border-b border-monokai-border px-6 py-3.5 shrink-0 sticky top-0 z-10 backdrop-blur">
         <div className="max-w-6xl mx-auto space-y-3">
           
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             
             {/* 左侧：视图模式切换 (实战技能轨迹 vs 精选货架 vs 体系路线图 vs 认知方法论) */}
-            <div className="flex rounded-lg bg-zinc-800/80 p-0.5 text-xs font-medium w-fit flex-wrap border border-zinc-700/50">
+            <div className="flex rounded-lg bg-monokai-sidebar p-0.5 text-xs font-medium w-fit flex-wrap border border-monokai-border">
               <button
                 type="button"
                 onClick={() => setViewMode('tracks')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-colors cursor-pointer ${
                   viewMode === 'tracks'
-                    ? 'bg-[#0c1015] text-emerald-400 font-bold shadow-sm'
-                    : 'text-zinc-400 hover:text-white'
+                    ? 'bg-monokai-bg text-monokai-accent font-bold shadow-sm'
+                    : 'text-monokai-comment hover:text-monokai-fg'
                 }`}
               >
                 <BarChart3 className="w-3.5 h-3.5" />
@@ -463,8 +463,8 @@ export const AcademyHub: React.FC<AcademyHubProps> = ({
                 onClick={() => setViewMode('catalog')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-colors cursor-pointer ${
                   viewMode === 'catalog'
-                    ? 'bg-[#0c1015] text-cyan-400 font-bold shadow-sm'
-                    : 'text-zinc-400 hover:text-white'
+                    ? 'bg-monokai-bg text-monokai-cyan font-bold shadow-sm'
+                    : 'text-monokai-comment hover:text-monokai-fg'
                 }`}
               >
                 <LayoutGrid className="w-3.5 h-3.5" />
@@ -475,8 +475,8 @@ export const AcademyHub: React.FC<AcademyHubProps> = ({
                 onClick={() => setViewMode('roadmap')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-colors cursor-pointer ${
                   viewMode === 'roadmap'
-                    ? 'bg-[#0c1015] text-emerald-400 font-bold shadow-sm'
-                    : 'text-zinc-400 hover:text-white'
+                    ? 'bg-monokai-bg text-monokai-accent font-bold shadow-sm'
+                    : 'text-monokai-comment hover:text-monokai-fg'
                 }`}
               >
                 <Map className="w-3.5 h-3.5" />
@@ -487,8 +487,8 @@ export const AcademyHub: React.FC<AcademyHubProps> = ({
                 onClick={() => setViewMode('methodology')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-colors cursor-pointer ${
                   viewMode === 'methodology'
-                    ? 'bg-[#0c1015] text-amber-400 font-bold shadow-sm'
-                    : 'text-zinc-400 hover:text-white'
+                    ? 'bg-monokai-bg text-monokai-yellow font-bold shadow-sm'
+                    : 'text-monokai-comment hover:text-monokai-fg'
                 }`}
               >
                 <Compass className="w-3.5 h-3.5" />
@@ -685,7 +685,7 @@ export const AcademyHub: React.FC<AcademyHubProps> = ({
                 return (
                   <div 
                     key={track.id}
-                    className="rounded-xl bg-[#12171f] border border-zinc-800 p-5 space-y-4 shadow-sm hover:border-zinc-700 transition-all"
+                    className="rounded-xl bg-monokai-surface border border-monokai-border p-5 space-y-4 shadow-sm hover:border-monokai-border/80 transition-all"
                   >
                     {/* 轨迹头部 */}
                     <div className="flex items-start justify-between gap-3">

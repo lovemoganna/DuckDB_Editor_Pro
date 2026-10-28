@@ -1,0 +1,143 @@
+- banner "全局工作区顶栏":
+  - button "🪶 DuckDB Studio PRO":
+    - generic: 🪶
+    - generic: DuckDB Studio
+    - generic: PRO
+  - navigation "业务领域大类":
+    - button "工程核心":
+      - generic: 工程核心
+    - button "分析洞察":
+      - generic: 分析洞察
+    - button "知识沉淀":
+      - generic: 知识沉淀
+    - button "AI 认知":
+      - generic: AI 认知
+  - tablist "工程核心功能标签页":
+    - tab "仪表盘":
+      - generic: 仪表盘
+      - generic: "1"
+    - tab "数据":
+      - generic: 数据
+      - generic: "2"
+    - tab "Schema":
+      - generic: Schema
+      - generic: "3"
+    - tab "SQL":
+      - generic: SQL
+      - generic: "4"
+    - tab "数据流" [selected]:
+      - generic: 数据流
+  - button "项目":
+    - generic: 项目
+  - button "已保存到 OPFS":
+    - generic: 已保存到 OPFS
+  - button "AI 助手":
+    - generic: AI 助手
+  - button "⌘K":
+  - button "帮助与快捷键":
+  - button "切换为浅色模式":
+  - button "AI 模型设置":
+- main:
+  - generic: SQL 流程图
+  - button "当前 SQL 流图" [pressed]:
+    - generic: 当前 SQL 流图
+  - button "全库表与视图血缘":
+    - generic: 全库表与视图血缘
+  - button "自由编排":
+    - generic: 自由编排
+  - generic: "关联:"
+  - combobox "关联查询":
+    - option "query_1.sql" [selected]
+  - generic "流程图始终由当前编辑器 SQL 实时生成":
+    - generic: SQL 实时驱动
+  - generic: 4 算子步骤
+  - generic: ·
+  - generic: 150.0ms
+  - button "SQL 工作台":
+    - generic: SQL 工作台
+  - button "工具":
+    - generic: 工具
+  - button "快速溯源 Bug":
+    - generic: 快速溯源 Bug
+  - button "反向追溯":
+    - generic: 反向追溯
+  - button "从 SQL 同步":
+    - generic: 从 SQL 同步
+  - button "运行全流程":
+    - generic: 运行全流程
+  - button "展开左侧资产与算子库":
+  - button "数据表与血缘对象":
+  - button "ETL 算子库":
+  - 'button "选择模式 (快捷键: S)"':
+  - 'button "平移画布 (快捷键: H)"':
+  - button "缩小画布":
+  - generic: 83%
+  - button "放大画布":
+  - button "全图自适应居中 (Fit View)":
+  - button "智能分层拓扑整理布局":
+  - button "切换全景小地图 (MiniMap)":
+  - status:
+    - generic: FILTER (行级初筛)
+    - button "查看诊断"
+    - button "回 SQL"
+  - button "S1 SCAN fiat_transactions 150ms 读取 fiat_transactions 全表/列存块 25 行 10列":
+    - generic: S1
+    - generic "SCAN fiat_transactions"
+    - generic: 150ms
+    - generic "读取 fiat_transactions 全表/列存块":
+      - generic: 读取 fiat_transactions 全表/列存块
+    - generic: 25 行
+    - generic: 10列
+  - 'button "S2 FILTER (行级初筛) 异常 where: status = ''completed'' AND currency = ''USD''; — 诊断 回 SQL"':
+    - generic: S2
+    - generic "FILTER (行级初筛)"
+    - generic: 异常
+    - 'generic "where: status = ''completed'' AND currency = ''USD'';"':
+      - generic: "where: status = 'completed' AND currency = 'USD';"
+    - generic: —
+    - button "诊断"
+    - button "回 SQL"
+  - button "S3 AGGREGATE (汇总) — 对扫描结果计算 SUM/COUNT/AVG 等汇总指标 —":
+    - generic: S3
+    - generic "AGGREGATE (汇总)"
+    - generic: —
+    - generic "对扫描结果计算 SUM/COUNT/AVG 等汇总指标":
+      - generic: 对扫描结果计算 SUM/COUNT/AVG 等汇总指标
+    - generic: —
+  - button "S4 最终查询结果 — RESULT — 反向追溯":
+    - generic: S4
+    - generic "最终查询结果"
+    - generic: —
+    - generic: RESULT
+    - generic: —
+    - button "反向追溯":
+      - generic: 反向追溯
+  - button "属性详情":
+    - generic: 属性详情
+  - button "运行日志 3":
+    - generic: 运行日志
+    - generic: "3"
+  - button "节点历史 最终查询结果":
+    - generic: 节点历史
+    - generic "最终查询结果"
+  - button "数据采样":
+    - generic: 数据采样
+  - generic: 流程待运行
+  - generic: 4 个节点
+  - generic: 3 条数据流
+  - button "展开控制台":
+    - generic: 展开控制台
+- contentinfo:
+  - generic: DuckDB 1.33.1
+  - generic: "|"
+  - generic: sql_funds_flow [OPFS]
+  - generic: "|"
+  - generic: 持久化库
+  - generic: "|"
+  - generic: 13 张表
+  - generic: "|"
+  - generic: 13 个活动表
+  - generic: 引擎就绪
+  - generic: "|"
+  - generic: 02:13
+  - button "刷新运行时状态":

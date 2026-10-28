@@ -1,0 +1,96 @@
+[
+  {
+    "round": 1,
+    "usd": true,
+    "net": true,
+    "detail": true,
+    "items": true,
+    "legend": "false",
+    "alerts": [
+      "仪表盘数据已刷新"
+    ]
+  },
+  {
+    "round": 2,
+    "usd": false,
+    "net": true,
+    "detail": true,
+    "items": true,
+    "legend": "false",
+    "alerts": [
+      "仪表盘数据已刷新"
+    ]
+  },
+  {
+    "round": 2,
+    "usd": true,
+    "net": true,
+    "detail": true,
+    "items": true,
+    "legend": "false"
+  },
+  {
+    "round": 3,
+    "usd": true,
+    "net": true,
+    "detail": false,
+    "items": true,
+    "legend": "true"
+  },
+  {
+    "round": 4,
+    "usd": true,
+    "net": true,
+    "detail": false,
+    "items": true,
+    "legend": "true"
+  },
+  {
+    "round": 5,
+    "usd": true,
+    "net": true,
+    "detail": false,
+    "items": true,
+    "legend": "true"
+  },
+  {
+    "round": 6,
+    "usd": true,
+    "net": true,
+    "detail": false,
+    "items": true,
+    "legend": "true"
+  },
+  {
+    "round": 7,
+    "usd": true,
+    "net": true,
+    "detail": false,
+    "items": true,
+    "legend": "true"
+  },
+  {
+    "round": 8,
+    "usd": true,
+    "net": true,
+    "detail": false,
+    "items": true,
+    "legend": "true"
+  },
+  {
+    "round": 9,
+    "usd": true,
+    "net": true,
+    "detail": false,
+    "items": true,
+    "legend": "true"
+  },
+  {
+    "round": 10,
+    "usd": true,
+    "net": true,
+    "detail": false,
+    "items": true,
+    "legend": "true"
+  }
+]

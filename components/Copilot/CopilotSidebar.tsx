@@ -163,9 +163,14 @@ export const CopilotSidebar: React.FC<CopilotSidebarProps> = ({
 
   // 仅在未锁定且尚无选表时，用工作区当前表做一次种子填充
   useEffect(() => {
+    const valid = selectedTables.filter((name) => availableTables.includes(name));
+    if (valid.length !== selectedTables.length) setContext({ tables: valid, pin: valid.length > 0 && contextPinned });
+  }, [availableTables, contextTables, contextTable, contextPinned, setContext]);
+
+  useEffect(() => {
     if (contextPinned) return;
     if (selectedTables.length > 0) return;
-    const seed = currentTable || (availableTables[0] ?? null);
+    const seed = currentTable && availableTables.includes(currentTable) ? currentTable : (availableTables[0] ?? null);
     if (seed) {
       setContext({ table: seed, pin: false });
     }
@@ -577,7 +582,7 @@ export const CopilotSidebar: React.FC<CopilotSidebarProps> = ({
                       onClick={() => toggleContextTable(name)}
                       className="flex w-full items-center gap-2.5 px-3 py-1.5 text-left cursor-pointer transition-colors"
                     >
-                      <span className="copilot-table-menu-check flex h-4 w-4 shrink-0 items-center justify-center rounded-[4px]">
+                      <span className="copilot-table-menu-check flex h-4 w-4 shrink-0 items-center justify-center rounded-xs">
                         {checked && <Check className="h-2.5 w-2.5 stroke-[3]" />}
                       </span>
                       <span className="min-w-0 flex-1 truncate font-mono text-[12px] tracking-tight">

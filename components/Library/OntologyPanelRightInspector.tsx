@@ -458,7 +458,7 @@ const RightInspector: React.FC<RightInspectorProps> = ({ mode, target, onClose, 
             <button
               type="button"
               onClick={() => setIsAdjacencyExpanded(!isAdjacencyExpanded)}
-              className="w-full flex items-center justify-between text-xs font-medium text-monokai-fg-muted hover:text-white transition-colors cursor-pointer"
+              className="w-full flex items-center justify-between text-xs font-medium text-monokai-fg-muted hover:text-monokai-fg transition-colors cursor-pointer"
             >
               <span className="flex items-center gap-1.5">
                 <Link2 className="w-3.5 h-3.5 text-monokai-cyan" />

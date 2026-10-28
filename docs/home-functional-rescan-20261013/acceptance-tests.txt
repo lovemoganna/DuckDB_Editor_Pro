@@ -1,0 +1,10 @@
+$ vitest run --pool=threads --maxWorkers=1 --no-file-parallelism "components/Dashboard/Home/HomeLifecycle.test.tsx" "components/Dashboard/Home/HomeBoardCanvas.audit.test.tsx" "components/Dashboard/Home/WorkspaceObjects.test.tsx" "components/Dashboard/Home/DatasetPreview.requests.test.tsx" "components/Dashboard/MissionControl" "components/Dashboard.test.tsx" "components/DashboardGrid" "components/DashboardWidget.requests.test.tsx" "components/Dashboard/QuickTablePeekDrawer.audit.test.tsx" "components/Dashboard/WidgetChartConfigPanel.test.tsx" "services/homeDashboardService.test.ts" "services/dbService.dashboard.test.ts" "services/workbench/homeCompatibility.integration.test.ts" "services/workbench/runtime.test.ts" "services/workbench/queryCompiler.test.ts" "services/workbench/datasets.test.ts" "services/workbench/fieldChart.test.ts" "services/dynamicHome.test.ts" "services/analysisObjects.availability.test.ts"
+
+ RUN  v4.1.10 C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor
+
+
+ Test Files  26 passed (26)
+      Tests  123 passed (123)
+   Start at  17:13:29
+   Duration  161.05s (transform 11.30s, setup 9.19s, import 55.37s, tests 13.47s, environment 69.67s)
+

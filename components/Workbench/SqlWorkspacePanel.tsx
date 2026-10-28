@@ -11,7 +11,6 @@ import {
   X,
   FileCode,
   ChevronDown,
-  Layers,
   History,
   Cpu,
   Copy,
@@ -23,9 +22,19 @@ import {
   Check,
   Zap,
   RefreshCw,
+  MoreVertical,
+  Download,
+  Edit2,
+  XCircle,
+  ArrowRight,
+  Trash2,
 } from 'lucide-react';
+import { ModalShell, ActionButton, FormInput } from '../ui/Workbench';
+import { downloadBlob } from '../../utils/sqlExporter';
 import CodeMirror, { type ReactCodeMirrorRef } from '@uiw/react-codemirror';
 import { monokai } from '@uiw/codemirror-theme-monokai';
+import { lightEditorTheme } from '../../themes/sqlEditorThemes';
+import { useUiTheme } from '../../services/uiTheme';
 import { EditorView, Decoration, keymap, type DecorationSet } from '@codemirror/view';
 import { StateField, StateEffect } from '@codemirror/state';
 import { sql } from '@codemirror/lang-sql';
@@ -44,6 +53,8 @@ import { querySnapshotManager } from '../../services/workbench/querySnapshotMana
 import { toastService } from '../../services/toastService';
 import { DataFlowCanvas } from '../DataFlow/DataFlowCanvas';
 import { useWorkflowStore } from '../../services/dataflow/workflowStore';
+import { dbService } from '../../services/dbService';
+import { duckDBService } from '../../services/duckdbService';
 
 // ── CodeMirror State Effect & Field for DataFlow → Editor line highlight ──
 const setHighlightLines = StateEffect.define<{ from: number; to: number } | null>();
@@ -53,9 +64,13 @@ const highlightLineField = StateField.define<DecorationSet>({
   update(deco, tr) {
     for (const e of tr.effects) {
       if (e.is(setHighlightLines)) {
-        if (e.value == null) return Decoration.none;
+        if (!e.value) return Decoration.none;
+        const docLen = tr.newDoc.length;
+        const from = Math.max(0, Math.min(e.value.from, docLen));
+        const to = Math.max(0, Math.min(e.value.to, docLen));
+        if (from >= to) return Decoration.none;
         const mark = Decoration.mark({ class: 'cm-dataflow-highlight' });
-        return Decoration.set([mark.range(e.value.from, e.value.to)]);
+        return Decoration.set([mark.range(from, to)]);
       }
     }
     return deco.map(tr.changes);
@@ -68,6 +83,7 @@ export interface SqlQueryTab {
   id: string;
   title: string;
   sql: string;
+  savedSql?: string;
   isDirty?: boolean;
   result?: QueryResult | null;
 }
@@ -79,10 +95,15 @@ interface SqlWorkspacePanelProps {
   onSelectTab: (tabId: string) => void;
   onAddTab: (initialSql?: string, customTitle?: string, autoRun?: boolean) => void;
   onCloseTab: (tabId: string) => void;
+  onCloseOtherTabs?: (tabId: string) => void;
+  onCloseTabsToRight?: (tabId: string) => void;
+  onCloseAllTabs?: () => void;
+  onDuplicateTab?: (tabId: string) => void;
   onUpdateTabSql: (tabId: string, sql: string) => void;
   onRenameTab: (tabId: string, title: string) => void;
+  onTabSaved?: (tabId: string, sql: string, catalog: string) => void;
   onExecuteQuery: (sql: string, explain?: boolean, isProfile?: boolean) => Promise<void>;
-  onExecuteSelection: (selectedSql?: string) => Promise<void>;
+  onExecuteSelection: (selectedSql?: string, baseOffset?: number) => Promise<void>;
   onStopQuery: () => void;
   isRunning: boolean;
   activeQueryResult: QueryResult | null;
@@ -120,8 +141,13 @@ export const SqlWorkspacePanel: React.FC<SqlWorkspacePanelProps> = ({
   onSelectTab,
   onAddTab,
   onCloseTab,
+  onCloseOtherTabs,
+  onCloseTabsToRight,
+  onCloseAllTabs,
+  onDuplicateTab,
   onUpdateTabSql,
   onRenameTab,
+  onTabSaved,
   onExecuteQuery,
   onExecuteSelection,
   onStopQuery,
@@ -151,7 +177,7 @@ export const SqlWorkspacePanel: React.FC<SqlWorkspacePanelProps> = ({
   const [editingTabId, setEditingTabId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState<string>('');
   /** MECE: only one floating menu open at a time */
-  type ToolbarMenu = 'run' | 'persist' | 'history' | 'flowchart' | null;
+  type ToolbarMenu = 'run' | 'history' | 'flowchart' | null;
   const [openMenu, setOpenMenu] = useState<ToolbarMenu>(null);
 
   // DataFlow ↔ Editor layout mode: 'canvas' = full canvas, 'split' = side-by-side, 'editor' = switch back
@@ -183,27 +209,28 @@ export const SqlWorkspacePanel: React.FC<SqlWorkspacePanelProps> = ({
   // Persist editor / result height split ratio
   const [editorHeightPct, setEditorHeightPct] = useState<number>(() => {
     const saved = localStorage.getItem('workbench_split_pct');
-    return saved ? Number(saved) : 40;
+    const parsed = Number(saved);
+    return saved && Number.isFinite(parsed) ? Math.max(15, Math.min(85, parsed)) : 40;
   });
 
   // DataFlow ↔ Editor width split ratio in split mode (default 48%)
   const [dataFlowSplitPct, setDataFlowSplitPct] = useState<number>(() => {
-    const saved = localStorage.getItem('workbench_dataflow_split_pct');
-    return saved ? Math.max(20, Math.min(80, Number(saved))) : 48;
+    const saved = Number(localStorage.getItem('workbench_dataflow_split_pct'));
+    return Number.isFinite(saved) && saved > 0 ? Math.max(20, Math.min(80, saved)) : 48;
   });
   const [isDraggingDataFlowDivider, setIsDraggingDataFlowDivider] = useState<boolean>(false);
 
-  // Editor font size setting (10px default)
+  // Keep the user's density preference; new workspaces start at a readable size.
   const [editorFontSize, setEditorFontSize] = useState<number>(() => {
     const saved = localStorage.getItem('workbench_editor_font_size');
-    return saved ? Number(saved) : 10;
+    const parsed = Number(saved);
+    return saved && Number.isFinite(parsed) ? Math.max(10, Math.min(20, parsed)) : 13;
   });
 
   const [isDraggingDivider, setIsDraggingDivider] = useState<boolean>(false);
   const [copiedSql, setCopiedSql] = useState<boolean>(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const cmRef = useRef<ReactCodeMirrorRef>(null);
-  const persistMenuRef = useRef<HTMLDivElement>(null);
   const runMenuRef = useRef<HTMLDivElement>(null);
   const historyPopoverRef = useRef<HTMLDivElement>(null);
   const flowchartMenuRef = useRef<HTMLDivElement>(null);
@@ -216,10 +243,17 @@ export const SqlWorkspacePanel: React.FC<SqlWorkspacePanelProps> = ({
   // ── Bidirectional DataFlow → Editor highlight ──
   // When the user clicks a node in the canvas, activeSqlRange changes.
   // We dispatch a CodeMirror decoration to highlight the corresponding lines.
-  const activeSqlRange = useWorkflowStore(s => s.activeSqlRange);
-  const liveSyncWithSql = useWorkflowStore(s => s.liveSyncWithSql);
-  const setLiveSyncWithSql = useWorkflowStore(s => s.setLiveSyncWithSql);
+  const activeSqlRange = useWorkflowStore(s => s.executionSqlRange || s.activeSqlRange);
   const syncFromSql = useWorkflowStore(s => s.syncFromSql);
+  useEffect(() => {
+    void syncFromSql(activeTab?.sql || '', activeTab?.title, false, activeTabId);
+  }, [activeTabId, activeTab?.sql, syncFromSql]);
+
+  // Flowchart is always SQL-driven while open: ensure mode is sql when active.
+  useEffect(() => {
+    if (!isDataFlowActive) return;
+    useWorkflowStore.setState({ dataFlowMode: 'sql', liveSyncWithSql: true });
+  }, [isDataFlowActive]);
 
   useEffect(() => {
     const view = cmRef.current?.view;
@@ -235,12 +269,20 @@ export const SqlWorkspacePanel: React.FC<SqlWorkspacePanelProps> = ({
     const startLine = Math.max(1, Math.min(activeSqlRange.startLine, lineCount));
     const endLine = Math.max(startLine, Math.min(activeSqlRange.endLine, lineCount));
 
-    const from = doc.line(startLine).from;
-    const to = doc.line(endLine).to;
+    const from = 'start' in activeSqlRange && typeof activeSqlRange.start === 'number' ? Math.min(activeSqlRange.start, doc.length) : doc.line(startLine).from;
+    const to = 'end' in activeSqlRange && typeof activeSqlRange.end === 'number' ? Math.min(activeSqlRange.end, doc.length) : doc.line(endLine).to;
+
+    if (from >= to) {
+      view.dispatch({
+        effects: setHighlightLines.of(null),
+        selection: { anchor: from },
+        scrollIntoView: true,
+      });
+      return;
+    }
 
     view.dispatch({
       effects: setHighlightLines.of({ from, to }),
-      selection: { anchor: from },
       scrollIntoView: true,
     });
   }, [activeSqlRange]);
@@ -251,41 +293,45 @@ export const SqlWorkspacePanel: React.FC<SqlWorkspacePanelProps> = ({
     if (!view) return '';
     const selection = view.state.selection.main;
     if (!selection.empty) {
-      return view.state.sliceDoc(selection.from, selection.to).trim();
+      return view.state.sliceDoc(selection.from, selection.to);
     }
     return '';
   };
 
   // Align CodeMirror with design-token SQL editor font stack
+  const uiTheme = useUiTheme(state => state.theme);
   const editorThemeExtension = useMemo(() => {
     const sqlFont = "var(--font-sql-editor) !important";
+    const currentSize = `${editorFontSize}px !important`;
     return EditorView.theme({
       "&": {
         fontFamily: sqlFont,
-        fontSize: `${editorFontSize}px !important`,
+        fontSize: currentSize,
       },
       ".cm-scroller": {
         fontFamily: sqlFont,
-        lineHeight: "1.55 !important",
+        fontSize: currentSize,
+        lineHeight: "1.6 !important",
       },
       ".cm-content": {
         fontFamily: sqlFont,
-        fontSize: `${editorFontSize}px !important`,
-        lineHeight: "1.55 !important",
-        padding: "8px 0 !important",
+        fontSize: currentSize,
+        lineHeight: "1.6 !important",
+        padding: "6px 0 !important",
       },
       ".cm-line": {
         fontFamily: sqlFont,
-        fontSize: `${editorFontSize}px !important`,
-        lineHeight: "1.55 !important",
+        fontSize: currentSize,
+        lineHeight: "1.6 !important",
       },
       ".cm-gutters": {
         fontFamily: sqlFont,
-        fontSize: "11px !important",
+        fontSize: currentSize,
       },
       ".cm-lineNumbers, .cm-gutterElement": {
         fontFamily: sqlFont,
-        fontSize: "11px !important",
+        fontSize: currentSize,
+        lineHeight: "1.6 !important",
       },
       ".cm-activeLine": {
         backgroundColor: "rgba(255, 255, 255, 0.035) !important",
@@ -296,7 +342,11 @@ export const SqlWorkspacePanel: React.FC<SqlWorkspacePanelProps> = ({
       },
       ".cm-tooltip, .cm-tooltip-autocomplete": {
         fontFamily: sqlFont,
-        fontSize: "8px !important",
+        fontSize: currentSize,
+      },
+      ".cm-tooltip-autocomplete li, .cm-tooltip-autocomplete .cm-completionLabel, .cm-tooltip-autocomplete .cm-completionDetail, .cm-tooltip-autocomplete .cm-completionIcon": {
+        fontFamily: sqlFont,
+        fontSize: currentSize,
       },
     });
   }, [editorFontSize]);
@@ -333,6 +383,7 @@ export const SqlWorkspacePanel: React.FC<SqlWorkspacePanelProps> = ({
   const editorExtensions = useMemo(() => {
     return [
       sql(),
+      EditorView.contentAttributes.of({ 'aria-label': 'SQL 查询编辑器' }),
       autocompletion({
         override: [sqlCompletionSource],
         defaultKeymap: true,
@@ -353,15 +404,136 @@ export const SqlWorkspacePanel: React.FC<SqlWorkspacePanelProps> = ({
   const handleRunSelection = () => {
     const selected = getSelectedSql();
     if (selected) {
-      onExecuteSelection(selected);
+      onExecuteSelection(selected, cmRef.current?.view?.state.selection.main.from || 0);
     } else {
       toastService.info('未选中文本，已自动执行当前全文 (Ctrl+Enter)');
       onExecuteQuery(activeTab?.sql || '');
     }
   };
 
-  const handleAttemptCloseTab = async (tab: SqlQueryTab, e: React.MouseEvent) => {
+  const [tabContextMenu, setTabContextMenu] = useState<{
+    tab: SqlQueryTab;
+    x: number;
+    y: number;
+  } | null>(null);
+  const tabContextMenuRef = useRef<HTMLDivElement>(null);
+
+  const [saveAsModalTab, setSaveAsModalTab] = useState<SqlQueryTab | null>(null);
+  const [saveAsQueryName, setSaveAsQueryName] = useState<string>('');
+  const [saveAsCatalog, setSaveAsCatalog] = useState('');
+  const [isSavingAs, setIsSavingAs] = useState(false);
+  const savingAsRef = useRef(false);
+
+  useEffect(() => {
+    if (!tabContextMenu) return;
+    const handlePointerDown = (e: PointerEvent) => {
+      if (tabContextMenuRef.current && !tabContextMenuRef.current.contains(e.target as Node)) {
+        setTabContextMenu(null);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setTabContextMenu(null);
+    };
+    window.addEventListener('pointerdown', handlePointerDown);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('pointerdown', handlePointerDown);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [tabContextMenu]);
+
+  const openTabContextMenuAt = (x: number, y: number, tab: SqlQueryTab) => {
+    const menuWidth = 230;
+    const menuHeight = 390;
+    const clampedX = Math.max(10, Math.min(x, window.innerWidth - menuWidth - 10));
+    const clampedY = Math.max(10, Math.min(y, window.innerHeight - menuHeight - 10));
+    setTabContextMenu({ tab, x: clampedX, y: clampedY });
+  };
+
+  const handleTabContextMenu = (e: React.MouseEvent, tab: SqlQueryTab) => {
+    e.preventDefault();
     e.stopPropagation();
+    openTabContextMenuAt(e.clientX, e.clientY, tab);
+  };
+
+  const handleOpenTabMenuBtn = (e: React.MouseEvent, tab: SqlQueryTab) => {
+    e.stopPropagation();
+    const rect = e.currentTarget.getBoundingClientRect();
+    openTabContextMenuAt(rect.left, rect.bottom + 4, tab);
+  };
+
+  const handleOpenSaveAsModal = (tab: SqlQueryTab) => {
+    setSaveAsModalTab(tab);
+    setSaveAsCatalog(catalogContext.catalog);
+    setSaveAsQueryName(tab.title || '新保存查询');
+  };
+
+  const handleConfirmSaveAs = async () => {
+    if (!saveAsModalTab || !saveAsQueryName.trim() || savingAsRef.current) return;
+    const target = tabs.find(tab => tab.id === saveAsModalTab.id);
+    if (!target || catalogContext.catalog !== saveAsCatalog) {
+      toastService.error('查询或数据库已切换，请重新打开另存为');
+      return;
+    }
+    savingAsRef.current = true;
+    setIsSavingAs(true);
+    try {
+      const databaseName = saveAsCatalog;
+      const id = crypto.randomUUID();
+      await dbService.saveQuery({
+        id,
+        name: saveAsQueryName.trim(),
+        sql: target.sql,
+        createdAt: Date.now(),
+        databaseName,
+      });
+      onTabSaved?.(target.id, target.sql, databaseName);
+      onRenameTab?.(target.id, saveAsQueryName.trim());
+      toastService.success(`已另存为查询 "${saveAsQueryName.trim()}"`);
+      setSaveAsModalTab(null);
+      setSaveAsQueryName('');
+    } catch (error) {
+      toastService.error(`另存为失败：${String(error)}`);
+    } finally {
+      savingAsRef.current = false;
+      setIsSavingAs(false);
+    }
+  };
+
+  const handleSaveAsSqlFile = (tab: SqlQueryTab) => {
+    const content = tab.sql || '';
+    const safeTitle = (tab.title || 'query').replace(/[/\\?%*:|"<>]/g, '_').trim() || 'query';
+    const filename = safeTitle.endsWith('.sql') ? safeTitle : `${safeTitle}.sql`;
+    const blob = new Blob([content], { type: 'text/sql;charset=utf-8' });
+    downloadBlob(blob, filename);
+    onTabSaved?.(tab.id, content, catalogContext.catalog);
+    toastService.success(`已另存为本地文件：${filename}`);
+  };
+
+  const handleSaveAsDuckdbFile = async () => {
+    try {
+      const blob = await duckDBService.exportDatabase();
+      const catalog = (catalogContext.catalog || 'database').replace(/[^\w.-]+/g, '_');
+      downloadBlob(blob, `${catalog || 'database'}.duckdb`);
+      toastService.success(`已导出数据库文件：${catalog || 'database'}.duckdb`);
+    } catch (error) {
+      toastService.error(`导出数据库失败：${String(error)}`);
+    }
+  };
+
+  const handleDuplicateTab = (tabId: string) => {
+    if (onDuplicateTab) {
+      onDuplicateTab(tabId);
+    } else {
+      const target = tabs.find(t => t.id === tabId);
+      if (target) {
+        onAddTab(target.sql, `${target.title} (副本)`);
+      }
+    }
+  };
+
+  const handleAttemptCloseTab = async (tab: SqlQueryTab, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     if (tab.isDirty) {
       const ok = await confirm({
         title: '关闭未保存标签',
@@ -376,14 +548,73 @@ export const SqlWorkspacePanel: React.FC<SqlWorkspacePanelProps> = ({
     }
   };
 
+  const handleCloseOthers = async (tab: SqlQueryTab) => {
+    const dirtyOthers = tabs.filter(t => t.id !== tab.id && t.isDirty);
+    if (dirtyOthers.length > 0) {
+      const ok = await confirm({
+        title: '关闭其他标签页',
+        message: `有 ${dirtyOthers.length} 个标签页存在未保存修改，确认关闭其他所有标签页吗？`,
+        variant: 'warning',
+      });
+      if (!ok) return;
+    }
+    if (onCloseOtherTabs) {
+      onCloseOtherTabs(tab.id);
+    } else {
+      for (const t of tabs) {
+        if (t.id !== tab.id) onCloseTab(t.id);
+      }
+    }
+  };
+
+  const handleCloseRight = async (tab: SqlQueryTab) => {
+    const idx = tabs.findIndex(t => t.id === tab.id);
+    if (idx === -1) return;
+    const rightTabs = tabs.slice(idx + 1);
+    const dirtyRight = rightTabs.filter(t => t.isDirty);
+    if (dirtyRight.length > 0) {
+      const ok = await confirm({
+        title: '关闭右侧标签页',
+        message: `右侧有 ${dirtyRight.length} 个标签页存在未保存修改，确认关闭吗？`,
+        variant: 'warning',
+      });
+      if (!ok) return;
+    }
+    if (onCloseTabsToRight) {
+      onCloseTabsToRight(tab.id);
+    } else {
+      for (const t of rightTabs) {
+        onCloseTab(t.id);
+      }
+    }
+  };
+
+  const handleCloseAll = async () => {
+    const dirtyTabs = tabs.filter(t => t.isDirty);
+    if (dirtyTabs.length > 0) {
+      const ok = await confirm({
+        title: '关闭全部标签页',
+        message: `有 ${dirtyTabs.length} 个标签页存在未保存修改，确认关闭全部标签页吗？`,
+        variant: 'warning',
+      });
+      if (!ok) return;
+    }
+    if (onCloseAllTabs) {
+      onCloseAllTabs();
+    } else {
+      for (const t of tabs) {
+        onCloseTab(t.id);
+      }
+    }
+  };
+
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as Node;
       const insideRun = runMenuRef.current?.contains(target);
-      const insidePersist = persistMenuRef.current?.contains(target);
       const insideHistory = historyPopoverRef.current?.contains(target);
       const insideFlowchart = flowchartMenuRef.current?.contains(target);
-      if (!insideRun && !insidePersist && !insideHistory && !insideFlowchart) {
+      if (!insideRun && !insideHistory && !insideFlowchart) {
         closeMenus();
       }
     };
@@ -392,11 +623,7 @@ export const SqlWorkspacePanel: React.FC<SqlWorkspacePanelProps> = ({
       // Ctrl/Cmd+S save
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
         e.preventDefault();
-        if (activeTab) {
-          localStorage.setItem(`saved_query_${activeTab.id}`, activeTab.sql);
-          onUpdateTabSql(activeTab.id, activeTab.sql);
-          toastService.success(`已保存查询 "${activeTab.title}"`);
-        }
+        void handleSaveQuery();
       }
       // Ctrl+Shift+F format
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'f') {
@@ -426,7 +653,7 @@ export const SqlWorkspacePanel: React.FC<SqlWorkspacePanelProps> = ({
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [activeTab, isDataFlowActive, onExecuteQuery, onUpdateTabSql]);
+  }, [activeTab, catalogContext?.catalog, isDataFlowActive, onExecuteQuery, onUpdateTabSql]);
 
   const handleFormatSql = () => {
     if (!activeTab?.sql) return;
@@ -478,12 +705,26 @@ export const SqlWorkspacePanel: React.FC<SqlWorkspacePanelProps> = ({
     });
   };
 
-  const handleSaveQuery = () => {
+  async function handleSaveQuery() {
     if (!activeTab) return;
-    localStorage.setItem(`saved_query_${activeTab.id}`, activeTab.sql);
-    onUpdateTabSql(activeTab.id, activeTab.sql);
-    toastService.success(`已保存查询 "${activeTab.title}"`);
-  };
+    try {
+      const databaseName = catalogContext?.catalog;
+      if (!databaseName) throw new Error('当前数据库尚未就绪');
+      const id = `workbench-${activeTab.id}`;
+      const existing = (await dbService.getQueries(databaseName)).find((query) => query.id === id);
+      await dbService.saveQuery({
+        id,
+        name: activeTab.title,
+        sql: activeTab.sql,
+        createdAt: existing?.createdAt || Date.now(),
+        databaseName,
+      });
+      onTabSaved?.(activeTab.id, activeTab.sql, databaseName);
+      toastService.success(`已保存查询 "${activeTab.title}"`);
+    } catch (error) {
+      toastService.error(`查询保存失败：${String(error)}`);
+    }
+  }
 
   const handleStartRename = (tab: SqlQueryTab, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -606,7 +847,7 @@ export const SqlWorkspacePanel: React.FC<SqlWorkspacePanelProps> = ({
             ref={cmRef}
             value={activeTab?.sql || ''}
             height="100%"
-            theme={monokai}
+            theme={uiTheme === 'light' ? lightEditorTheme : monokai}
             extensions={editorExtensions}
             onChange={(val) => onUpdateTabSql(activeTab.id, val)}
             onUpdate={(viewUpdate) => {
@@ -636,7 +877,7 @@ export const SqlWorkspacePanel: React.FC<SqlWorkspacePanelProps> = ({
                 }
               }
             }}
-            className="h-full text-[12px] font-mono custom-codemirror"
+            className="h-full font-mono custom-codemirror"
             style={{ fontSize: `${editorFontSize}px`, fontFamily: 'var(--font-sql-editor)' }}
             basicSetup={{
               lineNumbers: true,
@@ -659,15 +900,27 @@ export const SqlWorkspacePanel: React.FC<SqlWorkspacePanelProps> = ({
           localStorage.setItem('workbench_split_pct', '50');
           toastService.info('已重置分屏为 50% / 50%');
         }}
-        className={`group relative h-7 shrink-0 cursor-row-resize z-20 transition-all duration-300 flex items-center justify-between px-3.5 select-none font-sans border-y ${
+        className={`group relative min-h-7 py-1 gap-1 flex-wrap whitespace-nowrap shrink-0 cursor-row-resize z-20 transition-all duration-300 flex items-center justify-between px-3.5 select-none font-sans border-y ${
           isDraggingDivider
             ? 'bg-gradient-to-r from-monokai-cyan/12 via-monokai-cyan/22 to-monokai-cyan/12 border-monokai-cyan/50 shadow-[inset_0_1px_0_rgba(102,217,239,0.25),inset_0_-1px_0_rgba(102,217,239,0.25),0_0_24px_-6px_rgba(102,217,239,0.35)]'
             : 'bg-gradient-to-b from-monokai-sidebar/85 via-monokai-bg/65 to-monokai-sidebar/85 border-monokai-border/80 hover:from-monokai-cyan/6 hover:via-monokai-elevated/55 hover:to-monokai-cyan/6 hover:border-monokai-cyan/30'
         }`}
         title="拖动调整比例，双击恢复 50/50 分屏"
         role="separator"
+        tabIndex={0}
+        aria-label="调整 SQL 编辑器与结果区域高度"
         aria-orientation="horizontal"
+        aria-valuemin={15}
+        aria-valuemax={85}
         aria-valuenow={Math.round(editorHeightPct)}
+        aria-valuetext={`编辑器 ${Math.round(editorHeightPct)}%，结果 ${Math.round(100 - editorHeightPct)}%`}
+        onKeyDown={event => {
+          if (!['ArrowUp', 'ArrowDown', 'Home', 'End', 'Enter'].includes(event.key)) return;
+          event.preventDefault();
+          const next = event.key === 'Home' ? 15 : event.key === 'End' ? 85 : event.key === 'Enter' ? 50 : Math.max(15, Math.min(85, editorHeightPct + (event.key === 'ArrowDown' ? 5 : -5)));
+          setEditorHeightPct(next);
+          localStorage.setItem('workbench_split_pct', String(next));
+        }}
       >
         <span className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-monokai-fg/15 to-transparent" />
         <span className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-monokai-bg/80 to-transparent" />
@@ -783,7 +1036,7 @@ export const SqlWorkspacePanel: React.FC<SqlWorkspacePanelProps> = ({
           result={activeQueryResult}
           previousResult={previousResult}
           loading={isRunning}
-          isStale={Boolean(activeTab?.isDirty)}
+          isStale={activeQueryResult?.executedDocumentSql !== undefined ? activeQueryResult.executedDocumentSql !== activeTab?.sql : Boolean(activeQueryResult?.isStale)}
           selectedColumn={selectedColumn}
           activeTabSql={activeTab?.sql}
           activeTabTitle={activeTab?.title}
@@ -807,22 +1060,55 @@ export const SqlWorkspacePanel: React.FC<SqlWorkspacePanelProps> = ({
   return (
     <div ref={containerRef} className="flex h-full w-full flex-col bg-monokai-bg select-none text-monokai-fg font-sans">
       {/* 1. Tab Bar (Dedicated File & Query Tabs Layer) - Refined visual hierarchy */}
-      <div className="flex h-9 shrink-0 items-center justify-between border-b border-monokai-border bg-gradient-to-b from-monokai-sidebar via-monokai-sidebar/95 to-monokai-bg/60 px-2 select-none z-30 relative">
+      <div
+        className="flex h-9 shrink-0 items-center justify-between border-b border-monokai-border bg-gradient-to-b from-monokai-sidebar via-monokai-sidebar/95 to-monokai-bg/60 px-2 select-none z-30 relative"
+        onDoubleClick={(e) => {
+          if (e.target === e.currentTarget) onAddTab();
+        }}
+        title="双击空白处新建查询"
+      >
         {/* Subtle top hairline highlight */}
         <span className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-monokai-fg/8 to-transparent" />
 
         {/* Left: Query Tabs with smooth horizontal scroll & active indicator */}
-        <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide min-w-0 flex-1 py-0.5">
-          {tabs.map(tab => {
+        <div
+          role="tablist"
+          aria-label="SQL 查询标签页"
+          className="flex items-center gap-1 overflow-x-auto scrollbar-hide min-w-0 flex-1 py-0.5"
+          onDoubleClick={(e) => {
+            if (e.target === e.currentTarget) onAddTab();
+          }}
+          title="双击空白处新建查询"
+        >
+          {tabs.map((tab, tabIndex) => {
             const isActive = tab.id === activeTabId;
             const isEditing = editingTabId === tab.id;
 
             return (
               <div
                 key={tab.id}
+                role="tab"
+                aria-selected={isActive}
                 onClick={() => onSelectTab(tab.id)}
-                onDoubleClick={(e) => handleStartRename(tab, e)}
-                className={`group relative flex items-center gap-2 h-7 px-3 cursor-pointer transition-all duration-200 text-xs font-mono select-none shrink-0 border-x border-t ${
+                onMouseDown={(e) => {
+                  if (e.button === 1) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    void handleAttemptCloseTab(tab, e);
+                  }
+                }}
+                onAuxClick={(e) => {
+                  if (e.button === 1) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    void handleAttemptCloseTab(tab, e);
+                  }
+                }}
+                onDoubleClick={(e) => {
+                  if (!isEditing) handleStartRename(tab, e);
+                }}
+                onContextMenu={(e) => handleTabContextMenu(e, tab)}
+                className={`group relative flex items-center gap-1.5 h-7 px-2.5 cursor-pointer transition-all duration-200 text-xs font-mono select-none shrink-0 border-x border-t ${
                   isActive
                     ? 'bg-gradient-to-b from-monokai-bg via-monokai-bg to-monokai-elevated/60 text-monokai-fg font-semibold border-t-2 border-t-monokai-yellow border-x-monokai-border shadow-[0_-1px_4px_-1px_rgba(230,219,116,0.35),inset_0_1px_0_rgba(255,255,255,0.025)]'
                     : 'bg-gradient-to-b from-monokai-surface/20 to-monokai-surface/5 text-monokai-comment hover:bg-monokai-surface/50 hover:text-monokai-fg hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] border-transparent border-b border-b-monokai-border/80 hover:border-monokai-border'
@@ -853,22 +1139,60 @@ export const SqlWorkspacePanel: React.FC<SqlWorkspacePanelProps> = ({
                   />
                 ) : (
                   <>
-                    <span className="truncate max-w-[160px]">{tab.title}</span>
+                    <span
+                      onDoubleClick={(e) => handleStartRename(tab, e)}
+                      className="truncate max-w-[150px]"
+                      title={`${tab.title}\n• 左键切换\n• 双击重命名\n• 右键更多选项 (另存为/关闭等)\n• 中键快速关闭`}
+                    >
+                      {tab.title}
+                    </span>
                     {tab.isDirty && (
                       <span className="w-1.5 h-1.5 rounded-full bg-monokai-yellow shrink-0" title="未保存更改" />
                     )}
                   </>
                 )}
 
-                {tabs.length > 1 && (
+                {/* Tab Action Buttons: More Options + Close */}
+                <div
+                  className="flex items-center gap-0.5 ml-1 shrink-0"
+                  onDoubleClick={(e) => e.stopPropagation()}
+                >
+                  {/* More options button */}
                   <button
-                    onClick={(e) => handleAttemptCloseTab(tab, e)}
-                    className="p-0.5 rounded hover:bg-monokai-surface hover:text-monokai-fg text-monokai-comment opacity-0 group-hover:opacity-100 transition-all cursor-pointer ml-0.5"
-                    title="关闭标签页"
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleOpenTabMenuBtn(e, tab);
+                    }}
+                    className={`p-0.5 rounded transition-all cursor-pointer ${
+                      isActive
+                        ? 'opacity-100 hover:bg-monokai-surface text-monokai-comment hover:text-monokai-fg'
+                        : 'opacity-70 hover:opacity-100 hover:bg-monokai-surface text-monokai-comment hover:text-monokai-fg'
+                    }`}
+                    title="标签选项 (另存为 / 关闭等)"
+                    aria-label="标签选项"
+                  >
+                    <MoreVertical className="w-3 h-3" />
+                  </button>
+
+                  {/* Close button - Always accessible */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void handleAttemptCloseTab(tab, e);
+                    }}
+                    className={`p-0.5 rounded transition-all cursor-pointer ${
+                      isActive
+                        ? 'opacity-100 hover:bg-monokai-pink/20 hover:text-monokai-pink text-monokai-comment'
+                        : 'opacity-70 hover:opacity-100 hover:bg-monokai-pink/20 hover:text-monokai-pink text-monokai-comment'
+                    }`}
+                    title={tabs.length === 1 ? '关闭并重置查询 (中键快速关闭)' : '关闭标签页 (中键快速关闭)'}
+                    aria-label="关闭标签页"
                   >
                     <X className="w-3 h-3" />
                   </button>
-                )}
+                </div>
               </div>
             );
           })}
@@ -877,7 +1201,7 @@ export const SqlWorkspacePanel: React.FC<SqlWorkspacePanelProps> = ({
           <button
             onClick={() => onAddTab()}
             title="新建查询标签页"
-            className="flex items-center justify-center w-6.5 h-6.5 rounded hover:bg-monokai-surface text-monokai-comment hover:text-monokai-fg border border-transparent hover:border-monokai-border transition-colors ml-0.5 cursor-pointer shrink-0"
+            className="flex items-center justify-center w-6.5 h-6.5 rounded hover:bg-monokai-surface text-monokai-comment hover:text-monokai-yellow border border-transparent hover:border-monokai-border transition-colors ml-0.5 cursor-pointer shrink-0"
           >
             <Plus className="w-3.5 h-3.5" />
           </button>
@@ -891,14 +1215,14 @@ export const SqlWorkspacePanel: React.FC<SqlWorkspacePanelProps> = ({
 
       {/* 2. Action Toolbar — Primary CTA left, utilities grouped, context right */}
       <div
-            className="flex h-9 shrink-0 items-center border-b border-monokai-border bg-monokai-surface/45 px-2 select-none z-20 font-sans overflow-hidden relative"
+            className="flex min-h-9 flex-wrap py-1 shrink-0 items-center border-b border-monokai-border bg-monokai-surface/45 px-2 select-none z-20 font-sans overflow-hidden relative"
             role="toolbar"
             aria-label="SQL 工作区工具栏"
           >
             <span className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-monokai-fg/6 to-transparent" />
 
-            {/* LEFT: 执行 | 编辑 | 视图 | 持久化 */}
-            <div className="flex items-center min-w-0 flex-1 gap-0">
+            {/* LEFT: 执行 | 编辑 | 视图 */}
+            <div className="flex items-center min-w-0 flex-auto flex-wrap gap-y-1 gap-0">
               {/* Zone A: 执行 */}
               <div role="group" aria-label="执行" className="flex items-center gap-1 shrink-0 pr-2">
                 <div ref={runMenuRef} className="relative flex items-center">
@@ -1142,7 +1466,7 @@ export const SqlWorkspacePanel: React.FC<SqlWorkspacePanelProps> = ({
                     <span>流程图</span>
                     {isDataFlowActive && (
                       <span className="text-[9px] font-mono font-bold px-1 rounded bg-monokai-bg/20">
-                        分屏
+                        {layoutMode === 'canvas' ? '画布' : '分屏'}
                       </span>
                     )}
                   </button>
@@ -1159,28 +1483,19 @@ export const SqlWorkspacePanel: React.FC<SqlWorkspacePanelProps> = ({
                         <span className="hidden xl:inline">大屏拓扑</span>
                       </button>
 
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setLiveSyncWithSql(!liveSyncWithSql);
-                          toastService.info(!liveSyncWithSql ? '已开启 SQL 实时同步流图' : '已关闭 SQL 实时同步');
-                        }}
-                        className={`flex items-center justify-center w-6 h-6 rounded transition-colors cursor-pointer ${
-                          liveSyncWithSql
-                            ? 'text-monokai-yellow hover:bg-monokai-yellow/15'
-                            : 'text-monokai-comment/50 hover:text-monokai-fg hover:bg-monokai-surface/60'
-                        }`}
-                        title={liveSyncWithSql ? '实时同步已开启（SQL 变更自动更新流程图）' : '实时同步已暂停'}
-                        aria-label="切换实时同步"
+                      <div
+                        className="flex items-center justify-center w-6 h-6 rounded text-monokai-yellow"
+                        title="流程图始终由当前编辑器 SQL 实时驱动"
+                        aria-label="SQL 实时驱动"
                       >
-                        <Zap className={`w-3 h-3 ${liveSyncWithSql ? 'fill-current' : ''}`} />
-                      </button>
+                        <Zap className="w-3 h-3 fill-current" />
+                      </div>
 
                       <button
                         type="button"
                         onClick={() => {
-                          syncFromSql(activeTab?.sql || '', activeTab?.title || 'Query');
-                          toastService.success('流程图已重新同步');
+                          void syncFromSql(activeTab?.sql || '', activeTab?.title || 'Query', true);
+                          toastService.success('流程图已从当前 SQL 重建');
                         }}
                         className="flex items-center justify-center w-6 h-6 rounded text-monokai-comment hover:text-monokai-fg hover:bg-monokai-surface/60 transition-colors cursor-pointer"
                         title="立即从当前 SQL 重建流程图"
@@ -1273,96 +1588,6 @@ export const SqlWorkspacePanel: React.FC<SqlWorkspacePanelProps> = ({
                         <span className="text-[11px] text-monokai-comment">全库表血缘拓扑与宏观流水线看板</span>
                       </div>
                     </button>
-                  </div>
-                )}
-              </div>
-
-              <div className="w-px h-4 bg-monokai-border/70 shrink-0" aria-hidden />
-
-              {/* Zone D: 持久化 */}
-              <div ref={persistMenuRef} role="group" aria-label="持久化" className="relative shrink-0 ml-2">
-                <div
-                  className={`inline-flex items-stretch h-7 rounded-md overflow-hidden border border-monokai-border/70 bg-monokai-bg/35 transition-colors ${
-                    openMenu === 'persist' ? 'border-monokai-border bg-monokai-surface' : 'hover:border-monokai-border'
-                  }`}
-                >
-                  <button
-                    type="button"
-                    onClick={handleSaveQuery}
-                    className="flex items-center gap-1.5 h-full px-2 text-monokai-comment hover:text-monokai-fg hover:bg-monokai-surface/80 text-xs font-medium transition-colors cursor-pointer select-none"
-                    title="保存当前 SQL (Ctrl+S)"
-                  >
-                    <Save className="w-3.5 h-3.5 shrink-0" />
-                    <span className="hidden md:inline">保存</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => toggleMenu('persist')}
-                    className="flex items-center justify-center h-full w-6 border-l border-monokai-border/60 text-monokai-comment hover:text-monokai-fg hover:bg-monokai-surface/80 transition-colors cursor-pointer select-none"
-                    title="更多持久化选项"
-                    aria-label="更多持久化选项"
-                    aria-expanded={openMenu === 'persist'}
-                    aria-haspopup="menu"
-                  >
-                    <ChevronDown className={`w-3 h-3 transition-transform duration-150 ${openMenu === 'persist' ? 'rotate-180' : ''}`} />
-                  </button>
-                </div>
-
-                {openMenu === 'persist' && (
-                  <div
-                    role="menu"
-                    aria-label="持久化选项"
-                    className="absolute left-0 top-full mt-1.5 z-[120] w-72 rounded-xl bg-monokai-elevated border border-monokai-border shadow-2xl p-1.5 animate-in fade-in zoom-in-95 duration-100 text-xs font-sans"
-                  >
-                    <div className="flex items-center justify-between px-2.5 py-1.5 mb-1 border-b border-monokai-border-subtle text-[11px]">
-                      <span className="font-semibold text-monokai-fg flex items-center gap-1.5 font-mono">
-                        <Save className="w-3.5 h-3.5 text-monokai-fg-muted" />
-                        持久化
-                      </span>
-                      <span className="text-[10px] text-monokai-comment font-mono bg-monokai-surface border border-monokai-border px-1.5 py-0.5 rounded">
-                        SQL
-                      </span>
-                    </div>
-
-                    <button
-                      type="button"
-                      role="menuitem"
-                      onClick={() => {
-                        handleSaveQuery();
-                        closeMenus();
-                      }}
-                      className="group flex w-full items-center gap-3 p-2 rounded-lg hover:bg-monokai-surface text-left cursor-pointer transition-colors"
-                    >
-                      <div className="w-7 h-7 rounded-md bg-monokai-surface text-monokai-fg-muted flex items-center justify-center shrink-0 border border-monokai-border-subtle group-hover:text-monokai-green transition-colors">
-                        <Save className="w-3.5 h-3.5" />
-                      </div>
-                      <div className="flex flex-col min-w-0">
-                        <span className="text-xs font-medium text-monokai-fg">保存到工作区</span>
-                        <span className="text-[11px] text-monokai-comment">写入本地标签页快照 (Ctrl+S)</span>
-                      </div>
-                    </button>
-
-                    <button
-                      type="button"
-                      role="menuitem"
-                      onClick={() => {
-                        onAddTab(`CREATE VIEW v_${Date.now().toString().slice(-4)} AS\n${activeTab?.sql || ''}`);
-                        closeMenus();
-                      }}
-                      className="group flex w-full items-center gap-3 p-2 rounded-lg hover:bg-monokai-surface text-left cursor-pointer transition-colors"
-                    >
-                      <div className="w-7 h-7 rounded-md bg-monokai-surface text-monokai-fg-muted flex items-center justify-center shrink-0 border border-monokai-border-subtle group-hover:text-monokai-yellow transition-colors">
-                        <Layers className="w-3.5 h-3.5" />
-                      </div>
-                      <div className="flex flex-col min-w-0">
-                        <span className="text-xs font-medium text-monokai-fg">保存为视图</span>
-                        <span className="text-[11px] text-monokai-comment">新建 CREATE VIEW 标签页</span>
-                      </div>
-                    </button>
-
-                    <p className="px-2.5 pt-1.5 pb-1 text-[10px] text-monokai-comment/80 leading-relaxed border-t border-monokai-border-subtle mt-1">
-                      结果导出（CSV / Parquet / JSON）在下方结果区工具栏
-                    </p>
                   </div>
                 )}
               </div>
@@ -1570,7 +1795,7 @@ export const SqlWorkspacePanel: React.FC<SqlWorkspacePanelProps> = ({
           {/* Left: DataFlow canvas (adjustable width) */}
           <div
             className="h-full overflow-hidden shrink-0 relative"
-            style={{ width: `${dataFlowSplitPct}%` }}
+            style={{ width: layoutMode === 'canvas' ? '100%' : `${dataFlowSplitPct}%` }}
           >
             <DataFlowCanvas
               hideSubNav={true}
@@ -1582,11 +1807,12 @@ export const SqlWorkspacePanel: React.FC<SqlWorkspacePanelProps> = ({
               tabs={tabs}
               activeTabId={activeTabId}
               onSelectTab={(tabId) => onSelectTab(tabId)}
-              layoutMode="split"
+              layoutMode={layoutMode === 'canvas' ? 'canvas' : 'split'}
               onChangeLayoutMode={handleChangeLayoutMode}
             />
           </div>
 
+          {layoutMode !== 'canvas' && <>
           {/* Vertical Draggable Resizer Divider */}
           <div
             data-testid="dataflow-split-divider"
@@ -1600,6 +1826,16 @@ export const SqlWorkspacePanel: React.FC<SqlWorkspacePanelProps> = ({
             aria-orientation="vertical"
             aria-label="拖拽调整流图与编辑器宽度"
             aria-valuenow={Math.round(dataFlowSplitPct)}
+            aria-valuemin={20}
+            aria-valuemax={80}
+            tabIndex={0}
+            onKeyDown={e => {
+              if (!['ArrowLeft', 'ArrowRight', 'Home'].includes(e.key)) return;
+              e.preventDefault();
+              const percent = e.key === 'Home' ? 50 : Math.max(20, Math.min(80, dataFlowSplitPct + (e.key === 'ArrowRight' ? 5 : -5)));
+              setDataFlowSplitPct(percent);
+              localStorage.setItem('workbench_dataflow_split_pct', String(percent));
+            }}
             title="按住左右拖拽调整分屏比例，双击重置为 50/50"
             className={`group relative w-2 h-full shrink-0 cursor-col-resize z-30 transition-all duration-200 flex items-center justify-center select-none border-x ${
               isDraggingDataFlowDivider
@@ -1633,9 +1869,259 @@ export const SqlWorkspacePanel: React.FC<SqlWorkspacePanelProps> = ({
           >
             {renderEditorAndResults()}
           </div>
+          </>}
         </div>
       ) : (
         renderEditorAndResults()
+      )}
+
+      {/* Context Menu for Tab */}
+      {tabContextMenu && (
+        <div
+          ref={tabContextMenuRef}
+          role="menu"
+          aria-label="标签页操作"
+          style={{
+            position: 'fixed',
+            left: tabContextMenu.x,
+            top: tabContextMenu.y,
+            zIndex: 9999,
+            maxHeight: 'calc(100vh - 20px)',
+          }}
+          className="min-w-[215px] overflow-y-auto bg-monokai-sidebar border border-monokai-border/90 rounded-lg shadow-2xl py-1 text-xs text-monokai-fg select-none animate-in fade-in zoom-in-95 duration-100 backdrop-blur-md"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Header */}
+          <div className="px-3 py-1.5 border-b border-monokai-border/40 text-[11px] font-mono text-monokai-comment flex items-center gap-1.5">
+            <FileCode size={12} className="text-monokai-yellow shrink-0" />
+            <span className="truncate font-semibold text-monokai-fg">{tabContextMenu.tab.title}</span>
+          </div>
+
+          {/* Section: Save As Options */}
+          <div className="py-1">
+            <button
+              type="button"
+              className="w-full px-3 py-1.5 flex items-center justify-between text-left hover:bg-monokai-surface hover:text-monokai-yellow transition-colors cursor-pointer group"
+              onClick={() => {
+                const tab = tabContextMenu.tab;
+                setTabContextMenu(null);
+                handleOpenSaveAsModal(tab);
+              }}
+            >
+              <div className="flex items-center gap-2">
+                <Save size={13} className="text-monokai-accent group-hover:scale-110 transition-transform" />
+                <span>另存为已保存查询...</span>
+              </div>
+              <span className="text-[10px] text-monokai-comment/80 font-mono">书签</span>
+            </button>
+
+            <button
+              type="button"
+              className="w-full px-3 py-1.5 flex items-center justify-between text-left hover:bg-monokai-surface hover:text-monokai-green transition-colors cursor-pointer group"
+              onClick={() => {
+                setTabContextMenu(null);
+                void handleSaveAsDuckdbFile();
+              }}
+            >
+              <div className="flex items-center gap-2">
+                <Download size={13} className="text-monokai-green group-hover:scale-110 transition-transform" />
+                <span>另存为本地 .duckdb 文件</span>
+              </div>
+              <span className="text-[10px] text-monokai-comment/80 font-mono">数据库</span>
+            </button>
+
+            <button
+              type="button"
+              className="w-full px-3 py-1.5 flex items-center justify-between text-left hover:bg-monokai-surface hover:text-monokai-green transition-colors cursor-pointer group"
+              onClick={() => {
+                const tab = tabContextMenu.tab;
+                setTabContextMenu(null);
+                handleSaveAsSqlFile(tab);
+              }}
+            >
+              <div className="flex items-center gap-2">
+                <Download size={13} className="text-monokai-green group-hover:scale-110 transition-transform" />
+                <span>另存为本地 .sql 文件</span>
+              </div>
+              <span className="text-[10px] text-monokai-comment/80 font-mono">导出</span>
+            </button>
+
+            <button
+              type="button"
+              className="w-full px-3 py-1.5 flex items-center justify-between text-left hover:bg-monokai-surface hover:text-monokai-fg transition-colors cursor-pointer group"
+              onClick={() => {
+                const tab = tabContextMenu.tab;
+                setTabContextMenu(null);
+                handleDuplicateTab(tab.id);
+              }}
+            >
+              <div className="flex items-center gap-2">
+                <Copy size={13} className="text-monokai-comment group-hover:text-monokai-fg transition-colors" />
+                <span>复制为新标签页 (副本)</span>
+              </div>
+            </button>
+          </div>
+
+          {/* Divider */}
+          <div className="my-1 border-t border-monokai-border/40" />
+
+          {/* Section: Rename */}
+          <div className="py-0.5">
+            <button
+              type="button"
+              className="w-full px-3 py-1.5 flex items-center justify-between text-left hover:bg-monokai-surface hover:text-monokai-fg transition-colors cursor-pointer"
+              onClick={(e) => {
+                const tab = tabContextMenu.tab;
+                setTabContextMenu(null);
+                handleStartRename(tab, e);
+              }}
+            >
+              <div className="flex items-center gap-2">
+                <Edit2 size={13} className="text-monokai-comment" />
+                <span>重命名标签页</span>
+              </div>
+              <span className="text-[10px] text-monokai-comment/60 font-mono">双击</span>
+            </button>
+          </div>
+
+          {/* Divider */}
+          <div className="my-1 border-t border-monokai-border/40" />
+
+          {/* Section: Close Actions */}
+          <div className="py-1">
+            <button
+              type="button"
+              className="w-full px-3 py-1.5 flex items-center justify-between text-left hover:bg-monokai-pink/20 hover:text-monokai-pink transition-colors cursor-pointer group"
+              onClick={(e) => {
+                const tab = tabContextMenu.tab;
+                setTabContextMenu(null);
+                void handleAttemptCloseTab(tab, e);
+              }}
+            >
+              <div className="flex items-center gap-2">
+                <X size={13} className="text-monokai-pink" />
+                <span>关闭当前标签页</span>
+              </div>
+              <span className="text-[10px] text-monokai-comment/60 font-mono">中键/✕</span>
+            </button>
+
+            <button
+              type="button"
+              disabled={tabs.length <= 1}
+              className={`w-full px-3 py-1.5 flex items-center justify-between text-left transition-colors ${
+                tabs.length <= 1
+                  ? 'opacity-35 cursor-not-allowed'
+                  : 'hover:bg-monokai-surface hover:text-monokai-fg cursor-pointer'
+              }`}
+              onClick={() => {
+                if (tabs.length <= 1) return;
+                const tab = tabContextMenu.tab;
+                setTabContextMenu(null);
+                void handleCloseOthers(tab);
+              }}
+            >
+              <div className="flex items-center gap-2">
+                <XCircle size={13} className="text-monokai-comment" />
+                <span>关闭其他标签页</span>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              disabled={tabs.findIndex((t) => t.id === tabContextMenu.tab.id) === tabs.length - 1}
+              className={`w-full px-3 py-1.5 flex items-center justify-between text-left transition-colors ${
+                tabs.findIndex((t) => t.id === tabContextMenu.tab.id) === tabs.length - 1
+                  ? 'opacity-35 cursor-not-allowed'
+                  : 'hover:bg-monokai-surface hover:text-monokai-fg cursor-pointer'
+              }`}
+              onClick={() => {
+                if (tabs.findIndex((t) => t.id === tabContextMenu.tab.id) === tabs.length - 1) return;
+                const tab = tabContextMenu.tab;
+                setTabContextMenu(null);
+                void handleCloseRight(tab);
+              }}
+            >
+              <div className="flex items-center gap-2">
+                <ArrowRight size={13} className="text-monokai-comment" />
+                <span>关闭右侧标签页</span>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              className="w-full px-3 py-1.5 flex items-center justify-between text-left hover:bg-monokai-pink/20 hover:text-monokai-pink transition-colors cursor-pointer group"
+              onClick={() => {
+                setTabContextMenu(null);
+                void handleCloseAll();
+              }}
+            >
+              <div className="flex items-center gap-2">
+                <Trash2 size={13} className="text-monokai-comment group-hover:text-monokai-pink transition-colors" />
+                <span>关闭全部标签页</span>
+              </div>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Save As Modal */}
+      {saveAsModalTab && (
+        <ModalShell
+          open={Boolean(saveAsModalTab)}
+          onClose={() => {
+            if (isSavingAs) return;
+            setSaveAsModalTab(null);
+            setSaveAsQueryName('');
+          }}
+          title="另存为已保存查询"
+          description="为该 SQL 查询指定新名称并持久化保存至当前数据库"
+          icon={Save}
+          iconColor="text-monokai-accent"
+          size="sm"
+          footer={
+            <>
+              <ActionButton
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setSaveAsModalTab(null);
+                  setSaveAsQueryName('');
+                }}
+                disabled={isSavingAs}
+              >
+                取消
+              </ActionButton>
+              <ActionButton
+                variant="primary"
+                size="sm"
+                icon={Save}
+                onClick={handleConfirmSaveAs}
+                disabled={!saveAsQueryName.trim() || isSavingAs}
+              >
+                {isSavingAs ? '保存中...' : '另存为'}
+              </ActionButton>
+            </>
+          }
+        >
+          <div className="space-y-4">
+            <div>
+              <label className="mb-2 block text-xs font-medium text-monokai-comment">查询名称</label>
+              <FormInput
+                autoFocus
+                fontVariant="mono"
+                value={saveAsQueryName}
+                onChange={(e) => setSaveAsQueryName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleConfirmSaveAs();
+                }}
+                placeholder="输入查询名称..."
+              />
+            </div>
+            <div className="text-[11px] font-mono text-monokai-comment bg-monokai-bg/70 p-2.5 rounded border border-monokai-border/60">
+              <span className="text-monokai-yellow font-semibold">目标库：</span> {saveAsCatalog}
+            </div>
+          </div>
+        </ModalShell>
       )}
     </div>
   );

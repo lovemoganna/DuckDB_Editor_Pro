@@ -1,0 +1,42 @@
+### Result
+{"importFocus":true,"importEscape":true,"importFocusRestoration":true,"realFileAttach":true,"usersRows":10,"schemaNarrowFieldReachable":true}
+### Ran Playwright code
+```js
+await (async page => {
+  await page.setViewportSize({width:390,height:844});
+  await page.getByRole('button',{name:'导入数据',exact:true}).waitFor({timeout:30000});
+  await page.getByRole('button',{name:'切换为浅色模式',exact:true}).click();
+  const trigger=page.getByRole('button',{name:'导入数据',exact:true});
+  await trigger.click();
+  const dialog=page.getByRole('dialog',{name:'数据导入',exact:true});
+  await dialog.waitFor();
+  if(!await dialog.evaluate(el=>el.contains(document.activeElement))) throw Error('Import did not acquire focus');
+  await page.screenshot({path:'docs/system-consistency-20261012/import-dialog-after.png'});
+  await page.keyboard.press('Escape');
+  await dialog.waitFor({state:'hidden'});
+  if(!await trigger.evaluate(el=>el===document.activeElement)) throw Error('Import did not restore trigger focus');
+  await trigger.click();
+  await page.locator('input[type=file]').first().setInputFiles('data/crud-lab/baseline.duckdb');
+  await page.getByRole('button',{name:'挂载为独立库 (ATTACH)',exact:true}).click();
+  await dialog.waitFor({state:'hidden',timeout:30000});
+  await page.locator('select').filter({has:page.locator('option[value=users]')}).first().selectOption('users');
+  await page.getByText('共 10 条记录',{exact:true}).waitFor({timeout:30000});
+  await page.getByRole('tablist',{name:'工程核心功能标签页'}).getByRole('tab',{name:'Schema',exact:true}).click();
+  await page.getByText('user_name',{exact:true}).first().waitFor();
+  const field=page.getByText('user_name',{exact:true}).first();
+  await field.scrollIntoViewIfNeeded();
+  const box=await field.boundingBox();
+  if(!box || box.height<1 || box.y<0 || box.y+box.height>844) throw Error('Schema field is not reachable on narrow screen');
+  await page.screenshot({path:'docs/system-consistency-20261012/schema-narrow-after.png'});
+  await page.getByRole('button',{name:'AI 认知',exact:true}).click();
+  await page.getByRole('tablist',{name:'AI 认知功能标签页'}).getByRole('tab',{name:'技能',exact:true}).click();
+  await page.screenshot({path:'docs/system-consistency-20261012/skills-narrow-after.png'});
+  return {importFocus:true,importEscape:true,importFocusRestoration:true,realFileAttach:true,usersRows:10,schemaNarrowFieldReachable:true};
+}
+)(page);
+```
+### Page
+- Page URL: http://localhost:5173/DuckDB_Editor_Pro/
+- Page Title: DuckDB Manager Pro
+### Events
+- New console entries: .playwright-cli\console-2026-10-13T08-17-22-204Z.log#L4-L1414

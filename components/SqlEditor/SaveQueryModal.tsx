@@ -12,6 +12,7 @@ export interface SaveQueryModalProps {
   widgetType: 'table' | 'value' | 'chart';
   setWidgetType: (type: 'table' | 'value' | 'chart') => void;
   onSave: () => void;
+  isSaving?: boolean;
 }
 
 export const SaveQueryModal: React.FC<SaveQueryModalProps> = ({
@@ -24,6 +25,7 @@ export const SaveQueryModal: React.FC<SaveQueryModalProps> = ({
   widgetType,
   setWidgetType,
   onSave,
+  isSaving = false,
 }) => (
   <ModalShell
     open={isOpen}
@@ -35,7 +37,7 @@ export const SaveQueryModal: React.FC<SaveQueryModalProps> = ({
     size="sm"
     footer={
       <>
-        <ActionButton variant="ghost" size="sm" onClick={onClose}>
+        <ActionButton variant="ghost" size="sm" onClick={onClose} disabled={isSaving}>
           取消
         </ActionButton>
         <ActionButton
@@ -43,9 +45,9 @@ export const SaveQueryModal: React.FC<SaveQueryModalProps> = ({
           size="sm"
           icon={Save}
           onClick={onSave}
-          disabled={!saveQueryName.trim()}
+          disabled={!saveQueryName.trim() || isSaving}
         >
-          保存查询
+          {isSaving ? '保存中...' : '保存查询'}
         </ActionButton>
       </>
     }

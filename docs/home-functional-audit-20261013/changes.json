@@ -1,0 +1,42 @@
+[
+  {
+    "file": "components/Dashboard/Home/DatasetPreview.tsx",
+    "before_sha256": "83aa1d2f53d11d039dbed62955fa083c741596f573fad178dc402b3c4df0004a",
+    "after_sha256": "d3bc21c0a9bef6f037bb83e1312bdffe51132ac9e838cccd71c743f29bc498b3"
+  },
+  {
+    "file": "components/Dashboard/Home/HomeBoardCanvas.tsx",
+    "before_sha256": "21929efe294d959884cff4f3ba62bddaa8f31e01126426755efcd3282a475840",
+    "after_sha256": "70bf6e80fd088f29aa8d843ab1a172a210e99b07b9352cdcfc801eb0db27493c"
+  },
+  {
+    "file": "components/Dashboard/Home/WorkspaceObjects.tsx",
+    "before_sha256": "e8bd942f7c39d76055fc398974bb68c9f159d42558eeb533ec6534316026e41a",
+    "after_sha256": "3f3972a02137176cd261518f2049fe38a46c5241544c6f435b971ad692572d82"
+  },
+  {
+    "file": "components/Dashboard/MissionControl/DataIdeMissionControl.tsx",
+    "before_sha256": "efbebbf3f87b42d58d33c7735c5c5c7959aba05c67bbc5dc72e7dd917301216c",
+    "after_sha256": "1920c3a6acccae7395dc567f01d4848427cfced6ee551afafcb07992d78707fd"
+  },
+  {
+    "file": "components/Dashboard/QuickTablePeekDrawer.tsx",
+    "before_sha256": "302628ab839a7fc4dece176d3a6b062781b72fc207cac1f721bf6b140e1336e9",
+    "after_sha256": "0616350e3b459eb2d7ad2de2c09c25fe104a94eed2bdab1408e5666ed1a2eaaa"
+  },
+  {
+    "file": "components/Dashboard.tsx",
+    "before_sha256": "88a4f68a8da702ba050d624ae62951cc84329902034665217cf04deb2ad4fb54",
+    "after_sha256": "05136e3fcaf37917d10603441ff2b23ecc090e9ac8aadb213207023fdefc161a"
+  },
+  {
+    "file": "hooks/useDashboardWorkflow.ts",
+    "before_sha256": "50ef4df36a3b2315f59c7d620a906dd463eddc61803af9a7496a91512205da4a",
+    "after_sha256": "8f3ecd413dee9d17b77f98e50f0e79c7ac8f3ba988a6cc70befed52ab05ab6f5"
+  },
+  {
+    "file": "services/analysisObjects.ts",
+    "before_sha256": "ee075311aa16376742d1a3f2dfd515341a8491ef83e19445ad984630fa3f6924",
+    "after_sha256": "fd404b7091245346e4923d4908b61861b91edd7a00ee15d341de49041183441f"
+  }
+]

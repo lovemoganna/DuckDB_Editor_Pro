@@ -220,6 +220,9 @@ const EntityRow: React.FC<EntityRowProps> = ({
       {/* Selection Checkbox */}
       <button
         type="button"
+        role="checkbox"
+        aria-checked={isSelected}
+        aria-label={`选择实体 ${name}`}
         onClick={(e) => { e.stopPropagation(); onSelect(id, !isSelected); }}
         className={`
           shrink-0 p-1 rounded transition-all cursor-pointer
@@ -334,6 +337,9 @@ const LinkRow: React.FC<LinkRowProps> = ({
       {/* Selection Checkbox */}
       <button
         type="button"
+        role="checkbox"
+        aria-checked={isSelected}
+        aria-label={`选择关系 ${sourceName} ${linkTypeName} ${targetName}`}
         onClick={(e) => { e.stopPropagation(); onSelect(id, !isSelected); }}
         className={`
           shrink-0 p-1 rounded transition-all cursor-pointer
@@ -1064,7 +1070,7 @@ export const CRUDList: React.FC<CRUDListProps> = ({ onInspect, onRequestDelete, 
               className={`px-2 py-0.5 rounded text-[10.5px] transition-colors cursor-pointer ${
                 topologyFilter === 'all'
                   ? 'bg-monokai-cyan/20 text-monokai-cyan font-bold border border-monokai-cyan/40'
-                  : 'text-monokai-comment hover:text-white hover:bg-monokai-surface'
+                  : 'text-monokai-comment hover:text-monokai-fg hover:bg-monokai-surface'
               }`}
             >
               全部 ({state.objects?.length || 0})

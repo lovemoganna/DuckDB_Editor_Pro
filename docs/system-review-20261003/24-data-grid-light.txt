@@ -1,0 +1,781 @@
+- banner "全局工作区顶栏":
+  - button "🪶 DuckDB Studio PRO":
+    - generic: 🪶
+    - generic: DuckDB Studio
+    - generic: PRO
+  - navigation "业务领域大类":
+    - button "工程核心":
+      - generic: 工程核心
+    - button "分析洞察":
+      - generic: 分析洞察
+    - button "知识沉淀":
+      - generic: 知识沉淀
+    - button "AI 认知":
+      - generic: AI 认知
+  - tablist "工程核心功能标签页":
+    - tab "仪表盘":
+      - generic: 仪表盘
+      - generic: "1"
+    - tab "数据" [selected]:
+      - generic: 数据
+    - tab "Schema":
+      - generic: Schema
+      - generic: "3"
+    - tab "SQL":
+      - generic: SQL
+      - generic: "4"
+    - tab "数据流":
+      - generic: 数据流
+      - generic: "5"
+  - generic: "表:"
+  - generic: fiat_transactions
+  - button "项目":
+    - generic: 项目
+  - button "已保存到 OPFS":
+    - generic: 已保存到 OPFS
+  - button "AI 助手":
+    - generic: AI 助手
+  - button "⌘K":
+  - button "帮助与快捷键":
+  - button "切换为深色模式":
+  - button "AI 模型设置":
+- main:
+  - main:
+    - heading "数据浏览" [level=1]
+    - paragraph: 分页表格 · 排序筛选 · 单元格编辑 · 画像分析 · 导出
+    - button "仪表盘":
+      - generic: 仪表盘
+    - tablist "数据视图模式":
+      - tab "表格网格 25" [selected]:
+        - generic: 表格网格
+        - generic: "25"
+      - tab "画像仪表盘 10 列":
+        - generic: 画像仪表盘
+        - generic: 10 列
+    - button "插入行":
+      - generic: 插入行
+    - combobox "快速切换当前数据表":
+      - option "-- 全部数据表 (多表工作台) --"
+      - option "crypto_transactions"
+      - option "exchange_rates"
+      - option "fiat_transactions" [selected]
+      - option "life_action"
+      - option "life_canvas_edge"
+      - option "life_canvas_state"
+      - option "life_insight"
+      - option "life_introspection"
+      - option "life_link"
+      - option "life_link_type"
+      - option "life_object"
+      - option "life_object_type"
+      - option "users"
+    - button "多表总览":
+      - generic: 多表总览
+    - button "可视化过滤":
+      - generic: 可视化过滤
+    - button "列配置":
+      - generic: 列配置
+    - button "CSV":
+      - text: CSV
+    - button "JSON":
+      - text: JSON
+    - button "Parquet":
+      - text: Parquet
+    - button "高级…":
+      - text: 高级…
+    - text: WHERE
+    - 'textbox "可选过滤条件，如: id > 5 AND status = ''active''（留空并应用 = 全表）"'
+    - button "应用":
+      - generic: 应用
+    - table:
+      - rowgroup:
+        - row "fiat_order_id VARCHAR uid BIGINT direction VARCHAR currency VARCHAR amount DECIMAL(18,2) fee DECIMAL(18,2) channel VARCHAR status VARCHAR created_at TIMESTAMP completed_at TIMESTAMP":
+          - columnheader:
+            - checkbox
+          - columnheader
+          - columnheader "fiat_order_id VARCHAR":
+            - generic "fiat_order_id"
+            - generic "VARCHAR"
+          - columnheader "uid BIGINT":
+            - generic "uid"
+            - generic "BIGINT"
+          - columnheader "direction VARCHAR":
+            - generic "direction"
+            - generic "VARCHAR"
+          - columnheader "currency VARCHAR":
+            - generic "currency"
+            - generic "VARCHAR"
+          - columnheader "amount DECIMAL(18,2)":
+            - generic "amount"
+            - generic "DECIMAL(18,2)"
+          - columnheader "fee DECIMAL(18,2)":
+            - generic "fee"
+            - generic "DECIMAL(18,2)"
+          - columnheader "channel VARCHAR":
+            - generic "channel"
+            - generic "VARCHAR"
+          - columnheader "status VARCHAR":
+            - generic "status"
+            - generic "VARCHAR"
+          - columnheader "created_at TIMESTAMP":
+            - generic "created_at"
+            - generic "TIMESTAMP"
+          - columnheader "completed_at TIMESTAMP":
+            - generic "completed_at"
+            - generic "TIMESTAMP"
+      - rowgroup:
+        - row "fo_20241231_43875092 438750921 deposit BRL 2500.00 0.00 pix completed 2024-12-31 23:50:00 2024-12-31 23:52:00":
+          - cell:
+            - checkbox
+          - cell:
+            - button "在抽屉中查看该行完整详情":
+          - cell "fo_20241231_43875092":
+            - generic: fo_20241231_43875092
+          - cell "438750921":
+            - generic: "438750921"
+          - cell "deposit":
+            - generic: deposit
+          - cell "BRL":
+            - generic: BRL
+          - cell "2500.00":
+            - generic: "2500.00"
+          - cell "0.00":
+            - generic: "0.00"
+          - cell "pix":
+            - generic: pix
+          - cell "completed":
+            - generic: completed
+          - cell "2024-12-31 23:50:00":
+            - generic: 2024-12-31 23:50:00
+          - cell "2024-12-31 23:52:00":
+            - generic: 2024-12-31 23:52:00
+        - row "fo_20250101_43875093 438750921 withdrawal BRL 2500.00 3.50 pix completed 2025-01-01 00:20:00 2025-01-01 00:22:00":
+          - cell:
+            - checkbox
+          - cell:
+            - button "在抽屉中查看该行完整详情":
+          - cell "fo_20250101_43875093":
+            - generic: fo_20250101_43875093
+          - cell "438750921":
+            - generic: "438750921"
+          - cell "withdrawal":
+            - generic: withdrawal
+          - cell "BRL":
+            - generic: BRL
+          - cell "2500.00":
+            - generic: "2500.00"
+          - cell "3.50":
+            - generic: "3.50"
+          - cell "pix":
+            - generic: pix
+          - cell "completed":
+            - generic: completed
+          - cell "2025-01-01 00:20:00":
+            - generic: 2025-01-01 00:20:00
+          - cell "2025-01-01 00:22:00":
+            - generic: 2025-01-01 00:22:00
+        - row "fo_20250110_78423190 784231905 deposit EUR 1500.00 0.00 sepa_instant completed 2025-01-10 10:15:00 2025-01-10 10:18:00":
+          - cell:
+            - checkbox
+          - cell:
+            - button "在抽屉中查看该行完整详情":
+          - cell "fo_20250110_78423190":
+            - generic: fo_20250110_78423190
+          - cell "784231905":
+            - generic: "784231905"
+          - cell "deposit":
+            - generic: deposit
+          - cell "EUR":
+            - generic: EUR
+          - cell "1500.00":
+            - generic: "1500.00"
+          - cell "0.00":
+            - generic: "0.00"
+          - cell "sepa_instant":
+            - generic: sepa_instant
+          - cell "completed":
+            - generic: completed
+          - cell "2025-01-10 10:15:00":
+            - generic: 2025-01-10 10:15:00
+          - cell "2025-01-10 10:18:00":
+            - generic: 2025-01-10 10:18:00
+        - row "fo_20250112_61590237 615902374 deposit USD 50000.00 15.00 wire_transfer completed 2025-01-12 08:30:00 2025-01-12 15:45:00":
+          - cell:
+            - checkbox
+          - cell:
+            - button "在抽屉中查看该行完整详情":
+          - cell "fo_20250112_61590237":
+            - generic: fo_20250112_61590237
+          - cell "615902374":
+            - generic: "615902374"
+          - cell "deposit":
+            - generic: deposit
+          - cell "USD":
+            - generic: USD
+          - cell "50000.00":
+            - generic: "50000.00"
+          - cell "15.00":
+            - generic: "15.00"
+          - cell "wire_transfer":
+            - generic: wire_transfer
+          - cell "completed":
+            - generic: completed
+          - cell "2025-01-12 08:30:00":
+            - generic: 2025-01-12 08:30:00
+          - cell "2025-01-12 15:45:00":
+            - generic: 2025-01-12 15:45:00
+        - row "fo_20250214_61590238 615902374 withdrawal USD 12000.00 25.00 wire_transfer completed 2025-02-14 23:45:00 2025-02-15 01:15:00":
+          - cell:
+            - checkbox
+          - cell:
+            - button "在抽屉中查看该行完整详情":
+          - cell "fo_20250214_61590238":
+            - generic: fo_20250214_61590238
+          - cell "615902374":
+            - generic: "615902374"
+          - cell "withdrawal":
+            - generic: withdrawal
+          - cell "USD":
+            - generic: USD
+          - cell "12000.00":
+            - generic: "12000.00"
+          - cell "25.00":
+            - generic: "25.00"
+          - cell "wire_transfer":
+            - generic: wire_transfer
+          - cell "completed":
+            - generic: completed
+          - cell "2025-02-14 23:45:00":
+            - generic: 2025-02-14 23:45:00
+          - cell "2025-02-15 01:15:00":
+            - generic: 2025-02-15 01:15:00
+        - row "fo_20250220_78423191 784231905 withdrawal EUR 500.00 1.50 sepa_instant completed 2025-02-20 14:30:00 2025-02-20 14:35:00":
+          - cell:
+            - checkbox
+          - cell:
+            - button "在抽屉中查看该行完整详情":
+          - cell "fo_20250220_78423191":
+            - generic: fo_20250220_78423191
+          - cell "784231905":
+            - generic: "784231905"
+          - cell "withdrawal":
+            - generic: withdrawal
+          - cell "EUR":
+            - generic: EUR
+          - cell "500.00":
+            - generic: "500.00"
+          - cell "1.50":
+            - generic: "1.50"
+          - cell "sepa_instant":
+            - generic: sepa_instant
+          - cell "completed":
+            - generic: completed
+          - cell "2025-02-20 14:30:00":
+            - generic: 2025-02-20 14:30:00
+          - cell "2025-02-20 14:35:00":
+            - generic: 2025-02-20 14:35:00
+        - row "fo_20250308_90317462 903174628 deposit USD 1000.00 0.00 ach completed 2025-03-08 09:10:00 2025-03-09 11:30:00":
+          - cell:
+            - checkbox
+          - cell:
+            - button "在抽屉中查看该行完整详情":
+          - cell "fo_20250308_90317462":
+            - generic: fo_20250308_90317462
+          - cell "903174628":
+            - generic: "903174628"
+          - cell "deposit":
+            - generic: deposit
+          - cell "USD":
+            - generic: USD
+          - cell "1000.00":
+            - generic: "1000.00"
+          - cell "0.00":
+            - generic: "0.00"
+          - cell "ach":
+            - generic: ach
+          - cell "completed":
+            - generic: completed
+          - cell "2025-03-08 09:10:00":
+            - generic: 2025-03-08 09:10:00
+          - cell "2025-03-09 11:30:00":
+            - generic: 2025-03-09 11:30:00
+        - row "fo_20250315_78423192 784231905 deposit EUR 2000.00 0.00 sepa_credit completed 2025-03-15 09:00:00 2025-03-15 16:20:00":
+          - cell:
+            - checkbox
+          - cell:
+            - button "在抽屉中查看该行完整详情":
+          - cell "fo_20250315_78423192":
+            - generic: fo_20250315_78423192
+          - cell "784231905":
+            - generic: "784231905"
+          - cell "deposit":
+            - generic: deposit
+          - cell "EUR":
+            - generic: EUR
+          - cell "2000.00":
+            - generic: "2000.00"
+          - cell "0.00":
+            - generic: "0.00"
+          - cell "sepa_credit":
+            - generic: sepa_credit
+          - cell "completed":
+            - generic: completed
+          - cell "2025-03-15 09:00:00":
+            - generic: 2025-03-15 09:00:00
+          - cell "2025-03-15 16:20:00":
+            - generic: 2025-03-15 16:20:00
+        - row "fo_20250410_78423193 784231905 withdrawal EUR 300.00 1.50 sepa_instant failed 2025-04-10 11:00:00 2025-04-10 11:05:00":
+          - cell:
+            - checkbox
+          - cell:
+            - button "在抽屉中查看该行完整详情":
+          - cell "fo_20250410_78423193":
+            - generic: fo_20250410_78423193
+          - cell "784231905":
+            - generic: "784231905"
+          - cell "withdrawal":
+            - generic: withdrawal
+          - cell "EUR":
+            - generic: EUR
+          - cell "300.00":
+            - generic: "300.00"
+          - cell "1.50":
+            - generic: "1.50"
+          - cell "sepa_instant":
+            - generic: sepa_instant
+          - cell "failed":
+            - generic: failed
+          - cell "2025-04-10 11:00:00":
+            - generic: 2025-04-10 11:00:00
+          - cell "2025-04-10 11:05:00":
+            - generic: 2025-04-10 11:05:00
+        - row "fo_20250415_90317463 903174628 withdrawal USD 450.00 2.00 ach completed 2025-04-15 14:00:00 2025-04-16 10:00:00":
+          - cell:
+            - checkbox
+          - cell:
+            - button "在抽屉中查看该行完整详情":
+          - cell "fo_20250415_90317463":
+            - generic: fo_20250415_90317463
+          - cell "903174628":
+            - generic: "903174628"
+          - cell "withdrawal":
+            - generic: withdrawal
+          - cell "USD":
+            - generic: USD
+          - cell "450.00":
+            - generic: "450.00"
+          - cell "2.00":
+            - generic: "2.00"
+          - cell "ach":
+            - generic: ach
+          - cell "completed":
+            - generic: completed
+          - cell "2025-04-15 14:00:00":
+            - generic: 2025-04-15 14:00:00
+          - cell "2025-04-16 10:00:00":
+            - generic: 2025-04-16 10:00:00
+        - row "fo_20250418_52840619 528406193 deposit GBP 3000.00 0.00 faster_payments completed 2025-04-18 10:00:00 2025-04-18 10:04:00":
+          - cell:
+            - checkbox
+          - cell:
+            - button "在抽屉中查看该行完整详情":
+          - cell "fo_20250418_52840619":
+            - generic: fo_20250418_52840619
+          - cell "528406193":
+            - generic: "528406193"
+          - cell "deposit":
+            - generic: deposit
+          - cell "GBP":
+            - generic: GBP
+          - cell "3000.00":
+            - generic: "3000.00"
+          - cell "0.00":
+            - generic: "0.00"
+          - cell "faster_payments":
+            - generic: faster_payments
+          - cell "completed":
+            - generic: completed
+          - cell "2025-04-18 10:00:00":
+            - generic: 2025-04-18 10:00:00
+          - cell "2025-04-18 10:04:00":
+            - generic: 2025-04-18 10:04:00
+        - row "fo_20250502_90317464 903174628 withdrawal USD 200.00 2.00 ach cancelled 2025-05-02 12:30:00 NULL":
+          - cell:
+            - checkbox
+          - cell:
+            - button "在抽屉中查看该行完整详情":
+          - cell "fo_20250502_90317464":
+            - generic: fo_20250502_90317464
+          - cell "903174628":
+            - generic: "903174628"
+          - cell "withdrawal":
+            - generic: withdrawal
+          - cell "USD":
+            - generic: USD
+          - cell "200.00":
+            - generic: "200.00"
+          - cell "2.00":
+            - generic: "2.00"
+          - cell "ach":
+            - generic: ach
+          - cell "cancelled":
+            - generic: cancelled
+          - cell "2025-05-02 12:30:00":
+            - generic: 2025-05-02 12:30:00
+          - cell "NULL":
+            - generic: "NULL"
+        - row "fo_20250520_84621953 846219537 deposit EUR 4200.00 0.00 sepa_instant completed 2025-05-20 11:10:00 2025-05-20 11:12:00":
+          - cell:
+            - checkbox
+          - cell:
+            - button "在抽屉中查看该行完整详情":
+          - cell "fo_20250520_84621953":
+            - generic: fo_20250520_84621953
+          - cell "846219537":
+            - generic: "846219537"
+          - cell "deposit":
+            - generic: deposit
+          - cell "EUR":
+            - generic: EUR
+          - cell "4200.00":
+            - generic: "4200.00"
+          - cell "0.00":
+            - generic: "0.00"
+          - cell "sepa_instant":
+            - generic: sepa_instant
+          - cell "completed":
+            - generic: completed
+          - cell "2025-05-20 11:10:00":
+            - generic: 2025-05-20 11:10:00
+          - cell "2025-05-20 11:12:00":
+            - generic: 2025-05-20 11:12:00
+        - row "fo_20250525_52840620 528406193 withdrawal GBP 800.00 1.00 faster_payments completed 2025-05-25 15:30:00 2025-05-25 15:33:00":
+          - cell:
+            - checkbox
+          - cell:
+            - button "在抽屉中查看该行完整详情":
+          - cell "fo_20250525_52840620":
+            - generic: fo_20250525_52840620
+          - cell "528406193":
+            - generic: "528406193"
+          - cell "withdrawal":
+            - generic: withdrawal
+          - cell "GBP":
+            - generic: GBP
+          - cell "800.00":
+            - generic: "800.00"
+          - cell "1.00":
+            - generic: "1.00"
+          - cell "faster_payments":
+            - generic: faster_payments
+          - cell "completed":
+            - generic: completed
+          - cell "2025-05-25 15:30:00":
+            - generic: 2025-05-25 15:30:00
+          - cell "2025-05-25 15:33:00":
+            - generic: 2025-05-25 15:33:00
+        - row "fo_20250605_69248130 692481305 deposit USD 25000.00 15.00 wire_transfer completed 2025-06-05 09:30:00 2025-06-05 16:10:00":
+          - cell:
+            - checkbox
+          - cell:
+            - button "在抽屉中查看该行完整详情":
+          - cell "fo_20250605_69248130":
+            - generic: fo_20250605_69248130
+          - cell "692481305":
+            - generic: "692481305"
+          - cell "deposit":
+            - generic: deposit
+          - cell "USD":
+            - generic: USD
+          - cell "25000.00":
+            - generic: "25000.00"
+          - cell "15.00":
+            - generic: "15.00"
+          - cell "wire_transfer":
+            - generic: wire_transfer
+          - cell "completed":
+            - generic: completed
+          - cell "2025-06-05 09:30:00":
+            - generic: 2025-06-05 09:30:00
+          - cell "2025-06-05 16:10:00":
+            - generic: 2025-06-05 16:10:00
+        - row "fo_20250618_61590239 615902374 withdrawal USD 5000.00 25.00 wire_transfer completed 2025-06-18 10:20:00 2025-06-18 14:10:00":
+          - cell:
+            - checkbox
+          - cell:
+            - button "在抽屉中查看该行完整详情":
+          - cell "fo_20250618_61590239":
+            - generic: fo_20250618_61590239
+          - cell "615902374":
+            - generic: "615902374"
+          - cell "withdrawal":
+            - generic: withdrawal
+          - cell "USD":
+            - generic: USD
+          - cell "5000.00":
+            - generic: "5000.00"
+          - cell "25.00":
+            - generic: "25.00"
+          - cell "wire_transfer":
+            - generic: wire_transfer
+          - cell "completed":
+            - generic: completed
+          - cell "2025-06-18 10:20:00":
+            - generic: 2025-06-18 10:20:00
+          - cell "2025-06-18 14:10:00":
+            - generic: 2025-06-18 14:10:00
+        - row "fo_20250711_84621954 846219537 deposit EUR 1800.00 0.00 sepa_credit completed 2025-07-11 13:40:00 2025-07-11 17:50:00":
+          - cell:
+            - checkbox
+          - cell:
+            - button "在抽屉中查看该行完整详情":
+          - cell "fo_20250711_84621954":
+            - generic: fo_20250711_84621954
+          - cell "846219537":
+            - generic: "846219537"
+          - cell "deposit":
+            - generic: deposit
+          - cell "EUR":
+            - generic: EUR
+          - cell "1800.00":
+            - generic: "1800.00"
+          - cell "0.00":
+            - generic: "0.00"
+          - cell "sepa_credit":
+            - generic: sepa_credit
+          - cell "completed":
+            - generic: completed
+          - cell "2025-07-11 13:40:00":
+            - generic: 2025-07-11 13:40:00
+          - cell "2025-07-11 17:50:00":
+            - generic: 2025-07-11 17:50:00
+        - row "fo_20250720_61590240 615902374 deposit USD 10000.00 15.00 wire_transfer pending 2025-07-20 16:00:00 NULL":
+          - cell:
+            - checkbox
+          - cell:
+            - button "在抽屉中查看该行完整详情":
+          - cell "fo_20250720_61590240":
+            - generic: fo_20250720_61590240
+          - cell "615902374":
+            - generic: "615902374"
+          - cell "deposit":
+            - generic: deposit
+          - cell "USD":
+            - generic: USD
+          - cell "10000.00":
+            - generic: "10000.00"
+          - cell "15.00":
+            - generic: "15.00"
+          - cell "wire_transfer":
+            - generic: wire_transfer
+          - cell "pending":
+            - generic: pending
+          - cell "2025-07-20 16:00:00":
+            - generic: 2025-07-20 16:00:00
+          - cell "NULL":
+            - generic: "NULL"
+        - row "fo_20250810_52840621 528406193 withdrawal GBP 1200.00 1.00 faster_payments completed 2025-08-10 18:20:00 2025-08-10 18:24:00":
+          - cell:
+            - checkbox
+          - cell:
+            - button "在抽屉中查看该行完整详情":
+          - cell "fo_20250810_52840621":
+            - generic: fo_20250810_52840621
+          - cell "528406193":
+            - generic: "528406193"
+          - cell "withdrawal":
+            - generic: withdrawal
+          - cell "GBP":
+            - generic: GBP
+          - cell "1200.00":
+            - generic: "1200.00"
+          - cell "1.00":
+            - generic: "1.00"
+          - cell "faster_payments":
+            - generic: faster_payments
+          - cell "completed":
+            - generic: completed
+          - cell "2025-08-10 18:20:00":
+            - generic: 2025-08-10 18:20:00
+          - cell "2025-08-10 18:24:00":
+            - generic: 2025-08-10 18:24:00
+        - row "fo_20250901_31958204 319582046 deposit TRY 15000.00 0.00 papara completed 2025-09-01 10:00:00 2025-09-01 10:05:00":
+          - cell:
+            - checkbox
+          - cell:
+            - button "在抽屉中查看该行完整详情":
+          - cell "fo_20250901_31958204":
+            - generic: fo_20250901_31958204
+          - cell "319582046":
+            - generic: "319582046"
+          - cell "deposit":
+            - generic: deposit
+          - cell "TRY":
+            - generic: TRY
+          - cell "15000.00":
+            - generic: "15000.00"
+          - cell "0.00":
+            - generic: "0.00"
+          - cell "papara":
+            - generic: papara
+          - cell "completed":
+            - generic: completed
+          - cell "2025-09-01 10:00:00":
+            - generic: 2025-09-01 10:00:00
+          - cell "2025-09-01 10:05:00":
+            - generic: 2025-09-01 10:05:00
+        - row "fo_20250912_52840622 528406193 deposit GBP 500.00 0.00 faster_payments processing 2025-09-12 09:15:00 NULL":
+          - cell:
+            - checkbox
+          - cell:
+            - button "在抽屉中查看该行完整详情":
+          - cell "fo_20250912_52840622":
+            - generic: fo_20250912_52840622
+          - cell "528406193":
+            - generic: "528406193"
+          - cell "deposit":
+            - generic: deposit
+          - cell "GBP":
+            - generic: GBP
+          - cell "500.00":
+            - generic: "500.00"
+          - cell "0.00":
+            - generic: "0.00"
+          - cell "faster_payments":
+            - generic: faster_payments
+          - cell "processing":
+            - generic: processing
+          - cell "2025-09-12 09:15:00":
+            - generic: 2025-09-12 09:15:00
+          - cell "NULL":
+            - generic: "NULL"
+        - row "fo_20250915_69248131 692481305 withdrawal USD 10000.00 25.00 wire_transfer completed 2025-09-15 14:00:00 2025-09-15 17:30:00":
+          - cell:
+            - checkbox
+          - cell:
+            - button "在抽屉中查看该行完整详情":
+          - cell "fo_20250915_69248131":
+            - generic: fo_20250915_69248131
+          - cell "692481305":
+            - generic: "692481305"
+          - cell "withdrawal":
+            - generic: withdrawal
+          - cell "USD":
+            - generic: USD
+          - cell "10000.00":
+            - generic: "10000.00"
+          - cell "25.00":
+            - generic: "25.00"
+          - cell "wire_transfer":
+            - generic: wire_transfer
+          - cell "completed":
+            - generic: completed
+          - cell "2025-09-15 14:00:00":
+            - generic: 2025-09-15 14:00:00
+          - cell "2025-09-15 17:30:00":
+            - generic: 2025-09-15 17:30:00
+        - row "fo_20250920_50284719 502847193 withdrawal USD 800.00 2.00 ach completed 2025-09-20 16:45:00 2025-09-21 09:30:00":
+          - cell:
+            - checkbox
+          - cell:
+            - button "在抽屉中查看该行完整详情":
+          - cell "fo_20250920_50284719":
+            - generic: fo_20250920_50284719
+          - cell "502847193":
+            - generic: "502847193"
+          - cell "withdrawal":
+            - generic: withdrawal
+          - cell "USD":
+            - generic: USD
+          - cell "800.00":
+            - generic: "800.00"
+          - cell "2.00":
+            - generic: "2.00"
+          - cell "ach":
+            - generic: ach
+          - cell "completed":
+            - generic: completed
+          - cell "2025-09-20 16:45:00":
+            - generic: 2025-09-20 16:45:00
+          - cell "2025-09-21 09:30:00":
+            - generic: 2025-09-21 09:30:00
+        - row "fo_20251010_31958205 319582046 withdrawal TRY 6000.00 15.00 papara completed 2025-10-10 14:20:00 2025-10-10 14:25:00":
+          - cell:
+            - checkbox
+          - cell:
+            - button "在抽屉中查看该行完整详情":
+          - cell "fo_20251010_31958205":
+            - generic: fo_20251010_31958205
+          - cell "319582046":
+            - generic: "319582046"
+          - cell "withdrawal":
+            - generic: withdrawal
+          - cell "TRY":
+            - generic: TRY
+          - cell "6000.00":
+            - generic: "6000.00"
+          - cell "15.00":
+            - generic: "15.00"
+          - cell "papara":
+            - generic: papara
+          - cell "completed":
+            - generic: completed
+          - cell "2025-10-10 14:20:00":
+            - generic: 2025-10-10 14:20:00
+          - cell "2025-10-10 14:25:00":
+            - generic: 2025-10-10 14:25:00
+        - row "fo_20251025_50284720 502847193 withdrawal USD 20.00 1.00 ach completed 2025-10-25 11:00:00 2025-10-25 15:30:00":
+          - cell:
+            - checkbox
+          - cell:
+            - button "在抽屉中查看该行完整详情":
+          - cell "fo_20251025_50284720":
+            - generic: fo_20251025_50284720
+          - cell "502847193":
+            - generic: "502847193"
+          - cell "withdrawal":
+            - generic: withdrawal
+          - cell "USD":
+            - generic: USD
+          - cell "20.00":
+            - generic: "20.00"
+          - cell "1.00":
+            - generic: "1.00"
+          - cell "ach":
+            - generic: ach
+          - cell "completed":
+            - generic: completed
+          - cell "2025-10-25 11:00:00":
+            - generic: 2025-10-25 11:00:00
+          - cell "2025-10-25 15:30:00":
+            - generic: 2025-10-25 15:30:00
+    - generic: 共 25 条记录
+    - generic: "每页:"
+    - combobox:
+      - option "25"
+      - option "50" [selected]
+      - option "100"
+      - option "200"
+    - button "首页" [disabled]:
+    - button "上一页" [disabled]:
+      - text: 上一页
+    - generic: "页码:"
+    - spinbutton: "1"
+    - generic: / 1
+    - button "下一页" [disabled]:
+      - text: 下一页
+    - button "末页" [disabled]:
+- contentinfo:
+  - generic: DuckDB 1.33.1
+  - generic: "|"
+  - generic: sql_funds_flow [OPFS]
+  - generic: "|"
+  - generic: 持久化库
+  - generic: "|"
+  - generic: 13 张表
+  - generic: "|"
+  - generic: 13 个活动表
+  - generic: 引擎就绪
+  - generic: "|"
+  - generic: 20:24
+  - button "刷新运行时状态":

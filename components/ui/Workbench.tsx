@@ -3,7 +3,9 @@
  * Rules: monokai-* / CSS vars only; overlays via ModalShell / DrawerShell;
  * forms via FormInput / FormSelect / FormTextarea; body copy defaults to text-xs.
  */
-import React, { useEffect, useId, useRef } from 'react';
+import React, { useId, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import { useOverlayFocus } from './useOverlayFocus';
 import { LucideIcon, Loader2, Search, X, AlertCircle, CheckCircle2, Info, AlertTriangle } from 'lucide-react';
 
 const focusRing = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-monokai-accent/70 focus-visible:ring-offset-1 focus-visible:ring-offset-monokai-bg';
@@ -73,7 +75,7 @@ export const IconButton: React.FC<IconButtonProps> = ({
       type="button"
       aria-label={label}
       title={title || label}
-      className={`inline-flex min-h-8 shrink-0 items-center justify-center rounded-lg cursor-pointer transition-colors duration-150 ${sizeClass} ${toneClass} ${focusRing} ${className}`}
+      className={`inline-flex min-h-8 shrink-0 items-center justify-center rounded-lg cursor-pointer transition-all duration-150 active:scale-[0.95] disabled:opacity-50 disabled:cursor-not-allowed ${sizeClass} ${toneClass} ${focusRing} ${className}`}
       {...props}
     >
       <Icon className={iconSize} aria-hidden="true" />
@@ -102,18 +104,18 @@ export const ActionButton = React.forwardRef<HTMLButtonElement, ActionButtonProp
 }, ref) => {
   const variantClass =
     variant === 'primary'
-      ? 'bg-monokai-accent text-monokai-bg font-semibold hover:bg-monokai-accent-hover shadow-xs'
+      ? 'bg-monokai-accent text-monokai-bg font-semibold hover:bg-monokai-accent-hover active:brightness-95 shadow-xs'
       : variant === 'success'
-      ? 'bg-monokai-green/15 text-monokai-green font-semibold hover:bg-monokai-green/25'
+      ? 'bg-monokai-green/15 text-monokai-green font-semibold hover:bg-monokai-green/25 active:bg-monokai-green/30'
       : variant === 'warning'
-      ? 'bg-monokai-yellow/15 text-monokai-yellow font-semibold hover:bg-monokai-yellow/25'
+      ? 'bg-monokai-yellow/15 text-monokai-yellow font-semibold hover:bg-monokai-yellow/25 active:bg-monokai-yellow/30'
       : variant === 'danger'
-      ? 'bg-monokai-pink/15 text-monokai-pink font-semibold hover:bg-monokai-pink/25'
+      ? 'bg-monokai-pink/15 text-monokai-pink font-semibold hover:bg-monokai-pink/25 active:bg-monokai-pink/30'
       : variant === 'amethyst'
-      ? 'bg-monokai-amethyst/15 text-monokai-amethyst font-semibold hover:bg-monokai-amethyst/25'
+      ? 'bg-monokai-amethyst/15 text-monokai-amethyst font-semibold hover:bg-monokai-amethyst/25 active:bg-monokai-amethyst/30'
       : variant === 'ghost'
-      ? 'bg-transparent text-monokai-comment hover:text-monokai-fg hover:bg-monokai-surface/60'
-      : 'bg-monokai-surface text-monokai-fg font-medium hover:bg-monokai-hover';
+      ? 'bg-transparent text-monokai-comment hover:text-monokai-fg hover:bg-monokai-surface/60 active:bg-monokai-surface/80'
+      : 'bg-monokai-surface text-monokai-fg font-medium hover:bg-monokai-hover active:bg-monokai-elevated';
 
   const sizeClass =
     size === 'sm'
@@ -128,11 +130,11 @@ export const ActionButton = React.forwardRef<HTMLButtonElement, ActionButtonProp
       type="button"
       disabled={disabled || loading}
       aria-busy={loading || undefined}
-      className={`inline-flex shrink-0 items-center justify-center font-sans cursor-pointer transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed ${sizeClass} ${variantClass} ${focusRing} ${className}`}
+      className={`inline-flex shrink-0 items-center justify-center font-sans cursor-pointer transition-all duration-150 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed ${sizeClass} ${variantClass} ${focusRing} ${className}`}
       {...props}
     >
       {loading ? <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden="true" /> : Icon && iconPosition === 'left' && <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />}
-      <span>{children}</span>
+      <span className="inline-flex min-w-0 items-center justify-center gap-[inherit]">{children}</span>
       {!loading && Icon && iconPosition === 'right' && <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />}
     </button>
   );
@@ -214,7 +216,7 @@ export function SegmentedTabs<T extends string>({
   return (
     <div
       role="tablist"
-      className={`inline-flex shrink-0 items-center gap-0.5 rounded-lg bg-gradient-to-b from-monokai-sidebar/85 to-monokai-sidebar/70 font-sans border border-monokai-border/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] ${containerClass} ${className}`}
+      className={`inline-flex min-w-0 max-w-full shrink-0 overflow-x-auto items-center gap-0.5 rounded-lg bg-gradient-to-b from-monokai-sidebar/85 to-monokai-sidebar/70 font-sans border border-monokai-border/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] ${containerClass} ${className}`}
       {...props}
     >
       {items.map((item, index) => {
@@ -242,7 +244,7 @@ export function SegmentedTabs<T extends string>({
               const buttons = event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="tab"]');
               buttons?.[targetIndex]?.focus();
             }}
-            className={`group relative inline-flex items-center gap-1 rounded-md font-medium cursor-pointer transition-all duration-150 select-none ${itemClass} ${focusRing} ${
+            className={`group relative inline-flex shrink-0 items-center gap-1 rounded-md font-medium cursor-pointer transition-all duration-150 select-none ${itemClass} ${focusRing} ${
               active
                 ? `bg-gradient-to-b from-monokai-surface to-monokai-surface/90 text-monokai-fg shadow-sm font-semibold border border-monokai-border/60`
                 : 'text-monokai-comment/80 hover:bg-monokai-surface/50 hover:text-monokai-fg border border-transparent'
@@ -260,7 +262,7 @@ export function SegmentedTabs<T extends string>({
                 aria-hidden="true"
               />
             )}
-            <span className="tracking-tight">{item.label}</span>
+            <span className="whitespace-nowrap tracking-tight">{item.label}</span>
             {item.badge !== undefined && (
               <span
                 className={`ml-0.5 rounded px-1 py-0.2 text-[9px] font-mono font-bold ${
@@ -296,19 +298,20 @@ export const SearchInput: React.FC<SearchInputProps> = ({
   const heightClass = size === 'sm' ? 'h-8 text-xs' : 'h-9 text-xs';
 
   return (
-    <div className={`relative flex items-center min-w-[150px] max-w-sm ${className}`}>
+    <div className={`relative flex items-center min-w-0 w-full max-w-sm ${className}`}>
       <Search className="absolute left-3 h-4 w-4 text-monokai-comment pointer-events-none" aria-hidden="true" />
       <input
         type="text"
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
-        className={`w-full pl-9 pr-8 rounded-lg bg-monokai-surface text-monokai-fg placeholder-monokai-comment/60 font-sans transition-all focus:outline-none focus:ring-1 focus:ring-monokai-accent ${heightClass}`}
+        className={`w-full pl-9 pr-8 rounded-lg bg-monokai-surface text-monokai-fg placeholder-monokai-comment/60 font-sans border border-monokai-border/80 hover:border-monokai-border-strong disabled:opacity-50 disabled:cursor-not-allowed transition-all focus:outline-none focus:ring-1 focus:ring-monokai-accent ${heightClass}`}
         {...props}
       />
       {value && (
         <button
           type="button"
+          disabled={props.disabled}
           onClick={() => {
             onChange('');
             if (onClear) onClear();
@@ -381,7 +384,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
 
   return (
     <header
-      className={`relative flex min-h-16 shrink-0 items-center justify-between gap-4 border-b border-monokai-border bg-monokai-sidebar px-5 sm:px-6 py-3 font-sans select-none z-10 ${
+      className={`relative flex flex-wrap min-h-16 shrink-0 items-center justify-between gap-4 border-b border-monokai-border bg-monokai-sidebar px-5 sm:px-6 py-3 font-sans select-none z-10 ${
         sticky ? 'sticky top-0' : ''
       } ${className}`}
       {...props}
@@ -402,7 +405,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
           {description && <p className="hidden sm:block truncate text-xs text-monokai-comment/85 mt-0.5 leading-tight">{description}</p>}
         </div>
       </div>
-      <div className="flex shrink-0 items-center gap-2.5">{actions || children}</div>
+      <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2.5">{actions || children}</div>
     </header>
   );
 };
@@ -428,7 +431,7 @@ export const PanelHeader: React.FC<PanelHeaderProps> = ({
   const toneStyle = getToneStyles(tone);
 
   return (
-    <div className={`flex min-h-12 items-center justify-between gap-4 border-b border-monokai-border bg-monokai-surface px-4 py-2 font-sans ${className}`} {...props}>
+    <div className={`flex flex-wrap min-h-12 items-center justify-between gap-4 border-b border-monokai-border bg-monokai-surface px-4 py-2 font-sans ${className}`} {...props}>
       <div className="flex items-center gap-3 min-w-0">
         {Icon && (
           <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${toneStyle.boxClass}`}>
@@ -440,7 +443,7 @@ export const PanelHeader: React.FC<PanelHeaderProps> = ({
           {description && <p className="mt-0.5 truncate text-xs text-monokai-comment">{description}</p>}
         </div>
       </div>
-      {(actions || children) && <div className="flex shrink-0 items-center gap-2">{actions || children}</div>}
+      {(actions || children) && <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">{actions || children}</div>}
     </div>
   );
 };
@@ -614,60 +617,11 @@ export const ModalShell: React.FC<ModalShellProps> = ({
 }) => {
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
-  const previousFocusRef = useRef<HTMLElement | null>(null);
-  const closeRef = useRef(onClose);
-  closeRef.current = onClose;
-
-  useEffect(() => {
-    if (!open) return undefined;
-    previousFocusRef.current = document.activeElement as HTMLElement | null;
-    const panel = panelRef.current;
-    if (autoFocus !== false) {
-      const autoFocusTarget = panel?.querySelector<HTMLElement>('[autofocus]');
-      if (autoFocusTarget) {
-        autoFocusTarget.focus();
-      } else {
-        const firstInput = panel?.querySelector<HTMLElement>('input:not([disabled]), textarea:not([disabled])');
-        (firstInput || panel?.querySelector<HTMLElement>('button:not([disabled])') || panel)?.focus();
-      }
-    }
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        closeRef.current();
-        return;
-      }
-      if (event.key !== 'Tab' || !panel) return;
-      const items = Array.from(panel.querySelectorAll<HTMLElement>('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'));
-      if (items.length === 0) {
-        event.preventDefault();
-        panel.focus();
-        return;
-      }
-      const first = items[0];
-      const last = items[items.length - 1];
-      if (!panel.contains(document.activeElement)) {
-        event.preventDefault();
-        first.focus();
-      } else if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      previousFocusRef.current?.focus();
-    };
-  }, [open, autoFocus]);
+  useOverlayFocus(open, panelRef, onClose, autoFocus);
 
   if (!open) return null;
 
-  return (
+  return createPortal(
     <div className={`fixed inset-0 ${zIndex} flex items-center justify-center bg-black/65 p-4`} onMouseDown={event => {
       if (event.target === event.currentTarget) onClose();
     }}>
@@ -708,7 +662,7 @@ export const ModalShell: React.FC<ModalShellProps> = ({
         <div className="min-h-0 flex-1 overflow-y-auto p-5 custom-scrollbar">{children}</div>
         {footer && <footer className="flex flex-wrap min-h-14 shrink-0 items-center justify-end gap-2 border-t border-monokai-border/80 bg-monokai-surface px-5 py-3">{footer}</footer>}
       </div>
-    </div>
+    </div>, document.body
   );
 };
 
@@ -727,8 +681,8 @@ export const FormInput = React.forwardRef<HTMLInputElement, FormInputProps>(({
 }, ref) => {
   const toneClasses =
     tone === 'danger'
-      ? 'border-monokai-pink/60 focus:border-monokai-pink focus:ring-monokai-pink/30 text-monokai-pink'
-      : 'border-monokai-border/80 focus:border-monokai-accent focus:ring-monokai-accent/30 text-monokai-fg';
+      ? 'border-monokai-pink/60 hover:border-monokai-pink focus:border-monokai-pink focus:ring-monokai-pink/30 text-monokai-pink'
+      : 'border-monokai-border/80 hover:border-monokai-border-strong focus:border-monokai-accent focus:ring-monokai-accent/30 text-monokai-fg';
 
   const sizeClasses =
     sizeVariant === 'sm'
@@ -742,7 +696,7 @@ export const FormInput = React.forwardRef<HTMLInputElement, FormInputProps>(({
   return (
     <input
       ref={ref}
-      className={`w-full rounded-lg bg-monokai-surface placeholder-monokai-comment/60 border transition-all focus:outline-none focus:ring-2 ${fontClasses} ${sizeClasses} ${toneClasses} ${className}`}
+      className={`w-full rounded-lg bg-monokai-surface placeholder-monokai-comment/60 border transition-all disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 ${fontClasses} ${sizeClasses} ${toneClasses} ${className}`}
       {...props}
     />
   );
@@ -769,7 +723,7 @@ export const FormSelect = React.forwardRef<HTMLSelectElement, FormSelectProps>((
   return (
     <select
       ref={ref}
-      className={`w-full rounded-lg border border-monokai-border/80 bg-monokai-surface text-monokai-fg font-sans transition-all focus:outline-none focus:ring-2 focus:border-monokai-accent focus:ring-monokai-accent/30 disabled:opacity-50 disabled:cursor-not-allowed ${sizeClasses} ${className}`}
+      className={`w-full rounded-lg border border-monokai-border/80 hover:border-monokai-border-strong bg-monokai-surface text-monokai-fg font-sans transition-all focus:outline-none focus:ring-2 focus:border-monokai-accent focus:ring-monokai-accent/30 disabled:opacity-50 disabled:cursor-not-allowed ${sizeClasses} ${className}`}
       {...props}
     >
       {children}
@@ -793,8 +747,8 @@ export const FormTextarea = React.forwardRef<HTMLTextAreaElement, FormTextareaPr
 }, ref) => {
   const toneClasses =
     tone === 'danger'
-      ? 'border-monokai-pink/60 focus:border-monokai-pink focus:ring-monokai-pink/30 text-monokai-pink'
-      : 'border-monokai-border/80 focus:border-monokai-accent focus:ring-monokai-accent/30 text-monokai-fg';
+      ? 'border-monokai-pink/60 hover:border-monokai-pink focus:border-monokai-pink focus:ring-monokai-pink/30 text-monokai-pink'
+      : 'border-monokai-border/80 hover:border-monokai-border-strong focus:border-monokai-accent focus:ring-monokai-accent/30 text-monokai-fg';
 
   const sizeClasses =
     sizeVariant === 'sm'
@@ -808,7 +762,7 @@ export const FormTextarea = React.forwardRef<HTMLTextAreaElement, FormTextareaPr
   return (
     <textarea
       ref={ref}
-      className={`w-full rounded-lg bg-monokai-surface placeholder-monokai-comment/60 border transition-all focus:outline-none focus:ring-2 resize-y ${fontClasses} ${sizeClasses} ${toneClasses} ${className}`}
+      className={`w-full rounded-lg bg-monokai-surface placeholder-monokai-comment/60 border transition-all disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 resize-y ${fontClasses} ${sizeClasses} ${toneClasses} ${className}`}
       {...props}
     />
   );
@@ -870,55 +824,7 @@ export const DrawerShell: React.FC<DrawerShellProps> = ({
 }) => {
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
-  const previousFocusRef = useRef<HTMLElement | null>(null);
-  const closeRef = useRef(onClose);
-  closeRef.current = onClose;
-
-  useEffect(() => {
-    if (!open) return undefined;
-    previousFocusRef.current = document.activeElement as HTMLElement | null;
-    const panel = panelRef.current;
-    const firstFocusable = panel?.querySelector<HTMLElement>(
-      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-    );
-    (firstFocusable || panel)?.focus();
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        closeRef.current();
-        return;
-      }
-      if (event.key !== 'Tab' || !panel) return;
-      const items = Array.from(
-        panel.querySelectorAll<HTMLElement>(
-          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-        ),
-      );
-      if (items.length === 0) {
-        event.preventDefault();
-        panel.focus();
-        return;
-      }
-      const first = items[0];
-      const last = items[items.length - 1];
-      if (!panel.contains(document.activeElement)) {
-        event.preventDefault();
-        first.focus();
-      } else if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      previousFocusRef.current?.focus();
-    };
-  }, [open]);
+  useOverlayFocus(open, panelRef, onClose);
 
   if (!open) return null;
 
@@ -931,7 +837,7 @@ export const DrawerShell: React.FC<DrawerShellProps> = ({
 
   const flexDirection = side === 'bottom' ? 'flex-col' : 'flex-col';
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-[9999] flex bg-black/65"
       onMouseDown={event => {
@@ -971,7 +877,7 @@ export const DrawerShell: React.FC<DrawerShellProps> = ({
           </footer>
         )}
       </div>
-    </div>
+    </div>, document.body
   );
 };
 

@@ -1,0 +1,131 @@
+- generic [ref=f5e3]:
+  - banner "全局工作区顶栏" [ref=f5e4]:
+    - generic [ref=f5e5]:
+      - button "🪶 DuckDB Studio PRO" [ref=f5e6] [cursor=pointer]:
+        - generic [ref=f5e7]: 🪶
+        - generic [ref=f5e9]:
+          - generic [ref=f5e10]: DuckDB Studio
+          - generic [ref=f5e11]: PRO
+      - navigation "业务领域大类" [ref=f5e13]:
+        - button "工程核心" [ref=f5e14] [cursor=pointer]
+        - button "分析洞察" [ref=f5e20] [cursor=pointer]
+        - button "知识沉淀" [ref=f5e25] [cursor=pointer]
+        - button "AI 认知" [ref=f5e30] [cursor=pointer]
+      - tablist "工程核心功能标签页" [ref=f5e36]:
+        - tab "仪表盘" [active] [selected] [ref=f5e37] [cursor=pointer]
+        - tab "数据" [ref=f5e43] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f5e2283]: "2"
+        - tab "Schema" [ref=f5e49] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f5e54]: "3"
+        - tab "SQL" [ref=f5e55] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f5e60]: "4"
+        - tab "数据流" [ref=f5e61] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f5e66]: "5"
+    - generic [ref=f5e67]:
+      - button "项目" [ref=f5e68] [cursor=pointer]
+      - button "duckdb_manager_workspace 已保存到 OPFS" [ref=f5e73] [cursor=pointer]:
+        - generic [ref=f5e76]: duckdb_manager_workspace
+        - generic [ref=f5e78]: 已保存到 OPFS
+      - button "AI 助手 Ctrl+I" [ref=f5e82] [cursor=pointer]:
+        - generic [ref=f5e85]: AI 助手
+        - generic [ref=f5e86]: Ctrl+I
+      - button "⌘K" [ref=f5e87] [cursor=pointer]
+      - button "帮助与快捷键" [ref=f5e91] [cursor=pointer]
+      - button "切换为浅色模式" [ref=f5e94] [cursor=pointer]
+      - button "AI 模型设置" [ref=f5e95] [cursor=pointer]
+  - main [ref=f5e98]:
+    - generic [ref=f5e99]:
+      - generic [ref=f5e2285]:
+        - generic [ref=f5e2286]:
+          - generic [ref=f5e2287]:
+            - generic [ref=f5e2288]:
+              - heading "分析范围" [level=1] [ref=f5e2289]
+              - generic [ref=f5e2290]: /
+              - button "持久库 · duckdb_manager_workspace" [ref=f5e2291] [cursor=pointer]
+            - paragraph [ref=f5e2293]: 8 个数据集 · 136 行 · 数据规模未应用筛选
+          - generic [ref=f5e2294]:
+            - button "导入数据" [ref=f5e2295] [cursor=pointer]
+            - button "刷新" [ref=f5e2297] [cursor=pointer]
+        - generic [ref=f5e2298]:
+          - generic [ref=f5e2300]:
+            - generic [ref=f5e2301]:
+              - text: 工作台
+              - combobox "工作台视图" [ref=f5e2302]:
+                - option "分析首页" [selected]
+            - button "添加分析" [ref=f5e2303] [cursor=pointer]
+            - button "新建查询" [ref=f5e2305] [cursor=pointer]
+            - generic [ref=f5e2306]:
+              - text: 数据集
+              - combobox "浏览数据集" [ref=f5e2307]:
+                - option "选择数据集" [selected]
+                - option "duckdb_manager_workspace.main.baseline_crypto_transactions"
+                - option "duckdb_manager_workspace.main.baseline_crypto_transactions_lab_baseline"
+                - option "duckdb_manager_workspace.main.baseline_exchange_rates"
+                - option "duckdb_manager_workspace.main.baseline_exchange_rates_lab_baseline"
+                - option "duckdb_manager_workspace.main.baseline_fiat_transactions"
+                - option "duckdb_manager_workspace.main.baseline_fiat_transactions_lab_baseline"
+                - option "duckdb_manager_workspace.main.baseline_users"
+                - option "duckdb_manager_workspace.main.baseline_users_lab_baseline"
+            - button "筛选" [ref=f5e2309] [cursor=pointer]
+            - button "视图设置" [ref=f5e2311] [cursor=pointer]
+          - generic [ref=f5e2313]: 尚未添加分析
+          - generic [ref=f5e2315]:
+            - heading "开始分析" [level=2] [ref=f5e2316]
+            - generic [ref=f5e2317]:
+              - button "duckdb_manager_workspace.main.baseline_crypto_transactions" [ref=f5e2318] [cursor=pointer]
+              - button "duckdb_manager_workspace.main.baseline_crypto_transactions_lab_baseline" [ref=f5e2319] [cursor=pointer]
+              - button "duckdb_manager_workspace.main.baseline_exchange_rates" [ref=f5e2320] [cursor=pointer]
+              - button "duckdb_manager_workspace.main.baseline_exchange_rates_lab_baseline" [ref=f5e2321] [cursor=pointer]
+              - button "duckdb_manager_workspace.main.baseline_fiat_transactions" [ref=f5e2322] [cursor=pointer]
+              - button "duckdb_manager_workspace.main.baseline_fiat_transactions_lab_baseline" [ref=f5e2323] [cursor=pointer]
+              - button "duckdb_manager_workspace.main.baseline_users" [ref=f5e2324] [cursor=pointer]
+              - button "duckdb_manager_workspace.main.baseline_users_lab_baseline" [ref=f5e2325] [cursor=pointer]
+        - navigation "数据状态与详情" [ref=f5e2326]:
+          - button "管理数据" [ref=f5e2327] [cursor=pointer]
+          - button "查看 Schema" [ref=f5e2328] [cursor=pointer]
+          - button "查看数据检查" [ref=f5e2329] [cursor=pointer]
+      - complementary "AI Copilot 侧边栏" [ref=f5e117]:
+        - generic "拖拽调整侧边栏宽度" [ref=f5e118]
+        - generic [ref=f5e119]:
+          - generic [ref=f5e120]:
+            - generic [ref=f5e121]: AI Copilot
+            - button "Gemini 2.0 Flash" [ref=f5e123] [cursor=pointer]
+          - generic [ref=f5e125]:
+            - button "会话历史" [ref=f5e126] [cursor=pointer]:
+              - generic [ref=f5e127]: "2"
+            - button "新建会话" [ref=f5e128] [cursor=pointer]
+            - button "清空会话历史" [ref=f5e129] [cursor=pointer]
+            - button "收起侧边栏" [ref=f5e130] [cursor=pointer]
+        - generic [ref=f5e132]:
+          - generic [ref=f5e133]: 仪表盘
+          - generic [ref=f5e134]: ·
+          - button "选择关注的数据表" [ref=f5e136] [cursor=pointer]:
+            - generic [ref=f5e137]: baseline_crypto_transactions
+            - generic [ref=f5e2330]: "1"
+        - generic [ref=f5e139]:
+          - paragraph [ref=f5e140]: 有什么想查的？
+          - paragraph [ref=f5e141]: 可围绕 baseline_crypto_transactions 提问、生成 SQL 或做数据探查。
+        - generic [ref=f5e143]:
+          - button "生成探索问题" [ref=f5e144] [cursor=pointer]
+          - generic [ref=f5e2331]: 基于 baseline_crypto_transactions
+        - generic [ref=f5e147]:
+          - textbox "提问、生成 SQL 或分析数据…" [ref=f5e148]
+          - button "发送" [disabled] [ref=f5e150]
+  - contentinfo [ref=f5e152]:
+    - generic [ref=f5e153]:
+      - generic [ref=f5e154]: DuckDB 1.33.1
+      - generic [ref=f5e157]: "|"
+      - generic [ref=f5e158]: duckdb_manager_workspace [OPFS]
+      - generic [ref=f5e160]: "|"
+      - generic [ref=f5e161]: 持久化库
+      - generic [ref=f5e163]: "|"
+      - generic [ref=f5e164]: 8 张表
+      - generic [ref=f5e166]: "|"
+      - generic [ref=f5e167]: 8 个活动表
+      - generic [ref=f5e169]: "|"
+      - generic [ref=f5e170]: "内存: 0.25 MB / 3.1 GiB"
+    - generic [ref=f5e172]:
+      - generic [ref=f5e173]: 引擎就绪
+      - generic [ref=f5e177]: "|"
+      - generic [ref=f5e178]: 08:24
+      - button "刷新运行时状态" [ref=f5e179] [cursor=pointer]

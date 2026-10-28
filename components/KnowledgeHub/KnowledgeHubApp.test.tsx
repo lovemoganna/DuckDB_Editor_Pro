@@ -15,6 +15,22 @@ describe('KnowledgeHubApp', () => {
     vi.clearAllMocks();
   });
 
+  it('opens narrow navigation without changing the desktop collapse preference', async () => {
+    const previous = window.matchMedia;
+    Object.defineProperty(window, 'matchMedia', {configurable:true,writable:true,value:vi.fn(() => ({matches:true,addEventListener:vi.fn(),removeEventListener:vi.fn()}))});
+    localStorage.setItem('duckdb_knowledge_hub_sidebar_collapsed', 'false');
+    const view = render(<KnowledgeHubApp />);
+    try {
+      const expand = await screen.findByRole('button', {name:'展开知识文献库侧边栏'});
+      expect(screen.queryByText('知识文献库')).toBeNull();
+      fireEvent.click(expand);
+      expect(await screen.findByText('知识文献库')).toBeInTheDocument();
+      fireEvent.keyDown(window, {ctrlKey:true,key:'b'});
+      expect(screen.queryByText('知识文献库')).toBeNull();
+      expect(localStorage.getItem('duckdb_knowledge_hub_sidebar_collapsed')).toBe('false');
+    } finally {view.unmount(); window.matchMedia = previous;}
+  });
+
   it('renders two-column layout with seed assets loaded in topic tree', async () => {
     render(<KnowledgeHubApp />);
 

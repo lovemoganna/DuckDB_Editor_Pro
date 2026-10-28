@@ -29,7 +29,7 @@ import {
 // ==================== 样式常量 (与知识图谱控制面板严格一致) ====================
 
 const SURFACE =
-  'bg-[#1e1f1c]/95 border border-monokai-border/80 rounded-xl shadow-[0_16px_48px_-12px_rgba(0,0,0,0.85)] backdrop-blur-xl text-monokai-fg font-sans';
+  'bg-monokai-sidebar/95 border border-monokai-border/80 rounded-xl shadow-[0_16px_48px_-12px_rgba(0,0,0,0.85)] backdrop-blur-xl text-monokai-fg font-sans';
 const GROUP_CARD =
   'rounded-lg border border-monokai-border/60 bg-monokai-bg/50 p-2.5 flex flex-col gap-2';
 const SECTION_LABEL =
@@ -459,7 +459,7 @@ export const OntologyLayoutPanel: React.FC<OntologyLayoutPanelProps> = ({
         className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-semibold shadow-xl backdrop-blur-md transition-all select-none group ${
           isOpen
             ? 'bg-monokai-surface border-monokai-cyan text-monokai-fg shadow-[0_0_15px_rgba(102,217,239,0.2)]'
-            : 'bg-[#1e1f1c]/90 border-monokai-border text-monokai-comment hover:text-monokai-fg hover:border-monokai-cyan/60 hover:bg-monokai-surface/80'
+            : 'bg-monokai-sidebar/90 border-monokai-border text-monokai-comment hover:text-monokai-fg hover:border-monokai-cyan/60 hover:bg-monokai-surface/80'
         }`}
         title="调整画布排版设置与视觉交互"
         aria-label="排版微调"

@@ -26,7 +26,7 @@ export const PresetTemplateModal: React.FC<PresetTemplateModalProps> = ({
     : PRESET_RULE_TEMPLATES.filter(t => t.category === selectedCategory);
 
   return (
-    <div role="dialog" aria-modal="true" aria-label="特征组合典型示例模板库" tabIndex={-1} autoFocus onKeyDown={(event) => { if (event.key === 'Escape') onClose(); }} className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-2 sm:p-4 animate-in fade-in duration-200">
+    <div role="dialog" aria-modal="true" aria-label="特征组合典型示例模板库" tabIndex={-1} autoFocus onKeyDown={(event) => { if (event.key === 'Escape') onClose(); }} className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm p-2 sm:p-4 animate-in fade-in duration-200">
       <div className="preset-template-modal flex h-[85vh] w-full max-w-4xl flex-col overflow-hidden rounded-lg border border-monokai-border bg-monokai-elevated shadow-2xl">
         
         {/* Modal Header */}

@@ -5,7 +5,8 @@
  * Prefer Workbench primitives (ActionButton, ModalShell, DrawerShell, FormInput,
  * EmptyState, WorkbenchLoadingState) over ad-hoc Tailwind overlays.
  *
- * Product is dark-only (Monokai). Do not invent a parallel light palette.
+ * Dark and light modes share Monokai semantic tokens; uiTheme owns the theme.
+ * Filled controls use --monokai-on-accent for readable labels in both themes.
  *
  * CTA rule: primary = monokai-accent (green). Orange = warning / highlight only.
  * Module `*Ui` kits must compose these rules — never redefine a competing primary.
@@ -112,7 +113,7 @@ export const MODULE_SECTIONS = {
 export const EMPTY_STATE_MESSAGES = {
   DATA: {
     title: '未选择数据表',
-    description: '在左侧边栏单击选择一张已有数据表以进行流式浏览，或使用下方快捷动作快速开始分析。',
+    description: '请从下方快捷列表选择一张已有数据表以进行流式浏览与画像分析，或使用下方动作快速开始。',
   },
   SCHEMA: {
     title: '未选择数据表',

@@ -1,0 +1,138 @@
+[
+  {
+    "group": "工程核心",
+    "name": "仪表盘",
+    "file": "light-1440-仪表盘",
+    "alerts": [],
+    "scrollWidth": 1440,
+    "width": 1440
+  },
+  {
+    "group": "工程核心",
+    "name": "数据",
+    "file": "light-1440-数据",
+    "alerts": [],
+    "scrollWidth": 1440,
+    "width": 1440
+  },
+  {
+    "group": "工程核心",
+    "name": "Schema",
+    "file": "light-1440-Schema",
+    "alerts": [],
+    "scrollWidth": 1440,
+    "width": 1440
+  },
+  {
+    "group": "工程核心",
+    "name": "SQL",
+    "file": "light-1440-SQL",
+    "alerts": [],
+    "scrollWidth": 1440,
+    "width": 1440
+  },
+  {
+    "group": "工程核心",
+    "name": "数据流",
+    "file": "light-1440-数据流",
+    "alerts": [],
+    "scrollWidth": 1440,
+    "width": 1440
+  },
+  {
+    "group": "分析洞察",
+    "name": "指标",
+    "file": "light-1440-指标",
+    "alerts": [],
+    "scrollWidth": 1440,
+    "width": 1440
+  },
+  {
+    "group": "分析洞察",
+    "name": "可视化",
+    "file": "light-1440-可视化",
+    "alerts": [],
+    "scrollWidth": 1440,
+    "width": 1440
+  },
+  {
+    "group": "分析洞察",
+    "name": "分析",
+    "file": "light-1440-分析",
+    "alerts": [],
+    "scrollWidth": 1440,
+    "width": 1440
+  },
+  {
+    "group": "分析洞察",
+    "name": "历史",
+    "file": "light-1440-历史",
+    "alerts": [],
+    "scrollWidth": 1440,
+    "width": 1440
+  },
+  {
+    "group": "分析洞察",
+    "name": "审计",
+    "file": "light-1440-审计",
+    "alerts": [],
+    "scrollWidth": 1440,
+    "width": 1440
+  },
+  {
+    "group": "知识沉淀",
+    "name": "知识资产",
+    "file": "light-1440-知识资产",
+    "alerts": [],
+    "scrollWidth": 1440,
+    "width": 1440
+  },
+  {
+    "group": "知识沉淀",
+    "name": "插件",
+    "file": "light-1440-插件",
+    "alerts": [],
+    "scrollWidth": 1440,
+    "width": 1440
+  },
+  {
+    "group": "知识沉淀",
+    "name": "知识联动",
+    "file": "light-1440-知识联动",
+    "alerts": [],
+    "scrollWidth": 1440,
+    "width": 1440
+  },
+  {
+    "group": "AI 认知",
+    "name": "本体图谱",
+    "file": "light-1440-本体图谱",
+    "alerts": [],
+    "scrollWidth": 1440,
+    "width": 1440
+  },
+  {
+    "group": "AI 认知",
+    "name": "技能",
+    "file": "light-1440-技能",
+    "alerts": [],
+    "scrollWidth": 1440,
+    "width": 1440
+  },
+  {
+    "group": "AI 认知",
+    "name": "能力",
+    "file": "light-1440-能力",
+    "alerts": [],
+    "scrollWidth": 1440,
+    "width": 1440
+  },
+  {
+    "group": "AI 认知",
+    "name": "推演",
+    "file": "light-1440-推演",
+    "alerts": [],
+    "scrollWidth": 1440,
+    "width": 1440
+  }
+]

@@ -40,8 +40,8 @@ describe('Interaction & Real Data Link Verification', () => {
         const tableNames = Object.keys(mockTableData);
         return toDuckResult(tableNames.map(name => ({ table_name: name, name })));
       }
-      if (sql.includes('PRAGMA table_info')) {
-        const match = sql.match(/PRAGMA table_info\('([^']+)'\)/);
+      if (sql.includes('PRAGMA table_info') || sql.includes('pragma_table_info')) {
+        const match = sql.match(/(?:PRAGMA table_info|pragma_table_info)\('([^']+)'\)/);
         const tableName = match ? match[1] : '';
         const table = mockTableData[tableName];
         return toDuckResult(table ? table.schema : []);

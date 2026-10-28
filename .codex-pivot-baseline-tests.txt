@@ -1,0 +1,12 @@
+Already up to date
+Done in 354ms using pnpm v11.13.0
+$ vitest run --pool=threads --maxWorkers=1 --no-file-parallelism "components/AnalysisHub/AnalysisHub.test.tsx" "hooks/store/useAnalysisWorkspace.test.ts" "components/charts/PivotTableView.test.tsx"
+
+ RUN  v4.1.10 C:/Users/luoyu/Desktop/Duckdb_Manager/duckdb-editor
+
+
+ Test Files  3 passed (3)
+      Tests  14 passed (14)
+   Start at  11:51:01
+   Duration  8.74s (transform 3.29s, setup 337ms, import 5.19s, tests 303ms, environment 2.43s)
+

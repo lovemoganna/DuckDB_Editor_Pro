@@ -13,7 +13,6 @@ import {
   type KpiTooltipData,
 } from './KpiDynamicMiniCharts';
 import { MissionControlKpis } from './MissionControl/MissionControlKpis';
-import { DashboardKpiRow } from './DashboardKpiRow';
 import { PerformanceTrendStrip } from './MissionControl/PerformanceTrendStrip';
 import { SystemHealthGauges } from './MissionControl/SystemHealthGauges';
 
@@ -205,7 +204,7 @@ describe('KpiDynamicMiniCharts & Dynamic Tooltips Suite', () => {
   });
 });
 
-describe('MissionControlKpis & DashboardKpiRow Integration', () => {
+describe('MissionControlKpis & Telemetry Integration', () => {
   const mockMetrics: any = {
     databaseName: 'duckdb_managed',
     databaseCount: 1,
@@ -228,38 +227,20 @@ describe('MissionControlKpis & DashboardKpiRow Integration', () => {
     memoryUsageFormatted: '8.1 MiB',
   };
 
-  it('renders MissionControlKpis with high contrast values and mini charts', () => {
+  it('renders MissionControlKpis with compact metric strip', () => {
     render(<MissionControlKpis metrics={mockMetrics} tables={[]} allHistoryItems={[]} />);
 
-    expect(screen.getByText('数据表')).toBeInTheDocument();
+    expect(screen.getByTestId('studio-metric-strip')).toBeInTheDocument();
+    expect(screen.getByText('表')).toBeInTheDocument();
     expect(screen.getByText('12')).toBeInTheDocument();
-    expect(screen.getByText('总行数')).toBeInTheDocument();
+    expect(screen.getByText('行数')).toBeInTheDocument();
     expect(screen.getByText('29')).toBeInTheDocument();
-    expect(screen.getByText('查询次数')).toBeInTheDocument();
+    expect(screen.getByText('查询')).toBeInTheDocument();
     expect(screen.getByText('8')).toBeInTheDocument();
-    expect(screen.getByText('平均查询时间')).toBeInTheDocument();
-    expect(screen.getByText('29 ms')).toBeInTheDocument();
-    expect(screen.getByText('活跃会话')).toBeInTheDocument();
-    expect(screen.getByText('1')).toBeInTheDocument();
-    expect(screen.getByText('内存使用')).toBeInTheDocument();
+    expect(screen.getByText('内存')).toBeInTheDocument();
     expect(screen.getByText('8.1 MiB')).toBeInTheDocument();
-  });
-
-  it('renders DashboardKpiRow with unified card background and mini charts', () => {
-    render(<DashboardKpiRow metrics={mockMetrics} tables={[]} allHistoryItems={[]} />);
-
-    expect(screen.getByText('数据库大小')).toBeInTheDocument();
-    expect(screen.getByText('14.1 KB')).toBeInTheDocument();
-    expect(screen.getByText('总行数')).toBeInTheDocument();
-    expect(screen.getByText('29')).toBeInTheDocument();
-    expect(screen.getByText('查询次数')).toBeInTheDocument();
-    expect(screen.getByText('8')).toBeInTheDocument();
-    expect(screen.getByText('平均查询时间')).toBeInTheDocument();
-    expect(screen.getByText('29 ms')).toBeInTheDocument();
-    expect(screen.getByText('活跃会话')).toBeInTheDocument();
-    expect(screen.getByText('1')).toBeInTheDocument();
-    expect(screen.getByText('内存使用')).toBeInTheDocument();
-    expect(screen.getByText('8.1 MiB')).toBeInTheDocument();
+    expect(screen.queryByText('平均查询时间')).not.toBeInTheDocument();
+    expect(screen.queryByText('活跃会话')).not.toBeInTheDocument();
   });
 
   it('renders honest zero-state indicator when no tables exist', () => {
@@ -291,7 +272,8 @@ describe('MissionControlKpis & DashboardKpiRow Integration', () => {
     expect(screen.getByText('查询次数')).toBeInTheDocument();
     expect(screen.getByText('平均查询时间')).toBeInTheDocument();
     expect(screen.getByText('内存使用')).toBeInTheDocument();
-    expect(screen.getByText('数据量增长')).toBeInTheDocument();
+    expect(screen.getByText('成功导入累计行数')).toBeInTheDocument();
+    expect(screen.getByText('当前采样 · 无历史曲线')).toBeInTheDocument();
   });
 
   it('renders SystemHealthGauges with live telemetry circular gauges', () => {
@@ -302,7 +284,7 @@ describe('MissionControlKpis & DashboardKpiRow Integration', () => {
     );
 
     expect(screen.getByText('系统状态')).toBeInTheDocument();
-    expect(screen.getByText('CPU')).toBeInTheDocument();
+    expect(screen.getByText('引擎')).toBeInTheDocument();
     expect(screen.getByText('内存')).toBeInTheDocument();
     expect(screen.getByText('磁盘')).toBeInTheDocument();
     expect(screen.getByText('查询成功率')).toBeInTheDocument();

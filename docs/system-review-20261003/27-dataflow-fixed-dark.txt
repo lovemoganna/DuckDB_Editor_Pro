@@ -1,0 +1,157 @@
+- banner "全局工作区顶栏":
+  - button "🪶 DuckDB Studio PRO":
+    - generic: 🪶
+    - generic: DuckDB Studio
+    - generic: PRO
+  - navigation "业务领域大类":
+    - button "工程核心":
+      - generic: 工程核心
+    - button "分析洞察":
+      - generic: 分析洞察
+    - button "知识沉淀":
+      - generic: 知识沉淀
+    - button "AI 认知":
+      - generic: AI 认知
+  - tablist "工程核心功能标签页":
+    - tab "仪表盘":
+      - generic: 仪表盘
+      - generic: "1"
+    - tab "数据":
+      - generic: 数据
+      - generic: "2"
+    - tab "Schema":
+      - generic: Schema
+      - generic: "3"
+    - tab "SQL":
+      - generic: SQL
+      - generic: "4"
+    - tab "数据流" [selected]:
+      - generic: 数据流
+  - button "项目":
+    - generic: 项目
+  - button "sql_funds_flow 已保存到 OPFS":
+    - generic: sql_funds_flow
+    - generic: 已保存到 OPFS
+  - button "AI 助手 Ctrl+I":
+    - generic: AI 助手
+    - generic: Ctrl+I
+  - button "⌘K":
+  - button "帮助与快捷键":
+  - button "切换为浅色模式":
+  - button "AI 模型设置":
+- main:
+  - generic: SQL 流程图
+  - button "当前 SQL 流图" [pressed]:
+    - generic: 当前 SQL 流图
+  - button "全库表与视图血缘":
+    - generic: 全库表与视图血缘
+  - button "自由编排":
+    - generic: 自由编排
+  - generic: "关联:"
+  - combobox "关联查询":
+    - option "query_1.sql" [selected]
+  - generic "流程图始终由当前编辑器 SQL 实时生成":
+    - generic: SQL 实时驱动
+  - generic: 4 算子步骤
+  - generic: ·
+  - generic: 330.0ms
+  - button "SQL 工作台":
+    - generic: SQL 工作台
+  - button "工具":
+    - generic: 工具
+  - button "反向追溯":
+    - generic: 反向追溯
+  - button "从 SQL 同步":
+    - generic: 从 SQL 同步
+  - button "运行全流程":
+    - generic: 运行全流程
+  - button "展开左侧资产与算子库":
+  - button "数据表与血缘对象":
+  - button "ETL 算子库":
+  - 'button "选择模式 (快捷键: S)"':
+  - 'button "平移画布 (快捷键: H)"':
+  - button "缩小画布":
+  - generic: 93%
+  - button "放大画布":
+  - button "全图自适应居中 (Fit View)":
+  - button "智能分层拓扑整理布局":
+  - button "切换全景小地图 (MiniMap)":
+  - button "S1 SCAN fiat_transactions 70ms 读取 fiat_transactions 全表/列存块 25 行 10列":
+    - generic: S1
+    - generic "SCAN fiat_transactions"
+    - generic: 70ms
+    - generic "读取 fiat_transactions 全表/列存块":
+      - generic: 读取 fiat_transactions 全表/列存块
+    - generic: 25 行
+    - generic: 10列
+  - 'button "S2 FILTER (行级初筛) 70ms where: status = ''completed'' AND currency = ''USD'' 9 行 10列"':
+    - generic: S2
+    - generic "FILTER (行级初筛)"
+    - generic: 70ms
+    - 'generic "where: status = ''completed'' AND currency = ''USD''"':
+      - generic: "where: status = 'completed' AND currency = 'USD'"
+    - generic: 9 行
+    - generic: 10列
+  - button "S3 AGGREGATE (汇总) 80ms 对扫描结果计算 SUM/COUNT/AVG 等汇总指标 1 行 2列":
+    - generic: S3
+    - generic "AGGREGATE (汇总)"
+    - generic: 80ms
+    - generic "对扫描结果计算 SUM/COUNT/AVG 等汇总指标":
+      - generic: 对扫描结果计算 SUM/COUNT/AVG 等汇总指标
+    - generic: 1 行
+    - generic: 2列
+  - button "S4 最终查询结果 110ms RESULT 1 行 反向追溯":
+    - generic: S4
+    - generic "最终查询结果"
+    - generic: 110ms
+    - generic: RESULT
+    - generic: 1 行
+    - button "反向追溯":
+      - generic: 反向追溯
+  - button "属性详情":
+    - generic: 属性详情
+  - separator "调整控制台高度"
+  - button "运行日志 5":
+    - generic: 运行日志
+    - generic: "5"
+  - button "节点历史 最终查询结果":
+    - generic: 节点历史
+    - generic "最终查询结果"
+  - button "数据采样" [active]:
+    - generic: 数据采样
+  - generic: 流程执行完成
+  - generic: 4 个节点
+  - generic: 3 条数据流
+  - button "收起" [expanded]:
+    - generic: 收起
+  - generic: 最终查询结果
+  - generic: — 展示 1 / 1 行 · 2 列
+  - table:
+    - rowgroup:
+      - row "unit VARCHAR completed_amount DECIMAL(38,2)":
+        - columnheader "unit VARCHAR":
+          - generic: unit
+          - generic: VARCHAR
+        - columnheader "completed_amount DECIMAL(38,2)":
+          - generic: completed_amount
+          - generic: DECIMAL(38,2)
+    - rowgroup:
+      - row "USD 104270.00":
+        - cell "USD"
+        - cell "104270.00"
+- contentinfo:
+  - generic: DuckDB 1.33.1
+  - generic: "|"
+  - generic: sql_funds_flow [OPFS]
+  - generic: "|"
+  - generic: 持久化库
+  - generic: "|"
+  - generic: 13 张表
+  - generic: "|"
+  - generic: 13 个活动表
+  - generic: "|"
+  - generic: "内存: 1.75 MB / 3.1 GiB"
+  - generic: 引擎就绪
+  - generic: "|"
+  - generic: 02:21
+  - button "刷新运行时状态":

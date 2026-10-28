@@ -30,6 +30,7 @@ import { Tab } from '../../types';
 
 import { useOntologyStore, ontologyActions, ONTOLOGY_SEED_INFOS, OntologyStoreState } from '../../hooks/useOntologyStore';
 import { ontologyAiService } from '../../services/ontologyAiService';
+import { duckDBService } from '../../services/duckdbService';
 // 视图同步 Hook
 import { useGraphViewSync, useGraphViewSwitcher, layoutEventBus, type LayoutInfo } from '../../hooks/useGraphViewSync';
 // 布局性能监控
@@ -42,7 +43,10 @@ import D3GraphView, { D3GraphView as D3GraphViewComponent, type KnowledgeGraphRe
 import OntologyCanvas from './OntologyCanvas';
 import OntologyInsightsPanel from './OntologyInsightsPanel';
 import { OntologyDataView } from './OntologyDataView';
+import { SqlOntologySlice, type SliceProjectionState } from './SqlOntologySlice';
+import { useCurrentGraphDataset } from '../../hooks/useCurrentGraphDataset';
 import { OntologyModelingWizard } from './OntologyModelingWizard';
+import { loadModelingDraft } from '../../services/ontologyModelingPersistence';
 import { OntologyReasoningCatalogEditor } from './OntologyReasoningCatalogEditor';
 import { DeductionWorkbench } from './DeductionWorkbench';
 import {
@@ -487,6 +491,19 @@ const OntologyPanelContent: React.FC<{
   };
 
   const [aiInput, setAiInput] = useState('');
+  const currentDataset = useCurrentGraphDataset();
+  const [sqlSliceOpen, setSqlSliceOpen] = useState(false);
+  const [sliceActive, setSliceActive] = useState(false);
+  const [sliceInitialized, setSliceInitialized] = useState(false);
+  const [sliceProjection, setSliceProjection] = useState<SliceProjectionState>({result:null,busy:false,error:''});
+  const sliceRefreshRef = useRef<() => void>(() => {});
+  const registerSliceRefresh = useCallback((refresh: () => void) => { sliceRefreshRef.current = refresh; }, []);
+  useEffect(()=>{
+    if(!currentDataset.hasSource)return;
+    if(!sliceActive){ontologyHopRef.current=hopLimit;setHopLimit('all');}
+    setSliceInitialized(true);setSliceActive(true);setSqlSliceOpen(true);
+    setSliceProjection({result:null,busy:currentDataset.pending,error:currentDataset.error});
+  },[currentDataset.source]);
   const { activeTab, drawerOpen, drawerTab } = state;
 
   // ============================================================
@@ -566,9 +583,11 @@ const OntologyPanelContent: React.FC<{
   const [inspectorTarget, setInspectorTarget] = useState<any>(null);
   const { confirm } = useConfirmDialog();
   const [modelingWizardOpen, setModelingWizardOpen] = useState(false);
+  const [modelingScope, setModelingScope] = useState<{ catalog: string; schema: string }>();
   const [reasoningCatalogOpen, setReasoningCatalogOpen] = useState(false);
   const [deductionWorkbenchOpen, setDeductionWorkbenchOpen] = useState(false);
   const [hopLimit, setHopLimit] = useState<'1' | '2' | '3' | 'all'>('2');
+  const ontologyHopRef = useRef(hopLimit);
   const [reseedMessage, setReseedMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [viewportWidth, setViewportWidth] = useState(() =>
     typeof window === 'undefined' ? 1440 : window.innerWidth,
@@ -661,11 +680,15 @@ const OntologyPanelContent: React.FC<{
   }, [reseedOntology, refresh]);
 
   const handleModelingImport = useCallback(async (result: any, options?: { replace?: boolean }) => {
+    await batchImportModelingResult(result, options);
+    setSliceActive(false);
+    setSqlSliceOpen(false);
+    dispatch(ontologyActions.setActiveTab('graph'));
+    d3GraphRefreshRef.current?.();
     if (result.graphLayout) {
       (window as any).__ontologyGraphLayout = result.graphLayout;
     }
-    await batchImportModelingResult(result, options);
-  }, [batchImportModelingResult]);
+  }, [batchImportModelingResult, dispatch]);
 
   const handleGraphSaved = useCallback(() => {
     d3GraphRefreshRef.current?.();
@@ -715,7 +738,7 @@ const OntologyPanelContent: React.FC<{
   return (
     <div className="h-full w-full flex flex-col bg-monokai-bg overflow-hidden text-monokai-fg font-sans">
       {/* ── Top Master Header ── */}
-      <div className="min-h-13 px-5 py-2.5 flex items-center justify-between border-b border-monokai-border bg-monokai-sidebar shrink-0 z-20 relative backdrop-blur-md">
+      <div className="min-h-13 px-5 py-2.5 flex flex-wrap gap-3 items-center justify-between border-b border-monokai-border bg-monokai-sidebar shrink-0 z-20 relative backdrop-blur-md">
         
         {/* Branding & Global Drawer Toggle */}
         <div className="flex items-center gap-3.5">
@@ -744,19 +767,27 @@ const OntologyPanelContent: React.FC<{
         <SegmentedTabs<ViewTab>
           value={activeTab}
           items={VIEW_TABS}
-          onChange={(tab) => dispatch(ontologyActions.setActiveTab(tab))}
+          onChange={(tab) => {if(sliceActive)setHopLimit(ontologyHopRef.current);setSliceActive(false);setSqlSliceOpen(false);dispatch(ontologyActions.setActiveTab(tab));}}
           aria-label="本体视图切换"
           tone="accent"
           size="md"
         />
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex max-w-full flex-wrap items-center gap-2.5">
+          <ActionButton variant={sliceActive ? 'primary' : 'secondary'} size="md" icon={Database} onClick={() => {
+            setSliceInitialized(true);setSqlSliceOpen(sliceActive ? !sqlSliceOpen : true);setSliceActive(true);
+            if(!sliceActive){ontologyHopRef.current=hopLimit;setHopLimit('all');}
+            setInspectorMode('none');dispatch(ontologyActions.setActiveTab('graph'));
+          }}>数据切片</ActionButton>
           <ActionButton
             variant="secondary"
             size="md"
             icon={Wand2}
-            onClick={() => setModelingWizardOpen(true)}
+            onClick={async () => {
+              try { setModelingScope(await duckDBService.getCurrentCatalogAndSchema()); setModelingWizardOpen(true); }
+              catch (e) { toastService.error('无法读取当前数据范围', String(e)); }
+            }}
           >
             本体建模
           </ActionButton>
@@ -791,17 +822,21 @@ const OntologyPanelContent: React.FC<{
       </div>
 
       {/* ── Sub Header / Status Bar ── */}
-      <div className="h-9 px-5 flex items-center justify-between bg-monokai-surface/60 border-b border-monokai-border shrink-0">
-        <div className="flex items-center gap-4 text-xs text-monokai-comment font-mono">
-          {state.initState === 'loading' ? (
+      <div className="min-h-9 px-5 py-1 flex flex-wrap gap-2 items-center justify-between bg-monokai-surface/60 border-b border-monokai-border shrink-0">
+        <div className="flex items-center gap-4 text-xs text-monokai-fg-muted font-mono">
+          {sliceActive ? <>
+            <span className="text-monokai-cyan max-w-64 truncate" title={currentDataset.dataset?.name}>数据源：{currentDataset.dataset?.name || '数据切片'}</span>
+            <span role="status">{sliceProjection.busy ? '计算中…' : sliceProjection.error ? '查询失败 · 请调整筛选' : sliceProjection.result ? `${sliceProjection.result.rows.length} 行 · ${sliceProjection.result.graph.nodes.length} 对象 · ${sliceProjection.result.graph.links.length} 关系` : '等待查询'}</span>
+            <ActionButton size="sm" variant="secondary" onClick={()=>{setHopLimit(ontologyHopRef.current);setSliceActive(false);setSqlSliceOpen(false);}}>返回本体图谱</ActionButton>
+          </> : state.initState === 'loading' ? (
             <span className="flex items-center gap-2">
               <Loader2 className="w-3.5 h-3.5 animate-spin text-monokai-cyan" />
-              <span className="text-monokai-cyan">加载中...</span>
+              <span className="text-monokai-cyan font-semibold">加载中...</span>
             </span>
           ) : state.initState === 'no-tables' ? (
             <span className="flex items-center gap-2">
               <Database className="w-3.5 h-3.5 text-monokai-comment" />
-              <span className="text-monokai-yellow">本体论未初始化</span>
+              <span className="text-monokai-yellow font-semibold">本体论未初始化</span>
               <button
                 type="button"
                 onClick={() => void initOntology()}
@@ -830,7 +865,7 @@ const OntologyPanelContent: React.FC<{
         {/* Right side: hop regulator (when in graph tab) + refresh + reseed */}
         <div className="flex items-center gap-3">
           {activeTab === 'graph' && (
-            <div className="flex items-center bg-monokai-bg/90 border border-monokai-border/80 rounded-md p-0.5 shadow-xs">
+            <div className={`flex items-center bg-monokai-bg/90 border border-monokai-border/80 rounded-md p-0.5 shadow-xs ${state.initState === 'no-tables' ? 'opacity-60' : ''}`}>
               <span className="text-[10px] text-monokai-comment px-1.5 flex items-center gap-1 select-none font-medium">
                 <Layers className="w-3 h-3 text-monokai-cyan" />
                 跳数
@@ -852,7 +887,7 @@ const OntologyPanelContent: React.FC<{
                   className={`px-1.5 py-0.5 text-[10px] font-medium rounded transition-all cursor-pointer ${
                     hopLimit === hop
                       ? 'bg-monokai-cyan text-monokai-bg font-bold shadow-xs'
-                      : 'text-monokai-fg-muted hover:text-white hover:bg-monokai-hover'
+                      : 'text-monokai-fg-muted hover:text-monokai-fg hover:bg-monokai-hover'
                   }`}
                 >
                   {hop === 'all' ? '全图' : `${hop}跳`}
@@ -860,11 +895,11 @@ const OntologyPanelContent: React.FC<{
               ))}
             </div>
           )}
-          <button onClick={() => refresh()} title="刷新图谱数据" aria-label="刷新图谱数据"
+          <button onClick={() => sliceActive ? sliceRefreshRef.current() : refresh()} title="刷新图谱数据" aria-label="刷新图谱数据"
             className="p-1.5 rounded-lg text-monokai-comment hover:text-monokai-cyan hover:bg-monokai-surface transition-colors cursor-pointer">
             <RefreshCw className="w-3.5 h-3.5" />
           </button>
-          {state.initState === 'ready' && (
+          {!sliceActive && state.initState === 'ready' && (
             <div className="flex shrink-0 items-center gap-2 whitespace-nowrap">
               <button onClick={handleReseedSupplement} disabled={state.initting} title="补充缺失的实体数据"
                 className="shrink-0 whitespace-nowrap px-2.5 py-1 rounded-lg text-xs bg-monokai-surface text-monokai-cyan border border-monokai-border hover:bg-monokai-border/40 transition-colors disabled:opacity-50 cursor-pointer">
@@ -897,7 +932,7 @@ const OntologyPanelContent: React.FC<{
               
               {/* LEFT NAV PANEL — inline push on workbench; overlay only on very narrow viewports.
                   Never use a full-bleed dimmer: it made the graph look like it was toggled off. */}
-              {drawerOpen && drawerMode === 'overlay' && (
+              {drawerOpen && !sliceActive && drawerMode === 'overlay' && (
                 <button
                   type="button"
                   aria-label="关闭本体侧栏"
@@ -906,12 +941,12 @@ const OntologyPanelContent: React.FC<{
                   style={{ left: Math.min(leftWidth, Math.max(0, viewportWidth - 32)) }}
                 />
               )}
-              {drawerOpen && (
+              {drawerOpen && !sliceActive && (
                 <aside
                   id="ontology-tool-drawer"
                   aria-label="本体工具侧栏"
                   style={{ width: drawerMode === 'overlay' ? Math.min(leftWidth, viewportWidth - 32) : leftWidth }}
-                  className={`${drawerMode === 'overlay' ? 'absolute inset-y-0 left-0 z-30 shadow-2xl' : 'relative z-10 flex-shrink-0'} flex flex-col h-full min-h-0 overflow-hidden border-r border-white/10 bg-monokai-bg`}
+                  className={`${drawerMode === 'overlay' ? 'absolute inset-y-0 left-0 z-30 shadow-2xl' : 'relative z-10 flex-shrink-0'} flex flex-col h-full min-h-0 overflow-hidden border-r border-monokai-border bg-monokai-bg`}
                 >
                   {/* Resizer Handle Left */}
                   <div onMouseDown={startResizingLeft} onTouchStart={startResizingLeft}
@@ -921,7 +956,7 @@ const OntologyPanelContent: React.FC<{
                   </div>
 
                   {/* Drawer Control Header with Width Presets & Collapse */}
-                  <div className="h-8 px-2.5 flex items-center justify-between border-b border-white/5 bg-monokai-sidebar/40 shrink-0 select-none">
+                  <div className="h-8 px-2.5 flex items-center justify-between border-b border-monokai-border/60 bg-monokai-sidebar/40 shrink-0 select-none">
                     <div className="flex items-center gap-1.5 text-[11px] text-monokai-comment font-medium">
                       <Layers className="w-3 h-3 text-monokai-cyan" />
                       <span>控制仓</span>
@@ -931,12 +966,12 @@ const OntologyPanelContent: React.FC<{
                     <div className="flex items-center gap-1">
                       {/* Width preset toggles */}
                       {drawerMode !== 'overlay' && setLeftWidth && (
-                        <div className="flex items-center gap-0.5 bg-monokai-bg rounded p-0.5 border border-white/5 text-[10px] font-mono">
+                        <div className="flex items-center gap-0.5 bg-monokai-bg rounded p-0.5 border border-monokai-border/60 text-[10px] font-mono">
                           <button
                             type="button"
                             onClick={() => setLeftWidth(360)}
                             title="紧凑宽度 (360px)"
-                            className={`px-1.5 py-0.5 rounded transition-colors cursor-pointer ${leftWidth <= 380 ? 'bg-monokai-cyan/20 text-monokai-cyan font-bold' : 'text-monokai-comment hover:text-white'}`}
+                            className={`px-1.5 py-0.5 rounded transition-colors cursor-pointer ${leftWidth <= 380 ? 'bg-monokai-cyan/20 text-monokai-cyan font-bold' : 'text-monokai-comment hover:text-monokai-fg'}`}
                           >
                             紧凑
                           </button>
@@ -944,7 +979,7 @@ const OntologyPanelContent: React.FC<{
                             type="button"
                             onClick={() => setLeftWidth(440)}
                             title="标准宽度 (440px)"
-                            className={`px-1.5 py-0.5 rounded transition-colors cursor-pointer ${leftWidth > 380 && leftWidth <= 480 ? 'bg-monokai-cyan/20 text-monokai-cyan font-bold' : 'text-monokai-comment hover:text-white'}`}
+                            className={`px-1.5 py-0.5 rounded transition-colors cursor-pointer ${leftWidth > 380 && leftWidth <= 480 ? 'bg-monokai-cyan/20 text-monokai-cyan font-bold' : 'text-monokai-comment hover:text-monokai-fg'}`}
                           >
                             标准
                           </button>
@@ -952,7 +987,7 @@ const OntologyPanelContent: React.FC<{
                             type="button"
                             onClick={() => setLeftWidth(580)}
                             title="宽屏宽视 (580px)"
-                            className={`px-1.5 py-0.5 rounded transition-colors cursor-pointer ${leftWidth > 480 ? 'bg-monokai-cyan/20 text-monokai-cyan font-bold' : 'text-monokai-comment hover:text-white'}`}
+                            className={`px-1.5 py-0.5 rounded transition-colors cursor-pointer ${leftWidth > 480 ? 'bg-monokai-cyan/20 text-monokai-cyan font-bold' : 'text-monokai-comment hover:text-monokai-fg'}`}
                           >
                             宽屏
                           </button>
@@ -964,14 +999,14 @@ const OntologyPanelContent: React.FC<{
                         type="button"
                         onClick={() => dispatch(ontologyActions.toggleDrawer())}
                         title="收起本体侧栏"
-                        className="p-1 rounded hover:bg-white/5 text-monokai-comment hover:text-white transition-colors cursor-pointer"
+                        className="p-1 rounded hover:bg-monokai-surface text-monokai-comment hover:text-monokai-fg transition-colors cursor-pointer"
                       >
                         <ChevronLeft className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>
 
-                  <div className="flex items-center pt-1.5 px-2 pb-1 shrink-0 relative gap-1 border-b border-white/5 bg-monokai-surface/30">
+                  <div className="flex items-center pt-1.5 px-2 pb-1 shrink-0 relative gap-1 border-b border-monokai-border/60 bg-monokai-surface/30">
                     {DRAWER_TABS.map(tab => {
                       const Icon = tab.icon;
                       const isActive = drawerTab === tab.id;
@@ -981,7 +1016,7 @@ const OntologyPanelContent: React.FC<{
                           className={`flex-1 flex flex-row items-center justify-center gap-1.5 py-1.5 px-1.5 rounded-lg text-xs transition-all relative cursor-pointer ${
                             isActive
                               ? 'bg-monokai-cyan/15 text-monokai-cyan font-semibold border border-monokai-cyan/30 shadow-xs'
-                              : 'text-monokai-comment hover:text-white hover:bg-monokai-surface/80'
+                              : 'text-monokai-comment hover:text-monokai-fg hover:bg-monokai-surface/80'
                           }`}>
                           <Icon className={`w-3.5 h-3.5 shrink-0 transition-transform ${isActive ? 'scale-105 text-monokai-cyan' : ''}`} />
                           <span className="tracking-tight leading-none text-xs truncate">{tab.label}</span>
@@ -1025,6 +1060,9 @@ const OntologyPanelContent: React.FC<{
               )}
 
               {/* CENTER CANVAS */}
+              {sliceInitialized && <aside aria-label="数据切片条件侧栏" hidden={!sliceActive || !sqlSliceOpen} className="w-80 max-w-[45%] shrink-0 min-h-0 overflow-y-auto border-r border-monokai-border bg-monokai-sidebar">
+                <SqlOntologySlice dataset={currentDataset.dataset} datasetPending={currentDataset.pending && currentDataset.hasSource} datasetError={currentDataset.error} onClose={()=>setSqlSliceOpen(false)} onProjectionChange={setSliceProjection} onRefreshRef={registerSliceRefresh}/>
+              </aside>}
               <div className="flex-1 h-full min-h-0 relative overflow-hidden bg-monokai-bg isolate">
                 {activeTab === 'graph' && (
                   <D3GraphView 
@@ -1035,6 +1073,8 @@ const OntologyPanelContent: React.FC<{
                     onLayoutChange={handleLayoutChange}
                     hopLimit={hopLimit}
                     onHopLimitChange={setHopLimit}
+                    projection={sliceActive ? sliceProjection.result : undefined}
+                    onProjectionRefresh={() => sliceRefreshRef.current()}
                   />
                 )}
                 {activeTab === 'data' && <OntologyDataView ontologyState={state} />}
@@ -1104,6 +1144,13 @@ const OntologyPanelContent: React.FC<{
       {/* AI Modeling Wizard */}
       {modelingWizardOpen && (
         <OntologyModelingWizard
+          targetContext={modelingScope}
+          loadInitialDraft={async () => {
+            const scope = await duckDBService.getCurrentCatalogAndSchema();
+            if (modelingScope && (scope.catalog !== modelingScope.catalog || scope.schema !== modelingScope.schema))
+              throw new Error(`工作区已切换，请先回到 ${modelingScope.catalog}.${modelingScope.schema}。`);
+            return loadModelingDraft(duckDBService.query.bind(duckDBService), state.mapping);
+          }}
           onClose={() => setModelingWizardOpen(false)}
           onImport={handleModelingImport}
         />

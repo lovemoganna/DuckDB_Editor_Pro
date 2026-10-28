@@ -1,0 +1,102 @@
+{
+  "createdAt": "2026-10-08T23:41:16.2190715-07:00",
+  "gitHead": "4fd454247c2b34bcb9aea2014d6246e41e5c0575",
+  "workspaceNote": "Existing dirty workspace preserved; no commit or push",
+  "sourceFiles": [
+    {
+      "file": "utils/chartFormat.ts",
+      "sha256": "a489dae7d122c7d21b249c5361037c7d8bb312af93b4271f9f01596a96f28292"
+    },
+    {
+      "file": "utils/chartUtils.ts",
+      "sha256": "8cb86f61ae45b061ed42712e55f8fdcde8f4a913f304c536b15f7e243b73600a"
+    },
+    {
+      "file": "utils/chartSpace.ts",
+      "sha256": "a5c3f9d8588f7be249d3f570cd972037f8d30a14db17c0f9070465c460e077fc"
+    },
+    {
+      "file": "utils/chartStyleRules.ts",
+      "sha256": "4ef6e4de65ef6b2c6d94712ed27bec56cf1122853fa6543864f92537128ba59c"
+    },
+    {
+      "file": "utils/chartPlugins.ts",
+      "sha256": "243e9debb4c9e227fe7aa4b97352facc138df3ac16b6db1e0cd330b6109c4082"
+    },
+    {
+      "file": "utils/chartPlugins.test.ts",
+      "sha256": "9689668c375ba8034784a1ca96ac5bbf62bbe82f42588cca62a80a8148bf9c66"
+    },
+    {
+      "file": "utils/chartSpace.test.ts",
+      "sha256": "ddaec7c3e41238917f4888747b67353570edd4776eb40b11a9dcad7d315e6a11"
+    },
+    {
+      "file": "services/analysis/chartDisplay.ts",
+      "sha256": "c43bd5a42a34ea62a9f40ff7854e55289a5a86ba744557de26507c698273883b"
+    },
+    {
+      "file": "services/analysis/chartRegistry.ts",
+      "sha256": "821a50c36e1d271d3874a4998df93f8d081f54c9493a552c938d4eb18bae4852"
+    },
+    {
+      "file": "services/analysis/calcCompiler.ts",
+      "sha256": "bc32e5c756de8eaee1362dcf81e749f828545f63a3e62c72c8b30ed9a448b1a6"
+    },
+    {
+      "file": "services/analysis/adapters/chartJsAdapter.ts",
+      "sha256": "5566b18c637af91f73d91100daeab9168635a375ad8b973ffe0815727c456272"
+    },
+    {
+      "file": "services/analysis/adapters/dashboardWidgetAdapter.ts",
+      "sha256": "af80edb6defde58762ad08303fca96800f48d37443cf971f6360b19e021f6818"
+    },
+    {
+      "file": "services/analysis/globalGovernance.integration.test.ts",
+      "sha256": "9cccce145a4d1fcfdf433a4dc394bddf41af8c4211f59638b4cf75b3a8bf8e07"
+    },
+    {
+      "file": "services/analysis/sqlCompiler.test.ts",
+      "sha256": "8a8daa98a9700ef9e7e4f1b6ff2a84f0a4b8457e798607e2f79c9398033924a6"
+    },
+    {
+      "file": "components/charts/ChartRenderer.tsx",
+      "sha256": "d6c62c14e14bc6dddc1220a8470fea14cf8a05be32407ad44afe44b045feb4d3"
+    },
+    {
+      "file": "components/charts/ChartRenderer.visibility.test.tsx",
+      "sha256": "a17ba4c4c89a84784c4e523e96c0318541358605470ef1b86ebaecb7568987d0"
+    },
+    {
+      "file": "components/AnalysisHub/AnalysisHub.test.tsx",
+      "sha256": "0e609e567e2d2c42610d30fd5218ba60af9ccd0a835427af55caa94d0504b6ba"
+    },
+    {
+      "file": "scripts/audit-visualizations.mjs",
+      "sha256": "edfd85b5b1644e8de274f6ea9a739cac889e753489f62b037e1e2d7ad5e3ec6f"
+    },
+    {
+      "file": "test/global-visualization-real.html",
+      "sha256": "7bc09c5c7262e4ba92bf273b4165b1d9259f00f5466dd3425976a81d85869725"
+    },
+    {
+      "file": "test/global-visualization-real.tsx",
+      "sha256": "3c0d6474311974106b88229b57a5e15965804ff489eba98f67969e20c3476b7f"
+    },
+    {
+      "file": "test/global-visualization-browser.js",
+      "sha256": "ec74dcb8cd73a2f1de1cc640abccbce4f9b6e9b24aed4508512e8af8ff88d015"
+    },
+    {
+      "file": "docs/visualization-governance-20261008/README.md",
+      "sha256": "0f109ce2eedf4a8efa7e73fc8c252c0abfe5de29c7ccb8b83680cf43198d47b7"
+    }
+  ],
+  "finalRelevantTests": 199,
+  "finalRelevantFiles": 28,
+  "realGovernanceTests": 16,
+  "browserTypes": 14,
+  "browserRenderChecks": 42,
+  "globalAcceptance": "INCOMPLETE",
+  "projectProtection": "2405 pass / 1 fail; run preceded final format and layout changes"
+}

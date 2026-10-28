@@ -1,0 +1,90 @@
+- banner "全局工作区顶栏":
+  - button "🪶 DuckDB Studio PRO":
+    - generic: 🪶
+    - generic: DuckDB Studio
+    - generic: PRO
+  - navigation "业务领域大类":
+    - button "工程核心":
+      - generic: 工程核心
+    - button "分析洞察":
+      - generic: 分析洞察
+    - button "知识沉淀":
+      - generic: 知识沉淀
+    - button "AI 认知":
+      - generic: AI 认知
+  - tablist "AI 认知功能标签页":
+    - tab "本体图谱":
+      - generic: 本体图谱
+    - tab "技能":
+      - generic: 技能
+    - tab "能力" [active] [selected]:
+      - generic: 能力
+    - tab "推演":
+      - generic: 推演
+  - button "项目":
+    - generic: 项目
+  - button "新建表":
+    - generic: 新建表
+  - button "临时分析空间":
+    - generic: 临时分析空间
+  - button "AI 助手":
+    - generic: AI 助手
+  - button "⌘K":
+  - button "帮助与快捷键":
+  - button "切换为深色模式":
+  - button "AI 模型设置":
+- main:
+  - heading "AI 能力库 (Capability Hub)" [level=1]
+  - generic: 0 项已就绪
+  - button "导出全部能力配置为 JSON 文件":
+  - button "从 JSON 文件导入能力配置":
+  - button "恢复系统内置预设能力":
+  - button "新建 AI 能力":
+    - generic: 新建 AI 能力
+  - generic: 注册能力总数
+  - generic: "0"
+  - generic: 代码生成与性能
+  - generic: "0"
+  - generic: 诊断与质量审计
+  - generic: "0"
+  - generic: 商业洞察与模型
+  - generic: "0"
+  - button "全部能力 0":
+    - generic: 全部能力
+    - generic: "0"
+  - button "SQL 生成与转换 0":
+    - generic: SQL 生成与转换
+    - generic: "0"
+  - button "错误诊断与修复 0":
+    - generic: 错误诊断与修复
+    - generic: "0"
+  - button "性能重构与向量化 0":
+    - generic: 性能重构与向量化
+    - generic: "0"
+  - button "数据与结果洞察 0":
+    - generic: 数据与结果洞察
+    - generic: "0"
+  - button "数据质量审计 0":
+    - generic: 数据质量审计
+    - generic: "0"
+  - button "Schema 模型演进 0":
+    - generic: Schema 模型演进
+    - generic: "0"
+  - button "自定义能力 0":
+    - generic: 自定义能力
+    - generic: "0"
+  - textbox "搜索能力名称、场景、标签或 Prompt..."
+  - generic: 匹配能力列表 (0)
+  - generic: 点击查看详情
+  - listbox "AI 能力列表":
+    - paragraph: 未找到符合条件的能力
+    - button "重置筛选条件"
+  - paragraph: 请在左侧列表选择一项 AI 能力查看详情
+- contentinfo:
+  - generic: DuckDB 1.33.1
+  - generic: "|"
+  - generic: memory [MEMORY]
+  - generic: 引擎就绪
+  - generic: "|"
+  - generic: 06:38
+  - button "刷新运行时状态":

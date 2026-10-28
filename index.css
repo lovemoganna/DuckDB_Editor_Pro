@@ -1,32 +1,129 @@
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.loli.net/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* First-run workspace. All colors follow the existing light/dark theme. */
+.analysis-home { --welcome-grid: color-mix(in srgb, var(--monokai-border) 40%, transparent); }
+.home-context-header { min-height: 64px; border-bottom: 1px solid var(--monokai-border); margin-bottom: 8px; }
+.home-context-header h1 { font-size: 16px; line-height: 1.5; }
+.home-context-header button[aria-haspopup="listbox"] { min-height: 32px; }
+.workspace-view-row, .workspace-view-actions, .workspace-analysis-tools,
+.workspace-create-tools, .workspace-data-tools { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; min-width: 0; }
+.workspace-view-row { justify-content: space-between; gap: 12px 24px; }
+.workspace-board-title { flex: 1 1 180px; min-width: 0; overflow-wrap: anywhere; font-size: 22px; line-height: 1.45; font-weight: 600; letter-spacing: -.025em; color: var(--monokai-fg); }
+.workspace-view-actions { color: var(--monokai-fg-muted); }
+.workspace-data-tools { margin-left: auto; gap: 12px; }
+.workspace-storage-note { font-size: 11px; line-height: 1.8; color: var(--monokai-comment); padding-top: 12px; border-top: 1px solid var(--monokai-border); }
+.workspace-load-state { padding: 24px 0; }
+.workspace-load-state-refresh { padding: 4px 0; }
+.workspace-load-placeholder { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; margin-top: 20px; }
+.workspace-load-placeholder > div { height: 180px; border: 1px solid var(--monokai-border); border-radius: 10px; background: var(--monokai-surface); }
+.workspace-load-placeholder > div:first-child { height: 68px; grid-column: 1 / -1; }
+@media (max-width: 640px) {
+  .dataset-preview-header { flex-direction: column; align-items: stretch; }
+  .dataset-preview-heading { flex: none; width: 100%; }
+  .dataset-preview-heading h3 { flex-basis: 100%; order: -1; line-height: 1.75; }
+  .dataset-preview-header button { min-height: 44px; }
+  .workspace-board-title { flex-basis: 100%; font-size: 20px; }
+  .workspace-view-actions { width: 100%; justify-content: space-between; }
+  .workspace-view-actions label { flex: 1; min-width: 0; }
+  .workspace-view-actions select { min-width: 0; flex: 1; }
+  .workspace-analysis-tools > button, .workspace-create-tools > button,
+  .workspace-view-actions button, .workspace-view-actions select,
+  .workspace-data-tools button, .workspace-data-tools select { min-height: 44px; }
+  .workspace-data-tools { flex-basis: 100%; margin-left: 0; justify-content: space-between; padding-top: 12px; border-top: 1px solid var(--monokai-border); }
+  .workspace-data-tools label { flex: 1; }
+  .workspace-data-tools select { flex: 1; min-width: 0; width: 100%; }
+  .workspace-load-placeholder { grid-template-columns: 1fr; }
+}
+.workspace-welcome {
+  display: grid; grid-template-columns: 1.05fr 1fr; align-items: center;
+  width: min(1180px, 100%); margin: clamp(16px, 4vh, 48px) auto 24px;
+  padding: clamp(20px, 3vw, 48px); gap: 32px 24px;
+  border: 1px solid var(--monokai-border); border-radius: 16px;
+  background: radial-gradient(ellipse at 75% 20%, color-mix(in srgb, var(--monokai-accent) 4%, transparent), transparent 55%), var(--monokai-bg);
+  position: relative; overflow: hidden; isolation: isolate;
+  animation: workspace-arrive 400ms var(--ease-out-expo) both;
+}
+.welcome-eyebrow { display: flex; align-items: center; gap: 8px; font: 10px/1.5 var(--font-mono); letter-spacing: .12em; color: var(--monokai-comment); }
+.welcome-eyebrow > span { width: 6px; height: 6px; border-radius: 50%; background: var(--monokai-accent); }
+.welcome-intro h2 { margin: 24px 0 20px; font-size: clamp(32px, 3.6vw, 52px); line-height: 1.35; letter-spacing: -.045em; font-weight: 600; color: var(--monokai-fg); }
+.welcome-intro h2 em { font-style: normal; color: var(--monokai-accent); }
+.welcome-description { color: var(--monokai-fg-muted); font-size: 14px; line-height: 1.9; max-width: 34em; text-wrap: pretty; }
+.welcome-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
+.welcome-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 44px; padding: 0 18px; border-radius: 8px; font-size: 13px; font-weight: 600; transition: background-color 160ms, border-color 160ms; }
+.welcome-primary { background: var(--monokai-accent); color: var(--monokai-on-accent); border: 1px solid var(--monokai-accent); }
+.welcome-primary:hover { background: var(--monokai-accent-hover); border-color: var(--monokai-accent-hover); }
+.welcome-secondary { color: var(--monokai-fg); border: 1px solid var(--monokai-border-strong); background: var(--monokai-surface); }
+.welcome-secondary:hover { background: var(--monokai-hover); border-color: var(--monokai-comment); }
+.welcome-file-hint { color: var(--monokai-comment); font-size: 11px; line-height: 1.6; margin-top: 14px; }
+.welcome-diagram { position: relative; height: 360px; min-width: 0; border-radius: 12px; background-image: radial-gradient(var(--welcome-grid) .7px, transparent .7px); background-size: 16px 16px; }
+.welcome-orbit { position: absolute; border: 1px solid var(--welcome-grid); border-radius: 50%; left: 50%; top: 50%; transform: translate(-50%, -50%); }
+.welcome-orbit-outer { width: 300px; height: 300px; }
+.welcome-orbit-inner { width: 200px; height: 200px; }
+.welcome-connections { position: absolute; width: 100%; height: 100%; stroke: color-mix(in srgb, var(--monokai-accent) 40%, var(--monokai-border)); stroke-width: 1; }
+.welcome-node, .welcome-query { position: absolute; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 10px; border: 1px solid var(--monokai-border); background: var(--monokai-surface); color: var(--monokai-fg-muted); border-radius: 10px; box-shadow: var(--shadow-sm); }
+.welcome-node { width: 90px; height: 88px; font: 9px/1.2 var(--font-mono); letter-spacing: .08em; transform: translate(-50%, -50%); }
+.welcome-node-source { left: 17%; top: 29%; }
+.welcome-node-file { left: 17%; top: 71%; }
+.welcome-node-chart { left: 83%; top: 29%; color: var(--monokai-accent); }
+.welcome-node-board { left: 83%; top: 71%; }
+.welcome-query { left: 50%; top: 50%; width: 128px; height: 128px; transform: translate(-50%, -50%); border-color: color-mix(in srgb, var(--monokai-accent) 45%, var(--monokai-border)); color: var(--monokai-accent); }
+.welcome-query > span { font: 600 22px/1 var(--font-mono); letter-spacing: -.03em; }
+.welcome-query small { font-size: 10px; color: var(--monokai-comment); }
+.welcome-node-lines { display: flex; gap: 3px; }
+.welcome-node-lines i { width: 9px; height: 2px; background: var(--monokai-border-strong); }
+.welcome-board-grid { display: grid; grid-template-columns: repeat(2, 12px); gap: 3px; }
+.welcome-board-grid i { height: 10px; border: 1px solid var(--monokai-comment); border-radius: 2px; }
+.welcome-diagram-caption { position: absolute; bottom: 0; width: 100%; text-align: center; font-size: 11px; letter-spacing: .08em; color: var(--monokai-comment); }
+.welcome-workflow { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid var(--monokai-border); padding-top: 28px; gap: 24px; }
+.welcome-step { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
+.welcome-step-number { color: var(--monokai-comment); font: 11px/24px var(--font-mono); }
+.welcome-step h3 { font-size: 13px; font-weight: 600; line-height: 24px; margin-bottom: 4px; }
+.welcome-step p { font-size: 12px; line-height: 1.8; color: var(--monokai-comment); text-wrap: pretty; }
+.welcome-step > svg { margin-left: auto; margin-top: 3px; flex-shrink: 0; color: var(--monokai-comment); }
+.welcome-footer { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding-top: 16px; border-top: 1px solid var(--monokai-border); color: var(--monokai-comment); font-size: 12px; }
+.welcome-footer > span, .welcome-footer button { display: flex; align-items: center; gap: 8px; }
+.welcome-footer button { min-height: 36px; color: var(--monokai-fg-muted); border-radius: 6px; padding: 0 8px; }
+.welcome-footer button:hover { background: var(--monokai-hover); color: var(--monokai-accent); }
+.workspace-welcome button:focus-visible { outline: 2px solid var(--monokai-accent); outline-offset: 4px; }
+.workspace-welcome button:active { opacity: .8; }
+@keyframes workspace-arrive { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@media (max-width: 900px) {
+  .workspace-welcome { grid-template-columns: 1fr; gap: 28px; }
+  .welcome-diagram { display: none; }
+  .welcome-intro h2 { font-size: clamp(32px, 6vw, 44px); }
+  .welcome-workflow { gap: 16px; }
+  .welcome-step { gap: 8px; }
+  .welcome-step > svg { display: none; }
+}
+@media (max-width: 540px) {
+  .workspace-welcome { margin-top: 8px; padding: 24px 20px; border-radius: 12px; }
+  .welcome-eyebrow { font-size: 9px; letter-spacing: .08em; }
+  .welcome-intro h2 { margin-top: 20px; }
+  .welcome-description { font-size: 13px; }
+  .welcome-actions { gap: 8px; }
+  .welcome-actions button { padding-inline: 12px; }
+  .welcome-workflow { grid-template-columns: 1fr; padding-top: 20px; }
+  .welcome-step { gap: 16px; }
+  .welcome-step > svg { display: block; }
+  .welcome-footer button { min-height: 44px; padding-left: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .workspace-welcome { animation: none; }
+  .workspace-welcome button { transition: none; }
+}
 
 /* ============================================================
    GLOBAL DESIGN SYSTEM FIXES
    修复模块间设计脱节问题
    ============================================================ */
 
-/* SVG 元素默认不拦截点击事件 - 防止图标遮挡按钮 */
-svg,
-[data-svg-icon] {
-  pointer-events: none;
-}
-
-/* 确保交互性元素不被子元素遮挡（排除 React Flow 节点，其必须保持 absolute） */
-button,
-[role="button"]:not(.react-flow__node),
-[role="tab"],
-[role="menuitem"],
-a,
-select,
-input[type="checkbox"],
-input[type="radio"] {
-  position: relative;
-  z-index: 1;
-}
+/* Decorative icons do not intercept events; graph SVGs keep their own interaction. */
+svg.lucide,
+[data-svg-icon] { pointer-events: none; }
 
 /* Z-Index 层级规范 - 确保模态框等覆盖所有内容 */
 .modal-backdrop { z-index: 9998; }
@@ -128,22 +225,40 @@ input[type="radio"] {
 }
 
 /*
- * 全局 [role=button]{position:relative} 会覆盖 React Flow 节点的 absolute，
- * 导致节点按文档流堆叠、连线锚点与视觉错位。所有 RF 画布统一强制 absolute。
- */
-.react-flow__node {
-  position: absolute !important;
-}
-.react-flow__nodes {
-  position: absolute !important;
-}
-
-/*
  * DataFlow 作用域密度：统一正文/表单/列表节奏，不改布局骨架。
  */
 .dataflow-shell {
-  font-size: 12px;
-  line-height: 1.35;
+  --dataflow-on-accent: #1e1f1c;
+  container-type: inline-size;
+  font-size: 11px;
+  line-height: 1.45;
+  min-width: 0;
+  min-height: 0;
+}
+[data-theme="light"] .dataflow-shell { --dataflow-on-accent: #fff; }
+.dataflow-shell .text-xs { font-size: 11px; line-height: 16px; }
+.dataflow-shell .text-3xs { font-size: 10px; line-height: 14px; }
+.dataflow-shell :is(button, [role="button"], [role="separator"], tr[tabindex]):focus-visible {
+  outline: 2px solid var(--monokai-accent);
+  outline-offset: -2px;
+}
+.dataflow-shell button:disabled { cursor: not-allowed; opacity: .45; }
+.dataflow-shell :is(input, select, textarea):disabled { cursor: not-allowed; opacity: .6; }
+.dataflow-shell :is(pre, code, blockquote, table) { user-select: text; }
+.dataflow-shell pre { overflow: auto; line-height: 1.5; }
+.dataflow-shell a { color: var(--monokai-cyan); text-underline-offset: 3px; }
+.dataflow-shell a:hover { text-decoration: underline; }
+.dataflow-shell blockquote { border-left: 2px solid var(--monokai-border-strong); padding-left: 8px; }
+.dataflow-shell hr { border-color: var(--monokai-border); }
+.dataflow-shell img { max-width: 100%; height: auto; }
+.dataflow-shell th { white-space: nowrap; }
+.dataflow-shell td { user-select: text; }
+.dataflow-shell [role="menu"] { background: var(--monokai-surface); }
+@container (max-width: 720px) {
+  .dataflow-topbar > div { flex-wrap: wrap; min-width: 0; }
+  .dataflow-topbar > div:last-child { margin-left: auto; }
+  .dataflow-topbar select { max-width: 150px; }
+  .dataflow-console .hidden.sm\:flex { display: none; }
 }
 .dataflow-shell input,
 .dataflow-shell select,
@@ -172,6 +287,7 @@ input[type="radio"] {
    ============================================================ */
 
 :root {
+  color-scheme: dark;
   /*
    * DESIGN TOKEN SSOT — all visual values originate here.
    * Rules: use monokai-* / CSS vars only; no new bg-[#…];
@@ -189,7 +305,8 @@ input[type="radio"] {
   --monokai-border-strong: #55574f;
   --monokai-fg: #f8f8f2;
   --monokai-fg-muted: #d8d7cc;
-  --monokai-comment: #75715e;
+  --monokai-comment: #a8a594;
+  --monokai-on-accent: #1e1f1c;
   --monokai-accent: #a6e22e;
   --monokai-accent-hover: #b8ec48;
   --monokai-cyan: #66d9ef;
@@ -286,9 +403,9 @@ input[type="radio"] {
 
   .text-caption {
     font-family: var(--font-sans);
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 400;
-    line-height: 1.4;
+    line-height: 15px;
     color: var(--monokai-comment);
   }
 
@@ -627,101 +744,6 @@ input[type="radio"] {
    MARKDOWN RENDERING STYLES
    ===================== */
 
-/* 有序列表 */
-.overflow-auto ol {
-  list-style-type: decimal;
-  padding-left: 1.5rem;
-  margin: 0.5rem 0;
-}
-
-.overflow-auto ol li {
-  margin: 0.25rem 0;
-}
-
-/* 无序列表 */
-.overflow-auto ul {
-  list-style-type: disc;
-  padding-left: 1.5rem;
-  margin: 0.5rem 0;
-}
-
-.overflow-auto ul li {
-  margin: 0.25rem 0;
-}
-
-/* 段落 */
-.overflow-auto p {
-  margin: 0.5rem 0;
-}
-
-/* 标题 */
-.overflow-auto h1 {
-  font-size: 1.25rem;
-  font-weight: 700;
-  margin: 1rem 0 0.5rem;
-}
-
-.overflow-auto h2 {
-  font-size: 1.125rem;
-  font-weight: 600;
-  margin: 0.75rem 0 0.5rem;
-}
-
-.overflow-auto h3 {
-  font-size: 1rem;
-  font-weight: 500;
-  margin: 0.5rem 0 0.25rem;
-}
-
-/* 粗体和斜体 */
-.overflow-auto strong {
-  color: #bd93f9;
-  font-weight: 600;
-}
-
-.overflow-auto em {
-  color: #8be9fd;
-}
-
-/* 行内代码 */
-.overflow-auto code {
-  background-color: #3e3d32;
-  padding: 0.125rem 0.375rem;
-  border-radius: 0.25rem;
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  color: #8be9fd;
-}
-
-/* 预格式化代码块 */
-.overflow-auto pre {
-  background-color: #3e3d32;
-  padding: 0.75rem;
-  border-radius: 0.5rem;
-  overflow-x: auto;
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  margin: 0.5rem 0;
-}
-
-/* 表格 */
-.overflow-auto table {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 0.5rem 0;
-}
-
-.overflow-auto th,
-.overflow-auto td {
-  border: 1px solid #49483e;
-  padding: 0.5rem;
-  text-align: left;
-}
-
-.overflow-auto th {
-  background-color: #3e3d32;
-}
-
 /* Query result grid: content-hugging columns, centered Noto Sans SC cells */
 .overflow-auto .result-data-grid table {
   margin: 0;
@@ -734,7 +756,7 @@ input[type="radio"] {
 .overflow-auto .result-data-grid th,
 .overflow-auto .result-data-grid td {
   text-align: center !important;
-  /* Beat global .overflow-auto th/td olive box (#49483e / #3e3d32) */
+  /* Beat global .overflow-auto th/td olive box (var(--monokai-border-strong) / var(--monokai-border)) */
   background-color: transparent !important;
   border: none !important;
   border-right: 1px solid rgba(58, 59, 54, 0.35) !important;
@@ -743,7 +765,7 @@ input[type="radio"] {
   outline: none !important;
 }
 .overflow-auto .result-data-grid thead th {
-  /* Soft surface wash between toolbar and body — not olive #3e3d32 */
+  /* Soft surface wash between toolbar and body — not olive var(--monokai-border) */
   background-color: color-mix(in srgb, var(--monokai-surface) 26%, var(--monokai-bg)) !important;
   box-shadow: none !important;
 }
@@ -752,7 +774,7 @@ input[type="radio"] {
 }
 .overflow-auto .result-data-grid thead th.result-th-selected,
 .overflow-auto .result-data-grid thead th.result-th-selected:hover {
-  background-color: color-mix(in srgb, #e6db74 7%, var(--monokai-bg)) !important;
+  background-color: color-mix(in srgb, var(--monokai-yellow) 7%, var(--monokai-bg)) !important;
   box-shadow: inset 0 -1px 0 0 rgba(230, 219, 116, 0.45) !important;
 }
 .overflow-auto .result-data-grid thead tr {
@@ -793,32 +815,32 @@ input[type="radio"] {
 }
 .sql-type-badge-numeric {
   background-color: rgba(166, 226, 46, 0.14) !important;
-  color: #a6e22e !important;
+  color: var(--monokai-accent) !important;
   border-color: rgba(166, 226, 46, 0.35) !important;
 }
 .sql-type-badge-text {
   background-color: rgba(102, 217, 239, 0.14) !important;
-  color: #66d9ef !important;
+  color: var(--monokai-cyan) !important;
   border-color: rgba(102, 217, 239, 0.35) !important;
 }
 .sql-type-badge-temporal {
   background-color: rgba(174, 129, 255, 0.14) !important;
-  color: #ae81ff !important;
+  color: var(--monokai-purple) !important;
   border-color: rgba(174, 129, 255, 0.35) !important;
 }
 .sql-type-badge-boolean {
   background-color: rgba(249, 38, 114, 0.14) !important;
-  color: #f92672 !important;
+  color: var(--monokai-pink) !important;
   border-color: rgba(249, 38, 114, 0.35) !important;
 }
 .sql-type-badge-complex {
   background-color: rgba(253, 151, 31, 0.14) !important;
-  color: #fd971f !important;
+  color: var(--monokai-orange) !important;
   border-color: rgba(253, 151, 31, 0.35) !important;
 }
 .sql-type-badge-other {
   background-color: rgba(230, 219, 116, 0.14) !important;
-  color: #e6db74 !important;
+  color: var(--monokai-yellow) !important;
   border-color: rgba(230, 219, 116, 0.35) !important;
 }
 
@@ -854,6 +876,24 @@ input[type="radio"] {
   box-shadow: none !important;
 }
 
+/* Opaque backgrounds for sticky columns in data-tab-grid */
+.overflow-auto .data-tab-grid thead th.sticky {
+  background-color: color-mix(in srgb, var(--monokai-surface) 40%, var(--monokai-bg)) !important;
+}
+.overflow-auto .data-tab-grid td.sticky {
+  background-color: var(--monokai-bg);
+}
+.overflow-auto .data-tab-grid tr.even td.sticky,
+.overflow-auto .data-tab-grid tr:nth-child(even) td.sticky {
+  background-color: color-mix(in srgb, var(--monokai-surface) 25%, var(--monokai-bg));
+}
+.overflow-auto .data-tab-grid tr:hover td.sticky {
+  background-color: var(--monokai-surface) !important;
+}
+.overflow-auto .data-tab-grid tr.bg-monokai-elevated td.sticky {
+  background-color: var(--monokai-elevated) !important;
+}
+
 /* Pivot grid: content-hugging columns, centered Noto Sans SC cells */
 .overflow-auto .result-pivot-grid,
 .overflow-auto .result-pivot-grid th,
@@ -878,7 +918,7 @@ input[type="radio"] {
 
 /* 分割线 */
 .overflow-auto hr {
-  border-color: #49483e;
+  border-color: var(--monokai-border-strong);
   margin: 1rem 0;
 }
 
@@ -887,393 +927,121 @@ input[type="radio"] {
   border-left: 4px solid #bd93f9;
   padding-left: 0.75rem;
   font-style: italic;
-  color: #75715e;
-}
-
-/* =====================
-   MONOKAI THEME - Global Overrides
-   ===================== */
-
-/* ============================================================
-   INTELLIGENT DUAL FONT SYSTEM
-   - 英文字符 → Victor Mono
-   - 中文字符 → Noto Sans SC
-   - 其他字符 → 回退到系统字体
-   ============================================================ */
-
-/* 定义字体堆栈（按优先级） */
-
-
-
-
-/* 全局字体设置 - 智能双字体策略 */
-
-/* 针对中文字符的额外回退（确保中文字符正确渲染） */
-:lang(zh), :lang(zh-CN), :lang(zh-TW), :lang(zh-Hans), :lang(zh-Hant) {
-    font-family: var(--font-sans);
-}
-
-body {
-    @apply bg-[#272822] text-[#f8f8f2];
-    background-color: #272822 !important;
-    color: #f8f8f2 !important;
-    font-family: var(--font-mono);
-}
-
-/* UI 文本使用无衬线字体（更友好的界面显示） */
-.font-sans {
-    font-family: var(--font-sans);
-}
-
-/* 代码和技术内容使用等宽字体 */
-.font-mono {
-    font-family: var(--font-mono);
-}
-
-/* AI Skills 模块专用字体设置 */
-[data-tab="ai-skills"], .ai-skills-panel, .skill-panel {
-    font-family: var(--font-sans);
-}
-
-[data-tab="ai-skills"] code, [data-tab="ai-skills"] pre,
-.ai-skills-panel code, .ai-skills-panel pre,
-.skill-panel code, .skill-panel pre {
-    font-family: var(--font-mono);
-}
-
-/* =====================
-   CodeMirror 编辑器字体设置 — Victor Mono（关闭花体连笔）
-   ===================== */
-.cm-editor {
-    font-family: var(--font-sql-editor, var(--font-mono));
-    font-variant-ligatures: none;
-    font-feature-settings: "liga" 0, "calt" 0, "ss01" 0;
-}
-
-.cm-editor .cm-content {
-    font-family: var(--font-sql-editor, var(--font-mono));
-    font-variant-ligatures: none;
-    font-feature-settings: "liga" 0, "calt" 0, "ss01" 0;
-}
-
-.cm-editor .cm-line {
-    font-family: var(--font-sql-editor, var(--font-mono));
-}
-
-.cm-editor .cm-gutters {
-    font-family: var(--font-sql-editor, var(--font-mono));
-}
-
-.custom-codemirror .cm-editor,
-.custom-codemirror .cm-content,
-.custom-codemirror .cm-line,
-.custom-codemirror .cm-gutters {
-    font-family: var(--font-sql-editor, var(--font-mono)) !important;
-    font-variant-ligatures: none;
-}
-
-/* =====================
-   CodeMirror 自动补全提示字体设置
-   ===================== */
-.cm-tooltip-autocomplete {
-    font-family: var(--font-mono);
-    font-size: 8px !important;
-}
-
-.cm-tooltip-autocomplete > ul {
-    font-family: var(--font-mono);
-    font-size: 8px !important;
-}
-
-.cm-tooltip-autocomplete > ul > li {
-    font-family: var(--font-mono);
-    font-size: 8px !important;
-}
-
-.cm-completionLabel {
-    font-family: var(--font-mono);
-    font-size: 8px !important;
-}
-
-.cm-completionDetail {
-    font-family: var(--font-mono);
-    font-size: 8px !important;
-}
-
-.cm-tooltip.cm-completionInfo {
-    font-family: var(--font-mono);
-    font-size: 10px !important;
-}
-
-/* =====================
-   MONOKAI THEME - Global Overrides
-   ===================== */
-
-/* Override white backgrounds */
-.bg-white, [class*="bg-white"] {
-    background-color: #1e1f1c !important;
-}
-
-/* Override gray backgrounds */
-.bg-gray-50, .bg-gray-100, .bg-gray-200, .bg-gray-300, .bg-gray-400, .bg-gray-500, 
-.bg-gray-600, .bg-gray-700, .bg-gray-800, .bg-gray-900 {
-    background-color: #1e1f1c !important;
-}
-
-/* Override light backgrounds */
-.bg-slate-50, .bg-slate-100, .bg-slate-200, .bg-slate-300 {
-    background-color: #1e1f1c !important;
-}
-
-/* Override borders */
-.border-gray-100, .border-gray-200, .border-gray-300, .border-gray-400 {
-    border-color: #3e3d32 !important;
-}
-
-.border-slate-200, .border-slate-300 {
-    border-color: #3e3d32 !important;
-}
-
-/* Make subtle borders blend in - use very dark borders or transparent */
-.border, [class*="border-"] {
-    border-color: #3e3d32 !important;
-}
-
-/* Override Tailwind's opacity borders like border-monokai-accent/20 */
-.border-monokai-accent\/20 {
-    border-color: rgba(62, 61, 50, 0.3) !important;
-}
-
-.border-monokai-accent\/30 {
-    border-color: rgba(62, 61, 50, 0.4) !important;
-}
-
-.border-monokai-accent\/10, .border-monokai-accent\/5 {
-    border-color: rgba(62, 61, 50, 0.15) !important;
-}
-
-/* Override all monokai accent borders with darker variants */
-[class*="border-monokai"] {
-    border-color: #3e3d32 !important;
-}
-
-/* Override text colors */
-.text-gray-400, .text-gray-500, .text-gray-600, .text-gray-700, .text-gray-800, .text-gray-900 {
-    color: #f8f8f2 !important;
-}
-
-.text-gray-300 {
-    color: #75715e !important;
-}
-
-.text-slate-400, .text-slate-500, .text-slate-600, .text-slate-700 {
-    color: #f8f8f2 !important;
-}
-
-/* Override divider colors */
-.divide-gray-50, .divide-gray-100, .divide-gray-200, .divide-gray-300 {
-    border-color: #3e3d32 !important;
-}
-
-.divide-y > :not([hidden]) ~ :not([hidden]) {
-    border-color: #3e3d32 !important;
-}
-
-.divide-x > :not([hidden]) ~ :not([hidden]) {
-    border-color: #3e3d32 !important;
-}
-
-/* Override input backgrounds */
-input, textarea, select {
-    @apply bg-[#1e1f1c] text-[#f8f8f2] border-[#49483e];
-    background-color: #1e1f1c !important;
-    color: #f8f8f2 !important;
-    border-color: #49483e !important;
-}
-
-input::placeholder, textarea::placeholder {
-    color: #75715e !important;
-}
-
-/* Override buttons */
-button, .btn {
-    @apply bg-[#3e3d32] text-[#f8f8f2] border-[#49483e];
-    background-color: #3e3d32 !important;
-    color: #f8f8f2 !important;
-    border-color: #49483e !important;
-    text-align: left !important;
-}
-
-/* Import Data button specific style */
-.sidebar-import-btn {
-    text-align: left !important;
-}
-
-button:hover, .btn:hover {
-    background-color: #49483e !important;
-}
-
-/* Override scrollbar for webkit browsers */
-::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
-}
-
-::-webkit-scrollbar-track {
-    background: #1e1f1c;
-    border-left: 1px solid #49483e;
-}
-
-::-webkit-scrollbar-thumb {
-    background: #3e3d32;
-    border-radius: 5px;
-    border: 2px solid #1e1f1c;
-}
-
-::-webkit-scrollbar-thumb:hover {
-    background: #75715e;
-}
-
-::-webkit-scrollbar-corner {
-    background: #1e1f1c;
-}
-
-/* Card and panel styles */
-.card, .panel, .rounded-xl, .rounded-lg, .rounded-md, .rounded-2xl {
-    background-color: #1e1f1c !important;
-    border-color: #49483e !important;
+  color: var(--monokai-comment);
 }
 
 /*
- * Copilot 关注表下拉 — 覆盖上方全局 button / rounded-* / shadow !important，
+ * Copilot 关注表下拉 — 使用共享主题变量，
  * 统一 elevated 表面，避免黑坑搜索框与分段条带。
  */
-.copilot-table-menu .rounded-xl,
-.copilot-table-menu .rounded-lg,
-.copilot-table-menu .rounded-md,
-.copilot-table-menu .rounded-2xl {
-  /* 先把全局 .rounded-* 的 #1e1f1c 清掉；真正背景由下方更具体的类决定 */
-  background-color: transparent !important;
-  border-color: transparent !important;
-}
+
 .copilot-table-menu.copilot-table-menu {
-  background-color: #2d2e29 !important;
-  border-color: #55574f !important;
-  color: #f8f8f2;
-  box-shadow:
-    0 0 0 1px rgba(85, 87, 79, 0.55),
-    0 18px 42px rgba(0, 0, 0, 0.62) !important;
+  background-color: var(--monokai-elevated);
+  border-color: var(--monokai-border-strong);
+  color: var(--monokai-fg);
+  box-shadow: var(--shadow-lg);
 }
 .copilot-table-menu .copilot-table-menu-section,
 .copilot-table-menu .copilot-table-menu-chips,
 .copilot-table-menu .copilot-table-menu-footer {
-  background-color: transparent !important;
-  border-color: rgba(58, 59, 54, 0.85) !important;
+  background-color: transparent;
+  border-color: color-mix(in srgb, var(--monokai-border) 85%, transparent);
 }
 .copilot-table-menu .copilot-table-menu-search {
-  background-color: #252623 !important;
-  border: 1px solid #3a3b36 !important;
+  background-color: var(--monokai-surface);
+  border: 1px solid var(--monokai-border);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
 .copilot-table-menu .copilot-table-menu-search input {
-  background-color: transparent !important;
-  border-color: transparent !important;
-  color: #f8f8f2 !important;
-  box-shadow: none !important;
+  background-color: transparent;
+  border-color: transparent;
+  color: var(--monokai-fg);
+  box-shadow: none;
 }
 .copilot-table-menu .copilot-table-menu-search input:focus,
 .copilot-table-menu .copilot-table-menu-search input:focus-visible {
-  outline: none !important;
-  box-shadow: none !important;
+  box-shadow: none;
 }
 .copilot-table-menu button {
-  background-color: transparent !important;
-  border-color: transparent !important;
-  color: #cfcfc2 !important;
-  box-shadow: none !important;
+  background-color: transparent;
+  border-color: transparent;
+  color: var(--monokai-fg-muted);
+  box-shadow: none;
 }
 .copilot-table-menu button:hover,
-.copilot-table-menu button:focus,
-.copilot-table-menu button:focus-visible {
-  background-color: #34352f !important;
-  color: #f8f8f2 !important;
-  outline: none !important;
-  box-shadow: none !important;
+.copilot-table-menu button:focus {
+  background-color: var(--monokai-hover);
+  color: var(--monokai-fg);
+  box-shadow: none;
 }
 .copilot-table-menu button[aria-selected='true'] {
-  background-color: rgba(166, 226, 46, 0.1) !important;
-  color: #f8f8f2 !important;
+  background-color: color-mix(in srgb, var(--monokai-accent) 10%, transparent);
+  color: var(--monokai-fg);
 }
 .copilot-table-menu button[aria-selected='true']:hover {
-  background-color: rgba(166, 226, 46, 0.16) !important;
+  background-color: color-mix(in srgb, var(--monokai-accent) 16%, transparent);
 }
 .copilot-table-menu .copilot-table-menu-action {
-  color: #75715e !important;
+  color: var(--monokai-comment);
 }
 .copilot-table-menu .copilot-table-menu-action:hover,
 .copilot-table-menu .copilot-table-menu-action:focus,
 .copilot-table-menu .copilot-table-menu-action:focus-visible {
-  background-color: #34352f !important;
-  color: #f8f8f2 !important;
+  background-color: var(--monokai-hover);
+  color: var(--monokai-fg);
 }
 .copilot-table-menu .copilot-table-menu-action-accent {
-  color: #a6e22e !important;
+  color: var(--monokai-accent);
 }
 .copilot-table-menu .copilot-table-menu-action-accent:hover,
 .copilot-table-menu .copilot-table-menu-action-accent:focus,
 .copilot-table-menu .copilot-table-menu-action-accent:focus-visible {
-  background-color: rgba(166, 226, 46, 0.12) !important;
-  color: #a6e22e !important;
+  background-color: color-mix(in srgb, var(--monokai-accent) 12%, transparent);
+  color: var(--monokai-accent);
 }
 .copilot-table-menu .copilot-table-menu-chip {
-  background-color: rgba(166, 226, 46, 0.12) !important;
-  border: 1px solid rgba(166, 226, 46, 0.28) !important;
-  color: #a6e22e !important;
+  background-color: color-mix(in srgb, var(--monokai-accent) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--monokai-accent) 28%, transparent);
+  color: var(--monokai-accent);
 }
 .copilot-table-menu .copilot-table-menu-chip:hover,
 .copilot-table-menu .copilot-table-menu-chip:focus,
 .copilot-table-menu .copilot-table-menu-chip:focus-visible {
-  background-color: rgba(249, 38, 114, 0.14) !important;
-  border-color: rgba(249, 38, 114, 0.4) !important;
-  color: #f92672 !important;
+  background-color: color-mix(in srgb, var(--monokai-pink) 14%, transparent);
+  border-color: color-mix(in srgb, var(--monokai-pink) 40%, transparent);
+  color: var(--monokai-pink);
 }
 .copilot-table-menu .copilot-table-menu-check {
-  background-color: #252623 !important;
-  border: 1px solid #55574f !important;
-  color: transparent !important;
+  background-color: var(--monokai-surface);
+  border: 1px solid var(--monokai-border-strong);
+  color: transparent;
 }
 .copilot-table-menu button[aria-selected='true'] .copilot-table-menu-check {
-  background-color: #a6e22e !important;
-  border-color: #a6e22e !important;
-  color: #1e1f1c !important;
+  background-color: var(--monokai-accent);
+  border-color: var(--monokai-accent);
+  color: var(--monokai-on-accent);
 }
 .copilot-table-menu .copilot-table-menu-footer {
-  color: #75715e !important;
+  color: var(--monokai-comment);
 }
 
 /*
- * Copilot 会话历史面板 — 覆盖全局 button / rounded-* !important，
+ * Copilot 会话历史面板 — 使用共享主题变量，
  * 使用 elevated 表面 + 清晰当前态，避免灰块/黑坑。
  */
 .copilot-session-history.copilot-session-history {
-  background-color: #252623 !important;
-  border-bottom: 1px solid #3a3b36 !important;
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.55) !important;
-  color: #f8f8f2;
+  background-color: var(--monokai-surface);
+  border-bottom: 1px solid var(--monokai-border);
+  box-shadow: var(--shadow-lg);
+  color: var(--monokai-fg);
 }
-.copilot-session-history .rounded-xl,
-.copilot-session-history .rounded-lg,
-.copilot-session-history .rounded-md,
-.copilot-session-history .rounded-2xl {
-  background-color: transparent !important;
-  border-color: transparent !important;
-}
+
 .copilot-session-history-header {
-  background-color: #2d2e29 !important;
-  border-bottom: 1px solid #3a3b36 !important;
+  background-color: var(--monokai-elevated);
+  border-bottom: 1px solid var(--monokai-border);
 }
 .copilot-session-history-list {
-  background-color: #252623 !important;
+  background-color: var(--monokai-surface);
 }
 .copilot-session-count {
   display: inline-flex;
@@ -1283,67 +1051,62 @@ button:hover, .btn:hover {
   height: 1.15rem;
   padding: 0 0.35rem;
   border-radius: 0.25rem;
-  background-color: #1e1f1c !important;
-  border: 1px solid #3a3b36 !important;
-  color: #75715e !important;
+  background-color: var(--monokai-on-accent);
+  border: 1px solid var(--monokai-border);
+  color: var(--monokai-comment);
   font-size: 10px;
 }
 .copilot-session-history button {
-  background-color: transparent !important;
-  border-color: transparent !important;
-  color: #cfcfc2 !important;
-  box-shadow: none !important;
-  text-align: left !important;
+  background-color: transparent;
+  border-color: transparent;
+  color: var(--monokai-fg-muted);
+  box-shadow: none;
+  text-align: left;
 }
-.copilot-session-history button:hover,
-.copilot-session-history button:focus,
-.copilot-session-history button:focus-visible {
-  outline: none !important;
-  box-shadow: none !important;
-}
+
 .copilot-session-action-accent {
-  color: #a6e22e !important;
+  color: var(--monokai-accent);
 }
 .copilot-session-action-accent:hover,
 .copilot-session-action-accent:focus,
 .copilot-session-action-accent:focus-visible {
-  background-color: rgba(166, 226, 46, 0.12) !important;
-  color: #a6e22e !important;
+  background-color: color-mix(in srgb, var(--monokai-accent) 12%, transparent);
+  color: var(--monokai-accent);
 }
 .copilot-session-icon-btn {
-  color: #75715e !important;
+  color: var(--monokai-comment);
 }
 .copilot-session-icon-btn:hover,
 .copilot-session-icon-btn:focus,
 .copilot-session-icon-btn:focus-visible {
-  background-color: #34352f !important;
-  color: #f8f8f2 !important;
+  background-color: var(--monokai-hover);
+  color: var(--monokai-fg);
 }
 .copilot-session-icon-btn--danger:hover,
 .copilot-session-icon-btn--danger:focus,
 .copilot-session-icon-btn--danger:focus-visible {
-  background-color: rgba(249, 38, 114, 0.14) !important;
-  color: #f92672 !important;
+  background-color: color-mix(in srgb, var(--monokai-pink) 14%, transparent);
+  color: var(--monokai-pink);
 }
 .copilot-session-icon-btn--ok {
-  color: #a6e22e !important;
+  color: var(--monokai-accent);
 }
 .copilot-session-icon-btn--ok:hover {
-  background-color: rgba(166, 226, 46, 0.12) !important;
-  color: #a6e22e !important;
+  background-color: color-mix(in srgb, var(--monokai-accent) 12%, transparent);
+  color: var(--monokai-accent);
 }
 .copilot-session-row {
-  background-color: transparent !important;
-  border: 1px solid transparent !important;
+  background-color: transparent;
+  border: 1px solid transparent;
 }
 .copilot-session-row:hover {
-  background-color: #2d2e29 !important;
-  border-color: #3a3b36 !important;
+  background-color: var(--monokai-elevated);
+  border-color: var(--monokai-border);
 }
 .copilot-session-row--active,
 .copilot-session-row--active:hover {
-  background-color: rgba(166, 226, 46, 0.08) !important;
-  border-color: rgba(166, 226, 46, 0.28) !important;
+  background-color: color-mix(in srgb, var(--monokai-accent) 8%, transparent);
+  border-color: color-mix(in srgb, var(--monokai-accent) 28%, transparent);
 }
 .copilot-session-row-main {
   cursor: pointer;
@@ -1352,60 +1115,35 @@ button:hover, .btn:hover {
   cursor: default;
 }
 .copilot-session-row-icon {
-  background-color: #1e1f1c !important;
-  color: #75715e !important;
-  border: 1px solid #3a3b36 !important;
+  background-color: var(--monokai-on-accent);
+  color: var(--monokai-comment);
+  border: 1px solid var(--monokai-border);
 }
 .copilot-session-row-icon.is-active {
-  background-color: rgba(166, 226, 46, 0.16) !important;
-  border-color: rgba(166, 226, 46, 0.35) !important;
-  color: #a6e22e !important;
+  background-color: color-mix(in srgb, var(--monokai-accent) 16%, transparent);
+  border-color: color-mix(in srgb, var(--monokai-accent) 35%, transparent);
+  color: var(--monokai-accent);
 }
 .copilot-session-row-title {
-  color: #d8d7cc !important;
+  color: var(--monokai-fg-muted);
 }
 .copilot-session-row--active .copilot-session-row-title {
-  color: #f8f8f2 !important;
+  color: var(--monokai-fg);
 }
 .copilot-session-row-badge {
   border-radius: 0.25rem;
   padding: 0.1rem 0.35rem;
-  background-color: rgba(166, 226, 46, 0.14) !important;
-  color: #a6e22e !important;
-  border: 1px solid rgba(166, 226, 46, 0.28) !important;
+  background-color: rgba(166, 226, 46, 0.14);
+  color: var(--monokai-accent);
+  border: 1px solid color-mix(in srgb, var(--monokai-accent) 28%, transparent);
 }
 .copilot-session-row-preview {
-  color: #75715e !important;
+  color: var(--monokai-comment);
 }
 .copilot-session-rename-input {
-  background-color: #1e1f1c !important;
-  border: 1px solid rgba(166, 226, 46, 0.45) !important;
-  color: #f8f8f2 !important;
-}
-
-/* Override specific element styles */
-.hover\:bg-gray-50:hover, .hover\:bg-gray-100:hover {
-    background-color: #3e3d32 !important;
-}
-
-.hover\:bg-slate-50:hover, .hover\:bg-slate-100:hover {
-    background-color: #3e3d32 !important;
-}
-
-/* Focus ring overrides - make them subtle */
-*:focus, *:focus-visible {
-    outline-color: #3e3d32 !important;
-    --tw-ring-color: #3e3d32 !important;
-}
-
-/* Ring color overrides */
-.ring-1, .ring-2 {
-    --tw-ring-color: #3e3d32 !important;
-}
-
-/* Hide harsh shadows - replace with subtle ones */
-.shadow-sm, .shadow, .shadow-lg, .shadow-xl {
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
+  background-color: var(--monokai-on-accent);
+  border: 1px solid rgba(166, 226, 46, 0.45);
+  color: var(--monokai-fg);
 }
 
 @keyframes slideUp {
@@ -1439,7 +1177,7 @@ button:hover, .btn:hover {
 @layer utilities {
     .custom-scrollbar {
         scrollbar-width: thin;
-        scrollbar-color: #49483e #1e1f1c;
+        scrollbar-color: var(--monokai-border-strong) var(--monokai-bg);
     }
 
     .custom-scrollbar::-webkit-scrollbar {
@@ -1448,28 +1186,28 @@ button:hover, .btn:hover {
     }
 
     .custom-scrollbar::-webkit-scrollbar-track {
-        background: #1e1f1c;
+        background: var(--monokai-bg);
         border: none;
     }
 
     .custom-scrollbar::-webkit-scrollbar-thumb {
-        background: #3e3d32;
+        background: var(--monokai-border);
         border-radius: 4px;
-        border: 2px solid #1e1f1c;
+        border: 2px solid var(--monokai-bg);
     }
 
     .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-        background: #75715e;
+        background: var(--monokai-comment);
     }
 
     .custom-scrollbar::-webkit-scrollbar-corner {
-        background: #1e1f1c;
+        background: var(--monokai-bg);
     }
 }
 
 /* Markdown 渲染样式 - 统一紧凑排版与语义主题 */
 .markdown-body {
-    color: var(--monokai-fg-muted, #d8d7cc);
+    color: var(--monokai-fg-muted);
     line-height: 1.6;
     font-size: 12px;
     font-family: var(--font-sans);
@@ -1478,27 +1216,27 @@ button:hover, .btn:hover {
 .markdown-body h1 {
     font-size: 14px;
     font-weight: 600;
-    color: var(--monokai-fg, #f8f8f2);
+    color: var(--monokai-fg);
     margin-top: 1.2em;
     margin-bottom: 0.5em;
     padding-bottom: 0.25em;
-    border-bottom: 1px solid var(--monokai-border, #3a3b36);
+    border-bottom: 1px solid var(--monokai-border);
 }
 
 .markdown-body h2 {
     font-size: 13px;
     font-weight: 600;
-    color: var(--monokai-fg, #f8f8f2);
+    color: var(--monokai-fg);
     margin-top: 1em;
     margin-bottom: 0.4em;
     padding-bottom: 0.2em;
-    border-bottom: 1px solid var(--monokai-border-subtle, #2d2e29);
+    border-bottom: 1px solid var(--monokai-border-subtle, var(--monokai-elevated));
 }
 
 .markdown-body h3 {
     font-size: 12px;
     font-weight: 600;
-    color: var(--monokai-fg, #f8f8f2);
+    color: var(--monokai-fg);
     margin-top: 0.8em;
     margin-bottom: 0.3em;
 }
@@ -1506,7 +1244,7 @@ button:hover, .btn:hover {
 .markdown-body h4, .markdown-body h5, .markdown-body h6 {
     font-size: 11.5px;
     font-weight: 600;
-    color: var(--monokai-fg, #f8f8f2);
+    color: var(--monokai-fg);
     margin-top: 0.6em;
     margin-bottom: 0.3em;
 }
@@ -1516,39 +1254,39 @@ button:hover, .btn:hover {
 }
 
 .markdown-body a {
-    color: var(--monokai-cyan, #66d9ef);
+    color: var(--monokai-cyan);
     text-decoration: none;
     transition: color 0.15s ease;
 }
 
 .markdown-body a:hover {
     text-decoration: underline;
-    color: var(--monokai-blue, #66d9ef);
+    color: var(--monokai-blue, var(--monokai-cyan));
 }
 
 .markdown-body strong {
-    color: var(--monokai-fg, #f8f8f2);
+    color: var(--monokai-fg);
     font-weight: 600;
 }
 
 .markdown-body em {
-    color: var(--monokai-purple, #ae81ff);
+    color: var(--monokai-purple);
     font-style: italic;
 }
 
-.markdown-body code.inline-code {
-    background: var(--monokai-elevated, #2d2e29);
-    color: var(--monokai-fg, #f8f8f2);
+.markdown-body :not(pre) > code {
+    background: var(--monokai-elevated);
+    color: var(--monokai-fg);
     padding: 0.15em 0.35em;
     border-radius: 4px;
-    border: 1px solid var(--monokai-border-subtle, #3a3b36);
+    border: 1px solid var(--monokai-border-subtle, var(--monokai-border));
     font-family: var(--font-mono);
     font-size: 0.9em;
 }
 
 .markdown-body pre {
-    background: var(--monokai-bg, #1e1f1c);
-    border: 1px solid var(--monokai-border, #3a3b36);
+    background: var(--monokai-bg);
+    border: 1px solid var(--monokai-border);
     border-radius: 6px;
     padding: 0.75em 1em;
     overflow-x: auto;
@@ -1556,7 +1294,7 @@ button:hover, .btn:hover {
 }
 
 .markdown-body pre code {
-    color: var(--monokai-fg, #f8f8f2);
+    color: var(--monokai-fg);
     font-family: var(--font-mono);
     font-size: 11.5px;
     line-height: 1.55;
@@ -1568,8 +1306,8 @@ button:hover, .btn:hover {
     margin: 1em 0;
     border-radius: 6px;
     overflow: hidden;
-    border: 1px solid var(--monokai-border, #3a3b36);
-    background: var(--monokai-bg, #1e1f1c);
+    border: 1px solid var(--monokai-border);
+    background: var(--monokai-bg);
 }
 
 .code-block-header {
@@ -1577,13 +1315,13 @@ button:hover, .btn:hover {
     justify-content: space-between;
     align-items: center;
     padding: 6px 12px;
-    background: var(--monokai-surface, #252623);
-    border-bottom: 1px solid var(--monokai-border, #3a3b36);
+    background: var(--monokai-surface);
+    border-bottom: 1px solid var(--monokai-border);
 }
 
 .code-lang {
     font-size: 11px;
-    color: var(--monokai-comment, #75715e);
+    color: var(--monokai-comment);
     font-family: var(--font-mono);
     text-transform: uppercase;
 }
@@ -1598,22 +1336,22 @@ button:hover, .btn:hover {
 }
 
 .copy-btn {
-    background: var(--monokai-elevated, #2d2e29);
-    color: var(--monokai-fg-muted, #d8d7cc);
-    border: 1px solid var(--monokai-border, #3a3b36);
+    background: var(--monokai-elevated);
+    color: var(--monokai-fg-muted);
+    border: 1px solid var(--monokai-border);
 }
 
 .copy-btn:hover {
-    background: var(--monokai-surface, #252623);
-    color: var(--monokai-fg, #f8f8f2);
+    background: var(--monokai-surface);
+    color: var(--monokai-fg);
 }
 
 .run-code-btn {
     position: absolute;
     right: 12px;
     bottom: 12px;
-    background: var(--monokai-accent, #a6e22e);
-    color: var(--monokai-bg, #1e1f1c);
+    background: var(--monokai-accent);
+    color: var(--monokai-on-accent);
     font-weight: 600;
 }
 
@@ -1628,33 +1366,35 @@ button:hover, .btn:hover {
     border-collapse: collapse;
     margin: 0.75em 0;
     font-size: 11.5px;
-    border: 1px solid var(--monokai-border, #3a3b36);
+    border: 1px solid var(--monokai-border);
     border-radius: 6px;
     overflow: hidden;
 }
 
 .markdown-body th, .markdown-body td {
-    border: 1px solid var(--monokai-border-subtle, #2d2e29);
+    border: 1px solid var(--monokai-border-subtle, var(--monokai-elevated));
     padding: 6px 10px;
     text-align: left;
 }
 
 .markdown-body th {
-    background: var(--monokai-surface, #252623);
-    color: var(--monokai-fg, #f8f8f2);
+    background: var(--monokai-surface);
+    color: var(--monokai-fg);
     font-weight: 600;
     font-size: 11.5px;
 }
 
 .markdown-body tr:nth-child(even) {
-    background: var(--monokai-elevated, #2d2e29);
+    background: var(--monokai-elevated);
 }
 
 .markdown-body tr:hover {
-    background: var(--monokai-surface, #252623);
+    background: var(--monokai-surface);
 }
 
 /* 列表样式 */
+.markdown-body ul { list-style-type: disc; }
+.markdown-body ol { list-style-type: decimal; }
 .markdown-body ul, .markdown-body ol {
     margin: 0.5em 0;
     padding-left: 1.25em;
@@ -1665,33 +1405,33 @@ button:hover, .btn:hover {
 }
 
 .markdown-body ul li::marker {
-    color: var(--monokai-cyan, #66d9ef);
+    color: var(--monokai-cyan);
 }
 
 .markdown-body ol li::marker {
-    color: var(--monokai-accent, #a6e22e);
+    color: var(--monokai-accent);
 }
 
 /* 区块引用 */
 .markdown-body blockquote {
-    border-left: 3px solid var(--monokai-cyan, #66d9ef);
-    background: var(--monokai-surface, #252623);
+    border-left: 3px solid var(--monokai-cyan);
+    background: var(--monokai-surface);
     margin: 0.75em 0;
     padding: 0.5em 0.85em;
-    color: var(--monokai-fg-muted, #d8d7cc);
+    color: var(--monokai-fg-muted);
     border-radius: 0 6px 6px 0;
 }
 
 /* 水平线 */
 .markdown-body hr {
     border: none;
-    border-top: 1px solid var(--monokai-border, #3a3b36);
+    border-top: 1px solid var(--monokai-border);
     margin: 1.5em 0;
 }
 
 /* TOC 导航高亮效果 */
 .toc-highlight {
-    outline: 2px solid #66d9ef !important;
+    outline: 2px solid var(--monokai-cyan) !important;
     outline-offset: 4px !important;
     border-radius: 2px;
     transition: outline 0.3s ease;
@@ -1703,7 +1443,7 @@ button:hover, .btn:hover {
 .markdown-body td sub,
 .markdown-body td sup {
     font-style: italic !important;
-    color: #e6db74 !important;
+    color: var(--monokai-yellow) !important;
     font-size: inherit !important;
     vertical-align: baseline !important;
 }
@@ -1715,7 +1455,7 @@ button:hover, .btn:hover {
     font-family: var(--font-mono);
     font-size: 12px;
     line-height: 1.6;
-    background: #1e1f1c;
+    background: var(--monokai-bg);
     padding: 12px;
     border-radius: 6px;
     overflow-x: auto;
@@ -1724,31 +1464,31 @@ button:hover, .btn:hover {
 }
 
 .sql-keyword {
-    color: #ae81ff !important;
+    color: var(--monokai-purple) !important;
     font-weight: 600;
 }
 
 .sql-function {
-    color: #66d9ef !important;
+    color: var(--monokai-cyan) !important;
     font-weight: 500;
 }
 
 .sql-string {
-    color: #a6e22e !important;
+    color: var(--monokai-accent) !important;
     font-style: italic;
 }
 
 .sql-number {
-    color: #fd971f !important;
+    color: var(--monokai-orange) !important;
 }
 
 .sql-comment {
-    color: #75715e !important;
+    color: var(--monokai-comment) !important;
     font-style: italic;
 }
 
 .sql-identifier {
-    color: #f8f8f2 !important;
+    color: var(--monokai-fg) !important;
     font-style: italic;
 }
 
@@ -1997,27 +1737,27 @@ button:hover, .btn:hover {
 
 .skill-result-card {
   padding: 16px;
-  border: 1px solid #3e3d32;
+  border: 1px solid var(--monokai-border);
   background: #272822;
   border-radius: 0;
 }
 
 .skill-result-card.success {
-  border-color: #3e3d32;
+  border-color: var(--monokai-border);
 }
 
 .skill-result-card.error {
-  border-color: #3e3d32;
+  border-color: var(--monokai-border);
 }
 
 .skill-sql-block {
   padding: 14px;
   background: #1e1e1c;
-  border: 1px solid #3e3d32;
+  border: 1px solid var(--monokai-border);
   font-family: var(--font-mono);
   font-size: 12px;
   line-height: 1.6;
-  color: #f8f8f2;
+  color: var(--monokai-fg);
   white-space: pre-wrap;
   word-break: break-word;
   border-radius: 0;
@@ -2075,7 +1815,7 @@ button:hover, .btn:hover {
 }
 
 .resizable-divider:hover {
-  background: #49483e !important;
+  background: var(--monokai-border-strong) !important;
 }
 
 /* 分割线拖拽手柄 - 三个点 */
@@ -2087,7 +1827,7 @@ button:hover, .btn:hover {
   transform: translate(-50%, -50%);
   width: 4px;
   height: 24px;
-  background: linear-gradient(180deg, transparent 0%, #3e3d32 20%, #3e3d32 80%, transparent 100%);
+  background: linear-gradient(180deg, transparent 0%, var(--monokai-border) 20%, var(--monokai-border) 80%, transparent 100%);
   border-radius: 2px;
   opacity: 0;
   transition: opacity 0.2s ease;
@@ -2099,7 +1839,7 @@ button:hover, .btn:hover {
 
 /* 拖拽中状态 */
 .resizable-divider.is-dragging {
-  background: linear-gradient(90deg, transparent 0%, #49483e 50%, transparent 100%) !important;
+  background: linear-gradient(90deg, transparent 0%, var(--monokai-border-strong) 50%, transparent 100%) !important;
   cursor: col-resize;
 }
 
@@ -2130,13 +1870,13 @@ button:hover, .btn:hover {
   left: 50%;
   transform: translate(-50%, -50%);
   padding: 6px 12px;
-  background: linear-gradient(135deg, #272822 0%, #1e1f1c 100%);
-  border: 1px solid #49483e;
+  background: linear-gradient(135deg, #272822 0%, var(--monokai-bg) 100%);
+  border: 1px solid var(--monokai-border-strong);
   border-radius: 8px;
   font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 500;
-  color: #f8f8f2;
+  color: var(--monokai-fg);
   white-space: nowrap;
   pointer-events: none;
   z-index: 50;
@@ -2158,13 +1898,13 @@ button:hover, .btn:hover {
   left: 50%;
   transform: translate(-50%, -50%);
   padding: 6px 12px;
-  background: linear-gradient(135deg, #272822 0%, #1e1f1c 100%);
-  border: 1px solid #49483e;
+  background: linear-gradient(135deg, #272822 0%, var(--monokai-bg) 100%);
+  border: 1px solid var(--monokai-border-strong);
   border-radius: 8px;
   font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 500;
-  color: #f8f8f2;
+  color: var(--monokai-fg);
   white-space: nowrap;
   pointer-events: none;
   z-index: 50;
@@ -2175,7 +1915,7 @@ button:hover, .btn:hover {
 /* 分割线拖拽高亮条 */
 .resizable-divider-highlight {
   position: absolute;
-  background: linear-gradient(90deg, transparent 0%, #49483e 50%, transparent 100%);
+  background: linear-gradient(90deg, transparent 0%, var(--monokai-border-strong) 50%, transparent 100%);
   opacity: 0;
   transition: opacity 0.15s ease;
   pointer-events: none;
@@ -2768,11 +2508,11 @@ body.is-resizing .resizable-width-indicator {
   }
 
   .metric-builder-sidebar {
-    width: 100% !important;
-    min-height: 500px;
-    max-height: 68dvh;
+    width: min(360px, 90vw) !important;
+    min-height: 0;
+    max-height: 100%;
     border-right: 0 !important;
-    border-bottom: 1px solid var(--border-default);
+    border-bottom: 1px solid var(--monokai-border);
   }
 
   .metric-workspace {
@@ -2815,7 +2555,7 @@ body.is-resizing .resizable-width-indicator {
     min-height: 220px;
     max-height: 38dvh;
     border-right: 0 !important;
-    border-bottom: 1px solid var(--border-default);
+    border-bottom: 1px solid var(--monokai-border);
   }
 
   .library-content,
@@ -2850,7 +2590,7 @@ body.is-resizing .resizable-width-indicator {
     min-height: 230px;
     max-height: 42%;
     border-right: 0 !important;
-    border-bottom: 1px solid var(--border-default);
+    border-bottom: 1px solid var(--monokai-border);
   }
 }
 @media (max-width: 767px) {
@@ -2865,4 +2605,256 @@ body.is-resizing .resizable-width-indicator {
   }
 
   .ontology-right-resizer { display: none !important; }
+}
+
+/* ============================================================
+   HOME BOARD LAYOUT LOCK
+   Locked: no drag/resize. Unlocked: visible handles + vertical push.
+   Window resize only changes cell pixel size — never saved layout.
+   ============================================================ */
+.home-board-locked .drag-handle {
+  cursor: default !important;
+}
+.home-board-locked .drag-handle svg:first-child {
+  opacity: 0.35;
+}
+.home-board-locked .react-resizable-handle {
+  display: none !important;
+  pointer-events: none !important;
+}
+.home-board-unlocked .drag-handle {
+  cursor: grab;
+}
+.home-board-unlocked .drag-handle:active {
+  cursor: grabbing;
+}
+.home-board-unlocked .react-grid-item {
+  /* Keep SE/E/S handles hittable outside the card body */
+  overflow: visible !important;
+}
+.home-board-unlocked .react-grid-item > .react-resizable-handle {
+  opacity: 1 !important;
+  z-index: 30;
+  width: 18px;
+  height: 18px;
+  background: transparent;
+  border: none;
+  border-radius: 2px;
+}
+.home-board-unlocked .react-grid-item > .react-resizable-handle::after {
+  border-right-color: var(--monokai-accent) !important;
+  border-bottom-color: var(--monokai-accent) !important;
+  width: 7px;
+  height: 7px;
+}
+.home-board-unlocked .react-grid-item > .react-resizable-handle-e {
+  width: 10px !important;
+  height: 36px !important;
+  top: 50%;
+  margin-top: -18px;
+  right: -2px;
+  transform: none !important;
+}
+.home-board-unlocked .react-grid-item > .react-resizable-handle-s {
+  width: 36px !important;
+  height: 10px !important;
+  left: 50%;
+  margin-left: -18px;
+  bottom: -2px;
+  transform: none !important;
+}
+.home-board-unlocked .react-grid-item.react-grid-placeholder {
+  background: color-mix(in srgb, var(--monokai-accent) 35%, transparent);
+  border-radius: 2px;
+}
+
+
+/* Same Monokai hues, adapted for readable light surfaces. */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --monokai-bg: #f5f6f2;
+  --monokai-sidebar: #eef0e9;
+  --monokai-surface: #ffffff;
+  --monokai-elevated: #e8ebe2;
+  --monokai-hover: #e1e5d8;
+  --monokai-border: #d1d6c9;
+  --monokai-border-subtle: #e6e9e0;
+  --monokai-border-strong: #9aa58c;
+  --monokai-fg: #262b21;
+  --monokai-fg-muted: #49503f;
+  --monokai-comment: #626b55;
+  --monokai-on-accent: #ffffff;
+  --monokai-accent: #4c7611;
+  --monokai-accent-hover: #3c610b;
+  --monokai-cyan: #006c82;
+  --monokai-pink: #b31650;
+  --monokai-yellow: #806b00;
+  --monokai-orange: #a75600;
+  --monokai-purple: #7051a5;
+  --monokai-edge-idle: #626b55;
+  --monokai-edge-muted: #9aa58c;
+  --monokai-handle-ring: #ffffff;
+  --shadow-sm: 0 1px 2px rgba(26, 32, 20, .08);
+  --shadow-md: 0 2px 8px rgba(26, 32, 20, .12);
+  --shadow-lg: 0 4px 16px rgba(26, 32, 20, .16);
+}
+@layer base {
+  ::selection {
+    background: color-mix(in srgb, var(--monokai-accent) 30%, transparent);
+    color: var(--monokai-fg);
+  }
+  :where(button, input, select, textarea, a, summary, [tabindex]):focus-visible {
+    outline: 2px solid var(--monokai-accent);
+    outline-offset: 2px;
+  }
+  :where(button, input, select, textarea):disabled { cursor: not-allowed; opacity: 0.5; }
+  :where(input, textarea)::placeholder { color: var(--monokai-comment); }
+  :where(summary) { cursor: pointer; }
+  :where(pre, code) { font-family: var(--font-mono); }
+  :where(pre) { overflow-x: auto; }
+  :where(img) { max-width: 100%; }
+  a {
+    color: var(--monokai-cyan);
+    text-underline-offset: 3px;
+    transition: color 150ms ease;
+  }
+  a:hover {
+    color: var(--monokai-accent);
+    text-decoration: underline;
+  }
+  hr {
+    border-color: var(--monokai-border);
+  }
+}
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--monokai-bg); }
+::-webkit-scrollbar-thumb { background: var(--monokai-border-strong); border: 2px solid var(--monokai-bg); border-radius: 6px; }
+::-webkit-scrollbar-thumb:hover { background: var(--monokai-comment); }
+
+/* CodeMirror owns inline theme variables; adapt its surfaces and syntax together. */
+:root[data-theme="light"] .cm-editor {
+  --cm-bg-color: var(--monokai-surface) !important;
+  --cm-fg-color: var(--monokai-fg) !important;
+  --cm-gutter-bg: var(--monokai-sidebar) !important;
+  --cm-gutter-fg: var(--monokai-comment) !important;
+  --cm-keyword-color: var(--monokai-pink) !important;
+  --cm-function-color: var(--monokai-cyan) !important;
+  --cm-string-color: var(--monokai-yellow) !important;
+  --cm-number-color: var(--monokai-purple) !important;
+  --cm-operator-color: var(--monokai-orange) !important;
+  --cm-comment-color: var(--monokai-comment) !important;
+  background: var(--monokai-surface) !important;
+  color: var(--monokai-fg) !important;
+}
+:root[data-theme="light"] .cm-editor .cm-gutters,
+:root[data-theme="light"] .cm-editor .cm-tooltip {
+  background: var(--monokai-sidebar) !important;
+  color: var(--monokai-comment) !important;
+  border-color: var(--monokai-border) !important;
+}
+:root[data-theme="light"] .cm-editor .cm-activeLine,
+:root[data-theme="light"] .cm-editor .cm-activeLineGutter { background: var(--monokai-elevated) !important; }
+:root[data-theme="light"] .cm-editor .cm-selectionBackground { background: var(--monokai-hover) !important; }
+:root[data-theme="light"] .cm-editor .cm-cursor { border-left-color: var(--monokai-fg) !important; }
+
+/* Keep functional tabs visible instead of hiding them behind the domain strip. */
+@media (max-width: 1450px) {
+  .workspace-topbar { height: auto; min-height: 48px; padding-block: 6px; }
+  .workspace-topbar > div:first-child { flex-wrap: wrap; gap: 4px; overflow: visible; }
+  .workspace-topbar [role="tablist"] { flex-basis: 100%; max-width: 100%; overflow-x: auto; }
+  .workspace-topbar nav { max-width: 100%; overflow-x: auto; }
+}
+
+/* Compact navigation keeps all four domains visible and removes orphan dividers. */
+@media (max-width: 640px) {
+  .workspace-topbar { padding: 8px 12px; gap: 4px; }
+  .workspace-navigation > .w-px { display: none; }
+  .workspace-navigation > button:first-child { flex-basis: 100%; min-height: 32px; }
+  .workspace-navigation nav[aria-label="业务领域大类"] { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); width: 100%; gap: 2px; padding: 3px; }
+  .workspace-navigation nav[aria-label="业务领域大类"] button { justify-content: center; gap: 5px; padding-inline: 4px; font-size: 11px; }
+  .workspace-navigation nav[aria-label="业务领域大类"] button > span:first-child { display: none; }
+  .workspace-navigation [role="tablist"] { border: 0 !important; background: transparent !important; padding: 2px 0; }
+  .workspace-navigation [role="tab"] { padding-inline: 9px; }
+  .workspace-navigation [role="tab"] > span[aria-hidden="true"] { display: none; }
+  .workspace-tools { flex-wrap: nowrap !important; overflow-x: auto; padding-block: 2px; gap: 2px; scrollbar-width: thin; }
+  .workspace-tools .workspace-tool-label { display: none; }
+  .workspace-tools > .w-px { display: none; }
+  .workspace-tools > button, .workspace-tools > div > button { padding-inline: 8px; }
+  .home-context-header { flex-direction: row; align-items: center; min-height: 60px; gap: 8px; }
+  .home-context-header h1 { font-size: 14px; }
+  .home-context-header > div:first-child { max-width: calc(100% - 40px); }
+  .home-context-header button[aria-haspopup="listbox"] { max-width: 100%; }
+}
+
+/* Preview follows its panel width, including when sidebars are open. */
+.chart-builder-body { container-type: inline-size; }
+@container (max-width: 850px) {
+  .chart-builder-settings { width: 100%; max-height: 260px; border-right: 0; }
+}
+/* The body itself needs a parent container to change direction. */
+.chart-builder-body { flex-wrap: wrap; }
+.chart-builder-body > .chart-builder-settings { flex-basis: 320px; }
+.chart-builder-body > .chart-builder-settings + div { flex-basis: 480px; }
+[data-testid="readable-board"] > div:has([data-chart-kind="kpi"]) {
+  grid-column: 1 / -1;
+  height: 160px;
+}
+
+/* Pivot workspace: compact configuration above results; one scroll owner per area. */
+.pivot-config { width: 100%; max-height: 320px; }
+.pivot-config-grid { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(260px, 1.2fr) minmax(220px, 1fr); gap: 12px; align-items: start; }
+.pivot-config-grid > section, .pivot-dimensions { max-height: 240px; overflow: auto; min-width: 0; }
+.pivot-config-grid > section { padding: 10px; }
+.pivot-dimensions > section { padding: 8px; }
+.pivot-advanced > details { flex: 1 1 240px; min-width: 0; padding: 8px; }
+@media (min-width: 768px) and (max-height: 800px) { .pivot-config { max-height: 240px; } }
+@media (min-width: 768px) and (max-width: 1023px) { .pivot-config-grid { grid-template-columns: minmax(200px,1fr) minmax(240px,1fr); } .pivot-config-grid > section:last-child { grid-column: 1 / -1; } }
+.analysis-hub .pivot-workspace { font-size: 13px; }
+.analysis-hub .pivot-workspace .text-sm,
+.analysis-hub .pivot-workspace .text-meta,
+.analysis-hub .pivot-workspace .text-xs { font-size: 13px; line-height: 1.5; }
+.analysis-hub .pivot-workspace .text-2xs,
+.pivot-grid .text-2xs { font-size: 12px; line-height: 1.5; }
+.pivot-workspace select,.pivot-workspace input { min-height: 32px; font-family: inherit; }
+.pivot-grid table { font-size: 13px; line-height: 1.5; }
+.pivot-grid thead th:last-child,.pivot-grid tfoot td:last-child { position: sticky; right: 0; background: var(--monokai-surface); }
+.analysis-pivot-active > header { padding-block: 8px; }
+@media (max-width: 1199px) {
+  .pivot-config { width: 100%; max-width: 100%; min-width: 0; resize: none; }
+
+  body:has(.pivot-workspace) .workspace-topbar > div:first-child { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; }
+  body:has(.pivot-workspace) .workspace-topbar [role="tablist"] { flex-basis: auto; }
+  body:has(.pivot-workspace) .workspace-topbar > div:last-child { max-width: 100%; flex-wrap: nowrap; overflow-x: auto; }
+  .analysis-pivot-active > header > div:first-child { display: none; }
+}
+@media (max-width: 767px) {
+  .pivot-config { max-height: none; flex: 1; }
+  .pivot-config-grid { grid-template-columns: minmax(0,1fr); }
+  .pivot-config-grid > section, .pivot-dimensions { max-height: none; }
+  .pivot-body:has(.pivot-config) .pivot-results { display: none; }
+}
+@media (max-width: 639px) {
+  .pivot-workspace input,.pivot-workspace select,.pivot-workspace button,.pivot-grid button { min-height: 44px; }
+  .pivot-grid td button { min-width: 44px; }
+  .pivot-grid td { padding-block: 2px; }
+  .pivot-workspace > div:first-child { padding: 8px; }
+  .pivot-results { padding: 8px; }
+}
+
+/* Preserve result space while keeping all actions reachable on smaller screens. */
+@media (max-width: 1023px) {
+  .pivot-toolbar { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; }
+  .pivot-toolbar > * { flex-shrink: 0; }
+  .pivot-toolbar > label:first-child { flex: 0 0 180px; min-width: 180px; }
+}
+@media (max-width: 639px) {
+  .pivot-grid > div:first-child { flex-wrap: nowrap; overflow-x: auto; }
+  .pivot-grid > div:first-child > * { flex-shrink: 0; }
+  .pivot-grid > div:first-child > div:first-child { flex: 0 0 160px; }
+}
+
+@media (max-width: 639px) {
+  .pivot-workspace > div:first-child > :not([hidden]) ~ :not([hidden]) { margin-top: 4px; }
+  .pivot-result-summary { flex-wrap: nowrap; font-size: 12px; }
+  .pivot-result-summary > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 }

@@ -1,0 +1,375 @@
+- banner "全局工作区顶栏":
+  - button "🪶 DuckDB Studio PRO":
+    - generic: 🪶
+    - generic: DuckDB Studio
+    - generic: PRO
+  - navigation "业务领域大类":
+    - button "工程核心":
+      - generic: 工程核心
+    - button "分析洞察":
+      - generic: 分析洞察
+    - button "知识沉淀":
+      - generic: 知识沉淀
+    - button "AI 认知":
+      - generic: AI 认知
+  - tablist "工程核心功能标签页":
+    - tab "仪表盘":
+      - generic: 仪表盘
+      - generic: "1"
+    - tab "数据":
+      - generic: 数据
+      - generic: "2"
+    - tab "Schema" [selected]:
+      - generic: Schema
+    - tab "SQL":
+      - generic: SQL
+      - generic: "4"
+    - tab "数据流":
+      - generic: 数据流
+      - generic: "5"
+  - button "项目":
+    - generic: 项目
+  - button "已保存到 OPFS":
+    - generic: 已保存到 OPFS
+  - button "AI 助手":
+    - generic: AI 助手
+  - button "⌘K":
+  - button "帮助与快捷键":
+  - button "切换为浅色模式":
+  - button "AI 模型设置":
+- main:
+  - main:
+    - heading "Schema 架构体系" [level=1]
+    - paragraph: 数据模型定义 · 字段类型约束 · 关系 ER 图谱 · 在线 DDL 演变
+    - button "仪表盘":
+      - generic: 仪表盘
+    - button "新建表":
+      - generic: 新建表
+    - tablist "Schema 视图模式":
+      - tab "列表视图":
+        - generic: 列表视图
+      - tab "ER 关系图谱" [active] [selected]:
+        - generic: ER 关系图谱
+    - textbox "在图谱中搜索表名或字段..."
+    - button "缩小画布":
+    - button "100%"
+    - button "放大画布":
+    - generic: 13 张表 · 0 条关联拓扑
+    - generic: PK 主键
+    - generic: FK 关联
+    - generic: crypto_transactions
+    - generic: 13 列
+    - generic: crypto_order_id
+    - generic: VARCHAR
+    - generic: INT
+    - generic: uid
+    - generic: BIGINT
+    - generic: TXT
+    - generic: direction
+    - generic: VARCHAR
+    - generic: TXT
+    - generic: asset
+    - generic: VARCHAR
+    - generic: TXT
+    - generic: network
+    - generic: VARCHAR
+    - generic: INT
+    - generic: amount
+    - generic: DECIMAL(18,8)
+    - generic: INT
+    - generic: fee
+    - generic: DECIMAL(18,8)
+    - generic: TXT
+    - generic: tx_hash
+    - generic: VARCHAR
+    - generic: TXT
+    - generic: address
+    - generic: VARCHAR
+    - generic: TXT
+    - generic: status
+    - generic: VARCHAR
+    - generic: INT
+    - generic: confirmations
+    - generic: INTEGER
+    - generic: TIME
+    - generic: created_at
+    - generic: TIMESTAMP
+    - generic: TIME
+    - generic: completed_at
+    - generic: TIMESTAMP
+    - generic: "主键: crypto_order_id"
+    - button "详情":
+      - generic: 详情
+    - generic: exchange_rates
+    - generic: 8 列
+    - generic: asset
+    - generic: VARCHAR
+    - generic: TXT
+    - generic: asset_name
+    - generic: VARCHAR
+    - generic: TXT
+    - generic: asset_type
+    - generic: VARCHAR
+    - generic: quote_currency
+    - generic: VARCHAR
+    - generic: INT
+    - generic: rate_to_usdt
+    - generic: DOUBLE
+    - generic: INT
+    - generic: usdt_to_asset_rate
+    - generic: DOUBLE
+    - generic: effective_date
+    - generic: DATE
+    - generic: TXT
+    - generic: source
+    - generic: VARCHAR
+    - generic: "主键: asset"
+    - button "详情":
+      - generic: 详情
+    - generic: fiat_transactions
+    - generic: 10 列
+    - generic: fiat_order_id
+    - generic: VARCHAR
+    - generic: INT
+    - generic: uid
+    - generic: BIGINT
+    - generic: TXT
+    - generic: direction
+    - generic: VARCHAR
+    - generic: TXT
+    - generic: currency
+    - generic: VARCHAR
+    - generic: INT
+    - generic: amount
+    - generic: DECIMAL(18,2)
+    - generic: INT
+    - generic: fee
+    - generic: DECIMAL(18,2)
+    - generic: TXT
+    - generic: channel
+    - generic: VARCHAR
+    - generic: TXT
+    - generic: status
+    - generic: VARCHAR
+    - generic: TIME
+    - generic: created_at
+    - generic: TIMESTAMP
+    - generic: TIME
+    - generic: completed_at
+    - generic: TIMESTAMP
+    - generic: "主键: fiat_order_id"
+    - button "详情":
+      - generic: 详情
+    - generic: life_action
+    - generic: 6 列
+    - generic: id
+    - generic: INTEGER
+    - generic: INT
+    - generic: object_id
+    - generic: INTEGER
+    - generic: TXT
+    - generic: name
+    - generic: VARCHAR
+    - generic: TXT
+    - generic: description
+    - generic: VARCHAR
+    - generic: TXT
+    - generic: status
+    - generic: VARCHAR
+    - generic: TIME
+    - generic: execute_at
+    - generic: DATE
+    - generic: "主键: id"
+    - button "详情":
+      - generic: 详情
+    - generic: life_canvas_edge
+    - generic: 3 列
+    - generic: id
+    - generic: VARCHAR
+    - generic: TXT
+    - generic: source_id
+    - generic: VARCHAR
+    - generic: TXT
+    - generic: target_id
+    - generic: VARCHAR
+    - generic: "主键: id"
+    - button "详情":
+      - generic: 详情
+    - generic: life_canvas_state
+    - generic: 11 列
+    - generic: id
+    - generic: VARCHAR
+    - generic: TXT
+    - generic: space_id
+    - generic: VARCHAR
+    - generic: INT
+    - generic: object_id
+    - generic: INTEGER
+    - generic: TXT
+    - generic: title
+    - generic: VARCHAR
+    - generic: TXT
+    - generic: color
+    - generic: VARCHAR
+    - generic: INT
+    - generic: x
+    - generic: DOUBLE
+    - generic: INT
+    - generic: "y"
+    - generic: DOUBLE
+    - generic: INT
+    - generic: width
+    - generic: DOUBLE
+    - generic: INT
+    - generic: height
+    - generic: DOUBLE
+    - generic: TXT
+    - generic: node_type
+    - generic: VARCHAR
+    - generic: JSON
+    - generic: metadata
+    - generic: JSON
+    - generic: "主键: id"
+    - button "详情":
+      - generic: 详情
+    - generic: life_insight
+    - generic: 5 列
+    - generic: id
+    - generic: INTEGER
+    - generic: INT
+    - generic: object_id
+    - generic: INTEGER
+    - generic: TXT
+    - generic: insight
+    - generic: VARCHAR
+    - generic: TXT
+    - generic: tag
+    - generic: VARCHAR
+    - generic: TIME
+    - generic: created_at
+    - generic: TIMESTAMP
+    - generic: "主键: id"
+    - button "详情":
+      - generic: 详情
+    - generic: life_introspection
+    - generic: 5 列
+    - generic: id
+    - generic: INTEGER
+    - generic: INT
+    - generic: object_id
+    - generic: INTEGER
+    - generic: TXT
+    - generic: question
+    - generic: VARCHAR
+    - generic: TXT
+    - generic: answer
+    - generic: VARCHAR
+    - generic: TIME
+    - generic: created_at
+    - generic: TIMESTAMP
+    - generic: "主键: id"
+    - button "详情":
+      - generic: 详情
+    - generic: life_link
+    - generic: 5 列
+    - generic: id
+    - generic: INTEGER
+    - generic: INT
+    - generic: link_type_id
+    - generic: INTEGER
+    - generic: INT
+    - generic: source_object_id
+    - generic: INTEGER
+    - generic: INT
+    - generic: target_object_id
+    - generic: INTEGER
+    - generic: INT
+    - generic: weight
+    - generic: DECIMAL(3,2)
+    - generic: "主键: id"
+    - button "详情":
+      - generic: 详情
+    - generic: life_link_type
+    - generic: 3 列
+    - generic: id
+    - generic: INTEGER
+    - generic: TXT
+    - generic: name
+    - generic: VARCHAR
+    - generic: TXT
+    - generic: description
+    - generic: VARCHAR
+    - generic: "主键: id"
+    - button "详情":
+      - generic: 详情
+    - generic: life_object
+    - generic: 5 列
+    - generic: id
+    - generic: INTEGER
+    - generic: INT
+    - generic: object_type_id
+    - generic: INTEGER
+    - generic: TXT
+    - generic: name
+    - generic: VARCHAR
+    - generic: JSON
+    - generic: properties
+    - generic: JSON
+    - generic: TXT
+    - generic: annotations
+    - generic: VARCHAR
+    - generic: "主键: id"
+    - button "详情":
+      - generic: 详情
+    - generic: life_object_type
+    - generic: 3 列
+    - generic: id
+    - generic: INTEGER
+    - generic: TXT
+    - generic: name
+    - generic: VARCHAR
+    - generic: TXT
+    - generic: description
+    - generic: VARCHAR
+    - generic: "主键: id"
+    - button "详情":
+      - generic: 详情
+    - generic: users
+    - generic: 7 列
+    - generic: uid
+    - generic: BIGINT
+    - generic: TXT
+    - generic: user_name
+    - generic: VARCHAR
+    - generic: TXT
+    - generic: country_code
+    - generic: VARCHAR
+    - generic: TXT
+    - generic: base_fiat_currency
+    - generic: VARCHAR
+    - generic: INT
+    - generic: kyc_level
+    - generic: INTEGER
+    - generic: TXT
+    - generic: account_status
+    - generic: VARCHAR
+    - generic: TIME
+    - generic: created_at
+    - generic: TIMESTAMP
+    - generic: "主键: uid"
+    - button "详情":
+      - generic: 详情
+- contentinfo:
+  - generic: DuckDB 1.33.1
+  - generic: "|"
+  - generic: sql_funds_flow [OPFS]
+  - generic: "|"
+  - generic: 持久化库
+  - generic: "|"
+  - generic: 13 张表
+  - generic: "|"
+  - generic: 13 个活动表
+  - generic: 引擎就绪
+  - generic: "|"
+  - generic: 02:12
+  - button "刷新运行时状态":

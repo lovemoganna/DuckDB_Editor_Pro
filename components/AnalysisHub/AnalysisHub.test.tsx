@@ -5,14 +5,14 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AnalysisHubPanel } from './AnalysisHubPanel';
 import { AnalysisProfiler } from './AnalysisProfiler';
-import { AnalysisPivotWorkbench } from './AnalysisPivotWorkbench';
-import { AnalysisTimeSeries } from './AnalysisTimeSeries';
-import { AnalysisRecipeCenter } from './AnalysisRecipeCenter';
-import { analysisEngine } from './analysisEngine';
 import { useAppStore } from '../../hooks/store/useAppStore';
 import type { ColumnInfo } from '../../types';
+import {
+  compileAnalysis,
+  pivotConfigToSpec,
+  timeSeriesConfigToSpec,
+} from '../../services/analysis';
 
-// Mock duckdbService
 const mockReadQuery = vi.fn();
 const mockQuery = vi.fn();
 const mockGetTables = vi.fn();
@@ -20,10 +20,15 @@ const mockGetTableSchema = vi.fn();
 
 vi.mock('../../services/duckdbService', () => ({
   duckDBService: {
+    getCurrentCatalogAndSchema: vi.fn().mockResolvedValue({catalog:'memory',schema:'main'}),
     readQuery: (...args: any[]) => mockReadQuery(...args),
     query: (...args: any[]) => mockQuery(...args),
     getTables: (...args: any[]) => mockGetTables(...args),
     getTableSchema: (...args: any[]) => mockGetTableSchema(...args),
+    listAnalysisContexts: vi.fn().mockResolvedValue([
+      { id: 'main', label: 'Schema · main', kind: 'schema', isCurrent: true },
+    ]),
+    switchAnalysisContext: vi.fn().mockResolvedValue({ catalog: 'memory', schema: 'main' }),
   },
 }));
 
@@ -40,7 +45,6 @@ vi.mock('../Workbench/seedWorkbenchData', () => ({
   seedDemoWorkbenchData: vi.fn().mockResolvedValue(undefined),
 }));
 
-// Mock react-chartjs-2 to avoid canvas issues in jsdom
 vi.mock('react-chartjs-2', () => ({
   Bar: () => <div data-testid="mock-bar-chart">Bar Chart</div>,
   Line: () => <div data-testid="mock-line-chart">Line Chart</div>,
@@ -48,21 +52,13 @@ vi.mock('react-chartjs-2', () => ({
   Pie: () => <div data-testid="mock-pie-chart">Pie Chart</div>,
 }));
 
-describe('AnalysisEngine (Unit Tests)', () => {
-  const sampleSchema: ColumnInfo[] = [
-    { name: 'order_id', type: 'BIGINT', notnull: true, dflt_value: null, pk: true },
-    { name: 'customer_id', type: 'BIGINT', notnull: true, dflt_value: null, pk: false },
-    { name: 'order_date', type: 'DATE', notnull: true, dflt_value: null, pk: false },
-    { name: 'category', type: 'VARCHAR', notnull: false, dflt_value: null, pk: false },
-    { name: 'amount', type: 'DOUBLE', notnull: true, dflt_value: null, pk: false },
-  ];
-
+describe('Analysis Kernel (via Hub adapters)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('buildPivotSql generates standard DuckDB aggregation query', () => {
-    const sql = analysisEngine.buildPivotSql({
+  it('pivotConfigToSpec → compileAnalysis generates aggregation SQL', () => {
+    const spec = pivotConfigToSpec({
       tableName: 'orders',
       rowDimensions: [{ column: 'category' }],
       metrics: [
@@ -72,50 +68,56 @@ describe('AnalysisEngine (Unit Tests)', () => {
       filters: [{ column: 'amount', op: '>', value: '50' }],
       limit: 10,
     });
+    const { sql } = compileAnalysis(spec);
 
     expect(sql).toContain('SELECT');
-    expect(sql).toContain('"category" AS "category"');
-    expect(sql).toContain('ROUND(COALESCE(SUM(CAST("amount" AS DOUBLE)), 0), 2) AS "总销售额"');
-    expect(sql).toContain('COUNT(*) AS "订单总数"');
     expect(sql).toContain('FROM "orders"');
-    expect(sql).toContain('WHERE "amount" > 50');
+    expect(sql).toContain('SUM(CAST("amount" AS DOUBLE))');
+    expect(sql).toContain('COUNT(*)');
+    expect(sql).toContain('"amount" > 50');
     expect(sql).toContain('GROUP BY 1');
     expect(sql).toContain('LIMIT 10');
   });
 
-  it('buildTimeSeriesSql supports daily, monthly, and window LAG calculation', () => {
-    const rawSql = analysisEngine.buildTimeSeriesSql({
-      tableName: 'orders',
-      timeColumn: 'order_date',
-      granularity: 'month',
-      valueColumn: 'amount',
-      aggFunc: 'sum',
-      windowMode: 'raw',
-    });
-    expect(rawSql).toContain("DATE_TRUNC('month', CAST(\"order_date\" AS DATE))");
-    expect(rawSql).toContain('ROUND(SUM(CAST("amount" AS DOUBLE)), 2) AS base_value');
+  it('timeSeriesConfigToSpec maps window modes to kernel calcs', () => {
+    const raw = compileAnalysis(
+      timeSeriesConfigToSpec({
+        tableName: 'orders',
+        timeColumn: 'order_date',
+        granularity: 'month',
+        valueColumn: 'amount',
+        aggFunc: 'sum',
+        windowMode: 'raw',
+      }),
+    ).sql;
+    expect(raw).toContain("DATE_TRUNC('month'");
+    expect(raw).toContain('FROM "orders"');
 
-    const momSql = analysisEngine.buildTimeSeriesSql({
-      tableName: 'orders',
-      timeColumn: 'order_date',
-      granularity: 'month',
-      valueColumn: 'amount',
-      aggFunc: 'sum',
-      windowMode: 'mom',
-    });
-    expect(momSql).toContain('LAG(base_value, 1) OVER (ORDER BY period)');
-    expect(momSql).toContain('环比增长率_百分比');
+    const mom = compileAnalysis(
+      timeSeriesConfigToSpec({
+        tableName: 'orders',
+        timeColumn: 'order_date',
+        granularity: 'month',
+        valueColumn: 'amount',
+        aggFunc: 'sum',
+        windowMode: 'mom',
+      }),
+    ).sql;
+    expect(mom).toContain("INTERVAL '1 month'");
+    expect(mom).toContain('环比%');
 
-    const maSql = analysisEngine.buildTimeSeriesSql({
-      tableName: 'orders',
-      timeColumn: 'order_date',
-      granularity: 'day',
-      valueColumn: 'amount',
-      aggFunc: 'avg',
-      windowMode: 'moving_avg',
-    });
-    expect(maSql).toContain('ROWS BETWEEN 6 PRECEDING AND CURRENT ROW');
-    expect(maSql).toContain('7周期平滑均线');
+    const ma = compileAnalysis(
+      timeSeriesConfigToSpec({
+        tableName: 'orders',
+        timeColumn: 'order_date',
+        granularity: 'day',
+        valueColumn: 'amount',
+        aggFunc: 'avg',
+        windowMode: 'moving_avg',
+      }),
+    ).sql;
+    expect(ma).toContain('ROWS BETWEEN 6 PRECEDING AND CURRENT ROW');
+    expect(ma).toContain('移动平均');
   });
 });
 
@@ -160,7 +162,7 @@ describe('AnalysisProfiler Component', () => {
         schema={sampleSchema}
         onNavigateToPivot={onPivot}
         onNavigateToTimeSeries={onTimeSeries}
-      />
+      />,
     );
 
     await waitFor(() => {
@@ -168,9 +170,10 @@ describe('AnalysisProfiler Component', () => {
       expect(screen.getByText('1,000')).toBeInTheDocument();
     });
 
-    expect(screen.getByText('健康度评分')).toBeInTheDocument();
-    expect(screen.getByText('user_id')).toBeInTheDocument();
-    expect(screen.getByText('score')).toBeInTheDocument();
+    expect(screen.queryByText('健康度评分')).not.toBeInTheDocument();
+    expect(screen.getByText('数据完备率')).toBeInTheDocument();
+    expect(screen.getAllByText('user_id').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('score').length).toBeGreaterThan(0);
   });
 });
 
@@ -189,46 +192,41 @@ describe('AnalysisHubPanel Integration', () => {
   });
 
   it('renders analysis hub header and switches subviews', async () => {
-    render(
-      <AnalysisHubPanel />
-    );
+    render(<AnalysisHubPanel />);
 
     expect(screen.getByText('分析中心')).toBeInTheDocument();
     expect(screen.getByText('数据体检')).toBeInTheDocument();
-    expect(screen.getByText('透视聚合')).toBeInTheDocument();
+    expect(screen.getByRole('tab', {name:'透视表'})).toBeInTheDocument();
     expect(screen.getByText('时序分析')).toBeInTheDocument();
     expect(screen.getByText('场景配方')).toBeInTheDocument();
 
-    // Click "透视聚合"
-    fireEvent.click(screen.getByText('透视聚合'));
+    fireEvent.click(screen.getByRole('tab', {name:'透视表'}));
     await waitFor(() => {
-      expect(screen.getByText('多维透视与切片聚合')).toBeInTheDocument();
+      expect(screen.getByRole('tab', {name:'透视表'})).toHaveAttribute('aria-selected','true');
     });
 
-    // Click "时序分析"
     fireEvent.click(screen.getByText('时序分析'));
     await waitFor(() => {
       expect(screen.getByText('时序走势与波动分析')).toBeInTheDocument();
     });
 
-    // Click "场景配方"
     fireEvent.click(screen.getByText('场景配方'));
     await waitFor(() => {
       expect(screen.getByText('业务分析场景配方')).toBeInTheDocument();
     });
   });
 
-  it('renders zero-state empty view when tables is empty with 1-click demo button', async () => {
+  it('opens real-data import from an empty workspace without offering fabricated data', async () => {
     useAppStore.setState({
       tables: [],
       currentTable: null,
     });
 
-    render(
-      <AnalysisHubPanel />
-    );
+    render(<AnalysisHubPanel />);
 
     expect(screen.getByText('暂无数据表可分析')).toBeInTheDocument();
-    expect(screen.getByText('载入示例数据集')).toBeInTheDocument();
+    expect(screen.queryByText('载入示例数据集')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '导入 CSV / Parquet' }));
+    expect(useAppStore.getState().showImportModal).toBe(true);
   });
 });

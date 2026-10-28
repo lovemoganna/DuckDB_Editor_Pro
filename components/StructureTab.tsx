@@ -747,7 +747,7 @@ export const StructureTab: React.FC<StructureTabProps> = ({
             }}
           />
         ) : currentTable ? (
-          <div className="h-full flex flex-col p-3 sm:p-4 overflow-hidden">
+          <div className="h-full flex flex-col p-3 sm:p-4 overflow-y-auto lg:overflow-hidden">
             {/* Top Toolbar: Table Title, Inline Rename, Quick Switcher, Metadata Badges & Jumpers */}
             <div className="flex flex-wrap items-center justify-between gap-2.5 mb-3 bg-monokai-sidebar px-3 py-2 rounded-lg border border-monokai-border shadow-xs shrink-0">
               <div className="flex items-center gap-2.5 min-w-0 flex-wrap">
@@ -909,9 +909,9 @@ export const StructureTab: React.FC<StructureTabProps> = ({
             </div>
 
             {/* Dual Column Workbench Grid: Left Fields Table + Right Contextual Inspector */}
-            <div className="flex-1 flex flex-col lg:flex-row gap-3 overflow-hidden min-h-0">
+            <div className="flex-none lg:flex-1 flex flex-col lg:flex-row gap-3 overflow-visible lg:overflow-hidden min-h-0">
               {/* Left Column: High-Density Columns Table */}
-              <div className="bg-monokai-sidebar border border-monokai-border rounded-lg flex-1 flex flex-col shadow-xs overflow-hidden min-w-0">
+              <div className="bg-monokai-sidebar border border-monokai-border rounded-lg h-80 lg:h-auto flex-none lg:flex-1 flex flex-col shadow-xs overflow-hidden min-w-0">
                 <div className="overflow-auto flex-1 custom-scrollbar">
                   <table className="w-full text-left font-sans border-collapse">
                     <thead className="bg-monokai-surface border-b border-monokai-border text-[10px] uppercase tracking-wider text-monokai-comment sticky top-0 z-10">
@@ -1123,7 +1123,7 @@ export const StructureTab: React.FC<StructureTabProps> = ({
               </div>
 
               {/* Right Column: Contextual Inspector Workbench Panel */}
-              <div className="bg-monokai-sidebar border border-monokai-border rounded-lg w-full lg:w-[350px] xl:w-[380px] shrink-0 flex flex-col shadow-xs overflow-hidden">
+              <div className="bg-monokai-sidebar border border-monokai-border rounded-lg h-96 lg:h-auto w-full lg:w-[350px] xl:w-[380px] shrink-0 flex flex-col shadow-xs overflow-hidden">
                 {/* Inspector Header Tabs */}
                 <div className="p-2 border-b border-monokai-border bg-monokai-surface flex items-center justify-between">
                   <SegmentedTabs<RightInspectorTab>

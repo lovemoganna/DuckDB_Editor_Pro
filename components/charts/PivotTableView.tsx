@@ -3,7 +3,7 @@ import type { ChartSpec } from '../../services/analysis/types';
 import { formatValueBySpec } from '../../utils/chartFormat';
 import { comparePivotValues, downloadPivotCsv, pivotMatrixRows } from '../../services/analysis/pivotView';
 import { filterPivotSpec } from '../../services/analysis/pivotFilter';
-import { Flame, ArrowUpDown, Eye, EyeOff, Download } from 'lucide-react';
+import { Flame, ArrowUpDown, Eye, EyeOff, Download, Search, X } from 'lucide-react';
 
 export function PivotTableView({
   spec,
@@ -57,14 +57,15 @@ export function PivotTableView({
       ? active
       : '0:0';
 
-  // 极佳热力色阶计算：提取当前矩阵的纯数字极值
+  // Heatmap values calculation
   const { minVal, maxVal } = useMemo(() => {
     let min = Infinity;
     let max = -Infinity;
     for (const r of visibleRows) {
       const rowData = pivot.matrix[r] || {};
       for (const c of columns) {
-        const v = rowData[c];
+        const raw = rowData[c];
+        const v = raw == null || raw === '' ? NaN : Number(raw);
         if (typeof v === 'number' && Number.isFinite(v)) {
           if (v < min) min = v;
           if (v > max) max = v;
@@ -75,12 +76,13 @@ export function PivotTableView({
   }, [visibleRows, columns, pivot.matrix]);
 
   const getHeatmapStyle = (value: unknown): React.CSSProperties | undefined => {
-    if (!heatmap || typeof value !== 'number' || !Number.isFinite(value) || maxVal <= minVal) {
+    const numeric = value == null || value === '' ? NaN : Number(value);
+    if (!heatmap || !Number.isFinite(numeric) || maxVal <= minVal) {
       return undefined;
     }
-    const ratio = Math.max(0, Math.min(1, (value - minVal) / (maxVal - minVal)));
-    // Monokai 草绿色微渐变透明度（0.04 ~ 0.28），优雅不刺眼
-    const alpha = (0.04 + ratio * 0.24).toFixed(3);
+    const ratio = Math.max(0, Math.min(1, (numeric - minVal) / (maxVal - minVal)));
+    // Monokai 草绿细腻渐变透明度（0.05 ~ 0.25），与斑马纹完美契合
+    const alpha = (0.05 + ratio * 0.20).toFixed(3);
     return { backgroundColor: `rgba(166, 226, 46, ${alpha})` };
   };
 
@@ -117,138 +119,199 @@ export function PivotTableView({
     }
   };
 
+  const rowDimensionName = pivot.rowKeys && pivot.rowKeys.length > 1 ? pivot.rowKeys.join(' / ') : (pivot.rowKey || '行维度');
+
   return (
-    <div className="pivot-grid flex flex-col min-h-0 h-full text-sm text-monokai-fg select-none">
-      {/* 顶级设计感透视控制栏 */}
-      <div className="flex flex-wrap items-center gap-2 px-3 py-2 shrink-0 border-b border-monokai-border bg-monokai-surface/60 backdrop-blur-md shadow-xs">
-        <div className="relative flex-1 min-w-[160px] max-w-[240px]">
-          <input
-            aria-label="筛选透视维度"
-            value={filter}
-            placeholder="查找已加载维度…"
-            title="只查找已加载组合；不改变来源筛选与来源总计"
-            className="w-full rounded-md bg-monokai-bg/80 border border-monokai-border px-2.5 py-1 text-2xs text-monokai-fg placeholder:text-monokai-comment focus:border-monokai-accent focus:ring-1 focus:ring-monokai-accent/30 outline-none transition-all"
-            onChange={event => {
-              setFilter(event.target.value);
+    <div className="pivot-grid result-data-grid flex flex-col min-h-0 h-full w-full text-xs text-monokai-fg select-text bg-monokai-bg font-sans">
+      {/* 沉浸式轻量辅助控制栏（对齐【数据】板块的工具栏风格） */}
+      <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-1.5 shrink-0 border-b border-monokai-border/60 bg-gradient-to-b from-monokai-surface/90 via-monokai-surface/75 to-monokai-surface/60 backdrop-blur-md select-none text-2xs">
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* 查找维度输入框 */}
+          <div className="relative flex items-center w-48 sm:w-56">
+            <Search className="w-3.5 h-3.5 absolute left-2 text-monokai-comment/70 pointer-events-none" />
+            <input
+              aria-label="筛选透视维度"
+              value={filter}
+              placeholder="快速过滤已加载维度…"
+              title="只查找已加载组合；不改变来源筛选与来源总计"
+              className="w-full bg-monokai-bg/70 border border-monokai-border/80 rounded-md pl-7 pr-6 py-1 text-2xs text-monokai-fg placeholder:text-monokai-comment/65 focus:outline-none focus:border-monokai-cyan/60 focus:bg-monokai-bg focus:ring-1 focus:ring-monokai-cyan/25 font-sans transition-all"
+              onChange={event => {
+                setFilter(event.target.value);
+                setRowPage(0);
+                setColPage(0);
+              }}
+            />
+            {filter && (
+              <button
+                type="button"
+                onClick={() => setFilter('')}
+                className="absolute right-1.5 p-0.5 text-monokai-comment hover:text-monokai-fg cursor-pointer rounded"
+                title="清空筛选"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+
+          <div className="h-4 w-px bg-monokai-border/60 shrink-0" />
+
+          {/* 显隐列 */}
+          <button
+            type="button"
+            onClick={() => setShowColumns(!showColumns)}
+            className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 transition-all cursor-pointer ${
+              showColumns
+                ? 'bg-monokai-surface/80 border-monokai-border/80 text-monokai-fg hover:border-monokai-cyan/40'
+                : 'bg-monokai-bg/60 border-monokai-border/50 text-monokai-comment hover:text-monokai-fg'
+            }`}
+          >
+            {showColumns ? <Eye size={12} className="text-monokai-green" /> : <EyeOff size={12} />}
+            <span>{showColumns ? '隐藏列' : '显示列'}</span>
+          </button>
+
+          {/* 维度排序 */}
+          <button
+            type="button"
+            onClick={() => {
+              setSort('dimension');
+              setDirection(sort === 'dimension' && direction === 'ASC' ? 'DESC' : 'ASC');
               setRowPage(0);
-              setColPage(0);
             }}
-          />
+            className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 transition-all cursor-pointer ${
+              sort === 'dimension'
+                ? 'border-monokai-cyan/45 bg-monokai-cyan/12 text-monokai-cyan font-semibold shadow-xs'
+                : 'border-monokai-border/70 bg-monokai-bg/60 text-monokai-comment hover:text-monokai-fg'
+            }`}
+          >
+            <ArrowUpDown size={11} className={sort === 'dimension' ? 'text-monokai-cyan' : ''} />
+            <span>维度排序 {sort === 'dimension' ? (direction === 'ASC' ? '↑' : '↓') : ''}</span>
+          </button>
+
+          {/* 行汇总排序 */}
+          <button
+            type="button"
+            onClick={() => {
+              setSort('total');
+              setDirection(sort === 'total' && direction === 'DESC' ? 'ASC' : 'DESC');
+              setRowPage(0);
+            }}
+            className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 transition-all cursor-pointer ${
+              sort === 'total'
+                ? 'border-monokai-yellow/45 bg-monokai-yellow/12 text-monokai-yellow font-semibold shadow-xs'
+                : 'border-monokai-border/70 bg-monokai-bg/60 text-monokai-comment hover:text-monokai-fg'
+            }`}
+          >
+            <ArrowUpDown size={11} className={sort === 'total' ? 'text-monokai-yellow' : ''} />
+            <span>行汇总排序 {sort === 'total' ? (direction === 'ASC' ? '↑' : '↓') : ''}</span>
+          </button>
+
+          {/* 热力图色阶切换 */}
+          <button
+            type="button"
+            aria-pressed={heatmap}
+            onClick={() => setHeatmap(!heatmap)}
+            className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 transition-all cursor-pointer ${
+              heatmap
+                ? 'border-monokai-green/50 bg-monokai-green/15 text-monokai-green font-semibold shadow-xs'
+                : 'border-monokai-border/70 bg-monokai-bg/60 text-monokai-comment hover:text-monokai-fg'
+            }`}
+            title="根据交叉单元格数值渲染热力色阶，直观对比数据大小"
+          >
+            <Flame size={12} className={heatmap ? 'text-monokai-green' : 'text-monokai-comment'} />
+            <span>热力色阶 {heatmap ? '开' : '关'}</span>
+          </button>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setShowColumns(!showColumns)}
-          className={`inline-flex items-center gap-1 rounded-md border border-monokai-border px-2.5 py-1 text-2xs transition-all cursor-pointer ${
-            showColumns
-              ? 'bg-monokai-surface text-monokai-fg hover:border-monokai-border-strong'
-              : 'bg-monokai-bg/60 text-monokai-comment'
-          }`}
-        >
-          {showColumns ? <Eye size={12} className="text-monokai-green" /> : <EyeOff size={12} />}
-          {showColumns ? '隐藏列' : '显示列'}
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            disabled={disabled}
+            className="inline-flex items-center gap-1 rounded-md border border-monokai-border/70 bg-monokai-bg/60 px-2 py-1 text-monokai-comment hover:text-monokai-fg hover:border-monokai-border transition-colors cursor-pointer disabled:opacity-40"
+            title="导出当前查找和排序下全部已加载行列为 CSV"
+            onClick={() => downloadPivotCsv(pivotMatrixRows(pivot, rows), '透视交叉表.csv')}
+          >
+            <Download size={12} />
+            <span>导出 CSV</span>
+          </button>
 
-        <button
-          type="button"
-          onClick={() => {
-            setSort('dimension');
-            setDirection(sort === 'dimension' && direction === 'ASC' ? 'DESC' : 'ASC');
-            setRowPage(0);
-          }}
-          className={`inline-flex items-center gap-1 rounded-md border px-2.5 py-1 text-2xs transition-all cursor-pointer ${
-            sort === 'dimension'
-              ? 'border-monokai-accent/50 bg-monokai-accent/10 text-monokai-fg font-medium'
-              : 'border-monokai-border bg-monokai-surface text-monokai-comment hover:text-monokai-fg'
-          }`}
-        >
-          <ArrowUpDown size={11} className={sort === 'dimension' ? 'text-monokai-accent' : ''} />
-          维度排序 {sort === 'dimension' ? (direction === 'ASC' ? '↑' : '↓') : ''}
-        </button>
-
-        <button
-          type="button"
-          onClick={() => {
-            setSort('total');
-            setDirection(sort === 'total' && direction === 'DESC' ? 'ASC' : 'DESC');
-            setRowPage(0);
-          }}
-          className={`inline-flex items-center gap-1 rounded-md border px-2.5 py-1 text-2xs transition-all cursor-pointer ${
-            sort === 'total'
-              ? 'border-monokai-orange/50 bg-monokai-orange/10 text-monokai-orange font-medium'
-              : 'border-monokai-border bg-monokai-surface text-monokai-comment hover:text-monokai-fg'
-          }`}
-        >
-          <ArrowUpDown size={11} className={sort === 'total' ? 'text-monokai-orange' : ''} />
-          行汇总排序 {sort === 'total' ? (direction === 'ASC' ? '↑' : '↓') : ''}
-        </button>
-
-        {/* 智能热力图色阶切换 */}
-        <button
-          type="button"
-          onClick={() => setHeatmap(!heatmap)}
-          className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-2xs transition-all cursor-pointer ${
-            heatmap
-              ? 'border-monokai-yellow/50 bg-monokai-yellow/15 text-monokai-yellow font-semibold shadow-[0_0_10px_rgba(230,219,116,0.2)]'
-              : 'border-monokai-border bg-monokai-surface text-monokai-comment hover:text-monokai-fg'
-          }`}
-          title="根据交叉单元格数值自动渲染平滑热力色阶，秒级洞察数据极值与业务趋势"
-        >
-          <Flame size={12} className={heatmap ? 'text-monokai-yellow animate-pulse' : 'text-monokai-comment'} />
-          热力色阶 {heatmap ? '开' : '关'}
-        </button>
-
-        <button
-          type="button"
-          disabled={disabled}
-          className="inline-flex items-center gap-1 rounded-md border border-monokai-border px-2.5 py-1 text-2xs text-monokai-comment hover:text-monokai-fg hover:border-monokai-border-strong transition-colors cursor-pointer disabled:opacity-40"
-          title="导出当前查找和排序下全部已加载行列，包含页外数据和标明范围的总计"
-          onClick={() => downloadPivotCsv(pivotMatrixRows(pivot, rows), '透视交叉表.csv')}
-        >
-          <Download size={12} />
-          导出 CSV
-        </button>
-
-        <span className="ml-auto text-2xs font-mono text-monokai-comment/80 tracking-tight hidden sm:inline">
-          {rows.length} 行 × {pivot.colValues.length} 列 · {pivot.valKey}
-        </span>
+          <span className="text-2xs font-mono text-monokai-comment/80 tabular-nums hidden md:inline">
+            {rows.length} 行 × {pivot.colValues.length} 列
+          </span>
+        </div>
       </div>
 
-      {/* 沉浸式数据矩阵展示区 */}
+      {/* 数据矩阵展示区：完全撑满、原生统一滚动 */}
       <div className="flex-1 min-h-0 overflow-auto custom-scrollbar" onMouseLeave={() => setHoveredCell(null)}>
         <table
           ref={tableRef}
           aria-label="透视结果矩阵"
           onKeyDown={nav}
-          className="border-collapse w-full text-right whitespace-nowrap tabular-nums text-sm font-sans"
+          className="border-collapse w-full select-text text-center font-sans text-xs"
         >
-          <thead className="sticky top-0 z-20 bg-monokai-surface/95 backdrop-blur-md shadow-xs">
-            <tr className="border-b border-monokai-border/80">
-              <th className="sticky left-0 z-30 bg-monokai-surface/95 backdrop-blur-md px-3 py-2 text-left text-monokai-fg-muted font-medium tracking-tight">
-                {pivot.rowKeys && pivot.rowKeys.length > 1 ? pivot.rowKeys.join(' / ') : pivot.rowKey}
+          {/* Sticky Header: 严格对齐【数据】板块的双层专业表头 */}
+          <thead className="sticky top-0 z-20 select-none bg-monokai-surface/98 backdrop-blur-md">
+            <tr className="h-11 border-b border-monokai-border/40">
+              {/* 首列：行维度表头（吸顶 + 吸左） */}
+              <th
+                className="sticky left-0 z-30 min-w-[160px] max-w-[240px] px-3 py-1.5 border-r border-monokai-border/40 bg-monokai-surface/98 backdrop-blur-md text-left font-sans shadow-[1px_0_0_0_rgba(0,0,0,0.4)]"
+              >
+                <div className="flex flex-col items-start justify-center gap-0.5 leading-tight">
+                  <span className="font-semibold text-meta tracking-tight text-monokai-fg truncate max-w-full" title={rowDimensionName}>
+                    {rowDimensionName}
+                  </span>
+                  <span className="inline-flex items-center px-1.5 py-[1px] rounded border text-3xs font-mono tracking-wider uppercase bg-monokai-cyan/15 border-monokai-cyan/35 text-monokai-cyan">
+                    行维度 · ROW
+                  </span>
+                </div>
               </th>
+
+              {/* 交叉列头（列维度键） */}
               {columns.map(column => {
                 const isColHovered = hoveredCell?.col === column;
+                const colLabel = String(pivot.colLabels?.[column] ?? column);
                 return (
                   <th
                     key={column}
-                    className={`px-3 py-2 text-monokai-fg-muted font-medium transition-colors ${
-                      isColHovered ? 'text-monokai-cyan bg-monokai-cyan/10 font-bold' : ''
+                    className={`min-w-[120px] px-3 py-1.5 border-r border-monokai-border/25 text-center font-sans transition-colors duration-150 group/th cursor-pointer ${
+                      isColHovered ? 'bg-monokai-cyan/10 text-monokai-cyan font-bold' : ''
                     }`}
                   >
-                    {pivot.colLabels?.[column] ?? column}
+                    <div className="flex flex-col items-center justify-center gap-0.5 min-w-0 w-full leading-tight">
+                      <span
+                        className={`font-medium text-meta tracking-tight transition-colors truncate max-w-full ${
+                          isColHovered ? 'text-monokai-cyan font-semibold' : 'text-monokai-fg-muted/80 group-hover/th:text-monokai-fg'
+                        }`}
+                        title={colLabel}
+                      >
+                        {colLabel}
+                      </span>
+                      <span className="inline-flex items-center px-1.5 py-[1px] rounded border text-3xs font-mono tracking-wider uppercase bg-monokai-purple/15 border-monokai-purple/35 text-monokai-purple">
+                        列维度 · COL
+                      </span>
+                    </div>
                   </th>
                 );
               })}
+
+              {/* 右侧小计表头（吸顶 + 吸右） */}
               <th
                 title={pivot.totalsScope ? '该行在全部符合条件来源中的汇总，含未展示列' : undefined}
-                className="sticky right-0 z-30 bg-monokai-surface/95 backdrop-blur-md px-3 py-2 text-monokai-fg font-semibold shadow-[-4px_0_12px_rgba(0,0,0,0.15)]"
+                className="sticky right-0 z-30 min-w-[120px] px-3 py-1.5 border-l border-monokai-border/40 bg-monokai-surface/98 backdrop-blur-md text-center font-sans shadow-[-1px_0_0_0_rgba(0,0,0,0.4)]"
               >
-                {pivot.totalsScope ? '来源行汇总' : '小计'}
+                <div className="flex flex-col items-center justify-center gap-0.5 min-w-0 w-full leading-tight">
+                  <span className="font-semibold text-meta tracking-tight text-monokai-yellow truncate max-w-full">
+                    {pivot.totalsScope ? '来源行汇总' : '小计'}
+                  </span>
+                  <span className="inline-flex items-center px-1.5 py-[1px] rounded border text-3xs font-mono tracking-wider uppercase bg-monokai-yellow/15 border-monokai-yellow/35 text-monokai-yellow">
+                    行汇总 · TOTAL
+                  </span>
+                </div>
               </th>
             </tr>
           </thead>
-          <tbody>
+
+          {/* 表格主体：对齐【数据】板块的交替斑马纹、细线边框与渐变高亮 */}
+          <tbody className="divide-y divide-monokai-border/35 bg-monokai-bg text-monokai-fg font-sans text-xs">
             {visibleRows.map((row, rowIndex) => {
               const label = pivot.rowLabels?.[row] ?? row;
               const parts = String(label).split('  ›  ');
@@ -261,17 +324,11 @@ export function PivotTableView({
               return (
                 <React.Fragment key={row}>
                   <tr
-                    className={`border-b border-monokai-border/30 transition-colors ${
-                      isRowHovered ? 'bg-monokai-accent/[0.05]' : 'hover:bg-monokai-surface/40'
-                    }`}
+                    className="group hover:bg-gradient-to-r hover:from-monokai-elevated/55 hover:via-monokai-elevated/40 hover:to-monokai-elevated/25 even:bg-monokai-surface/12 transition-colors duration-100"
                   >
-                    {/* 左侧固定行标签 */}
+                    {/* 左侧固定行头单元格（吸左） */}
                     <td
-                      className={`sticky left-0 z-10 px-3 py-1.5 text-left transition-colors ${
-                        isRowHovered
-                          ? 'bg-monokai-surface text-monokai-fg font-medium'
-                          : 'bg-monokai-bg text-monokai-fg'
-                      }`}
+                      className="sticky left-0 z-10 px-3 py-2 text-left border-r border-monokai-border/60 bg-monokai-bg/95 group-hover:bg-monokai-elevated shadow-[1px_0_0_0_rgba(0,0,0,0.4)] font-sans font-medium transition-colors backdrop-blur-xs"
                     >
                       <button
                         type="button"
@@ -287,20 +344,20 @@ export function PivotTableView({
                             return next;
                           })
                         }
-                        className="min-h-8 min-w-8 px-1 text-left inline-flex items-center gap-1.5 hover:text-monokai-accent cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-monokai-accent transition-colors"
+                        className="inline-flex items-center gap-1.5 text-left text-monokai-fg hover:text-monokai-cyan cursor-pointer transition-colors max-w-full"
                       >
-                        <span className="font-mono text-monokai-comment text-xs font-bold w-3.5 inline-block text-center">
+                        <span className="font-mono text-monokai-comment text-2xs font-bold w-3.5 h-3.5 rounded bg-monokai-surface/80 border border-monokai-border/70 inline-flex items-center justify-center shrink-0">
                           {collapsed.has(row) ? '＋' : '−'}
                         </span>
                         {parts.length > 1 ? (
-                          <span className="tracking-tight">
-                            <span className="text-monokai-comment text-xs font-normal">
+                          <span className="tracking-tight truncate">
+                            <span className="text-monokai-comment/80 font-normal">
                               {parts.slice(0, -1).join(' / ')} ›{' '}
                             </span>
                             <span className="font-medium text-monokai-fg">{parts[parts.length - 1]}</span>
                           </span>
                         ) : (
-                          <span className="tracking-tight">{label}</span>
+                          <span className="tracking-tight truncate font-medium">{String(label)}</span>
                         )}
                       </button>
                     </td>
@@ -317,16 +374,16 @@ export function PivotTableView({
                           key={column}
                           style={customStyle}
                           onMouseEnter={() => setHoveredCell({ row, col: column })}
-                          className={`px-3 py-1.5 font-mono text-xs transition-all relative ${
+                          className={`px-3 py-2 border-r border-monokai-border/35 text-center font-sans tabular-nums overflow-hidden whitespace-nowrap transition-colors duration-100 ${
                             isTargetHovered
-                              ? 'ring-1 ring-monokai-cyan/70 bg-monokai-cyan/15 text-monokai-fg font-bold shadow-[0_0_10px_rgba(102,217,239,0.25)] z-10'
+                              ? 'bg-monokai-cyan/15 text-monokai-fg font-bold shadow-[inset_0_0_0_1px_rgba(102,217,239,0.5)]'
                               : isCrosshairCol
                               ? 'bg-monokai-accent/[0.04]'
                               : ''
                           }`}
                         >
                           {collapsed.has(row) ? (
-                            <span className="text-monokai-comment/60">—</span>
+                            <span className="text-monokai-comment/50 italic">—</span>
                           ) : (
                             <button
                               type="button"
@@ -350,7 +407,7 @@ export function PivotTableView({
                                   ? `查看明细 ${label} / ${pivot.colLabels?.[column] ?? column}`
                                   : undefined
                               }
-                              className="min-h-8 min-w-8 w-full h-full px-1 text-right hover:text-monokai-cyan cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-monokai-accent disabled:cursor-default"
+                              className="w-full text-center hover:text-monokai-cyan cursor-pointer focus-visible:outline focus-visible:outline-1 focus-visible:outline-monokai-cyan disabled:cursor-default"
                               onClick={() => {
                                 const value = pivot.rowBindings ? pivot.rowBindings[row] : row;
                                 if (onCell)
@@ -365,30 +422,26 @@ export function PivotTableView({
                       );
                     })}
 
-                    {/* 右侧固定行汇总 */}
+                    {/* 右侧固定行汇总（吸右） */}
                     <td
-                      className={`sticky right-0 z-10 px-3 py-1.5 font-mono font-semibold text-xs transition-colors shadow-[-4px_0_12px_rgba(0,0,0,0.12)] ${
-                        isRowHovered
-                          ? 'bg-monokai-surface text-monokai-fg'
-                          : 'bg-monokai-bg text-monokai-fg'
-                      }`}
+                      className="sticky right-0 z-10 px-3 py-2 border-l border-monokai-border/60 bg-monokai-bg/95 group-hover:bg-monokai-elevated text-center font-sans font-bold text-xs tabular-nums text-monokai-yellow/90 backdrop-blur-xs shadow-[-1px_0_0_0_rgba(0,0,0,0.4)] transition-colors"
                     >
                       {fmt(pivot.rowTotals[row])}
                     </td>
                   </tr>
 
-                  {/* 父级层级小计行 (Subtotal with subtle gradient) */}
+                  {/* 父级层级小计行 */}
                   {isGroupEnd && parentKey && (
-                    <tr className="bg-gradient-to-r from-monokai-surface/90 via-monokai-surface/60 to-monokai-surface/90 border-b border-monokai-border text-xs font-semibold text-monokai-orange/90">
-                      <td className="sticky left-0 z-10 bg-monokai-surface/95 px-3 py-2 text-left italic tracking-tight">
+                    <tr className="bg-monokai-surface/60 border-b border-monokai-border text-xs font-semibold text-monokai-orange/90">
+                      <td className="sticky left-0 z-10 bg-monokai-surface/95 px-3 py-2 text-left italic border-r border-monokai-border/60">
                         小计（{parentKey}）
                       </td>
                       {columns.map(column => (
-                        <td key={column} className="px-3 py-2 font-mono">
+                        <td key={column} className="px-3 py-2 border-r border-monokai-border/35 text-center font-sans tabular-nums">
                           {fmt(pivot.subtotals![parentKey]?.[column])}
                         </td>
                       ))}
-                      <td className="sticky right-0 z-10 bg-monokai-surface/95 px-3 py-2 font-mono font-bold text-monokai-fg shadow-[-4px_0_12px_rgba(0,0,0,0.12)]">
+                      <td className="sticky right-0 z-10 bg-monokai-surface/95 px-3 py-2 border-l border-monokai-border/60 text-center font-sans font-bold text-monokai-fg shadow-[-1px_0_0_0_rgba(0,0,0,0.4)]">
                         {fmt(pivot.rowSubtotals?.[parentKey])}
                       </td>
                     </tr>
@@ -404,20 +457,22 @@ export function PivotTableView({
               </tr>
             )}
           </tbody>
-          <tfoot className="sticky bottom-0 z-20 bg-monokai-surface/95 backdrop-blur-md border-t-2 border-monokai-border shadow-[0_-4px_12px_rgba(0,0,0,0.2)]">
-            <tr>
+
+          {/* 底部列汇总行（吸底，对齐【数据】板块专业底栏） */}
+          <tfoot className="sticky bottom-0 z-20 bg-monokai-surface/98 backdrop-blur-md border-t-2 border-monokai-border-strong text-center font-sans font-bold text-xs shadow-[0_-2px_8px_rgba(0,0,0,0.3)]">
+            <tr className="h-10">
               <th
                 title={pivot.totalsScope ? '全部符合条件的来源，不受查找或分页影响' : '当前查找数据'}
-                className="sticky left-0 z-30 bg-monokai-surface/95 px-3 py-2.5 text-left text-monokai-fg font-bold tracking-tight"
+                className="sticky left-0 z-30 bg-monokai-surface/98 px-3 py-2 text-left text-monokai-fg font-bold tracking-tight border-r border-monokai-border/40 shadow-[1px_0_0_0_rgba(0,0,0,0.4)]"
               >
-                {pivot.totalsScope ? '来源总计' : '查找总计'}
+                {pivot.totalsScope ? '来源总计' : '列汇总'}
               </th>
               {columns.map(column => (
-                <td key={column} className="px-3 py-2.5 font-mono font-bold text-monokai-fg">
+                <td key={column} className="px-3 py-2 font-sans font-bold text-monokai-fg border-r border-monokai-border/25 tabular-nums">
                   {fmt(pivot.colTotals[column])}
                 </td>
               ))}
-              <td className="sticky right-0 z-30 bg-monokai-surface/95 px-3 py-2.5 font-mono font-bold text-monokai-green shadow-[-4px_0_12px_rgba(0,0,0,0.15)] text-sm">
+              <td className="sticky right-0 z-30 bg-monokai-surface/98 px-3 py-2 font-sans font-bold text-monokai-green border-l border-monokai-border/40 shadow-[-1px_0_0_0_rgba(0,0,0,0.4)] tabular-nums">
                 {pivot.grandCount ? fmt(pivot.grandTotal) : '—'}
               </td>
             </tr>
@@ -425,23 +480,23 @@ export function PivotTableView({
         </table>
       </div>
 
-      {/* 分页控制栏 */}
+      {/* 底部轻量分页栏 */}
       {(rows.length > 50 || (showColumns && pivot.colValues.length > 20)) && (
-        <div className="flex flex-wrap items-center justify-center gap-2 px-3 py-2 border-t border-monokai-border bg-monokai-surface/30 backdrop-blur-sm text-2xs text-monokai-comment">
+        <div className="flex flex-wrap items-center justify-center gap-2 px-3 py-1.5 border-t border-monokai-border/60 bg-monokai-surface/40 backdrop-blur-sm text-2xs text-monokai-comment shrink-0">
           <button
             disabled={page === 0}
             onClick={() => setRowPage(page - 1)}
-            className="rounded px-2.5 py-1 border border-monokai-border bg-monokai-surface hover:text-monokai-fg disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+            className="rounded px-2.5 py-1 border border-monokai-border/70 bg-monokai-surface hover:text-monokai-fg disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
           >
             上一组行
           </button>
-          <span className="font-mono">
+          <span className="font-mono text-meta">
             {page + 1} / {Math.max(1, Math.ceil(rows.length / 50))}
           </span>
           <button
             disabled={(page + 1) * 50 >= rows.length}
             onClick={() => setRowPage(page + 1)}
-            className="rounded px-2.5 py-1 border border-monokai-border bg-monokai-surface hover:text-monokai-fg disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+            className="rounded px-2.5 py-1 border border-monokai-border/70 bg-monokai-surface hover:text-monokai-fg disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
           >
             下一组行
           </button>
@@ -451,17 +506,17 @@ export function PivotTableView({
               <button
                 disabled={columnPage === 0}
                 onClick={() => setColPage(columnPage - 1)}
-                className="rounded px-2.5 py-1 border border-monokai-border bg-monokai-surface hover:text-monokai-fg disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                className="rounded px-2.5 py-1 border border-monokai-border/70 bg-monokai-surface hover:text-monokai-fg disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
               >
                 上一组列
               </button>
-              <span className="font-mono">
+              <span className="font-mono text-meta">
                 列 {columnPage * 20 + 1}–{Math.min((columnPage + 1) * 20, pivot.colValues.length)}
               </span>
               <button
                 disabled={(columnPage + 1) * 20 >= pivot.colValues.length}
                 onClick={() => setColPage(columnPage + 1)}
-                className="rounded px-2.5 py-1 border border-monokai-border bg-monokai-surface hover:text-monokai-fg disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                className="rounded px-2.5 py-1 border border-monokai-border/70 bg-monokai-surface hover:text-monokai-fg disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
               >
                 下一组列
               </button>

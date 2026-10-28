@@ -13,6 +13,16 @@ import type { GraphNode, GraphLink, GraphData, LifeObjectType, LifeLinkType, Lif
 import { TYPE_COLORS_WARM, TYPE_COLORS_INSTANCE, LINKTYPE_COLORS } from './D3GraphView.types';
 import { detectCommunities } from '../../../services/graphClusteringService';
 import { computeInitialPositions } from '../../../services/graphLayoutService';
+import { readModelingSchema } from '../../../services/ontologyModelingPersistence';
+
+/** Schema relations connect Object Types directly; no Object Instance is synthesized. */
+export function buildSchemaGraphLinks(objectTypes: Array<{ id: number; name: string }>, linkTypes: Array<{ id: number; name: string; fromType?: string; toType?: string }>): GraphLink[] {
+  return linkTypes.flatMap(l => {
+    const from = objectTypes.find(t => t.name === l.fromType), to = objectTypes.find(t => t.name === l.toType);
+    return from && to ? [{ source: `type::${from.id}`, target: `type::${to.id}`, color: '#8be9fd', weight: 0.8,
+      _linkTypeId: l.id, _linkTypeName: l.name, _isSchemaLink: true }] : [];
+  });
+}
 
 // ── Property Parsing ────────────────────────────────────────────────────────
 
@@ -98,6 +108,7 @@ export function buildGraphDataFromState(state: any, mapping: any, selectedTables
 
   const nodes: GraphNode[] = [];
   const graphLinks: GraphLink[] = [];
+  graphLinks.push(...buildSchemaGraphLinks(objectTypes, linkTypes));
 
   objectTypes.forEach((type: any) => {
     const instList = objectsByType[type.id] || [];
@@ -247,7 +258,7 @@ export async function loadDynamicGraphData(mapping: any, selectedTables?: string
       duckDBService.query(`SELECT * FROM ${mapping.actionTable} ORDER BY id`),
     ]);
 
-    if (objects.length === 0) {
+    if (objects.length === 0 && objectTypes.length === 0) {
       return { nodes: [], links: [], typeMap: {}, linkTypeMap: {}, typeNames: [], _rawLinks: rawLinks };
     }
 
@@ -289,6 +300,9 @@ export async function loadDynamicGraphData(mapping: any, selectedTables?: string
 
     const nodes: GraphNode[] = [];
     const links: GraphLink[] = [];
+    const definition = await readModelingSchema(duckDBService.query.bind(duckDBService), mapping);
+    const schemaTypes = linkTypes.map(l => ({ ...l, ...definition?.linkTypes.find(t => t.sourceId === Number(l.id)), id: Number(l.id) }));
+    links.push(...buildSchemaGraphLinks(objectTypes.map(t => ({ ...t, id: Number(t.id) })), schemaTypes));
 
     objectTypes.forEach((type: any) => {
       const typeId = Number(type.id);

@@ -115,9 +115,9 @@ export const TableManager: React.FC<TableManagerProps> = ({ onTableSelect, activ
                 <label className={`flex items-center justify-center gap-2 w-full py-2 border border-dashed border-monokai-border rounded-lg cursor-pointer hover:border-monokai-accent/60 hover:bg-monokai-bg/60 transition-all ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
                     <Upload className="w-4 h-4 text-monokai-accent" />
                     <span className="text-xs font-medium text-monokai-fg">
-                        {uploading ? 'Importing...' : 'Import CSV'}
+                        {uploading ? 'Importing...' : 'Import Data'}
                     </span>
-                    <input type="file" accept=".csv,.parquet,.json" className="hidden" onChange={handleUpload} />
+                    <input type="file" accept=".csv,.parquet,.json,.duckdb" className="hidden" onChange={handleUpload} />
                 </label>
             </div>
         </div>

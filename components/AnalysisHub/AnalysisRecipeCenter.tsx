@@ -1,10 +1,15 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useAnalysisUnit } from './AnalysisUnitSelector';
+import { openAnalysis } from '../../hooks/store/useAnalysisWorkspace';
+import { activeAnalysisDatabase } from '../../services/metricAssetStorage';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Zap, Play, Terminal, Sparkles, Download } from 'lucide-react';
 import {
-  analysisEngine,
+  executeRecipe,
+  getRecipeList,
   classifySemanticType,
   type RecipeMetadata,
-} from './analysisEngine';
+  type ChartSpec,
+} from '../../services/analysis';
 import { AnalysisChartRenderer } from './AnalysisChartRenderer';
 import type { ColumnInfo, ChartConfig } from '../../types';
 import { toastService } from '../../services/toastService';
@@ -24,140 +29,16 @@ interface AnalysisRecipeCenterProps {
   onInsertSql?: (sql: string, executeDirectly?: boolean) => void;
 }
 
-const RECIPES: RecipeMetadata[] = [
-  {
-    id: 'pareto',
-    title: '帕累托 80/20 分析',
-    badge: '价值集中度',
-    description: '识别驱动 80% 产出的头部实体',
-    applicableScenario: '客户价值 / 爆款 SKU / 资源倾斜',
-    icon: 'TrendingUp',
-    params: [
-      {
-        key: 'entityCol',
-        label: '实体字段',
-        description: '如 customer_id, product_name',
-        type: 'column_select',
-        filterType: 'any',
-      },
-      {
-        key: 'metricCol',
-        label: '价值度量',
-        description: '如 revenue, amount',
-        type: 'column_select',
-        filterType: 'numeric',
-      },
-    ],
-  },
-  {
-    id: 'rfm',
-    title: 'RFM 价值分层',
-    badge: '用户画像',
-    description: '按 R/F/M 分层标记高价值与流失风险',
-    applicableScenario: '精准营销 / 流失预警',
-    icon: 'Users',
-    params: [
-      {
-        key: 'userCol',
-        label: '用户字段',
-        description: '如 customer_id',
-        type: 'column_select',
-        filterType: 'any',
-      },
-      {
-        key: 'dateCol',
-        label: '时间字段',
-        description: '如 order_date',
-        type: 'column_select',
-        filterType: 'temporal',
-      },
-      {
-        key: 'amountCol',
-        label: '金额字段',
-        description: '如 amount',
-        type: 'column_select',
-        filterType: 'numeric',
-      },
-    ],
-  },
-  {
-    id: 'iqr',
-    title: 'IQR 离群探查',
-    badge: '异常体检',
-    description: 'Tukey 四分位距定位极端异常值',
-    applicableScenario: '刷单 / 录入失误 / 慢查询',
-    icon: 'AlertOctagon',
-    params: [
-      {
-        key: 'numCol',
-        label: '数值字段',
-        description: '如 amount, latency',
-        type: 'column_select',
-        filterType: 'numeric',
-      },
-    ],
-  },
-  {
-    id: 'histogram',
-    title: '等宽分箱分布',
-    badge: '离散分布',
-    description: '连续数值按区间统计波峰与长尾',
-    applicableScenario: '客单价 / 订单规模分段',
-    icon: 'BarChart',
-    params: [
-      {
-        key: 'numCol',
-        label: '数值字段',
-        description: '如 order_amount',
-        type: 'column_select',
-        filterType: 'numeric',
-      },
-      {
-        key: 'bucketCount',
-        label: '分箱数',
-        description: '建议 6~12',
-        type: 'select',
-        options: [
-          { label: '5 箱', value: 5 },
-          { label: '8 箱', value: 8 },
-          { label: '10 箱', value: 10 },
-          { label: '12 箱', value: 12 },
-        ],
-        defaultValue: 8,
-      },
-    ],
-  },
-  {
-    id: 'cohort',
-    title: '群组留存观察',
-    badge: '留存生命周期',
-    description: '按首次激活月观察复购衰减',
-    applicableScenario: '产品留存 / 获客质量',
-    icon: 'Activity',
-    params: [
-      {
-        key: 'userCol',
-        label: '用户字段',
-        description: '如 customer_id',
-        type: 'column_select',
-        filterType: 'any',
-      },
-      {
-        key: 'dateCol',
-        label: '行为时间',
-        description: '如 order_date',
-        type: 'column_select',
-        filterType: 'temporal',
-      },
-    ],
-  },
-];
+const RECIPES = getRecipeList();
 
 export const AnalysisRecipeCenter: React.FC<AnalysisRecipeCenterProps> = ({
   currentTable,
   schema,
   onInsertSql,
 }) => {
+  const queryVersion = useRef(0);
+  useEffect(() => () => { queryVersion.current++; }, []);
+  const { column: unitColumn, unit: selectedUnit, selector: unitSelector } = useAnalysisUnit(currentTable, schema);
   const [selectedRecipeId, setSelectedRecipeId] = useState<RecipeMetadata['id']>('pareto');
   const [recipeParams, setRecipeParams] = useState<Record<string, unknown>>({});
   const [loading, setLoading] = useState(false);
@@ -168,6 +49,8 @@ export const AnalysisRecipeCenter: React.FC<AnalysisRecipeCenterProps> = ({
   const [executionTimeMs, setExecutionTimeMs] = useState(0);
   const [copied, setCopied] = useState(false);
   const [showSqlDrawer, setShowSqlDrawer] = useState(false);
+  const [chartConfig, setChartConfig] = useState<ChartConfig | null>(null);
+  const [chartSpec, setChartSpec] = useState<ChartSpec | null>(null);
 
   const selectedRecipe = useMemo(
     () => RECIPES.find(r => r.id === selectedRecipeId) || RECIPES[0],
@@ -194,7 +77,7 @@ export const AnalysisRecipeCenter: React.FC<AnalysisRecipeCenterProps> = ({
         } else if (p.filterType === 'temporal') {
           matched[p.key] = dateColumns[0] || schema[0]?.name || '';
         } else {
-          const idCol = schema.find(
+          const idCol = schema.find(c => /^(uid|user_id|customer_id)$/i.test(c.name)) || schema.find(
             c =>
               c.name.toLowerCase().includes('id') || c.name.toLowerCase().includes('name'),
           );
@@ -209,26 +92,33 @@ export const AnalysisRecipeCenter: React.FC<AnalysisRecipeCenterProps> = ({
   }, [currentTable, schema, selectedRecipe, numericColumns, dateColumns]);
 
   const handleRunRecipe = useCallback(async () => {
-    if (!currentTable) return;
+    if (!currentTable || unitColumn && !selectedUnit) return;
+    const request = ++queryVersion.current;
     setLoading(true);
     setError(null);
     try {
-      const res = await analysisEngine.executeRecipe(selectedRecipeId, currentTable, recipeParams);
+      const res = await executeRecipe(selectedRecipeId, currentTable, { ...recipeParams, unitColumn, selectedUnit });
+      if (request !== queryVersion.current) return;
       setGeneratedSql(res.sql);
       setRows(res.rows);
       setInsights(res.insights);
       setExecutionTimeMs(res.executionTimeMs);
+      setChartConfig(res.chartConfig);
+      setChartSpec(res.chart);
     } catch (err: unknown) {
+      if (request !== queryVersion.current) return;
       console.error('[AnalysisRecipeCenter] Recipe execution failed:', err);
       const msg = err instanceof Error ? err.message : String(err);
       setError(msg);
       setRows([]);
       setInsights([]);
+      setChartConfig(null);
+      setChartSpec(null);
       toastService.error(`配方计算失败: ${msg}`);
     } finally {
-      setLoading(false);
+      if (request === queryVersion.current) setLoading(false);
     }
-  }, [selectedRecipeId, currentTable, recipeParams]);
+  }, [selectedRecipeId, currentTable, recipeParams, unitColumn, selectedUnit]);
 
   useEffect(() => {
     if (Object.keys(recipeParams).length > 0) {
@@ -275,53 +165,8 @@ export const AnalysisRecipeCenter: React.FC<AnalysisRecipeCenterProps> = ({
     toastService.success('已导出 CSV');
   };
 
-  const chartConfig: ChartConfig = useMemo(() => {
-    const cols = rows.length > 0 ? Object.keys(rows[0]) : [];
-    if (selectedRecipeId === 'pareto') {
-      return {
-        id: 'pareto_chart',
-        title: '帕累托累计贡献曲线',
-        type: 'line',
-        xKey: cols[0] || '实体标识',
-        yKeys: [cols[3] || '累计贡献率_百分比'],
-        showLegend: true,
-        showValues: false,
-      };
-    }
-    if (selectedRecipeId === 'histogram') {
-      return {
-        id: 'histogram_chart',
-        title: '等宽区间频次分布',
-        type: 'bar',
-        xKey: cols[1] || '区间范围',
-        yKeys: [cols[2] || '样本频次'],
-        showLegend: true,
-        showValues: false,
-      };
-    }
-    if (selectedRecipeId === 'rfm' || selectedRecipeId === 'iqr') {
-      return {
-        id: 'recipe_chart',
-        title: `${selectedRecipe.title} 分布`,
-        type: 'bar',
-        xKey: cols[0] || '',
-        yKeys: cols.length > 1 ? [cols[1]] : [],
-        showLegend: true,
-        showValues: false,
-      };
-    }
-    return {
-      id: 'recipe_chart',
-      title: `${selectedRecipe.title} 结果`,
-      type: 'bar',
-      xKey: cols[0] || '',
-      yKeys: cols.length > 1 ? [cols[1]] : [],
-      showLegend: true,
-      showValues: false,
-    };
-  }, [selectedRecipeId, rows, selectedRecipe]);
-
   const showChart =
+    !!chartConfig &&
     rows.length > 0 &&
     (selectedRecipeId === 'pareto' ||
       selectedRecipeId === 'histogram' ||
@@ -341,6 +186,7 @@ export const AnalysisRecipeCenter: React.FC<AnalysisRecipeCenterProps> = ({
   return (
     <div className={AH.pane}>
       <div className={AH.configBar}>
+        <div className="flex gap-4 items-center mb-2">{unitSelector}<button disabled={!generatedSql || loading || Boolean(error)} className="text-xs text-monokai-cyan disabled:opacity-40" onClick={() => openAnalysis({databaseName:activeAnalysisDatabase(),title:chartConfig?.title || '场景分析',sql:generatedSql,chartConfig:chartConfig || undefined,sourceTables:[currentTable]})}>保存与复用本次分析</button></div>
         <AnalysisSubViewHeader
           icon={Zap}
           iconTone="yellow"
@@ -428,7 +274,7 @@ export const AnalysisRecipeCenter: React.FC<AnalysisRecipeCenterProps> = ({
                   className={AH.select}
                 >
                   {p.options?.map(opt => (
-                    <option key={opt.value} value={opt.value}>
+                    <option key={String(opt.value)} value={String(opt.value)}>
                       {opt.label}
                     </option>
                   ))}
@@ -472,8 +318,13 @@ export const AnalysisRecipeCenter: React.FC<AnalysisRecipeCenterProps> = ({
               </div>
             )}
 
-            {showChart && (
-              <AnalysisChartRenderer data={rows} config={chartConfig} height={AH.chartHeight} />
+            {showChart && chartConfig && (
+              <AnalysisChartRenderer
+                data={rows}
+                config={chartConfig}
+                chartSpec={chartSpec}
+                height={AH.chartHeight}
+              />
             )}
 
             {selectedRecipeId === 'cohort' && rows.length > 0 && (
@@ -485,7 +336,7 @@ export const AnalysisRecipeCenter: React.FC<AnalysisRecipeCenterProps> = ({
               rows={rows}
               title={`${selectedRecipe.title} 明细`}
               metaRight={`${executionTimeMs} ms`}
-              emptyMessage="暂无配方输出，请检查字段映射后重试。"
+              emptyMessage={selectedRecipeId === 'iqr' && insights.length ? '未发现超出 IQR 范围的记录。' : '暂无配方输出，请检查字段映射后重试。'}
             />
           </>
         )}

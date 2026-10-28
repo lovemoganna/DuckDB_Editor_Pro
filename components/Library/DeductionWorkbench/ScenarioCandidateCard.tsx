@@ -65,7 +65,7 @@ export const ScenarioCandidateCard: React.FC<ScenarioCandidateCardProps> = ({
   return (
     <article
       className={`rounded-xl border p-3 text-xs transition-all duration-200 ${
-        medalStyle ? medalStyle.border : 'border-white/[0.08] bg-black/15 hover:border-white/20'
+        medalStyle ? medalStyle.border : 'border-monokai-border bg-monokai-surface hover:border-monokai-border-light'
       }`}
     >
       {/* Medal Banner for Top-3 */}
@@ -98,7 +98,7 @@ export const ScenarioCandidateCard: React.FC<ScenarioCandidateCardProps> = ({
       </button>
 
       {/* Coverage Progress Bar */}
-      <div className="mt-2.5 h-1.5 w-full rounded-full bg-white/5">
+      <div className="mt-2.5 h-1.5 w-full rounded-full bg-monokai-bg border border-monokai-border">
         <div
           className="h-full rounded-full bg-gradient-to-r from-monokai-cyan/60 to-monokai-cyan transition-all duration-500"
           style={{ width: `${maxCount > 0 ? (candidate.count / maxCount) * 100 : 0}%` }}
@@ -108,7 +108,7 @@ export const ScenarioCandidateCard: React.FC<ScenarioCandidateCardProps> = ({
       {/* Combined State Pills */}
       <div className="mt-2 flex flex-wrap gap-1.5">
         {candidate.states.map(s => (
-          <span key={s.featureId} className="rounded bg-white/5 px-2 py-0.5 text-[10px]">
+          <span key={s.featureId} className="rounded bg-monokai-bg border border-monokai-border px-2 py-0.5 text-[10px]">
             <span className="text-monokai-comment">{s.featureName} = </span>
             <strong className="text-monokai-fg">{displayValue(s.value)}</strong>
           </span>
@@ -132,13 +132,13 @@ export const ScenarioCandidateCard: React.FC<ScenarioCandidateCardProps> = ({
       </div>
 
       {/* Tags & Actions */}
-      <div className="mt-2.5 flex flex-wrap items-center justify-between gap-1.5 pt-1.5 border-t border-white/[0.05]">
+      <div className="mt-2.5 flex flex-wrap items-center justify-between gap-1.5 pt-1.5 border-t border-monokai-border">
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="text-[10px] text-monokai-comment font-bold mr-1 flex items-center gap-1">
             <Tag className="h-3 w-3 text-monokai-yellow" /> 标记:
           </span>
           {tags.map(t => (
-            <span key={t} className="inline-flex items-center gap-1 rounded bg-white/10 px-2 py-0.5 text-[10px] text-monokai-yellow font-bold">
+            <span key={t} className="inline-flex items-center gap-1 rounded bg-monokai-bg border border-monokai-border px-2 py-0.5 text-[10px] text-monokai-yellow font-bold">
               {t}
               <button type="button" onClick={() => onRemoveTag(candidate.id, t)} className="hover:text-monokai-pink">×</button>
             </span>
@@ -149,7 +149,7 @@ export const ScenarioCandidateCard: React.FC<ScenarioCandidateCardProps> = ({
             <button
               type="button"
               onClick={() => setTagPickerOpen(prev => !prev)}
-              className="rounded border border-dashed border-white/20 px-2 py-0.5 text-[10px] text-monokai-comment hover:border-monokai-accent/70 hover:text-monokai-accent transition-colors cursor-pointer"
+              className="rounded border border-dashed border-monokai-border px-2 py-0.5 text-[10px] text-monokai-comment hover:border-monokai-accent/70 hover:text-monokai-accent transition-colors cursor-pointer"
             >
               + 打标签
             </button>
@@ -195,7 +195,7 @@ export const ScenarioCandidateCard: React.FC<ScenarioCandidateCardProps> = ({
 
       {/* Expanded Drilldown */}
       {isExpanded && (
-        <div className="mt-3 space-y-3 border-t border-white/[0.06] pt-3">
+        <div className="mt-3 space-y-3 border-t border-monokai-border pt-3">
           {/* Source Objects */}
           {sourceObjectNames.length > 0 && (
             <div className="rounded-lg border border-monokai-green/20 bg-monokai-green/5 p-2 text-[10px]">

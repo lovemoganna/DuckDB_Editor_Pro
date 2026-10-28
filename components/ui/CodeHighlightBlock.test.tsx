@@ -90,6 +90,26 @@ describe('CodeHighlightBlock', () => {
     expect(screen.getByText('折叠')).toBeInTheDocument();
   });
 
+  it('preserves delimiters and comment markers inside SQL string literals', async () => {
+    const sql = "SELECT 'a;b--c/*d*/' AS value; SELECT $$x;y$$ AS other;";
+    vi.mocked(duckDBService.query).mockResolvedValue([]);
+    render(<CodeHighlightBlock code={sql} language="sql" />);
+    fireEvent.click(screen.getByText('执行 SQL'));
+    await waitFor(() => expect(screen.getByText('执行完成')).toBeInTheDocument());
+    expect(duckDBService.query).toHaveBeenCalledTimes(2);
+    expect(duckDBService.query).toHaveBeenNthCalledWith(1, "SELECT 'a;b--c/*d*/' AS value;");
+    expect(duckDBService.query).toHaveBeenNthCalledWith(2, 'SELECT $$x;y$$ AS other;');
+  });
+
+  it('does not silently replace an existing table when executing CREATE TABLE', async () => {
+    vi.mocked(duckDBService.query).mockRejectedValueOnce(new Error('Table already exists'));
+    render(<CodeHighlightBlock code="CREATE TABLE existing_data (id INTEGER);" language="sql" />);
+    fireEvent.click(screen.getByText('执行 SQL'));
+    await waitFor(() => expect(screen.getByText('Table already exists')).toBeInTheDocument());
+    expect(duckDBService.query).toHaveBeenCalledWith('CREATE TABLE existing_data (id INTEGER);');
+    expect(screen.getByText('执行 SQL')).toBeEnabled();
+  });
+
   it('renders syntax highlight code area when expanded', () => {
     const { container } = render(
       <CodeHighlightBlock
