@@ -1,6 +1,5 @@
 import { useUiTheme } from '../../services/uiTheme';
 import { APP_BUILD_ID } from '../../services/buildInfo';
-import { DragonLogo } from '../ui/DragonLogo';
 import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import {
   Plus,
@@ -665,19 +664,31 @@ export const AppTopBar: React.FC<AppTopBarProps> = ({
           aria-label="DuckDB Studio · 返回首页仪表盘"
         >
           {/* Logo mark */}
-          <span aria-hidden="true"><DragonLogo size="sm" variant="icon" /></span>
+          <div
+            className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+            style={{
+              background: 'linear-gradient(135deg, #10b981 0%, #06b6d4 50%, #8b5cf6 100%)',
+              boxShadow: '0 4px 12px -2px rgba(16, 185, 129, 0.4)',
+            }}
+          >
+            <span className="text-base font-black text-white drop-shadow-md">🪶</span>
+          </div>
 
           {/* Brand text */}
           <div className="flex flex-col items-start">
             <span
               className="font-semibold text-xs whitespace-nowrap tracking-tight leading-none"
               style={{
-                color: 'var(--monokai-fg)',
+                background: theme === 'light'
+                  ? 'linear-gradient(135deg, #0f172a 0%, #059669 100%)'
+                  : 'linear-gradient(135deg, #ffffff 0%, #a3e635 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
               }}
             >
               DuckDB Studio
             </span>
-            <span className="text-[9px] font-mono tracking-widest mt-0.5" style={{ color: 'var(--monokai-comment)' }}>
+            <span className="text-[9px] font-mono tracking-widest mt-0.5" style={{ color: 'rgba(16, 185, 129, 0.7)' }}>
               PRO
             </span>
           </div>
