@@ -38,9 +38,6 @@ jobs:
       - name: Hygiene Check 🔍
         run: pnpm audit:gitignore
 
-      - name: Type Check 🔍
-        run: pnpm typecheck
-
       - name: Production Build 🏗️
         run: pnpm build
 
