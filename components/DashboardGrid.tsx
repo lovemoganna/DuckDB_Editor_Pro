@@ -5,7 +5,6 @@ import GridLayout, {
   type Layout,
 } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
-import 'react-resizable/css/styles.css';
 import { Dashboard, Tab } from '../types';
 import { DashboardWidget } from './DashboardWidget';
 import type { BoardBrushFilter } from './Dashboard/Home/homeBoardTypes';
