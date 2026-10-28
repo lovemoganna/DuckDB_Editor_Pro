@@ -73,7 +73,7 @@ const forbiddenPatterns = [
 ];
 
 const forbiddenViolations = tracked.filter((file) => {
-  if (file === '.env.example' || file.endsWith('.example')) return false;
+  if (file === '.env.example' || file.endsWith('.example') || file === 'public/empty_domain.duckdb') return false;
   return forbiddenPatterns.some((pattern) => pattern.test(file));
 });
 

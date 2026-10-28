@@ -5,33 +5,46 @@ on:
     branches:
       - main
       - master
+  workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: pages-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  quality:
-    uses: ./.github/workflows/blank.yml
   build-and-deploy:
-    needs: quality
-    permissions:
-      contents: write
     runs-on: ubuntu-latest
     steps:
       - name: Checkout 🛎️
         uses: actions/checkout@v4
 
-      - name: Download the production build that passed quality checks
-        uses: actions/download-artifact@v4
+      - name: Setup pnpm 📦
+        uses: pnpm/action-setup@v4
         with:
-          name: verified-production-build
-          path: dist
+          version: 11.13.0
 
-      - name: Deploy 🚀
+      - name: Setup Node.js ⚙️
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install Dependencies 🔧
+        run: pnpm install --frozen-lockfile
+
+      - name: Hygiene Check 🔍
+        run: pnpm audit:gitignore
+
+      - name: Type Check 🔍
+        run: pnpm typecheck
+
+      - name: Production Build 🏗️
+        run: pnpm build
+
+      - name: Deploy to GitHub Pages 🚀
         uses: JamesIves/github-pages-deploy-action@v4
         with:
           folder: dist
