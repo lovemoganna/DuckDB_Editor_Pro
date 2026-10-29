@@ -118,7 +118,7 @@ export interface AppTopBarProps {
 interface NavTabItem {
   tab: Tab;
   label: string;
-  icon: React.ComponentType<{ className?: string; weight?: 'fill' | 'regular'; size?: number }>;
+  icon: React.ComponentType<any>;
   shortcut?: string;
 }
 
@@ -126,7 +126,7 @@ interface DomainCategory {
   id: 'core' | 'analytics' | 'knowledge' | 'ai';
   label: string;
   tag: string;
-  icon: React.ComponentType<{ className?: string; weight?: 'fill' | 'regular'; size?: number; style?: React.CSSProperties }>;
+  icon: React.ComponentType<any>;
   defaultTab: Tab;
   items: NavTabItem[];
 }

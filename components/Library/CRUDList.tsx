@@ -1085,7 +1085,7 @@ export const CRUDList: React.FC<CRUDListProps> = ({ onInspect, onRequestDelete, 
                   : 'text-monokai-comment hover:text-monokai-yellow hover:bg-monokai-surface'
               }`}
             >
-              核心枢纽 ({Object.values(nodeDegreeMap).filter(d => d >= 3).length})
+              核心枢纽 ({Object.values(nodeDegreeMap).filter((d: any) => d >= 3).length})
             </button>
             <button
               type="button"

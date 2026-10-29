@@ -36,7 +36,7 @@ const NODE_TYPE_COLORS: Record<string, string> = {
   other:      'border-monokai-comment/40 text-monokai-comment/80',
 };
 
-function NodeCard({ node, depth = 0 }: { node: ExplainNode; depth?: number }) {
+function NodeCard({ node, depth = 0 }: { key?: React.Key; node: ExplainNode; depth?: number }) {
   const colorClass = NODE_TYPE_COLORS[node.type] ?? NODE_TYPE_COLORS.other;
   const timing = node.annotations.find(a => a.includes('Actual time') || a.includes('Cumulative time'));
 

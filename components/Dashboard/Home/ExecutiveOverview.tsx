@@ -43,7 +43,7 @@ export function ExecutiveOverview({ refreshTrigger = 0 }: { refreshTrigger?: num
   const find = (key: string) => metrics.find(m => m.id.endsWith(`:${key}`));
   const data = (key: string) => results[find(key)?.id || ''] || [];
   const monthly = data('monthly');
-  const units = [...new Set(monthly.map(row => `${row.family}:${row.unit}`))];
+  const units: string[] = Array.from(new Set(monthly.map(row => `${row.family}:${row.unit}`)));
   const selectedUnit = units.includes(unit) ? unit : units[0] || unit;
   const monthlyMetric = find('monthly');
   const panel = (key: string) => {

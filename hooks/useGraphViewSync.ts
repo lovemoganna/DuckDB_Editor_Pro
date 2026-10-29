@@ -142,7 +142,7 @@ export function useGraphViewSync(config: GraphViewSyncConfig = {}) {
     
     // 直接从 store 读取
     const positions: Record<number, { x: number; y: number }> = {};
-    Object.entries(state.canvasPositions).forEach(([key, value]) => {
+    (Object.entries(state.canvasPositions) as [string, any][]).forEach(([key, value]) => {
       const numKey = Number(key);
       if (Number.isFinite(numKey) && !Number.isNaN(numKey) && value && Number.isFinite(value.x) && Number.isFinite(value.y)) {
         positions[numKey] = { x: value.x, y: value.y };
@@ -186,7 +186,7 @@ export function useGraphViewSync(config: GraphViewSyncConfig = {}) {
     
     if (layoutCacheRef.current.nodePositions) {
       const validPositions: Record<number, { x: number; y: number }> = {};
-      for (const [key, pos] of Object.entries(layoutCacheRef.current.nodePositions)) {
+      for (const [key, pos] of Object.entries(layoutCacheRef.current.nodePositions) as [string, any][]) {
         let id: number | null = null;
         if (/^\d+$/.test(key)) {
           id = Number(key);

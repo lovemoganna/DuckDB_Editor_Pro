@@ -269,7 +269,7 @@ export const MetricEditModal: React.FC<MetricEditModalProps> = ({
             <label className="block text-[11px] font-semibold text-monokai-fg-muted uppercase tracking-wider mb-1">
               分组维度（可多选）
             </label>
-            <FormSelect className="h-auto min-h-24" multiple aria-label="分组维度" value={calculation.groupBy || []} onChange={e => setCalculation({ groupBy: Array.from(e.target.selectedOptions, option => option.value) })} >
+            <FormSelect className="h-auto min-h-24" multiple aria-label="分组维度" value={calculation.groupBy || []} onChange={e => setCalculation({ groupBy: Array.from(e.target.selectedOptions, (option: HTMLOptionElement) => option.value) })} >
               {columns.map(col => <option key={col.name}>{col.name}</option>)}
             </FormSelect>
           </div>

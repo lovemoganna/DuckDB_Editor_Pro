@@ -8,7 +8,7 @@ import { tableSpace } from '../../../utils/tableSpace';
 import { formatCellValue } from '../../../utils/typeFormatter';
 import { ActionButton } from '../../ui/Workbench';
 
-export function DatasetPreview({ dataset, datasets, context, revision, onBuildChart, onOpenGraph }: {
+export function DatasetPreview({ dataset, datasets, context, revision, onBuildChart, onOpenGraph }: { key?: React.Key;
   dataset?: DatasetDefinition; datasets: DatasetDefinition[]; context?: DashboardContext; revision: number;
   onBuildChart?: (datasetId: string) => void;
   onOpenGraph?: () => void;

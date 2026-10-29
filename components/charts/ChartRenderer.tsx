@@ -270,7 +270,7 @@ function CanvasView({ bundle, className, heightClass, spec, hiddenLegend, onLege
     if (arc) instance.toggleDataVisibility(index);
     else instance.setDatasetVisibility(index, !instance.isDatasetVisible(index));
     instance.update();
-    const next = new Set(hidden);
+    const next = new Set<number>(hidden);
     if (next.has(index)) next.delete(index); else next.add(index);
     setHidden(next);
     onLegendChange?.(next);

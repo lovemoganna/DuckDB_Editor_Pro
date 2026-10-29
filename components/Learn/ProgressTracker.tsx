@@ -505,7 +505,7 @@ export const ProgressTracker: React.FC<ProgressTrackerProps> = ({
 
   // 计算统计信息
   const tutorialProgress = useMemo(() => {
-    const allProgress = Object.values(progress);
+    const allProgress = Object.values(progress) as any[];
     const completed = allProgress.filter(p => p.completedAt).length;
     const inProgress = allProgress.filter(p => !p.completedAt && p.completedSections?.length > 0).length;
     const sameDayCompletions = allProgress.filter(p => {
@@ -740,7 +740,7 @@ SELECT * FROM departments;`;
               进行中
             </h3>
             <div className="space-y-1">
-              {Object.entries(progress)
+              {(Object.entries(progress) as [string, any][])
                 .filter(([_, p]) => !p.completedAt && p.completedSections?.length > 0)
                 .slice(0, 3)
                 .map(([tutorialId, p]) => {

@@ -710,7 +710,7 @@ export function useOntologyLessons(): UseOntologyLessonsReturn {
       evolution: 0,
     };
     
-    Object.entries(lessonsByStage).forEach(([stage, stageLessons]) => {
+    (Object.entries(lessonsByStage) as [string, any[]][]).forEach(([stage, stageLessons]) => {
       const completed = stageLessons.filter(l => l.isCompleted).length;
       result[stage as OntologyStage] = stageLessons.length > 0 
         ? completed / stageLessons.length 

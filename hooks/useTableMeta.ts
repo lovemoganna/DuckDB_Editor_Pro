@@ -194,7 +194,7 @@ export function useTableMetaMap(tables: string[]): {
     // Find tables that need loading
     const toLoad = tables.filter(t => !metaMap.has(t));
     // Remove stale entries
-    const currentSet = new Set(tables);
+    const currentSet = new Set<string>(tables);
     setMetaMap(prev => {
       const next = new Map(prev);
       let changed = false;

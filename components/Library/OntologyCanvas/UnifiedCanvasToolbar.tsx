@@ -516,7 +516,7 @@ export const UnifiedCanvasToolbar: React.FC<UnifiedCanvasToolbarProps> = ({
   // 循环切换布局
   const cycleLayoutMode = useCallback(() => {
     const modes: OntologyLayoutMode[] = ['orthogonal', 'hierarchical', 'tree', 'force', 'radial', 'circular'];
-    const currentIndex = modes.indexOf(layoutMode);
+    const currentIndex = modes.indexOf(layoutMode as OntologyLayoutMode);
     const nextIndex = (currentIndex + 1) % modes.length;
     const nextMode = modes[nextIndex];
     setLayoutMode(nextMode);

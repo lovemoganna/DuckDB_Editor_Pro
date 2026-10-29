@@ -64,7 +64,7 @@ const SECTION_LABELS: Record<WorkspaceFeatureSection, string> = {
   capability: 'AI 认知',
 };
 
-const SECTION_ICONS: Record<WorkspaceFeatureSection, React.ComponentType<{ className?: string; weight?: 'fill' | 'regular'; size?: number; style?: React.CSSProperties }>> = {
+const SECTION_ICONS: Record<WorkspaceFeatureSection, React.ComponentType<any>> = {
   database: DatabasePhosphor,
   analytics: ChartLinePhosphor,
   knowledge: BooksPhosphor,

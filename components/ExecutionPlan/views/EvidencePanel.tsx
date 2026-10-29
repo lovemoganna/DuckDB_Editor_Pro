@@ -95,7 +95,7 @@ export const EvidencePanel: React.FC<EvidencePanelProps> = ({
   // Structured metrics list from graph
   const tableNodes = useMemo(() => {
     if (!graph || graph.nodes.size === 0) return [];
-    const list = Array.from(graph.nodes.values());
+    const list = Array.from(graph.nodes.values()) as ExecutionNode[];
     if (!filterQuery.trim()) return list;
     const q = filterQuery.toLowerCase();
     return list.filter(

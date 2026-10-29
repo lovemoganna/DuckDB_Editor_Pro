@@ -67,7 +67,7 @@ export const DB = {
     'rounded px-1.5 py-0.5 font-mono text-2xs border border-monokai-cyan/30 bg-monokai-cyan/10 text-monokai-cyan',
 } as const;
 
-export function dbBadgeClass(tone: DbBadgeTone = 'neutral'): string {
+export function dbBadgeClass(tone: DbBadgeTone | string = 'neutral'): string {
   switch (tone) {
     case 'ok':
       return DB.badgeOk;
@@ -89,7 +89,7 @@ export function dbIconBox(className = ''): string {
 /** Accent tint for KPI icon boxes — monokai semantic colors only */
 export type DbAccentTone = 'cyan' | 'accent' | 'yellow' | 'purple' | 'pink' | 'orange' | 'neutral';
 
-export function dbAccentIconBox(tone: DbAccentTone = 'neutral'): string {
+export function dbAccentIconBox(tone: DbAccentTone | string = 'neutral'): string {
   switch (tone) {
     case 'cyan':
       return 'flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-monokai-cyan/30 bg-monokai-cyan/15 text-monokai-cyan';

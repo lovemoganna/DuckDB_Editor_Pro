@@ -51,7 +51,7 @@ export const CodeAssetDetail: React.FC<CodeAssetDetailProps> = ({ asset, onTryCo
       matches.add(m[1]);
     }
 
-    const explicitMap = new Map((asset.params || []).map((p) => [p.name, p]));
+    const explicitMap = new Map<string, any>((asset.params || []).map((p: any) => [p.name, p]));
     const result: Array<{ name: string; label: string; defaultValue: string; description?: string }> = [];
 
     matches.forEach((paramName) => {

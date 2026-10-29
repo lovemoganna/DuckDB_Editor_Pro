@@ -551,7 +551,7 @@ export const ShortcutsHelpDialog: React.FC<ShortcutsHelpDialogProps> = ({
     
     // 应用自定义快捷键
     if (customShortcuts) {
-      Object.entries(customShortcuts).forEach(([id, shortcut]) => {
+      (Object.entries(customShortcuts) as [string, any][]).forEach(([id, shortcut]) => {
         const existing = mapped.get(id);
         if (existing) {
           mapped.set(id, { ...existing, ...shortcut });
@@ -848,7 +848,7 @@ export const ShortcutsHelpDialog: React.FC<ShortcutsHelpDialogProps> = ({
           {/* 按键视图 */}
           {viewMode === 'keybinding' && (
             <div className="space-y-2">
-              {Object.entries(shortcutsByKey).map(([keyCombo, items]) => (
+              {(Object.entries(shortcutsByKey) as [string, any[]][]).map(([keyCombo, items]) => (
                 <div key={keyCombo} className="rounded-lg border border-monokai-border overflow-hidden">
                   <div className="px-3 py-1.5 bg-monokai-bg/50 border-b border-monokai-border/50">
                     <ShortcutKeys keys={keyCombo.split('+')} />

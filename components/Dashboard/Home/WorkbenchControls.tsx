@@ -11,7 +11,7 @@ import { dbService } from '../../../services/dbService';
 
 const emptyContext: DashboardContext = { filters: [], refreshSeconds: 0 };
 const operators = {eq:'等于',ne:'不等于',gte:'大于等于 / 起始时间',lt:'小于 / 截止时间',lte:'小于等于',contains:'包含',isNull:'为空',notNull:'非空'};
-export function FilterEditor({ datasets, filters, onChange }: {datasets:DatasetDefinition[];filters:AnalysisFilter[];onChange:(filters:AnalysisFilter[])=>void}) {
+export function FilterEditor({ datasets, filters, onChange }: {key?: React.Key; datasets:DatasetDefinition[];filters:AnalysisFilter[];onChange:(filters:AnalysisFilter[])=>void}) {
   const [datasetId,setDatasetId]=useState(datasets.length===1?datasets[0].id:''), [field,setField]=useState(''), [operator,setOperator]=useState<AnalysisFilter['operator']>('eq'), [value,setValue]=useState('');
   const dataset=datasets.find(d=>d.id===datasetId);
   return <div className="space-y-2 text-xs">

@@ -563,7 +563,7 @@ function useOntologyStoreInternal() {
 
     try {
       const scope = await duckDBService.getCurrentCatalogAndSchema?.();
-      for (const [nodeIdStr, pos] of Object.entries(positionsToWrite)) {
+      for (const [nodeIdStr, pos] of Object.entries(positionsToWrite) as [string, any][]) {
         if (duckDBService.getRuntimeInfo?.().databaseContextRevision !== revision) return;
         let nodeId: number | null = null;
         if (/^\d+$/.test(nodeIdStr)) {
@@ -1284,7 +1284,7 @@ function useOntologyStoreInternal() {
     }> = [];
 
     // 1. Check Object Types
-    const existingObjTypeNames = new Map(state.objectTypes.map(ot => [ot.name.toLowerCase(), ot]));
+    const existingObjTypeNames = new Map<string, any>(state.objectTypes.map(ot => [ot.name.toLowerCase(), ot]));
     const resolvedObjTypeIds = new Map<number, number>();
 
     (seed.objectTypes || []).forEach((ot: any) => {
@@ -1302,7 +1302,7 @@ function useOntologyStoreInternal() {
     });
 
     // 2. Check Link Types
-    const existingLinkTypeNames = new Map(state.linkTypes.map(lt => [lt.name.toLowerCase(), lt]));
+    const existingLinkTypeNames = new Map<string, any>(state.linkTypes.map(lt => [lt.name.toLowerCase(), lt]));
     const resolvedLinkTypeIds = new Map<number, number>();
 
     (seed.linkTypes || []).forEach((lt: any) => {
@@ -1320,7 +1320,7 @@ function useOntologyStoreInternal() {
     });
 
     // 3. Check Objects
-    const existingObjects = new Map(state.objects.map(o => [`${o.name.toLowerCase()}_${o.object_type_id}`, o]));
+    const existingObjects = new Map<string, any>(state.objects.map(o => [`${o.name.toLowerCase()}_${o.object_type_id}`, o]));
     const resolvedObjectIds = new Map<number, number>();
 
     (seed.objects || []).forEach((o: any) => {
@@ -1375,7 +1375,7 @@ function useOntologyStoreInternal() {
       let nextInsightId = state.insights.length > 0 ? Math.max(...state.insights.map(i => i.id)) : 0;
 
       // 1. Process Object Types
-      const existingObjTypeNames = new Map(state.objectTypes.map(ot => [ot.name.toLowerCase(), ot]));
+      const existingObjTypeNames = new Map<string, any>(state.objectTypes.map(ot => [ot.name.toLowerCase(), ot]));
       const resolvedObjTypeIds = new Map<number, number>();
 
       for (const ot of seed.objectTypes || []) {
@@ -1393,7 +1393,7 @@ function useOntologyStoreInternal() {
       }
 
       // 2. Process Link Types
-      const existingLinkTypeNames = new Map(state.linkTypes.map(lt => [lt.name.toLowerCase(), lt]));
+      const existingLinkTypeNames = new Map<string, any>(state.linkTypes.map(lt => [lt.name.toLowerCase(), lt]));
       const resolvedLinkTypeIds = new Map<number, number>();
 
       for (const lt of seed.linkTypes || []) {
@@ -1411,7 +1411,7 @@ function useOntologyStoreInternal() {
       }
 
       // 3. Process Objects
-      const existingObjects = new Map(state.objects.map(o => [`${o.name.toLowerCase()}_${o.object_type_id}`, o]));
+      const existingObjects = new Map<string, any>(state.objects.map(o => [`${o.name.toLowerCase()}_${o.object_type_id}`, o]));
       const resolvedObjectIds = new Map<number, number>();
 
       for (const o of seed.objects || []) {
@@ -1435,7 +1435,7 @@ function useOntologyStoreInternal() {
 
       if (!schemaOnly) {
         // 4. Process Links
-        const existingLinks = new Map(state.links.map(l => [`${l.link_type_id}_${l.source_object_id}_${l.target_object_id}`, l]));
+        const existingLinks = new Map<string, any>(state.links.map(l => [`${l.link_type_id}_${l.source_object_id}_${l.target_object_id}`, l]));
 
         for (const l of seed.links || []) {
           const resolvedLinkTypeId = resolvedLinkTypeIds.get(l.link_type_id) ?? l.link_type_id;
@@ -1458,7 +1458,7 @@ function useOntologyStoreInternal() {
         }
 
         // 5. Process Actions
-        const existingActions = new Map(state.actions.map(a => [`${a.name.toLowerCase()}_${a.object_id}`, a]));
+        const existingActions = new Map<string, any>(state.actions.map(a => [`${a.name.toLowerCase()}_${a.object_id}`, a]));
 
         for (const a of seed.actions || []) {
           const resolvedObjId = resolvedObjectIds.get(a.object_id) ?? a.object_id;

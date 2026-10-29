@@ -22,7 +22,7 @@ import {PivotTableView} from '../charts/PivotTableView';
 import {AnalysisChartRenderer} from './AnalysisChartRenderer';
 import {AH, AnalysisEmptyHint, AnalysisErrorState, AnalysisLoadingState, AnalysisResultTable, AnalysisSqlBar} from './analysisUi';
 
-export interface PivotEntryProps {
+export interface PivotEntryProps { key?: React.Key;
   currentTable:string; schema:ColumnInfo[]; fieldCatalog?:unknown; initialDimension?:string;
   onInsertSql?:(sql:string, executeDirectly?:boolean)=>void;
 }
@@ -67,7 +67,7 @@ export function PivotExperienceEntry({currentTable,initialDimension,onInsertSql}
 const AGGS:{value:AnalysisAgg;label:string}[]=[{value:'count',label:'计数'},{value:'count_distinct',label:'去重计数'},{value:'sum',label:'求和'},{value:'avg',label:'平均值'},{value:'min',label:'最小值'},{value:'max',label:'最大值'},{value:'median',label:'中位数'}];
 const GRAINS:{value:DateTruncGrain;label:string}[]=[{value:'day',label:'日'},{value:'week',label:'周'},{value:'month',label:'月'},{value:'quarter',label:'季度'},{value:'year',label:'年'}];
 
-export function PivotEditor({initial,initialId,initialSavedAt,onInsertSql}:{initial:PivotDefinition;initialId?:string;initialSavedAt?:number;onInsertSql?:PivotEntryProps['onInsertSql']}) {
+export function PivotEditor({initial,initialId,initialSavedAt,onInsertSql}:{key?: React.Key; initial:PivotDefinition;initialId?:string;initialSavedAt?:number;onInsertSql?:PivotEntryProps['onInsertSql']}) {
   const draftKey=`${pivotSourceKey(initial.source)}:${initialId || 'draft'}`;
   const cached=pivotDrafts.get(draftKey);
   const draft=!initialId || cached?.savedKey===pivotDefinitionKey(initial)?cached:undefined;

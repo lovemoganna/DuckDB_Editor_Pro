@@ -45,7 +45,8 @@ function snippetFsPlugin(): Plugin {
             const proxyEnv = process.env.https_proxy || process.env.http_proxy || process.env.ALL_PROXY || 'http://127.0.0.1:18890';
             if (proxyEnv) {
               try {
-                const { ProxyAgent } = await import('undici');
+                const undiciMod: any = await (import(/* @vite-ignore */ 'undici' as any) as Promise<any>).catch(() => null);
+                const ProxyAgent = undiciMod?.ProxyAgent;
                 fetchOptions.dispatcher = new ProxyAgent(proxyEnv);
               } catch {}
             }

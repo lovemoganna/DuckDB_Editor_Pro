@@ -241,7 +241,7 @@ export function SegmentedTabs<T extends string>({
                 ? (index + 1) % items.length
                 : (index - 1 + items.length) % items.length;
               onChange(items[targetIndex].value);
-              const buttons = event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="tab"]');
+              const buttons = event.currentTarget.parentElement?.querySelectorAll('[role="tab"]') as NodeListOf<HTMLButtonElement> | undefined;
               buttons?.[targetIndex]?.focus();
             }}
             className={`group relative inline-flex shrink-0 items-center gap-1 rounded-md font-medium cursor-pointer transition-all duration-150 select-none ${itemClass} ${focusRing} ${
@@ -338,7 +338,7 @@ export interface PageHeaderProps extends React.HTMLAttributes<HTMLDivElement> {
   sticky?: boolean;
 }
 
-const getToneStyles = (tone: WorkbenchTone) => {
+const getToneStyles = (tone: WorkbenchTone | string = 'accent') => {
   switch (tone) {
     case 'amethyst':
       return {

@@ -6,7 +6,7 @@ import type { DatasetDefinition } from '../../services/workbench/analysisTypes';
 import { datasetModelingMapping } from '../../services/ontologyModelingDatasets';
 
 type Column = { table_catalog: string; table_schema: string; table_name: string; column_name: string };
-export function OntologyModelingMapping({ draft, selectedTypeName, onChange, datasets = [], owner = '', activeDataset }: {
+export function OntologyModelingMapping({ draft, selectedTypeName, onChange, datasets = [], owner = '', activeDataset }: { key?: React.Key;
   draft: OntologyModelingResult; selectedTypeName: string | null; onChange: (d: OntologyModelingResult) => void;
   datasets?: DatasetDefinition[]; owner?: string; activeDataset?: DatasetDefinition;
 }) {

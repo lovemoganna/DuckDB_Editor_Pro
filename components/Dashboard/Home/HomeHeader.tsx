@@ -131,7 +131,7 @@ export const HomeHeader: React.FC<HomeHeaderProps> = ({
             onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget as Node) && event.relatedTarget !== triggerRef.current) setDbMenuOpen(false); }}
             onKeyDown={event => {
               if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
-              const options = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="option"]'));
+              const options = Array.from(event.currentTarget.querySelectorAll('[role="option"]')) as HTMLButtonElement[];
               if (!options.length) return;
               event.preventDefault();
               const index = options.indexOf(document.activeElement as HTMLButtonElement);

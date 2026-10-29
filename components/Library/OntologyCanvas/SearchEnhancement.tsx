@@ -711,8 +711,8 @@ export const SearchEnhancement: React.FC<SearchEnhancementProps> = ({
   const mergedConfig = useMemo(() => ({
     ...DEFAULT_SEARCH_CONFIG,
     ...config,
-    fuzzyMatch: { ...DEFAULT_SEARCH_CONFIG.fuzzyMatch, ...config.fuzzyMatch },
-    highlight: { ...DEFAULT_SEARCH_CONFIG.highlight, ...config.highlight },
+    fuzzyMatch: { ...DEFAULT_SEARCH_CONFIG.fuzzyMatch, ...(config as any).fuzzyMatch },
+    highlight: { ...DEFAULT_SEARCH_CONFIG.highlight, ...(config as any).highlight },
   }), [config]);
 
   // 状态

@@ -146,7 +146,7 @@ export const WidgetChartConfigPanel: React.FC<WidgetChartConfigPanelProps> = ({
       </div>}
       {draft.type === 'combo' && <div className="grid grid-cols-2 gap-2">
         <label>右轴字段<FormSelect style={{height: 120}} aria-label="右轴字段" multiple className={selectClass} value={draft.yRightKeys || []}
-          onChange={e => { const keys = Array.from(e.target.selectedOptions, option => option.value); patch({ yRightKeys:keys, yKeys:draft.yKeys.filter(key => !keys.includes(key)) }); }}>
+          onChange={e => { const keys = Array.from(e.target.selectedOptions, (option: HTMLOptionElement) => option.value); patch({ yRightKeys:keys, yKeys:draft.yKeys.filter(key => !keys.includes(key)) }); }}>
           {cols.map(c => <option key={c} value={c}>{c}</option>)}
         </FormSelect></label>
         <label>右轴单位<input aria-label="右轴单位" className={selectClass} value={draft.unitRight || ''} onChange={e => patch({unitRight:e.target.value})}/></label>

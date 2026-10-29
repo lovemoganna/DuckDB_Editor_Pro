@@ -44,7 +44,7 @@ export const MetricCreatePackageModal: React.FC<MetricCreatePackageModalProps> =
 
   const toggleTable = (tableName: string) => {
     setSelectedTables(prev => {
-      const next = new Set(prev);
+      const next = new Set<string>(prev);
       if (next.has(tableName)) {
         next.delete(tableName);
       } else {
@@ -86,8 +86,8 @@ export const MetricCreatePackageModal: React.FC<MetricCreatePackageModalProps> =
       }));
     }
 
-    const sourceTablesArray = Array.from(selectedTables);
-    if (sourceTablesArray.length === 1) initialMetrics = initialMetrics.map(metric => ({ ...metric, sourceTable: sourceTablesArray[0] }));
+    const sourceTablesArray: string[] = Array.from(selectedTables);
+    if (sourceTablesArray.length === 1) initialMetrics = initialMetrics.map(metric => ({ ...metric, sourceTable: sourceTablesArray[0] as string }));
     const now = Date.now();
     const newPackage: MetricPackage = {
       id: `pkg_${now}_${Math.random().toString(36).slice(2, 9)}`,

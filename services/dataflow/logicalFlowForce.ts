@@ -2,7 +2,7 @@ import { forceSimulation, forceLink, forceManyBody, forceCollide, forceCenter, t
 import type { ElkNode } from 'elkjs/lib/elk.bundled.js';
 import type { DataFlowEdge } from './workflowTypes';
 
-interface Body extends SimulationNodeDatum { id: string; width: number; height: number }
+interface Body extends SimulationNodeDatum { id: string; width: number; height: number; x?: number; y?: number; }
 export interface Box { id: string; x: number; y: number; width: number; height: number }
 interface Point { x: number; y: number }
 

@@ -16,7 +16,7 @@ const RELATION_LABELS: Record<DataLineageGraph['edges'][number]['relationType'],
 };
 
 export const LineageGraphView: React.FC<LineageGraphViewProps> = ({ graph, onClose, embedded = false }) => {
-  const nodesById = new Map(graph.nodes.map(node => [node.id, node]));
+  const nodesById = new Map<string, any>(graph.nodes.map(node => [node.id, node]));
   const diagnostics = graph.diagnostics;
 
   return (

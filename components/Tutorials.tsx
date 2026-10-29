@@ -303,7 +303,7 @@ export const Tutorials: React.FC<TutorialsProps> = ({ onTryCode }) => {
                     </div>
 
                     <div className="flex-1 overflow-y-auto p-2 custom-scrollbar space-y-1.5">
-                        {Object.entries(groupedLessons).map(([category, items]) => {
+                        {(Object.entries(groupedLessons) as [string, any[]][]).map(([category, items]) => {
                             const isExpanded = expandedCategories.has(category);
                             const catCompletedCount = items.filter(i => completed.has(i.id)).length;
                             return (

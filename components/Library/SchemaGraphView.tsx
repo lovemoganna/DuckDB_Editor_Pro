@@ -265,7 +265,7 @@ const SchemaGraphView: React.FC<SchemaGraphViewProps> = ({
       .data(links)
       .enter().append('text')
       .attr('class', 'sg-link-label')
-      .text(d => `${d._fromCol} → ${d._toCol}`);
+      .text((d: any) => `${d._fromCol} → ${d._toCol}`);
 
     // Nodes
     const nodeGroup = g.append('g').attr('class', 'sg-nodes');
@@ -286,15 +286,15 @@ const SchemaGraphView: React.FC<SchemaGraphViewProps> = ({
       );
 
     nodeEls.append('circle')
-      .attr('r', d => (d.size || 20) + 8)
+      .attr('r', (d: any) => (d.size || 20) + 8)
       .style('fill', 'none')
-      .style('stroke', d => d.color)
+      .style('stroke', (d: any) => d.color)
       .style('stroke-width', 1.5)
       .style('opacity', 0.3);
 
     nodeEls.append('circle')
-      .attr('r', d => d.size || 20)
-      .style('fill', d => d.color)
+      .attr('r', (d: any) => d.size || 20)
+      .style('fill', (d: any) => d.color)
       .style('stroke', 'rgba(200,220,255,0.7)')
       .style('stroke-width', 1.5);
 
@@ -303,7 +303,7 @@ const SchemaGraphView: React.FC<SchemaGraphViewProps> = ({
       .text('⬛')
       .attr('text-anchor', 'middle')
       .attr('dominant-baseline', 'middle')
-      .style('font-size', d => `${(d.size || 20) * 0.7}px`)
+      .style('font-size', (d: any) => `${(d.size || 20) * 0.7}px`)
       .style('pointer-events', 'none')
       .style('opacity', 0.25);
 
@@ -313,7 +313,7 @@ const SchemaGraphView: React.FC<SchemaGraphViewProps> = ({
       .data(nodes)
       .enter().append('text')
       .attr('class', 'sg-node-label')
-      .text(d => d.label)
+      .text((d: any) => d.label)
       .style('font-size', '11px');
 
     const subLabelGroup = g.append('g').attr('class', 'sg-sub-labels');
@@ -321,7 +321,7 @@ const SchemaGraphView: React.FC<SchemaGraphViewProps> = ({
       .data(nodes)
       .enter().append('text')
       .attr('class', 'sg-node-sublabel')
-      .text(d => `${d._columnCount} 列`)
+      .text((d: any) => `${d._columnCount} 列`)
       .style('font-size', '9px');
 
     // Fit all on end
@@ -343,16 +343,16 @@ const SchemaGraphView: React.FC<SchemaGraphViewProps> = ({
     // Tick
     sim.on('tick', () => {
       linkEls
-        .attr('x1', d => (d.source as SchemaNode).x || 0)
-        .attr('y1', d => (d.source as SchemaNode).y || 0)
-        .attr('x2', d => {
+        .attr('x1', (d: any) => (d.source as SchemaNode).x || 0)
+        .attr('y1', (d: any) => (d.source as SchemaNode).y || 0)
+        .attr('x2', (d: any) => {
           const src = d.source as SchemaNode, tgt = d.target as SchemaNode;
           const dx = (tgt.x || 0) - (src.x || 0);
           const dy = (tgt.y || 0) - (src.y || 0);
           const dist = Math.sqrt(dx * dx + dy * dy) || 1;
           return (tgt.x || 0) - (dx / dist) * ((tgt.size || 20) + 8);
         })
-        .attr('y2', d => {
+        .attr('y2', (d: any) => {
           const src = d.source as SchemaNode, tgt = d.target as SchemaNode;
           const dx = (tgt.x || 0) - (src.x || 0);
           const dy = (tgt.y || 0) - (src.y || 0);
@@ -361,22 +361,22 @@ const SchemaGraphView: React.FC<SchemaGraphViewProps> = ({
         });
 
       linkLabelEls
-        .attr('x', d => (((d.source as SchemaNode).x || 0) + ((d.target as SchemaNode).x || 0)) / 2)
-        .attr('y', d => (((d.source as SchemaNode).y || 0) + ((d.target as SchemaNode).y || 0)) / 2 - 5);
+        .attr('x', (d: any) => (((d.source as SchemaNode).x || 0) + ((d.target as SchemaNode).x || 0)) / 2)
+        .attr('y', (d: any) => (((d.source as SchemaNode).y || 0) + ((d.target as SchemaNode).y || 0)) / 2 - 5);
 
-      nodeEls.attr('transform', d => `translate(${d.x || 0},${d.y || 0})`);
+      nodeEls.attr('transform', (d: any) => `translate(${d.x || 0},${d.y || 0})`);
       labelEls
-        .attr('x', d => (d.x || 0) + (d.size || 20) + 6)
-        .attr('y', d => (d.y || 0) - 3);
+        .attr('x', (d: any) => (d.x || 0) + (d.size || 20) + 6)
+        .attr('y', (d: any) => (d.y || 0) - 3);
       subLabelEls
-        .attr('x', d => (d.x || 0) + (d.size || 20) + 6)
-        .attr('y', d => (d.y || 0) + 9);
+        .attr('x', (d: any) => (d.x || 0) + (d.size || 20) + 6)
+        .attr('y', (d: any) => (d.y || 0) + 9);
     });
 
     sim.on('end', () => { (window as any).__schemaFitAll?.(); });
 
     // Click to show info
-    nodeEls.on('click', (event, d) => {
+    nodeEls.on('click', (event, d: any) => {
       event.stopPropagation();
       setSelectedNodeId(d.id);
       setNodeInfo({

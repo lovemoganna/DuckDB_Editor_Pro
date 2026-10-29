@@ -3307,7 +3307,7 @@ class DuckDBService {
     console.log('[DuckDB] Cancelling active query...');
     let cancelled = false;
     try {
-      if (this.conn) {
+      if (this.conn && typeof (this.conn as any).cancelSent === 'function') {
         const res = await this.conn.cancelSent();
         if (res) cancelled = true;
       }
@@ -3315,7 +3315,7 @@ class DuckDBService {
       console.warn('[DuckDB] Main connection cancellation warning:', e);
     }
     try {
-      if (this.readConn && this.readConn !== this.conn) {
+      if (this.readConn && this.readConn !== this.conn && typeof (this.readConn as any).cancelSent === 'function') {
         const res = await this.readConn.cancelSent();
         if (res) cancelled = true;
       }

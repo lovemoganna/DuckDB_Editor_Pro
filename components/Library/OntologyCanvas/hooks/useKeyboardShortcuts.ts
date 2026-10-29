@@ -299,7 +299,7 @@ export function useKeyboardShortcuts(
     }
 
     // 遍历所有快捷键查找匹配
-    for (const [key, config] of Object.entries(shortcutsRef.current)) {
+    for (const [key, config] of Object.entries(shortcutsRef.current) as [string, any][]) {
       if (!config.enabled && config.enabled !== undefined) continue;
       if (!config.action) continue;
 
@@ -363,7 +363,7 @@ export function useKeyboardShortcuts(
   const getShortcuts = useCallback(() => shortcutsRef.current, []);
 
   const getShortcutHints = useCallback(() => {
-    return Object.entries(shortcutsRef.current)
+    return (Object.entries(shortcutsRef.current) as [string, any][])
       .filter(([_, config]) => config.description)
       .map(([key, config]) => ({
         key,

@@ -110,7 +110,7 @@ export const ERDiagram: React.FC<ERDiagramProps> = ({ onExecuteSql }) => {
     };
 
     const toggleTable = (table: string) => {
-        const newSet = new Set(selectedTables);
+        const newSet = new Set<string>(selectedTables);
         if (newSet.has(table)) newSet.delete(table);
         else newSet.add(table);
         setSelectedTables(newSet);

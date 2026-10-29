@@ -162,8 +162,8 @@ export const SkillChainPanel: React.FC<SkillChainPanelProps> = ({
     return allSkills.find(s => s.id === step.skillId);
   };
 
-  const completedCount = Object.values(stepStates).filter(s => s.status === 'done').length;
-  const hasErrors = Object.values(stepStates).some(s => s.status === 'error');
+  const completedCount = (Object.values(stepStates) as any[]).filter(s => s.status === 'done').length;
+  const hasErrors = (Object.values(stepStates) as any[]).some(s => s.status === 'error');
 
   return (
     <div className={`rounded-xl border border-monokai-accent/40 overflow-hidden ${className}`}>

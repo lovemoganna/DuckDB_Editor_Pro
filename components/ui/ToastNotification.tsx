@@ -229,7 +229,7 @@ export const ToastNotification: React.FC<{
   duration?: number;
   onClose?: () => void;
 }> = ({ message, type = 'info', duration, onClose }) => {
-  const item: ToastItem = { id: 'single', message, type, duration };
+  const item: ToastItem = { id: 'single', message, type: (type as ToastType) || 'info', duration };
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] pointer-events-auto">
       <SingleToast item={item} onClose={() => onClose?.()} />

@@ -1670,7 +1670,8 @@ export const OntologyModelingWizard: React.FC<Props> = ({ onClose, onImport, loa
 
                     <div className="space-y-1.5">
                       {Object.entries(currentSelectedType.properties || {}).map(([key, propDef]) => {
-                        const typeVal = typeof propDef === 'object' && propDef?.type ? propDef.type : String(propDef || 'VARCHAR');
+                        const propObj = propDef as any;
+                        const typeVal = typeof propDef === 'object' && propObj?.type ? propObj.type : String(propDef || 'VARCHAR');
                         return (
                           <div
                             key={key}
@@ -1701,7 +1702,7 @@ export const OntologyModelingWizard: React.FC<Props> = ({ onClose, onImport, loa
                               <option value="JSON">JSON</option>
                             </select>
                             <label className="text-[10px] flex items-center gap-1"><input type="checkbox" aria-label={`必填 ${key}`}
-                              checked={typeof propDef === 'object' && !!propDef.required} onChange={e => setDraft({ ...draft, objectTypes: draft.objectTypes.map(t => t.name === currentSelectedType.name ? { ...t,
+                              checked={typeof propDef === 'object' && !!(propDef as any).required} onChange={e => setDraft({ ...draft, objectTypes: draft.objectTypes.map(t => t.name === currentSelectedType.name ? { ...t,
                                 properties: { ...t.properties, [key]: { ...(typeof propDef === 'object' ? propDef : {}), name: key, type: typeVal as any, required: e.target.checked } } } : t) })} />必填</label>
                             <button
                               onClick={() => handleDeleteProperty(key)}

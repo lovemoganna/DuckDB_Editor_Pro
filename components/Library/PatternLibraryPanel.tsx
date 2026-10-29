@@ -519,7 +519,7 @@ const StageFilter: React.FC<StageFilterProps> = ({ selected, onSelect, patternCo
           }
         `}
       >
-        全部 ({Object.values(patternCount).reduce((a, b) => a + b, 0)})
+        全部 ({Object.values(patternCount).reduce((a: any, b: any) => a + b, 0)})
       </button>
       {ONTOLOGY_STAGES.map(stage => {
         const count = patternCount[stage.id] || 0;

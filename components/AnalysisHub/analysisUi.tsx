@@ -90,7 +90,7 @@ const ICON_TONE_MAP = {
   accent: 'bg-monokai-accent/15 text-monokai-accent',
 } as const;
 
-export function analysisIconBox(tone: keyof typeof ICON_TONE_MAP = 'accent'): string {
+export function analysisIconBox(tone: any = 'accent'): string {
   return `flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${ICON_TONE_MAP[tone]}`;
 }
 

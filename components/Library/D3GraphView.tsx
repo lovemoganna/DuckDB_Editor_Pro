@@ -557,7 +557,7 @@ const D3GraphView: React.FC<{
     if (!link) {
       if (selectedLinkId.startsWith('act-link-')) {
         const actId = selectedLinkId.replace('act-link-', '');
-        const actNode = nodeMap.get(actId);
+        const actNode = nodeMap.get(actId) as any;
         if (actNode && actNode._objId) {
           const owner = nodeMap.get(`obj::${actNode._objId}`);
           return {
@@ -4724,7 +4724,7 @@ const D3GraphView: React.FC<{
   const fullStats = fullGraphData ? { nodes: fullGraphData.nodes.length, links: fullGraphData.links.length } : stats;
   const focusNode = fullGraphData?.nodes.find(n => n.id === focusedNodeId) || graphData?.nodes.find(n => n.id === focusedNodeId) || null;
   const relationLegendItems = fullGraphData
-    ? Object.values(fullGraphData.linkTypeMap).map((lt) => {
+    ? Object.values(fullGraphData.linkTypeMap).map((lt: any) => {
         const sample = fullGraphData.links.find(l => l._linkTypeId === lt.id);
         return {
           id: lt.id,
