@@ -339,7 +339,6 @@ class DuckDBService {
     this.db = null;
     this.initPromise = null;
     this.isInitialized = false;
-    this.isInitializing = false;
     this.isCrashed = false;
     this.crashError = null;
 
