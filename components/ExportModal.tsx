@@ -1,3 +1,4 @@
+import { zipSync, strToU8 } from 'fflate';
 /**
  * ExportModal - 导出数据库资产 (BRD index6 R1 & R2)
  *
@@ -33,7 +34,7 @@ interface ExportModalProps {
   onClose: () => void;
 }
 
-export type DatabaseExportMode = 'snapshot' | 'portable' | 'schema_only';
+export type DatabaseExportMode = 'snapshot' | 'portable' | 'raw_duckdb' | 'schema_only';
 
 interface ExportModeConfig {
   id: DatabaseExportMode;
@@ -59,13 +60,23 @@ const EXPORT_MODES: ExportModeConfig[] = [
   },
   {
     id: 'portable',
-    label: '可移植数据库包（JSON 清单）',
-    badge: '.json',
+    label: '便携数据库包 (.zip)',
+    badge: '.zip',
     icon: Archive,
-    description: '包含 schema.sql、load.sql 与数据清单元数据的标准结构化迁移包，适合跨平台配置管理与自动化导入。',
-    fileExt: 'json',
-    formatName: 'JSON 清单',
-    compression: 'None',
+    description: '包含 schema.sql、load.sql、manifest.json 与全量表数据 CSV 的真实压缩归档，开箱即用，适合完整离线迁移。',
+    fileExt: 'zip',
+    formatName: 'ZIP 归档',
+    compression: 'DEFLATE',
+  },
+  {
+    id: 'raw_duckdb',
+    label: '原生 DuckDB 二进制文件',
+    badge: '.duckdb',
+    icon: Database,
+    description: '直接提取当前浏览器 OPFS 底层二进制 *.duckdb 数据库文件，保留全部索引与原始存储结构，可在 Python、DBeaver 或 DuckDB CLI 中直接秒开。',
+    fileExt: 'duckdb',
+    formatName: 'DuckDB Binary',
+    compression: 'Native',
   },
   {
     id: 'schema_only',
@@ -117,27 +128,55 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose }) => 
         a.click();
         toastService.success('完整备份导出成功', `已下载数据库 SQL 备份文件: ${filename}`);
       } else if (selectedMode === 'portable') {
-        // Portable database json package (schema.sql + load.sql + parquet data manifest)
+        // Real ZIP archive with schema.sql, load.sql, manifest.json and table data
         const schema = await duckDBService.exportSchema();
-        const loadSql = tables.map(t => `COPY "${t}" FROM '${t}.parquet' (FORMAT parquet);`).join('\n');
+        const currentDb = duckDBService.getRuntimeInfo().currentDatabase || 'main';
+        const loadSql = tables.map(t => `COPY "${t}" FROM 'data/${t}.csv' (AUTO_DETECT TRUE);`).join('\n');
         const manifestSummary = {
-          database: 'main',
+          database: currentDb,
           exportedAt: new Date().toISOString(),
-          tables: tables.map(t => ({ name: t, format: 'parquet', file: `${t}.parquet` })),
+          tables: tables.map(t => ({ name: t, format: 'csv', file: `data/${t}.csv` })),
         };
-        const exportDump = {
-          'schema.sql': schema,
-          'load.sql': loadSql,
-          'manifest.json': manifestSummary,
+        const zipFiles: Record<string, Uint8Array> = {
+          'manifest.json': strToU8(JSON.stringify(manifestSummary, null, 2)),
+          'schema.sql': strToU8(schema),
+          'load.sql': strToU8(loadSql),
         };
-        const blob = new Blob([JSON.stringify(exportDump, null, 2)], { type: 'application/json' });
-        const filename = `database_manifest_${timestamp}.json`;
+        for (const t of tables) {
+          try {
+            const rows = await duckDBService.query(`SELECT * FROM "${t.replace(/"/g, '""')}"`);
+            if (rows.length > 0) {
+              const cols = Object.keys(rows[0]);
+              const header = cols.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',');
+              const rowLines = rows.map(r => cols.map(c => `"${String(r[c] ?? '').replace(/"/g, '""')}"`).join(','));
+              zipFiles[`data/${t}.csv`] = strToU8(`${header}\n${rowLines.join('\n')}`);
+            } else {
+              zipFiles[`data/${t}.csv`] = strToU8('');
+            }
+          } catch (tErr) {
+            console.warn(`Could not export table ${t} to zip:`, tErr);
+          }
+        }
+        const zipped = zipSync(zipFiles);
+        const blob = new Blob([zipped], { type: 'application/zip' });
+        const filename = `${currentDb}_portable_${timestamp}.zip`;
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
         a.download = filename;
         a.click();
-        toastService.success('可移植数据库包导出成功', `已下载迁移包: ${filename}`);
+        toastService.success('便携数据库包导出成功', `已下载完整压缩归档: ${filename}`);
+      } else if (selectedMode === 'raw_duckdb') {
+        // Raw OPFS binary duckdb export
+        const duckdbBlob = await duckDBService.exportOpfsDatabase();
+        const currentDb = duckDBService.getRuntimeInfo().currentDatabase || 'main';
+        const filename = `${currentDb}_${timestamp}.duckdb`;
+        const url = URL.createObjectURL(duckdbBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        toastService.success('DuckDB 二进制库导出成功', `已下载原生数据库文件: ${filename}`);
       } else {
         // Schema only
         const schema = await duckDBService.exportSchema();

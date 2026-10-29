@@ -21,6 +21,20 @@ export interface CsvExportOptions {
   bom?: boolean;
   /** Custom column names (defaults to result column names). */
   columns?: string[];
+  /** Sanitize leading formula characters (=, +, -, @, \t, \r) to prevent CSV / formula injection (CWE-1236). Default: true. */
+  sanitizeFormulas?: boolean;
+}
+
+/**
+ * Sanitize cell values for CSV export according to OWASP CSV Injection guidelines.
+ * Prepends a single quote ' if string begins with =, +, -, @, \t, or \r.
+ */
+export function sanitizeCsvFormula(value: string): string {
+  if (typeof value !== 'string' || value.length === 0) return value;
+  if (/^[=+\-@\t\r]/.test(value)) {
+    return `'${value}`;
+  }
+  return value;
 }
 
 /** Options for HTML report. */
@@ -43,7 +57,7 @@ export interface MarkdownExportOptions {
  * Export query results as CSV (optionally with UTF-8 BOM for Excel).
  */
 export function exportCsv(result: QueryResult, options: CsvExportOptions = {}): Blob {
-  const { bom = true, columns } = options;
+  const { bom = true, columns, sanitizeFormulas = true } = options;
   const cols = columns ?? result.columns;
   const header = cols.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',');
 
@@ -51,7 +65,10 @@ export function exportCsv(result: QueryResult, options: CsvExportOptions = {}): 
     cols.map(c => {
       const v = r[c];
       if (v === null || v === undefined) return '';
-      const s = typeof v === 'bigint' ? v.toString() : String(v);
+      let s = typeof v === 'bigint' ? v.toString() : String(v);
+      if (sanitizeFormulas) {
+        s = sanitizeCsvFormula(s);
+      }
       return `"${s.replace(/"/g, '""')}"`;
     }).join(',')
   );

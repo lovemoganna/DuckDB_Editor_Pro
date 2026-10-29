@@ -7,12 +7,13 @@ import { ExportModal } from './ExportModal';
 afterEach(cleanup);
 
 describe('ExportModal (BRD index6 R1 & R2)', () => {
-  it('renders 3 export modes and Export Manifest preview', () => {
+  it('renders all export modes including raw duckdb and Export Manifest preview', () => {
     render(<ExportModal isOpen={true} onClose={vi.fn()} />);
 
-    // 3 Modes
+    // 4 Modes
     expect(screen.getByText('DuckDB 完整 SQL 备份')).toBeTruthy();
-    expect(screen.getByText('可移植数据库包（JSON 清单）')).toBeTruthy();
+    expect(screen.getByText('便携数据库包 (.zip)')).toBeTruthy();
+    expect(screen.getByText('原生 DuckDB 二进制文件')).toBeTruthy();
     expect(screen.getByText('仅 Schema（DDL）')).toBeTruthy();
 
     // Export Manifest
@@ -24,14 +25,16 @@ describe('ExportModal (BRD index6 R1 & R2)', () => {
   it('switches export modes and updates manifest format', () => {
     render(<ExportModal isOpen={true} onClose={vi.fn()} />);
 
-    const jsonModeBtn = screen.getByText('可移植数据库包（JSON 清单）');
-    fireEvent.click(jsonModeBtn);
+    const zipModeBtn = screen.getByText('便携数据库包 (.zip)');
+    fireEvent.click(zipModeBtn);
+    expect(screen.getByText('ZIP 归档')).toBeTruthy();
 
-    expect(screen.getByText('JSON 清单')).toBeTruthy();
+    const rawModeBtn = screen.getByText('原生 DuckDB 二进制文件');
+    fireEvent.click(rawModeBtn);
+    expect(screen.getByText('DuckDB Binary')).toBeTruthy();
 
     const sqlModeBtn = screen.getByText('仅 Schema（DDL）');
     fireEvent.click(sqlModeBtn);
-
     expect(screen.getByText('SQL DDL')).toBeTruthy();
   });
 });

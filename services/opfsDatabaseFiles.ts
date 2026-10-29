@@ -131,3 +131,19 @@ export async function deleteOpfsDuckdbFile(alias: string): Promise<void> {
     }
   }
 }
+
+/** Export a DuckDB database file from OPFS as a Blob. */
+export async function exportOpfsDuckdbFile(alias: string = DEFAULT_SESSION_HUB_ALIAS): Promise<Blob> {
+  if (!isOpfsAvailable()) throw new Error('OPFS 不可用，无法导出底层数据库文件');
+  const fileName = duckdbFileName(alias);
+  const root = await getOpfsRoot();
+  try {
+    const handle = await root.getFileHandle(fileName);
+    return await handle.getFile();
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'NotFoundError') {
+      throw new Error(`OPFS 中未找到数据库文件 ${fileName}`);
+    }
+    throw error;
+  }
+}

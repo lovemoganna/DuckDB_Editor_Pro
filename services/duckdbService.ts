@@ -41,6 +41,7 @@ import {
   importOpfsDuckdbFile,
   opfsAttachPath,
   prepareOpfsWorkspaceFile,
+  exportOpfsDuckdbFile,
 } from './opfsDatabaseFiles';
 import { validateDuckDBDatabaseFile } from './workspaceDatabaseFile';
 import { requestBrowserStoragePersistence, type StorageStatus } from './storageSafe';
@@ -314,7 +315,13 @@ class DuckDBService {
     });
     this.queryQueue=operation.then(()=>{},()=>{});
     lifecycle?.onExecutionScheduled?.(this.queryQueue);
-    return timeoutMs===null?operation:withTimeout(operation,timeoutMs,'DuckDB 查询队列执行超时 (25s)');
+    if (timeoutMs === null) return operation;
+    return withTimeout(operation, timeoutMs, 'DuckDB 查询队列执行超时 (25s)').catch((err) => {
+      if (err instanceof Error && err.message.includes('DuckDB 查询队列执行超时')) {
+        void this.cancelActiveQuery();
+      }
+      throw err;
+    });
   }
 
   private logicalFlowContextPromise: Promise<import('./dataflow/logicalRelationFlowParser').FlowParseContext> | null = null;
@@ -1967,6 +1974,12 @@ class DuckDBService {
     return sql;
   }
 
+  async exportOpfsDatabase(alias?: string): Promise<Blob> {
+    const targetAlias = alias || this.currentDatabaseName || DEFAULT_SESSION_HUB_ALIAS;
+    await this.checkpointPersistentCatalogs();
+    return exportOpfsDuckdbFile(targetAlias);
+  }
+
   // 完整备份 - Schema + Data
   async exportFullBackup(format: 'sql' | 'json' = 'sql'): Promise<Blob> {
     if (!this.conn) throw new Error("DB not ready");
@@ -3290,8 +3303,26 @@ class DuckDBService {
     }
   }
 
-  async cancelActiveQuery(): Promise<void> {
-    // Cancellation stub
+  async cancelActiveQuery(): Promise<boolean> {
+    console.log('[DuckDB] Cancelling active query...');
+    let cancelled = false;
+    try {
+      if (this.conn) {
+        const res = await this.conn.cancelSent();
+        if (res) cancelled = true;
+      }
+    } catch (e) {
+      console.warn('[DuckDB] Main connection cancellation warning:', e);
+    }
+    try {
+      if (this.readConn && this.readConn !== this.conn) {
+        const res = await this.readConn.cancelSent();
+        if (res) cancelled = true;
+      }
+    } catch (e) {
+      console.warn('[DuckDB] Read connection cancellation warning:', e);
+    }
+    return cancelled;
   }
 
   async executeTransaction<T = unknown>(statementsOrCallback: string[] | ((query: (sql: string) => Promise<any[]>) => Promise<T>)): Promise<T | void> {
