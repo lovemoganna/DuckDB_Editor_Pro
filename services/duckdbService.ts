@@ -43,6 +43,7 @@ import {
   prepareOpfsWorkspaceFile,
 } from './opfsDatabaseFiles';
 import { validateDuckDBDatabaseFile } from './workspaceDatabaseFile';
+import { requestBrowserStoragePersistence, type StorageStatus } from './storageSafe';
 
 export interface DuckDBRuntimeInfo {
   ready?: boolean;
@@ -103,6 +104,9 @@ class DuckDBService {
   private isBatchExecuting = false;
   private queryQueue: Promise<any> = Promise.resolve();
   private databaseLifecycleQueue: Promise<unknown> = Promise.resolve();
+  public isCrashed = false;
+  public crashError: string | null = null;
+  public storageStatus: StorageStatus | null = null;
 
   private serializeDatabaseLifecycle<T>(operation: () => Promise<T>): Promise<T> {
     const result = this.databaseLifecycleQueue.then(operation);
@@ -288,13 +292,63 @@ class DuckDBService {
 
   private async runInQueue<T>(fn: () => Promise<T>, timeoutMs: number | null = 25000, lifecycle?: import('./workbench/queryLifecycle').QueryLifecycle): Promise<T> {
     // A UI timeout must never release the connection while the engine is still executing.
-    const operation=this.queryQueue.then(fn);
+    const operation = this.queryQueue.then(async () => {
+      try {
+        return await fn();
+      } catch (err: any) {
+        const msg = String(err?.message || err);
+        if (/out of bounds|memory access|Worker terminated|unreachable|RuntimeError/i.test(msg)) {
+          console.error('[DuckDB Watchdog] Detected fatal worker crash:', msg);
+          this.isCrashed = true;
+          this.crashError = msg;
+          if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+            window.dispatchEvent(
+              new CustomEvent('duckdb-kernel-crashed', {
+                detail: { error: msg }
+              })
+            );
+          }
+        }
+        throw err;
+      }
+    });
     this.queryQueue=operation.then(()=>{},()=>{});
     lifecycle?.onExecutionScheduled?.(this.queryQueue);
     return timeoutMs===null?operation:withTimeout(operation,timeoutMs,'DuckDB 查询队列执行超时 (25s)');
   }
 
   private logicalFlowContextPromise: Promise<import('./dataflow/logicalRelationFlowParser').FlowParseContext> | null = null;
+
+  public getStorageStatus(): StorageStatus | null {
+    return this.storageStatus;
+  }
+
+  public async requestPersistence(): Promise<StorageStatus> {
+    this.storageStatus = await requestBrowserStoragePersistence();
+    return this.storageStatus;
+  }
+
+  public async restartEngine(): Promise<void> {
+    console.warn('[DuckDB] Restarting DuckDB Engine...');
+    try { await this.conn?.close(); } catch { /* ignore */ }
+    try { if (this.readConn && this.readConn !== this.conn) await this.readConn.close(); } catch { /* ignore */ }
+    try { await this.db?.terminate(); } catch { /* ignore */ }
+
+    this.conn = null;
+    this.readConn = null;
+    this.db = null;
+    this.initPromise = null;
+    this.isInitialized = false;
+    this.isInitializing = false;
+    this.isCrashed = false;
+    this.crashError = null;
+
+    await this.init();
+    this.dispatchSchemaChanged();
+    if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+      window.dispatchEvent(new CustomEvent('duckdb-kernel-restarted'));
+    }
+  }
 
   dispatchSchemaChanged(force: boolean = false) {
     this.logicalFlowContextPromise = null;
@@ -381,7 +435,28 @@ class DuckDBService {
         };
 
         this.db = new duckdb.AsyncDuckDB(logger, worker);
-        await withTimeout(this.db.instantiate(mainModuleURL), 60000, 'DuckDB WASM 内核加载超时');
+        await withTimeout(
+          this.db.instantiate(mainModuleURL, null, (progress: duckdb.InstantiationProgress) => {
+            if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+              const bytesLoaded = progress.bytesLoaded || 0;
+              const bytesTotal = progress.bytesTotal || 0;
+              const percent = bytesTotal > 0 ? Math.min(100, Math.round((bytesLoaded / bytesTotal) * 100)) : 0;
+              window.dispatchEvent(
+                new CustomEvent('duckdb-init-progress', {
+                  detail: {
+                    bytesLoaded,
+                    bytesTotal,
+                    percent,
+                    loadedMb: (bytesLoaded / (1024 * 1024)).toFixed(1),
+                    totalMb: (bytesTotal / (1024 * 1024)).toFixed(1),
+                  }
+                })
+              );
+            }
+          }),
+          60000,
+          'DuckDB WASM 内核加载超时'
+        );
         worker = null; // ownership transferred to AsyncDuckDB on success
       } catch (err) {
         try { worker?.terminate(); } catch { /* ignore */ }

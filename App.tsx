@@ -3,6 +3,7 @@ import React, { useEffect, useCallback, useState, useRef } from 'react';
 import { AlertTriangle, X, ChevronRight } from 'lucide-react';
 import { ErrorBoundary } from './components/ui/ErrorBoundary';
 import { duckDBService, type DuckDBRuntimeInfo } from './services/duckdbService';
+import { multiTabCoordinator } from './services/multiTabCoordinator';
 import { dbService } from './services/dbService';
 import { useWorkflowStore } from './services/dataflow/workflowStore';
 import { Tab, Notification, ColumnInfo, ColumnStats, MetricChart } from './types';
@@ -121,6 +122,16 @@ const AppContent: React.FC = () => {
     if (linked && linked.databaseName !== currentDatabase) useAnalysisWorkspace.getState().setContext(null);
   }, [currentDatabase]);
   const [initError, setInitError] = useState<string | null>(null);
+  const [initProgress, setInitProgress] = useState<{
+    bytesLoaded: number;
+    bytesTotal: number;
+    percent: number;
+    loadedMb: string;
+    totalMb: string;
+  } | null>(null);
+  const [kernelCrashError, setKernelCrashError] = useState<string | null>(null);
+  const [tabConflict, setTabConflict] = useState(false);
+  const [dismissTabConflict, setDismissTabConflict] = useState(false);
   const [runtimeInfo, setRuntimeInfo] = useState<DuckDBRuntimeInfo>(() => (
     typeof duckDBService?.getRuntimeInfo === 'function'
       ? duckDBService.getRuntimeInfo()
@@ -356,6 +367,46 @@ const AppContent: React.FC = () => {
     };
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
+  // Listen for DuckDB WASM download progress, crash watchdog, and multi-tab concurrency
+  useEffect(() => {
+    const handleProgress = (e: Event) => {
+      const customEvent = e as CustomEvent<{
+        bytesLoaded: number;
+        bytesTotal: number;
+        percent: number;
+        loadedMb: string;
+        totalMb: string;
+      }>;
+      if (customEvent.detail) {
+        setInitProgress(customEvent.detail);
+      }
+    };
+
+    const handleCrash = (e: Event) => {
+      const customEvent = e as CustomEvent<{ error: string }>;
+      setKernelCrashError(customEvent.detail?.error || '内核已中断');
+    };
+
+    const handleRestarted = () => {
+      setKernelCrashError(null);
+    };
+
+    window.addEventListener('duckdb-init-progress', handleProgress);
+    window.addEventListener('duckdb-kernel-crashed', handleCrash);
+    window.addEventListener('duckdb-kernel-restarted', handleRestarted);
+
+    const unsubscribeConflict = multiTabCoordinator.onConflictChange((hasConflict) => {
+      setTabConflict(hasConflict);
+    });
+
+    return () => {
+      window.removeEventListener('duckdb-init-progress', handleProgress);
+      window.removeEventListener('duckdb-kernel-crashed', handleCrash);
+      window.removeEventListener('duckdb-kernel-restarted', handleRestarted);
+      unsubscribeConflict();
+    };
   }, []);
 
   // ── 知识学习 × 本体建模 双向跳转导航监听 ──
@@ -849,11 +900,21 @@ const AppContent: React.FC = () => {
         <p className="text-xs text-monokai-comment font-mono mb-6 tracking-wide">High-Performance WASM Analytics Kernel</p>
 
         {/* Progress Bar & Status */}
-        <div className="w-60 flex flex-col items-center gap-2">
-          <div className="w-full h-1 bg-monokai-surface rounded-full overflow-hidden relative">
-            <div className="h-full bg-gradient-to-r from-monokai-green to-monokai-yellow rounded-full animate-pulse w-3/4" />
+        <div className="w-72 flex flex-col items-center gap-2.5">
+          <div className="w-full h-1.5 bg-monokai-surface rounded-full overflow-hidden relative p-[1px] border border-white/5">
+            <div
+              className={`h-full bg-gradient-to-r from-monokai-green via-monokai-cyan to-monokai-yellow rounded-full transition-all duration-200 ease-out ${!initProgress ? 'animate-pulse' : ''}`}
+              style={{ width: `${Math.max(6, Math.min(100, initProgress?.bytesTotal ? initProgress.percent : 45))}%` }}
+            />
           </div>
-          <span className="text-[11px] text-monokai-comment font-mono tracking-wide">正在初始化 DuckDB 工作区…</span>
+          <div className="flex items-center justify-between w-full text-[11px] font-mono text-monokai-comment">
+            <span>
+              {initProgress && initProgress.bytesTotal > 0
+                ? (initProgress.percent >= 100 ? '正在配置工作区元数据与 VFS...' : `正在加载内核组件 (${initProgress.loadedMb} / ${initProgress.totalMb} MB)`)
+                : '正在初始化 DuckDB 工作区…'}
+            </span>
+            <span>{initProgress && initProgress.bytesTotal > 0 ? `${initProgress.percent}%` : ''}</span>
+          </div>
         </div>
       </div>
     );
@@ -941,6 +1002,39 @@ const AppContent: React.FC = () => {
         activeDatabase={currentDatabase || runtimeInfo.currentDatabase || 'memory'}
         onSwitchAnalysisContext={handleSwitchAnalysisContext}
       />
+
+      {/* Kernel Crash Recovery Banner */}
+      {kernelCrashError && (
+        <div className="bg-red-500/15 border-b border-red-500/30 text-red-300 px-4 py-2 text-xs flex items-center justify-between z-50">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
+            <span>DuckDB WASM 内核遇到异常中断: {kernelCrashError}</span>
+          </div>
+          <button
+            onClick={() => duckDBService.restartEngine()}
+            className="px-2.5 py-1 bg-red-600 hover:bg-red-500 text-white rounded text-xs font-medium transition-colors shadow-sm"
+          >
+            重启内核
+          </button>
+        </div>
+      )}
+
+      {/* Multi-Tab Concurrency Guard Banner */}
+      {tabConflict && !dismissTabConflict && (
+        <div className="bg-amber-500/10 border-b border-amber-500/20 text-amber-300 px-4 py-1.5 text-xs flex items-center justify-between z-40">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+            <span>多标签页并发提示：检测到其他标签页也打开了 DuckDB。请尽量在单一标签页写入，避免浏览器存储锁冲突。</span>
+          </div>
+          <button
+            onClick={() => setDismissTabConflict(true)}
+            className="text-amber-400/70 hover:text-amber-300 p-0.5"
+            title="关闭提示"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
 
       {/* Main Studio Body (Center Content Area) */}
       <main className="flex flex-1 flex-col min-h-0 min-w-0 overflow-hidden bg-monokai-bg">

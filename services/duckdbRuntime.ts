@@ -87,24 +87,45 @@ export function duckDBResultToRows(
   // DuckDB-Wasm exposes HUGEINT as signed little-endian Arrow FixedSizeBinary.
   // Variable-width Binary (BLOB) retains its original value.
   const hugeInts = new Set(fields.filter(field => field.type.typeId === 15 && field.type.byteWidth === 16).map(field => field.name));
-  return values.map(value => {
+  const hasSpecialColumns = decimalScales.size > 0 || hugeInts.size > 0;
+  const numRows = values.length;
+  const outRows: RuntimeRow[] = new Array(numRows);
+
+  for (let r = 0; r < numRows; r++) {
+    const value = values[r];
     const row = value && typeof (value as { toJSON?: unknown }).toJSON === 'function'
       ? (value as { toJSON(): RuntimeRow }).toJSON()
       : value as RuntimeRow;
-    return Object.fromEntries(Object.entries(row).map(([key, cell]) => [
-      key, hugeInts.has(key) && cell instanceof Uint8Array && cell.length === 16
-        ? (() => {
-          let integer = 0n;
-          for (let i = 15; i >= 0; i--) integer = (integer << 8n) + BigInt(cell[i]);
-          integer = BigInt.asIntN(128, integer);
-          const number = Number(integer);
-          return Number.isSafeInteger(number) ? number : integer.toString();
-        })()
-        : decimalScales.has(key)
-        ? decimalText(cell, decimalScales.get(key)!)
-        : normalizeValue(cell),
-    ])) as RuntimeRow;
-  });
+
+    if (!row || typeof row !== 'object') {
+      outRows[r] = row;
+      continue;
+    }
+
+    const rowKeys = Object.keys(row);
+    const cleanedRow: RuntimeRow = {};
+
+    for (let k = 0; k < rowKeys.length; k++) {
+      const key = rowKeys[k];
+      const cell = (row as Record<string, unknown>)[key];
+
+      if (hasSpecialColumns && hugeInts.has(key) && cell instanceof Uint8Array && cell.length === 16) {
+        let integer = 0n;
+        for (let i = 15; i >= 0; i--) integer = (integer << 8n) + BigInt(cell[i]);
+        integer = BigInt.asIntN(128, integer);
+        const number = Number(integer);
+        cleanedRow[key] = Number.isSafeInteger(number) ? number : integer.toString();
+      } else if (hasSpecialColumns && decimalScales.has(key)) {
+        cleanedRow[key] = decimalText(cell, decimalScales.get(key)!);
+      } else {
+        cleanedRow[key] = normalizeValue(cell);
+      }
+    }
+
+    outRows[r] = cleanedRow;
+  }
+
+  return outRows;
 }
 
 export async function verifyDuckDBReadiness(
