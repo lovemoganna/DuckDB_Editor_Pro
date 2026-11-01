@@ -46,7 +46,7 @@ jobs:
         run: pnpm test:home:browser
       - name: Dashboard acceptance evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: dashboard-browser-evidence
           path: |
@@ -55,7 +55,7 @@ jobs:
       - name: Production build
         run: pnpm build
       - name: Store verified production build
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: verified-production-build
           path: dist/
